@@ -39,6 +39,117 @@ int main()
 		auto catalog = resolve_packs({loaded});
 		{
 			auto source = base;
+			auto definitions = parse_json(source.files.at("definitions.json"), "resource fixture");
+			definitions["resources"] = Json::array(
+			    {{{"id", "test.ore"}, {"label", "Ore"}, {"tags", Json::array({"cargo"})}, {"sizes", {{"cargo", 3}}}},
+			     {{"id", "test.ingot"}, {"extends", "test.ore"}, {"label", "Ingot"}, {"sizes", {{"cargo", 2}}}}});
+			definitions["recipes"] = Json::array({{{"id", "test.smelting"},
+			                                       {"label", "Smelting"},
+			                                       {"tags", Json::array({"industry"})},
+			                                       {"work", 20},
+			                                       {"inputs", {{"test.ore", 2}}},
+			                                       {"outputs", {{"test.ingot", 1}}}}});
+			definitions["recipes"].push_back({{"id", "test.continuous"},
+			                                  {"label", "Exact mixed outputs"},
+			                                  {"work", 1},
+			                                  {"inputs", {{"test.ore", 2}}},
+			                                  {"outputs", {{"test.ingot", 4}, {"test.ore", 2}}}});
+			source.files["definitions.json"] = json_bytes(definitions);
+			const auto resolved = resolve_packs({read_pack(write_pack(source))});
+			require(compile_resource_catalog(resolved).at("test.ingot").sizes.at("cargo") == 2,
+			        "resource inheritance resolves capacity sizes");
+			require(compile_recipe(resolved, "test.smelting").inputs.at("test.ore") == 2,
+			        "recipes retain exact resource requirements");
+			Json processor = {{"recipe", "test.smelting"},
+			                  {"mode", "continuous"},
+			                  {"inputs", {{"test.ore", "ore"}}},
+			                  {"outputs", {{"test.ingot", "ingots"}, {"test.ore", "recovered"}}}};
+			rejected(
+			    [&]
+			    {
+				    (void)compile_processor(resolved, processor, "smelter");
+			    },
+			    "continuous recipe period 20000 exceeds");
+			processor["mode"] = "batch";
+			require(!compile_processor(resolved, processor, "smelter").continuous,
+			        "batch processing retains recipes outside continuous ratio bounds");
+			processor["mode"] = "continuous";
+			processor["recipe"] = "test.continuous";
+			const auto continuous = compile_processor(resolved, processor, "smelter");
+			require(continuous.continuous && continuous.recipes.front().outputs.size() == 2 &&
+			            continuous.recipes.front().inputs.at("test.ore") == 2 &&
+			            continuous.recipes.front().outputs.at("test.ingot") == 4,
+			        "supported exact continuous ratios retain all inputs and multiple outputs");
+			Json stock = {{"capacity_tag", "cargo"},
+			              {"capacity", 10},
+			              {"filter", {{"tags", Json::array({"cargo"})}}},
+			              {"initial", {{"test.ore", 2}, {"test.ingot", 2}}}};
+			require(compile_stock_store(resolved, stock, "hold").initial.size() == 2,
+			        "mixed stores share one capacity measured by tag size");
+			stock["initial"]["test.ingot"] = 3;
+			rejected(
+			    [&]
+			    {
+				    (void)compile_stock_store(resolved, stock, "hold");
+			    },
+			    "shared capacity");
+			auto bad = source;
+			auto unknown = definitions;
+			unknown["recipes"][0]["inputs"]["missing.resource"] = 1;
+			bad.files["definitions.json"] = json_bytes(unknown);
+			rejected(
+			    [&]
+			    {
+				    (void)resolve_packs({read_pack(write_pack(bad))});
+			    },
+			    "unknown exact resource");
+			PackDraft patch;
+			patch.manifest = {
+			    {"schema", 1}, {"id", "resource-mod"}, {"dependencies", {"test-core"}}, {"overrides", {"test.ore"}}};
+			auto ore = definitions["resources"][0];
+			ore["sizes"]["cargo"] = 4;
+			patch.files["definitions.json"] = json_bytes({{"schema", 4}, {"resources", Json::array({ore})}});
+			const auto modified = resolve_packs({read_pack(write_pack(source)), read_pack(write_pack(patch))});
+			require(compile_resource_catalog(modified).at("test.ore").sizes.at("cargo") == 4,
+			        "declared resource override replaces catalogue metadata");
+		}
+		{
+			auto definitions = phoenix::test::controller_fixture();
+			definitions["resources"] = Json::array({{{"id", "test.capacity-energy"},
+			                                         {"label", "Test energy"},
+			                                         {"tags", Json::array({"energy"})},
+			                                         {"sizes", {{"energy", 1}}}}});
+			definitions["recipes"] = Json::array({{{"id", "test.partial-cycle"},
+			                                       {"label", "Partial cycle"},
+			                                       {"work", 1},
+			                                       {"inputs", Json::object()},
+			                                       {"outputs", {{"test.capacity-energy", 4}}}}});
+			auto &entity = definitions["entities"][0];
+			entity.erase("motion_model");
+			entity["resources"] = {{"stores", Json::array({{{"id", "cell"},
+			                                                {"resource", "test.capacity-energy"},
+			                                                {"capacity", 2},
+			                                                {"initial", 0},
+			                                                {"charge_rate", 100},
+			                                                {"discharge_rate", 100}}})}};
+			entity["processors"] = Json::array({{{"id", "flow"},
+			                                     {"equipment", "port"},
+			                                     {"recipe", "test.partial-cycle"},
+			                                     {"mode", "continuous"},
+			                                     {"outputs", {{"test.capacity-energy", "energy:cell"}}}}});
+			const auto accepted = phoenix::test::load(definitions);
+			require(compile_processors(accepted, "test.controllable").size() == 1,
+			        "continuous authoring accepts nominal cycle output larger than the bound store");
+			entity["processors"][0]["mode"] = "batch";
+			rejected(
+			    [&]
+			    {
+				    (void)phoenix::test::load(definitions);
+			    },
+			    "recipe batch exceeds bound store capacity");
+		}
+		{
+			auto source = base;
 			auto definitions = parse_json(source.files.at("definitions.json"), "effect fixture");
 			definitions["effects"] =
 			    Json::array({{{"id", "test.shield-effect"},
@@ -94,7 +205,7 @@ int main()
 				    {
 					    compile_shield_effect(invalid, "test.shield-effect");
 				    },
-				    "unsupported field for remove");
+				    "unsupported remove field damage");
 				arc["reactions"] = Json::array({{{"operations", Json::array({{{"kind", "damage"}, {"damage", 1}},
 				                                                             {{"kind", "remove"}, {"grant", "x"}}})}}});
 				rejected(
@@ -102,7 +213,7 @@ int main()
 				    {
 					    compile_shield_effect(invalid, "test.shield-effect");
 				    },
-				    "grant changes must precede damage");
+				    "prepared operations must precede damage");
 				arc.erase("reactions");
 				arc["pre_damage_permille"] = 1001;
 				rejected(

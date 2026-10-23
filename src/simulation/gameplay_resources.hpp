@@ -51,6 +51,7 @@ private:
 	ShipResources candidate_;
 	ShipResources *origin_;
 	std::uint64_t origin_tick_;
+	std::vector<std::uint64_t> origin_store_revisions_, origin_coolant_revisions_;
 };
 void request_system_resource(ShipResources &ship, std::size_t system, ResourceAmount duty_permille,
                              bool discrete = false, ResourceAmount extra_rate = 0, ResourceAmount discrete_amount = 0);

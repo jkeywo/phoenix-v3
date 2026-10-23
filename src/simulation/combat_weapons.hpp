@@ -1,22 +1,38 @@
+const AmmunitionDefinition &magazine_ammunition(const CombatMechanism &magazine, const std::string &resource) const
+{
+	const auto &definition = magazine.definition.get<MagazineDefinition>();
+	const auto at = definition.ammunition_profiles.find(resource);
+	return at == definition.ammunition_profiles.end() ? definition.ammunition : at->second;
+}
+const AmmunitionDefinition &magazine_ammunition(flecs::entity ship, const CombatMechanism &magazine) const
+{
+	return magazine_ammunition(magazine, physical_stock(ship, magazine.get<MagazineState>().stock).selected());
+}
+const AmmunitionDefinition &weapon_ammunition(flecs::entity ship, const CombatMechanism &weapon,
+                                              std::int64_t magazine = -1) const
+{
+	const auto &state = weapon.get<WeaponState>();
+	const auto index = magazine >= 0                ? magazine
+	                   : state.loaded_magazine >= 0 ? state.loaded_magazine
+	                                                : state.selected_magazine;
+	const auto &mag =
+	    instance(ship, weapon.definition.get<WeaponDefinition>().magazines.at(index))->entity.get<CombatMechanism>();
+	const auto &stock = physical_stock(ship, mag.get<MagazineState>().stock);
+	const auto &resource = state.loaded_magazine == index ? state.loaded_resource : stock.selected();
+	return magazine_ammunition(mag, resource);
+}
 std::int64_t load_duration(flecs::entity ship, const CombatMechanism &m, std::int64_t magazine = -1) const
 {
 	if (m.definition.get<WeaponDefinition>().magazines.empty())
 		return 0;
-	const auto &mag = instance(ship, m.definition.get<WeaponDefinition>().magazines.at(
-	                                     magazine < 0 ? m.get<WeaponState>().selected_magazine : magazine))
-	                      ->entity.get<CombatMechanism>()
-	                      .definition;
-	return mag.ammunition().load_ticks ? mag.ammunition().load_ticks : m.definition.ammunition().load_ticks;
+	const auto &ammunition = weapon_ammunition(ship, m, magazine);
+	return ammunition.load_ticks ? ammunition.load_ticks : m.definition.ammunition().load_ticks;
 }
 const ProjectileDefinition &weapon_payload(flecs::entity ship, const CombatMechanism &m) const
 {
 	if (!m.definition.get<WeaponDefinition>().magazines.empty())
 	{
-		const auto &p =
-		    instance(ship, m.definition.get<WeaponDefinition>().magazines.at(m.get<WeaponState>().selected_magazine))
-		        ->entity.get<CombatMechanism>()
-		        .definition.ammunition()
-		        .projectile;
+		const auto &p = weapon_ammunition(ship, m).projectile;
 		if (!p.visual.empty())
 			return p;
 	}
@@ -183,8 +199,10 @@ void prepare_weapons(flecs::entity ship)
 					auto &old =
 					    instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().loaded_magazine))
 					        ->entity.get_mut<CombatMechanism>();
-					old.get<MagazineState>().ammo += d.get<WeaponDefinition>().ammo_use;
-					old.get<MagazineState>().reserved_return -= d.get<WeaponDefinition>().ammo_use;
+					if (!physical_stock(ship, old.get<MagazineState>().stock).receive_reserved("weapon:" + d.id))
+						throw std::runtime_error("Missing loaded ammunition return commitment");
+					m->get<WeaponState>().loaded_resource.clear();
+					m->get<WeaponState>().loaded_quantity = 0;
 					m->get<WeaponState>().loaded_magazine = -1;
 				}
 				continue;
@@ -196,12 +214,20 @@ void prepare_weapons(flecs::entity ship)
 				    instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
 				        ->entity;
 				auto &a = mag.get_mut<CombatMechanism>();
+				auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
 				if (mag.get<Equipment>().enabled && !structurally_disabled(ship, a.definition.id) &&
-				    a.get<MagazineState>().ammo >= d.get<WeaponDefinition>().ammo_use &&
+				    stock.available(stock.selected()) >= d.get<WeaponDefinition>().ammo_use &&
 				    ++m->get<WeaponState>().loading >= load_duration(ship, *m))
 				{
-					a.get<MagazineState>().ammo -= d.get<WeaponDefinition>().ammo_use;
-					a.get<MagazineState>().reserved_return += d.get<WeaponDefinition>().ammo_use;
+					StockTransaction transaction;
+					const auto resource = stock.selected();
+					const auto quantity = d.get<WeaponDefinition>().ammo_use;
+					if (!transaction.consume(stock, resource, quantity) ||
+					    !transaction.reserve_capacity(stock, "weapon:" + d.id, resource, quantity) ||
+					    !transaction.commit())
+						continue;
+					m->get<WeaponState>().loaded_resource = resource;
+					m->get<WeaponState>().loaded_quantity = quantity;
 					m->get<WeaponState>().loaded_magazine = m->get<WeaponState>().selected_magazine;
 					m->get<WeaponState>().loading = 0;
 				}
@@ -295,7 +321,8 @@ void prepare_weapons(flecs::entity ship)
 				}
 				else
 				{
-					if (a.get<MagazineState>().ammo - reserved[name] < d.get<WeaponDefinition>().ammo_use)
+					const auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
+					if (stock.available(stock.selected()) - reserved[name] < d.get<WeaponDefinition>().ammo_use)
 						continue;
 					reserved[name] += d.get<WeaponDefinition>().ammo_use;
 				}
@@ -341,21 +368,21 @@ void fire_weapons(flecs::entity ship)
 			}
 			auto &a = instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
 			              ->entity.get_mut<CombatMechanism>();
+			auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
+			const auto ammunition = weapon_ammunition(ship, *m);
+			auto payload = weapon_payload(ship, *m);
 			if (load_duration(ship, *m))
 			{
-				if (m->get<WeaponState>().loaded_magazine < 0)
+				if (m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine ||
+				    !stock.release_capacity("weapon:" + d.id))
 					continue;
-				a.get<MagazineState>().reserved_return -= d.get<WeaponDefinition>().ammo_use;
 				m->get<WeaponState>().loaded_magazine = -1;
+				m->get<WeaponState>().loaded_resource.clear();
+				m->get<WeaponState>().loaded_quantity = 0;
 			}
-			else
-			{
-				if (a.get<MagazineState>().ammo < d.get<WeaponDefinition>().ammo_use)
-					continue;
-				a.get<MagazineState>().ammo -= d.get<WeaponDefinition>().ammo_use;
-			}
-			const auto interval =
-			    a.definition.ammunition().interval ? a.definition.ammunition().interval : d.ammunition().interval;
+			else if (!stock.consume(stock.selected(), d.get<WeaponDefinition>().ammo_use))
+				continue;
+			const auto interval = ammunition.interval ? ammunition.interval : d.ammunition().interval;
 			m->get<WeaponState>().cooldown =
 			    std::max<std::int64_t>(1, interval * 1000 / effective_property(ship, d.id, "cycling", 1000));
 			++m->get<WeaponState>().shots;
@@ -363,7 +390,6 @@ void fire_weapons(flecs::entity ship)
 			psychic_weapon_emission(ship.get<StableId>().id);
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;
-			auto payload = weapon_payload(ship, *m);
 			if (payload.spread)
 				bearing = combat_angle(
 				    bearing + static_cast<std::int64_t>((s.random >> 16) % (payload.spread * 2 + 1)) - payload.spread);

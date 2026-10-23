@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -18,9 +19,13 @@ inline constexpr ResourceAmount resource_limit = 1000000000000LL;
 inline constexpr ResourceAmount resource_tick_hz = 20;
 inline constexpr ResourceAmount resource_work_unit = resource_tick_hz * 1000;
 
+#include "stock_definitions.hpp"
+#include "processor_definitions.hpp"
+
 struct ResourceStoreDefinition
 {
-	std::string id;
+	std::string id, resource;
+	StockStoreDefinition stock;
 	ResourceAmount capacity = 0, initial = 0, charge_rate = 0, discharge_rate = 0;
 	ResourceAmount loss_empty_ppm = 0, loss_full_ppm = 0;
 	ResourceAmount initial_heat = 0, passive_cooling = 0, stop_heat = 0, recover_heat = 0;
@@ -54,9 +59,10 @@ struct ResourceGroupDefinition
 };
 struct CoolantSourceDefinition
 {
-	std::string id;
+	std::string id, resource;
+	StockStoreDefinition stock;
 	ResourceIndex power_store = no_resource;
-	ResourceAmount initial = 0, removal_rate = 0, coolant_per_heat_ppm = 1000000;
+	ResourceAmount capacity = 0, initial = 0, removal_rate = 0, coolant_per_heat_ppm = 1000000;
 };
 struct CoolingLinkDefinition
 {
@@ -67,6 +73,7 @@ struct CoolingLinkDefinition
 };
 struct ResourceNetworkDefinition
 {
+	ResourceCatalogue resources;
 	std::vector<ResourceStoreDefinition> stores;
 	std::vector<ResourceGeneratorDefinition> generators;
 	std::vector<ResourceLinkDefinition> links;
@@ -77,11 +84,24 @@ struct ResourceNetworkDefinition
 	std::map<std::string, ResourceIndex> coolant_source_ids, cooling_link_ids;
 	std::string signature;
 };
-ResourceNetworkDefinition compile_resource_network(const Json &definition);
+ResourceNetworkDefinition compile_resource_network(const Json &definition, const ResourceCatalogue &resources);
 
 struct ResourceStoreState
 {
-	ResourceAmount energy = 0, heat = 0, stress = 0;
+	StockStore stock;
+	ResourceAmount energy() const
+	{
+		return stock.quantity(stock.selected());
+	}
+	ResourceAmount available() const
+	{
+		return stock.available(stock.selected());
+	}
+	ResourceAmount headroom() const
+	{
+		return stock.headroom(stock.selected());
+	}
+	ResourceAmount heat = 0, stress = 0;
 	ResourceAmount charge_limit = 0, discharge_limit = 0;
 	ResourceAmount requested_rate = 0, discrete_request = 0;
 	ResourceAmount request_remainder = 0, charge_remainder = 0, discharge_remainder = 0;
@@ -113,7 +133,16 @@ struct ResourceLinkState
 };
 struct CoolantSourceState
 {
-	ResourceAmount remaining = 0, consumption_remainder = 0;
+	StockStore stock;
+	ResourceAmount remaining() const
+	{
+		return stock.quantity(stock.selected());
+	}
+	ResourceAmount available() const
+	{
+		return stock.available(stock.selected());
+	}
+	ResourceAmount consumption_remainder = 0;
 	ResourceAmount last_heat_removed = 0, last_consumed = 0;
 };
 struct CoolingLinkState
@@ -148,6 +177,8 @@ public:
 	explicit ResourceNetwork(ResourceNetworkDefinition definition, std::uint64_t seed = 1);
 	const ResourceNetworkDefinition &definition() const;
 	const std::vector<ResourceStoreState> &stores() const;
+	StockStore &stock(ResourceIndex store);
+	StockStore &coolant_stock(ResourceIndex source);
 	const std::vector<ResourceGeneratorState> &generators() const;
 	const std::vector<ResourceGroupState> &groups() const;
 	const std::vector<ResourceLinkState> &links() const;

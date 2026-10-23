@@ -1,4 +1,5 @@
 #include "../support/assertions.hpp"
+#include "../support/stock_snapshot.hpp"
 #include "../support/controller_fixture.hpp"
 #include "../support/combat_fixture.hpp"
 #include <nlohmann/json.hpp>
@@ -45,6 +46,20 @@ Json state(const World &w, int id = 1)
 		if (body.at("body").at("id") == id)
 		{
 			auto result = body.at("combat");
+			for (auto &[system, state] : result["systems"].items())
+				if (state.contains("stock"))
+				{
+					const auto &stock = saved_magazine_stock(body, system);
+					state["ammo"] = saved_ammunition(body, system);
+					std::int64_t reserved = 0;
+					for (const auto &[key, claim] : stock.at("capacity_claims").items())
+						if (key.starts_with("weapon:"))
+							reserved += claim.at("quantity").get<std::int64_t>();
+					state["reserved_return"] = reserved;
+					state["refill"] = 0;
+					if (body.contains("processors") && body.at("processors").contains(system))
+						state["refill"] = body.at("processors").at(system).at("progress");
+				}
 			if (body.contains("shields"))
 				for (const auto &c : body.at("shields").at("contributions"))
 					if (!c.at("equipment").get<std::string>().empty())
@@ -382,11 +397,13 @@ void ordnance_contracts()
 		claim(idle);
 		submit(idle, 101, "pdc", "mode", 1);
 		advance(idle, 20);
-		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 99800,
+		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]
+		                   ["fixture.resource.energy"] == 99800,
 		        "Auto has a real standby draw without targets");
 		submit(idle, 101, "pdc", "mode", 0);
 		advance(idle, 20);
-		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 99800,
+		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]
+		                   ["fixture.resource.energy"] == 99800,
 		        "Off stops standby draw");
 		submit(idle, 101, "pdc", "target", 2);
 		idle.tick();
@@ -528,7 +545,12 @@ void shield_reaction_contracts(Json *trace = nullptr)
 			            .c_str());
 			require(attacker.at("shields").at("contributions")[0].at("state").at("strength") == 90,
 			        "paid reaction secondary damage resolves in next scheduled phase");
-			require(target.at("resources").at("network").at("stores")[0].at("energy") == 99993,
+			require(target.at("resources")
+			                .at("network")
+			                .at("stores")[0]
+			                .at("stock")
+			                .at("quantities")
+			                .at("fixture.resource.energy") == 99993,
 			        "reaction pays its discrete cost exactly once");
 		}
 		else
@@ -539,10 +561,111 @@ void shield_reaction_contracts(Json *trace = nullptr)
 			            target.at("shields").at("contributions")[0].at("state").at("strength") == 99,
 			        "failed reaction leaves original damage committed and applies no partial grant");
 			require(attacker.at("shields").at("contributions")[0].at("state").at("strength") == 100 &&
-			            target.at("resources").at("network").at("stores")[0].at("energy") == 100000,
+			            target.at("resources")
+			                    .at("network")
+			                    .at("stores")[0]
+			                    .at("stock")
+			                    .at("quantities")
+			                    .at("fixture.resource.energy") == 100000,
 			        "unaffordable reaction neither spends nor damages");
 		}
 	}
+}
+void stock_binding_contracts()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	auto projectile = ship["systems"]["gun"]["projectile"];
+	source["resources"] = Json::array();
+	for (const auto *id : {"test.round-a", "test.round-b"})
+	{
+		projectile["damage"] = std::string(id) == "test.round-a" ? 11 : 29;
+		source["resources"].push_back({{"id", id},
+		                               {"label", id},
+		                               {"tags", {"ammo", "test-ammo"}},
+		                               {"sizes", {{"ammo", 1}}},
+		                               {"ammunition", {{"projectile", projectile}}}});
+	}
+	ship["systems"]["mag"] = {{"kind", "magazine"},
+	                          {"compartment", "fore"},
+	                          {"stock",
+	                           {{"capacity_tag", "ammo"},
+	                            {"capacity", 1},
+	                            {"filter", {{"tags", {"test-ammo"}}}},
+	                            {"single_resource", true},
+	                            {"selection", "test.round-a"},
+	                            {"initial", {{"test.round-a", 1}}}}}};
+	ship["systems"]["gun"]["load_ticks"] = 2;
+	ship["systems"]["second"]["enabled"] = false;
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	advance(world, 2);
+	const auto loaded = world.save();
+	const auto &body = loaded.at("bodies")[0];
+	const auto &stock = saved_magazine_stock(body, "mag");
+	require(stock.at("quantities").empty() && stock.at("selection") == "test.round-a" &&
+	            stock.at("capacity_claims").at("weapon:gun").at("quantity") == 1 &&
+	            state(world)["systems"]["gun"]["loaded_resource"] == "test.round-a" &&
+	            state(world)["systems"]["gun"]["loaded_quantity"] == 1,
+	        "Loaded ammunition retains its resource identity and receiving space even when the magazine is empty");
+	auto choose = [&](const std::string &resource)
+	{
+		const auto snapshot = world.save();
+		auto c = command(world, 101, "mag", "", saved_magazine_stock(snapshot.at("bodies")[0], "mag").at("revision"));
+		c.action = "magazine.select";
+		c.system = "mag";
+		c.text = resource;
+		return c;
+	};
+	require(!world.submit(101, choose("test.round-b")),
+	        "A loaded return commitment blocks magazine resource switching");
+	World restored;
+	restored.restore(catalog, loaded);
+	for (int corruption = 0; corruption < 3; ++corruption)
+	{
+		auto invalid = loaded;
+		if (corruption == 0)
+			invalid["bodies"][0]["combat"]["systems"]["gun"]["loaded_resource"] = "test.round-b";
+		if (corruption == 1)
+			invalid["bodies"][0]["stocks"]["system:mag"]["capacity_claims"].erase("weapon:gun");
+		if (corruption == 2)
+		{
+			auto &claims = invalid["bodies"][0]["stocks"]["system:mag"]["capacity_claims"];
+			claims["unknown-owner"] = claims.at("weapon:gun");
+			claims.erase("weapon:gun");
+		}
+		bool refused = false;
+		try
+		{
+			restored.restore(catalog, invalid);
+		}
+		catch (const std::exception &)
+		{
+			refused = true;
+		}
+		require(refused && restored.save() == loaded, "Invalid loaded stock ownership is refused transactionally");
+	}
+	submit(world, 101, "gun", "target", 2);
+	submit(restored, 101, "gun", "target", 2);
+	world.tick();
+	restored.tick();
+	require(world.save() == restored.save() && state(world)["systems"]["gun"]["shots"] == 1,
+	        "Loaded resource payload fires once across continuation");
+	const auto fired = world.save();
+	const auto &empty = saved_magazine_stock(fired.at("bodies")[0], "mag");
+	require(empty.at("selection") == "test.round-a" && empty.at("quantities").empty() &&
+	            empty.at("capacity_claims").empty(),
+	        "Firing releases the return commitment while preserving empty magazine selection");
+	const auto selection = choose("test.round-b");
+	require(world.submit(101, selection),
+	        "The owner can deliberately select a different resource once the magazine is empty and free");
+	world.tick();
+	const auto selected = world.save();
+	require(saved_magazine_stock(selected.at("bodies")[0], "mag").at("selection") == "test.round-b" &&
+	            !world.submit(101, selection),
+	        "Resource selection persists and stale selection revisions are rejected");
 }
 void property_rate_contracts()
 {
@@ -898,7 +1021,8 @@ void extended_contracts()
 		submit(w, 101, "beam", "target", 2);
 		advance(w, 20);
 		require(hp(w) == 19980, "beam deposits constant authored damage per second");
-		require(w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 99960,
+		require(w.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]
+		                ["fixture.resource.energy"] == 99960,
 		        "beam pays continuous energy");
 		submit(w, 101, "beam", "enabled", 0);
 		advance(w, 10);
@@ -975,12 +1099,16 @@ void extended_contracts()
 		advance(w, 20);
 		require(state(w)["systems"]["shield"]["strength"] == 40 && state(w)["systems"]["shield"]["warmup"] == 0,
 		        "off shield retains strength and regenerates slowly using power");
-		const auto before = w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"].get<std::int64_t>() +
-		                    state(w)["systems"]["shield"]["strength"].get<std::int64_t>();
+		const auto before =
+		    w.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]["fixture.resource.energy"]
+		        .get<std::int64_t>() +
+		    state(w)["systems"]["shield"]["strength"].get<std::int64_t>();
 		submit(w, 101, "shield", "discharge", 1);
 		advance(w, 20);
-		const auto after = w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"].get<std::int64_t>() +
-		                   state(w)["systems"]["shield"]["strength"].get<std::int64_t>();
+		const auto after =
+		    w.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]["fixture.resource.energy"]
+		        .get<std::int64_t>() +
+		    state(w)["systems"]["shield"]["strength"].get<std::int64_t>();
 		require(before == after, "redistribution conserves stored strength and real battery energy");
 		submit(w, 101, "shield", "enabled", 1);
 		w.tick();
@@ -1050,7 +1178,8 @@ void review_contracts()
 		advance(resumed, 147);
 		require(w.save() == resumed.save(), "fractional conversion and rate budgets persist across continuation");
 		require(state(w)["systems"]["shield"]["strength"] == 10 &&
-		            w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 50009,
+		            w.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"]
+		                    ["fixture.resource.energy"] == 50009,
 		        "low-rate inefficient discharge transfers exactly nine energy for ten strength");
 	}
 	{
@@ -1179,8 +1308,9 @@ void resource_availability_contracts()
 		world.tick();
 		const auto after = world.save()["bodies"][0]["resources"]["network"];
 		require(after["ticks"].get<std::uint64_t>() == before["ticks"].get<std::uint64_t>() + 1 &&
-		            after["stores"][cell]["energy"] == before["stores"][cell]["energy"].get<int>() - 10 +
-		                                                   after["telemetry"][cell]["accepted_incoming"].get<int>(),
+		            after["stores"][cell]["stock"]["quantities"]["fixture.resource.energy"] ==
+		                before["stores"][cell]["stock"]["quantities"]["fixture.resource.energy"].get<int>() - 10 +
+		                    after["telemetry"][cell]["accepted_incoming"].get<int>(),
 		        "allocation preview commits one tick and debits operating work exactly once");
 		require(after["generators"][0]["enabled"] == true && after["stores"][supply]["enabled"] == true &&
 		            after["links"][0]["isolated"] == false && after["cooling_links"][0]["isolated"] == false,
@@ -1527,8 +1657,19 @@ int main(int argc, char **argv)
 			advance(w, 10);
 			advance(restored, 10);
 			require(w.save() == restored.save(), "destruction continuation survives restoration");
-			require(w.save().at("bodies")[0].at("resources").at("network").at("stores")[0].at("energy") ==
-			            snapshot.at("bodies")[0].at("resources").at("network").at("stores")[0].at("energy"),
+			require(w.save().at("bodies")[0]
+			                .at("resources")
+			                .at("network")
+			                .at("stores")[0]
+			                .at("stock")
+			                .at("quantities")
+			                .at("fixture.resource.energy") == snapshot.at("bodies")[0]
+			                                                      .at("resources")
+			                                                      .at("network")
+			                                                      .at("stores")[0]
+			                                                      .at("stock")
+			                                                      .at("quantities")
+			                                                      .at("fixture.resource.energy"),
 			        "ended duel stops weapon and reload energy costs while session continues");
 			require(!state(w).at("systems").at("gun").at("ready").get<bool>(),
 			        "ended duel clears stale weapon readiness");
@@ -1848,6 +1989,7 @@ int main(int argc, char **argv)
 		extended_contracts();
 		review_contracts();
 		ordnance_contracts();
+		stock_binding_contracts();
 		property_rate_contracts();
 		effects_contracts();
 		shield_reaction_contracts();

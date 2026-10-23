@@ -161,6 +161,7 @@ ScenarioActionKind bridge_action_kind(GameplayTreeAction action)
 	case GameplayTreeAction::ApplyModifierEffect:
 	case GameplayTreeAction::RefreshModifierEffect:
 	case GameplayTreeAction::RemoveModifierEffect:
+	case GameplayTreeAction::ApplyEffectGroup:
 		return ScenarioActionKind::Event;
 	case GameplayTreeAction::SpawnEntity:
 	case GameplayTreeAction::SpawnGroup:
@@ -593,6 +594,7 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 	auto old_receipts = receipts_;
 	auto old_shield_requests = shield_requests_;
 	auto old_modifier_requests = modifier_requests_;
+	auto old_group_requests = group_requests_;
 	const auto old_stepped = stepped_tick_;
 	try
 	{
@@ -605,6 +607,7 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 		receipts_ = std::move(old_receipts);
 		shield_requests_ = std::move(old_shield_requests);
 		modifier_requests_ = std::move(old_modifier_requests);
+		group_requests_ = std::move(old_group_requests);
 		stepped_tick_ = old_stepped;
 		throw;
 	}
@@ -731,6 +734,15 @@ ScenarioTreeReceipt GameplayScenarioBridge::execute(ScenarioActionToken token, G
 			                                      apply ? string(2) : std::string{},
 			                                      grant};
 			modifier_requests_.emplace(token, std::move(request));
+			out.result.status = ScenarioActionStatus::Pending;
+			break;
+		}
+		case GameplayTreeAction::ApplyEffectGroup:
+		{
+			scenario_require(integer(0) > 0 && integer(1) >= 0 && !string(2).empty() && string(2).size() <= 256,
+			                 "invalid effect group target/source/definition");
+			group_requests_.emplace(token, ScenarioEffectGroupRequest{token, static_cast<EntityId>(integer(0)),
+			                                                          static_cast<EntityId>(integer(1)), string(2)});
 			out.result.status = ScenarioActionStatus::Pending;
 			break;
 		}
@@ -871,6 +883,21 @@ void GameplayScenarioBridge::confirm_modifier_effect(ScenarioActionToken token, 
 	result.reason = std::move(failure);
 	modifier_requests_.erase(token);
 }
+std::vector<ScenarioEffectGroupRequest> GameplayScenarioBridge::pending_effect_groups() const
+{
+	std::vector<ScenarioEffectGroupRequest> out;
+	for (const auto &[token, request] : group_requests_)
+		out.push_back(request);
+	return out;
+}
+void GameplayScenarioBridge::confirm_effect_group(ScenarioActionToken token, std::string failure)
+{
+	scenario_require(group_requests_.contains(token), "effect group request not pending");
+	auto &result = receipts_.at(token).result;
+	result.status = failure.empty() ? ScenarioActionStatus::Succeeded : ScenarioActionStatus::Failed;
+	result.reason = std::move(failure);
+	group_requests_.erase(token);
+}
 std::vector<ScenarioSpawnRequest> GameplayScenarioBridge::pending_spawns() const
 {
 	return runtime_.pending_spawns();
@@ -990,6 +1017,12 @@ Json GameplayScenarioBridge::save() const
 		                                    {"equipment", request.equipment},
 		                                    {"definition", request.definition},
 		                                    {"grant", request.grant}});
+	out["group_requests"] = Json::array();
+	for (const auto &[token, request] : group_requests_)
+		out["group_requests"].push_back({{"token", bridge_token_json(token)},
+		                                 {"target", request.target},
+		                                 {"source", request.source},
+		                                 {"definition", request.definition}});
 	for (const auto &[id, b] : bodies_)
 		out["bodies"].push_back({{"id", id},
 		                         {"definition", b.definition},
@@ -1089,7 +1122,8 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 			                     r.action == GameplayTreeAction::RemoveShieldEffect ||
 			                     r.action == GameplayTreeAction::ApplyModifierEffect ||
 			                     r.action == GameplayTreeAction::RefreshModifierEffect ||
-			                     r.action == GameplayTreeAction::RemoveModifierEffect,
+			                     r.action == GameplayTreeAction::RemoveModifierEffect ||
+			                     r.action == GameplayTreeAction::ApplyEffectGroup,
 			                 "successful saved effect has no domain receipt");
 		if (r.action != GameplayTreeAction::SpawnEntity && r.action != GameplayTreeAction::SpawnGroup &&
 		    r.action != GameplayTreeAction::AddObjective && r.action != GameplayTreeAction::StartObjectiveSequence)
@@ -1176,6 +1210,30 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 		     receipt.action == GameplayTreeAction::RefreshModifierEffect ||
 		     receipt.action == GameplayTreeAction::RemoveModifierEffect))
 			scenario_require(candidate.modifier_requests_.contains(token), "pending modifier receipt missing request");
+	for (const auto &j : saved.value("group_requests", Json::array()))
+	{
+		ScenarioEffectGroupRequest request{bridge_token(j.at("token")), scenario_unsigned(j.at("target")),
+		                                   scenario_unsigned(j.at("source")), j.at("definition").get<std::string>()};
+		const auto receipt = candidate.receipts_.find(request.token);
+		scenario_require(receipt != candidate.receipts_.end() &&
+		                     receipt->second.action == GameplayTreeAction::ApplyEffectGroup &&
+		                     receipt->second.result.status == ScenarioActionStatus::Pending && request.target > 0,
+		                 "invalid pending effect group");
+		compile_effect_group(catalog, request.definition);
+		std::vector<Value> arguments{{Type::Entity, static_cast<std::int64_t>(request.target), {}},
+		                             {Type::Entity, static_cast<std::int64_t>(request.source), {}},
+		                             {Type::Text, 0, request.definition}};
+		scenario_require(receipt->second.result.fingerprint ==
+		                     domain_fingerprint_prefix +
+		                         bridge_fingerprint(GameplayTreeAction::ApplyEffectGroup, arguments),
+		                 "pending group disagrees with receipt");
+		scenario_require(candidate.group_requests_.emplace(request.token, std::move(request)).second,
+		                 "duplicate pending effect group");
+	}
+	for (const auto &[token, receipt] : candidate.receipts_)
+		if (receipt.result.status == ScenarioActionStatus::Pending &&
+		    receipt.action == GameplayTreeAction::ApplyEffectGroup)
+			scenario_require(candidate.group_requests_.contains(token), "pending effect group missing request");
 	for (const auto &[id, c] : candidate.controllers_)
 	{
 		if (c.last_receipt)

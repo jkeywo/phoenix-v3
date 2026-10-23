@@ -31,14 +31,14 @@ void delivery_cases()
 		auto partial = w.save();
 		for (auto &b : partial["bodies"])
 			if (b["body"]["id"] == 2)
-				b["inventory"]["stores"][0]["quantities"]["parcel"] = 3;
+				b["stocks"][b["inventory"]["stores"][0]["stock"].get<std::string>()]["quantities"]["parcel"] = 3;
 		w.restore(catalog, partial);
 		ticks(w, receipt_tick - 6);
 		require(status(w, "delivery") == 1, "Partial receipt leaves deadline active");
 		auto full = w.save();
 		for (auto &b : full["bodies"])
 			if (b["body"]["id"] == 2)
-				b["inventory"]["stores"][0]["quantities"]["parcel"] = 7;
+				b["stocks"][b["inventory"]["stores"][0]["stock"].get<std::string>()]["quantities"]["parcel"] = 7;
 		w.restore(catalog, full);
 		World resumed;
 		resumed.restore(catalog, full);

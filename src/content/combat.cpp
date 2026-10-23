@@ -24,6 +24,15 @@ const std::vector<ModifierPropertyDescriptor> &modifier_properties()
 	    {"cycling", "relative_permille", {OperatingSystem::Weapon}},
 	    {"traverse", "mdeg_per_second", {OperatingSystem::Turret}, 360000},
 	    {"reload", "relative_permille", {OperatingSystem::Magazine}},
+	    {"processing",
+	     "work_per_second",
+	     {OperatingSystem::Engine,    OperatingSystem::Steering,     OperatingSystem::Radar,
+	      OperatingSystem::Generator, OperatingSystem::Storage,      OperatingSystem::Distribution,
+	      OperatingSystem::Coolant,   OperatingSystem::Lateral,      OperatingSystem::Boost,
+	      OperatingSystem::Impulse,   OperatingSystem::Weapon,       OperatingSystem::Turret,
+	      OperatingSystem::Magazine,  OperatingSystem::Team,         OperatingSystem::Shield,
+	      OperatingSystem::Comms,     OperatingSystem::Displacement, OperatingSystem::Dispatch,
+	      OperatingSystem::Ftl,       OperatingSystem::ShuttleBay,   OperatingSystem::Psychic}},
 	    {"recharge", "milli_strength_per_second", {OperatingSystem::Shield}},
 	    {"off_recharge", "milli_strength_per_second", {OperatingSystem::Shield}},
 	    {"sustain", "energy_per_second", {OperatingSystem::Shield}},
@@ -101,6 +110,8 @@ void compile_effect(const Catalog &catalog, const std::string &id)
 	const auto &effect = catalog.effects.at(id);
 	if (effect.value("kind", std::string{}) == "modifier")
 		(void)compile_modifier_effect(catalog, id);
+	else if (effect.value("kind", std::string{}) == "operations")
+		(void)compile_effect_group(catalog, id);
 	else
 		(void)compile_shield_effect(catalog, id);
 }
@@ -193,80 +204,7 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 				throw std::runtime_error(at + ".reactions: expected bounded array");
 			for (const auto &group : groups)
 			{
-				if (!group.is_object())
-					throw std::runtime_error(at + ".reactions: expected group object");
-				for (const auto &[key, field] : group.items())
-					if (key != "payer" && key != "energy" && key != "operations")
-						throw std::runtime_error(at + ".reactions: unsupported group field " + key);
-				ShieldReactionDefinition reaction;
-				reaction.payer = group.value("payer", std::string{});
-				const auto energy = group.value("energy", Json(0));
-				if (!energy.is_number_integer() || energy < 0 || energy > 1000000000)
-					throw std::runtime_error(at + ".reactions.energy: invalid cost");
-				reaction.energy = energy.get<std::int64_t>();
-				if (reaction.energy && !valid_identifier(reaction.payer))
-					throw std::runtime_error(at + ".reactions.payer: paid reaction requires equipment payer");
-				if (!group.contains("operations") || !group.at("operations").is_array() ||
-				    group.at("operations").empty() || group.at("operations").size() > 32)
-					throw std::runtime_error(at + ".reactions.operations: expected 1..32 operations");
-				bool damage_seen = false;
-				for (const auto &operation : group.at("operations"))
-				{
-					if (!operation.is_object())
-						throw std::runtime_error(at + ".reactions.operations: expected object");
-					for (const auto &[key, field] : operation.items())
-						if (key != "kind" && key != "target" && key != "damage" && key != "effect" && key != "grant" &&
-						    key != "equipment")
-							throw std::runtime_error(at + ".reactions.operations: unsupported field " + key);
-					ShieldReactionOperation op;
-					op.target = operation.value("target", std::string("attacker"));
-					if (op.target != "attacker" && op.target != "protected")
-						throw std::runtime_error(at + ".reactions.target: expected attacker/protected");
-					const auto kind = operation.value("kind", std::string{});
-					for (const auto &[key, field] : operation.items())
-						if (key != "kind" && key != "target" &&
-						    !((kind == "damage" && key == "damage") ||
-						      (kind == "apply" && (key == "effect" || key == "grant" || key == "equipment")) ||
-						      (kind == "remove" && key == "grant")))
-							throw std::runtime_error(at + ".reactions.operations: unsupported field for " + kind +
-							                         ": " + key);
-					if (kind != "damage" && damage_seen)
-						throw std::runtime_error(at + ".reactions.operations: grant changes must precede damage");
-					if (kind == "damage")
-						damage_seen = true;
-					if (kind == "damage")
-					{
-						op.kind = ShieldReactionKind::Damage;
-						const auto damage = operation.value("damage", Json(0));
-						if (!damage.is_number_integer() || damage <= 0 || damage > 1000000)
-							throw std::runtime_error(at + ".reactions.damage: expected bounded positive damage");
-						op.damage = damage.get<std::int64_t>();
-					}
-					else if (kind == "apply" || kind == "remove")
-					{
-						op.kind = kind == "apply" ? ShieldReactionKind::Apply : ShieldReactionKind::Remove;
-						op.grant = operation.value("grant", std::string{});
-						if (!valid_identifier(op.grant))
-							throw std::runtime_error(at + ".reactions.grant: invalid handle");
-						if (kind == "apply")
-						{
-							op.effect = operation.value("effect", std::string{});
-							if (!catalog.effects.contains(op.effect))
-								throw std::runtime_error(at + ".reactions.effect: unknown effect");
-							op.equipment = operation.value("equipment", std::string{});
-							const bool modifier =
-							    catalog.effects.at(op.effect).value("kind", std::string{}) == "modifier";
-							if (modifier ? !valid_identifier(op.equipment) : !op.equipment.empty())
-								throw std::runtime_error(
-								    at +
-								    ".reactions.equipment: modifier requires equipment binding; shield must omit it");
-						}
-					}
-					else
-						throw std::runtime_error(at + ".reactions.kind: unsupported operation");
-					reaction.operations.push_back(std::move(op));
-				}
-				d.reactions.push_back(std::move(reaction));
+				d.reactions.push_back(compile_effect_operations(catalog, group, at + ".reactions"));
 			}
 		}
 
@@ -320,6 +258,76 @@ DestructionDefinition compile_destruction(const Json &v, const Catalog &catalog,
 	if ((d.damage && !d.radius) || !d.growth_ticks || !d.fade_ticks || !d.size)
 		throw std::runtime_error(path + ": invalid destruction geometry/timing");
 	return d;
+}
+ProjectileDefinition compile_projectile_profile(const Catalog &catalog, const Json &p, const std::string &path)
+{
+	const auto fail = [&](const std::string &why)
+	{
+		throw std::runtime_error(path + ": " + why);
+	};
+	const auto amount = [&](const Json &j, const char *key, std::int64_t fallback, std::int64_t low, std::int64_t high)
+	{
+		const auto value = j.value(key, Json(fallback));
+		if (!value.is_number_integer() || value < low || value > high)
+			fail(std::string(key) + ": invalid bounded integer");
+		return value.get<std::int64_t>();
+	};
+	ProjectileDefinition r;
+	r.visual = p.at("visual");
+	r.speed = amount(p, "speed_mm_s", 0, 1, 10000000);
+	r.lifetime = amount(p, "lifetime_ticks", 200, 1, 100000);
+	r.penetration = amount(p, "penetration", 1, 1, 1000000);
+	r.damage = amount(p, "damage", 1, 1, 1000000);
+	r.deposition = amount(p, "damage_per_m", 1, 1, 1000000);
+	r.spread = amount(p, "spread_mdeg", 0, 0, 45000);
+	r.shield_bypass = amount(p, "shield_bypass_permille", 0, 0, 1000);
+	r.guidance = p.value("guidance", std::string("none"));
+	if (r.guidance != "none" && r.guidance != "homing" && r.guidance != "chaotic")
+		fail("unsupported projectile guidance");
+	r.turn_rate = amount(p, "turn_mdeg_s", 90000, 1, 360000);
+	r.seeker_range = amount(p, "seeker_range_mm", 1000000, 1, 10000000);
+	r.arc_height = amount(p, "arc_height_mm", 0, 0, 1000000);
+	r.chaos = amount(p, "chaos_mdeg", 0, 0, 90000);
+	r.durability = amount(p, "durability", 0, 0, 1000000);
+	r.radius = amount(p, "radius_mm", 100, 1, 100000);
+	r.resistance = amount(p, "resistance_per_m", 1, 1, 1000000);
+	r.blast_radius = amount(p, "blast_radius_mm", 0, 0, 10000000);
+	r.fuse_radius = amount(p, "fuse_radius_mm", 0, 0, 1000000);
+	r.trail = p.value("trail", std::string{});
+	r.tracer = p.value("tracer", false);
+	if (!catalog.entities.contains(r.visual) ||
+	    (!r.trail.empty() && r.trail != "smoke" && !catalog.entities.contains(r.trail)))
+		fail("unknown projectile/trail visual");
+	if (p.contains("destruction"))
+		r.destruction = compile_destruction(p.at("destruction"), catalog, path + ".projectile.destruction");
+	if (r.durability && (r.destruction.shield_bypass || r.destruction.affects_missiles && r.destruction.damage))
+		fail("missile destruction damage must have no shield bypass and exclude missiles");
+	return r;
+}
+AmmunitionDefinition compile_ammunition_resource(const Catalog &catalog, const std::string &id)
+{
+	const auto path = "resources." + id + ".ammunition";
+	const auto &resource = catalog.resources.at(id);
+	AmmunitionDefinition result;
+	result.interval = 0;
+	if (!resource.contains("ammunition"))
+		return result;
+	const auto &value = resource.at("ammunition");
+	if (!value.is_object())
+		throw std::runtime_error(path + ": expected object");
+	for (const auto &[key, field] : value.items())
+		if (key != "fire_ticks" && key != "load_ticks" && key != "projectile")
+			throw std::runtime_error(path + "." + key + ": unsupported ammunition field");
+	for (const auto *key : {"fire_ticks", "load_ticks"})
+	{
+		const auto amount = value.value(key, Json(0));
+		if (!amount.is_number_integer() || amount < 0 || amount > 1000000)
+			throw std::runtime_error(path + "." + key + ": invalid bounded integer");
+		(std::string(key) == "fire_ticks" ? result.interval : result.load_ticks) = amount.get<std::int64_t>();
+	}
+	if (value.contains("projectile"))
+		result.projectile = compile_projectile_profile(catalog, value.at("projectile"), path);
+	return result;
 }
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name)
 {
@@ -422,37 +430,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 	}
 	const auto projectile = [&](const Json &p)
 	{
-		ProjectileDefinition r;
-		r.visual = p.at("visual");
-		r.speed = amount(p, "speed_mm_s", 0, 1, 10000000);
-		r.lifetime = amount(p, "lifetime_ticks", 200, 1, 100000);
-		r.penetration = amount(p, "penetration", 1, 1, 1000000);
-		r.damage = amount(p, "damage", 1, 1, 1000000);
-		r.deposition = amount(p, "damage_per_m", 1, 1, 1000000);
-		r.spread = amount(p, "spread_mdeg", 0, 0, 45000);
-		r.shield_bypass = amount(p, "shield_bypass_permille", 0, 0, 1000);
-		r.guidance = p.value("guidance", std::string("none"));
-		if (r.guidance != "none" && r.guidance != "homing" && r.guidance != "chaotic")
-			fail("unsupported projectile guidance");
-		r.turn_rate = amount(p, "turn_mdeg_s", 90000, 1, 360000);
-		r.seeker_range = amount(p, "seeker_range_mm", 1000000, 1, 10000000);
-		r.arc_height = amount(p, "arc_height_mm", 0, 0, 1000000);
-		r.chaos = amount(p, "chaos_mdeg", 0, 0, 90000);
-		r.durability = amount(p, "durability", 0, 0, 1000000);
-		r.radius = amount(p, "radius_mm", 100, 1, 100000);
-		r.resistance = amount(p, "resistance_per_m", 1, 1, 1000000);
-		r.blast_radius = amount(p, "blast_radius_mm", 0, 0, 10000000);
-		r.fuse_radius = amount(p, "fuse_radius_mm", 0, 0, 1000000);
-		r.trail = p.value("trail", std::string{});
-		r.tracer = p.value("tracer", false);
-		if (!catalog.entities.contains(r.visual) ||
-		    (!r.trail.empty() && r.trail != "smoke" && !catalog.entities.contains(r.trail)))
-			fail("unknown projectile/trail visual");
-		if (p.contains("destruction"))
-			r.destruction = compile_destruction(p.at("destruction"), catalog, path + ".projectile.destruction");
-		if (r.durability && (r.destruction.shield_bypass || r.destruction.affects_missiles && r.destruction.damage))
-			fail("missile destruction damage must have no shield bypass and exclude missiles");
-		return r;
+		return compile_projectile_profile(catalog, p, path + ".projectile");
 	};
 	for (const auto &fit : resolve_systems(catalog, name))
 	{
@@ -575,24 +553,62 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		}
 		if (s.kind == OperatingSystem::Magazine)
 		{
-			s.ammunition().interval = amount(v, "fire_ticks", 0, 0, 1000000);
-			s.ammunition().load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
-			if (v.contains("projectile"))
-				s.ammunition().projectile = projectile(v.at("projectile"));
-			s.reserve().capacity = amount(v, "capacity", 0, 1, 1000000);
-			s.reserve().initial = amount(v, "initial", s.reserve().capacity, 0, s.reserve().capacity);
-			const auto reload = v.value("reload", Json{{"strategy", "none"}});
-			s.get<MagazineDefinition>().reload = reload.value("strategy", std::string("none"));
-			if (s.get<MagazineDefinition>().reload != "none" && s.get<MagazineDefinition>().reload != "infinite" &&
-			    s.get<MagazineDefinition>().reload != "energy")
-				fail("unsupported reload strategy " + s.get<MagazineDefinition>().reload);
-			s.get<MagazineDefinition>().refill_ticks = amount(reload, "ticks", 20, 1, 1000000);
-			s.get<MagazineDefinition>().refill_amount =
-			    amount(reload, "amount", s.reserve().capacity, 1, s.reserve().capacity);
-			s.get<MagazineDefinition>().reload_energy = amount(reload, "energy_per_second", 0, 0, 1000000000);
-			if (s.get<MagazineDefinition>().reload == "energy" &&
-			    (s.get<MagazineDefinition>().reload_energy == 0 || !v.contains("power_store")))
-				fail("energy reload requires power_store and positive energy_per_second");
+			for (const auto *legacy :
+			     {"capacity", "initial", "reload", "ammunition_type", "fire_ticks", "load_ticks", "projectile"})
+				if (v.contains(legacy))
+					fail(std::string("magazine requires shared stock/resource profile; retired field ") + legacy);
+			auto &magazine = s.get<MagazineDefinition>();
+			magazine.stock = compile_stock_store(catalog, v.at("stock"), s.id);
+			if (!magazine.stock.single_resource)
+				fail("magazine stock must be single-resource");
+			const auto resources = compile_resource_catalog(catalog);
+			for (const auto &[id, resource] : resources)
+				if (stock_filter_accepts(magazine.stock.filter, resource))
+				{
+					if (!resource.tags.contains("ammo"))
+						fail("magazine filter accepts non-ammunition resource " + id);
+					magazine.ammunition_profiles[id] = compile_ammunition_resource(catalog, id);
+				}
+			if (!magazine.stock.selection.empty())
+			{
+				magazine.ammunition = magazine.ammunition_profiles.at(magazine.stock.selection);
+				magazine.reserve.capacity =
+				    magazine.stock.capacity /
+				    resources.at(magazine.stock.selection).sizes.at(magazine.stock.capacity_tag);
+				magazine.reserve.initial = magazine.stock.initial.contains(magazine.stock.selection)
+				                               ? magazine.stock.initial.at(magazine.stock.selection)
+				                               : 0;
+			}
+			else
+				magazine.reserve.capacity = magazine.stock.capacity;
+			if (v.contains("processor"))
+			{
+				auto processor = v.at("processor");
+				processor["equipment"] = s.id;
+				if (!processor.contains("outputs"))
+				{
+					processor["outputs"] = Json::object();
+					for (const auto &[resource, profile] : magazine.ammunition_profiles)
+						processor["outputs"][resource] = "system:" + s.id;
+				}
+				magazine.processor = compile_processor(catalog, processor, s.id);
+				if (magazine.processor->energy_per_second > 0 && !v.contains("power_store"))
+					fail("funded magazine processor requires power_store");
+				for (const auto &[resource, destination] : magazine.processor->outputs)
+					if (destination != "system:" + s.id && destination != s.id)
+						fail("magazine processor outputs must bind its own stock");
+				for (const auto &recipe : magazine.processor->recipes)
+				{
+					if (recipe.outputs.size() != 1)
+						fail("magazine recipe must output exactly one resource");
+					for (const auto &[resource, quantity] : recipe.outputs)
+						if (!magazine.ammunition_profiles.contains(resource) ||
+						    (!magazine.processor->continuous &&
+						     quantity > magazine.stock.capacity /
+						                    resources.at(resource).sizes.at(magazine.stock.capacity_tag)))
+							fail("magazine processor output is incompatible or larger than capacity");
+				}
+			}
 		}
 		if (s.kind == OperatingSystem::Team)
 		{
@@ -684,9 +700,11 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 				if (!seen_magazines.insert(mag).second ||
 				    s.get<WeaponDefinition>().ammo_use > d.systems[d.system_ids.at(mag)].reserve().capacity)
 					fail(s.id + ": invalid magazine capacity/duplicate");
-				if (s.ammunition().projectile.visual.empty() &&
-				    d.systems[d.system_ids.at(mag)].ammunition().projectile.visual.empty())
-					fail(s.id + ": missing ammunition projectile");
+				if (s.ammunition().projectile.visual.empty())
+					for (const auto &[resource, profile] :
+					     d.systems[d.system_ids.at(mag)].get<MagazineDefinition>().ammunition_profiles)
+						if (profile.projectile.visual.empty())
+							fail(s.id + ": missing ammunition projectile for " + resource);
 			}
 			if (!s.get<WeaponDefinition>().turret.empty())
 				check(s.get<WeaponDefinition>().turret, OperatingSystem::Turret);

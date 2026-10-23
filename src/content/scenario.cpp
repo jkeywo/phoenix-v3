@@ -297,6 +297,9 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 							require(valid_identifier(task.arguments.at(index).literal.text),
 							        "action needs valid named result/instance handle");
 					};
+					if (action == GameplayTreeAction::ApplyEffectGroup &&
+					    task.arguments.at(2).source == state_tree::Source::Literal)
+						compile_effect_group(catalog, task.arguments.at(2).literal.text);
 					if (action == GameplayTreeAction::ApplyShieldEffect)
 					{
 						valid_handle(2);
@@ -497,8 +500,9 @@ LoadClosure load_closure(const Catalog &catalog, const std::string &map)
 			result.assets.insert(id);
 			return;
 		}
-		for (const auto *table : {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees,
-		                          &catalog.equipment, &catalog.assemblies, &catalog.messages, &catalog.effects})
+		for (const auto *table :
+		     {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees, &catalog.equipment,
+		      &catalog.assemblies, &catalog.messages, &catalog.effects, &catalog.resources, &catalog.recipes})
 			if (const auto found = table->find(id); found != table->end())
 			{
 				if (result.definitions.insert(id).second)
@@ -510,7 +514,35 @@ LoadClosure load_closure(const Catalog &catalog, const std::string &map)
 	{
 		if (value.is_string())
 			reference(value.get<std::string>());
-		else if (value.is_structured())
+		else if (value.is_object())
+		{
+			if (value.contains("recipe_tags") && value.at("recipe_tags").is_array())
+				for (const auto &[id, recipe] : catalog.recipes)
+					for (const auto &tag : value.at("recipe_tags"))
+						if (recipe.contains("tags") && std::find(recipe.at("tags").begin(), recipe.at("tags").end(),
+						                                         tag) != recipe.at("tags").end())
+							reference(id);
+			if (value.contains("capacity_tag") && value.contains("filter"))
+				for (const auto &[id, resource] : compile_resource_catalog(catalog))
+				{
+					const auto &filter = value.at("filter");
+					bool accepted = false;
+					if (filter.contains("resources"))
+						accepted = std::find(filter.at("resources").begin(), filter.at("resources").end(), id) !=
+						           filter.at("resources").end();
+					if (filter.contains("tags"))
+						for (const auto &tag : filter.at("tags"))
+							accepted = accepted || resource.tags.contains(tag.get<std::string>());
+					if (accepted)
+						reference(id);
+				}
+			for (const auto &[key, child] : value.items())
+			{
+				reference(key);
+				visit(child);
+			}
+		}
+		else if (value.is_array())
 			for (const auto &child : value)
 				visit(child);
 	};

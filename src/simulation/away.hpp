@@ -820,6 +820,7 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 				m.supply_job = job.id;
 				m.supply_quantity = job.amount;
 				cargo_deliveries.push_back(job);
+				sync_cargo_stock(cargo_deliveries.back());
 				std::erase_if(material_requests,
 				              [&](const auto &r)
 				              {

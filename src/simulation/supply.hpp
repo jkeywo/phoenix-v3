@@ -42,10 +42,6 @@ std::optional<CargoDelivery> supply_manifest(std::size_t index, std::int64_t req
 			empty &= material_quantity(craft, cargo, type) == 0;
 		if (!empty)
 			continue;
-		const auto volume = definition(ship).logistics.materials.at(offer.material).volume;
-		if (definition(craft).logistics.materials.at(offer.material).volume != volume ||
-		    definition(d.target).logistics.materials.at(offer.material).volume != volume)
-			continue;
 		const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
 		const bool manual_quantity = station_stars(owner) >= 3 && console_operator(owner) != 0;
 		const auto chosen = requested >= 0 ? requested : manual_quantity ? m.supply_quantity : 0;
@@ -57,10 +53,6 @@ std::optional<CargoDelivery> supply_manifest(std::size_t index, std::int64_t req
 		{
 			if (!material_accepts(ship, *home, offer.payment) || !material_accepts(craft, cargo, offer.payment) ||
 			    !material_accepts(d.target, *provider, offer.payment))
-				continue;
-			const auto payment_volume = definition(ship).logistics.materials.at(offer.payment).volume;
-			if (definition(craft).logistics.materials.at(offer.payment).volume != payment_volume ||
-			    definition(d.target).logistics.materials.at(offer.payment).volume != payment_volume)
 				continue;
 			batches = std::min({batches, material_available(ship, *home, offer.payment) / offer.pay,
 			                    material_space(craft, cargo, offer.payment) / offer.pay,
@@ -143,6 +135,7 @@ void step_supply_cargo(CargoDelivery &job)
 	{
 		job.phase = "lost";
 		job.reserved = 0;
+		sync_cargo_stock(job);
 		std::erase_if(material_requests,
 		              [&](const auto &r)
 		              {
@@ -240,6 +233,7 @@ void step_supply_cargo(CargoDelivery &job)
 	{
 		job.phase = "complete";
 		job.reserved = 0;
+		sync_cargo_stock(job);
 	}
 }
 void advance_supply_mission(std::size_t index)

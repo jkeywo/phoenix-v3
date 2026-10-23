@@ -584,8 +584,7 @@ struct GameplayEditor
 				        integer(v, "rounds_per_second", 1);
 			        });
 		}
-		if (kind == "magazine")
-			optional_string(spec, "ammunition_type");
+
 		if (kind == "comms")
 			integer(spec, "range_mm", 1000000);
 		optional_string(spec, "compartment");
@@ -654,26 +653,21 @@ struct GameplayEditor
 		}
 		if (kind == "magazine")
 		{
-			integer(spec, "fire_ticks");
-			integer(spec, "load_ticks");
-			if (spec.contains("projectile"))
+			if (!spec.contains("stock"))
+				spec["stock"] = {{"capacity_tag", "ammo"}, {"capacity", 10}, {"single_resource", true}};
 			{
-				ScopedId scope("magazine-projectile");
-				projectile_fields(spec["projectile"]);
-				if (button("Remove ammunition projectile"))
-					spec.erase("projectile");
+				ScopedId scope("magazine-stock");
+				stock_fields(spec["stock"]);
 			}
-			else if (button("Add ammunition projectile"))
-				spec["projectile"] = Json::object();
-			integer(spec, "capacity", 10);
-			integer(spec, "initial", 10);
-			if (!spec.contains("reload"))
-				spec["reload"] = {{"strategy", "none"}};
-			auto &r = spec["reload"];
-			choice(r, "strategy", {"none", "infinite", "energy"});
-			integer(r, "ticks", 20);
-			integer(r, "amount", 1);
-			integer(r, "energy_per_second");
+			if (spec.contains("processor"))
+			{
+				ScopedId scope("magazine-processor");
+				processor_fields(spec["processor"]);
+				if (button("Remove magazine processor"))
+					spec.erase("processor");
+			}
+			else if (button("Add magazine processor"))
+				spec["processor"] = Json::object();
 		}
 		if (kind == "repair_team" || kind == "team")
 		{
@@ -1030,10 +1024,7 @@ struct GameplayEditor
 			if (panel)
 			{
 				if (!ship.contains("logistics") && button("Configure material stores"))
-					ship["logistics"] = {{"controller", ""},
-					                     {"materials", Json::array()},
-					                     {"stores", Json::array()},
-					                     {"consumers", Json::array()}};
+					ship["logistics"] = {{"controller", ""}, {"stores", Json::array()}, {"consumers", Json::array()}};
 				if (ship.contains("logistics"))
 				{
 					auto &l = ship["logistics"];
@@ -1041,18 +1032,10 @@ struct GameplayEditor
 					integer(l, "units_per_second", 20);
 					integer(l, "concurrency", 4);
 					integer(l, "batch_size", 10);
-					records(l, "materials", {{"id", "parts"}, {"volume", 1}},
-					        [&](Json &m)
-					        {
-						        string(m, "id");
-						        integer(m, "volume", 1);
-					        });
 					records(l, "stores",
 					        {{"id", "hold"},
 					         {"compartment", ""},
-					         {"capacity", 100},
-					         {"accepts", Json::array()},
-					         {"initial", Json::object()},
+					         {"stock", {{"capacity_tag", "cargo"}, {"capacity", 100}}},
 					         {"targets", Json::object()}},
 					        [&](Json &m)
 					        {
@@ -1060,10 +1043,8 @@ struct GameplayEditor
 						        string(m, "compartment");
 						        optional_string(m, "controller");
 						        optional_string(m, "system");
-						        integer(m, "capacity", 100);
+						        stock_fields(m["stock"]);
 						        boolean(m, "main", false);
-						        strings(m, "accepts");
-						        structured_field(m, "initial");
 						        structured_field(m, "targets");
 					        });
 					records(l, "consumers", {{"system", ""}, {"store", ""}, {"costs", Json::object()}},
@@ -1410,6 +1391,7 @@ struct GameplayEditor
 		        [&](Json &row)
 		        {
 			        string(row, "id");
+			        string(row, "resource");
 			        choice(row, "group",
 			               network.contains("groups") ? ids(network.at("groups")) : std::vector<std::string>{}, true);
 			        for (const char *key :
@@ -1451,6 +1433,8 @@ struct GameplayEditor
 		        [&](Json &row)
 		        {
 			        string(row, "id");
+			        string(row, "resource");
+			        integer(row, "capacity", 1000);
 			        choice(row, "power_store", stores, true);
 			        for (const char *key : {"initial", "removal_rate", "coolant_per_heat_ppm"})
 				        integer(row, key);
@@ -2687,15 +2671,131 @@ struct GameplayEditor
 		           ? std::string{}
 		           : document.preview_definition(WorkshopDefinitionKind::Equipment, name).value("kind", std::string{});
 	}
+	void stock_fields(Json &stock)
+	{
+		string(stock, "capacity_tag");
+		integer(stock, "capacity", 100);
+		boolean(stock, "single_resource");
+		optional_string(stock, "selection");
+		if (!stock.contains("filter"))
+			stock["filter"] = Json::object();
+		{
+			ScopedId scope("stock-filter");
+			strings(stock["filter"], "tags");
+			strings(stock["filter"], "resources");
+			boolean(stock["filter"], "require_all");
+		}
+		scalar_map(stock, "initial");
+	}
+	void processor_fields(Json &processor)
+	{
+		optional_string(processor, "recipe");
+		strings(processor, "recipes");
+		strings(processor, "recipe_tags");
+		optional_string(processor, "initial_recipe");
+		choice(processor, "mode", {"batch", "continuous"});
+		integer(processor, "work_per_second", 20);
+		integer(processor, "energy_per_second");
+		scalar_map(processor, "inputs");
+		scalar_map(processor, "outputs");
+	}
+	void effect_operations_fields(Json &group, WorkshopDocument &document)
+	{
+		optional_string(group, "payer");
+		integer(group, "energy");
+		records(group, "operations", {{"kind", "fill"}, {"target", "protected"}, {"store", ""}, {"resource", ""}},
+		        [&](Json &operation)
+		        {
+			        const auto old = operation.value("kind", std::string("fill"));
+			        choice(operation, "kind",
+			               {"damage", "apply", "remove", "add", "consume", "set", "fill", "transfer"});
+			        const auto kind = operation.value("kind", std::string("fill"));
+			        if (kind != old)
+			        {
+				        const auto target = operation.value("target", std::string("protected"));
+				        operation = {{"kind", kind}, {"target", target}};
+			        }
+			        choice(operation, "target", {"attacker", "protected"});
+			        if (kind == "damage")
+				        integer(operation, "damage", 1);
+			        else if (kind == "apply" || kind == "remove")
+			        {
+				        string(operation, "grant");
+				        optional_string(operation, "equipment");
+				        if (kind == "apply")
+					        choice(operation, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
+			        }
+			        else
+			        {
+				        string(operation, "store");
+				        choice(operation, "resource", document.definition_choices(WorkshopDefinitionKind::Resource));
+				        if (kind != "fill")
+					        integer(operation, "amount", 1);
+				        if (kind == "transfer")
+					        string(operation, "from_store");
+			        }
+		        });
+	}
 	void templates(WorkshopDocument &document)
 	{
 		auto &defs = document.definitions();
+		records(
+		    defs, "resources",
+		    {{"id", "resource"}, {"label", "Resource"}, {"tags", Json::array({"cargo"})}, {"sizes", {{"cargo", 1}}}},
+		    [&](Json &resource)
+		    {
+			    string(resource, "id");
+			    string(resource, "label");
+			    choice(resource, "extends", document.definition_choices(WorkshopDefinitionKind::Resource), true);
+			    strings(resource, "tags");
+			    scalar_map(resource, "sizes");
+			    names(resource, "effects", document.definition_choices(WorkshopDefinitionKind::Effect));
+			    if (resource.contains("ammunition"))
+			    {
+				    ScopedId scope("resource-ammunition");
+				    auto &ammo = resource["ammunition"];
+				    integer(ammo, "fire_ticks");
+				    integer(ammo, "load_ticks");
+				    if (ammo.contains("projectile"))
+					    projectile_fields(ammo["projectile"]);
+				    else if (button("Add ammunition projectile"))
+					    ammo["projectile"] = Json::object();
+				    if (button("Remove ammunition profile"))
+					    resource.erase("ammunition");
+			    }
+			    else if (button("Add ammunition profile"))
+				    resource["ammunition"] = Json::object();
+		    });
+		records(defs, "recipes",
+		        {{"id", "recipe"},
+		         {"label", "Recipe"},
+		         {"work", 20},
+		         {"inputs", Json::object()},
+		         {"outputs", Json::object()}},
+		        [&](Json &recipe)
+		        {
+			        string(recipe, "id");
+			        string(recipe, "label");
+			        choice(recipe, "extends", document.definition_choices(WorkshopDefinitionKind::Recipe), true);
+			        strings(recipe, "tags");
+			        integer(recipe, "work", 20);
+			        scalar_map(recipe, "inputs");
+			        scalar_map(recipe, "outputs");
+		        });
+		if (auto *ship = select_entity(document))
+			records(*ship, "processors", {{"id", "processor"}, {"equipment", ""}, {"mode", "batch"}},
+			        [&](Json &processor)
+			        {
+				        string(processor, "id");
+				        string(processor, "equipment");
+				        processor_fields(processor);
+			        });
 		records(defs, "effects",
 		        {{"id", "shield-effect"}, {"kind", "shield"}, {"contributions", {{"main", {{"capacity", 100}}}}}},
 		        [&](Json &effect)
 		        {
 			        string(effect, "id");
-			        choice(effect, "kind", {"shield", "modifier"}, true);
+			        choice(effect, "kind", {"shield", "modifier", "operations"}, true);
 			        choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
 			        auto kind = effect.value("kind", std::string{});
 			        if (kind.empty() && effect.contains("extends"))
@@ -2711,6 +2811,16 @@ struct GameplayEditor
 				        {
 				        }
 			        }
+			        if (kind == "operations")
+			        {
+				        effect.erase("contributions");
+				        effect.erase("duration_ticks");
+				        effect_operations_fields(effect, document);
+				        return;
+			        }
+			        effect.erase("operations");
+			        effect.erase("payer");
+			        effect.erase("energy");
 			        const bool modifier = kind == "modifier";
 			        integer(effect, "duration_ticks");
 			        if (button("Add contribution"))
@@ -2754,29 +2864,7 @@ struct GameplayEditor
 					        records(arc, "reactions", {{"energy", 0}, {"operations", Json::array()}},
 					                [&](Json &reaction)
 					                {
-						                string(reaction, "payer");
-						                integer(reaction, "energy");
-						                records(reaction, "operations",
-						                        {{"kind", "damage"}, {"target", "attacker"}, {"damage", 1}},
-						                        [&](Json &operation)
-						                        {
-							                        choice(operation, "kind", {"damage", "apply", "remove"});
-							                        choice(operation, "target", {"attacker", "protected"});
-							                        const auto kind = operation.value("kind", std::string("damage"));
-							                        if (kind == "damage")
-								                        integer(operation, "damage", 1);
-							                        else
-							                        {
-								                        string(operation, "grant");
-								                        optional_string(operation, "equipment");
-								                        if (kind == "apply")
-								                        {
-									                        choice(operation, "effect",
-									                               document.definition_choices(
-									                                   WorkshopDefinitionKind::Effect));
-								                        }
-							                        }
-						                        });
+						                effect_operations_fields(reaction, document);
 					                });
 					        if (button("Remove contribution"))
 						        remove = name;
@@ -2792,7 +2880,7 @@ struct GameplayEditor
 			        choice(equipment, "extends", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 			        choice(equipment, "kind",
 			               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-			                "boost", "impulse", "shield"});
+			                "boost", "impulse", "shield", "magazine", "weapon", "turret", "team"});
 			        const auto kind = equipment_kind(document, equipment);
 			        system_details(equipment, kind);
 			        if (kind == "shield")

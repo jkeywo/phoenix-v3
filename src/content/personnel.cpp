@@ -41,6 +41,9 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			throw std::runtime_error(entity + ".personnel: " + why);
 	};
 	const auto &data = hull.at("personnel");
+	std::set<std::string> processor_owners;
+	for (const auto &processor : compile_processors(catalog, entity))
+		processor_owners.insert(processor.equipment);
 	auto identifier = [&](const Json &v)
 	{
 		auto s = v.get<std::string>();
@@ -208,12 +211,18 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				auto key = slot.get<std::string>();
 				fail(role_properties.contains(key) && unique.insert(key).second, "unknown or duplicate target role");
 				for (const auto &property : role_properties.at(key))
+				{
 					fail(property_compatible(property, kinds.at(system)), "incompatible property target " + property);
+					if (property == "processing")
+						fail(processor_owners.contains(system), "processing effect requires a generic processor");
+				}
 				if (kinds.at(system) == OperatingSystem::Team)
 				{
 					const auto &team = combat->systems.at(combat->system_ids.at(system)).get<TeamDefinition>();
 					for (const auto &property : role_properties.at(key))
-						fail(team.capabilities.contains(property), "officer effect requires matching team capability");
+						fail(property == "processing" ? processor_owners.contains(system)
+						                              : team.capabilities.contains(property),
+						     "officer effect requires matching team capability");
 				}
 				d.effects[system].push_back(key);
 			}

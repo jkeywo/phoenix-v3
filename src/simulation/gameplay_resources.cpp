@@ -98,6 +98,10 @@ void reserve_system_resource_rate(ShipResources &ship, std::size_t system, Resou
 ShipResourceAllocation::ShipResourceAllocation(ShipResources &origin, std::span<const std::size_t> unavailable)
     : candidate_(origin), origin_(&origin), origin_tick_(origin.network.ticks())
 {
+	for (const auto &store : origin.network.stores())
+		origin_store_revisions_.push_back(store.stock.revision());
+	for (const auto &source : origin.network.coolant_sources())
+		origin_coolant_revisions_.push_back(source.stock.revision());
 	struct Availability
 	{
 		ResourceControl control;
@@ -139,6 +143,12 @@ void ShipResourceAllocation::commit()
 {
 	if (!origin_ || origin_->network.ticks() != origin_tick_)
 		throw std::logic_error("resources: allocation already committed or superseded");
+	for (std::size_t i = 0; i < origin_store_revisions_.size(); ++i)
+		if (origin_->network.stores()[i].stock.revision() != origin_store_revisions_[i])
+			throw std::logic_error("resources: prepared allocation stock changed");
+	for (std::size_t i = 0; i < origin_coolant_revisions_.size(); ++i)
+		if (origin_->network.coolant_sources()[i].stock.revision() != origin_coolant_revisions_[i])
+			throw std::logic_error("resources: prepared allocation coolant changed");
 	origin_->network = std::move(candidate_.network);
 	origin_->requests = std::move(candidate_.requests);
 	origin_->grants = std::move(candidate_.grants);
@@ -345,7 +355,7 @@ Json project_system_resource(const ShipResources &ship, std::size_t i)
 		const auto &t = ship.network.telemetry()[b.store];
 		const auto f = ship.network.forecast(b.store);
 		j["store"] = {{"id", d.id},
-		              {"energy", s.energy},
+		              {"energy", s.energy()},
 		              {"capacity", d.capacity},
 		              {"heat", s.heat},
 		              {"stress", s.stress},
@@ -388,7 +398,7 @@ Json project_system_resource(const ShipResources &ship, std::size_t i)
 		const auto f = ship.network.coolant_forecast(source);
 		j["cooling"] = {{"allocation_rate", s.allocation_rate},
 		                {"isolated", s.isolated},
-		                {"coolant_remaining", ship.network.coolant_sources()[source].remaining},
+		                {"coolant_remaining", ship.network.coolant_sources()[source].remaining()},
 		                {"coolant_depletion_ticks", f.depletion_ticks},
 		                {"actual_heat_removed", f.observed_heat_removed},
 		                {"actual_coolant_used", f.observed_coolant_used},

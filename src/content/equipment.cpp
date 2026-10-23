@@ -446,6 +446,18 @@ void validate_assembly_definition(const Catalog &catalog, const std::string &id,
 		}
 	std::map<std::string, std::string> bound;
 	std::map<std::string, CompositionService> local_services;
+	// Unbound assembly services exist only for this structural validation. Their
+	// reserves use a private catalogue; fitted ships still require authored IDs.
+	auto network_resources = compile_resource_catalog(catalog);
+	std::map<std::string, std::string> placeholder_resources;
+	for (const auto *tag : {"energy", "coolant"})
+	{
+		std::string resource = std::string("__assembly_validation.") + tag;
+		while (network_resources.contains(resource))
+			resource += "_";
+		network_resources.emplace(resource, ResourceDefinition{resource, resource, {tag}, {{tag, 1}}, {}});
+		placeholder_resources.emplace(tag, resource);
+	}
 	std::size_t external = 0;
 	for (auto it = declared.begin(); it != declared.end(); ++it)
 	{
@@ -471,12 +483,16 @@ void validate_assembly_definition(const Catalog &catalog, const std::string &id,
 			resources[target] = Json::array();
 		if (std::string_view(target) == "stores")
 			resources[target].push_back({{"id", endpoint},
+			                             {"resource", placeholder_resources.at("energy")},
 			                             {"capacity", resource_limit},
 			                             {"charge_rate", resource_limit},
 			                             {"discharge_rate", resource_limit}});
 		else
-			resources[target].push_back(
-			    {{"id", endpoint}, {"initial", resource_limit}, {"removal_rate", resource_limit}});
+			resources[target].push_back({{"id", endpoint},
+			                             {"resource", placeholder_resources.at("coolant")},
+			                             {"capacity", resource_limit},
+			                             {"initial", resource_limit},
+			                             {"removal_rate", resource_limit}});
 	}
 	std::function<void(const Json &, const std::string &)> bindings = [&](const Json &spec, const std::string &at)
 	{
@@ -536,8 +552,37 @@ void validate_assembly_definition(const Catalog &catalog, const std::string &id,
 		if (resources.contains(kind))
 			for (auto &record : resources[kind])
 				rewrite_resource(record, kind, names, bound, path + ".resources." + kind);
+	// Propagate a local circuit's exact resource into each connected external
+	// placeholder. Conflicting authored resources are rejected by the compiler.
+	if (resources.contains("stores") && resources.contains("links"))
+	{
+		std::map<std::string, Json *> stores;
+		for (auto &store : resources["stores"])
+			stores.emplace(store.at("id").get<std::string>(), &store);
+		for (std::size_t pass = 0; pass < stores.size(); ++pass)
+		{
+			bool changed = false;
+			for (const auto &link : resources["links"])
+			{
+				const auto from = stores.find(link.at("from").get<std::string>());
+				const auto to = stores.find(link.at("to").get<std::string>());
+				if (from == stores.end() || to == stores.end())
+					continue;
+				for (const auto [target, other] :
+				     {std::pair{from->second, to->second}, std::pair{to->second, from->second}})
+					if (target->at("resource") == placeholder_resources.at("energy") &&
+					    other->at("resource") != placeholder_resources.at("energy"))
+					{
+						(*target)["resource"] = other->at("resource");
+						changed = true;
+					}
+			}
+			if (!changed)
+				break;
+		}
+	}
 	if (!resources.empty())
-		compile_resource_network(resources);
+		compile_resource_network(resources, network_resources);
 	validate_service_targets(Json{{"systems", fitted}, {"resources", resources}}, local_services, path);
 	if (assembly.contains("controllers"))
 	{

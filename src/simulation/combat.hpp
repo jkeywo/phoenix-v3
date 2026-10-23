@@ -40,6 +40,8 @@ struct WeaponState
 	std::int64_t cooldown = 0, shots = 0;
 	bool ready = false;
 	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, unloading = 0, mode = 1;
+	std::string loaded_resource;
+	std::int64_t loaded_quantity = 0;
 	std::int64_t beam_remainder = 0, beam_tick = -1, bypass_remainder = 0;
 	fixed::Vec beam_end;
 	std::uint64_t intercept = 0;
@@ -51,7 +53,7 @@ struct TurretState
 };
 struct MagazineState
 {
-	std::int64_t ammo = 0, refill = 0, reserved_return = 0;
+	std::string stock;
 };
 struct TeamState
 {

@@ -59,7 +59,7 @@ ResourceIndex reference(const Json &item, const char *field, const std::map<std:
 }
 } // namespace
 
-ResourceNetworkDefinition compile_resource_network(const Json &authored)
+ResourceNetworkDefinition compile_resource_network(const Json &authored, const ResourceCatalogue &resources)
 {
 	if (!authored.is_object())
 		throw std::runtime_error("resources: expected object");
@@ -79,18 +79,40 @@ ResourceNetworkDefinition compile_resource_network(const Json &authored)
 		          });
 	}
 	ResourceNetworkDefinition d;
+	d.resources = resources;
 	identities(json, "stores", d.stores, d.store_ids);
 	identities(json, "generators", d.generators, d.generator_ids);
 	identities(json, "links", d.links, d.link_ids);
 	identities(json, "groups", d.groups, d.group_ids);
 	identities(json, "coolant_sources", d.coolant_sources, d.coolant_source_ids);
 	identities(json, "cooling_links", d.cooling_links, d.cooling_link_ids);
+	auto stock_definition = [&](const Json &record, const std::string &id, const std::string &tag,
+	                            ResourceAmount capacity, ResourceAmount initial)
+	{
+		const auto resource = record.at("resource").get<std::string>();
+		const auto found = resources.find(resource);
+		if (found == resources.end() || !found->second.tags.contains(tag) || !found->second.sizes.contains(tag) ||
+		    found->second.sizes.at(tag) != 1)
+			throw std::runtime_error("resources: native " + tag +
+			                         " reserve requires a unit-sized resource: " + resource);
+		StockStoreDefinition stock;
+		stock.id = id;
+		stock.capacity_tag = tag;
+		stock.capacity = capacity;
+		stock.filter.resources.insert(resource);
+		stock.single_resource = true;
+		stock.selection = resource;
+		stock.initial.emplace(resource, initial);
+		return stock;
+	};
 	for (ResourceIndex i = 0; i < d.stores.size(); ++i)
 	{
 		auto &v = d.stores[i];
 		const auto &j = json.at("stores").at(i);
 		v.capacity = amount(j, "capacity");
 		v.initial = amount(j, "initial", 0, v.capacity);
+		v.stock = stock_definition(j, v.id, "energy", v.capacity, v.initial);
+		v.resource = v.stock.selection;
 		if (!v.capacity)
 			throw std::runtime_error("resources.store " + v.id + ": capacity must be positive");
 		v.charge_rate = amount(j, "charge_rate");
@@ -170,6 +192,8 @@ ResourceNetworkDefinition compile_resource_network(const Json &authored)
 		v.to = reference(j, "to", d.store_ids);
 		v.capacity_rate = amount(j, "capacity_rate");
 		v.isolated = flag(j, "isolated");
+		if (d.stores[v.from].resource != d.stores[v.to].resource)
+			throw std::runtime_error("resources.link: connected reserves require the same energy resource");
 		if (v.from == v.to || !v.capacity_rate)
 			throw std::runtime_error("resources.link " + v.id + ": distinct endpoints and positive capacity required");
 	}
@@ -178,7 +202,12 @@ ResourceNetworkDefinition compile_resource_network(const Json &authored)
 		auto &v = d.coolant_sources[i];
 		const auto &j = json.at("coolant_sources").at(i);
 		v.power_store = reference(j, "power_store", d.store_ids, true);
-		v.initial = amount(j, "initial");
+		v.capacity = amount(j, "capacity");
+		if (!v.capacity)
+			throw std::runtime_error("resources.coolant: explicit positive tank capacity required");
+		v.initial = amount(j, "initial", 0, v.capacity);
+		v.stock = stock_definition(j, v.id, "coolant", v.capacity, v.initial);
+		v.resource = v.stock.selection;
 		v.removal_rate = amount(j, "removal_rate");
 		v.coolant_per_heat_ppm = amount(j, "coolant_per_heat_ppm", million, million);
 		if (!v.coolant_per_heat_ppm)

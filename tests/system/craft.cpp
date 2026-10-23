@@ -1,4 +1,5 @@
 #include "../support/assertions.hpp"
+#include "../support/stock_snapshot.hpp"
 #include "../support/craft_fixture.hpp"
 #include "../support/ftl_fixture.hpp"
 #include <iostream>
@@ -276,7 +277,7 @@ int main(int argc, char **argv)
 				if (b.at("body").at("id") == std::stoull(id))
 				{
 					b["combat"]["compartments"][0]["hp"] = 60;
-					b["resources"]["network"]["stores"][0]["energy"] = 1000;
+					b["resources"]["network"]["stores"][0]["stock"]["quantities"]["fixture.resource.energy"] = 1000;
 				}
 			World servicing;
 			servicing.restore(catalog, damaged);
@@ -287,7 +288,12 @@ int main(int argc, char **argv)
 				{
 					require(b.at("combat").at("compartments")[0].at("hp") == 60,
 					        "docking and servicing preserve damage");
-					require(b.at("resources").at("network").at("stores")[0].at("energy") > 1000,
+					require(b.at("resources")
+					                .at("network")
+					                .at("stores")[0]
+					                .at("stock")
+					                .at("quantities")
+					                .at("fixture.resource.energy") > 1000,
 					        "docked craft receive actual carrier energy");
 				}
 		}
@@ -393,6 +399,67 @@ int main(int argc, char **argv)
 			        "Ordinary delivery refills both three-round combat magazines");
 		}
 		{
+			auto source = armed_craft_fixture();
+			materialise_fixture_resources(source);
+			Json alternate;
+			for (auto &resource : source["resources"])
+				if (resource.at("id") == "test.missile")
+				{
+					resource["tags"].push_back("test.service-ammo");
+					alternate = resource;
+				}
+			alternate["id"] = "test.alternate";
+			alternate["label"] = "Alternate servicing round";
+			source["resources"].push_back(alternate);
+			for (auto &entity : source["entities"])
+			{
+				for (auto &[id, system] : entity["systems"].items())
+					if (system.value("kind", std::string{}) == "magazine")
+					{
+						system["stock"]["filter"] = {{"tags", {"test.service-ammo"}}};
+						system["stock"]["selection"] = "test.missile";
+						system["stock"]["initial"] = Json::object();
+					}
+				if (entity.contains("logistics"))
+					for (auto &store : entity["logistics"]["stores"])
+						if (store.contains("system") && entity["systems"].contains(store["system"].get<std::string>()))
+							store["stock"] = entity["systems"][store["system"].get<std::string>()]["stock"];
+			}
+			const auto catalog = load(source);
+			World service;
+			service.load(catalog, "test.map", {{"crew", "test.away"}});
+			auto changed = service.save();
+			for (auto &body : changed["bodies"])
+				if (body.at("body").at("id") == *service.ship_for_slot("crew") && body.contains("stocks") &&
+				    body["stocks"].contains("system:supply"))
+				{
+					auto &stock = body["stocks"]["system:supply"];
+					stock["selection"] = "test.alternate";
+					stock["quantities"] = {{"test.alternate", 6}};
+				}
+			service.restore(catalog, changed);
+			ticks(service, 4);
+			const auto waiting = service.save();
+			bool mismatched_dispatch = false;
+			for (const auto *kind : {"requests", "batches"})
+				for (const auto &movement : waiting.at("logistics").at(kind))
+					mismatched_dispatch |= movement.at("source") == *service.ship_for_slot("crew");
+			require(!mismatched_dispatch,
+			        "Craft servicing waits when the source and destination select different resource types");
+			changed = service.save();
+			for (auto &body : changed["bodies"])
+				if (body.contains("stocks") && body["stocks"].contains("system:magazine"))
+					body["stocks"]["system:magazine"]["selection"] = "test.alternate";
+			service.restore(catalog, changed);
+			ticks(service, 40);
+			std::int64_t supplied = 0;
+			const auto serviced = service.save();
+			for (const auto &body : serviced.at("bodies"))
+				if (body.contains("stocks") && body.at("stocks").contains("system:magazine"))
+					supplied += saved_ammunition(body, "magazine");
+			require(supplied == 6, "Craft servicing follows live selected resource identity after continuation");
+		}
+		{
 			const auto armed = load(armed_craft_fixture());
 			World flight;
 			flight.load(armed, "test.map", {{"crew", "test.away"}});
@@ -414,9 +481,9 @@ int main(int argc, char **argv)
 			{
 				const auto body_id = b.at("body").at("id").get<EntityId>();
 				if (body_id == *flight.ship_for_slot("crew"))
-					ammunition += b.at("combat").at("systems").at("supply").at("ammo").get<std::int64_t>();
+					ammunition += saved_ammunition(b, "supply");
 				if (body_id == std::stoull(bomber) || body_id == std::stoull(interceptor))
-					ammunition += b.at("combat").at("systems").at("magazine").at("ammo").get<std::int64_t>();
+					ammunition += saved_ammunition(b, "magazine");
 			}
 			require(ammunition == 24, "docked magazine transfer conserves finite carrier and craft ammunition");
 			require(flight.submit(101, command(flight, "craft", "defend", interceptor)), "interceptor defence order");

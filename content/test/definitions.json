@@ -458,7 +458,7 @@
 		{
 			"id": "test.courier-engineering",
 			"extends": "test.courier",
-			"name": "Courier — Engineering fit",
+			"name": "Courier \u2014 Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -1790,7 +1790,7 @@
 		{
 			"id": "test.cruiser",
 			"extends": "test.courier-engineering",
-			"name": "Cruiser — Six-station fit",
+			"name": "Cruiser \u2014 Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -1812,7 +1812,9 @@
 									"id": "coolant",
 									"initial": 800000,
 									"power_store": "pump-cell",
-									"removal_rate": 18000
+									"removal_rate": 18000,
+									"resource": "test.resource.coolant",
+									"capacity": 800000
 								}
 							],
 							"generators": [
@@ -1845,7 +1847,8 @@
 									"recover_heat": 35000,
 									"stop_heat": 60000,
 									"stress_limit": 12000,
-									"stress_rate": 20
+									"stress_rate": 20,
+									"resource": "test.resource.energy"
 								},
 								{
 									"allows_override": true,
@@ -1867,7 +1870,8 @@
 									"recover_heat": 35000,
 									"stop_heat": 60000,
 									"stress_limit": 12000,
-									"stress_rate": 20
+									"stress_rate": 20,
+									"resource": "test.resource.energy"
 								}
 							]
 						},
@@ -6884,7 +6888,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					}
 				]
 			},
@@ -7013,28 +7018,20 @@
 			},
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "exercise.bomber"
-					},
-					{
-						"id": "exercise.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"stores": [
 					{
 						"id": "cargo",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 200,
 						"main": true,
-						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"]
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 200,
+							"filter": {
+								"resources": ["exercise.bomber", "exercise.interceptor", "medical", "parts"]
+							},
+							"initial": {}
+						}
 					}
 				]
 			},
@@ -7099,17 +7096,19 @@
 				},
 				"intercept-mag": {
 					"kind": "magazine",
-					"capacity": 24,
-					"ammunition_type": "exercise.interceptor",
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 200000,
-						"lifetime_ticks": 60,
-						"damage": 10,
-						"penetration": 100,
-						"damage_per_m": 10
-					},
-					"compartment": "hull"
+					"compartment": "hull",
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 24,
+						"filter": {
+							"resources": ["exercise.interceptor"]
+						},
+						"single_resource": true,
+						"selection": "exercise.interceptor",
+						"initial": {
+							"exercise.interceptor": 24
+						}
+					}
 				},
 				"weapon": {
 					"kind": "weapon",
@@ -7129,7 +7128,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					}
 				]
 			},
@@ -7277,18 +7277,23 @@
 			"logistics": {
 				"controller": "flight",
 				"units_per_second": 20,
-				"materials": [
-					{
-						"id": "exercise.interceptor"
-					}
-				],
 				"stores": [
 					{
 						"id": "intercept-mag",
 						"system": "intercept-mag",
 						"compartment": "hull",
-						"capacity": 24,
-						"accepts": ["exercise.interceptor"]
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["exercise.interceptor"]
+							},
+							"single_resource": true,
+							"selection": "exercise.interceptor",
+							"initial": {
+								"exercise.interceptor": 24
+							}
+						}
 					}
 				]
 			}
@@ -7332,21 +7337,19 @@
 				},
 				"bomb-mag": {
 					"kind": "magazine",
-					"capacity": 4,
-					"ammunition_type": "exercise.bomber",
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 50000,
-						"lifetime_ticks": 300,
-						"guidance": "homing",
-						"durability": 10,
-						"radius_mm": 100,
-						"damage": 20,
-						"penetration": 100,
-						"damage_per_m": 10,
-						"arc_height_mm": 12000
-					},
-					"compartment": "hull"
+					"compartment": "hull",
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 4,
+						"filter": {
+							"resources": ["exercise.bomber"]
+						},
+						"single_resource": true,
+						"selection": "exercise.bomber",
+						"initial": {
+							"exercise.bomber": 4
+						}
+					}
 				},
 				"weapon": {
 					"kind": "weapon",
@@ -7363,7 +7366,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					}
 				]
 			},
@@ -7505,18 +7509,23 @@
 			"logistics": {
 				"controller": "flight",
 				"units_per_second": 20,
-				"materials": [
-					{
-						"id": "exercise.bomber"
-					}
-				],
 				"stores": [
 					{
 						"id": "bomb-mag",
 						"system": "bomb-mag",
 						"compartment": "hull",
-						"capacity": 4,
-						"accepts": ["exercise.bomber"]
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 4,
+							"filter": {
+								"resources": ["exercise.bomber"]
+							},
+							"single_resource": true,
+							"selection": "exercise.bomber",
+							"initial": {
+								"exercise.bomber": 4
+							}
+						}
 					}
 				]
 			}
@@ -7577,42 +7586,36 @@
 				},
 				"interceptor-supply": {
 					"kind": "magazine",
-					"capacity": 200,
-					"ammunition_type": "exercise.interceptor",
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 200000,
-						"lifetime_ticks": 60,
-						"damage": 10,
-						"penetration": 100,
-						"damage_per_m": 10
-					},
 					"compartment": "hull",
 					"observation_console": "support",
-					"reload": {
-						"strategy": "none"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 200,
+						"filter": {
+							"resources": ["exercise.interceptor"]
+						},
+						"single_resource": true,
+						"selection": "exercise.interceptor",
+						"initial": {
+							"exercise.interceptor": 200
+						}
 					}
 				},
 				"bomber-supply": {
 					"kind": "magazine",
-					"capacity": 200,
-					"ammunition_type": "exercise.bomber",
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 50000,
-						"lifetime_ticks": 300,
-						"guidance": "homing",
-						"durability": 10,
-						"radius_mm": 100,
-						"damage": 20,
-						"penetration": 100,
-						"damage_per_m": 10,
-						"arc_height_mm": 12000
-					},
 					"compartment": "hull",
 					"observation_console": "support",
-					"reload": {
-						"strategy": "none"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 200,
+						"filter": {
+							"resources": ["exercise.bomber"]
+						},
+						"single_resource": true,
+						"selection": "exercise.bomber",
+						"initial": {
+							"exercise.bomber": 200
+						}
 					}
 				},
 				"bay": {
@@ -7661,7 +7664,8 @@
 						"capacity": 1000000,
 						"initial": 1000000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "jump-cell",
@@ -7669,7 +7673,8 @@
 						"initial": 0,
 						"charge_rate": 100,
 						"discharge_rate": 100,
-						"operation_heat_ppm": 1000000
+						"operation_heat_ppm": 1000000,
+						"resource": "test.resource.energy"
 					}
 				],
 				"generators": [
@@ -8010,20 +8015,6 @@
 			},
 			"logistics": {
 				"controller": "supplies",
-				"materials": [
-					{
-						"id": "exercise.bomber"
-					},
-					{
-						"id": "exercise.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"units_per_second": 100,
 				"concurrency": 8,
 				"batch_size": 20,
@@ -8032,20 +8023,25 @@
 						"id": "main-hold",
 						"controller": "supplies",
 						"compartment": "hull",
-						"capacity": 50000,
 						"main": true,
-						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"],
-						"initial": {
-							"parts": 2000,
-							"medical": 200,
-							"exercise.interceptor": 400,
-							"exercise.bomber": 400
-						},
 						"targets": {
 							"parts": 2000,
 							"medical": 200,
 							"exercise.interceptor": 400,
 							"exercise.bomber": 400
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 50000,
+							"filter": {
+								"resources": ["exercise.bomber", "exercise.interceptor", "medical", "parts"]
+							},
+							"initial": {
+								"parts": 2000,
+								"medical": 200,
+								"exercise.interceptor": 400,
+								"exercise.bomber": 400
+							}
 						}
 					},
 					{
@@ -8053,13 +8049,18 @@
 						"system": "team",
 						"controller": "team",
 						"compartment": "hull",
-						"capacity": 24,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 24
-						},
 						"targets": {
 							"parts": 24
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 24
+							}
 						}
 					},
 					{
@@ -8067,10 +8068,20 @@
 						"system": "interceptor-supply",
 						"controller": "supplies",
 						"compartment": "hull",
-						"capacity": 200,
-						"accepts": ["exercise.interceptor"],
 						"targets": {
 							"exercise.interceptor": 200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 200,
+							"filter": {
+								"resources": ["exercise.interceptor"]
+							},
+							"single_resource": true,
+							"selection": "exercise.interceptor",
+							"initial": {
+								"exercise.interceptor": 200
+							}
 						}
 					},
 					{
@@ -8078,10 +8089,20 @@
 						"system": "bomber-supply",
 						"controller": "supplies",
 						"compartment": "hull",
-						"capacity": 200,
-						"accepts": ["exercise.bomber"],
 						"targets": {
 							"exercise.bomber": 200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 200,
+							"filter": {
+								"resources": ["exercise.bomber"]
+							},
+							"single_resource": true,
+							"selection": "exercise.bomber",
+							"initial": {
+								"exercise.bomber": 200
+							}
 						}
 					}
 				],
@@ -8168,7 +8189,8 @@
 						"capacity": 200000,
 						"initial": 150000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					}
 				]
 			},
@@ -8266,33 +8288,24 @@
 			},
 			"logistics": {
 				"controller": "watch",
-				"materials": [
-					{
-						"id": "exercise.bomber"
-					},
-					{
-						"id": "exercise.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"stores": [
 					{
 						"id": "main-hold",
 						"controller": "watch",
 						"compartment": "hull",
-						"capacity": 5000,
 						"main": true,
-						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"],
-						"initial": {
-							"exercise.bomber": 300,
-							"exercise.interceptor": 300,
-							"medical": 300,
-							"parts": 300
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 5000,
+							"filter": {
+								"resources": ["exercise.bomber", "exercise.interceptor", "medical", "parts"]
+							},
+							"initial": {
+								"exercise.bomber": 300,
+								"exercise.interceptor": 300,
+								"medical": 300,
+								"parts": 300
+							}
 						}
 					}
 				]
@@ -8358,20 +8371,19 @@
 				},
 				"bomb-mag": {
 					"kind": "magazine",
-					"capacity": 30,
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 50000,
-						"lifetime_ticks": 300,
-						"guidance": "homing",
-						"durability": 10,
-						"radius_mm": 100,
-						"damage": 20,
-						"penetration": 100,
-						"damage_per_m": 10,
-						"arc_height_mm": 12000
-					},
-					"compartment": "hull"
+					"compartment": "hull",
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 30,
+						"filter": {
+							"resources": ["test.ammunition.raider"]
+						},
+						"single_resource": true,
+						"selection": "test.ammunition.raider",
+						"initial": {
+							"test.ammunition.raider": 30
+						}
+					}
 				},
 				"weapon": {
 					"kind": "weapon",
@@ -8388,7 +8400,8 @@
 						"capacity": 200000,
 						"initial": 150000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					}
 				]
 			},
@@ -8537,45 +8550,37 @@
 				},
 				"interceptor-supply": {
 					"kind": "magazine",
-					"capacity": 200,
-					"ammunition_type": "exercise.interceptor",
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 200000,
-						"lifetime_ticks": 60,
-						"damage": 10,
-						"penetration": 100,
-						"damage_per_m": 10
-					},
 					"compartment": "hull",
 					"observation_console": "support",
-					"reload": {
-						"strategy": "none"
-					},
-					"initial": 0
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 200,
+						"filter": {
+							"resources": ["exercise.interceptor"]
+						},
+						"single_resource": true,
+						"selection": "exercise.interceptor",
+						"initial": {
+							"exercise.interceptor": 0
+						}
+					}
 				},
 				"bomber-supply": {
 					"kind": "magazine",
-					"capacity": 200,
-					"ammunition_type": "exercise.bomber",
-					"projectile": {
-						"visual": "test.beacon",
-						"speed_mm_s": 50000,
-						"lifetime_ticks": 300,
-						"guidance": "homing",
-						"durability": 10,
-						"radius_mm": 100,
-						"damage": 20,
-						"penetration": 100,
-						"damage_per_m": 10,
-						"arc_height_mm": 12000
-					},
 					"compartment": "hull",
 					"observation_console": "support",
-					"reload": {
-						"strategy": "none"
-					},
-					"initial": 0
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 200,
+						"filter": {
+							"resources": ["exercise.bomber"]
+						},
+						"single_resource": true,
+						"selection": "exercise.bomber",
+						"initial": {
+							"exercise.bomber": 0
+						}
+					}
 				},
 				"bay": {
 					"kind": "shuttle_bay",
@@ -8640,7 +8645,8 @@
 						"capacity": 1000000,
 						"initial": 1000000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "jump-cell",
@@ -8648,7 +8654,8 @@
 						"initial": 0,
 						"charge_rate": 100,
 						"discharge_rate": 100,
-						"operation_heat_ppm": 1000000
+						"operation_heat_ppm": 1000000,
+						"resource": "test.resource.energy"
 					}
 				],
 				"generators": [
@@ -9020,20 +9027,6 @@
 			},
 			"logistics": {
 				"controller": "supplies",
-				"materials": [
-					{
-						"id": "exercise.bomber"
-					},
-					{
-						"id": "exercise.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"units_per_second": 100,
 				"concurrency": 8,
 				"batch_size": 20,
@@ -9042,20 +9035,25 @@
 						"id": "main-hold",
 						"controller": "supplies",
 						"compartment": "hull",
-						"capacity": 50000,
 						"main": true,
-						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"],
-						"initial": {
-							"parts": 0,
-							"medical": 0,
-							"exercise.interceptor": 0,
-							"exercise.bomber": 0
-						},
 						"targets": {
 							"parts": 2000,
 							"medical": 200,
 							"exercise.interceptor": 400,
 							"exercise.bomber": 400
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 50000,
+							"filter": {
+								"resources": ["exercise.bomber", "exercise.interceptor", "medical", "parts"]
+							},
+							"initial": {
+								"parts": 0,
+								"medical": 0,
+								"exercise.interceptor": 0,
+								"exercise.bomber": 0
+							}
 						}
 					},
 					{
@@ -9063,13 +9061,18 @@
 						"system": "team",
 						"controller": "team",
 						"compartment": "hull",
-						"capacity": 24,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 0
-						},
 						"targets": {
 							"parts": 24
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 0
+							}
 						}
 					},
 					{
@@ -9077,10 +9080,20 @@
 						"system": "interceptor-supply",
 						"controller": "supplies",
 						"compartment": "hull",
-						"capacity": 200,
-						"accepts": ["exercise.interceptor"],
 						"targets": {
 							"exercise.interceptor": 200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 200,
+							"filter": {
+								"resources": ["exercise.interceptor"]
+							},
+							"single_resource": true,
+							"selection": "exercise.interceptor",
+							"initial": {
+								"exercise.interceptor": 0
+							}
 						}
 					},
 					{
@@ -9088,10 +9101,20 @@
 						"system": "bomber-supply",
 						"controller": "supplies",
 						"compartment": "hull",
-						"capacity": 200,
-						"accepts": ["exercise.bomber"],
 						"targets": {
 							"exercise.bomber": 200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 200,
+							"filter": {
+								"resources": ["exercise.bomber"]
+							},
+							"single_resource": true,
+							"selection": "exercise.bomber",
+							"initial": {
+								"exercise.bomber": 0
+							}
 						}
 					},
 					{
@@ -9099,13 +9122,18 @@
 						"system": "medical",
 						"controller": "medical",
 						"compartment": "hull",
-						"capacity": 12,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 0
-						},
 						"targets": {
 							"medical": 12
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 12,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 0
+							}
 						}
 					}
 				],
@@ -9781,7 +9809,7 @@
 		},
 		{
 			"id": "test.powered-navigation-offset",
-			"name": "Powered navigation — offset regions",
+			"name": "Powered navigation \u2014 offset regions",
 			"entities": [
 				{
 					"id": 1,
@@ -10274,7 +10302,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "test.console.helm",
@@ -19714,7 +19742,8 @@
 						"stress_rate": 20,
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
-						"allows_override": true
+						"allows_override": true,
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "pump-cell",
@@ -19736,7 +19765,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "services"
+						"group": "services",
+						"resource": "test.resource.energy"
 					}
 				],
 				"generators": [
@@ -19771,7 +19801,9 @@
 						"initial": 500000,
 						"removal_rate": 12000,
 						"coolant_per_heat_ppm": 100000,
-						"power_store": "pump-cell"
+						"power_store": "pump-cell",
+						"resource": "test.resource.coolant",
+						"capacity": 500000
 					}
 				],
 				"cooling_links": [
@@ -19889,7 +19921,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "engine"
+						"group": "engine",
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "steering-cell",
@@ -19911,7 +19944,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "steering"
+						"group": "steering",
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "lateral-cell",
@@ -19933,7 +19967,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "lateral"
+						"group": "lateral",
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "boost-cell",
@@ -19955,7 +19990,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "boost"
+						"group": "boost",
+						"resource": "test.resource.energy"
 					},
 					{
 						"id": "impulse-cell",
@@ -19977,7 +20013,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "impulse"
+						"group": "impulse",
+						"resource": "test.resource.energy"
 					}
 				],
 				"groups": [
@@ -20147,7 +20184,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "sensors"
+						"group": "sensors",
+						"resource": "test.resource.energy"
 					}
 				],
 				"groups": [
@@ -20225,7 +20263,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "service"
+						"group": "service",
+						"resource": "test.resource.energy"
 					}
 				],
 				"groups": [
@@ -20578,5 +20617,112 @@
 				}
 			}
 		}
-	]
+	],
+	"resources": [
+		{
+			"id": "exercise.bomber",
+			"label": "exercise.bomber",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"projectile": {
+					"visual": "test.beacon",
+					"speed_mm_s": 50000,
+					"lifetime_ticks": 300,
+					"guidance": "homing",
+					"durability": 10,
+					"radius_mm": 100,
+					"damage": 20,
+					"penetration": 100,
+					"damage_per_m": 10,
+					"arc_height_mm": 12000
+				}
+			}
+		},
+		{
+			"id": "exercise.interceptor",
+			"label": "exercise.interceptor",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"projectile": {
+					"visual": "test.beacon",
+					"speed_mm_s": 200000,
+					"lifetime_ticks": 60,
+					"damage": 10,
+					"penetration": 100,
+					"damage_per_m": 10
+				}
+			}
+		},
+		{
+			"id": "medical",
+			"label": "medical",
+			"tags": ["cargo"],
+			"sizes": {
+				"cargo": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "parts",
+			"label": "parts",
+			"tags": ["cargo"],
+			"sizes": {
+				"cargo": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "test.resource.energy",
+			"label": "test.resource.energy",
+			"tags": ["energy"],
+			"sizes": {
+				"energy": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "test.resource.coolant",
+			"label": "test.resource.coolant",
+			"tags": ["coolant"],
+			"sizes": {
+				"coolant": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "test.ammunition.raider",
+			"label": "test.ammunition.raider",
+			"tags": ["ammo", "cargo"],
+			"sizes": {
+				"ammo": 1,
+				"cargo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"projectile": {
+					"visual": "test.beacon",
+					"speed_mm_s": 50000,
+					"lifetime_ticks": 300,
+					"guidance": "homing",
+					"durability": 10,
+					"radius_mm": 100,
+					"damage": 20,
+					"penetration": 100,
+					"damage_per_m": 10,
+					"arc_height_mm": 12000
+				}
+			}
+		}
+	],
+	"recipes": []
 }

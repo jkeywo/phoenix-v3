@@ -129,8 +129,9 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 		return {};
 	}
 	ShipResourcesDefinition compiled;
-	compiled.network = cached == catalog.resource_definitions.end() ? compile_resource_network(entity.at("resources"))
-	                                                                : cached->second;
+	compiled.network = cached == catalog.resource_definitions.end()
+	                       ? compile_resource_network(entity.at("resources"), compile_resource_catalog(catalog))
+	                       : cached->second;
 	for (auto it = entity.at("systems").begin(); it != entity.at("systems").end(); ++it)
 	{
 		const auto &spec = it.value();

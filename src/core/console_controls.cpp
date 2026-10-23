@@ -314,7 +314,46 @@ bool logistics_allowed(const Observation &view, const OperatingCommand &c)
 	for (const auto &store : board.value("stores", Json::array()))
 		if (store.at("id") == c.system && store.at("controller") == c.controller)
 			return c.action == "logistics.target" || c.action == "logistics.hold" || c.action == "logistics.release" ||
-			       c.action == "logistics.transfer";
+			       c.action == "logistics.transfer" ||
+			       (c.action == "logistics.select" && store.value("single_resource", false) &&
+			        std::any_of(store.at("selectable_resources").begin(), store.at("selectable_resources").end(),
+			                    [&](const auto &resource)
+			                    {
+				                    return resource == c.text;
+			                    }));
+	return false;
+}
+bool selection_allowed(const Observation &view, const OperatingCommand &c)
+{
+	if (c.action == "store.select")
+	{
+		auto command = c;
+		command.action = "logistics.select";
+		return logistics_allowed(view, command);
+	}
+	const auto *owner = section(view, c.controller);
+	if (!owner || !owner->value("human", false) || owner->at("generation") != c.generation || !c.channel.empty() ||
+	    c.request_id || !c.arguments.empty() || !c.speaker_name.empty() || !c.speaker_avatar.empty() ||
+	    c.text.empty() || c.text.size() > 256)
+		return false;
+	if (c.action == "magazine.select")
+	{
+		for (const auto &row : view.gameplay.value("combat", Json::object()).value("magazines", Json::array()))
+			if (row.at("id") == c.system && row.value("manual", false) && row.at("stock_revision") == c.value &&
+			    consumes(*owner, c.system))
+				for (const auto &resource : row.value("selectable_resources", Json::array()))
+					if (resource == c.text)
+						return true;
+	}
+	else if (c.action == "processor.select")
+	{
+		for (const auto &row : view.gameplay.value("processors", Json::array()))
+			if (row.at("id") == c.system && row.value("manual", false) && row.at("selection_revision") == c.value &&
+			    consumes(*owner, row.at("equipment")))
+				for (const auto &recipe : row.at("recipes"))
+					if (recipe.at("id") == c.text)
+						return true;
+	}
 	return false;
 }
 std::string manual_binding(const Observation &view, const Json &layout, const std::string &action,
@@ -385,6 +424,8 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 		return craft_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
 	if (command.action.starts_with("logistics."))
 		return logistics_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
+	if (command.action == "magazine.select" || command.action == "processor.select" || command.action == "store.select")
+		return selection_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
 	Json matched;
 	bool projected = false;
 	for (const auto &descriptor : view.gameplay.value("controls", Json::array()))

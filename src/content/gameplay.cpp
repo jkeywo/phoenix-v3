@@ -83,9 +83,9 @@ bool uses_advanced_machinery(const Catalog &catalog, const std::string &entity_i
 			fitting_error("entities." + entity_id + ".motion_model", "expected vector or inertial");
 		if (model == "inertial")
 			return true;
-		if (entity.contains("resources"))
+		if (entity.contains("resources") || (entity.contains("processors") && !entity.at("processors").empty()))
 			fitting_error("entities." + entity_id + ".motion_model",
-			              "vector mechanisms cannot bind a resource network");
+			              "vector mechanisms cannot bind a resource network or processors");
 		for (const auto &system : fitted)
 		{
 			const auto &spec = entity.at("systems").at(system.id);
@@ -102,7 +102,8 @@ bool uses_advanced_machinery(const Catalog &catalog, const std::string &entity_i
 		}
 		return false;
 	}
-	bool advanced = entity.contains("resources") || entity.contains("presets") || entity.contains("control_layout");
+	bool advanced = entity.contains("resources") || entity.contains("presets") || entity.contains("control_layout") ||
+	                (entity.contains("processors") && !entity.at("processors").empty());
 	for (const auto &system : fitted)
 	{
 		const auto &spec = entity.at("systems").at(system.id);
@@ -143,11 +144,13 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 		return;
 	const bool advanced = uses_advanced_machinery(catalog, entity_id);
 	std::optional<ResourceNetworkDefinition> compiled;
-	if (entity.contains("resources"))
+	if (entity.contains("resources") || (entity.contains("processors") && !entity.at("processors").empty()))
 	{
 		const auto cached = catalog.resource_definitions.find(entity_id);
-		compiled = cached == catalog.resource_definitions.end() ? compile_resource_network(entity.at("resources"))
-		                                                        : cached->second;
+		compiled =
+		    cached == catalog.resource_definitions.end()
+		        ? compile_resource_network(entity.value("resources", Json::object()), compile_resource_catalog(catalog))
+		        : cached->second;
 	}
 	const ResourceNetworkDefinition empty;
 	const auto &resources = compiled ? *compiled : empty;

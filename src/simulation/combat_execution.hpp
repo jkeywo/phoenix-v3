@@ -282,12 +282,23 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 			v["heading_mdeg"] = m->get<TurretState>().heading;
 			break;
 		case OperatingSystem::Magazine:
-			v["ammo"] = m->get<MagazineState>().ammo;
-			v["capacity"] = m->definition.reserve().capacity;
-			v["reload_progress"] = m->get<MagazineState>().refill / 1000;
+		{
+			const auto &stock = physical_stock(ship, m->get<MagazineState>().stock);
+			v["ammo"] = stock.quantity(stock.selected());
+			v["capacity"] = stock.selected().empty() ? 0 : stock.definition().capacity / stock.size(stock.selected());
+			v["reload_progress"] = 0;
 			v["reload_rate_permille"] = effective_property(ship, fit.id, "reload", 1000);
-			v["reload_ticks"] = m->definition.get<MagazineDefinition>().refill_ticks;
+			v["reload_ticks"] = 0;
+			if (const auto &definition = m->definition.get<MagazineDefinition>().processor)
+			{
+				const auto &processor = ship.get<ShipProcessors>().values.at(definition->id);
+				v["reload_progress"] = processor.state().progress / 1000;
+				for (const auto &recipe : definition->recipes)
+					if (recipe.id == processor.state().recipe)
+						v["reload_ticks"] = recipe.work;
+			}
 			break;
+		}
 		case OperatingSystem::Team:
 			v["team_revision"] = m->get<TeamState>().revision;
 			v["requested"] = m->get<TeamState>().destination + 1;
@@ -341,13 +352,7 @@ void request_combat_resources(flecs::entity ship)
 			const bool enabled = !duel_ended() && child.get<Equipment>().enabled && !structurally_disabled(ship, d.id);
 			const auto index = child.get<ResourceBinding>().slot;
 			if (d.kind == OperatingSystem::Magazine)
-				request_system_resource(*power, index, 0, false,
-				                        enabled && effective_property(ship, d.id, "reload", 1000) > 0 &&
-				                                d.get<MagazineDefinition>().reload == "energy" &&
-				                                m->get<MagazineState>().ammo + m->get<MagazineState>().reserved_return <
-				                                    d.reserve().capacity
-				                            ? d.get<MagazineDefinition>().reload_energy
-				                            : 0);
+				request_system_resource(*power, index, 0, false, 0);
 			if (d.kind == OperatingSystem::Weapon)
 				request_system_resource(
 				    *power, index, enabled && m->get<WeaponState>().ready ? 1000 : 0,
@@ -361,44 +366,7 @@ void actuate_combat(flecs::entity ship)
 {
 	if (!ship.has<CombatStructure>() || duel_ended())
 		return;
-	const auto id = ship.get<StableId>().id;
-	const auto &pose = ship.get<Pose>();
 	actuate_shields(ship);
-	auto equipment = [&](const std::string &name)
-	{
-		return instance(ship, name)->entity;
-	};
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>())
-		{
-			const auto &d = m->definition;
-			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
-				continue;
-			if (d.kind == OperatingSystem::Magazine && d.get<MagazineDefinition>().reload != "none" &&
-			    m->get<MagazineState>().ammo + m->get<MagazineState>().reserved_return < d.reserve().capacity)
-			{
-				bool paid = d.get<MagazineDefinition>().reload == "infinite";
-				if (d.get<MagazineDefinition>().reload == "energy")
-					if (const auto *p = ship.try_get<ShipResources>())
-						paid = p->grants.at(child.get<ResourceBinding>().slot).supply_permille == 1000 &&
-						       !p->grants.at(child.get<ResourceBinding>().slot).blocked;
-				if (paid)
-				{
-					auto &state = m->get<MagazineState>();
-					const auto progress = effective_property(ship, d.id, "reload", 1000);
-					const auto threshold = d.get<MagazineDefinition>().refill_ticks * 1000;
-					state.refill += progress;
-					const auto batches = state.refill / threshold;
-					if (batches)
-					{
-						state.ammo = std::min(d.reserve().capacity - state.reserved_return,
-						                      state.ammo + batches * d.get<MagazineDefinition>().refill_amount);
-						state.refill %= threshold;
-					}
-				}
-			}
-		}
-
 	fire_weapons(ship);
 }
 
@@ -795,6 +763,7 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	output["faults"] = Json::array();
 	output["shields"] = Json::array();
 	output["weapons"] = Json::array();
+	output["magazines"] = Json::array();
 	for (const auto &[equipment, defs] : s->definition.faults)
 	{
 		if (address.console != s->definition.repair_console &&
@@ -826,6 +795,26 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 			const auto at = std::find(feeds.begin(), feeds.end(), d.id);
 			if (at == feeds.end())
 				continue;
+			if (d.kind == OperatingSystem::Magazine)
+			{
+				const auto &stock = physical_stock(ship, m->get<MagazineState>().stock);
+				Json choices = Json::array(), selectable = Json::array(), labels = Json::object();
+				for (const auto &[resource, profile] : d.get<MagazineDefinition>().ammunition_profiles)
+				{
+					choices.push_back(resource);
+					labels[resource] = stock.catalogue().at(resource).label;
+					auto candidate = stock;
+					if (candidate.select(resource))
+						selectable.push_back(resource);
+				}
+				output["magazines"].push_back({{"id", d.id},
+				                               {"selected_resource", stock.selected()},
+				                               {"resource_choices", choices},
+				                               {"resource_labels", labels},
+				                               {"selectable_resources", selectable},
+				                               {"stock_revision", stock.revision()},
+				                               {"manual", manual_workload(address, "logistics")}});
+			}
 
 			if (d.kind == OperatingSystem::Weapon)
 			{
@@ -850,14 +839,16 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 					if (std::find(feeds.begin(), feeds.end(), name) == feeds.end())
 						continue;
 					const auto &magazine = instance(ship, name)->entity.get<CombatMechanism>();
-					const auto &projectile = magazine.definition.ammunition().projectile.visual.empty()
-					                             ? d.ammunition().projectile
-					                             : magazine.definition.ammunition().projectile;
+					const auto &stock = physical_stock(ship, magazine.get<MagazineState>().stock);
+					const auto &projectile =
+					    stock.selected().empty() || magazine_ammunition(ship, magazine).projectile.visual.empty()
+					        ? d.ammunition().projectile
+					        : magazine_ammunition(ship, magazine).projectile;
 					options.push_back(
 					    {{"index", i},
 					     {"id", name},
 					     {"range_mm", projectile.speed * projectile.lifetime / rate},
-					     {"available", magazine.get<MagazineState>().ammo >= d.get<WeaponDefinition>().ammo_use ||
+					     {"available", stock.available(stock.selected()) >= d.get<WeaponDefinition>().ammo_use ||
 					                       m->get<WeaponState>().loaded_magazine == static_cast<std::int64_t>(i)}});
 				}
 			}
@@ -1037,11 +1028,8 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Magazine:
 			{
 				const auto &a = m->get<MagazineState>();
-				bounded("ammo", 0, m->definition.reserve().capacity);
-				bounded("refill", 0, m->definition.get<MagazineDefinition>().refill_ticks * 1000 - 1);
-				bounded("reserved_return", 0, m->definition.reserve().capacity);
-				if (a.ammo + a.reserved_return > m->definition.reserve().capacity)
-					throw std::runtime_error("Invalid magazine reservation");
+				if (a.stock != "system:" + m->definition.id)
+					throw std::runtime_error("Invalid magazine stock binding");
 				break;
 			}
 			case OperatingSystem::Team:
@@ -1082,19 +1070,30 @@ void restore_combat(flecs::entity ship, const Json &j)
 			}
 		}
 
-	std::map<std::string, std::int64_t> reserved;
+	std::map<std::string, std::map<std::string, StockClaim>> reserved;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
 		{
+			const auto &weapon = m->get<WeaponState>();
 			if (m->get<WeaponState>().loaded_magazine >= 0)
 			{
 				if ((!m->get<WeaponState>().unloading &&
 				     m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine) ||
 				    !load_duration(ship, *m, m->get<WeaponState>().loaded_magazine))
 					throw std::runtime_error("Invalid loaded ammunition commitment");
-				reserved[m->definition.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().loaded_magazine)] +=
-				    m->definition.get<WeaponDefinition>().ammo_use;
+				const auto &magazine_id = m->definition.get<WeaponDefinition>().magazines.at(weapon.loaded_magazine);
+				const auto &magazine = instance(ship, magazine_id)->entity.get<CombatMechanism>();
+				const auto &stock = physical_stock(ship, magazine.get<MagazineState>().stock);
+				if (weapon.loaded_resource.empty() || weapon.loaded_resource != stock.selected() ||
+				    !magazine.definition.get<MagazineDefinition>().ammunition_profiles.contains(
+				        weapon.loaded_resource) ||
+				    weapon.loaded_quantity != m->definition.get<WeaponDefinition>().ammo_use)
+					throw std::runtime_error("Invalid loaded resource identity");
+				reserved[magazine_id].emplace("weapon:" + m->definition.id,
+				                              StockClaim{weapon.loaded_resource, weapon.loaded_quantity});
 			}
+			else if (!weapon.loaded_resource.empty() || weapon.loaded_quantity)
+				throw std::runtime_error("Orphan loaded resource identity");
 			if (m->get<WeaponState>().unloading < 0 ||
 			    (m->get<WeaponState>().unloading &&
 			     (m->get<WeaponState>().loaded_magazine < 0 ||
@@ -1108,10 +1107,15 @@ void restore_combat(flecs::entity ship, const Json &j)
 				throw std::runtime_error("Invalid weapon progress");
 		}
 	for (auto child : ship.get<EquipmentIndex>().values)
-		if (const auto *m = child.try_get<CombatMechanism>();
-		    m && m->definition.kind == OperatingSystem::Magazine &&
-		    m->get<MagazineState>().reserved_return != reserved[m->definition.id])
-			throw std::runtime_error("Unbalanced magazine return reservation");
+		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Magazine)
+		{
+			std::map<std::string, StockClaim> actual;
+			for (const auto &[key, claim] : physical_stock(ship, m->get<MagazineState>().stock).capacity_claims())
+				if (key.starts_with("weapon:"))
+					actual.emplace(key, claim);
+			if (actual != reserved[m->definition.id])
+				throw std::runtime_error("Unbalanced magazine return reservation");
+		}
 	if (combat_dead(ship))
 		ship.remove<Movable>();
 }

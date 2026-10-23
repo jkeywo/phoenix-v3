@@ -273,7 +273,7 @@ BaseConfiguration base_configuration(const Pack &pack);
 struct Catalog
 {
 	std::map<std::string, Json> entities, maps, consoles, trees;
-	std::map<std::string, Json> equipment, assemblies, messages, effects;
+	std::map<std::string, Json> equipment, assemblies, messages, effects, resources, recipes;
 	Json knowledge = Json::object();
 	CompiledKnowledge knowledge_definition;
 	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
@@ -287,6 +287,13 @@ struct Catalog
 	std::string loading_background;
 	BaseConfiguration base;
 };
+ResourceCatalogue compile_resource_catalog(const Catalog &);
+std::map<std::string, RecipeDefinition> compile_recipe_catalog(const Catalog &);
+RecipeDefinition compile_recipe(const Catalog &, const std::string &);
+StockStoreDefinition compile_stock_store(const Catalog &, const Json &, const std::string &);
+ProcessorDefinition compile_processor(const Catalog &, const Json &, const std::string &);
+std::vector<ProcessorDefinition> compile_processors(const Catalog &, const std::string &);
+
 struct ModelPart
 {
 	std::vector<float> positions, normals, texcoords;
@@ -558,6 +565,7 @@ struct MaterialDefinition
 };
 struct MaterialStoreDefinition
 {
+	StockStoreDefinition stock;
 	std::string id, compartment, system, controller;
 	std::int64_t capacity = 0;
 	bool main = false;
@@ -785,6 +793,7 @@ struct AmmunitionDefinition
 	std::int64_t interval = 1, load_ticks = 0;
 	ProjectileDefinition projectile;
 };
+AmmunitionDefinition compile_ammunition_resource(const Catalog &, const std::string &);
 struct ReserveDefinition
 {
 	std::int64_t capacity = 0, initial = 0;
@@ -805,6 +814,9 @@ struct TurretDefinition
 };
 struct MagazineDefinition
 {
+	StockStoreDefinition stock;
+	std::map<std::string, AmmunitionDefinition> ammunition_profiles;
+	std::optional<ProcessorDefinition> processor;
 	AmmunitionDefinition ammunition;
 	ReserveDefinition reserve;
 	std::string reload = "none";
@@ -823,7 +835,12 @@ enum class ShieldReactionKind
 {
 	Damage,
 	Apply,
-	Remove
+	Remove,
+	StoreAdd,
+	StoreConsume,
+	StoreSet,
+	StoreFill,
+	StoreTransfer
 };
 struct ShieldReactionOperation
 {
@@ -831,6 +848,8 @@ struct ShieldReactionOperation
 	std::string target = "attacker", effect, grant;
 	std::string equipment;
 	std::int64_t damage = 0;
+	std::string store, resource, from_store;
+	std::int64_t amount = 0;
 };
 struct ShieldReactionDefinition
 {
@@ -838,6 +857,8 @@ struct ShieldReactionDefinition
 	std::int64_t energy = 0;
 	std::vector<ShieldReactionOperation> operations;
 };
+ShieldReactionDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
+ShieldReactionDefinition compile_effect_group(const Catalog &, const std::string &);
 struct ShieldDefinition
 {
 	std::vector<ShieldReactionDefinition> reactions;
@@ -1049,7 +1070,9 @@ enum class WorkshopDefinitionKind
 	Equipment,
 	Assembly,
 	Message,
-	Effect
+	Effect,
+	Resource,
+	Recipe
 };
 class WorkshopDocument
 {

@@ -31,10 +31,30 @@ std::string logistics_markup()
 			for (const auto &ctrl : model_.observation()->gameplay.at("controllers"))
 				controllable |= ctrl.at("id") == s.at("controller") && ctrl.value("human", false);
 		const auto store = s.at("id").get<std::string>();
+		const auto resource_label = [&](const std::string &id)
+		{
+			return localise(s.value("resource_labels", Json::object()).value(id, id));
+		};
 		html += supply_line(localise(store) + (s.at("working").get<bool>() ? "" : " / " + localise("Unavailable")));
 		if (controllable && s.at("main").get<bool>())
 			html += supply_button("logistics", s.at("held").get<bool>() ? "release" : "hold", store, "",
 			                      s.at("held").get<bool>() ? "Release stock" : "Hold stock");
+		if (s.value("single_resource", false))
+		{
+			html += supply_line(localise("Selected resource") + ": " +
+			                    resource_label(s.value("selected_resource", std::string{})));
+			for (const auto &resource : s.value("resource_choices", Json::array()))
+			{
+				const auto choice = resource.get<std::string>();
+				const auto choices = s.value("selectable_resources", Json::array());
+				if (manual && controllable && s.value("selected_resource", std::string{}) != choice &&
+				    std::find(choices.begin(), choices.end(), resource) != choices.end())
+					html += supply_button("logistics", "select", store, choice,
+					                      localise("Select resource") + ": " + resource_label(choice));
+				else
+					html += supply_line(resource_label(choice));
+			}
+		}
 		for (const auto &[m, q] : s.at("quantities").items())
 		{
 			const auto target = s.at("targets").value(m, std::int64_t{0});
@@ -48,6 +68,65 @@ std::string logistics_markup()
 			if (controllable)
 				html += supply_button("logistics", "target", store, m + "/" + std::to_string(target + 1),
 				                      localise("Increase target") + " " + localise(m));
+		}
+	}
+	if (model_.observation())
+	{
+		const auto &gameplay = model_.observation()->gameplay;
+		const auto controllable = [&](const std::string &equipment)
+		{
+			for (const auto &controller : gameplay.value("controllers", Json::array()))
+				if (controller.value("human", false))
+					for (const auto &channel : controller.at("commands"))
+						for (const auto &consumer : channel.at("consumers"))
+							if (consumer == equipment)
+								return true;
+			return false;
+		};
+		for (const auto &magazine : gameplay.value("combat", Json::object()).value("magazines", Json::array()))
+		{
+			const auto system = magazine.at("id").get<std::string>();
+			const auto resource_label = [&](const std::string &id)
+			{
+				return localise(magazine.value("resource_labels", Json::object()).value(id, id));
+			};
+			html += supply_line(localise(system) + " / " + localise("Selected resource") + ": " +
+			                    resource_label(magazine.at("selected_resource")));
+			const auto selectable = magazine.value("selectable_resources", Json::array());
+			for (const auto &resource : magazine.at("resource_choices"))
+			{
+				const auto choice = resource.get<std::string>();
+				if (magazine.value("manual", false) && controllable(system) &&
+				    resource != magazine.at("selected_resource") &&
+				    std::find(selectable.begin(), selectable.end(), resource) != selectable.end())
+					html += supply_button("magazine", "select", system, choice,
+					                      localise("Select resource") + ": " + resource_label(choice));
+				else
+					html += supply_line(resource_label(choice));
+			}
+		}
+		for (const auto &processor : gameplay.value("processors", Json::array()))
+		{
+			const auto system = processor.at("id").get<std::string>();
+			std::string selected_label = processor.at("recipe");
+			for (const auto &recipe : processor.at("recipes"))
+				if (recipe.at("id") == processor.at("recipe"))
+					selected_label = recipe.at("label");
+			html += supply_line(
+			    localise(system) + " / " + localise("Selected recipe") + ": " + localise(selected_label) + " / " +
+			    localise(processor.at("active").get<bool>() ? "Processing" : "Idle") + " / " + localise("Progress") +
+			    ": " + processor.at("progress").dump() + "/" + processor.at("work").dump());
+			for (const auto &recipe : processor.at("recipes"))
+			{
+				const auto choice = recipe.at("id").get<std::string>();
+				const auto label = localise(recipe.at("label"));
+				if (processor.value("manual", false) && controllable(processor.at("equipment")) &&
+				    choice != processor.at("recipe").get<std::string>())
+					html +=
+					    supply_button("processor", "select", system, choice, localise("Select recipe") + ": " + label);
+				else
+					html += supply_line(label);
+			}
 		}
 	}
 	for (const auto &r : board.value("requests", Json::array()))
@@ -185,8 +264,9 @@ bool supply_action(const std::string &action)
 		return false;
 	const auto kind = action.substr(7, a - 7), verb = action.substr(a + 1, b - a - 1),
 	           system = action.substr(b + 1, c - b - 1), text = action.substr(c + 1);
-	const bool ok =
-	    kind == "dock" ? model_.docking_action(verb, system, text) : model_.logistics_action(verb, system, text);
+	const bool ok = kind == "dock"                              ? model_.docking_action(verb, system, text)
+	                : kind == "magazine" || kind == "processor" ? model_.selection_action(kind, system, text)
+	                                                            : model_.logistics_action(verb, system, text);
 	supply_notice_ = ok ? "Order accepted" : "Order refused; check readiness and ownership";
 	return true;
 }

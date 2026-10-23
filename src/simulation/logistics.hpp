@@ -23,54 +23,92 @@ bool material_accepts(EntityId id, std::size_t store, const std::string &m) cons
 	const auto &s = material_store(id, store);
 	return std::find(s.accepts.begin(), s.accepts.end(), m) != s.accepts.end();
 }
-flecs::entity material_magazine(EntityId id, std::size_t store) const
+StockStore &physical_stock(flecs::entity ship, const std::string &key) const
 {
-	const auto &s = material_store(id, store);
-	if (s.system.empty())
-		return {};
-	const auto fit = instance(entities.at(id), s.system);
-	return fit && fit->kind == OperatingSystem::Magazine ? fit->entity : flecs::entity{};
+	return ship.get_mut<ShipStockStores>().stores.at(key);
+}
+bool select_physical_resource(flecs::entity ship, const std::string &key, const std::string &resource, bool execute)
+{
+	auto &stock = physical_stock(ship, key);
+	auto candidate = stock;
+	if (!candidate.select(resource))
+		return false;
+	if (!execute || stock.selected() == resource)
+		return true;
+	if (!stock.select(resource))
+		return false;
+	if (auto *inventory = ship.try_get_mut<MaterialInventory>())
+	{
+		const auto id = ship.get<StableId>().id;
+		for (std::size_t i = 0; i < inventory->stores.size(); ++i)
+			if (inventory->stores[i].stock == key)
+			{
+				std::erase_if(inventory->stores[i].targets,
+				              [&](const auto &target)
+				              {
+					              return target.first != resource;
+				              });
+				std::erase_if(material_requests,
+				              [&](const auto &request)
+				              {
+					              return request.material != resource &&
+					                     ((request.destination == id && request.to == i) ||
+					                      (request.source == id && request.from == i));
+				              });
+			}
+		++inventory->revision;
+	}
+	for (auto child : ship.get<EquipmentIndex>().values)
+		if (auto *weapon = child.try_get_mut<CombatMechanism>();
+		    weapon && weapon->definition.kind == OperatingSystem::Weapon)
+		{
+			auto &state = weapon->get<WeaponState>();
+			const auto &magazines = weapon->definition.get<WeaponDefinition>().magazines;
+			if (!magazines.empty() && instance(ship, magazines.at(state.selected_magazine))
+			                                  ->entity.get<CombatMechanism>()
+			                                  .get<MagazineState>()
+			                                  .stock == key)
+				state.loading = 0;
+		}
+	return true;
+}
+StockStore &material_stock(EntityId id, std::size_t store) const
+{
+	return physical_stock(entities.at(id), entities.at(id).get<MaterialInventory>().stores.at(store).stock);
+}
+std::int64_t material_size(EntityId id, std::size_t store, const std::string &m) const
+{
+	return material_stock(id, store).size(m);
+}
+std::string material_batch_claim(std::uint64_t id) const
+{
+	return "batch:" + std::to_string(id);
 }
 std::int64_t material_quantity(EntityId id, std::size_t store, const std::string &m) const
 {
-	if (const auto mag = material_magazine(id, store))
-		return mag.get<CombatMechanism>().get<MagazineState>().ammo;
-	const auto &q = entities.at(id).get<MaterialInventory>().stores.at(store).quantities;
-	return q.contains(m) ? q.at(m) : 0;
+	return material_stock(id, store).quantity(m);
 }
 void material_add(EntityId id, std::size_t store, const std::string &m, std::int64_t n)
 {
-	if (const auto mag = material_magazine(id, store))
-		mag.get_mut<CombatMechanism>().get<MagazineState>().ammo += n;
-	else
-		entities.at(id).get_mut<MaterialInventory>().stores.at(store).quantities[m] += n;
+	auto &stock = material_stock(id, store);
+	if (!(n < 0 ? stock.consume(m, -n) : stock.add(m, n)))
+		throw std::runtime_error("Invalid material stock transaction");
 }
 std::int64_t material_occupied_volume(EntityId id, std::size_t store) const
 {
-	const auto &d = definition(id).logistics;
-	std::int64_t used = cargo_reservation(id, store);
-	for (const auto &m : material_store(id, store).accepts)
-		used += material_quantity(id, store, m) * d.materials.at(m).volume;
-	if (const auto mag = material_magazine(id, store))
-		used += mag.get<CombatMechanism>().get<MagazineState>().reserved_return *
-		        d.materials.at(material_store(id, store).accepts.front()).volume;
-	for (const auto &b : material_batches)
-		if (b.destination == id && b.to == store)
-			used += b.quantity * d.materials.at(b.material).volume;
-	return used;
+	const auto &stock = material_stock(id, store);
+	return stock.occupied() + stock.reserved_capacity();
 }
 std::int64_t material_space(EntityId id, std::size_t store, const std::string &m) const
 {
-	if (!material_accepts(id, store, m))
-		return 0;
-	return std::max<std::int64_t>(0, material_store(id, store).capacity - material_occupied_volume(id, store)) /
-	       definition(id).logistics.materials.at(m).volume;
+	return material_accepts(id, store, m) ? material_stock(id, store).headroom(m) : 0;
 }
 std::int64_t material_pending(EntityId id, std::size_t store, const std::string &m) const
 {
 	std::int64_t pending = material_quantity(id, store, m);
-	if (const auto mag = material_magazine(id, store))
-		pending += mag.get<CombatMechanism>().get<MagazineState>().reserved_return;
+	for (const auto &[key, claim] : material_stock(id, store).capacity_claims())
+		if (key.starts_with("weapon:") && claim.resource == m)
+			pending += claim.quantity;
 	for (const auto &r : material_requests)
 		if (r.destination == id && r.to == store && r.material == m)
 			pending += r.remaining;
@@ -100,6 +138,12 @@ bool return_material_batch(MaterialBatch &batch, bool execute)
 	if (execute)
 	{
 		// Move the receiving reservation with the batch; keep its physical transit progress.
+		StockTransaction transaction;
+		transaction.release_capacity(material_stock(batch.destination, batch.to), material_batch_claim(batch.id));
+		if (!transaction.reserve_capacity(material_stock(batch.source, batch.from), material_batch_claim(batch.id),
+		                                  batch.material, batch.quantity) ||
+		    !transaction.commit())
+			return false;
 		batch.destination = batch.source;
 		batch.to = batch.from;
 		batch.returning = true;
@@ -182,8 +226,9 @@ void step_logistics()
 					if (entity.get<MaterialInventory>().stores[i].held)
 						issue("release", "");
 					for (const auto &[material, target] : d.stores[i].targets)
-						if (!entity.get<MaterialInventory>().stores[i].targets.contains(material) ||
-						    entity.get<MaterialInventory>().stores[i].targets.at(material) != target)
+						if (material_stock(id, i).accepts(material) &&
+						    (!entity.get<MaterialInventory>().stores[i].targets.contains(material) ||
+						     entity.get<MaterialInventory>().stores[i].targets.at(material) != target))
 							issue("target", material + "/" + std::to_string(target));
 				}
 		}
@@ -196,6 +241,8 @@ void step_logistics()
 		for (std::size_t to = 0; to < d.stores.size(); ++to)
 			for (const auto &[m, target] : e.get<MaterialInventory>().stores[to].targets)
 			{
+				if (!material_stock(id, to).accepts(m))
+					continue;
 				const auto pending = material_pending(id, to, m);
 				if (pending >= target)
 					continue;
@@ -212,8 +259,7 @@ void step_logistics()
 						if (source != id && material_connection(source, id))
 							for (std::size_t from = 0; from < definition(source).logistics.stores.size(); ++from)
 								if (!requested && definition(source).logistics.stores[from].main &&
-								    material_accepts(source, from, m) &&
-								    definition(source).logistics.materials.at(m).volume == d.materials.at(m).volume)
+								    material_accepts(source, from, m))
 								{
 									request_material(source, from, id, to, m, target - pending, true);
 									requested = true;
@@ -245,13 +291,11 @@ void step_logistics()
 				    entities.at(id).get<MaterialInventory>().stores[from].held || !material_store_working(id, from) ||
 				    !material_available(id, from, r.material))
 					return false;
-				return id == destination
-				           ? material_compartment(id, from) == material_compartment(destination, r.to) ||
-				                 material_route(id, material_compartment(id, from),
-				                                material_compartment(destination, r.to))
-				                         .first >= 0
-				           : material_connection(id, destination) &&
-				                 d.materials.at(r.material).volume == local.materials.at(r.material).volume;
+				return id == destination ? material_compartment(id, from) == material_compartment(destination, r.to) ||
+				                               material_route(id, material_compartment(id, from),
+				                                              material_compartment(destination, r.to))
+				                                       .first >= 0
+				                         : material_connection(id, destination);
 			};
 			for (std::size_t i = 0; i < local.stores.size(); ++i)
 				if (!selected && eligible(destination, i))
@@ -310,7 +354,9 @@ void step_logistics()
 			n = std::min(n, budgets[r.destination]);
 		if (n <= 0)
 			continue;
-		material_add(r.source, r.from, r.material, -n);
+		StockTransaction transaction;
+		if (!stage_material_dispatch(transaction, r, n, next_material_batch) || !transaction.commit())
+			continue;
 		for (auto &job : cargo_deliveries)
 			if (job.id == r.cargo && job.collection)
 			{
@@ -323,7 +369,7 @@ void step_logistics()
 		if (cargo_credit)
 			for (auto &job : cargo_deliveries)
 				if (job.id == r.cargo && (!job.collection || r.destination == job.source))
-					job.reserved -= n;
+					job.reserved -= std::min(job.reserved, n);
 		budgets[r.source] -= n;
 		if (r.source != r.destination)
 			budgets[r.destination] -= n;
@@ -390,7 +436,8 @@ void step_logistics()
 		}
 		if (!material_store_working(b.destination, b.to))
 			continue;
-		material_add(b.destination, b.to, b.material, b.quantity);
+		if (!material_stock(b.destination, b.to).receive_reserved(material_batch_claim(b.id)))
+			throw std::runtime_error("Missing delivery receiving commitment");
 		for (auto &job : cargo_deliveries)
 			if (job.id == b.cargo && job.collection && !b.returning)
 			{
@@ -402,6 +449,9 @@ void step_logistics()
 					job.delivered += b.quantity;
 			}
 		b.quantity = 0;
+		for (const auto &job : cargo_deliveries)
+			if (job.id == b.cargo)
+				sync_cargo_stock(job);
 	}
 
 	std::erase_if(material_batches,
@@ -499,8 +549,7 @@ bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool 
 			if (remote.stores[i].id == fields[1])
 				to = i;
 		if (to == remote.stores.size() || !material_accepts(a.ship, index, fields[2]) ||
-		    !material_accepts(target, to, fields[2]) ||
-		    d.materials.at(fields[2]).volume != remote.materials.at(fields[2]).volume || n > 1000000000)
+		    !material_accepts(target, to, fields[2]) || n > 1000000000)
 			return false;
 		if (execute)
 		{
@@ -520,6 +569,8 @@ bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool 
 		}
 		return true;
 	}
+	if (c.action == "logistics.select")
+		return select_physical_resource(e, state.stores[index].stock, c.text, execute);
 	if (c.action == "logistics.target")
 	{
 		const auto slash = c.text.find('/');
@@ -527,7 +578,7 @@ bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool 
 			return false;
 		const auto m = c.text.substr(0, slash);
 		const auto n = parse_material_number(c.text.substr(slash + 1));
-		if (n < 0 || !material_accepts(a.ship, index, m) || n > s.capacity / d.materials.at(m).volume)
+		if (n < 0 || !material_accepts(a.ship, index, m) || n > s.capacity / material_size(a.ship, index, m))
 			return false;
 		if (execute)
 		{
@@ -601,10 +652,15 @@ Json logistics_board(const ConsoleAddress &a) const
 		if (!main && !visible(s.controller))
 			continue;
 		Json quantities = Json::object(), space = Json::object();
+		Json selectable = Json::array(), labels = Json::object();
 		for (const auto &m : s.accepts)
 		{
 			quantities[m] = material_quantity(a.ship, i, m);
 			space[m] = material_space(a.ship, i, m);
+			labels[m] = material_stock(a.ship, i).catalogue().at(m).label;
+			auto candidate = material_stock(a.ship, i);
+			if (candidate.select(m))
+				selectable.push_back(m);
 		}
 		out["stores"].push_back({{"id", s.id},
 		                         {"controller", s.controller},
@@ -613,7 +669,12 @@ Json logistics_board(const ConsoleAddress &a) const
 		                         {"quantities", quantities},
 		                         {"space", space},
 		                         {"targets", state.stores[i].targets},
-		                         {"working", material_store_working(a.ship, i)}});
+		                         {"working", material_store_working(a.ship, i)},
+		                         {"single_resource", material_stock(a.ship, i).definition().single_resource},
+		                         {"selected_resource", material_stock(a.ship, i).selected()},
+		                         {"resource_choices", s.accepts},
+		                         {"resource_labels", labels},
+		                         {"selectable_resources", selectable}});
 	}
 	for (const auto &[id, craft] : craft_rows())
 		if (craft.get<CraftState>().home == a.ship && definition(id).craft->role == "shuttle")
@@ -695,24 +756,28 @@ void restore_logistics(const Json &saved)
 				throw std::runtime_error("Unexpected inventory");
 			continue;
 		}
+		for (const auto &saved_store : b.at("inventory").at("stores"))
+			if (!saved_store.is_object() || saved_store.size() != 3 || !saved_store.contains("stock") ||
+			    !saved_store.contains("targets") || !saved_store.contains("held"))
+				throw std::runtime_error("Invalid inventory store continuation fields");
 		const auto state = b.at("inventory").get<MaterialInventory>();
 		const auto &d = definition(id).logistics;
 		if (state.stores.size() != d.stores.size() || !state.revision || state.revision >= 9007199254740991ULL ||
 		    state.handling_remainder < 0 || state.handling_remainder >= rate)
 			throw std::runtime_error("Invalid inventory continuation");
 		for (std::size_t i = 0; i < state.stores.size(); ++i)
-			for (const auto *q : {&state.stores[i].quantities, &state.stores[i].targets})
-				for (const auto &[m, n] : *q)
-					if (!material_accepts(id, i, m) || n < 0 || n > d.stores[i].capacity / d.materials.at(m).volume)
-						throw std::runtime_error("Invalid saved material stock");
+		{
+			if (state.stores[i].stock != e.get<MaterialInventory>().stores[i].stock)
+				throw std::runtime_error("Invalid inventory stock binding");
+			for (const auto &[m, n] : state.stores[i].targets)
+				if (!material_accepts(id, i, m) || n < 0 || n > d.stores[i].capacity / material_size(id, i, m))
+					throw std::runtime_error("Invalid saved material target");
+		}
 		if (state.work_credit.size() > d.consumers.size())
 			throw std::runtime_error("Invalid saved work credit");
 		for (const auto &[key, n] : state.work_credit)
 			if (!material_consumer(id, key) || n < 0 || n > rate * 1000)
 				throw std::runtime_error("Invalid saved material credit");
-		for (std::size_t i = 0; i < state.stores.size(); ++i)
-			if (material_magazine(id, i) && !state.stores[i].quantities.empty())
-				throw std::runtime_error("Duplicate saved ammunition stock");
 		e.set<MaterialInventory>(state);
 	}
 	auto endpoint = [&](EntityId id, std::size_t i, const std::string &m)
@@ -755,6 +820,40 @@ void restore_logistics(const Json &saved)
 		last = b.id;
 	}
 	validate_cargo();
+	// Persisted stock reservations must exactly match native delivery/cargo owners.
+	StockTransaction commitments;
+	std::set<StockStore *> stores;
+	for (const auto &[id, entity] : entities)
+		if (auto *physical = entity.try_get_mut<ShipStockStores>())
+			for (auto &[key, stock] : physical->stores)
+				stores.insert(&stock);
+	for (auto *stock : stores)
+	{
+		for (const auto &[key, claim] : stock->capacity_claims())
+		{
+			if (key.starts_with("batch:") || key.starts_with("cargo:"))
+				commitments.release_capacity(*stock, key);
+			else if (!key.starts_with("weapon:") && !key.starts_with("processor:"))
+				throw std::runtime_error("Unknown physical receiving commitment owner");
+		}
+		for (const auto &[key, claim] : stock->stock_claims())
+		{
+			if (!key.starts_with("cargo:"))
+				throw std::runtime_error("Unknown physical stock commitment owner");
+			commitments.release_stock(*stock, key);
+		}
+	}
+	for (const auto &batch : material_batches)
+		if (!commitments.reserve_capacity(material_stock(batch.destination, batch.to), material_batch_claim(batch.id),
+		                                  batch.material, batch.quantity))
+			throw std::runtime_error("Invalid saved delivery commitment");
+	for (const auto &job : cargo_deliveries)
+		if (!stage_cargo_claims(commitments, job))
+			throw std::runtime_error("Invalid saved cargo stock commitment");
+	for (auto *stock : stores)
+		if (stock->capacity_claims() != commitments.view(*stock).capacity_claims() ||
+		    stock->stock_claims() != commitments.view(*stock).stock_claims())
+			throw std::runtime_error("Orphan or mismatched saved physical commitment");
 	for (const auto &[id, e] : inventory_rows())
 		for (std::size_t i = 0; i < definition(id).logistics.stores.size(); ++i)
 		{
@@ -796,11 +895,12 @@ bool pay_material_work(EntityId origin, const std::string &system, const std::st
 	}
 	const auto &costs = c->costs.at(activity);
 	for (const auto &[m, n] : costs)
-		if (material_quantity(origin, index, m) < n)
+		if (material_stock(origin, index).available(m) < n)
 			return false;
+	StockTransaction transaction;
 	for (const auto &[m, n] : costs)
-		material_add(origin, index, m, -n);
-	return true;
+		transaction.consume(material_stock(origin, index), m, n);
+	return transaction.commit();
 }
 std::int64_t paid_structural_work(EntityId origin, const std::string &system, std::int64_t work)
 {

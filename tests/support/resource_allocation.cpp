@@ -41,9 +41,9 @@ extern "C" void resource_allocation_lifecycle(const phoenix::Catalog &catalog)
 	ShipResourceAllocation committed(ship, {}), superseded(ship, {});
 	const auto paid = committed.grants().at(slot).paid;
 	const auto store = ship.definition.systems.at(slot).store;
-	const auto energy = ship.network.stores().at(store).energy;
+	const auto energy = ship.network.stores().at(store).energy();
 	committed.commit();
-	require(ship.network.ticks() == 1 && ship.network.stores().at(store).energy == energy - paid,
+	require(ship.network.ticks() == 1 && ship.network.stores().at(store).energy() == energy - paid,
 	        "allocation commit installs the preview's one paid physical tick");
 	const auto after = save_ship_resources(ship);
 	for (auto *allocation : {&committed, &superseded})
@@ -60,4 +60,19 @@ extern "C" void resource_allocation_lifecycle(const phoenix::Catalog &catalog)
 		require(refused && save_ship_resources(ship) == after,
 		        "duplicate or superseded allocation commit refuses without changing live resources");
 	}
+	ShipResourceAllocation stale_stock(ship, {});
+	auto &stock = ship.network.stock(store);
+	require(stock.add(stock.selected(), 1), "common stock accepts an independent authored charge");
+	const auto after_charge = save_ship_resources(ship);
+	bool stale_refused = false;
+	try
+	{
+		stale_stock.commit();
+	}
+	catch (const std::logic_error &)
+	{
+		stale_refused = true;
+	}
+	require(stale_refused && save_ship_resources(ship) == after_charge,
+	        "prepared electrical allocation cannot overwrite a later common stock mutation");
 }

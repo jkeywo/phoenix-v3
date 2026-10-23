@@ -181,7 +181,7 @@
 		{
 			"id": "test3d.courier-engineering",
 			"extends": "test3d.courier",
-			"name": "Courier — Engineering fit",
+			"name": "Courier \u2014 Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -1553,7 +1553,7 @@
 		{
 			"id": "test3d.cruiser",
 			"extends": "test3d.courier-engineering",
-			"name": "Cruiser — Six-station fit",
+			"name": "Cruiser \u2014 Six-station fit",
 			"render": {
 				"scale": 18,
 				"radar_icon": "asteroid",
@@ -1598,7 +1598,9 @@
 									"id": "coolant",
 									"initial": 800000,
 									"power_store": "pump-cell",
-									"removal_rate": 18000
+									"removal_rate": 18000,
+									"resource": "test3d.resource.coolant",
+									"capacity": 800000
 								}
 							],
 							"generators": [
@@ -1631,7 +1633,8 @@
 									"recover_heat": 35000,
 									"stop_heat": 60000,
 									"stress_limit": 12000,
-									"stress_rate": 20
+									"stress_rate": 20,
+									"resource": "test3d.resource.energy"
 								},
 								{
 									"allows_override": true,
@@ -1653,7 +1656,8 @@
 									"recover_heat": 35000,
 									"stop_heat": 60000,
 									"stress_limit": 12000,
-									"stress_rate": 20
+									"stress_rate": 20,
+									"resource": "test3d.resource.energy"
 								}
 							]
 						},
@@ -6834,7 +6838,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "test3d.console.helm",
@@ -14631,7 +14635,8 @@
 						"stress_rate": 20,
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
-						"allows_override": true
+						"allows_override": true,
+						"resource": "test3d.resource.energy"
 					},
 					{
 						"id": "pump-cell",
@@ -14653,7 +14658,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "services"
+						"group": "services",
+						"resource": "test3d.resource.energy"
 					}
 				],
 				"generators": [
@@ -14688,7 +14694,9 @@
 						"initial": 500000,
 						"removal_rate": 12000,
 						"coolant_per_heat_ppm": 100000,
-						"power_store": "pump-cell"
+						"power_store": "pump-cell",
+						"resource": "test3d.resource.coolant",
+						"capacity": 500000
 					}
 				],
 				"cooling_links": [
@@ -14806,7 +14814,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "engine"
+						"group": "engine",
+						"resource": "test3d.resource.energy"
 					},
 					{
 						"id": "steering-cell",
@@ -14828,7 +14837,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "steering"
+						"group": "steering",
+						"resource": "test3d.resource.energy"
 					},
 					{
 						"id": "lateral-cell",
@@ -14850,7 +14860,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "lateral"
+						"group": "lateral",
+						"resource": "test3d.resource.energy"
 					},
 					{
 						"id": "boost-cell",
@@ -14872,7 +14883,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "boost"
+						"group": "boost",
+						"resource": "test3d.resource.energy"
 					},
 					{
 						"id": "impulse-cell",
@@ -14894,7 +14906,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "impulse"
+						"group": "impulse",
+						"resource": "test3d.resource.energy"
 					}
 				],
 				"groups": [
@@ -15064,7 +15077,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "sensors"
+						"group": "sensors",
+						"resource": "test3d.resource.energy"
 					}
 				],
 				"groups": [
@@ -15142,7 +15156,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "service"
+						"group": "service",
+						"resource": "test3d.resource.energy"
 					}
 				],
 				"groups": [
@@ -15482,6 +15497,26 @@
 				}
 			},
 			"parameters": {}
+		}
+	],
+	"resources": [
+		{
+			"id": "test3d.resource.energy",
+			"label": "Energy",
+			"tags": ["energy"],
+			"sizes": {
+				"energy": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "test3d.resource.coolant",
+			"label": "Coolant",
+			"tags": ["coolant"],
+			"sizes": {
+				"coolant": 1
+			},
+			"effects": []
 		}
 	]
 }

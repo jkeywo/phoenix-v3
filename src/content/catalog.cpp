@@ -391,6 +391,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("assemblies", result.assemblies);
 		add("messages", result.messages);
 		add("effects", result.effects);
+		add("resources", result.resources);
+		add("recipes", result.recipes);
 		if (definitions.contains("knowledge"))
 		{
 			const auto &knowledge = definitions.at("knowledge");
@@ -437,6 +439,10 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	for (auto &[name, tree] : legacy_trees)
 		result.trees[name] = std::move(tree);
 	inherit_definitions(result.effects, "effects");
+	inherit_definitions(result.resources, "resources");
+	inherit_definitions(result.recipes, "recipes");
+	(void)compile_resource_catalog(result);
+	(void)compile_recipe_catalog(result);
 	for (const auto &[id, effect] : result.effects)
 		compile_effect(result, id);
 	inherit_definitions(result.equipment, "equipment");
@@ -531,7 +537,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	}
 	for (const auto &[name, entity] : result.entities)
 		if (entity.contains("resources"))
-			result.resource_definitions.emplace(name, compile_resource_network(entity.at("resources")));
+			result.resource_definitions.emplace(
+			    name, compile_resource_network(entity.at("resources"), compile_resource_catalog(result)));
 	std::vector<std::string> entity_ids;
 	for (const auto &[name, entity] : result.entities)
 		entity_ids.push_back(name);
@@ -662,12 +669,15 @@ namespace
 {
 void verify_prepared_catalog(const Catalog &catalog)
 {
+	(void)compile_resource_catalog(catalog);
+	(void)compile_recipe_catalog(catalog);
 	for (const auto &[id, effect] : catalog.effects)
 		compile_effect(catalog, id);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
-	     !catalog.messages.empty() || !catalog.effects.empty() || !catalog.knowledge.empty() ||
+	     !catalog.messages.empty() || !catalog.effects.empty() || !catalog.resources.empty() ||
+	     !catalog.recipes.empty() || !catalog.knowledge.empty() ||
 	     (catalog.selection ? (!catalog.entities.empty() || !catalog.consoles.empty() || !catalog.assets.empty())
 	                        : catalog.entities.size() != 1)))
 		invalid("presentation", "expected one own-ship definition without maps or controllers");
@@ -887,6 +897,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 		verify_gameplay_fitting(catalog, id);
 		(void)compile_ftl(catalog, id);
 		(void)compile_logistics(catalog, id);
+		(void)compile_processors(catalog, id);
 		(void)compile_docking(catalog, id);
 		(void)compile_transport(catalog, id);
 		(void)compile_craft(catalog, id);

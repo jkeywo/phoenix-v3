@@ -681,7 +681,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 12,
 									"stop_heat": 36000,
-									"recover_heat": 18000
+									"recover_heat": 18000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -697,7 +698,9 @@
 									"id": "coolant",
 									"initial": 60000,
 									"removal_rate": 1200,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 60000
 								}
 							],
 							"cooling_links": [
@@ -790,7 +793,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier â€” Engineering fit",
+			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -947,7 +950,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 100,
 									"stop_heat": 300000,
-									"recover_heat": 150000
+									"recover_heat": 150000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -963,7 +967,9 @@
 									"id": "coolant",
 									"initial": 500000,
 									"removal_rate": 10000,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 500000
 								}
 							],
 							"cooling_links": [
@@ -2722,7 +2728,7 @@
 		},
 		{
 			"id": "base.cruiser",
-			"name": "Cruiser — Six-station combat fit",
+			"name": "Cruiser \u2014 Six-station combat fit",
 			"render": {
 				"mode": "eight",
 				"scale": 90,
@@ -4892,7 +4898,9 @@
 									"id": "coolant",
 									"initial": 8000000,
 									"power_store": "pump-cell",
-									"removal_rate": 30000
+									"removal_rate": 30000,
+									"resource": "base.resource.coolant",
+									"capacity": 8000000
 								}
 							],
 							"generators": [
@@ -4925,7 +4933,8 @@
 									"recover_heat": 35000,
 									"stop_heat": 60000,
 									"stress_limit": 12000,
-									"stress_rate": 20
+									"stress_rate": 20,
+									"resource": "base.resource.energy"
 								},
 								{
 									"allows_override": true,
@@ -4947,7 +4956,8 @@
 									"recover_heat": 35000,
 									"stop_heat": 60000,
 									"stress_limit": 12000,
-									"stress_rate": 20
+									"stress_rate": 20,
+									"resource": "base.resource.energy"
 								}
 							]
 						},
@@ -5268,7 +5278,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 150,
 									"stop_heat": 450000,
-									"recover_heat": 225000
+									"recover_heat": 225000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -5284,7 +5295,9 @@
 									"id": "coolant",
 									"initial": 750000,
 									"removal_rate": 15000,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 750000
 								}
 							],
 							"cooling_links": [
@@ -9632,12 +9645,19 @@
 				"fore-dorsal-mag": {
 					"kind": "magazine",
 					"compartment": "weapons",
-					"capacity": 180,
-					"reload": {
-						"strategy": "none"
-					},
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.kinetic"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 180,
+						"filter": {
+							"resources": ["base.ammunition.kinetic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.kinetic",
+						"initial": {
+							"base.ammunition.kinetic": 180
+						}
+					}
 				},
 				"fore-dorsal-gun": {
 					"kind": "weapon",
@@ -9702,12 +9722,19 @@
 				"fore-ventral-mag": {
 					"kind": "magazine",
 					"compartment": "weapons",
-					"capacity": 180,
-					"reload": {
-						"strategy": "none"
-					},
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.kinetic"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 180,
+						"filter": {
+							"resources": ["base.ammunition.kinetic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.kinetic",
+						"initial": {
+							"base.ammunition.kinetic": 180
+						}
+					}
 				},
 				"fore-ventral-gun": {
 					"kind": "weapon",
@@ -9772,12 +9799,19 @@
 				"aft-dorsal-mag": {
 					"kind": "magazine",
 					"compartment": "engineering",
-					"capacity": 180,
-					"reload": {
-						"strategy": "none"
-					},
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.kinetic"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 180,
+						"filter": {
+							"resources": ["base.ammunition.kinetic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.kinetic",
+						"initial": {
+							"base.ammunition.kinetic": 180
+						}
+					}
 				},
 				"aft-dorsal-gun": {
 					"kind": "weapon",
@@ -9842,12 +9876,19 @@
 				"aft-ventral-mag": {
 					"kind": "magazine",
 					"compartment": "engineering",
-					"capacity": 180,
-					"reload": {
-						"strategy": "none"
-					},
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.kinetic"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 180,
+						"filter": {
+							"resources": ["base.ammunition.kinetic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.kinetic",
+						"initial": {
+							"base.ammunition.kinetic": 180
+						}
+					}
 				},
 				"aft-ventral-gun": {
 					"kind": "weapon",
@@ -9912,12 +9953,19 @@
 				"mid-dorsal-mag": {
 					"kind": "magazine",
 					"compartment": "magazines",
-					"capacity": 180,
-					"reload": {
-						"strategy": "none"
-					},
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.kinetic"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 180,
+						"filter": {
+							"resources": ["base.ammunition.kinetic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.kinetic",
+						"initial": {
+							"base.ammunition.kinetic": 180
+						}
+					}
 				},
 				"mid-dorsal-gun": {
 					"kind": "weapon",
@@ -9967,42 +10015,6 @@
 				},
 				"bow-port-homing": {
 					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 600,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 120000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -10029,46 +10041,21 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.homing"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 16,
+						"filter": {
+							"resources": ["base.ammunition.homing"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.homing",
+						"initial": {
+							"base.ammunition.homing": 16
+						}
+					}
 				},
 				"bow-port-havok": {
 					"kind": "magazine",
-					"capacity": 48,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 100,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 60000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -10095,7 +10082,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.havok"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 48,
+						"filter": {
+							"resources": ["base.ammunition.havok"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.havok",
+						"initial": {
+							"base.ammunition.havok": 48
+						}
+					}
 				},
 				"bow-port-tube-1": {
 					"kind": "weapon",
@@ -10259,42 +10257,6 @@
 				},
 				"bow-starboard-homing": {
 					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 600,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 120000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -10321,46 +10283,21 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.homing"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 16,
+						"filter": {
+							"resources": ["base.ammunition.homing"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.homing",
+						"initial": {
+							"base.ammunition.homing": 16
+						}
+					}
 				},
 				"bow-starboard-havok": {
 					"kind": "magazine",
-					"capacity": 48,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 100,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 60000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -10387,7 +10324,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.havok"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 48,
+						"filter": {
+							"resources": ["base.ammunition.havok"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.havok",
+						"initial": {
+							"base.ammunition.havok": 48
+						}
+					}
 				},
 				"bow-starboard-tube-1": {
 					"kind": "weapon",
@@ -10551,42 +10499,6 @@
 				},
 				"port-fore-homing": {
 					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 600,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 120000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -10613,46 +10525,21 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.homing"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 16,
+						"filter": {
+							"resources": ["base.ammunition.homing"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.homing",
+						"initial": {
+							"base.ammunition.homing": 16
+						}
+					}
 				},
 				"port-fore-havok": {
 					"kind": "magazine",
-					"capacity": 48,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 100,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 60000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -10679,7 +10566,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.havok"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 48,
+						"filter": {
+							"resources": ["base.ammunition.havok"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.havok",
+						"initial": {
+							"base.ammunition.havok": 48
+						}
+					}
 				},
 				"port-fore-tube-1": {
 					"kind": "weapon",
@@ -10843,42 +10741,6 @@
 				},
 				"port-aft-homing": {
 					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 600,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 120000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -10905,46 +10767,21 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.homing"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 16,
+						"filter": {
+							"resources": ["base.ammunition.homing"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.homing",
+						"initial": {
+							"base.ammunition.homing": 16
+						}
+					}
 				},
 				"port-aft-havok": {
 					"kind": "magazine",
-					"capacity": 48,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 100,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 60000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -10971,7 +10808,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.havok"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 48,
+						"filter": {
+							"resources": ["base.ammunition.havok"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.havok",
+						"initial": {
+							"base.ammunition.havok": 48
+						}
+					}
 				},
 				"port-aft-tube-1": {
 					"kind": "weapon",
@@ -11135,42 +10983,6 @@
 				},
 				"starboard-fore-homing": {
 					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 600,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 120000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -11197,46 +11009,21 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.homing"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 16,
+						"filter": {
+							"resources": ["base.ammunition.homing"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.homing",
+						"initial": {
+							"base.ammunition.homing": 16
+						}
+					}
 				},
 				"starboard-fore-havok": {
 					"kind": "magazine",
-					"capacity": 48,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 100,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 60000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "weapons",
 					"faults": [
 						{
@@ -11263,7 +11050,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.havok"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 48,
+						"filter": {
+							"resources": ["base.ammunition.havok"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.havok",
+						"initial": {
+							"base.ammunition.havok": 48
+						}
+					}
 				},
 				"starboard-fore-tube-1": {
 					"kind": "weapon",
@@ -11427,42 +11225,6 @@
 				},
 				"starboard-aft-homing": {
 					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 600,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 120000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -11489,46 +11251,21 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.homing"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 16,
+						"filter": {
+							"resources": ["base.ammunition.homing"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.homing",
+						"initial": {
+							"base.ammunition.homing": 16
+						}
+					}
 				},
 				"starboard-aft-havok": {
 					"kind": "magazine",
-					"capacity": 48,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 100,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 2500000,
-						"arc_height_mm": 60000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -11555,7 +11292,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.havok"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 48,
+						"filter": {
+							"resources": ["base.ammunition.havok"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.havok",
+						"initial": {
+							"base.ammunition.havok": 48
+						}
+					}
 				},
 				"starboard-aft-tube-1": {
 					"kind": "weapon",
@@ -11719,20 +11467,6 @@
 				},
 				"pdc-port-1-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -11759,7 +11493,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-port-1": {
 					"kind": "weapon",
@@ -11804,20 +11549,6 @@
 				},
 				"pdc-port-2-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -11844,7 +11575,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-port-2": {
 					"kind": "weapon",
@@ -11889,20 +11631,6 @@
 				},
 				"pdc-port-3-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -11929,7 +11657,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-port-3": {
 					"kind": "weapon",
@@ -11974,20 +11713,6 @@
 				},
 				"pdc-port-4-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12014,7 +11739,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-port-4": {
 					"kind": "weapon",
@@ -12059,20 +11795,6 @@
 				},
 				"pdc-starboard-1-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12099,7 +11821,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-starboard-1": {
 					"kind": "weapon",
@@ -12144,20 +11877,6 @@
 				},
 				"pdc-starboard-2-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12184,7 +11903,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-starboard-2": {
 					"kind": "weapon",
@@ -12229,20 +11959,6 @@
 				},
 				"pdc-starboard-3-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12269,7 +11985,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-starboard-3": {
 					"kind": "weapon",
@@ -12314,20 +12041,6 @@
 				},
 				"pdc-starboard-4-mag": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12354,7 +12067,18 @@
 						}
 					],
 					"observation_console": "tactical",
-					"ammunition_type": "base.ammunition.pdc"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.ammunition.pdc"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.pdc",
+						"initial": {
+							"base.ammunition.pdc": 1200
+						}
+					}
 				},
 				"pdc-starboard-4": {
 					"kind": "weapon",
@@ -12598,20 +12322,6 @@
 				},
 				"interceptor-supply": {
 					"kind": "magazine",
-					"capacity": 1200,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12637,47 +12347,22 @@
 							"repair_work": 100
 						}
 					],
-					"ammunition_type": "base.craft.interceptor",
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 1200,
+						"filter": {
+							"resources": ["base.craft.interceptor"]
+						},
+						"single_resource": true,
+						"selection": "base.craft.interceptor",
+						"initial": {
+							"base.craft.interceptor": 1200
+						}
+					}
 				},
 				"bomber-supply": {
 					"kind": "magazine",
-					"capacity": 64,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 240,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 1000000,
-						"arc_height_mm": 35000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "magazines",
 					"faults": [
 						{
@@ -12703,8 +12388,19 @@
 							"repair_work": 100
 						}
 					],
-					"ammunition_type": "base.craft.bomber",
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 64,
+						"filter": {
+							"resources": ["base.craft.bomber"]
+						},
+						"single_resource": true,
+						"selection": "base.craft.bomber",
+						"initial": {
+							"base.craft.bomber": 64
+						}
+					}
 				},
 				"utility-bay": {
 					"kind": "shuttle_bay",
@@ -15200,7 +14896,8 @@
 						"operation_heat_ppm": 400000,
 						"stop_heat": 300000,
 						"recover_heat": 150000,
-						"passive_cooling": 40
+						"passive_cooling": 40,
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "shields-cell",
@@ -15211,7 +14908,8 @@
 						"operation_heat_ppm": 400000,
 						"stop_heat": 300000,
 						"recover_heat": 150000,
-						"passive_cooling": 40
+						"passive_cooling": 40,
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "services-cell",
@@ -15222,7 +14920,8 @@
 						"operation_heat_ppm": 400000,
 						"stop_heat": 300000,
 						"recover_heat": 150000,
-						"passive_cooling": 40
+						"passive_cooling": 40,
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "psychic-cell",
@@ -15233,7 +14932,8 @@
 						"operation_heat_ppm": 500000,
 						"stop_heat": 300000,
 						"recover_heat": 150000,
-						"passive_cooling": 40
+						"passive_cooling": 40,
+						"resource": "base.resource.energy"
 					}
 				],
 				"links": [
@@ -15366,32 +15066,6 @@
 			],
 			"logistics": {
 				"controller": "logistics",
-				"materials": [
-					{
-						"id": "base.ammunition.havok"
-					},
-					{
-						"id": "base.ammunition.homing"
-					},
-					{
-						"id": "base.ammunition.kinetic"
-					},
-					{
-						"id": "base.ammunition.pdc"
-					},
-					{
-						"id": "base.craft.bomber"
-					},
-					{
-						"id": "base.craft.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"units_per_second": 100,
 				"concurrency": 8,
 				"batch_size": 20,
@@ -15400,28 +15074,7 @@
 						"id": "main-hold",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 52992,
 						"main": true,
-						"accepts": [
-							"base.ammunition.havok",
-							"base.ammunition.homing",
-							"base.ammunition.kinetic",
-							"base.ammunition.pdc",
-							"base.craft.bomber",
-							"base.craft.interceptor",
-							"medical",
-							"parts"
-						],
-						"initial": {
-							"parts": 2000,
-							"medical": 200,
-							"base.ammunition.kinetic": 1800,
-							"base.ammunition.homing": 192,
-							"base.ammunition.havok": 576,
-							"base.ammunition.pdc": 19200,
-							"base.craft.interceptor": 2400,
-							"base.craft.bomber": 128
-						},
 						"targets": {
 							"parts": 2000,
 							"medical": 200,
@@ -15431,6 +15084,32 @@
 							"base.ammunition.pdc": 19200,
 							"base.craft.interceptor": 2400,
 							"base.craft.bomber": 128
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 52992,
+							"filter": {
+								"resources": [
+									"base.ammunition.havok",
+									"base.ammunition.homing",
+									"base.ammunition.kinetic",
+									"base.ammunition.pdc",
+									"base.craft.bomber",
+									"base.craft.interceptor",
+									"medical",
+									"parts"
+								]
+							},
+							"initial": {
+								"parts": 2000,
+								"medical": 200,
+								"base.ammunition.kinetic": 1800,
+								"base.ammunition.homing": 192,
+								"base.ammunition.havok": 576,
+								"base.ammunition.pdc": 19200,
+								"base.craft.interceptor": 2400,
+								"base.craft.bomber": 128
+							}
 						}
 					},
 					{
@@ -15438,10 +15117,20 @@
 						"system": "fore-dorsal-mag",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -15449,10 +15138,20 @@
 						"system": "fore-ventral-mag",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -15460,10 +15159,20 @@
 						"system": "aft-dorsal-mag",
 						"controller": "armament-services",
 						"compartment": "engineering",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -15471,10 +15180,20 @@
 						"system": "aft-ventral-mag",
 						"controller": "armament-services",
 						"compartment": "engineering",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -15482,10 +15201,20 @@
 						"system": "mid-dorsal-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -15493,10 +15222,20 @@
 						"system": "bow-port-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -15504,10 +15243,20 @@
 						"system": "bow-port-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -15515,10 +15264,20 @@
 						"system": "bow-starboard-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -15526,10 +15285,20 @@
 						"system": "bow-starboard-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -15537,10 +15306,20 @@
 						"system": "port-fore-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -15548,10 +15327,20 @@
 						"system": "port-fore-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -15559,10 +15348,20 @@
 						"system": "port-aft-homing",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -15570,10 +15369,20 @@
 						"system": "port-aft-havok",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -15581,10 +15390,20 @@
 						"system": "starboard-fore-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -15592,10 +15411,20 @@
 						"system": "starboard-fore-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -15603,10 +15432,20 @@
 						"system": "starboard-aft-homing",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -15614,10 +15453,20 @@
 						"system": "starboard-aft-havok",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -15625,10 +15474,20 @@
 						"system": "pdc-port-1-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15636,10 +15495,20 @@
 						"system": "pdc-port-2-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15647,10 +15516,20 @@
 						"system": "pdc-port-3-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15658,10 +15537,20 @@
 						"system": "pdc-port-4-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15669,10 +15558,20 @@
 						"system": "pdc-starboard-1-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15680,10 +15579,20 @@
 						"system": "pdc-starboard-2-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15691,10 +15600,20 @@
 						"system": "pdc-starboard-3-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15702,10 +15621,20 @@
 						"system": "pdc-starboard-4-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -15713,13 +15642,18 @@
 						"system": "repair-1",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 24,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 24
-						},
 						"targets": {
 							"parts": 24
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 24
+							}
 						}
 					},
 					{
@@ -15727,13 +15661,18 @@
 						"system": "repair-2",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 24,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 24
-						},
 						"targets": {
 							"parts": 24
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 24
+							}
 						}
 					},
 					{
@@ -15741,13 +15680,18 @@
 						"system": "repair-3",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 24,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 24
-						},
 						"targets": {
 							"parts": 24
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 24
+							}
 						}
 					},
 					{
@@ -15755,13 +15699,18 @@
 						"system": "repair-4",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 24,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 24
-						},
 						"targets": {
 							"parts": 24
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 24,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 24
+							}
 						}
 					},
 					{
@@ -15769,10 +15718,20 @@
 						"system": "interceptor-supply",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.craft.interceptor"],
 						"targets": {
 							"base.craft.interceptor": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.craft.interceptor"]
+							},
+							"single_resource": true,
+							"selection": "base.craft.interceptor",
+							"initial": {
+								"base.craft.interceptor": 1200
+							}
 						}
 					},
 					{
@@ -15780,10 +15739,20 @@
 						"system": "bomber-supply",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 64,
-						"accepts": ["base.craft.bomber"],
 						"targets": {
 							"base.craft.bomber": 64
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 64,
+							"filter": {
+								"resources": ["base.craft.bomber"]
+							},
+							"single_resource": true,
+							"selection": "base.craft.bomber",
+							"initial": {
+								"base.craft.bomber": 64
+							}
 						}
 					},
 					{
@@ -15791,13 +15760,18 @@
 						"system": "medical-1",
 						"controller": "medical-1",
 						"compartment": "medical",
-						"capacity": 12,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 12
-						},
 						"targets": {
 							"medical": 12
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 12,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 12
+							}
 						}
 					},
 					{
@@ -15805,26 +15779,36 @@
 						"system": "medical-2",
 						"controller": "medical-2",
 						"compartment": "medical",
-						"capacity": 12,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 12
-						},
 						"targets": {
 							"medical": 12
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 12,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 12
+							}
 						}
 					},
 					{
 						"id": "infirmary-supplies",
 						"controller": "medical-1",
 						"compartment": "medical",
-						"capacity": 32,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 32
-						},
 						"targets": {
 							"medical": 32
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 32,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 32
+							}
 						}
 					}
 				],
@@ -19407,7 +19391,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 100,
 									"stop_heat": 300000,
-									"recover_heat": 150000
+									"recover_heat": 150000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -19423,7 +19408,9 @@
 									"id": "coolant",
 									"initial": 500000,
 									"removal_rate": 10000,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 500000
 								}
 							],
 							"cooling_links": [
@@ -20348,12 +20335,6 @@
 				"forward-mag": {
 					"kind": "magazine",
 					"compartment": "bow-port",
-					"capacity": 4,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 100,
-						"amount": 4
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -20378,7 +20359,25 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 4,
+						"filter": {
+							"resources": ["base.ammunition.generic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.generic",
+						"initial": {
+							"base.ammunition.generic": 4
+						}
+					},
+					"processor": {
+						"recipe": "base.recipe.generic.batch4.work100",
+						"mode": "batch",
+						"work_per_second": 20,
+						"energy_per_second": 0
+					}
 				},
 				"forward-gun": {
 					"kind": "weapon",
@@ -21454,7 +21453,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 12,
 									"stop_heat": 36000,
-									"recover_heat": 18000
+									"recover_heat": 18000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -21470,7 +21470,9 @@
 									"id": "coolant",
 									"initial": 60000,
 									"removal_rate": 1200,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 60000
 								}
 							],
 							"cooling_links": [
@@ -23720,7 +23722,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier â€” Communications fit",
+			"name": "Courier \u00e2\u20ac\u201d Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -23884,7 +23886,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 100,
 									"stop_heat": 300000,
-									"recover_heat": 150000
+									"recover_heat": 150000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -23900,7 +23903,9 @@
 									"id": "coolant",
 									"initial": 500000,
 									"removal_rate": 10000,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 500000
 								}
 							],
 							"cooling_links": [
@@ -26264,12 +26269,6 @@
 				"forward-mag": {
 					"kind": "magazine",
 					"compartment": "bow-port",
-					"capacity": 4,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 100,
-						"amount": 4
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -26294,7 +26293,25 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 4,
+						"filter": {
+							"resources": ["base.ammunition.generic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.generic",
+						"initial": {
+							"base.ammunition.generic": 4
+						}
+					},
+					"processor": {
+						"recipe": "base.recipe.generic.batch4.work100",
+						"mode": "batch",
+						"work_per_second": 20,
+						"energy_per_second": 0
+					}
 				},
 				"forward-gun": {
 					"kind": "weapon",
@@ -28042,7 +28059,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 12,
 									"stop_heat": 36000,
-									"recover_heat": 18000
+									"recover_heat": 18000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -28058,7 +28076,9 @@
 									"id": "coolant",
 									"initial": 60000,
 									"removal_rate": 1200,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 60000
 								}
 							],
 							"cooling_links": [
@@ -28836,27 +28856,22 @@
 			"class_key": "Courier",
 			"logistics": {
 				"controller": "team-1",
-				"materials": [
-					{
-						"id": "station-supplies",
-						"volume": 1
-					},
-					{
-						"id": "perishable-essentials",
-						"volume": 1
-					}
-				],
 				"units_per_second": 40,
 				"stores": [
 					{
 						"id": "mission-hold",
 						"controller": "team-1",
 						"compartment": "stern-starboard",
-						"capacity": 100,
 						"main": true,
-						"accepts": ["station-supplies"],
-						"initial": {
-							"station-supplies": 100
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 100,
+							"filter": {
+								"resources": ["station-supplies"]
+							},
+							"initial": {
+								"station-supplies": 100
+							}
 						}
 					}
 				]
@@ -28901,7 +28916,8 @@
 						"operation_heat_ppm": 150000,
 						"passive_cooling": 20,
 						"stop_heat": 5000,
-						"recover_heat": 1500
+						"recover_heat": 1500,
+						"resource": "base.resource.energy"
 					}
 				],
 				"links": [
@@ -28917,7 +28933,9 @@
 						"id": "veil-coolant",
 						"initial": 20000,
 						"removal_rate": 200,
-						"coolant_per_heat_ppm": 100000
+						"coolant_per_heat_ppm": 100000,
+						"resource": "base.resource.coolant",
+						"capacity": 20000
 					}
 				],
 				"cooling_links": [
@@ -29420,12 +29438,6 @@
 				"forward-mag": {
 					"kind": "magazine",
 					"compartment": "bow-port",
-					"capacity": 4,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 100,
-						"amount": 4
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -29450,7 +29462,25 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 4,
+						"filter": {
+							"resources": ["base.ammunition.generic"]
+						},
+						"single_resource": true,
+						"selection": "base.ammunition.generic",
+						"initial": {
+							"base.ammunition.generic": 4
+						}
+					},
+					"processor": {
+						"recipe": "base.recipe.generic.batch4.work100",
+						"mode": "batch",
+						"work_per_second": 20,
+						"energy_per_second": 0
+					}
 				},
 				"forward-gun": {
 					"kind": "weapon",
@@ -30479,7 +30509,8 @@
 									"charge_heat_ppm": 0,
 									"passive_cooling": 12,
 									"stop_heat": 36000,
-									"recover_heat": 18000
+									"recover_heat": 18000,
+									"resource": "base.resource.energy"
 								}
 							],
 							"links": [
@@ -30495,7 +30526,9 @@
 									"id": "coolant",
 									"initial": 60000,
 									"removal_rate": 1200,
-									"coolant_per_heat_ppm": 100000
+									"coolant_per_heat_ppm": 100000,
+									"resource": "base.resource.coolant",
+									"capacity": 60000
 								}
 							],
 							"cooling_links": [
@@ -31069,7 +31102,8 @@
 						"capacity": 60000,
 						"initial": 60000,
 						"charge_rate": 1000,
-						"discharge_rate": 1000
+						"discharge_rate": 1000,
+						"resource": "base.resource.energy"
 					}
 				]
 			},
@@ -31484,7 +31518,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "base.resource.energy"
 					}
 				]
 			},
@@ -31765,49 +31800,29 @@
 			"class_key": "Utility shuttle",
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "base.ammunition.havok"
-					},
-					{
-						"id": "base.ammunition.homing"
-					},
-					{
-						"id": "base.ammunition.kinetic"
-					},
-					{
-						"id": "base.ammunition.pdc"
-					},
-					{
-						"id": "base.craft.bomber"
-					},
-					{
-						"id": "base.craft.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"stores": [
 					{
 						"id": "cargo",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 200,
 						"main": true,
-						"accepts": [
-							"base.ammunition.havok",
-							"base.ammunition.homing",
-							"base.ammunition.kinetic",
-							"base.ammunition.pdc",
-							"base.craft.bomber",
-							"base.craft.interceptor",
-							"medical",
-							"parts"
-						]
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 200,
+							"filter": {
+								"resources": [
+									"base.ammunition.havok",
+									"base.ammunition.homing",
+									"base.ammunition.kinetic",
+									"base.ammunition.pdc",
+									"base.craft.bomber",
+									"base.craft.interceptor",
+									"medical",
+									"parts"
+								]
+							},
+							"initial": {}
+						}
 					}
 				]
 			},
@@ -31871,20 +31886,6 @@
 				},
 				"intercept-mag": {
 					"kind": "magazine",
-					"capacity": 120,
-					"reload": {
-						"strategy": "none"
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
 					"compartment": "hull",
 					"faults": [
 						{
@@ -31910,7 +31911,18 @@
 							"repair_work": 100
 						}
 					],
-					"ammunition_type": "base.craft.interceptor"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 120,
+						"filter": {
+							"resources": ["base.craft.interceptor"]
+						},
+						"single_resource": true,
+						"selection": "base.craft.interceptor",
+						"initial": {
+							"base.craft.interceptor": 120
+						}
+					}
 				},
 				"weapon": {
 					"kind": "weapon",
@@ -31932,7 +31944,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "base.resource.energy"
 					}
 				]
 			},
@@ -32231,40 +32244,24 @@
 			"class_key": "Interceptor",
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "base.ammunition.havok"
-					},
-					{
-						"id": "base.ammunition.homing"
-					},
-					{
-						"id": "base.ammunition.kinetic"
-					},
-					{
-						"id": "base.ammunition.pdc"
-					},
-					{
-						"id": "base.craft.bomber"
-					},
-					{
-						"id": "base.craft.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"stores": [
 					{
 						"id": "intercept-mag",
 						"system": "intercept-mag",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 120,
-						"accepts": ["base.craft.interceptor"]
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 120,
+							"filter": {
+								"resources": ["base.craft.interceptor"]
+							},
+							"single_resource": true,
+							"selection": "base.craft.interceptor",
+							"initial": {
+								"base.craft.interceptor": 120
+							}
+						}
 					}
 				]
 			}
@@ -32307,42 +32304,6 @@
 				},
 				"bomb-mag": {
 					"kind": "magazine",
-					"capacity": 8,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 240,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 1000000,
-						"arc_height_mm": 35000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
 					"compartment": "hull",
 					"faults": [
 						{
@@ -32368,7 +32329,18 @@
 							"repair_work": 100
 						}
 					],
-					"ammunition_type": "base.craft.bomber"
+					"stock": {
+						"capacity_tag": "ammo",
+						"capacity": 8,
+						"filter": {
+							"resources": ["base.craft.bomber"]
+						},
+						"single_resource": true,
+						"selection": "base.craft.bomber",
+						"initial": {
+							"base.craft.bomber": 8
+						}
+					}
 				},
 				"weapon": {
 					"kind": "weapon",
@@ -32388,7 +32360,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "base.resource.energy"
 					}
 				]
 			},
@@ -32681,40 +32654,24 @@
 			"class_key": "Bomber",
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "base.ammunition.havok"
-					},
-					{
-						"id": "base.ammunition.homing"
-					},
-					{
-						"id": "base.ammunition.kinetic"
-					},
-					{
-						"id": "base.ammunition.pdc"
-					},
-					{
-						"id": "base.craft.bomber"
-					},
-					{
-						"id": "base.craft.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					}
-				],
 				"stores": [
 					{
 						"id": "bomb-mag",
 						"system": "bomb-mag",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 8,
-						"accepts": ["base.craft.bomber"]
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 8,
+							"filter": {
+								"resources": ["base.craft.bomber"]
+							},
+							"single_resource": true,
+							"selection": "base.craft.bomber",
+							"initial": {
+								"base.craft.bomber": 8
+							}
+						}
 					}
 				]
 			}
@@ -32736,59 +32693,31 @@
 			"faction": "crew",
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "base.ammunition.havok"
-					},
-					{
-						"id": "base.ammunition.homing"
-					},
-					{
-						"id": "base.ammunition.kinetic"
-					},
-					{
-						"id": "base.ammunition.pdc"
-					},
-					{
-						"id": "base.craft.bomber"
-					},
-					{
-						"id": "base.craft.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					},
-					{
-						"id": "station-supplies",
-						"volume": 1
-					},
-					{
-						"id": "perishable-essentials",
-						"volume": 1
-					}
-				],
 				"stores": [
 					{
 						"id": "cargo",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 200,
 						"main": true,
-						"accepts": [
-							"base.ammunition.havok",
-							"base.ammunition.homing",
-							"base.ammunition.kinetic",
-							"base.ammunition.pdc",
-							"base.craft.bomber",
-							"base.craft.interceptor",
-							"medical",
-							"parts",
-							"station-supplies",
-							"perishable-essentials"
-						]
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 200,
+							"filter": {
+								"resources": [
+									"base.ammunition.havok",
+									"base.ammunition.homing",
+									"base.ammunition.kinetic",
+									"base.ammunition.pdc",
+									"base.craft.bomber",
+									"base.craft.interceptor",
+									"medical",
+									"parts",
+									"station-supplies",
+									"perishable-essentials"
+								]
+							},
+							"initial": {}
+						}
 					}
 				]
 			},
@@ -32817,44 +32746,10 @@
 		{
 			"id": "base.delivery-cruiser",
 			"extends": "base.cruiser",
-			"name": "Cruiser — essential delivery",
+			"name": "Cruiser \u2014 essential delivery",
 			"faction": "crew",
 			"logistics": {
 				"controller": "logistics",
-				"materials": [
-					{
-						"id": "base.ammunition.havok"
-					},
-					{
-						"id": "base.ammunition.homing"
-					},
-					{
-						"id": "base.ammunition.kinetic"
-					},
-					{
-						"id": "base.ammunition.pdc"
-					},
-					{
-						"id": "base.craft.bomber"
-					},
-					{
-						"id": "base.craft.interceptor"
-					},
-					{
-						"id": "medical"
-					},
-					{
-						"id": "parts"
-					},
-					{
-						"id": "station-supplies",
-						"volume": 1
-					},
-					{
-						"id": "perishable-essentials",
-						"volume": 1
-					}
-				],
 				"units_per_second": 100,
 				"concurrency": 8,
 				"batch_size": 20,
@@ -32863,28 +32758,7 @@
 						"id": "main-hold",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 52992,
 						"main": true,
-						"accepts": [
-							"base.ammunition.havok",
-							"base.ammunition.homing",
-							"base.ammunition.kinetic",
-							"base.ammunition.pdc",
-							"base.craft.bomber",
-							"base.craft.interceptor",
-							"medical",
-							"parts"
-						],
-						"initial": {
-							"parts": 2000,
-							"medical": 200,
-							"base.ammunition.kinetic": 1800,
-							"base.ammunition.homing": 192,
-							"base.ammunition.havok": 576,
-							"base.ammunition.pdc": 19200,
-							"base.craft.interceptor": 2400,
-							"base.craft.bomber": 128
-						},
 						"targets": {
 							"parts": 2000,
 							"medical": 200,
@@ -32894,6 +32768,32 @@
 							"base.ammunition.pdc": 19200,
 							"base.craft.interceptor": 2400,
 							"base.craft.bomber": 128
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 52992,
+							"filter": {
+								"resources": [
+									"base.ammunition.havok",
+									"base.ammunition.homing",
+									"base.ammunition.kinetic",
+									"base.ammunition.pdc",
+									"base.craft.bomber",
+									"base.craft.interceptor",
+									"medical",
+									"parts"
+								]
+							},
+							"initial": {
+								"parts": 2000,
+								"medical": 200,
+								"base.ammunition.kinetic": 1800,
+								"base.ammunition.homing": 192,
+								"base.ammunition.havok": 576,
+								"base.ammunition.pdc": 19200,
+								"base.craft.interceptor": 2400,
+								"base.craft.bomber": 128
+							}
 						}
 					},
 					{
@@ -32901,10 +32801,20 @@
 						"system": "fore-dorsal-mag",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -32912,10 +32822,20 @@
 						"system": "fore-ventral-mag",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -32923,10 +32843,20 @@
 						"system": "aft-dorsal-mag",
 						"controller": "armament-services",
 						"compartment": "engineering",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -32934,10 +32864,20 @@
 						"system": "aft-ventral-mag",
 						"controller": "armament-services",
 						"compartment": "engineering",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -32945,10 +32885,20 @@
 						"system": "mid-dorsal-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 180,
-						"accepts": ["base.ammunition.kinetic"],
 						"targets": {
 							"base.ammunition.kinetic": 180
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 180,
+							"filter": {
+								"resources": ["base.ammunition.kinetic"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.kinetic",
+							"initial": {
+								"base.ammunition.kinetic": 180
+							}
 						}
 					},
 					{
@@ -32956,10 +32906,20 @@
 						"system": "bow-port-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -32967,10 +32927,20 @@
 						"system": "bow-port-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -32978,10 +32948,20 @@
 						"system": "bow-starboard-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -32989,10 +32969,20 @@
 						"system": "bow-starboard-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -33000,10 +32990,20 @@
 						"system": "port-fore-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -33011,10 +33011,20 @@
 						"system": "port-fore-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -33022,10 +33032,20 @@
 						"system": "port-aft-homing",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -33033,10 +33053,20 @@
 						"system": "port-aft-havok",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -33044,10 +33074,20 @@
 						"system": "starboard-fore-homing",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -33055,10 +33095,20 @@
 						"system": "starboard-fore-havok",
 						"controller": "armament-services",
 						"compartment": "weapons",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -33066,10 +33116,20 @@
 						"system": "starboard-aft-homing",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 16,
-						"accepts": ["base.ammunition.homing"],
 						"targets": {
 							"base.ammunition.homing": 16
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 16,
+							"filter": {
+								"resources": ["base.ammunition.homing"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.homing",
+							"initial": {
+								"base.ammunition.homing": 16
+							}
 						}
 					},
 					{
@@ -33077,10 +33137,20 @@
 						"system": "starboard-aft-havok",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 48,
-						"accepts": ["base.ammunition.havok"],
 						"targets": {
 							"base.ammunition.havok": 48
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 48,
+							"filter": {
+								"resources": ["base.ammunition.havok"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.havok",
+							"initial": {
+								"base.ammunition.havok": 48
+							}
 						}
 					},
 					{
@@ -33088,10 +33158,20 @@
 						"system": "pdc-port-1-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33099,10 +33179,20 @@
 						"system": "pdc-port-2-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33110,10 +33200,20 @@
 						"system": "pdc-port-3-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33121,10 +33221,20 @@
 						"system": "pdc-port-4-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33132,10 +33242,20 @@
 						"system": "pdc-starboard-1-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33143,10 +33263,20 @@
 						"system": "pdc-starboard-2-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33154,10 +33284,20 @@
 						"system": "pdc-starboard-3-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33165,10 +33305,20 @@
 						"system": "pdc-starboard-4-mag",
 						"controller": "armament-services",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.ammunition.pdc"],
 						"targets": {
 							"base.ammunition.pdc": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.ammunition.pdc"]
+							},
+							"single_resource": true,
+							"selection": "base.ammunition.pdc",
+							"initial": {
+								"base.ammunition.pdc": 1200
+							}
 						}
 					},
 					{
@@ -33176,13 +33326,18 @@
 						"system": "repair-1",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 4000,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 4000
-						},
 						"targets": {
 							"parts": 4000
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 4000,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 4000
+							}
 						}
 					},
 					{
@@ -33190,13 +33345,18 @@
 						"system": "repair-2",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 4000,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 4000
-						},
 						"targets": {
 							"parts": 4000
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 4000,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 4000
+							}
 						}
 					},
 					{
@@ -33204,13 +33364,18 @@
 						"system": "repair-3",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 4000,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 4000
-						},
 						"targets": {
 							"parts": 4000
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 4000,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 4000
+							}
 						}
 					},
 					{
@@ -33218,13 +33383,18 @@
 						"system": "repair-4",
 						"controller": "logistics",
 						"compartment": "engineering",
-						"capacity": 4000,
-						"accepts": ["parts"],
-						"initial": {
-							"parts": 4000
-						},
 						"targets": {
 							"parts": 4000
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 4000,
+							"filter": {
+								"resources": ["parts"]
+							},
+							"initial": {
+								"parts": 4000
+							}
 						}
 					},
 					{
@@ -33232,10 +33402,20 @@
 						"system": "interceptor-supply",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 1200,
-						"accepts": ["base.craft.interceptor"],
 						"targets": {
 							"base.craft.interceptor": 1200
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 1200,
+							"filter": {
+								"resources": ["base.craft.interceptor"]
+							},
+							"single_resource": true,
+							"selection": "base.craft.interceptor",
+							"initial": {
+								"base.craft.interceptor": 1200
+							}
 						}
 					},
 					{
@@ -33243,10 +33423,20 @@
 						"system": "bomber-supply",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 64,
-						"accepts": ["base.craft.bomber"],
 						"targets": {
 							"base.craft.bomber": 64
+						},
+						"stock": {
+							"capacity_tag": "ammo",
+							"capacity": 64,
+							"filter": {
+								"resources": ["base.craft.bomber"]
+							},
+							"single_resource": true,
+							"selection": "base.craft.bomber",
+							"initial": {
+								"base.craft.bomber": 64
+							}
 						}
 					},
 					{
@@ -33254,13 +33444,18 @@
 						"system": "medical-1",
 						"controller": "medical-1",
 						"compartment": "medical",
-						"capacity": 12,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 12
-						},
 						"targets": {
 							"medical": 12
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 12,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 12
+							}
 						}
 					},
 					{
@@ -33268,37 +33463,52 @@
 						"system": "medical-2",
 						"controller": "medical-2",
 						"compartment": "medical",
-						"capacity": 12,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 12
-						},
 						"targets": {
 							"medical": 12
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 12,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 12
+							}
 						}
 					},
 					{
 						"id": "infirmary-supplies",
 						"controller": "medical-1",
 						"compartment": "medical",
-						"capacity": 32,
-						"accepts": ["medical"],
-						"initial": {
-							"medical": 32
-						},
 						"targets": {
 							"medical": 32
+						},
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 32,
+							"filter": {
+								"resources": ["medical"]
+							},
+							"initial": {
+								"medical": 32
+							}
 						}
 					},
 					{
 						"id": "mission-hold",
 						"controller": "logistics",
 						"compartment": "magazines",
-						"capacity": 100,
 						"main": true,
-						"accepts": ["perishable-essentials"],
-						"initial": {
-							"perishable-essentials": 100
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 100,
+							"filter": {
+								"resources": ["perishable-essentials"]
+							},
+							"initial": {
+								"perishable-essentials": 100
+							}
 						}
 					}
 				],
@@ -33668,7 +33878,8 @@
 						"capacity": 100000,
 						"initial": 100000,
 						"charge_rate": 5000,
-						"discharge_rate": 5000
+						"discharge_rate": 5000,
+						"resource": "base.resource.energy"
 					}
 				]
 			},
@@ -33788,25 +33999,21 @@
 			"class_key": "Starbase",
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "station-supplies",
-						"volume": 1
-					},
-					{
-						"id": "perishable-essentials",
-						"volume": 1
-					}
-				],
 				"units_per_second": 40,
 				"stores": [
 					{
 						"id": "receiving",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 1000,
-						"accepts": ["station-supplies", "perishable-essentials"],
-						"main": true
+						"main": true,
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 1000,
+							"filter": {
+								"resources": ["station-supplies", "perishable-essentials"]
+							},
+							"initial": {}
+						}
 					}
 				]
 			},
@@ -33927,7 +34134,7 @@
 		{
 			"id": "base.delivery-casualty",
 			"extends": "base.rescue-casualty",
-			"name": "Morrow — stranded merchant",
+			"name": "Morrow \u2014 stranded merchant",
 			"faction": "crew",
 			"systems": {
 				"comms-radio": {
@@ -36380,26 +36587,23 @@
 			},
 			"logistics": {
 				"controller": "flight",
-				"materials": [
-					{
-						"id": "parts"
-					},
-					{
-						"id": "medical"
-					}
-				],
 				"units_per_second": 40,
 				"stores": [
 					{
 						"id": "receiving",
 						"controller": "flight",
 						"compartment": "hull",
-						"capacity": 2000,
 						"main": true,
-						"accepts": ["parts", "medical"],
-						"initial": {
-							"parts": 600,
-							"medical": 200
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 2000,
+							"filter": {
+								"resources": ["parts", "medical"]
+							},
+							"initial": {
+								"parts": 600,
+								"medical": 200
+							}
 						}
 					}
 				]
@@ -37419,7 +37623,7 @@
 									},
 									{
 										"result": "prompt",
-										"title_key": "Prompt delivery — full credit",
+										"title_key": "Prompt delivery \u2014 full credit",
 										"explanation_key": "Cairn received all perishable essentials within 10 minutes of arrival.",
 										"when": {
 											"all": [
@@ -37438,7 +37642,7 @@
 									},
 									{
 										"result": "late",
-										"title_key": "Late delivery — reduced credit",
+										"title_key": "Late delivery \u2014 reduced credit",
 										"explanation_key": "Cairn received the full consignment after 10 minutes, within the 20 minute limit.",
 										"when": {
 											"fact": "delivery-status",
@@ -37448,7 +37652,7 @@
 									},
 									{
 										"result": "expired",
-										"title_key": "Expired — delivery failed",
+										"title_key": "Expired \u2014 delivery failed",
 										"explanation_key": "The full consignment did not reach Cairn within 20 minutes. Cargo remains transferable but earns no delivery credit.",
 										"when": {
 											"fact": "delivery-status",
@@ -37890,7 +38094,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the shipâ€™s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "base.console.helm",
@@ -54942,7 +55146,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-cruiser-arrival",
@@ -54966,7 +55170,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-completed",
@@ -54990,7 +55194,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-expired",
@@ -55014,7 +55218,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-reminder-5",
@@ -55038,7 +55242,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-reminder-8",
@@ -55062,7 +55266,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-reminder-15",
@@ -55086,7 +55290,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.delivery-reminder-18",
@@ -55110,7 +55314,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.courier.assist.drive.direct",
@@ -61090,12 +61294,6 @@
 			"id": "base.equipment.combat-top-mag",
 			"kind": "magazine",
 			"compartment": "mid-port",
-			"capacity": 6,
-			"reload": {
-				"strategy": "infinite",
-				"ticks": 80,
-				"amount": 6
-			},
 			"observation_console": "tactical",
 			"faults": [
 				{
@@ -61120,18 +61318,30 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"stock": {
+				"capacity_tag": "ammo",
+				"capacity": 6,
+				"filter": {
+					"resources": ["base.ammunition.generic"]
+				},
+				"single_resource": true,
+				"selection": "base.ammunition.generic",
+				"initial": {
+					"base.ammunition.generic": 6
+				}
+			},
+			"processor": {
+				"recipe": "base.recipe.generic.batch6.work80",
+				"mode": "batch",
+				"work_per_second": 20,
+				"energy_per_second": 0
+			}
 		},
 		{
 			"id": "base.equipment.combat-bottom-mag",
 			"kind": "magazine",
 			"compartment": "mid-starboard",
-			"capacity": 6,
-			"reload": {
-				"strategy": "infinite",
-				"ticks": 80,
-				"amount": 6
-			},
 			"observation_console": "tactical",
 			"faults": [
 				{
@@ -61156,7 +61366,25 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"stock": {
+				"capacity_tag": "ammo",
+				"capacity": 6,
+				"filter": {
+					"resources": ["base.ammunition.generic"]
+				},
+				"single_resource": true,
+				"selection": "base.ammunition.generic",
+				"initial": {
+					"base.ammunition.generic": 6
+				}
+			},
+			"processor": {
+				"recipe": "base.recipe.generic.batch6.work80",
+				"mode": "batch",
+				"work_per_second": 20,
+				"energy_per_second": 0
+			}
 		},
 		{
 			"id": "base.equipment.combat-team-1",
@@ -61272,42 +61500,6 @@
 		{
 			"id": "base.equipment.combat-homing-mag",
 			"kind": "magazine",
-			"capacity": 16,
-			"reload": {
-				"strategy": "none"
-			},
-			"fire_ticks": 35,
-			"load_ticks": 14,
-			"projectile": {
-				"visual": "base.combat-missile",
-				"speed_mm_s": 65000,
-				"lifetime_ticks": 240,
-				"penetration": 4000,
-				"damage": 350,
-				"damage_per_m": 20,
-				"guidance": "homing",
-				"shield_bypass_permille": 650,
-				"turn_mdeg_s": 70000,
-				"seeker_range_mm": 1000000,
-				"arc_height_mm": 35000,
-				"chaos_mdeg": 0,
-				"durability": 18,
-				"radius_mm": 700,
-				"resistance_per_m": 2,
-				"blast_radius_mm": 18000,
-				"fuse_radius_mm": 1500,
-				"trail": "smoke",
-				"destruction": {
-					"visual": "base.combat-explosion",
-					"chance_permille": 450,
-					"damage": 60,
-					"radius_mm": 8000,
-					"affects_missiles": false,
-					"growth_ticks": 2,
-					"fade_ticks": 10,
-					"size_mm": 10000
-				}
-			},
 			"compartment": "mid-port",
 			"faults": [
 				{
@@ -61332,47 +61524,23 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"stock": {
+				"capacity_tag": "ammo",
+				"capacity": 16,
+				"filter": {
+					"resources": ["base.ammunition.duel-homing"]
+				},
+				"single_resource": true,
+				"selection": "base.ammunition.duel-homing",
+				"initial": {
+					"base.ammunition.duel-homing": 16
+				}
+			}
 		},
 		{
 			"id": "base.equipment.combat-havok-mag",
 			"kind": "magazine",
-			"capacity": 80,
-			"reload": {
-				"strategy": "none"
-			},
-			"fire_ticks": 3,
-			"load_ticks": 2,
-			"projectile": {
-				"visual": "base.combat-missile",
-				"speed_mm_s": 90000,
-				"lifetime_ticks": 35,
-				"penetration": 4000,
-				"damage": 45,
-				"damage_per_m": 20,
-				"guidance": "chaotic",
-				"shield_bypass_permille": 100,
-				"turn_mdeg_s": 250000,
-				"seeker_range_mm": 1000000,
-				"arc_height_mm": 6000,
-				"chaos_mdeg": 18000,
-				"durability": 10,
-				"radius_mm": 700,
-				"resistance_per_m": 2,
-				"blast_radius_mm": 5500,
-				"fuse_radius_mm": 1500,
-				"trail": "smoke",
-				"destruction": {
-					"visual": "base.combat-explosion",
-					"chance_permille": 450,
-					"damage": 18,
-					"radius_mm": 8000,
-					"affects_missiles": false,
-					"growth_ticks": 2,
-					"fade_ticks": 10,
-					"size_mm": 10000
-				}
-			},
 			"compartment": "mid-port",
 			"faults": [
 				{
@@ -61397,7 +61565,19 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"stock": {
+				"capacity_tag": "ammo",
+				"capacity": 80,
+				"filter": {
+					"resources": ["base.ammunition.duel-havok"]
+				},
+				"single_resource": true,
+				"selection": "base.ammunition.duel-havok",
+				"initial": {
+					"base.ammunition.duel-havok": 80
+				}
+			}
 		},
 		{
 			"id": "base.equipment.combat-missile-launcher",
@@ -61439,22 +61619,6 @@
 		{
 			"id": "base.equipment.combat-pdc-mag",
 			"kind": "magazine",
-			"capacity": 300,
-			"reload": {
-				"strategy": "infinite",
-				"ticks": 80,
-				"amount": 100
-			},
-			"projectile": {
-				"visual": "base.combat-projectile",
-				"speed_mm_s": 500000,
-				"lifetime_ticks": 8,
-				"penetration": 1000,
-				"damage": 8,
-				"damage_per_m": 2,
-				"spread_mdeg": 1000,
-				"tracer": true
-			},
 			"compartment": "mid-port",
 			"faults": [
 				{
@@ -61479,7 +61643,25 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"stock": {
+				"capacity_tag": "ammo",
+				"capacity": 300,
+				"filter": {
+					"resources": ["base.ammunition.duel-pdc"]
+				},
+				"single_resource": true,
+				"selection": "base.ammunition.duel-pdc",
+				"initial": {
+					"base.ammunition.duel-pdc": 300
+				}
+			},
+			"processor": {
+				"recipe": "base.recipe.duel-pdc.batch100.work80",
+				"mode": "batch",
+				"work_per_second": 20,
+				"energy_per_second": 0
+			}
 		},
 		{
 			"id": "base.equipment.combat-pdc",
@@ -61575,7 +61757,8 @@
 						"stress_rate": 20,
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
-						"allows_override": true
+						"allows_override": true,
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "pump-cell",
@@ -61597,7 +61780,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "services"
+						"group": "services",
+						"resource": "base.resource.energy"
 					}
 				],
 				"generators": [
@@ -61632,7 +61816,9 @@
 						"initial": 500000,
 						"removal_rate": 12000,
 						"coolant_per_heat_ppm": 100000,
-						"power_store": "pump-cell"
+						"power_store": "pump-cell",
+						"resource": "base.resource.coolant",
+						"capacity": 500000
 					}
 				],
 				"cooling_links": [
@@ -61750,7 +61936,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "engine"
+						"group": "engine",
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "steering-cell",
@@ -61772,7 +61959,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "steering"
+						"group": "steering",
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "lateral-cell",
@@ -61794,7 +61982,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "lateral"
+						"group": "lateral",
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "boost-cell",
@@ -61816,7 +62005,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "boost"
+						"group": "boost",
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "impulse-cell",
@@ -61838,7 +62028,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "impulse"
+						"group": "impulse",
+						"resource": "base.resource.energy"
 					}
 				],
 				"groups": [
@@ -62008,7 +62199,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "sensors"
+						"group": "sensors",
+						"resource": "base.resource.energy"
 					}
 				],
 				"groups": [
@@ -62086,7 +62278,8 @@
 						"override_stress_rate": 50,
 						"stress_limit": 12000,
 						"allows_override": true,
-						"group": "service"
+						"group": "service",
+						"resource": "base.resource.energy"
 					}
 				],
 				"groups": [
@@ -62139,7 +62332,8 @@
 						"passive_cooling": 20,
 						"operation_heat_ppm": 150000,
 						"stop_heat": 5000,
-						"recover_heat": 1500
+						"recover_heat": 1500,
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "weapons",
@@ -62150,7 +62344,8 @@
 						"passive_cooling": 20,
 						"operation_heat_ppm": 150000,
 						"stop_heat": 5000,
-						"recover_heat": 1500
+						"recover_heat": 1500,
+						"resource": "base.resource.energy"
 					},
 					{
 						"id": "shields",
@@ -62161,7 +62356,8 @@
 						"passive_cooling": 20,
 						"operation_heat_ppm": 150000,
 						"stop_heat": 5000,
-						"recover_heat": 1500
+						"recover_heat": 1500,
+						"resource": "base.resource.energy"
 					}
 				],
 				"generators": [
@@ -62223,7 +62419,8 @@
 						"charge_heat_ppm": 0,
 						"passive_cooling": 100,
 						"stop_heat": 300000,
-						"recover_heat": 150000
+						"recover_heat": 150000,
+						"resource": "base.resource.energy"
 					}
 				],
 				"links": [
@@ -62239,7 +62436,9 @@
 						"id": "coolant",
 						"initial": 500000,
 						"removal_rate": 10000,
-						"coolant_per_heat_ppm": 100000
+						"coolant_per_heat_ppm": 100000,
+						"resource": "base.resource.coolant",
+						"capacity": 500000
 					}
 				],
 				"cooling_links": [
@@ -62275,7 +62474,8 @@
 						"capacity": 30000,
 						"initial": 22500,
 						"charge_rate": 2400,
-						"discharge_rate": 2400
+						"discharge_rate": 2400,
+						"resource": "base.resource.energy"
 					}
 				],
 				"generators": [
@@ -63135,6 +63335,402 @@
 					"delta_permille": 200
 				}
 			}
+		}
+	],
+	"resources": [
+		{
+			"id": "base.ammunition.havok",
+			"label": "base.ammunition.havok",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"fire_ticks": 3,
+				"load_ticks": 2,
+				"projectile": {
+					"visual": "base.combat-missile",
+					"speed_mm_s": 90000,
+					"lifetime_ticks": 100,
+					"penetration": 4000,
+					"damage": 45,
+					"damage_per_m": 20,
+					"guidance": "chaotic",
+					"shield_bypass_permille": 100,
+					"turn_mdeg_s": 250000,
+					"seeker_range_mm": 2500000,
+					"arc_height_mm": 60000,
+					"chaos_mdeg": 18000,
+					"durability": 10,
+					"radius_mm": 700,
+					"resistance_per_m": 2,
+					"blast_radius_mm": 5500,
+					"fuse_radius_mm": 1500,
+					"trail": "smoke",
+					"destruction": {
+						"visual": "base.combat-explosion",
+						"chance_permille": 450,
+						"damage": 18,
+						"radius_mm": 8000,
+						"affects_missiles": false,
+						"growth_ticks": 2,
+						"fade_ticks": 10,
+						"size_mm": 10000
+					}
+				}
+			}
+		},
+		{
+			"id": "base.ammunition.homing",
+			"label": "base.ammunition.homing",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"fire_ticks": 35,
+				"load_ticks": 14,
+				"projectile": {
+					"visual": "base.combat-missile",
+					"speed_mm_s": 65000,
+					"lifetime_ticks": 600,
+					"penetration": 4000,
+					"damage": 350,
+					"damage_per_m": 20,
+					"guidance": "homing",
+					"shield_bypass_permille": 650,
+					"turn_mdeg_s": 70000,
+					"seeker_range_mm": 2500000,
+					"arc_height_mm": 120000,
+					"chaos_mdeg": 0,
+					"durability": 18,
+					"radius_mm": 700,
+					"resistance_per_m": 2,
+					"blast_radius_mm": 18000,
+					"fuse_radius_mm": 1500,
+					"trail": "smoke",
+					"destruction": {
+						"visual": "base.combat-explosion",
+						"chance_permille": 450,
+						"damage": 60,
+						"radius_mm": 8000,
+						"affects_missiles": false,
+						"growth_ticks": 2,
+						"fade_ticks": 10,
+						"size_mm": 10000
+					}
+				}
+			}
+		},
+		{
+			"id": "base.ammunition.kinetic",
+			"label": "base.ammunition.kinetic",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {}
+		},
+		{
+			"id": "base.ammunition.pdc",
+			"label": "base.ammunition.pdc",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"projectile": {
+					"visual": "base.combat-projectile",
+					"speed_mm_s": 500000,
+					"lifetime_ticks": 8,
+					"penetration": 1000,
+					"damage": 8,
+					"damage_per_m": 2,
+					"spread_mdeg": 1000,
+					"tracer": true
+				}
+			}
+		},
+		{
+			"id": "base.craft.bomber",
+			"label": "base.craft.bomber",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"fire_ticks": 35,
+				"load_ticks": 14,
+				"projectile": {
+					"visual": "base.combat-missile",
+					"speed_mm_s": 65000,
+					"lifetime_ticks": 240,
+					"penetration": 4000,
+					"damage": 350,
+					"damage_per_m": 20,
+					"guidance": "homing",
+					"shield_bypass_permille": 650,
+					"turn_mdeg_s": 70000,
+					"seeker_range_mm": 1000000,
+					"arc_height_mm": 35000,
+					"chaos_mdeg": 0,
+					"durability": 18,
+					"radius_mm": 700,
+					"resistance_per_m": 2,
+					"blast_radius_mm": 18000,
+					"fuse_radius_mm": 1500,
+					"trail": "smoke",
+					"destruction": {
+						"visual": "base.combat-explosion",
+						"chance_permille": 450,
+						"damage": 60,
+						"radius_mm": 8000,
+						"affects_missiles": false,
+						"growth_ticks": 2,
+						"fade_ticks": 10,
+						"size_mm": 10000
+					}
+				}
+			}
+		},
+		{
+			"id": "base.craft.interceptor",
+			"label": "base.craft.interceptor",
+			"tags": ["cargo", "ammo"],
+			"sizes": {
+				"cargo": 1,
+				"ammo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"projectile": {
+					"visual": "base.combat-projectile",
+					"speed_mm_s": 500000,
+					"lifetime_ticks": 8,
+					"penetration": 1000,
+					"damage": 8,
+					"damage_per_m": 2,
+					"spread_mdeg": 1000,
+					"tracer": true
+				}
+			}
+		},
+		{
+			"id": "medical",
+			"label": "medical",
+			"tags": ["cargo"],
+			"sizes": {
+				"cargo": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "parts",
+			"label": "parts",
+			"tags": ["cargo"],
+			"sizes": {
+				"cargo": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "station-supplies",
+			"label": "station-supplies",
+			"tags": ["cargo"],
+			"sizes": {
+				"cargo": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "perishable-essentials",
+			"label": "perishable-essentials",
+			"tags": ["cargo"],
+			"sizes": {
+				"cargo": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "base.resource.energy",
+			"label": "base.resource.energy",
+			"tags": ["energy"],
+			"sizes": {
+				"energy": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "base.resource.coolant",
+			"label": "base.resource.coolant",
+			"tags": ["coolant"],
+			"sizes": {
+				"coolant": 1
+			},
+			"effects": []
+		},
+		{
+			"id": "base.ammunition.generic",
+			"label": "base.ammunition.generic",
+			"tags": ["ammo", "cargo"],
+			"sizes": {
+				"ammo": 1,
+				"cargo": 1
+			},
+			"effects": [],
+			"ammunition": {}
+		},
+		{
+			"id": "base.ammunition.duel-homing",
+			"label": "base.ammunition.duel-homing",
+			"tags": ["ammo", "cargo"],
+			"sizes": {
+				"ammo": 1,
+				"cargo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"fire_ticks": 35,
+				"load_ticks": 14,
+				"projectile": {
+					"visual": "base.combat-missile",
+					"speed_mm_s": 65000,
+					"lifetime_ticks": 240,
+					"penetration": 4000,
+					"damage": 350,
+					"damage_per_m": 20,
+					"guidance": "homing",
+					"shield_bypass_permille": 650,
+					"turn_mdeg_s": 70000,
+					"seeker_range_mm": 1000000,
+					"arc_height_mm": 35000,
+					"chaos_mdeg": 0,
+					"durability": 18,
+					"radius_mm": 700,
+					"resistance_per_m": 2,
+					"blast_radius_mm": 18000,
+					"fuse_radius_mm": 1500,
+					"trail": "smoke",
+					"destruction": {
+						"visual": "base.combat-explosion",
+						"chance_permille": 450,
+						"damage": 60,
+						"radius_mm": 8000,
+						"affects_missiles": false,
+						"growth_ticks": 2,
+						"fade_ticks": 10,
+						"size_mm": 10000
+					}
+				}
+			}
+		},
+		{
+			"id": "base.ammunition.duel-havok",
+			"label": "base.ammunition.duel-havok",
+			"tags": ["ammo", "cargo"],
+			"sizes": {
+				"ammo": 1,
+				"cargo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"fire_ticks": 3,
+				"load_ticks": 2,
+				"projectile": {
+					"visual": "base.combat-missile",
+					"speed_mm_s": 90000,
+					"lifetime_ticks": 35,
+					"penetration": 4000,
+					"damage": 45,
+					"damage_per_m": 20,
+					"guidance": "chaotic",
+					"shield_bypass_permille": 100,
+					"turn_mdeg_s": 250000,
+					"seeker_range_mm": 1000000,
+					"arc_height_mm": 6000,
+					"chaos_mdeg": 18000,
+					"durability": 10,
+					"radius_mm": 700,
+					"resistance_per_m": 2,
+					"blast_radius_mm": 5500,
+					"fuse_radius_mm": 1500,
+					"trail": "smoke",
+					"destruction": {
+						"visual": "base.combat-explosion",
+						"chance_permille": 450,
+						"damage": 18,
+						"radius_mm": 8000,
+						"affects_missiles": false,
+						"growth_ticks": 2,
+						"fade_ticks": 10,
+						"size_mm": 10000
+					}
+				}
+			}
+		},
+		{
+			"id": "base.ammunition.duel-pdc",
+			"label": "base.ammunition.duel-pdc",
+			"tags": ["ammo", "cargo"],
+			"sizes": {
+				"ammo": 1,
+				"cargo": 1
+			},
+			"effects": [],
+			"ammunition": {
+				"projectile": {
+					"visual": "base.combat-projectile",
+					"speed_mm_s": 500000,
+					"lifetime_ticks": 8,
+					"penetration": 1000,
+					"damage": 8,
+					"damage_per_m": 2,
+					"spread_mdeg": 1000,
+					"tracer": true
+				}
+			}
+		}
+	],
+	"recipes": [
+		{
+			"id": "base.recipe.generic.batch4.work100",
+			"label": "base.recipe.generic.batch4.work100",
+			"tags": ["ammunition"],
+			"inputs": {},
+			"outputs": {
+				"base.ammunition.generic": 4
+			},
+			"work": 100
+		},
+		{
+			"id": "base.recipe.generic.batch6.work80",
+			"label": "base.recipe.generic.batch6.work80",
+			"tags": ["ammunition"],
+			"inputs": {},
+			"outputs": {
+				"base.ammunition.generic": 6
+			},
+			"work": 80
+		},
+		{
+			"id": "base.recipe.duel-pdc.batch100.work80",
+			"label": "base.recipe.duel-pdc.batch100.work80",
+			"tags": ["ammunition"],
+			"inputs": {},
+			"outputs": {
+				"base.ammunition.duel-pdc": 100
+			},
+			"work": 80
 		}
 	]
 }

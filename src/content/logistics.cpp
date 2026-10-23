@@ -34,8 +34,8 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 	material_require(j.is_object(), id + ": expected object");
 	const auto structure = compile_combat(catalog, id);
 	material_require(structure.has_value(), id + ": stores require compartments");
-	material_require(j.at("materials").is_array() && j.at("materials").size() <= 128 && j.at("stores").is_array() &&
-	                     j.at("stores").size() <= 128 && j.value("consumers", Json::array()).is_array(),
+	material_require(!j.contains("materials") && j.at("stores").is_array() && j.at("stores").size() <= 128 &&
+	                     j.value("consumers", Json::array()).is_array(),
 	                 id + ": expected bounded material/store arrays");
 	d.controller = j.at("controller");
 	std::set<std::string> controllers;
@@ -46,27 +46,22 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 	d.concurrency = material_number(j, "concurrency", 4, 1);
 	d.batch_size = material_number(j, "batch_size", 10, 1);
 	material_require(d.concurrency <= 128, id + ": excessive concurrency");
-	for (const auto &m : j.at("materials"))
-	{
-		const auto key = m.at("id").get<std::string>();
-		material_require(
-		    !key.empty() && key.size() <= 64 &&
-		        key.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
-		            std::string::npos &&
-		        !d.materials.contains(key),
-		    id + ": duplicate/invalid material");
-		d.materials.emplace(key, MaterialDefinition{key, material_number(m, "volume", 1, 1)});
-	}
-	material_require(!d.materials.empty() && d.materials.size() <= 128, id + ": invalid material count");
+	const auto resources = compile_resource_catalog(catalog);
+	for (const auto &[key, resource] : resources)
+		if (resource.sizes.contains("cargo"))
+			d.materials.emplace(key, MaterialDefinition{key, resource.sizes.at("cargo")});
 	std::set<std::string> stores, systems;
 	for (const auto &s : j.at("stores"))
 	{
+		material_require(!s.contains("capacity") && !s.contains("accepts") && !s.contains("initial"),
+		                 id + ": retired store fields; use nested stock");
 		MaterialStoreDefinition v;
 		v.id = s.at("id");
 		v.compartment = s.at("compartment");
 		v.system = s.value("system", std::string{});
 		v.controller = s.value("controller", d.controller);
-		v.capacity = material_number(s, "capacity", 0, 1);
+		v.stock = compile_stock_store(catalog, s.at("stock"), v.id);
+		v.capacity = v.stock.capacity;
 		v.main = s.value("main", false);
 		material_require(
 		    !v.id.empty() && v.id.size() <= 64 &&
@@ -76,29 +71,26 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 		    id + ": invalid store/owner");
 		material_require(structure->compartment_ids.contains(v.compartment),
 		                 id + ": unknown store compartment " + v.compartment);
-		v.accepts = s.at("accepts").get<std::vector<std::string>>();
-		material_require(!v.accepts.empty(), id + ": empty store compatibility");
-		std::set<std::string> accepted;
-		for (const auto &m : v.accepts)
-			material_require(d.materials.contains(m) && accepted.insert(m).second, id + ": invalid accepted material");
-		std::int64_t volume = 0;
-		for (const auto *field : {"initial", "targets"})
-		{
-			const auto values = s.value(field, Json::object());
-			for (const auto &[m, n] : values.items())
+		for (const auto &[key, resource] : resources)
+			if (stock_filter_accepts(v.stock.filter, resource))
 			{
-				material_require(accepted.contains(m) && n.is_number_integer() && !n.is_boolean() && n >= 0 &&
-				                     n <= 1000000000,
-				                 id + ": invalid stock/target");
-				const auto count = n.get<std::int64_t>();
-				material_require(count * d.materials.at(m).volume <= v.capacity,
-				                 id + ": stock/target exceeds capacity");
-				(std::string(field) == "initial" ? v.initial : v.targets)[m] = count;
-				if (std::string(field) == "initial")
-					volume += count * d.materials.at(m).volume;
+				v.accepts.push_back(key);
+				// Legacy logistics projections retain a resource-name index, not separate definitions.
+				if (!d.materials.contains(key))
+					d.materials.emplace(key, MaterialDefinition{key, resource.sizes.at(v.stock.capacity_tag)});
 			}
+		material_require(!v.accepts.empty() && v.accepts.size() <= 128, id + ": invalid store compatibility count");
+		const auto targets = s.value("targets", Json::object());
+		material_require(targets.is_object(), id + ": expected stock target object");
+		for (const auto &[m, n] : targets.items())
+		{
+			material_require(std::find(v.accepts.begin(), v.accepts.end(), m) != v.accepts.end() &&
+			                     n.is_number_integer() && !n.is_boolean() && n >= 0 && n <= 1000000000,
+			                 id + ": invalid stock target");
+			material_require(n.get<std::int64_t>() <= v.capacity / resources.at(m).sizes.at(v.stock.capacity_tag),
+			                 id + ": stock target exceeds capacity");
+			v.targets[m] = n.get<std::int64_t>();
 		}
-		material_require(volume <= v.capacity, id + ": initial shared capacity exceeded");
 		if (!v.system.empty())
 		{
 			material_require(e.at("systems").contains(v.system) && systems.insert(v.system).second,
@@ -106,15 +98,15 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 			const auto &fit = e.at("systems").at(v.system);
 			if (fit.value("kind", v.system) == "magazine")
 			{
-				material_require(v.accepts.size() == 1 && v.initial.empty(),
-				                 id + ": magazine stock uses magazine initial");
-				material_require(v.capacity ==
-				                     fit.at("capacity").get<std::int64_t>() * d.materials.at(v.accepts[0]).volume,
-				                 id + ": magazine capacity mismatch");
-				material_require(fit.value("reload", Json::object()).value("strategy", std::string{"none"}) == "none",
-				                 id + ": supplied magazine cannot generate ammunition");
-				material_require(fit.value("ammunition_type", v.accepts[0]) == v.accepts[0],
-				                 id + ": ammunition type mismatch");
+				const auto expected = compile_stock_store(catalog, fit.at("stock"), v.system);
+				material_require(v.stock.capacity == expected.capacity &&
+				                     v.stock.capacity_tag == expected.capacity_tag &&
+				                     v.stock.filter.tags == expected.filter.tags &&
+				                     v.stock.filter.resources == expected.filter.resources &&
+				                     v.stock.filter.require_all == expected.filter.require_all &&
+				                     v.stock.single_resource == expected.single_resource &&
+				                     v.stock.selection == expected.selection && v.stock.initial == expected.initial,
+				                 id + ": magazine logistics binding must describe the same stock");
 			}
 		}
 		d.stores.push_back(std::move(v));

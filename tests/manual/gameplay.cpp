@@ -21,6 +21,7 @@
 
 import phoenix.content;
 
+extern "C" void stock_accounting_contracts();
 using namespace phoenix;
 namespace st = phoenix::state_tree;
 namespace
@@ -147,7 +148,7 @@ ResourceAmount stored(const ResourceNetwork &network)
 {
 	ResourceAmount total = 0;
 	for (const auto &store : network.stores())
-		total += store.energy;
+		total += store.energy();
 	return total;
 }
 void equipment_and_resources()
@@ -186,11 +187,11 @@ void equipment_and_resources()
 	        "resource transfers and simultaneous operation must conserve stored energy");
 	require(network.telemetry()[a].accepted_incoming + network.telemetry()[b].accepted_incoming <= 5,
 	        "downstream consumers must share the finite upstream conduit capacity");
-	require(network.telemetry()[hot].heat_removed == 2 && network.coolant_sources()[0].remaining == 98,
+	require(network.telemetry()[hot].heat_removed == 2 && network.coolant_sources()[0].remaining() == 98,
 	        "finite coolant is consumed for actual heat removed, not its reservation alone");
 	for (int tick = 0; tick < 7; ++tick)
 		network.tick();
-	require(network.stores()[hot].heat == 0 && network.coolant_sources()[0].remaining == 90,
+	require(network.stores()[hot].heat == 0 && network.coolant_sources()[0].remaining() == 90,
 	        "idle cooling reservations must stop consuming coolant when equipment has no heat");
 	network.set_link_isolated(definition.link_ids.at("shared"), true);
 	network.set_link_isolated(definition.link_ids.at("alternate"), false);
@@ -340,12 +341,12 @@ void generation_and_thermal_recovery()
 	ResourceNetwork network(definition);
 	const auto capacitor = definition.store_ids.at("capacitor"), protected_store = definition.store_ids.at("protected");
 	network.tick();
-	require(network.telemetry()[capacitor].generated == 0 && network.stores()[capacitor].energy == 100,
+	require(network.telemetry()[capacitor].generated == 0 && network.stores()[capacitor].energy() == 100,
 	        "a full capacitor must reject generation rather than drawing energy that no consumer accepts");
 	network.request_operation(capacitor, 100);
 	network.tick();
 	require(network.telemetry()[capacitor].consumed == 5 && network.telemetry()[capacitor].generated == 5 &&
-	            network.stores()[capacitor].energy == 100,
+	            network.stores()[capacitor].energy() == 100,
 	        "paid operation must open real capacitor headroom that generation can replenish in the same tick");
 	network.request_operation(protected_store, 100);
 	network.set_store_enabled(protected_store, false);
@@ -382,7 +383,7 @@ void resource_forecasts_and_fractional_overdrive()
 			resumed.restore(late.save());
 			require(resumed.save() == late.save(), "late payment fractions and telemetry survive recovery");
 		}
-		require(late.stores()[0].energy == 88 && late.stores()[0].heat == 7,
+		require(late.stores()[0].energy() == 88 && late.stores()[0].heat == 7,
 		        "twelve paid units produce three operating heat, four after overdrive, plus three depletion heat");
 	}
 	auto source = fixture();
@@ -437,7 +438,7 @@ void resource_forecasts_and_fractional_overdrive()
 		fractional.tick();
 		fractional_resumed.tick();
 	}
-	require(fractional.stores()[0].energy == 97 && fractional.save() == fractional_resumed.save(),
+	require(fractional.stores()[0].energy() == 97 && fractional.save() == fractional_resumed.save(),
 	        "one-unit-per-second work at 150 percent overdrive must pay exactly three units over two seconds across "
 	        "recovery");
 }
@@ -459,7 +460,7 @@ void prepaid_fractional_work()
 	network.apply_operating_heat(0, 10);
 	network.tick();
 	require(
-	    network.stores()[0].energy == 0 && network.telemetry()[0].consumed == 1 &&
+	    network.stores()[0].energy() == 0 && network.telemetry()[0].consumed == 1 &&
 	        network.telemetry()[0].work_funded == 1000 && network.stores()[0].work_credit == 19000 &&
 	        network.coolant_sources()[0].last_heat_removed == 1,
 	    "sub-unit work must reserve its first real energy unit before operation or powered cooling produces output");
@@ -498,7 +499,7 @@ void prepaid_fractional_work()
 	        "a depleted store with no prepaid credit must refuse work and cannot mint credit on repeated denial");
 	ResourceNetwork empty(definition);
 	auto saved = empty.save();
-	saved["stores"][0]["energy"] = 0;
+	saved["stores"][0]["stock"]["quantities"].erase("fixture.resource.energy");
 	empty.restore(saved);
 	empty.request_operation(0, 1);
 	for (int tick = 0; tick < 25; ++tick)
@@ -509,6 +510,48 @@ void prepaid_fractional_work()
 	}
 }
 
+void shared_native_stock_commitments()
+{
+	auto input = fixture();
+	input["entities"][0]["resources"] = Json::parse(R"json({
+ "stores":[{"id":"cell","capacity":10,"initial":5,"charge_rate":100,"discharge_rate":100,
+   "initial_heat":10}],
+ "generators":[{"id":"source","store":"cell","maximum_rate":100,"response_rate":100,"initial_output":100}],
+ "coolant_sources":[{"id":"tank","initial":4,"removal_rate":40}],
+ "cooling_links":[{"id":"cool","source":"tank","store":"cell","capacity_rate":40,"allocation_rate":40}]
+})json");
+	const auto catalog = load(input);
+	const auto &definition = catalog.resource_definitions.at("test.ship");
+	ResourceNetwork network(definition);
+	auto &cell = network.stock(0);
+	auto &tank = network.coolant_stock(0);
+	require(cell.reserve_capacity("delivery", cell.selected(), 3) && tank.claim_stock("export", tank.selected(), 3),
+	        "native reserves accept common receiving and stock commitments");
+	network.tick();
+	require(network.stores()[0].energy() == 7 && network.telemetry()[0].generated == 2,
+	        "native generation leaves space committed through the common store");
+	require(network.coolant_sources()[0].remaining() == 3 && network.coolant_sources()[0].last_heat_removed == 1,
+	        "native cooling spends only unclaimed coolant for actual heat removed");
+	network.set_generator(0, 0, false);
+	require(cell.claim_stock("processor", cell.selected(), 7), "existing stock can fund a separate commitment");
+	network.request_operation(0, 20);
+	network.tick();
+	require(network.telemetry()[0].consumed == 0 && network.stores()[0].energy() == 7,
+	        "electrical work cannot spend stock committed to another operation");
+	const auto saved = network.save();
+	ResourceNetwork resumed(definition);
+	resumed.restore(saved);
+	require(resumed.save() == saved, "native reserve commitments restore without duplicating quantities");
+	for (auto *run : {&network, &resumed})
+	{
+		require(run->stock(0).release_stock("processor"), "release native stock commitment");
+		require(run->coolant_stock(0).release_stock("export"), "release coolant export commitment");
+		run->tick();
+	}
+	require(network.telemetry()[0].consumed == 1 && network.stores()[0].energy() == 6 &&
+	            network.save() == resumed.save(),
+	        "released stock funds native work once and resumes with identical cooling fractions");
+}
 void trees()
 {
 	const auto source = tree_fixture();
@@ -768,11 +811,13 @@ int main()
 {
 	try
 	{
+		stock_accounting_contracts();
 		equipment_and_resources();
 		overload_and_recovery();
 		generation_and_thermal_recovery();
 		resource_forecasts_and_fractional_overdrive();
 		prepaid_fractional_work();
+		shared_native_stock_commitments();
 		trees();
 		knowledge();
 		std::cout

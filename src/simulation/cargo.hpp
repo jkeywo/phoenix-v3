@@ -8,48 +8,129 @@ bool cargo_committed(EntityId craft) const
 			return true;
 	return false;
 }
-std::int64_t cargo_reservation(EntityId target, std::size_t store) const
+std::string cargo_claim_prefix(std::uint64_t id) const
 {
-	std::int64_t volume = 0;
-	for (const auto &job : cargo_deliveries)
+	return "cargo:" + std::to_string(id) + ":";
+}
+void clear_cargo_claims(StockTransaction &transaction, const CargoDelivery &job) const
+{
+	const auto prefix = cargo_claim_prefix(job.id);
+	for (const auto &[entity, index] : std::vector<std::pair<EntityId, std::size_t>>{
+	         {job.source, job.from}, {job.carrier, job.cargo}, {job.target, job.to}})
 	{
-		if ((job.collection ? job.source == target && job.from == store : job.target == target && job.to == store) &&
-		    job.reserved > 0)
-			volume += job.reserved * definition(target).logistics.materials.at(job.material).volume;
-		if (job.collection && !job.cancelled && job.target == target && job.to == store && !job.payment.empty() &&
-		    job.phase != "complete" && job.phase != "lost")
-		{
-			auto reserved = job.payment_amount - job.paid;
-			for (const auto &batch : material_batches)
-				if (batch.cargo == job.id && batch.destination == target && batch.material == job.payment)
-					reserved -= batch.quantity;
-			volume +=
-			    std::max<std::int64_t>(0, reserved) * definition(target).logistics.materials.at(job.payment).volume;
-		}
+		auto &stock = material_stock(entity, index);
+		const auto snapshot = transaction.view(stock);
+		for (const auto &[key, claim] : snapshot.capacity_claims())
+			if (key.starts_with(prefix))
+				transaction.release_capacity(stock, key);
+		for (const auto &[key, claim] : snapshot.stock_claims())
+			if (key.starts_with(prefix))
+				transaction.release_stock(stock, key);
 	}
-	return volume;
+}
+bool stage_cargo_claims(StockTransaction &transaction, const CargoDelivery &job,
+                        const MaterialBatch *dispatch = nullptr) const
+{
+	const auto prefix = cargo_claim_prefix(job.id);
+	if (job.phase == "complete" || job.phase == "lost")
+		return true;
+	auto capacity =
+	    [&](EntityId id, std::size_t store, const std::string &key, const std::string &resource, std::int64_t amount)
+	{
+		return amount <= 0 || transaction.reserve_capacity(material_stock(id, store), prefix + key, resource, amount);
+	};
+	auto claim =
+	    [&](EntityId id, std::size_t store, const std::string &key, const std::string &resource, std::int64_t amount)
+	{
+		return amount <= 0 || transaction.claim_stock(material_stock(id, store), prefix + key, resource, amount);
+	};
+	if (!capacity(job.collection ? job.source : job.target, job.collection ? job.from : job.to, "goods-space",
+	              job.material, job.reserved))
+		return false;
+	if (job.collection)
+	{
+		if (!job.cancelled)
+		{
+			auto payment_space = job.payment_amount - job.paid;
+			for (const auto &batch : material_batches)
+				if (batch.cargo == job.id && batch.destination == job.target && batch.material == job.payment)
+					payment_space -= batch.quantity;
+			if (dispatch && dispatch->destination == job.target && dispatch->material == job.payment)
+				payment_space -= dispatch->quantity;
+			if (!capacity(job.target, job.to, "payment-space", job.payment, payment_space) ||
+			    !claim(job.target, job.to, "goods", job.material, job.amount - job.goods_taken) ||
+			    !claim(job.source, job.from, "payment", job.payment, job.payment_amount - job.payment_taken))
+				return false;
+		}
+		const auto &aboard = transaction.view(material_stock(job.carrier, job.cargo));
+		if (!claim(job.carrier, job.cargo, "aboard-goods", job.material, aboard.quantity(job.material)))
+			return false;
+		if (!job.payment.empty() && job.payment != job.material &&
+		    !claim(job.carrier, job.cargo, "aboard-payment", job.payment, aboard.quantity(job.payment)))
+			return false;
+	}
+	else if (job.phase == "loading" || job.phase == "outbound" || job.phase == "unloading")
+	{
+		const auto amount =
+		    std::min(job.amount, transaction.view(material_stock(job.carrier, job.cargo)).quantity(job.material));
+		if (!claim(job.carrier, job.cargo, "aboard-goods", job.material, amount))
+			return false;
+	}
+	return true;
+}
+void sync_cargo_stock(const CargoDelivery &job)
+{
+	StockTransaction transaction;
+	clear_cargo_claims(transaction, job);
+	if (!stage_cargo_claims(transaction, job) || !transaction.commit())
+		throw std::runtime_error("Invalid cargo stock commitment");
 }
 std::int64_t material_available(EntityId id, std::size_t store, const std::string &material,
                                 std::uint64_t exempt_cargo = 0) const
 {
-	auto available = material_quantity(id, store, material);
-	for (const auto &job : cargo_deliveries)
-	{
-		if (job.collection && job.id != exempt_cargo && job.phase != "complete" && job.phase != "lost")
-		{
-			if (!job.cancelled && job.target == id && job.to == store && job.material == material)
-				available -= std::min(available, job.amount - job.goods_taken);
-			if (!job.cancelled && job.source == id && job.from == store && job.payment == material)
-				available -= std::min(available, job.payment_amount - job.payment_taken);
-			if (job.carrier == id && job.cargo == store && (job.material == material || job.payment == material))
-				available = 0;
-			continue;
-		}
-		if (job.id != exempt_cargo && job.carrier == id && job.cargo == store && job.material == material &&
-		    (job.phase == "loading" || job.phase == "outbound" || job.phase == "unloading"))
-			available -= std::min(available, job.amount);
-	}
+	const auto &stock = material_stock(id, store);
+	auto available = stock.available(material);
+	if (exempt_cargo)
+		for (const auto &[key, claim] : stock.stock_claims())
+			if (key.starts_with(cargo_claim_prefix(exempt_cargo)) && claim.resource == material)
+				available += claim.quantity;
 	return available;
+}
+bool stage_material_dispatch(StockTransaction &transaction, const MaterialRequest &request, std::int64_t quantity,
+                             std::uint64_t batch_id)
+{
+	const auto job = std::find_if(cargo_deliveries.begin(), cargo_deliveries.end(),
+	                              [&](const auto &candidate)
+	                              {
+		                              return candidate.id == request.cargo;
+	                              });
+	if (job != cargo_deliveries.end())
+		clear_cargo_claims(transaction, *job);
+	if (!transaction.consume(material_stock(request.source, request.from), request.material, quantity) ||
+	    !transaction.reserve_capacity(material_stock(request.destination, request.to), material_batch_claim(batch_id),
+	                                  request.material, quantity))
+		return false;
+	if (job != cargo_deliveries.end())
+	{
+		auto next = *job;
+		if (next.collection)
+		{
+			if (request.source == next.source && request.material == next.payment)
+				next.payment_taken += quantity;
+			if (request.source == next.target && request.material == next.material)
+				next.goods_taken += quantity;
+		}
+		if ((!next.collection && request.destination == next.target) ||
+		    (next.collection && request.destination == next.source && request.material == next.material))
+			next.reserved -= std::min(next.reserved, quantity);
+		MaterialBatch batch;
+		batch.destination = request.destination;
+		batch.material = request.material;
+		batch.quantity = quantity;
+		if (!stage_cargo_claims(transaction, next, &batch))
+			return false;
+	}
+	return true;
 }
 bool cargo_authority(const ConsoleAddress &a, const OperatingCommand &c, EntityId craft, bool ai) const
 {
@@ -137,8 +218,6 @@ bool cargo_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 	if (from == d.stores.size() || cargo == definition(craft).logistics.stores.size() ||
 	    to == definition(target).logistics.stores.size() || !material_accepts(a.ship, from, m) ||
 	    !material_accepts(craft, cargo, m) || !material_accepts(target, to, m) ||
-	    d.materials.at(m).volume != definition(craft).logistics.materials.at(m).volume ||
-	    d.materials.at(m).volume != definition(target).logistics.materials.at(m).volume ||
 	    material_space(craft, cargo, m) < amount)
 		return false;
 	for (const auto &type : material_store(craft, cargo).accepts)
@@ -172,6 +251,7 @@ bool cargo_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 		request_material(a.ship, from, craft, cargo, m, amount, false);
 		material_requests.back().cargo = job.id;
 		cargo_deliveries.push_back(job);
+		sync_cargo_stock(cargo_deliveries.back());
 		++state.revision;
 	}
 	return true;
@@ -190,6 +270,7 @@ void step_cargo()
 		{
 			job.phase = "lost";
 			job.reserved = 0;
+			sync_cargo_stock(job);
 		}
 		if (craft_link(job.carrier))
 		{
@@ -213,6 +294,7 @@ void step_cargo()
 				continue;
 			job.reserved = job.amount;
 			job.phase = "outbound";
+			sync_cargo_stock(job);
 			auto &state = e.get_mut<CraftState>();
 			state.order = "transport";
 			state.target = job.target;
@@ -263,6 +345,7 @@ void step_cargo()
 			{
 				job.phase = "returning";
 				job.reserved = 0;
+				sync_cargo_stock(job);
 				if (e.has<DockConnection>())
 				{
 					auto &c = e.get_mut<DockConnection>();
@@ -279,7 +362,10 @@ void step_cargo()
 			for (const auto &b : material_batches)
 				pending |= b.destination == job.carrier;
 			if (!pending)
+			{
 				job.phase = "complete";
+				sync_cargo_stock(job);
+			}
 		}
 	}
 }
@@ -377,6 +463,7 @@ void request_cargo_return(CargoDelivery &job)
 	{
 		job.cancelled = true;
 		job.phase = "cancelling";
+		sync_cargo_stock(job);
 		std::erase_if(material_requests,
 		              [&](const auto &r)
 		              {
@@ -389,6 +476,7 @@ void request_cargo_return(CargoDelivery &job)
 	}
 	job.phase = "returning";
 	job.reserved = 0;
+	sync_cargo_stock(job);
 	std::erase_if(material_requests,
 	              [&](const auto &r)
 	              {

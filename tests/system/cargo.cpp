@@ -1,4 +1,5 @@
 #include "../support/assertions.hpp"
+#include "../support/stock_snapshot.hpp"
 #include "../support/craft_fixture.hpp"
 #include <iostream>
 #include <set>
@@ -158,7 +159,7 @@ int main(int argc, char **argv)
 			std::int64_t stock = 0;
 			for (const auto &body : checkpoint.at("bodies"))
 				if (body.at("body").at("id") == 1)
-					stock = body.at("inventory").at("stores")[0].at("quantities").at("parts");
+					stock = saved_material_stock(body, 0).at("quantities").value("parts", std::int64_t{0});
 			require(checkpoint.at("scenario").at("runtime").at("objectives")[0].at("status") == (stock == 7 ? 2 : 1),
 			        "Only physical full receipt completes the objective, including partial unloading");
 			if (!simultaneous_reservations &&
@@ -172,7 +173,7 @@ int main(int argc, char **argv)
 						auto overfull = checkpoint;
 						for (auto &body : overfull["bodies"])
 							if (body.at("body").at("id") == 1)
-								body["inventory"]["stores"][0]["quantities"]["parts"] = 5;
+								saved_material_stock(body, 0)["quantities"]["parts"] = 5;
 						rejects(
 						    [&]
 						    {
@@ -209,7 +210,7 @@ int main(int argc, char **argv)
 		std::int64_t received = -1;
 		for (const auto &body : save.at("bodies"))
 			if (body.at("body").at("id") == 1)
-				received = body.at("inventory").at("stores")[0].at("quantities").at("parts");
+				received = saved_material_stock(body, 0).at("quantities").value("parts", std::int64_t{0});
 		require(received == 7, "Cargo arrives at destination once");
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 		{

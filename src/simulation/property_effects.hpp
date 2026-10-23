@@ -73,6 +73,24 @@ bool modifier_target_compatible(flecs::entity ship, const std::string &equipment
 		    {
 			    if (!property_compatible(c.property, fitted->kind))
 				    return false;
+			    if (c.property == "processing")
+			    {
+				    const auto *processors = ship.try_get<ShipProcessors>();
+				    if (!processors)
+					    return false;
+				    return std::any_of(
+				        processors->values.begin(), processors->values.end(),
+				        [&](const auto &entry)
+				        {
+					        if (entry.second.definition().equipment != equipment)
+						        return false;
+					        if (fitted->kind != OperatingSystem::Magazine)
+						        return true;
+					        const auto &reload =
+					            fitted->entity.get<CombatMechanism>().definition.get<MagazineDefinition>().processor;
+					        return !reload || reload->id != entry.first;
+				        });
+			    }
 			    if (fitted->kind == OperatingSystem::Team)
 				    return fitted->entity.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
 				        c.property);

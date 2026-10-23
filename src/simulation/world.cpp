@@ -31,6 +31,7 @@ import phoenix.gameplay_scenario;
 #include "controllers.hpp"
 #include "combat.hpp"
 #include "logistics_state.hpp"
+#include "processors_state.hpp"
 #include "docking_state.hpp"
 #include "property_effects_state.hpp"
 #include "personnel_state.hpp"
@@ -63,10 +64,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, sp
                                                 blast_radius, fuse_radius, destruction)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, target, cooldown, shots, ready, selected_magazine, loaded_magazine,
-                                   loading, unloading, mode, beam_remainder, beam_tick, bypass_remainder, beam_end,
-                                   intercept)
+                                   loading, unloading, mode, loaded_resource, loaded_quantity, beam_remainder,
+                                   beam_tick, bypass_remainder, beam_end, intercept)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, stock)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
                                                 repair_system, repair_auto, revision, order, activity, patient,
                                                 work_done, condition, treatment, detained, compartment_assignment,
@@ -154,6 +155,7 @@ struct CompiledDefinition
 	std::map<std::string, std::vector<std::string>> boarding_docking_ports;
 	TransportDefinition transport;
 	LogisticsDefinition logistics;
+	std::vector<ProcessorDefinition> processors;
 	std::vector<DockPortDefinition> docking;
 	std::optional<CraftDefinition> craft;
 	std::map<std::string, CraftBayDefinition> craft_bays;
@@ -251,6 +253,8 @@ struct World::Impl
 	std::map<std::string, Json> console_layouts;
 	std::map<std::string, ShieldEffectDefinition> shield_templates;
 	std::map<std::string, ModifierEffectDefinition> modifier_templates;
+	std::map<std::string, ShieldReactionDefinition> effect_groups;
+	ResourceCatalogue resource_catalogue;
 	std::vector<ShieldReaction> shield_reactions;
 	std::map<std::uint64_t, std::string> shield_reaction_results;
 	std::uint64_t next_shield_hit = 1, next_shield_reaction = 1;
@@ -548,9 +552,12 @@ struct World::Impl
 	{
 		const auto content = convert_controller_content(source);
 		console_layouts = content.consoles;
+		resource_catalogue = compile_resource_catalog(content);
 		for (const auto &[id, effect] : content.effects)
 			if (effect.at("kind") == "modifier")
 				modifier_templates.emplace(id, compile_modifier_effect(content, id));
+			else if (effect.at("kind") == "operations")
+				effect_groups.emplace(id, compile_effect_group(content, id));
 			else
 				shield_templates.emplace(id, compile_shield_effect(content, id));
 		packs = content.ordered_packs;
@@ -591,6 +598,7 @@ struct World::Impl
 				    row.value("docking_ports", std::vector<std::string>{});
 			result.transport = compile_transport(content, name);
 			result.logistics = compile_logistics(content, name);
+			result.processors = compile_processors(content, name);
 			result.docking = compile_docking(content, name);
 			result.craft = compile_craft(content, name);
 			result.craft_bays = compile_craft_bays(content, name);
@@ -919,13 +927,29 @@ struct World::Impl
 				state.ports.push_back({p.auto_accept_allies, p.supply, {}});
 			entity.set<DockingState>(std::move(state));
 		}
+		ShipStockStores stock_stores;
+		if (data.combat)
+			for (const auto &system : data.combat->systems)
+				if (system.kind == OperatingSystem::Magazine)
+					stock_stores.stores.emplace("system:" + system.id,
+					                            StockStore(system.get<MagazineDefinition>().stock, resource_catalogue));
 		if (!data.logistics.stores.empty())
 		{
 			MaterialInventory inventory;
-			for (const auto &s : data.logistics.stores)
-				inventory.stores.push_back({s.initial, s.targets});
+			for (const auto &store : data.logistics.stores)
+			{
+				const bool magazine =
+				    data.combat && data.combat->system_ids.contains(store.system) &&
+				    data.combat->systems.at(data.combat->system_ids.at(store.system)).kind == OperatingSystem::Magazine;
+				const auto key = magazine ? "system:" + store.system : "logistics:" + store.id;
+				if (!magazine)
+					stock_stores.stores.emplace(key, StockStore(store.stock, resource_catalogue));
+				inventory.stores.push_back({key, store.targets});
+			}
 			entity.set<MaterialInventory>(std::move(inventory));
 		}
+		if (!stock_stores.stores.empty())
+			entity.set<ShipStockStores>(std::move(stock_stores));
 		if (data.collider.mass)
 			entity.add<Movable>();
 		if (data.fitted)
@@ -957,7 +981,7 @@ struct World::Impl
 					mechanism.state = TurretState{0, mechanism.definition.bearing};
 					break;
 				case OperatingSystem::Magazine:
-					mechanism.state = MagazineState{mechanism.definition.reserve().initial};
+					mechanism.state = MagazineState{"system:" + mechanism.definition.id};
 					break;
 				case OperatingSystem::Shield:
 					mechanism.state = ShieldBindingState{};
@@ -1007,6 +1031,7 @@ struct World::Impl
 			}
 		}
 		entity.set<EquipmentIndex>(std::move(index));
+		initialize_processors(entity, data);
 		entity.set<PropertyEffects>({});
 		if (entity.has<ShieldComponent>())
 			for (auto child : entity.get<EquipmentIndex>().values)
@@ -1280,7 +1305,7 @@ struct World::Impl
 					const auto store = resources->definition.systems[index].store;
 					if (store == no_resource || !resources->network.stores()[store].enabled ||
 					    resources->network.stores()[store].thermal_stop ||
-					    resources->network.stores()[store].energy < definition.impulse_minimum_reserve)
+					    resources->network.stores()[store].available() < definition.impulse_minimum_reserve)
 						return false;
 				}
 				auto candidate = system.flight->state;
@@ -1459,10 +1484,11 @@ struct World::Impl
 				if (const auto *resources = entity.try_get<ShipResources>())
 				{
 					const auto store = resources->definition.systems[index].store;
-					values["impulse_ready"] =
-					    f.enabled && store != no_resource && resources->network.stores()[store].enabled &&
-					    !resources->network.stores()[store].thermal_stop &&
-					    resources->network.stores()[store].energy >= system.flight->definition.impulse_minimum_reserve;
+					values["impulse_ready"] = f.enabled && store != no_resource &&
+					                          resources->network.stores()[store].enabled &&
+					                          !resources->network.stores()[store].thermal_stop &&
+					                          resources->network.stores()[store].available() >=
+					                              system.flight->definition.impulse_minimum_reserve;
 				}
 				values["match_speed"] = f.matching;
 				values["selected_contact"] = f.selected_contact;
@@ -1496,7 +1522,7 @@ struct World::Impl
 					values["enabled"] =
 					    values.at("enabled") && v.enabled && (!system.flight || system.flight->state.enabled);
 					const auto &t = p.network.telemetry()[binding.store];
-					values["stored_energy"] = v.energy;
+					values["stored_energy"] = v.energy();
 					values["energy_capacity"] = d.capacity;
 					values["incoming_power"] = t.accepted_incoming * rate;
 					values["heat"] = v.heat;
@@ -1547,7 +1573,7 @@ struct World::Impl
 					values["actual_coolant_used"] = forecast.observed_coolant_used * rate;
 					values["coolant_stock"] =
 					    p.network.coolant_sources()[p.definition.network.cooling_links[binding.cooling].source]
-					        .remaining;
+					        .remaining();
 				}
 			}
 		}
@@ -1932,6 +1958,8 @@ struct World::Impl
 #include "combat_execution.hpp"
 #include "property_effects.hpp"
 #include "effect_application.hpp"
+#include "store_effects.hpp"
+#include "processors.hpp"
 #include "shield_reactions.hpp"
 	void run_advanced_equipment()
 	{
@@ -1951,12 +1979,14 @@ struct World::Impl
 			prepare_psychic(id);
 			const auto restrictions = flight_restrictions(id);
 			prepare_combat(ship);
+			prepare_processors(ship);
 			request_flight_resources(ship, restrictions);
 			request_combat_resources(ship);
 			request_psychic_resources(id);
 			if (!definition(id).ftl.empty())
 				prepare_ftl(ship);
 			reserve_paid_modifiers(ship, restrictions);
+			request_processor_resources(ship);
 			std::optional<ShipResourceAllocation> allocation;
 			if (auto *power = ship.try_get_mut<ShipResources>())
 			{
@@ -1970,6 +2000,7 @@ struct World::Impl
 			prepare_paid_modifiers(ship, restrictions, allocation ? &*allocation : nullptr);
 			if (allocation)
 				allocation->commit();
+			actuate_processors(ship);
 			actuate_combat(ship);
 			if (!definition(id).ftl.empty())
 				actuate_ftl(ship);
@@ -2247,6 +2278,9 @@ struct World::Impl
 			return away_command(address, command, execute);
 		if (command.action.starts_with("dock."))
 			return docking_command(address, command, execute);
+		if (command.action == "magazine.select" || command.action == "processor.select" ||
+		    command.action == "store.select")
+			return selection_command(address, command, execute);
 		if (command.action.starts_with("logistics."))
 			return logistics_command(address, command, execute);
 		if (command.action.starts_with("team."))
@@ -2667,6 +2701,7 @@ void World::tick()
 		impl_->scenario_spawns();
 		impl_->scenario_shield_effects();
 		impl_->scenario_modifier_effects();
+		impl_->scenario_effect_groups();
 		impl_->scenario_publications();
 	}
 	impl_->brain_snapshots.clear();
@@ -3815,7 +3850,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 21},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 22},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	if (impl_->display_revision)
@@ -3897,8 +3932,16 @@ Json World::save() const
 			result["bodies"].back()["docking"] = entity.get<DockingState>();
 		if (entity.has<DockConnection>())
 			result["bodies"].back()["dock_connection"] = entity.get<DockConnection>();
+		if (entity.has<ShipProcessors>())
+			result["bodies"].back()["processors"] = impl_->save_processors(entity);
 		if (entity.has<MaterialInventory>())
 			result["bodies"].back()["inventory"] = entity.get<MaterialInventory>();
+		if (const auto *stocks = entity.try_get<ShipStockStores>())
+		{
+			auto &saved_stocks = result["bodies"].back()["stocks"] = Json::object();
+			for (const auto &[key, stock] : stocks->stores)
+				saved_stocks[key] = stock.save();
+		}
 		if (entity.has<PersonnelState>())
 			result["bodies"].back()["personnel"] = impl_->personnel_snapshot(id);
 		if (entity.has<CombatStructure>())
@@ -3961,8 +4004,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 21)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 21 required)");
+	if (saved.at("schema") != 22)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 22 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4039,6 +4082,16 @@ void World::restore(const Catalog &content, const Json &source_saved)
 				throw std::runtime_error("Invalid destruction continuation");
 			entity.set<Destructible>(d);
 		}
+		if (auto *stocks = entity.try_get_mut<ShipStockStores>())
+		{
+			const auto &saved_stocks = value.at("stocks");
+			if (!saved_stocks.is_object() || saved_stocks.size() != stocks->stores.size())
+				throw std::runtime_error("Saved stock roster mismatch");
+			for (auto &[key, stock] : stocks->stores)
+				stock.restore(saved_stocks.at(key));
+		}
+		else if (value.contains("stocks"))
+			throw std::runtime_error("Unexpected saved stocks");
 		if (entity.has<CombatStructure>())
 			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<ShieldComponent>())
@@ -4293,6 +4346,15 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_docking(saved);
 	candidate.impl_->validate_interdiction_physics();
 	candidate.impl_->restore_logistics(saved);
+	for (const auto &body : saved.at("bodies"))
+	{
+		auto entity = candidate.impl_->entities.at(body.at("body").at("id").get<EntityId>());
+		if (entity.has<ShipProcessors>())
+			candidate.impl_->restore_processors(entity, body.at("processors"));
+		else if (body.contains("processors"))
+			throw std::runtime_error("Unexpected saved processors");
+	}
+	candidate.impl_->validate_stock_claim_owners();
 	candidate.impl_->mission_ledger = saved.value("mission_ledger", MissionLedger{});
 	std::map<EntityId, Json> departure_reports;
 	std::set<EntityId> departed_ships;

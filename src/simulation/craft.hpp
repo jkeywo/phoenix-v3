@@ -823,14 +823,18 @@ void service_craft()
 				if (bound == connection.destination_stores.end())
 					continue;
 				const auto to = bound->second;
-				const auto amount = std::min(
-				    rounds[i], std::max<std::int64_t>(
-				                   0, material_store(other, to).capacity /
-				                              definition(other).logistics.materials.at(connection.material).volume -
-				                          material_pending(other, to, connection.material)));
+				const auto &source_stock = material_stock(s.home, connection.source_store);
+				const auto &resource = source_stock.selected();
+				const auto &destination_stock = material_stock(other, to);
+				if (resource.empty() || !source_stock.accepts(resource) || !destination_stock.accepts(resource))
+					continue;
+				const auto amount =
+				    std::min(rounds[i], std::max<std::int64_t>(0, material_store(other, to).capacity /
+				                                                          material_size(other, to, resource) -
+				                                                      material_pending(other, to, resource)));
 				if (amount > 0)
 				{
-					request_material(s.home, connection.source_store, other, to, connection.material, amount, false);
+					request_material(s.home, connection.source_store, other, to, resource, amount, false);
 					rounds[i] -= amount;
 				}
 			}
@@ -852,7 +856,7 @@ void update_craft_reports()
 		if (const auto *p = e.try_get<ShipResources>())
 			for (std::size_t i = 0; i < p->network.stores().size(); ++i)
 			{
-				r.energy += p->network.stores()[i].energy;
+				r.energy += p->network.stores()[i].energy();
 				r.capacity += p->definition.network.stores[i].capacity;
 			}
 		if (const auto *c = e.try_get<CombatStructure>())
@@ -863,7 +867,10 @@ void update_craft_reports()
 			}
 		for (auto child : e.get<EquipmentIndex>().values)
 			if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Magazine)
-				r.ammunition += m->get<MagazineState>().ammo;
+			{
+				const auto &stock = physical_stock(e, m->get<MagazineState>().stock);
+				r.ammunition += stock.quantity(stock.selected());
+			}
 		s.report = r;
 	}
 }

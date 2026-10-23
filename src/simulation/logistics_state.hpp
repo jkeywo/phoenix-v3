@@ -1,9 +1,14 @@
 #pragma once
 namespace phoenix
 {
+struct ShipStockStores
+{
+	std::map<std::string, StockStore> stores;
+};
 struct MaterialStoreState
 {
-	std::map<std::string, std::int64_t> quantities, targets;
+	std::string stock;
+	std::map<std::string, std::int64_t> targets;
 	bool held = false;
 };
 struct MaterialInventory
@@ -56,7 +61,7 @@ struct MaterialBatch
 	std::int64_t crossing = 0;
 	std::uint64_t cargo = 0;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialStoreState, quantities, targets, held)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialStoreState, stock, targets, held)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialInventory, stores, revision, handling_remainder, work_credit,
                                    authorised_craft)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialRequest, id, source, destination, from, to, material, remaining, automatic,

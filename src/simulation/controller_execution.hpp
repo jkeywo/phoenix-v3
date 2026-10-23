@@ -1,3 +1,54 @@
+// Textual selections retain normal Console ownership and generation admission.
+bool selection_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
+{
+	if (command.action == "store.select")
+	{
+		auto selection = command;
+		selection.action = "logistics.select";
+		return logistics_command(address, selection, execute);
+	}
+	if (command.action != "magazine.select" && command.action != "processor.select")
+		return false;
+	const auto ship = entities.at(address.ship);
+	if (!command.channel.empty() || command.request_id || !command.arguments.empty() || !command.speaker_name.empty() ||
+	    !command.speaker_avatar.empty() || command.text.empty() || command.text.size() > 256 || command.value < 1 ||
+	    command.value >= 9007199254740991LL || combat_dead(ship) || !manual_workload(address, "logistics"))
+		return false;
+	std::string equipment = command.system;
+	if (command.action == "processor.select")
+	{
+		const auto *processors = ship.try_get<ShipProcessors>();
+		if (!processors || !processors->values.contains(command.system))
+			return false;
+		const auto &processor = processors->values.at(command.system);
+		equipment = processor.definition().equipment;
+		if (static_cast<std::uint64_t>(command.value) != processor.state().selection_revision)
+			return false;
+	}
+	const auto fitted = instance(ship, equipment);
+	const auto *controls = ship.try_get<EntityControls>();
+	const auto *console = seat(address.ship, address.console);
+	if (!fitted || !controls || !console || enabled_system_owner(address.ship, equipment) != address ||
+	    std::find(console->feed_systems.begin(), console->feed_systems.end(), equipment) == console->feed_systems.end())
+		return false;
+	bool authority = false;
+	for (const auto &controller : controls->controllers)
+		if (controller.definition.console == address.console && controller.definition.id == command.controller &&
+		    controller.human && controller.generation == command.generation)
+			for (const auto &channel : controller.definition.commands)
+				for (const auto consumer : channel.consumers)
+					authority |= definition(address.ship).fitted->values.at(consumer).id == equipment;
+	if (!authority)
+		return false;
+	if (command.action == "processor.select")
+		return select_processor(ship, command.system, command.text, execute);
+	if (fitted->kind != OperatingSystem::Magazine)
+		return false;
+	const auto &key = fitted->entity.get<CombatMechanism>().get<MagazineState>().stock;
+	if (static_cast<std::uint64_t>(command.value) != physical_stock(ship, key).revision())
+		return false;
+	return select_physical_resource(ship, key, command.text, execute);
+}
 // Reset only the selected settings; a shared Controller can serve other duties.
 void clear_controller_settings(EntityId ship, std::size_t controller_index, std::initializer_list<std::size_t> channels)
 {
@@ -100,7 +151,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 			std::int64_t energy = 0, capacity = 0;
 			for (std::size_t i = 0; i < p->network.stores().size(); ++i)
 			{
-				energy += p->network.stores()[i].energy;
+				energy += p->network.stores()[i].energy();
 				capacity += p->definition.network.stores[i].capacity;
 			}
 			values[brain.own[ControllerOwnField::CraftReserveLow]] =

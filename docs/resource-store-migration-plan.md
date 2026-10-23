@@ -176,13 +176,15 @@ Exact field names, compiled container layout, bounded counts and phase placement
 
 ## Completion
 
-- [ ] Every existing material, ammunition, electrical and coolant stock uses shared store ownership.
-- [ ] Resource/recipe definitions, mod overrides and export closure work through the catalogue.
-- [ ] Magazines retain one chosen ammunition type and loaded/return commitments preserve its identity.
-- [ ] Electrical flow, cooling, deliveries and finite work preserve their native operating contracts.
-- [ ] Recipes/processors replace generating reload paths, with no discarded required output or duplicate payment.
-- [ ] Trusted store operations, UI/Controller projections, Workshop and maintained content use the same model.
-- [ ] Legacy quantity/authoring paths are removed and continuation/review evidence is recorded.
-- [ ] Manual acceptance and deferred gameplay are listed separately.
+- [x] Every existing material, ammunition, electrical and coolant stock uses shared store ownership.
+- [x] Resource/recipe definitions, mod overrides and export closure work through the catalogue.
+- [x] Magazines retain one chosen ammunition type and loaded/return commitments preserve its identity.
+- [x] Electrical flow, cooling, deliveries and finite work preserve their native operating contracts.
+- [x] Recipes/processors replace generating reload paths, with no discarded required output or duplicate payment.
+- [x] Trusted store operations, UI/Controller projections, Workshop and maintained content use the same model.
+- [x] Legacy quantity/authoring paths are removed and continuation/review evidence is recorded.
+- [x] Manual acceptance and deferred gameplay are listed separately.
+
+Completed 24 October 2026. See the [implementation record](resource-store-evidence.md) for the supported continuous-recipe ratio bound, schema 22 migration, independent review and actual native/WebAssembly validation results.
 
 The recommended following stage remains directed systems and weapon payload effects. This plan does not establish their implementation or approval.

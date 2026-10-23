@@ -515,6 +515,11 @@ const std::vector<ActionDefinition> &action_definitions()
 	     "remove_modifier_effect",
 	     scenario_context,
 	     {{"ship", Type::Entity}, {"equipment", Type::Text}, {"grant", Type::Text}},
+	     true},
+	    {GameplayTreeAction::ApplyEffectGroup,
+	     "apply_effect_group",
+	     scenario_context,
+	     {{"target", Type::Entity}, {"source", Type::Entity}, {"definition", Type::Text}},
 	     true}};
 	return result;
 }

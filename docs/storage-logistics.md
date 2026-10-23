@@ -30,7 +30,9 @@ Large-ship away transport is **Own ship — docking**. Missions must explicitly 
 
 Workshop exposes material stores, consumers, ports and mission docking support through its normal draft/Undo/Verify/Test flow.
 
-Entity `logistics` defines `controller`, `materials` (`id`, positive `volume`), `units_per_second`, `concurrency`, `batch_size`, `stores` and optional `consumers`. A store supplies `id`, `compartment`, `capacity`, `accepts`, optional `controller`, `initial`, `targets`, `main` and `system`. Capacity is shared volume. A magazine-bound store uses the magazine's initial stock and capacity, accepts one material and requires reload strategy `none`. Explicit energy-generated ammunition retains its existing paid mechanism on content outside supplied magazine stores.
+Entity `logistics` defines `controller`, `units_per_second`, `concurrency`, `batch_size`, `stores` and optional `consumers`. Resource definitions live in the global catalogue; local `materials` and material-specific volume definitions are retired. A store supplies `id`, `compartment`, common `stock`, optional `controller`, `targets`, `main` and `system`. The nested stock selects a `capacity_tag`, shared `capacity`, acceptance `filter`, initial quantities and optional single-resource selection. The global resource size for that tag determines occupancy.
+
+A magazine-bound logistics store aliases the magazine's common stock instead of holding a second quantity. Its stock definition must agree with the magazine. Other equipment-bound kits keep their own logistics stock. Internal logistics, ammunition servicing and cargo transport use the same resource identity across ships, while each receiving store uses its own capacity tag and resource size. Generating magazines use explicit recipes and the common processor, with separate work and operating-energy requirements.
 
 Consumers bind `system`, `store` and `costs` by activity: `repair`, `structural`, `treat`, `stabilise`, `recover`. Each cost maps material IDs to positive quantities. An away team requires its own System-bound kit; stationary origin stores cannot supply it remotely.
 

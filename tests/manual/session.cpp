@@ -111,8 +111,12 @@ int fleet_journey(NetworkOptions options)
 	                   {"lateral_speed_mm_s", 6000}, {"lateral_acceleration_mm_s2", 1000},
 	                   {"power_rate", 100},          {"power_store", "cell"}};
 	systems["storage"] = {{"kind", "storage"}, {"power_store", "cell"}};
+	definitions["resources"] = Json::array({{{"id", "fixture.resource.energy"},
+	                                         {"label", "Fleet energy"},
+	                                         {"tags", {"energy"}},
+	                                         {"sizes", {{"energy", 1}}}}});
 	definitions["entities"][0]["resources"] = Json::parse(R"json({"stores":[
-		{"id":"cell","capacity":2000000,"initial":1000000,"charge_rate":10000,
+		{"id":"cell","resource":"fixture.resource.energy","capacity":2000000,"initial":1000000,"charge_rate":10000,
 		 "discharge_rate":10000,"stop_heat":100000,"recover_heat":50000}
 	]})json");
 	systems.erase("engine");
@@ -627,7 +631,7 @@ int fleet_journey(NetworkOptions options)
 	auto initial = read_fleet_setup(bundle);
 	const auto checkpoint = parse_json(read_pack(portable).files().at("session.json"), "fleet checkpoint").at("state");
 	const auto recovered_state = recovered.world->authoritative_world().save();
-	require(checkpoint.at("schema") == 21 && recovered_state.at("schema") == 21 &&
+	require(checkpoint.at("schema") == 22 && recovered_state.at("schema") == 22 &&
 	            checkpoint.at("scenario") == recovered_state.at("scenario") &&
 	            checkpoint.at("scenario").at("runtime").at("objectives").size() == 1,
 	        "Portable fleet envelope lost current-schema scenario continuation or replayed its one-shot objective");

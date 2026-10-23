@@ -84,6 +84,7 @@ public:
 	Json personnel() const;
 	Json away_missions() const;
 	Json logistics() const;
+	bool selection_action(const std::string &, const std::string &, const std::string &);
 	bool logistics_action(const std::string &, const std::string &, const std::string & = {});
 	Json docking() const;
 	bool docking_action(const std::string &, const std::string &, const std::string & = {});

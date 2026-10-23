@@ -238,6 +238,7 @@ add_library(
 	phoenix_gameplay_definitions
 	STATIC
 	src/resources/resource_definitions.cpp
+	src/resources/stock_definitions.cpp
 	src/knowledge/knowledge_definitions.cpp
 	src/scenario/scenario_definitions.cpp
 	src/scenario/fields.cpp
@@ -264,6 +265,8 @@ add_library(
 	phoenix_gameplay_runtime
 	STATIC
 	src/resources/resources.cpp
+	src/resources/stock.cpp
+	src/resources/processors.cpp
 	src/knowledge/knowledge.cpp
 	src/scenario/scenario.cpp
 	src/behavior/state_tree.cpp
@@ -308,6 +311,8 @@ add_library(
 	src/content/tree_bindings.cpp
 	src/content/gameplay.cpp
 	src/content/resource_bindings.cpp
+	src/content/stock_catalog.cpp
+	src/content/effect_groups.cpp
 )
 target_link_libraries(
 	phoenix_content
@@ -413,6 +418,8 @@ foreach(
 	IN
 	ITEMS
 		gameplay_knowledge
+		processors
+		store_effects
 		gameplay_flight
 		scenario_world
 		summary_bindings
@@ -455,7 +462,7 @@ phoenix_fixture(phoenix_scenario_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.scenario-situations COMMAND phoenix_scenario_tests)
 endif()
-add_executable(phoenix_gameplay_tests tests/manual/gameplay.cpp)
+add_executable(phoenix_gameplay_tests tests/manual/gameplay.cpp tests/support/stock_accounting.cpp)
 target_link_libraries(phoenix_gameplay_tests PRIVATE phoenix_content phoenix_gameplay_runtime)
 phoenix_fixture(phoenix_gameplay_tests)
 if(NOT EMSCRIPTEN)

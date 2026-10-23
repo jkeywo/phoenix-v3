@@ -147,8 +147,10 @@ std::string ftl_blocker(EntityId id, flecs::entity child) const
 		    away_missions[i].transfer > 0 &&
 		    (away_missions[i].phase == AwayPhase::Outbound || away_missions[i].phase == AwayPhase::Inbound))
 			return "Displacement transfer active";
-	if (s.energy != power.definition.network.stores.at(store).capacity)
+	if (s.energy() != power.definition.network.stores.at(store).capacity)
 		return "FTL battery charging";
+	if (s.available() != s.energy())
+		return "FTL reserve committed";
 	return {};
 }
 void prepare_ftl(flecs::entity ship)
@@ -162,7 +164,7 @@ void prepare_ftl(flecs::entity ship)
 			const bool enabled =
 			    child.get<Equipment>().enabled && !structurally_disabled(ship, child.get<Equipment>().id) &&
 			    fault_effectiveness(ship, child.get<Equipment>().id) > 0 && !s.thermal_stop && !combat_dead(ship);
-			const bool full = s.energy == power.definition.network.stores.at(d.store).capacity;
+			const bool full = s.energy() == power.definition.network.stores.at(d.store).capacity;
 			power.network.set_store_enabled(d.store, enabled);
 			power.network.set_storage_limits(d.store, enabled ? d.charge_rate : 0,
 			                                 power.definition.network.stores.at(d.store).discharge_rate);
@@ -214,7 +216,7 @@ Json ftl_board(const ConsoleAddress &a) const
 			if (blocker.empty())
 				blocker = departure_group_blocker(a.ship);
 			rows.push_back({{"system", child.get<Equipment>().id},
-			                {"energy", s.energy},
+			                {"energy", s.energy()},
 			                {"capacity", p.definition.network.stores.at(ftl->definition.store).capacity},
 			                {"enabled", child.get<Equipment>().enabled},
 			                {"ready", blocker.empty()},
@@ -308,7 +310,7 @@ void commit_departures()
 					    {{"title", o.value("title", "")}, {"status", o.value("status", "active")}});
 				auto &p = ship.get_mut<ShipResources>();
 				const auto store = child.get<FtlReserve>().definition.store;
-				p.network.dissipate(store, p.network.stores().at(store).energy, false);
+				p.network.dissipate(store, p.network.stores().at(store).energy(), false);
 				ship.set<MissionDeparture>({ftl_projection::report(report)});
 				for (std::size_t i = 0; i < away_missions.size(); ++i)
 					if (away_ship(away_definitions[i]) == a.ship)

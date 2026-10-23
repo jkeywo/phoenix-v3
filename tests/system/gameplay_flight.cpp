@@ -34,6 +34,10 @@ Json fixture()
 	auto source =
 	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic paid flight");
 	source["schema"] = 4;
+	source["resources"] = Json::array({{{"id", "fixture.resource.energy"},
+	                                    {"label", "Flight energy"},
+	                                    {"tags", {"energy"}},
+	                                    {"sizes", {{"energy", 1}}}}});
 	source["consoles"][0]["widgets"] = Json::array();
 	auto &ship = source["entities"][0];
 	ship.erase("console");
@@ -53,7 +57,7 @@ Json fixture()
 		"storage":{"kind":"storage","power_store":"cell"}
 	})json");
 	ship["resources"] = Json::parse(R"json({"stores":[
-		{"id":"cell","capacity":100000,"initial":50000,"charge_rate":100000,
+		{"id":"cell","resource":"fixture.resource.energy","capacity":100000,"initial":50000,"charge_rate":100000,
 		 "discharge_rate":100000,"stop_heat":100000,"recover_heat":50000}
 	]})json");
 	ship["stations"] = Json::parse(R"json([

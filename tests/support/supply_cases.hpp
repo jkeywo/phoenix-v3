@@ -82,7 +82,13 @@ void supply_cases()
 			auto state = prepared;
 			for (auto &body : state["bodies"])
 				if (body.at("body").at("id") == id)
-					body["inventory"]["stores"][0]["quantities"][material] = quantity;
+				{
+					auto &quantities = saved_material_stock(body, 0)["quantities"];
+					if (quantity)
+						quantities[material] = quantity;
+					else
+						quantities.erase(material);
+				}
 			World blocked;
 			blocked.restore(catalog, state);
 			require(!away(blocked, "send") && blocked.save().at("logistics").at("cargo").empty(), reason.c_str());

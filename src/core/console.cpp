@@ -1203,6 +1203,33 @@ Json ConsoleModel::docking() const
 {
 	return observation_ ? observation_->gameplay.value("docking", Json::object()) : Json::object();
 }
+bool ConsoleModel::selection_action(const std::string &kind, const std::string &system, const std::string &choice)
+{
+	if (!observation_)
+		return false;
+	if (kind != "magazine" && kind != "processor")
+		return false;
+	const auto rows = kind == "magazine"
+	                      ? observation_->gameplay.value("combat", Json::object()).value("magazines", Json::array())
+	                      : observation_->gameplay.value("processors", Json::array());
+	for (const auto &row : rows)
+		if (row.at("id") == system)
+			for (const auto &controller : observation_->gameplay.value("controllers", Json::array()))
+				if (controller.value("human", false))
+				{
+					OperatingCommand command{
+					    observation_->own.id, kind + ".select",
+					    row.at(kind == "magazine" ? "stock_revision" : "selection_revision").get<std::int64_t>(),
+					    system};
+					command.console = observation_->console;
+					command.controller = controller.at("id");
+					command.generation = controller.at("generation");
+					command.text = choice;
+					if (submit(command))
+						return true;
+				}
+	return false;
+}
 bool ConsoleModel::logistics_action(const std::string &action, const std::string &system, const std::string &text)
 {
 	if (!observation_)

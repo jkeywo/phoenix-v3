@@ -21,6 +21,16 @@ namespace
 {
 #include "validation.hpp"
 constexpr ResourceAmount million = 1000000;
+void stock_consume(StockStore &stock, ResourceAmount amount)
+{
+	if (!stock.consume(stock.selected(), amount))
+		throw std::runtime_error("resources: prepared stock debit no longer available");
+}
+void stock_add(StockStore &stock, ResourceAmount amount)
+{
+	if (!stock.add(stock.selected(), amount))
+		throw std::runtime_error("resources: prepared stock credit no longer fits");
+}
 ResourceAmount funded_permille(ResourceAmount funded, ResourceAmount requested)
 {
 	if (!requested)
@@ -186,7 +196,7 @@ ResourceNetwork::ResourceNetwork(ResourceNetworkDefinition definition, std::uint
 	for (const auto &d : definition_.stores)
 	{
 		ResourceStoreState s;
-		s.energy = d.initial;
+		s.stock = StockStore(d.stock, definition_.resources);
 		s.charge_limit = d.charge_rate;
 		s.discharge_limit = d.discharge_rate;
 		s.heat = d.initial_heat;
@@ -217,7 +227,7 @@ ResourceNetwork::ResourceNetwork(ResourceNetworkDefinition definition, std::uint
 	for (const auto &d : definition_.coolant_sources)
 	{
 		CoolantSourceState s;
-		s.remaining = d.initial;
+		s.stock = StockStore(d.stock, definition_.resources);
 		coolant_sources_.push_back(s);
 	}
 	for (const auto &d : definition_.cooling_links)
@@ -239,6 +249,14 @@ ResourceNetwork::ResourceNetwork(ResourceNetworkDefinition definition, std::uint
 const ResourceNetworkDefinition &ResourceNetwork::definition() const
 {
 	return definition_;
+}
+StockStore &ResourceNetwork::stock(ResourceIndex store)
+{
+	return stores_.at(store).stock;
+}
+StockStore &ResourceNetwork::coolant_stock(ResourceIndex source)
+{
+	return coolant_sources_.at(source).stock;
 }
 const std::vector<ResourceStoreState> &ResourceNetwork::stores() const
 {
@@ -371,13 +389,24 @@ ResourceAmount ResourceNetwork::transfer_external(ResourceNetwork &destination, 
 	if (&destination == this || offered < 0 || offered > resource_limit || source >= stores_.size() ||
 	    target >= destination.stores_.size())
 		throw std::runtime_error("Invalid external resource transfer");
-	if (!operational(source))
+	if (!operational(source) || definition_.stores[source].resource != destination.definition_.stores[target].resource)
 		return 0;
-	const auto available = std::min({offered, discharge_left_[source], stores_[source].energy});
-	const auto received = destination.receive_external(target, available);
-	stores_[source].energy -= received;
+	if (!destination.operational(target))
+		return 0;
+	const auto received = std::min({offered, discharge_left_[source], stores_[source].available(),
+	                                destination.charge_left_[target], destination.stores_[target].headroom()});
+	StockTransaction transaction;
+	if (!transaction.transfer(stores_[source].stock, destination.stores_[target].stock,
+	                          definition_.stores[source].resource, received) ||
+	    !transaction.commit())
+		return 0;
 	discharge_left_[source] -= received;
 	telemetry_[source].outgoing += received;
+	destination.charge_left_[target] -= received;
+	destination.telemetry_[target].accepted_incoming += received;
+	auto &target_state = destination.stores_[target];
+	destination.add_heat(target, scaled(received, destination.definition_.stores[target].charge_heat_ppm,
+	                                    target_state.charge_heat_remainder));
 	return received;
 }
 ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount offered)
@@ -388,8 +417,8 @@ ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount
 		return 0;
 	auto &s = stores_[i];
 	const auto &d = definition_.stores[i];
-	const auto received = std::min({offered, charge_left_[i], d.capacity - s.energy});
-	s.energy += received;
+	const auto received = std::min({offered, charge_left_[i], s.headroom()});
+	stock_add(s.stock, received);
 	charge_left_[i] -= received;
 	telemetry_[i].accepted_incoming += received;
 	add_heat(i, scaled(received, d.charge_heat_ppm, s.charge_heat_remainder));
@@ -397,7 +426,7 @@ ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount
 }
 void ResourceNetwork::debit_operation(ResourceIndex i, ResourceAmount amount, bool discrete)
 {
-	stores_[i].energy -= amount;
+	stock_consume(stores_[i].stock, amount);
 	discharge_left_[i] -= amount;
 	telemetry_[i].consumed += amount;
 	telemetry_[i].discrete_paid |= discrete;
@@ -417,7 +446,7 @@ bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 	bounded(amount, "external operating payment");
 	if (i >= stores_.size())
 		throw std::runtime_error("Invalid external payer");
-	if (!operational(i) || amount > stores_[i].energy || amount > discharge_left_[i])
+	if (!operational(i) || amount > stores_[i].available() || amount > discharge_left_[i])
 		return false;
 	auto &s = stores_[i];
 	const auto &d = definition_.stores[i];
@@ -441,8 +470,8 @@ ResourceAmount ResourceNetwork::dissipate(ResourceIndex i, ResourceAmount amount
 	if (amount < 0 || amount > resource_limit)
 		throw std::runtime_error("Invalid reserve dissipation");
 	auto &s = stores_.at(i);
-	const auto paid = std::min(s.energy, amount);
-	s.energy -= paid;
+	const auto paid = std::min(s.available(), amount);
+	stock_consume(s.stock, paid);
 	telemetry_.at(i).lost += paid;
 	if (heat)
 		add_heat(i, paid);
@@ -457,7 +486,7 @@ void ResourceNetwork::tick()
 		auto &s = stores_[i];
 		const auto &d = definition_.stores[i];
 		telemetry_[i] = {};
-		initial_energy_[i] = s.energy;
+		initial_energy_[i] = s.energy();
 		initial_heat_[i] = s.heat;
 		if (d.stop_heat && s.heat >= d.stop_heat)
 			s.thermal_stop = true;
@@ -465,11 +494,11 @@ void ResourceNetwork::tick()
 			s.thermal_stop = false;
 		charge_left_[i] = per_tick(s.charge_limit, s.charge_remainder);
 		discharge_left_[i] = per_tick(s.discharge_limit, s.discharge_remainder);
-		const auto fullness = s.energy * million / d.capacity;
+		const auto fullness = s.energy() * million / d.capacity;
 		const auto loss_ppm = d.loss_empty_ppm + (d.loss_full_ppm - d.loss_empty_ppm) * fullness / million;
 		const auto loss =
-		    std::min(s.energy, divided(s.energy * loss_ppm, million * resource_tick_hz, s.loss_remainder));
-		s.energy -= loss;
+		    std::min(s.available(), divided(s.energy() * loss_ppm, million * resource_tick_hz, s.loss_remainder));
+		stock_consume(s.stock, loss);
 		telemetry_[i].lost = loss;
 		const auto rate = operational(i) ? s.requested_rate : 0;
 		const auto work = rate * (s.overdrive ? d.overdrive_permille : 1000);
@@ -485,7 +514,7 @@ void ResourceNetwork::tick()
 	{
 		auto &s = stores_[i];
 		const auto continuous = std::max<ResourceAmount>(0, demand_[i] - (operational(i) ? s.discrete_request : 0));
-		const auto paid = std::min({continuous, s.energy, discharge_left_[i]});
+		const auto paid = std::min({continuous, s.available(), discharge_left_[i]});
 		debit_operation(i, paid, false);
 		demand_[i] -= paid;
 	}
@@ -509,9 +538,8 @@ void ResourceNetwork::tick()
 		if (!s.enabled || !operational(d.store))
 			generated = 0;
 		auto &store = stores_[d.store];
-		const auto &store_d = definition_.stores[d.store];
-		generated = std::min({generated, charge_left_[d.store], store_d.capacity - store.energy});
-		store.energy += generated;
+		generated = std::min({generated, charge_left_[d.store], store.headroom()});
+		stock_add(store.stock, generated);
 		charge_left_[d.store] -= generated;
 		telemetry_[d.store].generated += generated;
 		auto generation_heat = scaled(generated, d.heat_ppm, s.heat_remainder);
@@ -536,7 +564,7 @@ void ResourceNetwork::tick()
 			if (definition_.generators[g].store == i && generators_[g].enabled)
 				generation += generators_[g].actual_rate;
 		generation = std::min(generation, s.charge_limit);
-		const auto reserves = std::max<ResourceAmount>(0, s.energy - demand_[i]) * resource_tick_hz;
+		const auto reserves = std::max<ResourceAmount>(0, s.available() - demand_[i]) * resource_tick_hz;
 		return std::min(std::max<ResourceAmount>(0, s.discharge_limit - own), reserves + generation);
 	};
 	ResourceAmount supply = 0;
@@ -671,12 +699,12 @@ void ResourceNetwork::tick()
 	std::stable_sort(recipients.begin(), recipients.end(),
 	                 [&](ResourceIndex a, ResourceIndex b)
 	                 {
-		                 const bool unpaid_a = demand_[a] > stores_[a].energy,
-		                            unpaid_b = demand_[b] > stores_[b].energy;
+		                 const bool unpaid_a = demand_[a] > stores_[a].available(),
+		                            unpaid_b = demand_[b] > stores_[b].available();
 		                 if (unpaid_a != unpaid_b)
 			                 return unpaid_a;
-		                 return stores_[a].energy * million / definition_.stores[a].capacity <
-		                        stores_[b].energy * million / definition_.stores[b].capacity;
+		                 return stores_[a].energy() * million / definition_.stores[a].capacity <
+		                        stores_[b].energy() * million / definition_.stores[b].capacity;
 	                 });
 	const auto group_base = stores_.size() * 2, source = group_base + groups_.size(), sink = source + 1;
 	ResourceFlowGraph transfers(sink + 1);
@@ -684,9 +712,9 @@ void ResourceNetwork::tick()
 	std::vector<ResourceFlowGraph::Handle> conduits(links_.size());
 	for (ResourceIndex i = 0; i < stores_.size(); ++i)
 	{
-		const auto spare =
-		    operational(i) ? std::min(discharge_left_[i], std::max<ResourceAmount>(0, stores_[i].energy - demand_[i]))
-		                   : 0;
+		const auto spare = operational(i) ? std::min(discharge_left_[i],
+		                                             std::max<ResourceAmount>(0, stores_[i].available() - demand_[i]))
+		                                  : 0;
 		sources[i] = transfers.add(source, i * 2 + 1, spare);
 		if (operational(i))
 			transfers.add(i * 2, i * 2 + 1, resource_limit * 4096);
@@ -705,7 +733,7 @@ void ResourceNetwork::tick()
 	for (const auto i : recipients)
 	{
 		const auto &d = definition_.stores[i];
-		const auto capacity = operational(i) ? std::min(charge_left_[i], d.capacity - stores_[i].energy) : 0;
+		const auto capacity = operational(i) ? std::min(charge_left_[i], stores_[i].headroom()) : 0;
 		incoming[i] = transfers.add(i * 2, d.group == no_resource ? sink : group_base + d.group, capacity);
 		transfers.resolve(source, sink, resource_limit * 4096);
 	}
@@ -722,16 +750,17 @@ void ResourceNetwork::tick()
 		sent -= pass_through;
 		received -= pass_through;
 		auto &s = stores_[i];
-		s.energy += received - sent;
+		stock_consume(s.stock, sent);
+		stock_add(s.stock, received);
 		discharge_left_[i] -= sent;
 		charge_left_[i] -= received;
 		telemetry_[i].outgoing = sent;
 		telemetry_[i].accepted_incoming = received;
 		const auto discrete = operational(i) ? s.discrete_request : 0;
 		const auto continuous = std::max<ResourceAmount>(0, demand_[i] - discrete);
-		const auto paid = std::min({continuous, s.energy, discharge_left_[i]});
+		const auto paid = std::min({continuous, s.available(), discharge_left_[i]});
 		debit_operation(i, paid, false);
-		if (discrete && s.energy >= discrete && discharge_left_[i] >= discrete)
+		if (discrete && s.available() >= discrete && discharge_left_[i] >= discrete)
 			debit_operation(i, discrete, true);
 		telemetry_[i].limited = telemetry_[i].consumed < telemetry_[i].requested;
 		const auto paid_continuous = telemetry_[i].consumed - (telemetry_[i].discrete_paid ? discrete : 0);
@@ -779,10 +808,10 @@ void ResourceNetwork::tick()
 		const auto capacity =
 		    s.isolated ? 0 : divided(s.allocation_rate * output_permille, resource_tick_hz * 1000, s.tick_remainder);
 		const auto affordable =
-		    std::max<ResourceAmount>(0, source.remaining * million - source.consumption_remainder) / ratio;
+		    std::max<ResourceAmount>(0, source.available() * million - source.consumption_remainder) / ratio;
 		const auto removed = std::min({capacity, store.heat, affordable});
 		const auto used = scaled(removed, ratio, source.consumption_remainder);
-		source.remaining -= used;
+		stock_consume(source.stock, used);
 		source.last_heat_removed += removed;
 		source.last_consumed += used;
 		store.heat -= removed;
@@ -805,14 +834,14 @@ ResourceForecast ResourceNetwork::forecast(ResourceIndex i) const
 	ResourceForecast f;
 	f.observed_net_energy = t.accepted_incoming + t.generated - t.consumed - t.outgoing - t.lost;
 	f.observed_net_heat = t.heat_added - t.heat_removed;
-	if (!s.energy)
+	if (!s.energy())
 		f.depletion_ticks = 0;
 	else if (f.observed_net_energy < 0)
-		f.depletion_ticks = (s.energy - f.observed_net_energy - 1) / (-f.observed_net_energy);
-	if (s.energy == d.capacity)
+		f.depletion_ticks = (s.energy() - f.observed_net_energy - 1) / (-f.observed_net_energy);
+	if (!s.headroom())
 		f.full_ticks = 0;
 	else if (f.observed_net_energy > 0)
-		f.full_ticks = (d.capacity - s.energy + f.observed_net_energy - 1) / f.observed_net_energy;
+		f.full_ticks = (s.headroom() + f.observed_net_energy - 1) / f.observed_net_energy;
 	if (d.stop_heat && (s.heat >= d.stop_heat || f.observed_net_heat > 0))
 		f.thermal_stop_ticks =
 		    s.heat >= d.stop_heat ? 0 : (d.stop_heat - s.heat + f.observed_net_heat - 1) / f.observed_net_heat;
@@ -832,7 +861,7 @@ CoolantForecast ResourceNetwork::coolant_forecast(ResourceIndex source) const
 	CoolantForecast f;
 	f.observed_heat_removed = s.last_heat_removed;
 	f.observed_coolant_used = s.last_consumed;
-	const auto available = std::max<ResourceAmount>(0, s.remaining * million - s.consumption_remainder);
+	const auto available = std::max<ResourceAmount>(0, s.available() * million - s.consumption_remainder);
 	const auto consumption = s.last_heat_removed * d.coolant_per_heat_ppm;
 	if (!available)
 		f.depletion_ticks = 0;
@@ -843,7 +872,7 @@ CoolantForecast ResourceNetwork::coolant_forecast(ResourceIndex source) const
 
 Json ResourceNetwork::save() const
 {
-	Json j = {{"version", 1},
+	Json j = {{"version", 2},
 	          {"definition", definition_.signature},
 	          {"random", random_},
 	          {"ticks", ticks_},
@@ -854,7 +883,7 @@ Json ResourceNetwork::save() const
 	          {"coolant_sources", Json::array()},
 	          {"cooling_links", Json::array()}};
 	for (const auto &s : stores_)
-		j["stores"].push_back({{"energy", s.energy},
+		j["stores"].push_back({{"stock", s.stock.save()},
 		                       {"charge_limit", s.charge_limit},
 		                       {"discharge_limit", s.discharge_limit},
 		                       {"heat", s.heat},
@@ -892,7 +921,7 @@ Json ResourceNetwork::save() const
 	for (const auto &s : links_)
 		j["links"].push_back({{"tick_remainder", s.tick_remainder}, {"isolated", s.isolated}});
 	for (const auto &s : coolant_sources_)
-		j["coolant_sources"].push_back({{"remaining", s.remaining},
+		j["coolant_sources"].push_back({{"stock", s.stock.save()},
 		                                {"consumption_remainder", s.consumption_remainder},
 		                                {"last_heat_removed", s.last_heat_removed},
 		                                {"last_consumed", s.last_consumed}});
@@ -919,7 +948,7 @@ Json ResourceNetwork::save() const
 
 void ResourceNetwork::restore(const Json &j)
 {
-	if (!j.is_object() || j.value("version", 0) != 1 || j.value("definition", std::string()) != definition_.signature)
+	if (!j.is_object() || j.value("version", 0) != 2 || j.value("definition", std::string()) != definition_.signature)
 		throw std::runtime_error("resources.save: incompatible definition/version");
 	ResourceNetwork next(definition_);
 	auto sized = [&](const char *key, std::size_t size)
@@ -956,7 +985,9 @@ void ResourceNetwork::restore(const Json &j)
 		auto &s = next.stores_[i];
 		const auto &d = definition_.stores[i];
 		const auto &v = j.at("stores").at(i);
-		s.energy = read(v, "energy", d.capacity);
+		if (v.contains("energy"))
+			throw std::runtime_error("resources.save: obsolete duplicate energy quantity");
+		s.stock.restore(v.at("stock"));
 		s.charge_limit = read(v, "charge_limit", d.charge_rate);
 		s.discharge_limit = read(v, "discharge_limit", d.discharge_rate);
 		s.heat = read(v, "heat");
@@ -1033,7 +1064,9 @@ void ResourceNetwork::restore(const Json &j)
 	{
 		auto &s = next.coolant_sources_[i];
 		const auto &v = j.at("coolant_sources").at(i);
-		s.remaining = read(v, "remaining", definition_.coolant_sources[i].initial);
+		if (v.contains("remaining"))
+			throw std::runtime_error("resources.save: obsolete duplicate coolant quantity");
+		s.stock.restore(v.at("stock"));
 		s.consumption_remainder = read(v, "consumption_remainder", million - 1);
 		s.last_heat_removed = v.contains("last_heat_removed") ? read(v, "last_heat_removed") : 0;
 		s.last_consumed = v.contains("last_consumed") ? read(v, "last_consumed") : 0;

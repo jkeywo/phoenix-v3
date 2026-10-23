@@ -1,4 +1,5 @@
 #include "../support/assertions.hpp"
+#include "../support/stock_snapshot.hpp"
 #include "../support/combat_fixture.hpp"
 #include <iostream>
 import phoenix.simulation;
@@ -11,6 +12,7 @@ Json fixture()
 	auto s = combat_fixture();
 	auto &e = s["entities"][0];
 	e["systems"]["mag"]["initial"] = 0;
+	e["systems"]["mag"]["ammunition_type"] = "round";
 	e["systems"]["mag"]["reload"] = {{"strategy", "none"}};
 	e["logistics"] = Json::parse(R"({"controller":"team-a","units_per_second":100,"concurrency":2,"batch_size":2,
  "materials":[{"id":"round"},{"id":"parts","volume":2}],
@@ -23,14 +25,10 @@ std::int64_t total(const World &w, const std::string &material)
 {
 	const auto save = w.save();
 	std::int64_t n = 0;
-	for (const auto &b : save.at("bodies"))
-		if (b.contains("inventory"))
-		{
-			for (const auto &store : b.at("inventory").at("stores"))
-				n += store.at("quantities").value(material, std::int64_t{0});
-			if (material == "round")
-				n += b.at("combat").at("systems").at("mag").at("ammo").get<std::int64_t>();
-		}
+	for (const auto &body : save.at("bodies"))
+		if (body.contains("stocks"))
+			for (const auto &[id, stock] : body.at("stocks").items())
+				n += stock.at("quantities").value(material, std::int64_t{0});
 	for (const auto &b : save.at("logistics").at("batches"))
 		if (b.at("material") == material)
 			n += b.at("quantity").get<std::int64_t>();
@@ -229,6 +227,43 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 4; ++i)
 			w.tick();
 		require(!w.save().at("logistics").at("batches").empty(), "Dispatch retains physical batches");
+		const auto in_transit = w.save();
+		for (const auto &batch : in_transit.at("logistics").at("batches"))
+			for (const auto &body : in_transit.at("bodies"))
+				if (body.at("body").at("id") == batch.at("destination"))
+				{
+					const auto &stock = saved_material_stock(body, batch.at("to").get<std::size_t>());
+					const auto key = "batch:" + std::to_string(batch.at("id").get<std::uint64_t>());
+					require(stock.at("capacity_claims").at(key).at("quantity") == batch.at("quantity") &&
+					            stock.at("capacity_claims").at(key).at("resource") == batch.at("material"),
+					        "Every physical batch owns exactly its destination receiving capacity");
+				}
+		const auto &inventory = in_transit.at("bodies")[0].at("inventory");
+		require(!inventory.at("stores")[0].contains("quantities") &&
+		            inventory.at("stores")[1].at("stock") ==
+		                in_transit.at("bodies")[0].at("combat").at("systems").at("mag").at("stock"),
+		        "Material and magazine adapters reference one authoritative stock owner");
+		{
+			auto invalid = in_transit;
+			const auto batch = invalid.at("logistics").at("batches")[0];
+			for (auto &body : invalid["bodies"])
+				if (body.at("body").at("id") == batch.at("destination"))
+					saved_material_stock(body, batch.at("to").get<std::size_t>())["capacity_claims"].erase(
+					    "batch:" + std::to_string(batch.at("id").get<std::uint64_t>()));
+			World checked;
+			checked.restore(catalog, in_transit);
+			bool refused = false;
+			try
+			{
+				checked.restore(catalog, invalid);
+			}
+			catch (const std::exception &)
+			{
+				refused = true;
+			}
+			require(refused && checked.save() == in_transit,
+			        "Missing delivery capacity claims refuse restore transactionally");
+		}
 		World resumed;
 		resumed.restore(catalog, w.save());
 		for (int i = 0; i < 60; ++i)
@@ -246,7 +281,7 @@ int main(int argc, char **argv)
 		require(w.save().at("logistics").at("batches").empty(), "Deliveries arrive once");
 		resumed.restore(catalog, w.save());
 		auto bad = w.save();
-		bad["bodies"][0]["inventory"]["stores"][0]["quantities"]["round"] = 999;
+		saved_material_stock(bad["bodies"][0], 0)["quantities"]["round"] = 999;
 		bool refused = false;
 		try
 		{

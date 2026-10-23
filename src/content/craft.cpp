@@ -275,17 +275,17 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 				const auto logistics = compile_logistics(catalog, definition);
 				for (std::size_t index = 0; index < logistics.stores.size(); ++index)
 					if (logistics.stores[index].system == magazine)
-						return std::pair{index, logistics.materials.at(logistics.stores[index].accepts.front())};
+						return std::pair{index, logistics.stores[index]};
 				throw std::runtime_error(id + "." + key + ".ammunition: " + definition + "." + magazine +
 				                         " requires a magazine-bound logistics store");
 			};
-			MaterialDefinition material;
+			MaterialStoreDefinition source_store;
 			if (!catalog.presentation)
 			{
 				const auto bound = binding(id, a.source);
 				a.source_store = bound.first;
-				material = bound.second;
-				a.material = material.id;
+				source_store = bound.second;
+				a.material = source_store.stock.selection;
 			}
 			bool recipient = false;
 			for (const auto &name : d.initial)
@@ -298,15 +298,18 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 				if (!catalog.presentation)
 				{
 					const auto bound = binding(name, a.destination);
-					craft_require(bound.second.id == material.id && bound.second.volume == material.volume,
-					              id + "." + key + ".ammunition: incompatible logistics materials for " + name);
+					craft_require(std::any_of(bound.second.accepts.begin(), bound.second.accepts.end(),
+					                          [&](const auto &resource)
+					                          {
+						                          return std::find(source_store.accepts.begin(),
+						                                           source_store.accepts.end(),
+						                                           resource) != source_store.accepts.end();
+					                          }),
+					              id + "." + key + ".ammunition: incompatible resource filters for " + name);
 					a.destination_stores.emplace(name, bound.first);
 				}
 				craft_require(target.value("kind", a.destination) == "magazine",
 				              "ammunition destination must be a magazine");
-				craft_require(!source.value("ammunition_type", std::string{}).empty() &&
-				                  source.at("ammunition_type") == target.value("ammunition_type", Json()),
-				              "incompatible ammunition connection");
 			}
 			craft_require(recipient, "ammunition connection has no receiving magazine");
 			d.ammunition.push_back(a);
