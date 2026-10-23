@@ -28,7 +28,7 @@ Recommendations below remain proposals unless explicitly marked agreed.
 
 **Recommendation.** For the first slice, one named contribution owns one arc and its reserve. An effect can contain several named contributions. Identify each by its active-effect instance and a stable local contribution key; preserve original source separately for modifier refresh and diagnostics. Reevaluate/refresh existing contributions by identity. Do not infer capability-grant identity solely from the timed-modifier stacking key.
 
-**Decision needed.** Independent reserves versus a shared reserve for multi-arc grants, and the distinction between refreshing a grant and creating an additional named grant. Keeping the current one-arc/one-reserve unit is the smallest default.
+**Agreed, 23 October 2026.** Each named contribution owns one arc, an independent reserve and warmup state. Multi-arc effects contain several named contributions. Identity is the active-effect instance plus a stable local contribution name. Updating an existing contribution preserves its identity and state; separate instances remain independent even when they share a template. Original source identity remains separate for modifier stacking and diagnostics. This contract is incorporated into the target design.
 
 ### 3. Make funding and equipment dependency explicit bindings
 

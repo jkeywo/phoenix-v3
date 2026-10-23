@@ -88,6 +88,8 @@ A ship owns its shield component. A fitted shield System applies an effect that 
 
 Contributions are independent. Their layer values determine hit order; equal-layer contributions share damage evenly. Further shield-specific resolution follows the native shield design. The generic framework does not prescribe a replacement shield algorithm.
 
+Each named shield contribution owns one arc, an independent reserve and its own warmup state. A multi-arc effect contains several named contributions. Contribution identity is the active-effect instance plus a stable local name, such as fore or aft. Updating an existing contribution preserves its identity and accumulated state; it does not duplicate the grant or reset its strength. Different effect instances using the same template have independent contributions. Original source identity remains separate for modifier stacking and diagnostics; the timed-modifier refresh key does not merge distinct named shield contributions.
+
 Shield GUI reads the ship component's standard projection. It does not need separate implementations for equipment-generated shields and officer-generated shields.
 
 ### Detection
