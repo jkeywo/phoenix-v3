@@ -42,6 +42,7 @@ struct Editor
 	FileImportInbox imports;
 	FileImportInbox saves;
 	FileImportInbox packages;
+	std::map<std::string, Bytes> package_files;
 	struct SaveLocation
 	{
 		std::string filename, destination;
@@ -1711,9 +1712,41 @@ void render_editor(Application &app)
 	if (!readonly)
 	{
 		if (auto packaged = editor.packages.take())
+		{
 			editor.status = packaged->status == ImportStatus::Success     ? "Packaged " + packaged->filename
 			                : packaged->status == ImportStatus::Cancelled ? "Packaging cancelled"
 			                                                              : packaged->error;
+#ifndef __EMSCRIPTEN__
+			if (packaged->status == ImportStatus::Success)
+				try
+				{
+					const auto name = std::filesystem::path(packaged->destination).filename().string();
+					std::map<std::string, Bytes> renamed;
+					// The picker may change the archive's basename; regenerate relative companion addresses.
+					for (const auto &[old, bytes] : editor.package_files)
+					{
+						if (old.ends_with(".menu.json"))
+						{
+							auto menu = parse_json(bytes, "menu");
+							for (auto &entry : menu["clients"])
+							{
+								const std::string path = entry.at("file");
+								entry["file"] = name + path.substr(path.find(".clients/"));
+							}
+							renamed[name + ".menu.json"] = json_bytes(menu);
+						}
+						else if (const auto at = old.find(".clients/"); at != std::string::npos)
+							renamed[name + old.substr(at)] = bytes;
+					}
+					write_companions(packaged->destination, renamed);
+				}
+				catch (const std::exception &error)
+				{
+					editor.status = std::string("Archive saved; companion export failed: ") + error.what();
+				}
+#endif
+			editor.package_files.clear();
+		}
 		if (auto saved = editor.saves.take())
 		{
 			editor.saving = false;
@@ -1932,13 +1965,20 @@ void render_editor(Application &app)
 								attempt(
 								    [&]
 								    {
-									    const auto bytes = editor.document.export_pack(encoding, scenario);
 									    const auto name =
 									        editor.document.manifest().at("id").get<std::string>() +
 									        (scenario ? "-" + editor.document.map().at("id").get<std::string>() : "") +
 									        (encoding == PackEncoding::Zip ? ".zip" : ".dat");
-									    request_save(editor.packages, FilePurpose::WorkshopPackSave, name, bytes, {},
+									    editor.package_files =
+									        editor.document.export_companions(name, encoding, scenario);
+#ifdef __EMSCRIPTEN__
+									    request_save(editor.packages, FilePurpose::WorkshopPackSave,
+									                 name + ".bundle.zip", distribution_zip(editor.package_files), {},
 									                 true);
+#else
+									    request_save(editor.packages, FilePurpose::WorkshopPackSave, name,
+									                 editor.package_files.at(name), {}, true);
+#endif
 									    editor.status = "Packaging...";
 								    });
 						ImGui::EndMenu();

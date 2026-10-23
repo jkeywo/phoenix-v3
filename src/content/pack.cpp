@@ -453,4 +453,48 @@ Pack read_pack_path(const std::string &path)
 	draft.manifest = parse_json(draft.files.at("manifest.json"), "manifest.json");
 	return read_pack(write_pack(draft));
 }
+Bytes distribution_zip(const std::map<std::string, Bytes> &files)
+{
+	mz_zip_archive zip{};
+	if (!mz_zip_writer_init_heap(&zip, 0, 0))
+		throw std::runtime_error("Cannot create distribution ZIP");
+	struct End
+	{
+		mz_zip_archive *zip;
+		~End()
+		{
+			mz_zip_writer_end(zip);
+		}
+	} end{&zip};
+	std::size_t total = 0;
+	if (files.size() > 1024)
+		throw std::runtime_error("Too many companion files");
+	for (const auto &[path, bytes] : files)
+	{
+		path_check(path);
+		if (bytes.size() > max_archive || bytes.size() > max_compiled_total - total)
+			throw std::runtime_error("Distribution exceeds size limits");
+		total += bytes.size();
+		if (!mz_zip_writer_add_mem(&zip, path.c_str(), bytes.data(), bytes.size(), MZ_BEST_SPEED))
+			throw std::runtime_error("Cannot write distribution file");
+	}
+	void *output = nullptr;
+	std::size_t size = 0;
+	if (!mz_zip_writer_finalize_heap_archive(&zip, &output, &size))
+		throw std::runtime_error("Cannot finish distribution ZIP");
+	std::unique_ptr<void, decltype(&mz_free)> allocation(output, &mz_free);
+	return Bytes(static_cast<std::uint8_t *>(output), static_cast<std::uint8_t *>(output) + size);
+}
+void write_companions(const std::string &archive_path, const std::map<std::string, Bytes> &files)
+{
+	const auto root = std::filesystem::u8path(archive_path).parent_path();
+	for (const auto &[name, bytes] : files)
+	{
+		path_check(name);
+		const auto target = root / std::filesystem::u8path(name);
+		std::filesystem::create_directories(target.parent_path());
+		const auto encoded = target.u8string();
+		write_file(std::string(encoded.begin(), encoded.end()), bytes);
+	}
+}
 } // namespace phoenix

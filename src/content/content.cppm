@@ -418,6 +418,16 @@ Catalog prepared_catalog(const Catalog &catalog);
 void verify_catalog(const Catalog &catalog);
 // Public setup hints for the HTML launcher. Admission/setup still verify in C++.
 Json launcher_catalog(const Catalog &catalog);
+// Display-only metadata and optional public ship packages, pinned to exact source archives.
+Json pack_menu(const std::vector<Pack> &ordered);
+Catalog menu_catalog(const std::vector<Json> &menus);
+void validate_ship_client(const Pack &pack, const Json &descriptor);
+Pack ship_client_assets(const Catalog &catalog, const std::string &ship, const std::string &background = {});
+std::map<std::string, Bytes> pack_companions(const std::vector<Pack> &ordered, const std::string &filename);
+Json ship_client_descriptor(const Catalog &catalog, const std::string &ship, const std::string &hash,
+                            const std::map<std::string, std::string> &urls);
+Bytes distribution_zip(const std::map<std::string, Bytes> &files);
+void write_companions(const std::string &archive_path, const std::map<std::string, Bytes> &files);
 struct ConsoleSpec
 {
 	std::string id, station, definition;
@@ -938,6 +948,8 @@ public:
 	void load_dependency(std::span<const std::uint8_t> archive);
 	void rename_pack(const std::string &id);
 	Bytes export_pack(PackEncoding encoding = PackEncoding::Zip, bool scenario_only = false) const;
+	std::map<std::string, Bytes> export_companions(const std::string &filename, PackEncoding encoding,
+	                                               bool scenario_only) const;
 	void load_map(std::span<const std::uint8_t> bytes);
 	Bytes save_map() const;
 	void new_map(const std::string &id);

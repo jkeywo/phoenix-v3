@@ -63,9 +63,8 @@ int main(int argc, char **argv)
 		ordered.push_back(phoenix::read_pack(archive));
 		(void)phoenix::resolve_packs(ordered);
 		phoenix::write_file(argv[2], archive);
-		preview["id"] = pack.manifest.at("id");
-		preview["hash"] = phoenix::sha256(archive);
-		phoenix::write_file(std::string(argv[2]) + ".menu.json", phoenix::json_bytes(preview));
+		phoenix::write_companions(
+		    argv[2], phoenix::pack_companions(ordered, std::filesystem::path(argv[2]).filename().string()));
 		std::cout << "Verified pack: " << argv[2] << '\n';
 	}
 	catch (const std::exception &error)

@@ -1,0 +1,6 @@
+{
+	"schema": 1,
+	"id": "phoenix-test-missions",
+	"name": "Test Missions",
+	"parent": "phoenix-base"
+}

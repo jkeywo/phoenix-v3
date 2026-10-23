@@ -8,6 +8,7 @@ module;
 #include <span>
 #include <string>
 #include <utility>
+#include <stdexcept>
 #include <vector>
 
 module phoenix.content;
@@ -147,6 +148,9 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 		}
 		else
 			copy["maximum"] = system.maximum;
+		if (system.kind == OperatingSystem::Displacement)
+			for (const auto *field : {"range_mm", "capacity", "transfer_ticks"})
+				copy[field] = systems.at(system.id).at(field);
 	}
 	Json consoles = Json::array(), stations = Json::array();
 	std::set<std::string> included;
@@ -257,5 +261,30 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 {
 	return console_assets(catalog, ship,
 	                      console.empty() ? std::vector<std::string>{} : std::vector<std::string>{console}, background);
+}
+Pack ship_client_assets(const Catalog &catalog, const std::string &ship, const std::string &background)
+{
+	std::vector<std::string> consoles;
+	for (const auto &seat : resolve_consoles(catalog, ship))
+		consoles.push_back(seat.id);
+	if (consoles.empty())
+		throw std::runtime_error("Ship has no player Consoles");
+	const auto presentation = console_assets(catalog, ship, consoles, background);
+	PackDraft draft{presentation.manifest(), presentation.files()};
+	draft.manifest["source_packs"] = catalog.ordered_packs;
+	draft.manifest["ship"] = ship;
+	return read_pack(write_pack(draft, PackEncoding::Dat));
+}
+void validate_ship_client(const Pack &pack, const Json &descriptor)
+{
+	const auto &manifest = pack.manifest();
+	if (pack.hash() != descriptor.at("hash").get<std::string>() ||
+	    manifest.value("format", std::string{}) != "phoenix-console-assets" ||
+	    manifest.at("ship") != descriptor.at("ship") || manifest.at("source_packs") != descriptor.at("sources"))
+		throw std::runtime_error("Ship presentation does not match the host content");
+	const auto catalog = resolve_packs({pack});
+	if (!catalog.presentation || !catalog.maps.empty() || !catalog.trees.empty() || catalog.entities.size() != 1 ||
+	    !catalog.entities.contains(descriptor.at("ship").get<std::string>()))
+		throw std::runtime_error("Invalid ship presentation content");
 }
 } // namespace phoenix

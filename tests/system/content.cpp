@@ -30,6 +30,41 @@ int main()
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
 		{
+			for (auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
+			{
+				const auto source = read_pack(write_pack(base, encoding));
+				const auto companions = pack_companions({source}, "fixture.dat");
+				const auto menu = parse_json(companions.at("fixture.dat.menu.json"), "menu");
+				require(menu.at("hash") == source.hash() &&
+				            menu.at("sources") == Json(resolve_packs({source}).ordered_packs),
+				        "sidecars pin exact archives");
+				require(!menu.contains("entities") && !menu.at("clients").empty(),
+				        "menu contains display hints and client descriptors");
+				for (const auto &descriptor : menu.at("clients"))
+				{
+					const auto client = read_pack(companions.at(descriptor.at("file").get<std::string>()));
+					validate_ship_client(client, descriptor);
+					auto stale = descriptor;
+					stale["sources"][0][1] = std::string(64, '0');
+					rejected(
+					    [&]
+					    {
+						    validate_ship_client(client, stale);
+					    },
+					    "does not match");
+					const auto visible = resolve_packs({client});
+					require(client.hash() == descriptor.at("hash").get<std::string>() && client.archive()[0] == 'P',
+					        "client companion is a hash-verified DAT");
+					require(visible.maps.empty() && visible.trees.empty() && visible.entities.size() == 1,
+					        "ship companions exclude mission and private behavior");
+					require(resolve_consoles(visible, descriptor.at("ship")).size() ==
+					            resolve_consoles(catalog, descriptor.at("ship")).size(),
+					        "ship companion contains all Console choices");
+				}
+			}
+		}
+
+		{
 			auto isolated = resolve_packs({loaded});
 			isolated.entities.clear();
 			isolated.assets.clear();
@@ -402,6 +437,9 @@ int main()
 			return resolve_packs({read_pack(write_pack(draft))});
 		};
 		auto control_catalog = load_controls(control_source);
+		const auto whole_ship = resolve_packs({ship_client_assets(control_catalog, "test.ship")});
+		require(resolve_consoles(whole_ship, "test.ship").size() == 2,
+		        "Whole-ship client content includes auxiliary Consoles independently of the claimed profile");
 		const auto one_console = resolve_packs({console_assets(control_catalog, "test.ship", "helm")});
 		const auto console_set =
 		    resolve_packs({console_assets(control_catalog, "test.ship", std::vector<std::string>{"helm", "support"})});
@@ -1014,6 +1052,17 @@ int main()
 		require(modded.entities.at("test.variant")["render"]["scale"] == 2,
 		        "child's explicit scale must survive parent override");
 		require(modded.entities.at("test.ship")["render"]["scale"] == 3, "explicit later override must win");
+		const auto overridden_files = pack_companions({loaded, mod_loaded}, "child.zip");
+		const auto overridden_menu = parse_json(overridden_files.at("child.zip.menu.json"), "child menu");
+		require(overridden_menu.at("sources") == Json(modded.ordered_packs),
+		        "Child companions retain ordered dependency and override identities");
+		for (const auto &descriptor : overridden_menu.at("clients"))
+		{
+			const auto client = read_pack(overridden_files.at(descriptor.at("file").get<std::string>()));
+			validate_ship_client(client, descriptor);
+			require(client.hash() == ship_client_assets(modded, descriptor.at("ship")).hash(),
+			        "Published and host-generated whole-ship packages agree after overrides");
+		}
 		rejected(
 		    [&]
 		    {

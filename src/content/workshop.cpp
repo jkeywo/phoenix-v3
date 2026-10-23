@@ -411,7 +411,7 @@ Bytes WorkshopDocument::export_pack(PackEncoding encoding, bool scenario_only) c
 	{
 		// The editable pack supplies shared definitions/assets. The scenario is a
 		// small dependent overlay, so it can be installed alongside that game pack.
-		dependencies.push_back(read_pack(write_pack(draft)));
+		dependencies.push_back(read_pack(export_pack(PackEncoding::Zip, false)));
 		const auto map_id = map().at("id").get<std::string>();
 		const auto parent = draft.manifest.at("id").get<std::string>();
 		const auto scenario_id = parent.substr(0, 100) + ".scenario-" + sha256(json_bytes(map_id)).substr(0, 16);
@@ -436,6 +436,18 @@ Bytes WorkshopDocument::export_pack(PackEncoding encoding, bool scenario_only) c
 		              });
 	draft.files["launcher.json"] = json_bytes(preview);
 	return write_pack(draft, encoding);
+}
+std::map<std::string, Bytes> WorkshopDocument::export_companions(const std::string &filename, PackEncoding encoding,
+                                                                 bool scenario_only) const
+{
+	auto dependencies = libraries_;
+	if (scenario_only)
+		dependencies.push_back(read_pack(export_pack(PackEncoding::Zip, false)));
+	const auto archive = export_pack(encoding, scenario_only);
+	dependencies.push_back(read_pack(archive));
+	auto files = pack_companions(dependencies, filename);
+	files[filename] = archive;
+	return files;
 }
 void WorkshopDocument::load_map(std::span<const std::uint8_t> bytes)
 {

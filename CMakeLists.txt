@@ -167,6 +167,7 @@ add_library(
 	${miniz_SOURCE_DIR}/miniz_tinfl.c
 	${miniz_SOURCE_DIR}/miniz_zip.c
 )
+target_compile_definitions(phoenix_zip PUBLIC MINIZ_NO_TIME)
 target_include_directories(phoenix_zip PUBLIC ${miniz_SOURCE_DIR} ${miniz_BINARY_DIR})
 add_library(
 	phoenix_imgui
@@ -506,7 +507,51 @@ else()
 		COMMAND
 			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip"
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip.menu.json"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip.menu.json"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip.menu.json"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip.menu.json"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.zip.clients"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip.clients"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/base.zip.clients"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip.clients"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
+	)
+	file(GLOB_RECURSE mission_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions/*")
+	add_custom_command(
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
+		COMMAND
+			phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+		DEPENDS phoenix_pack ${mission_sources} "${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+		VERBATIM
+	)
+	add_custom_target(
+		test_missions_pack
+		ALL
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.menu.json"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.menu.json"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/test-missions.zip.clients"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.clients"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/test-missions.zip.clients"
+		DEPENDS base_pack "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
 	)
 	foreach(test_base IN ITEMS test test-3d)
 		file(
@@ -780,7 +825,7 @@ if(EMSCRIPTEN)
 	configure_file(web/session-clock.js "${CMAKE_CURRENT_BINARY_DIR}/session-clock.js" COPYONLY)
 else()
 	add_executable(native src/entry/native.cpp)
-	add_dependencies(native base_pack)
+	add_dependencies(native base_pack test_missions_pack)
 	target_link_libraries(
 		native
 		PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools phoenix_workshop_test_host
