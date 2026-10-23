@@ -80,6 +80,10 @@ Built-in mechanisms integrate common behaviour with stable state and GUI interfa
 
 Equipment is composed from these capabilities within the existing assembly and fitted-System structure. A directed weapon may combine a turret binding, stores, an operating mode, resource costs and an effect payload. A scanner uses the same directed operating machinery while retaining its own sensing state.
 
+Each directed capability has one active operating mode and a separately selected targeting mode, with supported combinations declared by the equipment. Target and magazine selections remain separate. An assembly can contain multiple directed capabilities for simultaneous operations. Changing operating mode stops the old sustained operation immediately at the normal input boundary, while preserving cooldowns, loading commitments and compatible scan progress. Launched projectiles and independent inflicted effects continue.
+
+Payloads bind explicitly to native shield-hit and compartment/System-hit outcomes. Native resolution determines which layers and locations are reached; a selected target does not substitute for the actual hit. Impact and destruction payloads use shared effect execution while retaining separate definitions and physical delivery rules. The [directed-system migration plan](directed-systems-migration-plan.md) defines this slice, including periodic effects proved by burning ammunition.
+
 Effects can grant temporary capabilities that were absent from the original fit. The native component owns those capabilities' actual state. Removing a contribution removes that source's grant without deleting unrelated contributions or reversing completed consequences.
 
 ### Shields

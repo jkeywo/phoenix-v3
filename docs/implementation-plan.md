@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Planned directed-system migration, 23 October 2026: the [fourth gameplay-engine slice](directed-systems-migration-plan.md) follows resource/store unification. It brings weapons and focused scanners onto shared directed modes and effect execution, including shield/compartment/System hit bindings, impact and destruction payloads, and periodic conditions proved by burning ammunition. Psychic powers remain later work. Implementation and acceptance are pending.
+
 Captain revision, 23 October 2026: Captain has one star with alerts, eligible AI Console stances and an Objectives list. It can select an active priority when any ship Controller is AI-operated, including delegated work within a human-operated Console. The ship blackboard carries that choice; autonomous navigation prefers an applicable published destination while preserving existing orders and commitments. Its obsolete machinery and Command personnel fittings are removed. See [remaining Cruiser station delivery](cruiser-science-comms-captain.md) for the current contract and verification boundary.
 
 Planned resource/store migration, 23 October 2026: the [third gameplay-engine slice](resource-store-migration-plan.md) covers all existing stocks, a shared resource/recipe catalogue, single-type magazines, processors and the associated supply, funding, authoring and continuation paths. Existing energy-to-ammunition replenishment proves recipe execution; new fabrication/recycling gameplay is deferred. Implementation and acceptance are pending.
