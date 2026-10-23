@@ -4226,7 +4226,19 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_docking(saved);
 	candidate.impl_->restore_logistics(saved);
 	candidate.impl_->mission_ledger = saved.value("mission_ledger", MissionLedger{});
-	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()));
+	std::map<EntityId, Json> departure_reports;
+	std::set<EntityId> departed_ships;
+	for (const auto &value : saved.at("bodies"))
+		if (value.contains("mission_report"))
+		{
+			const auto id = value.at("body").at("id").get<EntityId>();
+			const auto report = ftl_projection::report(value.at("mission_report"));
+			if (report.is_null() || report.at("tick") > saved.at("tick") || candidate.impl_->definition(id).ftl.empty())
+				throw std::runtime_error("Invalid saved departure");
+			departure_reports.emplace(id, report);
+			departed_ships.insert(id);
+		}
+	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
 	candidate.impl_->sensor_discoveries =
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
@@ -4235,16 +4247,11 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_shield_reactions(saved.at("shield_reactions"));
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});
-	for (const auto &value : saved.at("bodies"))
-		if (value.contains("mission_report"))
-		{
-			const auto id = value.at("body").at("id").get<EntityId>();
-			const auto report = ftl_projection::report(value.at("mission_report"));
-			if (report.is_null() || report.at("tick") > saved.at("tick") || candidate.impl_->definition(id).ftl.empty())
-				throw std::runtime_error("Invalid saved departure");
-			candidate.impl_->entities.at(id).set<MissionDeparture>({report});
-			candidate.impl_->retire_departed(id);
-		}
+	for (const auto &[id, report] : departure_reports)
+	{
+		candidate.impl_->entities.at(id).set<MissionDeparture>({report});
+		candidate.impl_->retire_departed(id);
+	}
 	candidate.impl_->index_contacts.run();
 	candidate.impl_->refresh_comms(false);
 	candidate.impl_->validate_mission_ledger();

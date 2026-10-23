@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/combat_fixture.hpp"
+#include "../support/ftl_fixture.hpp"
 #include <iostream>
 import phoenix.simulation;
 #include "../../src/network/projection.hpp"
@@ -587,6 +588,86 @@ int main(int argc, char **argv)
 							            shape.at("mx") == actual.at("remainder").at("x") &&
 							            shape.at("my") == actual.at("remainder").at("y"),
 							        "apparent and ordinary motion share fractional integration and world bounds");
+			}
+		}
+		{
+			auto authored = fixture();
+			fit_ftl(authored, "operations", "drive");
+			for (const auto *id : {"jump", "jump-feed"})
+				authored["entities"][0]["systems"][id]["compartment"] = "fore";
+			for (auto &duty : authored["entities"][0]["personnel"]["duties"])
+				if (duty.at("id") == "jump" || duty.at("id") == "jump-feed")
+					duty["compartment"] = "fore";
+			const auto local = load(authored);
+			World departure;
+			departure.load(local, "test.map");
+			claim(departure);
+			ticks(departure, 4);
+			const auto jump_command = [&](bool depart)
+			{
+				const auto observation = departure.observe(101);
+				for (const auto &console : observation->additional_consoles)
+					if (console.console == "navigator")
+						for (const auto &controller : console.gameplay.at("controllers"))
+							if (controller.at("id") == "jump")
+							{
+								OperatingCommand c{1,
+								                   depart ? "ftl.depart" : "system_enabled",
+								                   depart ? 0 : 1,
+								                   depart ? "jump" : "",
+								                   "jump",
+								                   depart ? "" : "enabled"};
+								c.console = "navigator";
+								c.generation = controller.at("generation");
+								require(departure.submit(101, c), "choir ship jump command admitted");
+								return;
+							}
+				throw std::runtime_error("Missing choir ship Navigator");
+			};
+			jump_command(false);
+			ticks(departure, 650);
+			command(departure, 101, 1, "choir", "scramble-target", 2);
+			command(departure, 101, 1, "choir", "scramble-enabled", 1);
+			command(departure, 101, 1, "choir", "cloak-enabled", 1);
+			ticks(departure, 2);
+			jump_command(true);
+			ticks(departure);
+			const auto completed = departure.save();
+			require(!departure.observe(101)->gameplay.at("mission_report").is_null(), "choir ship departed");
+			for (const auto &choir : completed.at("psychic").at("choirs"))
+				require(choir.at("ship") != 1, "retired choir omitted from active equipment save");
+			World resumed;
+			resumed.restore(local, completed);
+			require(resumed.save() == completed, "departed choir report restores without changing saved state");
+			ticks(departure, 8);
+			ticks(resumed, 8);
+			require(resumed.save() == departure.save(), "departed choir and ghost continuation remains exact");
+			const auto stable = resumed.save();
+			for (int damage = 0; damage < 3; ++damage)
+			{
+				auto invalid = completed;
+				if (damage == 0)
+					invalid["psychic"]["choirs"].erase(invalid["psychic"]["choirs"].begin());
+				else
+					for (auto &body : invalid["bodies"])
+						if (body.at("body").at("id") == 1)
+						{
+							if (damage == 1)
+								body.erase("mission_report");
+							else
+								body["mission_report"]["tick"] = completed.at("tick").get<std::uint64_t>() + 1;
+						}
+				bool rejected = false;
+				try
+				{
+					resumed.restore(local, invalid);
+				}
+				catch (const std::exception &)
+				{
+					rejected = true;
+				}
+				require(rejected && resumed.save() == stable,
+				        "missing active choir or unverified departure rejected transactionally");
 			}
 		}
 		if (argc > 1 && std::string(argv[1]) == "--trace")

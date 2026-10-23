@@ -560,7 +560,7 @@ Json save_psychic() const
 		out["emissions"].push_back({{"ship", ship}, {"until", until}});
 	return out;
 }
-void restore_psychic(const Json &saved)
+void restore_psychic(const Json &saved, const std::set<EntityId> &departed_ships)
 {
 	if (saved.empty())
 		return;
@@ -623,7 +623,8 @@ void restore_psychic(const Json &saved)
 	}
 	for (const auto &[ship, e] : entities)
 		for (const auto &[id, c] : definition(ship).psychic.choirs)
-			if (!seen.contains({ship, id}))
+			// Retired equipment is omitted by the active-equipment save query.
+			if (!departed_ships.contains(ship) && !seen.contains({ship, id}))
 				throw std::runtime_error("Missing saved choir");
 	refresh_psychic_work();
 	refresh_psychic_reception();
