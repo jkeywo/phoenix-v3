@@ -8,17 +8,38 @@
 		<div id="semantics" aria-label="Player console" style="position: absolute; opacity: 0; pointer-events: none">
 			<p id="player-status" role="status" aria-live="polite"></p>
 		</div>
-		<canvas id="canvas" width="1280" height="900"></canvas>
+		<canvas id="canvas" width="1280" height="900" style="max-width: 100%"></canvas>
 		<pre id="result">Running manual mission debrief smoke…</pre>
 		<script>
 			var Module = {
 				arguments: ["/assets", new URLSearchParams(location.search).get("mode") || "delivery-courier"],
+				preRun: [
+					function () {
+						const checkpoint = new URLSearchParams(location.search).get("checkpoint");
+						if (!checkpoint || !/^[a-zA-Z0-9._-]+\.zip$/.test(checkpoint)) return;
+						Module.arguments.push("/checkpoint.zip");
+						addRunDependency("mission-checkpoint");
+						fetch(checkpoint)
+							.then((response) => {
+								if (!response.ok) throw new Error("Checkpoint could not be loaded");
+								return response.arrayBuffer();
+							})
+							.then((data) => FS.writeFile("/checkpoint.zip", new Uint8Array(data)))
+							.catch((error) => {
+								Module.printErr("FAIL " + error.message);
+							})
+							.finally(() => removeRunDependency("mission-checkpoint"));
+					},
+				],
 				canvas: document.getElementById("canvas"),
 				onAbort(reason) {
 					document.getElementById("result").textContent = "FAIL Browser runtime: " + reason;
 				},
 				print(text) {
 					console.log(text);
+					if (text.startsWith("WAIT ") || text.startsWith("PROGRESS ")) {
+						document.getElementById("result").textContent = text;
+					}
 					if (text.startsWith("PASS ")) {
 						document.getElementById("result").textContent = text;
 						for (const [name, data] of Object.entries(Module.missionCaptures || {})) {

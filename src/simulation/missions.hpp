@@ -394,9 +394,7 @@ Json authoritative_report(EntityId ship, Json legacy) const
 				     {"name", away_asset_label(ship, "officer:" + entry.operation)}});
 		for (const auto &[event, text] : spec.log_events)
 			for (const auto &entry : r.events(event))
-				if (!entry.payload.contains("ship") ||
-				    entry.payload.at("ship") == ScenarioParameter{static_cast<std::int64_t>(ship)})
-					legacy["log"].push_back({{"tick", entry.tick}, {"text", text}, {"name", ""}});
+				legacy["log"].push_back({{"tick", entry.tick}, {"text", text}, {"name", ""}});
 		std::stable_sort(legacy["log"].begin(), legacy["log"].end(),
 		                 [](const auto &a, const auto &b)
 		                 {

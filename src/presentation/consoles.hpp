@@ -629,14 +629,15 @@ button.on-screen-active .share-live {display:block;}
 .camera-choices button:focus {border-color:#fff3d9;background:#fff3d933;}
 .camera_mode-widget h2,.camera_direction-widget h2 {font-size:14px;margin:0;color:#e9dec4;background:#071012bb;padding:2px 4px;}
 .camera-status {position:absolute;left:0;right:0;text-align:center;font-size:14px;color:#f1ddaf;pointer-events:none;}
-.mission-copy {display:block;position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;}
+.mission-copy {display:block;position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;background:#081b14ed;padding:24px;box-sizing:border-box;border:1px #51744c;pointer-events:auto;}
 .mission-copy h1 {font-size:18px;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
 .mission-copy h2 {font-size:44px;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
 .mission-copy p {font-size:22px;margin:10px 0;}
+.mission-copy .mission-report-main p,.mission-copy .mission-report-side p {font-size:18px;margin:8px 0;}
 .mission-copy h1,.mission-copy h2,.mission-copy p {display:block;width:100%;box-sizing:border-box;}
 .mission-copy .terminal-rule {height:1px;background:#51744c;margin:18px 0;}
 .mission-copy .terminal-status {font-size:16px;letter-spacing:2px;color:#81af79;}
-.mission-copy button {margin:22px 0 0 0;padding:12px 20px;background:#122116;border:1px #87b77b;color:#d1f9be;}
+.mission-copy button {display:block;width:260px;height:54px;box-sizing:border-box;margin:22px 0 0 0;padding:12px 20px;background:#122116;border:1px #87b77b;color:#d1f9be;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}

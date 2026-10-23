@@ -393,6 +393,10 @@ int main(int argc, char **argv)
 		auto source = fixture();
 		source["maps"][0]["scenario"]["reports"][0]["log_events"] =
 		    Json::array({{{"event", "observed-departure"}, {"text_key", "Departure recorded"}}});
+		auto witness_report = source["maps"][0]["scenario"]["reports"][0];
+		witness_report["id"] = "witness";
+		witness_report["ship"] = {{"entity", 2}};
+		source["maps"][0]["scenario"]["reports"].push_back(witness_report);
 		source["maps"][0]["scenario"]["fact_bindings"].push_back({{"id", "filtered-event"},
 		                                                          {"kind", "event"},
 		                                                          {"event", "observed-departure"},
@@ -459,6 +463,26 @@ int main(int argc, char **argv)
 		ticks(r, 3);
 		require(w.save() == r.save() && w.observe(101)->gameplay.at("mission_report") == report,
 		        "frozen report continues without duplicate events");
+		World witness;
+		witness.restore(catalog, w.save());
+		auto witness_command = cmd(witness, "system_enabled", 1);
+		witness_command.target = 2;
+		const auto witness_view = *witness.observe(102);
+		for (const auto &console : witness_view.additional_consoles)
+			if (console.console == "navigator")
+				for (const auto &controller : console.gameplay.at("controllers"))
+					if (controller.at("id") == "jump")
+						witness_command.generation = controller.at("generation");
+		require(witness.submit(102, witness_command), "enable witness FTL");
+		ticks(witness, 800);
+		witness_command.action = "ftl.depart";
+		witness_command.channel = "";
+		witness_command.system = "jump";
+		witness_command.value = 0;
+		require(witness.submit(102, witness_command), "witness departure");
+		witness.tick();
+		require(witness.observe(102)->gameplay.at("mission_report").at("log") == report.at("log"),
+		        "authored report events retain another vessel's departure");
 		auto legacy = w.save();
 		legacy["scenario"]["runtime"]["version"] = 1;
 		World old;

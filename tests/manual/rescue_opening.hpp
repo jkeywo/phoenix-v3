@@ -6,11 +6,15 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	app.can_host = true;
 	app.native_menu = false;
 	app.session = make_local_session();
-	const std::string fit = cruiser ? "base.delivery-cruiser" : "base.delivery-courier";
+	const std::string fit = cruiser ? "base.delivery-cruiser" : "base.rescue-courier";
 	if (checkpoint.empty())
 	{
 		app.session->add_pack(read_file(directory + "/base.zip"));
-		app.session->start({"base.rescue-under-threat", {{"courier", fit}}, "courier", "helm"});
+		std::map<std::string, std::map<std::string, std::string>> profiles;
+		if (!cruiser)
+			for (const auto *console : {"helm", "support", "tactical", "comms", "navigator", "navigation"})
+				profiles["courier"][console] = "detailed";
+		app.session->start({"base.rescue-under-threat", {{"courier", fit}}, "courier", "helm", profiles});
 	}
 	else
 	{
@@ -138,11 +142,36 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		std::cout << "WAIT " << prefix << " " << label << std::endl;
 		for (int i = 0; i < limit && !done(); i += 50)
 		{
+			const auto [comms_route, comms] = view("comms");
+			for (const auto &thread : comms.gameplay.at("conversations").at("threads"))
+				if (thread.at("prompt") != 0)
+				{
+					bool answered = false;
+					for (const auto &preferred :
+					     cruiser ? std::vector<std::string>{"reactor", "wounded", "propulsion", "slow"}
+					             : std::vector<std::string>{"wounded", "reactor", "propulsion", "slow"})
+						for (const auto &choice : thread.at("choices"))
+							if (!answered && choice.at("id") == preferred && choice.value("enabled", true))
+								for (const auto &controller : comms.gameplay.at("controllers"))
+								{
+									OperatingCommand command{ship, "comms.answer", thread.at("id")};
+									command.console = "comms";
+									command.controller = controller.at("id");
+									command.generation = controller.at("generation");
+									command.request_id = thread.at("prompt");
+									command.text = preferred;
+									if (app.session->console_command(comms_route, command))
+									{
+										answered = true;
+										break;
+									}
+								}
+				}
 			advance(50);
 			if (i % 1000 == 0)
 			{
 #ifndef __EMSCRIPTEN__
-				if (label == "repair work")
+				if (label == "repair work" || label == "physical receipt" || label == "casualty docking")
 				{
 					const auto archive = app.session->save();
 					const auto state = read_pack(archive).draft();
@@ -246,16 +275,28 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		    "navigate");
 		stop();
 	};
-	for (int i = 0; i < 800 && std::none_of(
-	                               app.screen_controls.begin(), app.screen_controls.end(),
-	                               [](const auto &c)
-	                               {
-		                               return c.first == "console/1/personnel";
-	                               });
+	for (int i = 0; i < 800 && view("helm").second.gameplay.at("mission_report").is_null() &&
+	                std::none_of(
+	                    app.screen_controls.begin(), app.screen_controls.end(),
+	                    [](const auto &c)
+	                    {
+		                    return c.first == "console/1/personnel";
+	                    });
 	     ++i)
 		frame();
 	const std::string engineering = cruiser ? "engineering" : "support";
 	const std::string dispatch = cruiser ? "comms" : "helm", transport = cruiser ? "science" : "helm";
+	if (!view("helm").second.gameplay.at("mission_report").is_null())
+	{
+		const auto route = view("navigator").first;
+		show(route, "navigator");
+		app.console_regions[1].console = route;
+		capture("report");
+		close_window();
+		opened = false;
+		std::cout << "PASS " << prefix << " saved report graphical smoke" << std::endl;
+		return 0;
+	}
 	if (checkpoint.empty())
 	{
 		advance(40);
@@ -383,6 +424,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	if (cruiser)
 		app.console_regions[1].console = 2;
 	show(2, engineering);
+	advance(1);
 #ifndef __EMSCRIPTEN__
 	{
 		const auto archive = app.session->save();
@@ -395,7 +437,25 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	domain(engineering, "away", "assign", "repairs",
 	       std::string("repair-team/team:") + (cruiser ? "repair-1" : "team-1"));
 	advance(1);
-	domain(transport, "away", "transport", "repairs", "displacement");
+	domain(cruiser ? "science" : "support", "away", "assign", "repairs",
+	       std::string("medical-team/team:") + (cruiser ? "medical-1" : "medical-team"));
+	advance(1);
+	if (!cruiser)
+	{
+		domain("helm", "dock", "assist", "fore", "1/fore");
+		advance(1);
+		until(
+		    [&]
+		    {
+			    const auto helm = view("helm").second;
+			    for (const auto &port : helm.gameplay.at("docking").at("ports"))
+				    if (port.at("id") == "fore" && port.at("phase") == "docked")
+					    return true;
+			    return false;
+		    },
+		    "casualty docking");
+	}
+	domain(transport, "away", "transport", "repairs", cruiser ? "displacement" : "ship");
 	advance(1);
 	for (const auto *console :
 	     cruiser ? std::vector<const char *>{"science"} : std::vector<const char *>{"support", "tactical"})
@@ -403,7 +463,9 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		const auto o = view(console).second;
 		for (const auto &c : o.gameplay.at("controllers"))
 			if (c.at("id").get<std::string>().starts_with("shield-"))
-				channel(console, "system_enabled", 0, c.at("id"));
+				for (const auto &command : c.at("commands"))
+					if (command.at("action") == "system_enabled")
+						channel(console, "system_enabled", 0, c.at("id"));
 	}
 	advance(150);
 	until(
@@ -427,7 +489,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	until(
 	    [&]
 	    {
-		    return view("comms").second.gameplay.at("conversations").dump().find("Repairs complete.") !=
+		    return view("comms").second.gameplay.at("conversations").dump().find("All work is resolved.") !=
 		           std::string::npos;
 	    },
 	    "completed repair operation");
@@ -438,6 +500,11 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		    return objective("Recover the repair party");
 	    },
 	    "party recovery");
+	if (!cruiser)
+	{
+		domain("helm", "dock", "undock", "fore");
+		advance(160);
+	}
 	until(
 	    [&]
 	    {
@@ -485,6 +552,14 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	app.console_regions[1].console = route;
 	capture("report");
 	std::cout << "DEBRIEF " << report.dump() << std::endl;
+#ifndef __EMSCRIPTEN__
+	advance(1);
+	{
+		const auto archive = app.session->save();
+		std::ofstream file("build/rescue-" + prefix + "-report.zip", std::ios::binary);
+		file.write(reinterpret_cast<const char *>(archive.data()), archive.size());
+	}
+#endif
 	close_window();
 	opened = false;
 	std::cout << "PASS " << prefix << " delivery and rescue graphical smoke" << std::endl;

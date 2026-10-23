@@ -20,6 +20,8 @@
 
 [Away missions](docs/away-missions.md) adds Dispatch, qualified displacement, Station-owned contributions and the Rescue under threat demonstration.
 
+[Rescue priorities and consequences](docs/rescue-away-mission.md) continues the delivery mission with informed Comms decisions, a deteriorating reactor, optional Medical and a timestamped objective report.
+
 [Duty officers](docs/duty-officers.md) adds department-scoped Personnel rosters, compartment travel, expertise modifiers and named AI internal-message speakers.
 
 The Comms conversation increment adds nearby hails, authored branching/group dialogue and a two-pane player Console. See [Comms conversations](docs/comms-conversations.md) for the demonstration and authoring contract.

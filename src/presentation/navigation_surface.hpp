@@ -209,7 +209,10 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		std::string report_text = localise(mission_outcome_ == "ftl" ? "Departed via FTL" : "Mission complete");
 		if (!report.is_null() && report.value("version", 1) == 2)
 			report_text += ". " + localise(report.at("title")) + ". " + localise(report.at("result_title"));
-		markup += "<div style=\"display:flex;gap:24px;\"><div style=\"width:68%;\">";
+		const auto column_height = std::to_string(region.height * .57f) + "px";
+		markup += "<div style=\"display:flex;width:" + std::to_string(region.width * .81f) +
+		          "px;gap:24px;\"><div class=\"mission-report-main\" style=\"flex-shrink:0;width:" +
+		          std::to_string(region.width * .53f) + "px;height:" + column_height + ";overflow:auto;\">";
 		for (const auto &o : report.is_null() ? objectives : report.at("objectives"))
 		{
 			const auto status = o.value("status", "active");
@@ -245,8 +248,10 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 				     std::to_string(seconds % 60) + " — " + localise(entry.at("text")) +
 				     (entry.value("name", "").empty() ? "" : ": " + localise(entry.at("name"))));
 			}
-			markup += "</div><div style=\"width:30%;border-left:1px #51744c;padding-left:16px;\"><h1>" +
-			          localise("Ship and crew") + "</h1>";
+			markup += "</div><div class=\"mission-report-side\" style=\"flex-shrink:0;width:" +
+			          std::to_string(region.width * .25f) + "px;height:" + column_height +
+			          ";overflow:auto;border-left:1px #51744c;padding-left:16px;\"><h1>" + localise("Ship and crew") +
+			          "</h1>";
 			for (const auto &part : report.value("ship_condition", Json::array()))
 				line(localise(part.at("name")) + ": " + part.at("hp").dump() + "/" + part.at("maximum").dump());
 			for (const auto &crew : report.value("crew", Json::array()))
@@ -370,6 +375,12 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 					if (line->GetTagName() == "h1" || line->GetTagName() == "h2" || line->GetTagName() == "p")
 						line->SetProperty("width", std::to_string(region.width * .86f) + "px");
 				}
+				for (const auto &[selector, fraction] : std::vector<std::pair<std::string, float>>{
+				         {".mission-report-main", .53f}, {".mission-report-side", .25f}})
+					if (auto *column = copy->QuerySelector(selector))
+						for (int child = 0; child < column->GetNumChildren(); ++child)
+							column->GetChild(child)->SetProperty("width",
+							                                     std::to_string(region.width * fraction - 24) + "px");
 			}
 
 		navigation_markup_ = markup;
