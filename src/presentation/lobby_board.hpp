@@ -144,7 +144,8 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 	                   "<h2 id=\"menu.lobby-mission\">" +
 	                   Rml::StringUtilities::EncodeRml(localise(mission_name)) + "</h2>" +
 	                   readout("menu.lobby-ship", ship_name) + "</div>";
-	html += "<div id=\"menu.mission-briefing\">" + paragraph(briefing) + "</div>";
+	if (!briefing.empty())
+		html += "<div id=\"menu.mission-briefing\" class=\"lobby-briefing\">" + paragraph(briefing) + "</div>";
 	if (!lobby.code.empty())
 	{
 		prepare_qr(app, lobby.code);
@@ -423,7 +424,7 @@ void layout_lobby(const Application &app, Rml::ElementDocument &document, const 
 	if (!visible || document.GetElementById("lobby-player"))
 		return;
 	const float sidebar = std::clamp(region.width * .23f, 205.f, 290.f);
-	const float gap = 12, height = std::max(1.f, region.height - 210);
+	const float gap = 12;
 	const float width = std::max(1.f, region.width - sidebar - 3 * gap - 24);
 	auto box = [&](Rml::Element *element, float x, float y, float w, float h)
 	{
@@ -432,7 +433,17 @@ void layout_lobby(const Application &app, Rml::ElementDocument &document, const 
 		element->SetProperty("width", std::to_string(w) + "dp");
 		element->SetProperty("height", std::to_string(h) + "dp");
 	};
-	box(document.GetElementById("lobby-console-grid"), 24, 126, width, height);
+	float grid_top = 126;
+	if (auto *briefing = document.GetElementById("menu.mission-briefing"))
+	{
+		const float briefing_height = std::clamp(region.height * .18f, 100.f, 160.f);
+		box(briefing, 24, 110, width, briefing_height);
+		grid_top = 110 + briefing_height + gap;
+	}
+	if (auto *heading = document.QuerySelector(".lobby-heading"))
+		heading->SetProperty("width", std::to_string(width) + "dp");
+	const float height = std::max(1.f, region.height - grid_top - 84);
+	box(document.GetElementById("lobby-console-grid"), 24, grid_top, width, height);
 	Rml::ElementList cards;
 	document.GetElementById("lobby-console-grid")->GetElementsByClassName(cards, "lobby-console");
 	const int count = static_cast<int>(cards.size());

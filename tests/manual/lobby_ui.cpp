@@ -28,7 +28,7 @@ void capture(const std::string &name)
 	}, name.c_str());
 	// clang-format on
 #else
-	TakeScreenshot(name.c_str());
+	TakeScreenshot((name.starts_with("build/") ? name : "build/rescue-" + name).c_str());
 #endif
 }
 } // namespace
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 		options.player_name = "Bridge host";
 		app.session = make_game_lobby(options, true);
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->prepare_lobby({"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", ""});
+		app.session->prepare_lobby({"base.rescue-under-threat", {{"courier", "base.delivery-cruiser"}}, "courier", ""});
 		app.screen = Screen::server_lobby;
 		app.return_home = []
 		{
@@ -95,6 +95,25 @@ int main(int argc, char **argv)
 		frame();
 		// Wait for initial graphics preparation before exercising lobby claims.
 		wait_for_board();
+		for (const auto *fit : {"base.delivery-courier", "base.delivery-cruiser"})
+		{
+			require(app.session->lobby_command({LobbyAction::claim_ship, "", "courier", fit}),
+			        "Select the delivery fit in the lobby");
+			frame();
+			frame();
+			wait_for_board();
+			for (int settled = 0; settled < 5; ++settled)
+				frame();
+			const auto expected =
+			    localise(mission_briefing(app.session->catalog().maps.at("base.rescue-under-threat"), fit));
+			require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+			                    [&](const auto &readout)
+			                    {
+				                    return readout.first == "menu.mission-briefing" && readout.second == expected;
+			                    }),
+			        "The visible lobby briefing follows the selected delivery fit");
+			capture(std::string("build/rescue-lobby-") + fit + ".png");
+		}
 		const auto lobby = app.session->lobby();
 		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
 		                    [&](const auto &readout)
@@ -181,7 +200,8 @@ int main(int argc, char **argv)
 			options.link.room = "smoke-" + random_token();
 			network_host = make_game_lobby(options);
 			network_host->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-			network_host->prepare_lobby({"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", ""});
+			network_host->prepare_lobby(
+			    {"base.rescue-under-threat", {{"courier", "base.delivery-cruiser"}}, "courier", ""});
 			LobbyCommand reserve{LobbyAction::assign_local_console, "", first.slot, "", first.id};
 			reserve.screen = 3;
 			require(network_host->lobby_command(reserve), "Native station is reserved before phone join");
