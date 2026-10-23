@@ -49,6 +49,8 @@ Cancellation stops further requests, settles existing batches and returns remain
 
 Setting channels may use `shared_command` with `controller` and `channel` to follow an independent same-Console setting of the same action. This shares the existing explicit-override/handover mechanism with weapon `shared_target`. Requests cannot use this setting relationship. Impulse channels can instead declare a `coordinated_group` and `individual_stars`; their group action issues one request to each executor.
 
+Repair teams opt into compartment-local preferences with `local_repair_priority`. Their `repair_system` channel can declare `hull_priority` to expose the compartment-hull choice, and `individual_stars` gates detailed priorities independently of compartment deployment. Existing teams keep their previous assignment semantics unless they opt in.
+
 World continuation is schema **20**, with mission continuation schema **11**. Older World saves require a new session. Current-format saves retain mission routes, department authorizations, escort assignments, supply manifests, cargo reservations and actual transfer receipts. Older authored single-Dispatch/single-transport missions remain supported.
 
 Verification evidence will be recorded after the final native, WebAssembly and explicitly invoked console checks. Physical screen-reader, touch/gamepad and six-display acceptance require separate device runs.

@@ -46,7 +46,9 @@ std::optional<CargoDelivery> supply_manifest(std::size_t index, std::int64_t req
 		if (definition(craft).logistics.materials.at(offer.material).volume != volume ||
 		    definition(d.target).logistics.materials.at(offer.material).volume != volume)
 			continue;
-		const auto chosen = requested >= 0 ? requested : m.supply_quantity;
+		const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
+		const bool manual_quantity = station_stars(owner) >= 3 && console_operator(owner) != 0;
+		const auto chosen = requested >= 0 ? requested : manual_quantity ? m.supply_quantity : 0;
 		auto batches =
 		    std::min({offer.limit, chosen ? chosen : deficit, material_available(d.target, *provider, offer.material),
 		              material_space(ship, *home, offer.material), material_space(craft, cargo, offer.material)}) /

@@ -44,9 +44,50 @@ void escort_cases()
 	world.tick();
 	restored.tick();
 	require(world.save() == restored.save(), "Escort/primary launch reservations resume exactly");
+	const auto outbound = world.save();
+	auto seed_loss = [&](const Json &checkpoint, const std::string &craft)
+	{
+		auto lost = checkpoint;
+		for (auto &body : lost["bodies"])
+			if (body["body"]["id"] == static_cast<EntityId>(std::stoull(craft)))
+			{
+				body["destructible"]["destroyed_tick"] = lost.at("tick");
+				body["destructible"]["durability"] = 0;
+				body["body"]["velocity"] = {{"x", 0}, {"y", 0}};
+				body["body"]["remainder"] = {{"x", 0}, {"y", 0}};
+				for (auto &room : body["combat"]["compartments"])
+				{
+					room["hp"] = 0;
+					room["disabled"] = true;
+				}
+			}
+		return lost;
+	};
+	World lost_transport;
+	lost_transport.restore(catalog, seed_loss(outbound, primary));
+	ticks(lost_transport, 3);
+	require(missions(lost_transport)[0].at("phase") == "lost" &&
+	            missions(lost_transport)[0].at("result").get<std::string>().starts_with("fail:"),
+	        "Primary transport destruction fails its operation");
+	const auto loss_view = *lost_transport.observe(101);
+	for (const auto &craft : loss_view.gameplay.at("craft"))
+		if (craft.at("id") == escort)
+			require(craft.at("order") == "return" || craft.at("phase") == "docked",
+			        "Transport loss recalls its surviving escort");
 	for (int i = 0; i < 500 && missions(world)[0].at("phase") != "deployed"; ++i)
 		world.tick();
 	require(missions(world)[0].at("phase") == "deployed", "Escorted transport delivers its real party");
+	World lost_escort;
+	lost_escort.restore(catalog, seed_loss(world.save(), escort));
+	ticks(lost_escort, 3);
+	require(missions(lost_escort)[0].at("phase") == "deployed" &&
+	            missions(lost_escort)[0].at("craft_slots")[0].at("lost") == true,
+	        "Escort destruction is reported without cancelling the delivered party");
+	World resumed_loss;
+	resumed_loss.restore(catalog, lost_escort.save());
+	ticks(lost_escort, 3);
+	ticks(resumed_loss, 3);
+	require(lost_escort.save() == resumed_loss.save(), "Escort loss and surviving operation resume exactly");
 	World recalled;
 	recalled.restore(catalog, world.save());
 	require(recalled.submit(101, command(recalled, "away", "recall", "job")),

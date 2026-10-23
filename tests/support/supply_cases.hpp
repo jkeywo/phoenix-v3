@@ -34,6 +34,14 @@ void supply_cases()
 			mission["supply"]["payment"] = "tokens";
 			mission["supply"]["pay"] = 1;
 		}
+		auto &layout = source["entities"][0]["control_layout"];
+		layout["station_complexity"] = true;
+		layout["profiles"][0]["stars"] = 3;
+		auto assisted = layout["profiles"][0];
+		assisted["id"] = "assisted";
+		assisted["stars"] = 1;
+		const auto assisted_index = layout["profiles"].size();
+		layout["profiles"].push_back(assisted);
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -55,6 +63,18 @@ void supply_cases()
 		ticks(world, 1);
 		const auto craft = world.observe(101)->gameplay.at("craft")[0].at("id").get<std::string>();
 		require(away(world, "transport", "craft:" + craft), "Supply craft contribution assigned");
+		ticks(world, 1);
+		require(away(world, "quantity", "1"), "Three-star Engineering edits a valid manifest");
+		ticks(world, 1);
+		require(world.submit(101, {2, "preset", static_cast<std::int64_t>(assisted_index), {}}),
+		        "Downgrade manifest responsibility");
+		ticks(world, 1);
+		require(world.observe(101)->gameplay.at("away_missions")[0].at("supply").at("quantity") == 3,
+		        "Assisted manifest recomputes from stock targets instead of retaining a manual quantity");
+		require(!away(world, "quantity", "1"), "One-star Engineering cannot edit manifest quantities");
+		require(world.submit(101, {2, "preset", 0, {}}), "Restore full manifest workload");
+		ticks(world, 1);
+		require(away(world, "quantity", "0"), "Restore automatic quantity selection");
 		ticks(world, 1);
 		const auto prepared = world.save();
 		auto shortage = [&](EntityId id, const std::string &material, std::int64_t quantity, const std::string &reason)
@@ -78,6 +98,35 @@ void supply_cases()
 		        "Supply manifest and routed permissions survive network projection");
 		require(away(world, "send"), "Finite supply manifest dispatched");
 		ticks(world, 1);
+		{
+			auto loss = world.save();
+			for (auto &body : loss["bodies"])
+				if (body.at("body").at("id") == static_cast<EntityId>(std::stoull(craft)))
+				{
+					body["destructible"]["destroyed_tick"] = loss.at("tick");
+					body["destructible"]["durability"] = 0;
+					for (auto &room : body["combat"]["compartments"])
+					{
+						room["hp"] = 0;
+						room["disabled"] = true;
+					}
+				}
+			World destroyed;
+			destroyed.restore(catalog, loss);
+			ticks(destroyed, 3);
+			const auto after = destroyed.save();
+			require(after.at("logistics").at("cargo")[0].at("phase") == "lost" &&
+			            after.at("logistics").at("cargo")[0].at("reserved") == 0 &&
+			            after.at("logistics").at("cargo")[0].at("collected") == 0 &&
+			            after.at("logistics").at("cargo")[0].at("paid") == 0,
+			        "Destroyed collection transport releases reservations without inventing goods or payment");
+			World resumed_loss;
+			resumed_loss.restore(catalog, after);
+			ticks(destroyed, 3);
+			ticks(resumed_loss, 3);
+			require(destroyed.save() == resumed_loss.save(),
+			        "Collection loss preserves actual transfers across recovery");
+		}
 		World cancelled;
 		cancelled.restore(catalog, world.save());
 		require(away(cancelled, "cancel"), "Supply cancellation admitted");

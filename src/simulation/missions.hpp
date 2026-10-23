@@ -272,6 +272,7 @@ void resolve_lost_parties()
 			m.care.clear();
 			m.assignments.clear();
 			m.accompanying.clear();
+			return_away_escorts(m);
 			m.phase = AwayPhase::Lost;
 			m.transfer = 0;
 			m.outcome = lost_transport ? "fail:transport_destroyed" : "fail:target_destroyed";

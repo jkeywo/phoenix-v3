@@ -1153,6 +1153,14 @@ void advance_away()
 		for (auto at = m.escorts.begin(); at != m.escorts.end();)
 			if (entities.at(at->second).get<CraftState>().phase == CraftPhase::Lost)
 			{
+				auto &lost = entities.at(at->second).get_mut<CraftState>();
+				if (lost.mission == d.id)
+				{
+					lost.mission.clear();
+					lost.pending_order.clear();
+					lost.pending_target = 0;
+					++lost.revision;
+				}
 				m.flags.insert("escort_lost." + at->first);
 				at = m.escorts.erase(at);
 				++m.revision;
