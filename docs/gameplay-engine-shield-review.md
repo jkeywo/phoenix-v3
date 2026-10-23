@@ -48,7 +48,7 @@ Recommendations below remain proposals unless explicitly marked agreed.
 
 **Recommendation.** Give the ship shield component an explicit observation/feed binding with stable contribution IDs. Retain equipment command channels, and bind them to the contributions they operate. Treat non-equipment contributions as observable through the permitted shield feed and read-only unless an operating binding is authored. Do not expose private source identity merely to label a visible shield. Human GUI and Controller AI use the same permitted projection.
 
-**Decision needed.** The observation destination for non-equipment grants and whether any ship-wide control should operate them by default. This is control/presentation configuration, not permission for trusted content to apply the effect.
+**Agreed, 23 October 2026.** Contributions from all sources use the common shield observation interface through permitted feeds, with the same information available to human operators and Controller AI. Visibility does not grant control. Equipment retains existing command bindings; other grants expose controls only when authored. Remote sensing follows the normal evidence rules and need not reveal the granting source. This configures control and presentation without restricting trusted content's ability to apply effects.
 
 ### 5. Choose the shield property surface and a modifier transition
 

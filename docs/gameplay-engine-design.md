@@ -92,6 +92,8 @@ Each named shield contribution owns one arc, an independent reserve and its own 
 
 Shield GUI reads the ship component's standard projection. It does not need separate implementations for equipment-generated shields and officer-generated shields.
 
+All shield contributions use a common observation interface through the permitted shield feed, including their arcs, strength, warmup and operating state. Human operators and Controller AI receive the same permitted information. Visibility does not grant control: equipment retains its command bindings, and other grants expose controls only when authored. A scenario shield can be visible without offering lower or discharge commands; an officer's shield can expose dismissal through its ability. Other ships discover contributions through normal sensing, which need not reveal the granting source's identity.
+
 The granting ability or process declares costs and operating dependencies. Equipment-backed shields use their equipment's existing power allocation, enabled state and faults; sustain receives priority within the funded grant and recharge uses the remainder. Officer grants use their authored costs and dependencies, while a scenario grant can have neither costs nor an ongoing source dependency. There is no automatic generator or battery requirement on every shield contribution. Failed funding or dependencies change operation according to the authored rules while preserving the contribution under its lifetime contract. Discharge requires an explicit destination store and conversion rule.
 
 ### Detection
