@@ -30981,34 +30981,1330 @@
 			"id": "base.cruiser-test-raider",
 			"extends": "base.pirate-raider",
 			"faction": "raiders"
+		},
+		{
+			"id": "base.delivery-courier",
+			"extends": "base.rescue-courier",
+			"name": "Courier — station delivery",
+			"faction": "crew",
+			"systems": {
+				"comms-radio": {
+					"range_mm": 2500000
+				},
+				"radar": {
+					"range_mm": 2500000,
+					"long_range_mm": 5000000
+				}
+			},
+			"logistics": {
+				"controller": "team-1",
+				"materials": [
+					{
+						"id": "station-supplies",
+						"volume": 1
+					},
+					{
+						"id": "perishable-essentials",
+						"volume": 1
+					}
+				],
+				"units_per_second": 40,
+				"stores": [
+					{
+						"id": "mission-hold",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"capacity": 100,
+						"main": true,
+						"accepts": ["station-supplies"],
+						"initial": {
+							"station-supplies": 100
+						}
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "fore",
+						"controller": "drive",
+						"compartment": "bow-port",
+						"compatibility": "standard",
+						"x_mm": 15000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			}
+		},
+		{
+			"id": "base.delivery-shuttle",
+			"extends": "base.shuttle",
+			"name": "Utility delivery shuttle",
+			"faction": "crew",
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "base.ammunition.havok"
+					},
+					{
+						"id": "base.ammunition.homing"
+					},
+					{
+						"id": "base.ammunition.kinetic"
+					},
+					{
+						"id": "base.ammunition.pdc"
+					},
+					{
+						"id": "base.craft.bomber"
+					},
+					{
+						"id": "base.craft.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					},
+					{
+						"id": "station-supplies",
+						"volume": 1
+					},
+					{
+						"id": "perishable-essentials",
+						"volume": 1
+					}
+				],
+				"stores": [
+					{
+						"id": "cargo",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 200,
+						"main": true,
+						"accepts": [
+							"base.ammunition.havok",
+							"base.ammunition.homing",
+							"base.ammunition.kinetic",
+							"base.ammunition.pdc",
+							"base.craft.bomber",
+							"base.craft.interceptor",
+							"medical",
+							"parts",
+							"station-supplies",
+							"perishable-essentials"
+						]
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "service",
+						"controller": "flight",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": 11000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			}
+		},
+		{
+			"id": "base.delivery-cruiser",
+			"extends": "base.cruiser",
+			"name": "Cruiser — essential delivery",
+			"faction": "crew",
+			"logistics": {
+				"controller": "repair-1",
+				"materials": [
+					{
+						"id": "base.ammunition.havok"
+					},
+					{
+						"id": "base.ammunition.homing"
+					},
+					{
+						"id": "base.ammunition.kinetic"
+					},
+					{
+						"id": "base.ammunition.pdc"
+					},
+					{
+						"id": "base.craft.bomber"
+					},
+					{
+						"id": "base.craft.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					},
+					{
+						"id": "station-supplies",
+						"volume": 1
+					},
+					{
+						"id": "perishable-essentials",
+						"volume": 1
+					}
+				],
+				"units_per_second": 100,
+				"concurrency": 8,
+				"batch_size": 20,
+				"stores": [
+					{
+						"id": "main-hold",
+						"controller": "repair-1",
+						"compartment": "magazines",
+						"capacity": 52992,
+						"main": true,
+						"accepts": [
+							"base.ammunition.havok",
+							"base.ammunition.homing",
+							"base.ammunition.kinetic",
+							"base.ammunition.pdc",
+							"base.craft.bomber",
+							"base.craft.interceptor",
+							"medical",
+							"parts"
+						],
+						"initial": {
+							"parts": 2000,
+							"medical": 200,
+							"base.ammunition.kinetic": 1800,
+							"base.ammunition.homing": 192,
+							"base.ammunition.havok": 576,
+							"base.ammunition.pdc": 19200,
+							"base.craft.interceptor": 2400,
+							"base.craft.bomber": 128
+						},
+						"targets": {
+							"parts": 2000,
+							"medical": 200,
+							"base.ammunition.kinetic": 1800,
+							"base.ammunition.homing": 192,
+							"base.ammunition.havok": 576,
+							"base.ammunition.pdc": 19200,
+							"base.craft.interceptor": 2400,
+							"base.craft.bomber": 128
+						}
+					},
+					{
+						"id": "fore-dorsal-mag",
+						"system": "fore-dorsal-mag",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "fore-ventral-mag",
+						"system": "fore-ventral-mag",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "aft-dorsal-mag",
+						"system": "aft-dorsal-mag",
+						"controller": "armament-services",
+						"compartment": "engineering",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "aft-ventral-mag",
+						"system": "aft-ventral-mag",
+						"controller": "armament-services",
+						"compartment": "engineering",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "mid-dorsal-mag",
+						"system": "mid-dorsal-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "bow-port-homing",
+						"system": "bow-port-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "bow-port-havok",
+						"system": "bow-port-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "bow-starboard-homing",
+						"system": "bow-starboard-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "bow-starboard-havok",
+						"system": "bow-starboard-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "port-fore-homing",
+						"system": "port-fore-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "port-fore-havok",
+						"system": "port-fore-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "port-aft-homing",
+						"system": "port-aft-homing",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "port-aft-havok",
+						"system": "port-aft-havok",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "starboard-fore-homing",
+						"system": "starboard-fore-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "starboard-fore-havok",
+						"system": "starboard-fore-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "starboard-aft-homing",
+						"system": "starboard-aft-homing",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "starboard-aft-havok",
+						"system": "starboard-aft-havok",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "pdc-port-1-mag",
+						"system": "pdc-port-1-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-port-2-mag",
+						"system": "pdc-port-2-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-port-3-mag",
+						"system": "pdc-port-3-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-port-4-mag",
+						"system": "pdc-port-4-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-1-mag",
+						"system": "pdc-starboard-1-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-2-mag",
+						"system": "pdc-starboard-2-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-3-mag",
+						"system": "pdc-starboard-3-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-4-mag",
+						"system": "pdc-starboard-4-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "repair-1-kit",
+						"system": "repair-1",
+						"controller": "repair-1",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "repair-2-kit",
+						"system": "repair-2",
+						"controller": "repair-2",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "repair-3-kit",
+						"system": "repair-3",
+						"controller": "repair-3",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "repair-4-kit",
+						"system": "repair-4",
+						"controller": "repair-4",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "interceptor-supply",
+						"system": "interceptor-supply",
+						"controller": "interceptor-supply",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.craft.interceptor"],
+						"targets": {
+							"base.craft.interceptor": 1200
+						}
+					},
+					{
+						"id": "bomber-supply",
+						"system": "bomber-supply",
+						"controller": "bomber-supply",
+						"compartment": "magazines",
+						"capacity": 64,
+						"accepts": ["base.craft.bomber"],
+						"targets": {
+							"base.craft.bomber": 64
+						}
+					},
+					{
+						"id": "medical-1-kit",
+						"system": "medical-1",
+						"controller": "medical-1",
+						"compartment": "medical",
+						"capacity": 12,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 12
+						},
+						"targets": {
+							"medical": 12
+						}
+					},
+					{
+						"id": "medical-2-kit",
+						"system": "medical-2",
+						"controller": "medical-2",
+						"compartment": "medical",
+						"capacity": 12,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 12
+						},
+						"targets": {
+							"medical": 12
+						}
+					},
+					{
+						"id": "infirmary-supplies",
+						"controller": "medical-1",
+						"compartment": "medical",
+						"capacity": 32,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 32
+						},
+						"targets": {
+							"medical": 32
+						}
+					},
+					{
+						"id": "mission-hold",
+						"controller": "repair-1",
+						"compartment": "magazines",
+						"capacity": 100,
+						"main": true,
+						"accepts": ["perishable-essentials"],
+						"initial": {
+							"perishable-essentials": 100
+						}
+					}
+				],
+				"consumers": [
+					{
+						"system": "repair-1",
+						"store": "repair-1-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "repair-2",
+						"store": "repair-2-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "repair-3",
+						"store": "repair-3-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "repair-4",
+						"store": "repair-4-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "medical-1",
+						"store": "medical-1-kit",
+						"costs": {
+							"treat": {
+								"medical": 1
+							},
+							"stabilise": {
+								"medical": 2
+							}
+						}
+					},
+					{
+						"system": "medical-2",
+						"store": "medical-2-kit",
+						"costs": {
+							"treat": {
+								"medical": 1
+							},
+							"stabilise": {
+								"medical": 2
+							}
+						}
+					},
+					{
+						"system": "infirmary",
+						"store": "infirmary-supplies",
+						"costs": {
+							"recover": {
+								"medical": 2
+							}
+						}
+					}
+				]
+			},
+			"systems": {
+				"utility-bay": {
+					"initial": ["base.delivery-shuttle", "base.delivery-shuttle"]
+				}
+			},
+			"stations": [
+				{
+					"consoles": [
+						{
+							"definition": "base.console.helm",
+							"feeds": [
+								"sensors.radar",
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"wing.engine",
+								"wing.steering",
+								"wing.lateral",
+								"wing.boost",
+								"wing.impulse"
+							],
+							"id": "helm",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.helm"],
+							"systems": []
+						}
+					],
+					"id": "helm"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.cruiser-engineering",
+							"feeds": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"wing.distribution",
+								"wing.engine-supply",
+								"wing.engine-cooling",
+								"wing.steering-supply",
+								"wing.steering-cooling",
+								"wing.lateral-supply",
+								"wing.lateral-cooling",
+								"wing.boost-supply",
+								"wing.boost-cooling",
+								"wing.impulse-supply",
+								"wing.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling",
+								"tactical.distribution",
+								"tactical.cooling",
+								"communications.distribution",
+								"communications.cooling",
+								"command.distribution",
+								"command.cooling",
+								"ftl.supply",
+								"ftl.cooling",
+								"repair-1",
+								"repair-2",
+								"repair-3",
+								"repair-4",
+								"interceptor-supply",
+								"bomber-supply",
+								"weapons-supply",
+								"weapons-cooling",
+								"shields-supply",
+								"shields-cooling",
+								"services-supply",
+								"services-cooling",
+								"psychic-supply",
+								"psychic-cooling",
+								"sensors.radar"
+							],
+							"id": "engineering",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.engineering"],
+							"systems": []
+						}
+					],
+					"id": "engineering"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.cruiser-science",
+							"feeds": [
+								"sensors.radar",
+								"shield-fore",
+								"shield-port",
+								"shield-aft",
+								"shield-starboard",
+								"scanner-fore",
+								"scanner-aft",
+								"displacement",
+								"medical-1",
+								"medical-2"
+							],
+							"id": "science",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.science"],
+							"systems": []
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["science", "helm"],
+							"knowledge_roles": ["base.crew"]
+						}
+					],
+					"id": "science"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.cruiser-tactical",
+							"feeds": [
+								"tactical.radar",
+								"fore-dorsal",
+								"fore-dorsal-mag",
+								"fore-dorsal-gun",
+								"fore-ventral",
+								"fore-ventral-mag",
+								"fore-ventral-gun",
+								"aft-dorsal",
+								"aft-dorsal-mag",
+								"aft-dorsal-gun",
+								"aft-ventral",
+								"aft-ventral-mag",
+								"aft-ventral-gun",
+								"mid-dorsal",
+								"mid-dorsal-mag",
+								"mid-dorsal-gun",
+								"bow-port-homing",
+								"bow-port-havok",
+								"bow-port-tube-1",
+								"bow-port-tube-2",
+								"bow-port-tube-3",
+								"bow-port-tube-4",
+								"bow-starboard-homing",
+								"bow-starboard-havok",
+								"bow-starboard-tube-1",
+								"bow-starboard-tube-2",
+								"bow-starboard-tube-3",
+								"bow-starboard-tube-4",
+								"port-fore-homing",
+								"port-fore-havok",
+								"port-fore-tube-1",
+								"port-fore-tube-2",
+								"port-fore-tube-3",
+								"port-fore-tube-4",
+								"port-aft-homing",
+								"port-aft-havok",
+								"port-aft-tube-1",
+								"port-aft-tube-2",
+								"port-aft-tube-3",
+								"port-aft-tube-4",
+								"starboard-fore-homing",
+								"starboard-fore-havok",
+								"starboard-fore-tube-1",
+								"starboard-fore-tube-2",
+								"starboard-fore-tube-3",
+								"starboard-fore-tube-4",
+								"starboard-aft-homing",
+								"starboard-aft-havok",
+								"starboard-aft-tube-1",
+								"starboard-aft-tube-2",
+								"starboard-aft-tube-3",
+								"starboard-aft-tube-4",
+								"pdc-port-1-mag",
+								"pdc-port-1",
+								"pdc-port-2-mag",
+								"pdc-port-2",
+								"pdc-port-3-mag",
+								"pdc-port-3",
+								"pdc-port-4-mag",
+								"pdc-port-4",
+								"pdc-starboard-1-mag",
+								"pdc-starboard-1",
+								"pdc-starboard-2-mag",
+								"pdc-starboard-2",
+								"pdc-starboard-3-mag",
+								"pdc-starboard-3",
+								"pdc-starboard-4-mag",
+								"pdc-starboard-4",
+								"utility-bay",
+								"combat-bay",
+								"security-1",
+								"security-2"
+							],
+							"id": "tactical",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.tactical"],
+							"systems": []
+						}
+					],
+					"id": "tactical"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.cruiser-comms",
+							"feeds": [
+								"communications.reserve",
+								"comms-radio",
+								"sensors.radar",
+								"dispatch",
+								"psychic-choir"
+							],
+							"id": "comms",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.comms"],
+							"systems": []
+						}
+					],
+					"id": "comms"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.cruiser-captain",
+							"feeds": ["command.reserve"],
+							"id": "captain",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.captain"],
+							"systems": []
+						},
+						{
+							"id": "command",
+							"definition": "base.console.command",
+							"systems": [],
+							"feeds": []
+						}
+					],
+					"id": "captain"
+				}
+			]
+		},
+		{
+			"id": "base.delivery-station",
+			"name": "Cairn orbital starbase",
+			"tags": ["ship", "contact", "station"],
+			"motion_model": "inertial",
+			"half_height_mm": 500,
+			"systems": {
+				"radar": {
+					"kind": "radar",
+					"range_mm": 2500000,
+					"shows": ["ship", "contact", "missile"],
+					"capabilities": {
+						"basic_identity": 0
+					},
+					"compartment": "hull"
+				},
+				"radio": {
+					"kind": "comms",
+					"range_mm": 2500000,
+					"energy_per_second": 5,
+					"power_store": "cell",
+					"compartment": "hull"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "cell",
+						"capacity": 100000,
+						"initial": 100000,
+						"charge_rate": 5000,
+						"discharge_rate": 5000
+					}
+				]
+			},
+			"combat": {
+				"repair_console": "support",
+				"decks": [
+					{
+						"id": "deck",
+						"weight": 1,
+						"compartments": [
+							{
+								"id": "hull",
+								"x_mm": 0,
+								"y_mm": 0,
+								"half_width_mm": 180000,
+								"half_length_mm": 60000,
+								"hp": 100000,
+								"resistance_per_m": 1,
+								"recovery_hp": 10000
+							}
+						]
+					}
+				],
+				"connections": [],
+				"destruction": {}
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.craft-automation",
+							"systems": [],
+							"feeds": ["radio", "radar"],
+							"knowledge_roles": ["base.crew", "base.helm", "base.tactical"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "engineering",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "base.console.craft-automation",
+							"systems": [],
+							"feeds": ["radar"],
+							"knowledge_roles": ["base.crew", "base.engineering"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				}
+			],
+			"render": {
+				"mode": "camera",
+				"scale": 200,
+				"sprite": {
+					"albedo": "phoenix-base:assets/rescue/starbase.png",
+					"frames": [
+						{
+							"name": "starbase",
+							"rect": [0, 0, 1774, 887],
+							"pivot": [887.0, 443.5],
+							"azimuth": 0,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					]
+				}
+			},
+			"collision": {
+				"shape": "box",
+				"half_width_mm": 180000,
+				"half_length_mm": 60000,
+				"mass_grams": 0
+			},
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "flight",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "radio",
+								"action": "system_enabled",
+								"consumers": ["radio"],
+								"initial": 1
+							},
+							{
+								"id": "radar",
+								"action": "system_enabled",
+								"consumers": ["radar"],
+								"initial": 1
+							}
+						],
+						"tree": "base.controller.idle"
+					}
+				],
+				"default_profile": "watch",
+				"profiles": [
+					{
+						"id": "watch",
+						"consoles": {
+							"helm": {
+								"ai": ["flight"]
+							}
+						}
+					}
+				]
+			},
+			"class_key": "Starbase",
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "station-supplies",
+						"volume": 1
+					},
+					{
+						"id": "perishable-essentials",
+						"volume": 1
+					}
+				],
+				"units_per_second": 40,
+				"stores": [
+					{
+						"id": "receiving",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 1000,
+						"accepts": ["station-supplies", "perishable-essentials"],
+						"main": true
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "west",
+						"controller": "flight",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": -220000,
+						"heading_mdeg": 180000,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					},
+					{
+						"id": "east",
+						"controller": "flight",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": 220000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			},
+			"faction": "crew",
+			"comms": {
+				"default_conversation": "base.dialogue.hail",
+				"characters": [
+					{
+						"id": "quartermaster",
+						"name_key": "Cairn Receiving",
+						"public": true
+					},
+					{
+						"id": "captain",
+						"name_key": "Cairn Control",
+						"public": true
+					},
+					{
+						"id": "engineer",
+						"name_key": "Cairn Engineering",
+						"public": false
+					}
+				]
+			}
+		},
+		{
+			"id": "base.delivery-planet",
+			"name": "Cairn",
+			"tags": ["contact", "planet"],
+			"render": {
+				"mode": "camera",
+				"scale": 1400,
+				"sprite": {
+					"albedo": "phoenix-base:assets/rescue/planet.png",
+					"frames": [
+						{
+							"name": "planet",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					]
+				}
+			},
+			"systems": {},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 650000,
+				"mass_grams": 0
+			}
+		},
+		{
+			"id": "base.delivery-star",
+			"render": {
+				"scale": 1000,
+				"radar_icon": "sun",
+				"star": {
+					"surface_colour": [1, 0.72, 0.12],
+					"hot_colour": [1, 0.96, 0.65],
+					"cell_colour": [0.95, 0.32, 0.04],
+					"halo_colour": [1, 0.78, 0.18],
+					"halo_radius_multiplier": 2.4,
+					"animation_speed": 1
+				}
+			},
+			"systems": {},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 450000,
+				"mass_grams": 0
+			},
+			"name": "Cairn primary",
+			"tags": ["contact", "star"]
+		},
+		{
+			"id": "base.delivery-casualty",
+			"extends": "base.rescue-casualty",
+			"name": "Morrow — stranded merchant",
+			"faction": "crew",
+			"systems": {
+				"comms-radio": {
+					"range_mm": 2500000
+				}
+			}
+		},
+		{
+			"id": "base.delivery-raider",
+			"extends": "base.pirate-raider",
+			"faction": "raiders"
 		}
 	],
 	"maps": [
 		{
 			"id": "base.rescue-under-threat",
 			"name": "Rescue under threat",
-			"description": "Helm opens Dispatch and binds displacement. Engineering assigns a repair team; lower shields before Send. Use Comms for the team decision, then recall. An optional medical team can heal injured officers and stabilise severe casualties aboard the stranded ship.",
+			"description": "Deliver station supplies to Cairn orbital starbase.",
 			"presentation": {
 				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
 			},
 			"entities": [
 				{
 					"id": 1,
-					"definition": "base.rescue-casualty",
-					"x_mm": 90000,
-					"y_mm": 30000,
+					"definition": "base.delivery-casualty",
+					"x_mm": 950000,
+					"y_mm": 900000,
 					"heading_mdeg": 180000
+				},
+				{
+					"id": 2,
+					"definition": "base.delivery-station",
+					"x_mm": 1800000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 3,
+					"definition": "base.delivery-planet",
+					"x_mm": 2300000,
+					"y_mm": -1200000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 4,
+					"definition": "base.delivery-star",
+					"x_mm": -2000000,
+					"y_mm": -2400000,
+					"heading_mdeg": 0
 				}
 			],
 			"ship_slots": [
 				{
 					"id": "courier",
-					"name": "Rescue Courier",
+					"name": "Delivery ship",
 					"mandatory": true,
-					"allowed_ships": ["base.rescue-courier"],
+					"allowed_ships": ["base.delivery-courier", "base.delivery-cruiser"],
 					"x_mm": 0,
 					"y_mm": 0,
-					"heading_mdeg": 0
+					"heading_mdeg": 0,
+					"default_ship": "base.delivery-courier",
+					"faction": "crew"
 				}
 			],
 			"conversations": [
@@ -31025,7 +32321,134 @@
 						}
 					},
 					"members": ["ship", "engineer"],
-					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"]
+					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"],
+					"start_event": "rescue.distress"
+				},
+				{
+					"id": "delivery-courier-arrival",
+					"tree": "base.dialogue.delivery-courier-arrival",
+					"start_event": "delivery.courier-arrival",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"],
+					"cancel_events": ["delivery.completed", "delivery.expired"]
+				},
+				{
+					"id": "delivery-cruiser-arrival",
+					"tree": "base.dialogue.delivery-cruiser-arrival",
+					"start_event": "delivery.cruiser-arrival",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"],
+					"cancel_events": ["delivery.completed", "delivery.expired"]
+				},
+				{
+					"id": "delivery-completed",
+					"tree": "base.dialogue.delivery-completed",
+					"start_event": "delivery.completed",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"]
+				},
+				{
+					"id": "delivery-expired",
+					"tree": "base.dialogue.delivery-expired",
+					"start_event": "delivery.expired",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"]
+				},
+				{
+					"id": "delivery-reminder-5",
+					"tree": "base.dialogue.delivery-reminder-5",
+					"start_event": "delivery.reminder-5",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"],
+					"cancel_events": ["delivery.completed", "delivery.expired"]
+				},
+				{
+					"id": "delivery-reminder-8",
+					"tree": "base.dialogue.delivery-reminder-8",
+					"start_event": "delivery.reminder-8",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"],
+					"cancel_events": ["delivery.completed", "delivery.expired"]
+				},
+				{
+					"id": "delivery-reminder-15",
+					"tree": "base.dialogue.delivery-reminder-15",
+					"start_event": "delivery.reminder-15",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"],
+					"cancel_events": ["delivery.completed", "delivery.expired"]
+				},
+				{
+					"id": "delivery-reminder-18",
+					"tree": "base.dialogue.delivery-reminder-18",
+					"start_event": "delivery.reminder-18",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
+					},
+					"members": ["ship", "quartermaster"],
+					"cancel_events": ["delivery.completed", "delivery.expired"]
 				}
 			],
 			"away_missions": [
@@ -31035,7 +32458,7 @@
 					"ship_slot": "courier",
 					"target_entity": 1,
 					"conversation": "rescue",
-					"reveal_event": "Our propulsion is isolated. We have cleared a displacement destination; please send a repair team.",
+					"reveal_event": "mission.rescue.rescue.clearance",
 					"tree": "base.away.rescue",
 					"slots": [
 						{
@@ -31064,14 +32487,25 @@
 				"bindings": {
 					"actor": {
 						"slot": "courier"
-					}
+					},
+					"objective": "approach"
 				},
 				"events": [
 					"rescue.work-completed",
 					"rescue.party-recovered",
 					"rescue.casualty-escaped",
 					"rescue.casualty-lost",
-					"rescue.casualty-ready"
+					"rescue.casualty-ready",
+					"delivery.courier-arrival",
+					"delivery.cruiser-arrival",
+					"delivery.completed",
+					"delivery.expired",
+					"rescue.distress",
+					"rescue.revealed",
+					"delivery.reminder-5",
+					"delivery.reminder-8",
+					"delivery.reminder-15",
+					"delivery.reminder-18"
 				],
 				"event_bindings": [
 					{
@@ -31111,6 +32545,30 @@
 						},
 						"operation": "ftl.drive",
 						"event": "rescue.casualty-ready"
+					},
+					{
+						"kind": "away.available",
+						"subject": {
+							"entity": 1
+						},
+						"operation": "repairs",
+						"event": "rescue.revealed"
+					},
+					{
+						"kind": "objective.completed",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "delivery",
+						"event": "delivery.completed"
+					},
+					{
+						"kind": "objective.failed",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "delivery",
+						"event": "delivery.expired"
 					}
 				],
 				"fact_bindings": [
@@ -31189,6 +32647,55 @@
 						},
 						"operation": "restore-services",
 						"field": "status"
+					},
+					{
+						"id": "arrival-time",
+						"kind": "clock",
+						"field": "tick"
+					},
+					{
+						"id": "delivery-ship",
+						"kind": "entity",
+						"field": "definition",
+						"subject": {
+							"slot": "courier"
+						}
+					},
+					{
+						"id": "supplies-received",
+						"kind": "inventory",
+						"field": "receiving",
+						"subject": {
+							"entity": 2
+						},
+						"operation": "station-supplies"
+					},
+					{
+						"id": "essentials-received",
+						"kind": "inventory",
+						"field": "receiving",
+						"subject": {
+							"entity": 2
+						},
+						"operation": "perishable-essentials"
+					},
+					{
+						"id": "delivery-status",
+						"kind": "objective",
+						"field": "status",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "delivery"
+					},
+					{
+						"id": "delivery-tick",
+						"kind": "objective",
+						"field": "completed_tick",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "delivery"
 					}
 				],
 				"objectives": [
@@ -31290,6 +32797,72 @@
 							"op": "eq",
 							"value": "destroyed"
 						}
+					},
+					{
+						"id": "delivery",
+						"type": "condition",
+						"title_key": "Deliver all 100 units to Cairn Receiving",
+						"description_key": "Deliver all 100 units to Cairn Receiving",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"any": [
+								{
+									"fact": "supplies-received",
+									"op": "ge",
+									"value": 100
+								},
+								{
+									"all": [
+										{
+											"fact": "essentials-received",
+											"op": "ge",
+											"value": 100
+										},
+										{
+											"fact": "arrival-time",
+											"op": "le",
+											"value": 24000
+										}
+									]
+								}
+							]
+						},
+						"fail_when": {
+							"all": [
+								{
+									"fact": "delivery-ship",
+									"op": "eq",
+									"value": "base.delivery-cruiser"
+								},
+								{
+									"fact": "arrival-time",
+									"op": "gt",
+									"value": 24000
+								}
+							]
+						}
+					},
+					{
+						"id": "approach",
+						"type": "reach_region",
+						"region": "station-approach",
+						"title_key": "Approach Cairn orbital starbase",
+						"description_key": "Follow the clear arrival corridor toward the charted station.",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						}
 					}
 				],
 				"reports": [
@@ -31299,7 +32872,13 @@
 							"slot": "courier"
 						},
 						"title_key": "Rescue operation debrief",
-						"objectives": ["restore-propulsion", "restore-services", "recover-party", "casualty-escape"],
+						"objectives": [
+							"delivery",
+							"restore-propulsion",
+							"restore-services",
+							"recover-party",
+							"casualty-escape"
+						],
 						"facts": [
 							{
 								"fact": "propulsion-restored",
@@ -31320,6 +32899,14 @@
 							{
 								"fact": "personnel-lost",
 								"label_key": "Personnel lost"
+							},
+							{
+								"fact": "supplies-received",
+								"label_key": "Routine supplies received (of 100)"
+							},
+							{
+								"fact": "essentials-received",
+								"label_key": "Perishable essentials received (of 100)"
 							}
 						],
 						"rules": [
@@ -31400,7 +32987,100 @@
 							"result": "failure",
 							"title_key": "Rescue unsuccessful",
 							"explanation_key": "The casualty was lost, personnel were lost, or no restoration objective was completed before departure."
-						}
+						},
+						"assessments": [
+							{
+								"id": "delivery",
+								"title_key": "Station delivery",
+								"rules": [
+									{
+										"result": "delivered",
+										"title_key": "Supplies delivered",
+										"explanation_key": "Cairn received the complete routine consignment.",
+										"when": {
+											"all": [
+												{
+													"fact": "delivery-status",
+													"op": "eq",
+													"value": "completed"
+												},
+												{
+													"fact": "delivery-ship",
+													"op": "eq",
+													"value": "base.delivery-courier"
+												}
+											]
+										}
+									},
+									{
+										"result": "prompt",
+										"title_key": "Prompt delivery — full credit",
+										"explanation_key": "Cairn received all perishable essentials within 10 minutes of arrival.",
+										"when": {
+											"all": [
+												{
+													"fact": "delivery-status",
+													"op": "eq",
+													"value": "completed"
+												},
+												{
+													"fact": "delivery-tick",
+													"op": "le",
+													"value": 12000
+												}
+											]
+										}
+									},
+									{
+										"result": "late",
+										"title_key": "Late delivery — reduced credit",
+										"explanation_key": "Cairn received the full consignment after 10 minutes, within the 20 minute limit.",
+										"when": {
+											"fact": "delivery-status",
+											"op": "eq",
+											"value": "completed"
+										}
+									},
+									{
+										"result": "expired",
+										"title_key": "Expired — delivery failed",
+										"explanation_key": "The full consignment did not reach Cairn within 20 minutes. Cargo remains transferable but earns no delivery credit.",
+										"when": {
+											"fact": "delivery-status",
+											"op": "eq",
+											"value": "failed"
+										}
+									}
+								],
+								"fallback": {
+									"result": "unfinished",
+									"title_key": "Delivery incomplete",
+									"explanation_key": "The receiving store had not received all 100 units before departure. Cargo still aboard or in transit earns no advance credit."
+								}
+							}
+						]
+					}
+				],
+				"situations": [
+					{
+						"id": "pirate-delay",
+						"tree": "base.scenario.rescue-raider",
+						"bindings": {
+							"actor": {
+								"slot": "courier"
+							}
+						},
+						"start": true
+					},
+					{
+						"id": "delivery-reminders",
+						"tree": "base.scenario.delivery-reminders",
+						"bindings": {
+							"actor": {
+								"slot": "courier"
+							}
+						},
+						"start": true
 					}
 				]
 			},
@@ -31411,6 +33091,166 @@
 					"text_key": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
 					"requires": ["findings", "compartment_condition"],
 					"scan_ticks": 300
+				}
+			],
+			"ship_briefings": {
+				"base.delivery-courier": "mission.rescue.briefing.courier",
+				"base.delivery-cruiser": "mission.rescue.briefing.cruiser"
+			},
+			"factions": [
+				{
+					"id": "crew",
+					"label": "Local shipping"
+				},
+				{
+					"id": "raiders",
+					"label": "Raiders"
+				}
+			],
+			"relationships": [
+				{
+					"a": "crew",
+					"b": "raiders",
+					"relation": "hostile"
+				}
+			],
+			"combat_duel": true,
+			"regions": [
+				{
+					"id": "station-approach",
+					"shape": "circle",
+					"x_mm": 1800000,
+					"y_mm": 0,
+					"radius_mm": 900000
+				},
+				{
+					"id": "station-chart",
+					"shape": "circle",
+					"x_mm": 1800000,
+					"y_mm": 0,
+					"radius_mm": 230000,
+					"display": {
+						"name": "Cairn orbital starbase",
+						"navigation": true,
+						"radar": true,
+						"colour": [0.5, 0.8, 1],
+						"tags": ["contact", "station"]
+					}
+				},
+				{
+					"id": "planet-chart",
+					"shape": "circle",
+					"x_mm": 2300000,
+					"y_mm": -1200000,
+					"radius_mm": 650000,
+					"display": {
+						"name": "Cairn",
+						"navigation": true,
+						"radar": true,
+						"colour": [0.7, 0.65, 0.4],
+						"tags": ["contact", "planet"]
+					}
+				},
+				{
+					"id": "star-chart",
+					"shape": "circle",
+					"x_mm": -2000000,
+					"y_mm": -2400000,
+					"radius_mm": 450000,
+					"display": {
+						"name": "Cairn primary",
+						"navigation": true,
+						"radar": true,
+						"colour": [1, 0.7, 0.3],
+						"tags": ["contact", "star"]
+					}
+				},
+				{
+					"id": "morrow-field",
+					"shape": "annulus",
+					"x_mm": 950000,
+					"y_mm": 900000,
+					"radius_mm": 700000,
+					"inner_radius_mm": 450000,
+					"display": {
+						"name": "Cairn outer debris field",
+						"navigation": true,
+						"radar": true,
+						"colour": [0.6, 0.5, 0.3],
+						"tags": ["contact", "asteroid"]
+					}
+				},
+				{
+					"id": "debris-west",
+					"shape": "rectangle",
+					"x_mm": 350000,
+					"y_mm": 900000,
+					"half_width_mm": 150000,
+					"half_height_mm": 600000,
+					"asteroids": {
+						"seed": 219071,
+						"spacing_mm": 70000,
+						"density": 0.0001,
+						"jitter_mm": 20000,
+						"clustering_permille": 400,
+						"noise_cells": 5,
+						"visual_distance_mm": 1000000,
+						"unload_margin_mm": 100000,
+						"types": [
+							{
+								"definition": "base.asteroid",
+								"weight": 1000
+							}
+						]
+					}
+				},
+				{
+					"id": "debris-east",
+					"shape": "rectangle",
+					"x_mm": 1550000,
+					"y_mm": 900000,
+					"half_width_mm": 150000,
+					"half_height_mm": 600000,
+					"asteroids": {
+						"seed": 219071,
+						"spacing_mm": 70000,
+						"density": 0.0001,
+						"jitter_mm": 20000,
+						"clustering_permille": 400,
+						"noise_cells": 5,
+						"visual_distance_mm": 1000000,
+						"unload_margin_mm": 100000,
+						"types": [
+							{
+								"definition": "base.asteroid",
+								"weight": 1000
+							}
+						]
+					}
+				},
+				{
+					"id": "debris-north",
+					"shape": "rectangle",
+					"x_mm": 950000,
+					"y_mm": 1500000,
+					"half_width_mm": 450000,
+					"half_height_mm": 150000,
+					"asteroids": {
+						"seed": 219071,
+						"spacing_mm": 70000,
+						"density": 0.0001,
+						"jitter_mm": 20000,
+						"clustering_permille": 400,
+						"noise_cells": 5,
+						"visual_distance_mm": 1000000,
+						"unload_margin_mm": 100000,
+						"types": [
+							{
+								"definition": "base.asteroid",
+								"weight": 1000
+							}
+						]
+					}
 				}
 			]
 		}
@@ -41642,7 +43482,7 @@
 			"lines": {
 				"intro": {
 					"speaker": "engineer",
-					"text_key": "Our propulsion is isolated. We have cleared a displacement destination; please send a repair team.",
+					"text_key": "mission.rescue.rescue.intro",
 					"incoming_ticks": 20
 				},
 				"arrived": {
@@ -41684,6 +43524,11 @@
 					"speaker": "engineer",
 					"text_key": "Medical reports treatment completed: injured officers can resume duty; severe casualties have been stabilised.",
 					"incoming_ticks": 20
+				},
+				"clearance": {
+					"speaker": "engineer",
+					"text_key": "mission.rescue.rescue.clearance",
+					"incoming_ticks": 40
 				}
 			},
 			"prompts": {
@@ -41713,6 +43558,10 @@
 						{
 							"action": "say",
 							"arguments": ["intro"]
+						},
+						{
+							"action": "say",
+							"arguments": ["clearance"]
 						}
 					],
 					"transitions": [
@@ -42181,81 +44030,6 @@
 					"transitions": [
 						{
 							"target": "drive"
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "base.scenario.rescue-threat",
-			"context": "scenario",
-			"initial": "wait",
-			"states": [
-				{
-					"id": "wait",
-					"transitions": [
-						{
-							"target": "arrival",
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 1800
-								}
-							]
-						}
-					],
-					"entry": [
-						{
-							"action": "add_objective",
-							"arguments": [
-								"restore-propulsion",
-								{
-									"observation": "self.entity"
-								},
-								"restore-propulsion"
-							]
-						},
-						{
-							"action": "add_objective",
-							"arguments": [
-								"restore-services",
-								{
-									"observation": "self.entity"
-								},
-								"restore-services"
-							]
-						},
-						{
-							"action": "add_objective",
-							"arguments": [
-								"recover-party",
-								{
-									"observation": "self.entity"
-								},
-								"recover-party"
-							]
-						},
-						{
-							"action": "add_objective",
-							"arguments": [
-								"casualty-escape",
-								{
-									"observation": "self.entity"
-								},
-								"casualty-escape"
-							]
-						}
-					]
-				},
-				{
-					"id": "arrival",
-					"entry": [
-						{
-							"action": "spawn_entity",
-							"arguments": ["base.pirate-raider", "", 220000, 80000, 180000, "raider"]
 						}
 					]
 				}
@@ -47571,6 +49345,629 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.controller.idle",
+			"context": "controller",
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold"
+				}
+			]
+		},
+		{
+			"id": "base.scenario.rescue-threat",
+			"context": "scenario",
+			"initial": "assignment",
+			"states": [
+				{
+					"id": "assignment",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"delivery",
+								{
+									"observation": "self.entity"
+								},
+								"delivery"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"approach",
+								{
+									"observation": "self.entity"
+								},
+								"approach"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "cruiser",
+							"conditions": [
+								{
+									"left": {
+										"observation": "self.definition"
+									},
+									"op": "eq",
+									"right": "base.delivery-cruiser"
+								}
+							]
+						},
+						{
+							"target": "courier",
+							"conditions": [
+								{
+									"left": {
+										"observation": "self.definition"
+									},
+									"op": "eq",
+									"right": "base.delivery-courier"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "courier",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["delivery.courier-arrival", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "distress",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "cruiser",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["delivery.cruiser-arrival", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "distress",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "distress",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["rescue.distress", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "rescue",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.revealed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "rescue",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"restore-propulsion",
+								{
+									"observation": "self.entity"
+								},
+								"restore-propulsion"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"restore-services",
+								{
+									"observation": "self.entity"
+								},
+								"restore-services"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"recover-party",
+								{
+									"observation": "self.entity"
+								},
+								"recover-party"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"casualty-escape",
+								{
+									"observation": "self.entity"
+								},
+								"casualty-escape"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.scenario.rescue-raider",
+			"context": "scenario",
+			"initial": "wait",
+			"states": [
+				{
+					"id": "wait",
+					"transitions": [
+						{
+							"target": "delay",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.distress"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "delay",
+					"transitions": [
+						{
+							"target": "arrival",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1800
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "arrival",
+					"entry": [
+						{
+							"action": "spawn_entity",
+							"arguments": ["base.delivery-raider", "", 1600000, 1100000, 180000, "raider"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.scenario.delivery-reminders",
+			"context": "scenario",
+			"initial": "check",
+			"states": [
+				{
+					"id": "check",
+					"transitions": [
+						{
+							"target": "wait5",
+							"conditions": [
+								{
+									"left": {
+										"observation": "self.definition"
+									},
+									"op": "eq",
+									"right": "base.delivery-cruiser"
+								}
+							]
+						},
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "self.definition"
+									},
+									"op": "eq",
+									"right": "base.delivery-courier"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "wait5",
+					"transitions": [
+						{
+							"target": "rem5",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 6000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "rem5",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["delivery.reminder-5", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "wait8",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 6000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "wait8",
+					"transitions": [
+						{
+							"target": "rem8",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 9600
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "rem8",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["delivery.reminder-8", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "wait15",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 9600
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "wait15",
+					"transitions": [
+						{
+							"target": "rem15",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 18000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "rem15",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["delivery.reminder-15", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "wait18",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 18000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "wait18",
+					"transitions": [
+						{
+							"target": "rem18",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 21600
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "rem18",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["delivery.reminder-18", 0, false, ""]
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 21600
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "done"
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.delivery-courier-arrival",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving to Courier: welcome to the system. We are expecting your 100 units of routine station supplies. Dock at our west or east service port and transfer the full consignment into Receiving when practical. Safe approach.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-cruiser-arrival",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "mission.rescue.delivery-cruiser-arrival.message",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-completed",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving: all 100 units are in our receiving store. Receipt confirmed and the delivery assessment has been recorded. Thank you.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-expired",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving: the 20 minute limit has passed without full receipt. The perishable consignment has expired and the delivery is recorded as failed. You may still transfer the cargo, but it can no longer earn delivery credit.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-reminder-5",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving: Five minutes since arrival. Your perishable essentials are still outstanding; five minutes remain for full delivery credit.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-reminder-8",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving: Eight minutes since arrival. Two minutes remain for full credit. All 100 units must reach Receiving, not just be dispatched.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-reminder-15",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving: Fifteen minutes since arrival. Delivery is now late. Five minutes remain before the consignment expires.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.dialogue.delivery-reminder-18",
+			"context": "conversation",
+			"initial": "message",
+			"lines": {
+				"message": {
+					"speaker": "quartermaster",
+					"text_key": "Cairn Receiving: Eighteen minutes since arrival. Two minutes remain before expiry. Partial delivery does not stop the deadline.",
+					"incoming_ticks": 20
+				}
+			},
+			"states": [
+				{
+					"id": "message",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["message"]
+						}
+					]
+				}
+			],
+			"title_key": "Cairn Receiving — station delivery"
 		}
 	],
 	"equipment": [
