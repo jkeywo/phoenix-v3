@@ -53,4 +53,4 @@ Repair teams opt into compartment-local preferences with `local_repair_priority`
 
 World continuation is schema **20**, with mission continuation schema **11**. Older World saves require a new session. Current-format saves retain mission routes, department authorizations, escort assignments, supply manifests, cargo reservations and actual transfer receipts. Older authored single-Dispatch/single-transport missions remain supported.
 
-Verification evidence will be recorded after the final native, WebAssembly and explicitly invoked console checks. Physical screen-reader, touch/gamepad and six-display acceptance require separate device runs.
+Native and WebAssembly builds, system suites, cross-platform continuation checks and the explicitly invoked combat, supply and console journeys passed. See the [verification receipt](smoke/cruiser-workloads.md) for commands, scope and local artifacts. Physical screen-reader, touch/gamepad and six-display acceptance require separate device runs.

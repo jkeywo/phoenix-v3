@@ -43,15 +43,16 @@ The explicit `phoenix_cruiser_smoke` target loads production content, can render
 
 ```powershell
 ./scripts/build.ps1 -Target native -BuildTarget phoenix_cruiser_smoke
-./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --gallery 0
-./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --powered-gallery 0
-./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --headless 12000
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --gallery 0 build/native/test-missions.zip
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --powered-gallery 0 build/native/test-missions.zip
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --headless 12000 build/native/test-missions.zip
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --watch 1000 build/native/test-missions.zip
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --transport
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --supply build/native/test-missions.zip
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --medical
-./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --boarding
-./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --withdrawal 0
-./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --frame 0
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --boarding 0 build/native/test-missions.zip
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --withdrawal 0 build/native/test-missions.zip
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --frame 0 build/native/test-missions.zip
 ```
 
 The transport exercise reuses the rescue operation with the Cruiser selected and the casualty placed 350 metres away for hull clearance. It checks separate shuttle and displacement deployment/recovery through four owning watches, including actual remote treatment by the contributed Medical team. The clinical exercise privately seeds onboard injuries, then checks treatment, stabilisation, infirmary recovery, injured Security treatment and continuation. The boarding exercise privately bounds encounter success/loss probabilities, then checks utility-shuttle insertion, Comms objectives, extraction and capture; it does not establish production boarding balance.
@@ -60,6 +61,6 @@ Withdrawal and frame capture restore the combat run's `build/cruiser-midwave.jso
 
 See the [execution evidence and remaining acceptance limits](smoke/cruiser.md).
 
-For the three revised workload screens at 1080p, run `phoenix_cruiser_ui_smoke.exe base.zip test-missions.zip --workloads`. The supply journey uses a quiet private combat-map variant with depleted initial parts and medical stores; it exercises both negotiated offers, automatic manifest preparation, a Tactical escort and physical return/unloading with continuation checks.
+For the three revised workload screens at 1080p, run `phoenix_cruiser_ui_smoke.exe base.zip test-missions.zip --workloads`. Its rendered controls also exercise Comms disclosure, Engineering dispatch and Tactical contribution. The separate supply journey uses a quiet private combat-map variant with depleted initial parts and medical stores; it exercises both negotiated offers, automatic manifest preparation, a Tactical escort and physical return/unloading with continuation checks. The bounded `--watch` journey checks occupied one-star combat and compartment repair, independently of the complete three-wave exercise. See the [workload verification receipt](smoke/cruiser-workloads.md).
 
 Record actual execution results separately; successful loading or a screenshot does not establish a completed three-wave journey, screen-reader usability or physical six-display performance.
