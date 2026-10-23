@@ -205,3 +205,7 @@ longer-run stability and six-display frame times remain unaccepted; an earlier
 ## Game-pack split and staged loading — 23 October 2026
 
 The root now contains ships and Rescue; Test Missions is a disabled child preserving the seven experimental mission IDs and migrated edits. CLI and Workshop generate menu metadata and whole-ship public Console DAT companions. Native/browser menus become interactive before background gameplay verification; entry awaits the current selection. Player joins prefer authenticated matching published/cached DATs and fall back to host-generated transfer. Build staging and deployment include the companions. See [packaging](asset-loading.md), [base migration](base-mods.md) and the [validation receipt](smoke/game-pack-loading.md) for exercised paths and remaining hardware scope.
+
+## Lossless DAT images — 23 October 2026
+
+DAT image entries now use exact lossless WebP after benchmarking production sprites in native and WASM. Source PNGs stay editable; each encoded image is decoded and compared byte-for-byte before export. The previous raw image decoder is removed, generated DAT artifacts are upgraded, and deployment checks enforce the new records. See [measurements and validation](smoke/lossless-images.md).

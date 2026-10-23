@@ -6,6 +6,25 @@ import { zipEntry } from "../web/launcher.mjs";
 const root = path.resolve(process.argv[2] || "build/pages");
 const published = new Map(),
 	sourceSets = [];
+async function verifyDatImages(dat) {
+	const zip = dat.subarray(8);
+	let end = zip.length - 22;
+	for (; end >= Math.max(0, zip.length - 65557); --end) if (zip.readUInt32LE(end) === 0x06054b50) break;
+	if (end < 0) throw Error("Missing DAT directory");
+	let at = zip.readUInt32LE(end + 16);
+	const count = zip.readUInt16LE(end + 10);
+	for (let i = 0; i < count; ++i) {
+		if (zip.readUInt32LE(at) !== 0x02014b50) throw Error("Invalid DAT directory");
+		const length = zip.readUInt16LE(at + 28);
+		const name = zip.subarray(at + 46, at + 46 + length).toString("utf8");
+		if (name.endsWith(".png")) {
+			const image = await zipEntry(dat, name);
+			if (Buffer.from(image.subarray(0, 8)).toString() !== "PHXWEBP1")
+				throw Error("DAT image has not been upgraded: " + name);
+		}
+		at += 46 + length + zip.readUInt16LE(at + 30) + zip.readUInt16LE(at + 32);
+	}
+}
 const excluded = new Set([
 	"test.zip",
 	"test-3d.zip",
@@ -66,6 +85,7 @@ async function inspect(folder) {
 					dat.subarray(0, 7).toString() !== "PHXDAT1"
 				)
 					throw Error("Invalid ship companion: " + client.file);
+				await verifyDatImages(dat);
 			}
 			const archive = Buffer.from(bytes);
 			for (const name of excluded)
