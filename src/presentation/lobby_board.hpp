@@ -79,8 +79,17 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 					for (const auto &profile : seat.profiles)
 					{
 						const auto id = "lobby.profile/" + seat.slot + "/" + seat.id + "/" + profile;
+						const int stars = complexity_stars(seat.profile_stars, profile);
 						if (allowed(id))
-							html += act(id, profile, profile == seat.profile);
+						{
+							if (stars)
+								html += complexity_star_button(
+								    act(id, "Complexity: " + std::to_string(stars) + " of 3 stars",
+								        profile == seat.profile),
+								    stars, complexity_stars(seat.profile_stars, seat.profile), "menu/");
+							else if (seat.profile_stars.empty())
+								html += act(id, profile, profile == seat.profile);
+						}
 					}
 					html += "</div>" + paragraph(seat.ready ? "Ready. Waiting for the crew."
 					                                        : "Check your Console, then ready up.");
@@ -232,6 +241,14 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		}
 		if (member != lobby.members.end())
 			html += remove_member(member->id, member->name);
+		const int stars = complexity_stars(seat.profile_stars, seat.profile);
+		if (stars)
+		{
+			const auto rating_id = "menu.complexity/" + seat.slot + "/" + seat.id;
+			html += "<div id=\"" + Rml::StringUtilities::EncodeRml(rating_id) + "\">" +
+			        complexity_star_readout(stars, "menu/") + "</div>";
+			app.screen_readouts.emplace_back(rating_id, localise("Complexity") + ": " + std::to_string(stars) + "/3");
+		}
 #ifndef __EMSCRIPTEN__
 		if (app.can_host && lobby.coordinator && own != lobby.members.end() && seat.slot == own->slot &&
 		    (seat.member.empty() || seat.local_screen))

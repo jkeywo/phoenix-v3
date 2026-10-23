@@ -570,6 +570,7 @@ int main()
 		            Json::array({{{"id", "enabled"}, {"action", "system_enabled"}, {"consumers", {"engine"}}}})}}})},
 		    {"profiles",
 		     Json::array({{{"id", "normal"},
+		                   {"stars", 2},
 		                   {"consoles", {{"helm", {{"human", {"propulsion"}}}}, {"support", {{"ai", {"power"}}}}}}}})},
 		    {"default_profile", "normal"}};
 		auto load_controls = [&](const Json &source)
@@ -609,7 +610,16 @@ int main()
 		            layout.controllers[0].commands[0].consumers.size() == 2,
 		        "inherited layout shares one Controller command across two engine entities");
 		require(layout.profiles[0].human[0] && !layout.profiles[0].human[1], "profiles allocate Console Controllers");
+		require(layout.profiles[0].stars == 2, "Authored star rating survives profile compilation");
 		auto bad_controls = control_source;
+		bad_controls["entities"][0]["control_layout"]["profiles"][0]["stars"] = 4;
+		rejected(
+		    [&]
+		    {
+			    load_controls(bad_controls);
+		    },
+		    "stars must be between zero and three");
+		bad_controls = control_source;
 		bad_controls["entities"][0]["control_layout"]["controllers"][1]["commands"][0]["action"] = "speed_mm_s";
 		rejected(
 		    [&]

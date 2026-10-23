@@ -48,6 +48,7 @@ struct LobbyConsole
 	std::string profile;
 	std::vector<std::string> profiles;
 	std::string description;
+	std::map<std::string, int> profile_stars;
 };
 struct LobbyProjection
 {

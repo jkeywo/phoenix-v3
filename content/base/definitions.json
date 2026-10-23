@@ -418,7 +418,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -430,7 +431,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				],
 				"default_profile": "direct"
@@ -2047,7 +2049,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 1
 					},
 					{
 						"id": "middle",
@@ -2108,7 +2111,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 2
 					},
 					{
 						"id": "detailed",
@@ -2169,7 +2173,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -2226,7 +2231,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				],
 				"default_profile": "middle"
@@ -8442,7 +8448,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 1
 					},
 					{
 						"id": "middle",
@@ -8600,7 +8607,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 2
 					},
 					{
 						"id": "detailed",
@@ -8758,7 +8766,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -8911,7 +8920,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				],
 				"default_profile": "middle"
@@ -15798,7 +15808,8 @@
 								"human": ["drive.engine", "drive.steering", "sensors.radar"],
 								"ai": ["drive.boost", "drive.impulse", "drive.lateral"]
 							}
-						}
+						},
+						"stars": 1
 					},
 					{
 						"id": "middle",
@@ -15854,7 +15865,8 @@
 								],
 								"ai": []
 							}
-						}
+						},
+						"stars": 2
 					},
 					{
 						"id": "detailed",
@@ -15910,7 +15922,8 @@
 								],
 								"ai": []
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -15963,7 +15976,8 @@
 									"sensors.distribution"
 								]
 							}
-						}
+						},
+						"stars": 0
 					}
 				],
 				"default_profile": "middle"
@@ -17446,7 +17460,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 1
 					},
 					{
 						"id": "middle",
@@ -17510,7 +17525,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 2
 					},
 					{
 						"id": "detailed",
@@ -17574,7 +17590,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -17634,7 +17651,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				],
 				"default_profile": "middle"
@@ -20130,7 +20148,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -20176,7 +20195,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -21955,7 +21975,8 @@
 									"shield-aft"
 								]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -21991,7 +22012,8 @@
 									"shield-aft"
 								]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -23895,7 +23917,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 1
 					},
 					{
 						"id": "middle",
@@ -23959,7 +23982,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 2
 					},
 					{
 						"id": "detailed",
@@ -24023,7 +24047,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -24083,7 +24108,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				],
 				"default_profile": "middle"
@@ -26218,7 +26244,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -26268,7 +26295,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -28431,7 +28459,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 3
 					},
 					{
 						"id": "automatic",
@@ -28476,7 +28505,8 @@
 							"navigator": {
 								"human": ["ftl.drive"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -29284,7 +29314,8 @@
 							"flight": {
 								"ai": ["guidance", "radar"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -29911,7 +29942,8 @@
 							"helm": {
 								"ai": ["flight"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -30374,7 +30406,8 @@
 							"helm": {
 								"ai": ["flight"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -30821,7 +30854,8 @@
 							"helm": {
 								"ai": ["flight"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -31987,7 +32021,8 @@
 							"helm": {
 								"ai": ["flight"]
 							}
-						}
+						},
+						"stars": 0
 					}
 				]
 			},
@@ -32759,8 +32794,14 @@
 						"region": "morrow-rendezvous",
 						"title_key": "Respond to Morrow's distress call",
 						"description_key": "Morrow's distress transmission marks its position in the asteroid field. Approach through the clear southern opening.",
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						}
 					}
 				],
 				"reports": [
@@ -49368,7 +49409,13 @@
 					"entry": [
 						{
 							"action": "add_objective",
-							"arguments": ["respond-distress", { "observation": "self.entity" }, "respond-distress"]
+							"arguments": [
+								"respond-distress",
+								{
+									"observation": "self.entity"
+								},
+								"respond-distress"
+							]
 						},
 						{
 							"action": "emit_scenario_event",

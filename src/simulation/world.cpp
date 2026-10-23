@@ -2450,7 +2450,7 @@ bool World::prepare_console_profile(const ConsoleAddress &address, const std::st
 	for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
 		if (controls.layout.profiles[i].id == profile)
 		{
-			controls.profiles[address.console] = i;
+			impl_->set_console_complexity(controls, address.console, i);
 			impl_->refresh_controllers(address.ship);
 			return true;
 		}
@@ -3098,8 +3098,14 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 		if (!impl_->definition(address.ship).console_bridge.at(seat.id).command)
 		{
 			result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;
+			result.gameplay["profile_stars"] = Json::object();
 			for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
+			{
+				if (controls.layout.profiles[i].stars)
+					result.gameplay["profile_stars"][controls.layout.profiles[i].id] =
+					    controls.layout.profiles[i].stars;
 				button("profile." + controls.layout.profiles[i].id, controls.layout.profiles[i].id, "preset", {}, i);
+			}
 		}
 		for (const auto &controller : controls.controllers)
 			if (controller.definition.console == seat.id && controller.human)

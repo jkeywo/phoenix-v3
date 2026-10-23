@@ -761,6 +761,15 @@ void refresh_controllers(EntityId id, bool validate = false)
 		knowledge.set_console_presence(address, present);
 	}
 }
+void set_console_complexity(EntityControls &controls, const std::string &console, std::size_t profile)
+{
+	const auto group = controls.layout.complexity_groups.find(console);
+	for (auto &[id, selected] : controls.profiles)
+		if (id == console ||
+		    (group != controls.layout.complexity_groups.end() && controls.layout.complexity_groups.contains(id) &&
+		     controls.layout.complexity_groups.at(id) == group->second))
+			selected = profile;
+}
 bool controller_meta(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
 {
 	if (!command.controller.empty() || !command.channel.empty() || command.generation || command.request_id ||
@@ -784,7 +793,7 @@ bool controller_meta(const ConsoleAddress &address, const OperatingCommand &comm
 			return false;
 		if (execute)
 		{
-			controls.profiles[address.console] = static_cast<std::size_t>(command.value);
+			set_console_complexity(controls, address.console, static_cast<std::size_t>(command.value));
 			refresh_controllers(address.ship);
 		}
 		return true;
@@ -1015,6 +1024,10 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 	fail(profiles.size() == controls.profiles.size());
 	for (const auto &[console, profile] : profiles)
 		fail(controls.profiles.contains(console) && profile < controls.layout.profiles.size());
+	for (const auto &[console, group] : controls.layout.complexity_groups)
+		for (const auto &[other, other_group] : controls.layout.complexity_groups)
+			if (group == other_group)
+				fail(profiles.at(console) == profiles.at(other));
 	fail(saved.at("controllers").is_array() && saved.at("controllers").size() == controls.controllers.size());
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
 	{

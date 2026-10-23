@@ -656,6 +656,8 @@ foreach(
 		lobby-panel-9slice.sprite.json
 		sprite-set.schema.json
 		settings.png
+		star-full.png
+		star-empty.png
 		background.png
 		cockpit-frame.png
 		space-panorama.png

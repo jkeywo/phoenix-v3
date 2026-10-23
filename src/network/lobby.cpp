@@ -238,14 +238,19 @@ class GameLobby final : public SessionPort
 						if (source_->catalog().consoles.at(seat.definition).value("command", false))
 							continue;
 						Json choices = Json::array();
+						Json stars = Json::object();
 						for (const auto &profile : layout.profiles)
+						{
 							choices.push_back(profile.id);
+							if (profile.stars)
+								stars[profile.id] = profile.stars;
+						}
 						auto selected = layout.profiles.at(layout.default_profile).id;
 						if (selection_.console_profiles.contains(slot.id) &&
 						    selection_.console_profiles.at(slot.id).contains(seat.id))
 							selected = selection_.console_profiles.at(slot.id).at(seat.id);
-						data["console_profiles"][slot.id][seat.id] = {{"selected", selected},
-						                                              {"choices", recovery_ ? Json::array() : choices}};
+						data["console_profiles"][slot.id][seat.id] = {
+						    {"selected", selected}, {"stars", stars}, {"choices", recovery_ ? Json::array() : choices}};
 					}
 				}
 				for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
@@ -511,6 +516,10 @@ class GameLobby final : public SessionPort
 			if (selected == cmd.profile)
 				return true;
 			selection_.console_profiles[cmd.slot][cmd.console] = cmd.profile;
+			if (layout.complexity_groups.contains(cmd.console))
+				for (const auto &[console, group] : layout.complexity_groups)
+					if (group == layout.complexity_groups.at(cmd.console))
+						selection_.console_profiles[cmd.slot][console] = cmd.profile;
 			invalidate();
 			return true;
 		}
@@ -1391,6 +1400,7 @@ public:
 					const auto &profiles = data.at("console_profiles").at(slot).at(seat.id);
 					seat.profile = profiles.at("selected");
 					seat.profiles = profiles.at("choices").get<std::vector<std::string>>();
+					seat.profile_stars = profiles.value("stars", std::map<std::string, int>{});
 				}
 				if (data.contains("console_names") && data.at("console_names").contains(slot))
 				{

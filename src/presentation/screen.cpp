@@ -37,6 +37,7 @@ import phoenix.navigation;
 import phoenix.console;
 import phoenix.devices;
 #include "menu_images.hpp"
+#include "complexity_stars.hpp"
 #include "rml_backend.hpp"
 #include "game.hpp"
 #include "menu.hpp"

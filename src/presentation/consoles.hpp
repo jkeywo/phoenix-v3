@@ -164,6 +164,18 @@ class ConsoleSurface final : public Rml::EventListener
 		local_settings_controls_.emplace_back(id(name), label);
 		return "<button id=\"" + id(name) + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) + "</button>";
 	}
+	std::string star_choice(const std::string &action, const std::string &profile,
+	                        const std::map<std::string, int> &levels, const std::string &selected, bool settings)
+	{
+		const int stars = complexity_stars(levels, profile);
+		if (!stars && !levels.empty())
+			return {};
+		const auto label = (stars ? "Complexity: " + std::to_string(stars) + " of 3 stars" : "Complexity: " + profile) +
+		                   (profile == selected ? " (selected)" : "");
+		auto markup = settings ? settings_button(action, label) : button(action, label);
+		return stars ? complexity_star_button(markup, stars, complexity_stars(levels, selected), asset_path("../menu/"))
+		             : markup;
+	}
 	bool select_lobby_complexity(const std::string &profile)
 	{
 		const auto lobby = app_->session->lobby();
@@ -241,11 +253,14 @@ class ConsoleSurface final : public Rml::EventListener
 				for (const auto &seat : app.session->lobby().consoles)
 					if (seat.local_screen == route_)
 						for (const auto &choice : seat.profiles)
-							markup += settings_button("complexity/" + choice, "Complexity: " + choice);
+							markup +=
+							    star_choice("complexity/" + choice, choice, seat.profile_stars, seat.profile, true);
 		}
 		else if (model_.observation())
 		{
-			if (model_.observation()->gameplay.contains("profile"))
+			const auto levels = model_.observation()->gameplay.value("profile_stars", std::map<std::string, int>{});
+			const auto selected = model_.observation()->gameplay.value("profile", std::string{});
+			if (levels.empty() && model_.observation()->gameplay.contains("profile"))
 				markup +=
 				    "<p>" + localise("Complexity") + ": " +
 				    Rml::StringUtilities::EncodeRml(model_.observation()->gameplay.at("profile").get<std::string>()) +
@@ -256,8 +271,8 @@ class ConsoleSurface final : public Rml::EventListener
 					    settings_button(descriptor_action(control.at("id")),
 					                    control.value("value", 0) ? "Away - hand control to AI" : "Resume control");
 				else if (control.value("action", "") == "preset")
-					markup += settings_button(descriptor_action(control.at("id")),
-					                          "Complexity: " + control.value("label", std::string{}));
+					markup += star_choice(descriptor_action(control.at("id")),
+					                      control.at("id").get<std::string>().substr(8), levels, selected, true);
 		}
 		markup += settings_button("local-settings.close", "Return to station") + "</div></div>";
 		if (markup != local_settings_markup_)
@@ -410,7 +425,7 @@ class ConsoleSurface final : public Rml::EventListener
 
 	std::string console_markup(std::string markup) const
 	{
-		std::string sheets;
+		std::string sheets = complexity_star_styles();
 		for (const auto &[token, file] : std::vector<std::pair<std::string, std::string>>{
 		         {"CARD_SPRITE", "helm-background-9slice"}, {"BUTTON_SPRITE", "button-generic-9slice"}})
 		{
@@ -1838,6 +1853,7 @@ button.on-screen-active .share-live {display:block;}
 		std::string title = "Console", description, briefing;
 		std::string complexity;
 		std::vector<std::string> complexity_choices;
+		std::map<std::string, int> complexity_levels;
 		bool ready = false;
 		if (pregame)
 		{
@@ -1849,6 +1865,7 @@ button.on-screen-active .share-live {display:block;}
 					ready = seat.ready;
 					complexity = seat.profile;
 					complexity_choices = seat.profiles;
+					complexity_levels = seat.profile_stars;
 					for (const auto &member : lobby.members)
 						if (member.id == seat.member && !profile_open_)
 						{
@@ -2018,11 +2035,11 @@ button.on-screen-active .share-live {display:block;}
 				        Rml::StringUtilities::EncodeRml(
 				            localise(ready ? "Ready. Waiting for the crew." : "Check your Console, then ready up.")) +
 				        "</p>";
-				if (!complexity_choices.empty())
+				if (!complexity_choices.empty() && complexity_levels.empty())
 					lobby += "<p>" + localise("Complexity") + ": " +
 					         Rml::StringUtilities::EncodeRml(localise(complexity)) + "</p>";
 				for (const auto &choice : complexity_choices)
-					lobby += button("complexity/" + choice, choice + (choice == complexity ? " (selected)" : ""));
+					lobby += star_choice("complexity/" + choice, choice, complexity_levels, complexity, false);
 				lobby += button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
 			}
 			if (pregame)

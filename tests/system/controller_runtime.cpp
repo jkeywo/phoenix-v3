@@ -52,6 +52,34 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = controller_fixture();
+			source["entities"][0]["control_layout"]["station_complexity"] = true;
+			source["entities"][0]["stations"].push_back(
+			    {{"id", "separate"},
+			     {"consoles",
+			      Json::array({{{"id", "other"}, {"definition", "test.console"}, {"systems", Json::array()}}})}});
+			const auto catalog = load(source);
+			World grouped;
+			grouped.load(catalog, "test.map");
+			require(grouped.prepare_console_profile({1, "drive"}, "automatic"), "Grouped profile can be prepared");
+			require(grouped.claim(101, 1, "drive") && grouped.claim(102, 1, "observer") &&
+			            grouped.claim(103, 1, "other"),
+			        "Synthetic grouped Consoles can be claimed");
+			require(grouped.observe(102)->gameplay.at("profile") == "automatic" &&
+			            grouped.observe(103)->gameplay.at("profile") == "direct",
+			        "Preparation follows Station boundaries");
+			require(grouped.submit(102, {1, "preset", 0, {}}), "Auxiliary Console selects its Station profile");
+			grouped.tick();
+			require(grouped.observe(101)->gameplay.at("profile") == "direct" &&
+			            controller(grouped, 101, "propulsion").at("human").get<bool>(),
+			        "Grouped handover changes effective authority");
+			World restored;
+			restored.restore(catalog, grouped.save());
+			grouped.tick();
+			restored.tick();
+			require(grouped.save() == restored.save(), "Grouped profile continuation is preserved");
+		}
 
 		{
 			auto source = controller_model_fixture();

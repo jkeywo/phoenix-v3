@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 		public_ship["control_layout"] = Json::parse(R"json({"schema":1,"default_profile":"direct",
 		 "controllers":[{"id":"propulsion","console":"main","fallback":"hold","commands":[
 		  {"id":"speed","action":"speed_mm_s","consumers":["engine","reserve"]}]}],
-		 "profiles":[{"id":"direct","consoles":{"main":{"human":["propulsion"],"ai":[]}}},
+		 "profiles":[{"id":"direct","stars":3,"consoles":{"main":{"human":["propulsion"],"ai":[]}}},
 		 {"id":"automatic","consoles":{"main":{"human":[],"ai":["propulsion"]}}}]})json");
 		defs["consoles"][0]["widgets"][1]["controller"] = "propulsion";
 		defs["consoles"][0]["widgets"][1]["channel"] = "speed";
@@ -491,6 +491,16 @@ int main(int argc, char **argv)
 			                                         });
 		    });
 		require(!host->running(), "Complexity change invalidates readiness before simulation starts");
+		{
+			const auto snapshot = crew->lobby();
+			const auto seat = std::find_if(snapshot.consoles.begin(), snapshot.consoles.end(),
+			                               [](const auto &entry)
+			                               {
+				                               return entry.slot == "second" && entry.id == "main";
+			                               });
+			require(seat != snapshot.consoles.end() && seat->profile_stars.at("direct") == 3,
+			        "Star metadata reaches the crew through the authoritative lobby projection");
+		}
 		pump(
 		    [&]
 		    {

@@ -317,6 +317,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		capabilities.push_back(fitted_commands(systems[i], entity.at("systems").at(systems[i].id),
 		                                       resources ? &*resources : nullptr, i, advanced));
 	const auto &layout = entity.at("control_layout");
+	if (layout.value("station_complexity", false))
+		for (const auto &console : consoles)
+			result.complexity_groups.emplace(console.id, console.station);
 	control_require(layout.is_object() && layout.value("schema", 0) == 1, path,
 	                "unsupported layout schema (expected 1)");
 	control_require(!entity.contains("controller") && !entity.contains("controllers") && !entity.contains("presets"),
@@ -603,6 +606,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		ConsoleComplexitySpec profile{control_name(row, "id", path),
 		                              std::vector<bool>(result.controllers.size(), false)};
 		control_require(profiles.insert(profile.id).second, path, "duplicate profile");
+		profile.stars = row.value("stars", 0);
+		control_require(profile.stars >= 0 && profile.stars <= 3, path, "stars must be between zero and three");
 		control_require(row.contains("consoles") && row.at("consoles").is_object(), path,
 		                "profile requires Console allocations");
 		std::set<std::size_t> assigned;
@@ -769,7 +774,7 @@ Catalog convert_controller_content(const Catalog &source)
 					ids = Json::array();
 				ids.push_back(controller.id);
 			}
-			profiles.push_back({{"id", profile.id}, {"consoles", allocations}});
+			profiles.push_back({{"id", profile.id}, {"stars", profile.stars}, {"consoles", allocations}});
 		}
 		entity["motion_model"] = advanced ? "inertial" : "vector";
 		entity["control_layout"] = {{"schema", 1},

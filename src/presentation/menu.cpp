@@ -23,6 +23,7 @@ module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
 #include "menu_images.hpp"
+#include "complexity_stars.hpp"
 #include "settings.hpp"
 namespace phoenix
 {
@@ -1501,7 +1502,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	state_->terminal_aspect = terminal_height / terminal_width;
 	state_->terminal_width = terminal.value("display_width", 264.f);
 	std::string styles = state_->button_skin.sprite_sheet("menu-button") + panel.sprite_sheet("menu-panel") +
-	                     lobby_panel.sprite_sheet("lobby-card");
+	                     lobby_panel.sprite_sheet("lobby-card") + complexity_star_styles();
 	const auto display_styles = styles.size();
 	styles += "#native-menu { background:transparent; font-size:20dp; }\n";
 	styles += "#native-menu #menu-frame { z-index:0; position:absolute; left:0; top:0; width:100%; height:100%; "

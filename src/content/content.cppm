@@ -920,11 +920,13 @@ struct ConsoleComplexitySpec
 	std::string id;
 	// Profile allocation when a human is available; absence makes every entry AI.
 	std::vector<bool> human;
+	int stars = 0;
 };
 struct ControllableLayout
 {
 	std::vector<ConsoleControllerSpec> controllers;
 	std::vector<ConsoleComplexitySpec> profiles;
+	std::map<std::string, std::string> complexity_groups;
 	std::size_t default_profile = 0;
 	bool converted = false;
 };

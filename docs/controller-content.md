@@ -54,6 +54,12 @@ An omitted `initial` on a heading channel uses the entity's spawn heading. An ex
 
 ## Preferences shared with AI
 
+### Star presentation and station selection
+
+Complexity profiles may declare `stars: 1`, `2` or `3`. The rating is presentation metadata; the profile's human/AI Controller allocations still define its behaviour. Omitted or zero ratings retain ungraded profiles, including internal Automatic operation. The player lobby and Console settings use filled/empty star sprites for rated profiles, while server station cards display the accepted rating without selection controls. Unrated legacy content retains its existing named choices.
+
+An explicit layout may opt into `station_complexity: true`. Selecting a profile then changes every Console belonging to that Station together, including auxiliary Consoles, during lobby preparation and live play. Other Stations retain their selection. The existing Controller handover boundary applies after the grouped update; restore rejects contradictory selections within an authored group. This option is independent of the star rating and does not change existing ships unless enabled in their content.
+
 An `intent_integer` or `intent_boolean` setting has `consumers: []`. It represents an accepted Console preference, not a physical actuator input. Author bounds and an initial value as for other settings. For example, a human-operated planning Controller can own `{"id":"power","action":"intent_integer","minimum":0,"maximum":1000,"initial":650,"consumers":[]}`. An AI-operated generator Controller reads it through a same-Console `command_reads` binding and writes its own physical generator-output channel. Both operators use the ordinary command admission, generation, receipt and continuation contracts.
 
 Preference settings persist across handover. A hold fallback retains the last preference when nobody operates its Controller. Reading a preference never grants another Controller permission to overwrite it. Physical actions still require compatible consumers; preference actions cannot bind equipment. Generated controls expose these settings and Workshop uses the same action vocabulary.
