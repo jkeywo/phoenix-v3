@@ -25,6 +25,7 @@ struct LibraryPack
 {
 	std::string hash, id;
 	bool enabled = true;
+	std::string url;
 };
 struct ManagedSave
 {
@@ -36,6 +37,9 @@ class MenuLibrary
 public:
 	explicit MenuLibrary(std::string directory, std::string scope = {});
 	void launch_base(const Bytes &archive);
+	// Display hints only; gameplay must still pass launch_base/archives verification.
+	void launch_metadata(const Json &menu);
+	Json metadata(const LibraryPack &pack) const;
 	const BaseConfiguration &base() const
 	{
 		return base_;
@@ -44,6 +48,10 @@ public:
 	std::vector<LibraryPack> packs;
 	std::vector<ManagedSave> saves;
 	void load();
+	void defer_index_writes(bool value)
+	{
+		deferred_ = value;
+	}
 	void remember();
 	void install(const Bytes &archive);
 	void install_default(const Bytes &archive);
@@ -61,7 +69,7 @@ private:
 	std::string scope_;
 	BaseConfiguration base_;
 	Json profiles_ = Json::object(), global_profiles_ = Json::object();
-	bool writable_ = true;
+	bool writable_ = true, deferred_ = false;
 	std::string path(const std::string &folder, const std::string &id, const std::string &extension) const;
 	void atomic_write(const std::string &path, const Bytes &bytes) const;
 };

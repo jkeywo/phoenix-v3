@@ -46,6 +46,12 @@ struct Application
 	std::string selected_scenario, menu_focus;
 	std::string base_reference = "base.zip";
 	std::shared_ptr<MenuLibrary> library;
+	std::shared_ptr<Catalog> menu_catalog;
+	bool content_loading = false;
+	std::string content_error;
+	std::function<void()> content_action;
+	std::function<void(std::function<void()>)> await_content;
+	std::function<void(std::vector<LibraryPack>)> change_packs;
 	std::string player_name = "<username>";
 	Bytes avatar;
 	struct NativeDisplay

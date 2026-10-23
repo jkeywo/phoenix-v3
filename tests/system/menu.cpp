@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
+#include "../support/model_fixture.hpp"
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -87,6 +88,31 @@ int main()
 		MenuLibrary rooted_library(scoped_directory, "default/" + root_id);
 		rooted_library.load();
 		rooted_library.launch_base(root_bytes);
+		const auto root_menu = pack_menu({read_pack(root_bytes)});
+		MenuLibrary metadata_only(directory + "/metadata-only");
+		metadata_only.launch_metadata(root_menu);
+		const auto display = menu_catalog({root_menu});
+		require(metadata_only.base().hash == read_pack(root_bytes).hash() && !display.maps.empty() &&
+		            display.trees.empty() && display.assets.empty(),
+		        "Menu metadata opens without an installed gameplay archive or simulation definitions");
+		require(!std::filesystem::exists(directory + "/metadata-only/packs"),
+		        "Reading metadata does not install unverified content");
+		auto corrupt_menu = root_menu;
+		corrupt_menu["scenarios"] = "invalid";
+		bool refused_metadata = false;
+		try
+		{
+			metadata_only.launch_metadata(corrupt_menu);
+		}
+		catch (const std::exception &)
+		{
+			refused_metadata = true;
+		}
+		require(refused_metadata, "Malformed metadata is refused for full-archive fallback");
+		rooted_library.packs.front().url = "https://example.invalid/root.zip";
+		rooted_library.launch_base(root_bytes);
+		require(!rooted_library.packs.front().url.empty(),
+		        "Full verification preserves the published archive location");
 		auto rejects = [&](auto action, const char *message)
 		{
 			bool rejected = false;
@@ -281,7 +307,13 @@ int main()
 		rejects(
 		    [&]
 		    {
-			    resolve_packs({read_pack(write_pack(PackDraft{rooted.manifest, presentation.files}))});
+			    auto mixed = PackDraft{rooted.manifest, presentation.files};
+			    auto definitions = parse_json(mixed.files.at("definitions.json"), "mixed fixture");
+			    definitions["entities"][0]["render"].erase("star");
+			    definitions["entities"][0]["render"]["model"] = {{"asset", root_id + ":assets/triangle.glb"}};
+			    mixed.files["definitions.json"] = json_bytes(definitions);
+			    mixed.files["assets/triangle.glb"] = phoenix::test::model_fixture();
+			    resolve_packs({read_pack(write_pack(mixed))});
 		    },
 		    "Mixed visual family is rejected");
 		rejects(
@@ -362,7 +394,7 @@ int main()
 		auto migrated_all = resolve_packs({read_pack(migrated.read_pack_archive(migrated.packs[0].hash)),
 		                                   read_pack(migrated.read_pack_archive(migrated.packs[1].hash))});
 		require(migrated_base.maps.contains("test.user-map") && !migrated_base.maps.contains("test.practice") &&
-		            migrated_all.maps.at("test.practice").at("name") == "Edited practice" && migrated.packs[1].enabled,
+		            migrated_all.maps.at("test.practice").at("name") == "Edited practice" && !migrated.packs[1].enabled,
 		        "Splitting an older base retains user maps and moves edited examples intact into the mod");
 		// Upgrade an already-installed, Workshop-edited base through startup's real path.
 		auto upgrade = draft;
@@ -386,7 +418,7 @@ int main()
 		require(
 		    upgraded_catalog.maps.contains("test.new-mission") && upgraded_catalog.entities.contains("test.new-ship") &&
 		        upgraded_catalog.maps.contains("test.user-map") && upgraded_pack.files().contains("assets/new.png") &&
-		        upgraded_library.packs[0].enabled && upgraded_library.packs[1].enabled,
+		        upgraded_library.packs[0].enabled && !upgraded_library.packs[1].enabled,
 		    "Startup adds shipped missions, support definitions and assets without losing authored maps or selections");
 		const auto before_upgrade = parse_json(read_pack(old_archive).files().at("definitions.json"), "prior base");
 		const auto after_upgrade = parse_json(upgraded_pack.files().at("definitions.json"), "upgraded base");

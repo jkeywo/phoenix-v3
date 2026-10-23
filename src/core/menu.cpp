@@ -132,7 +132,7 @@ void MenuLibrary::load()
 	std::vector<ManagedSave> saved;
 	for (const auto &p : data.at("packs"))
 	{
-		LibraryPack pack{p.at("hash"), p.at("id"), p.at("enabled")};
+		LibraryPack pack{p.at("hash"), p.at("id"), p.at("enabled"), p.value("url", std::string{})};
 		path("packs", pack.hash, ".zip");
 		if (pack.id.size() > 256 || std::any_of(installed.begin(), installed.end(),
 		                                        [&](const auto &v)
@@ -157,6 +157,8 @@ void MenuLibrary::load()
 }
 void MenuLibrary::remember()
 {
+	if (deferred_)
+		return;
 	if (!writable_)
 		throw std::runtime_error(
 		    "Native library index could not be loaded; preserve and repair library.json before saving changes");
@@ -175,7 +177,7 @@ void MenuLibrary::remember()
 	          {"packs", Json::array()},
 	          {"saves", Json::array()}};
 	for (const auto &p : packs)
-		data["packs"].push_back({{"hash", p.hash}, {"id", p.id}, {"enabled", p.enabled}});
+		data["packs"].push_back({{"hash", p.hash}, {"id", p.id}, {"enabled", p.enabled}, {"url", p.url}});
 	for (const auto &s : saves)
 		data["saves"].push_back({{"id", s.id}, {"name", s.name}, {"scenario", s.scenario}, {"saved_at", s.saved_at}});
 	if (!scope_.empty())
@@ -207,6 +209,67 @@ void MenuLibrary::remember()
 	const auto encoded = (std::filesystem::u8path(directory_) / "library.json").u8string();
 	atomic_write(std::string(encoded.begin(), encoded.end()), json_bytes(data));
 }
+void MenuLibrary::launch_metadata(const Json &menu)
+{
+	(void)menu_catalog({menu});
+	if (menu.value("sidecar_version", 0) != 1 || menu.value("schema", 0) != 1 || !menu.contains("base") ||
+	    menu.contains("parent") || !menu.value("dependencies", Json::array()).empty() ||
+	    !valid_hex_token(menu.value("hash", std::string{})))
+		throw std::runtime_error("Invalid root menu metadata");
+	const std::string id = menu.at("id");
+	if (id.empty() || id.size() > 128 ||
+	    id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789._-") != std::string::npos)
+		throw std::runtime_error("Invalid base identity");
+	const auto &base = menu.at("base");
+	base_ = {id, menu.at("hash"), base.value("render_mode", std::string("sprites")),
+	         base.value("interface_style", std::string("current"))};
+	if ((base_.render_mode != "sprites" && base_.render_mode != "models") || base_.interface_style != "current")
+		throw std::runtime_error("Unsupported base presentation");
+}
+Json MenuLibrary::metadata(const LibraryPack &pack) const
+{
+	try
+	{
+		const auto menu = parse_json(read_file(path("packs", pack.hash, ".zip.menu.json"), 1024 * 1024), "pack menu");
+		if (menu.at("hash") == pack.hash && menu.at("id") == pack.id && menu.value("schema", 0) == 1 &&
+		    menu.value("sidecar_version", 0) == 1)
+		{
+			(void)menu_catalog({menu});
+			return menu;
+		}
+	}
+	catch (const std::exception &)
+	{
+	}
+	std::vector<Pack> ordered;
+	std::set<std::string> visiting, loaded;
+	std::function<void(const LibraryPack &)> append = [&](const LibraryPack &entry)
+	{
+		if (loaded.contains(entry.id))
+			return;
+		if (!visiting.insert(entry.id).second)
+			throw std::runtime_error("Pack dependency cycle");
+		auto archive = read_pack(read_pack_archive(entry.hash));
+		for (const auto &id : pack_dependencies(archive.manifest()))
+		{
+			const auto dependency = std::find_if(packs.begin(), packs.end(),
+			                                     [&](const auto &p)
+			                                     {
+				                                     return p.id == id;
+			                                     });
+			if (dependency == packs.end())
+				throw std::runtime_error("Missing metadata dependency: " + id);
+			append(*dependency);
+		}
+		visiting.erase(entry.id);
+		loaded.insert(entry.id);
+		ordered.push_back(std::move(archive));
+	};
+	append(pack);
+	const auto menu = pack_menu(ordered);
+	atomic_write(path("packs", pack.hash, ".zip.menu.json"), json_bytes(menu));
+	return menu;
+}
 void MenuLibrary::launch_base(const Bytes &archive)
 {
 	const auto root = read_pack(archive);
@@ -216,12 +279,17 @@ void MenuLibrary::launch_base(const Bytes &archive)
 	resolve_packs({root});
 	base_ = config;
 	atomic_write(path("packs", root.hash(), ".zip"), archive);
+	atomic_write(path("packs", root.hash(), ".zip.menu.json"), json_bytes(pack_menu({root})));
+	std::string published_url;
+	for (const auto &p : packs)
+		if (p.id == config.id)
+			published_url = p.url;
 	std::erase_if(packs,
 	              [&](const auto &p)
 	              {
 		              return p.id == config.id || p.id == "test" || p.id == "phoenix-training";
 	              });
-	packs.insert(packs.begin(), {root.hash(), config.id, true});
+	packs.insert(packs.begin(), {root.hash(), config.id, true, published_url});
 	archives(packs);
 	remember();
 }
@@ -340,12 +408,26 @@ void MenuLibrary::install_bundled(const Bytes &base_archive, const Bytes &addon_
 	base_draft.files.erase("launcher.json");
 	addon_draft.files.erase("launcher.json");
 	base_draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft({}, base_draft)));
-	const auto migrated_base = write_pack(base_draft);
+	const auto same_source = [](const PackDraft &draft, const Pack &published)
+	{
+		if (draft.manifest != published.manifest())
+			return false;
+		auto a = draft.files, b = published.files();
+		for (const auto *name : {"launcher.json", "manifest.json"})
+		{
+			a.erase(name);
+			b.erase(name);
+		}
+		a["definitions.json"] = json_bytes(parse_json(a.at("definitions.json"), "definitions"));
+		b["definitions.json"] = json_bytes(parse_json(b.at("definitions.json"), "definitions"));
+		return a == b;
+	};
+	const auto migrated_base = same_source(base_draft, base) ? base_archive : write_pack(base_draft);
 	addon_draft.files["launcher.json"] =
 	    json_bytes(launcher_catalog(resolve_draft({read_pack(migrated_base)}, addon_draft)));
-	const auto migrated_addon = write_pack(addon_draft);
+	const auto migrated_addon = same_source(addon_draft, addon) ? addon_archive : write_pack(addon_draft);
 	auto candidate = selected;
-	const bool addon_enabled = existing_addon == selected.end() ? source->enabled : existing_addon->enabled;
+	const bool addon_enabled = existing_addon == selected.end() ? false : existing_addon->enabled;
 	std::erase_if(candidate,
 	              [&](const auto &p)
 	              {
@@ -369,7 +451,7 @@ std::vector<LibraryPack> MenuLibrary::toggle_pack(const std::vector<LibraryPack>
 	auto candidate = selection;
 	std::vector<std::vector<std::string>> dependencies;
 	for (const auto &p : candidate)
-		dependencies.push_back(pack_dependencies(read_pack(read_pack_archive(p.hash)).manifest()));
+		dependencies.push_back(pack_dependencies(metadata(p)));
 	const auto entry = std::find_if(candidate.begin(), candidate.end(),
 	                                [&](const auto &p)
 	                                {
@@ -493,6 +575,7 @@ void MenuLibrary::install(const Bytes &archive)
 	{
 		if (!base_.id.empty())
 			archives(packs);
+		(void)metadata(packs.back());
 		remember();
 	}
 	catch (...)
@@ -512,6 +595,15 @@ std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selecti
 	std::set<std::string> identities;
 	for (const auto &p : selection)
 	{
+		if (!p.enabled && std::filesystem::exists(std::filesystem::u8path(path("packs", p.hash, ".zip.menu.json"))))
+		{
+			const auto menu = metadata(p);
+			const auto parent = menu.value("parent", std::string{});
+			if (!base_.id.empty() && (!parents.contains(parent) || !identities.insert(p.id).second))
+				throw std::runtime_error("Invalid disabled mod metadata");
+			parents[p.id] = parent;
+			continue;
+		}
 		auto bytes = read_file(path("packs", p.hash, ".zip"));
 		auto pack = read_pack(bytes);
 		if (pack.hash() != p.hash || pack.manifest().at("id").get<std::string>() != p.id ||
@@ -541,7 +633,17 @@ std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selecti
 	if (loaded.size() > 32)
 		throw std::runtime_error("Enable at most 32 ordered packs");
 	if (!loaded.empty())
+	{
 		resolve_packs(loaded);
+		std::vector<Pack> prefix;
+		for (const auto &pack : loaded)
+		{
+			prefix.push_back(pack);
+			const auto filename = path("packs", pack.hash(), ".zip.menu.json");
+			if (!std::filesystem::exists(std::filesystem::u8path(filename)))
+				atomic_write(filename, json_bytes(pack_menu(prefix)));
+		}
+	}
 	return result;
 }
 Bytes MenuLibrary::read_pack_archive(const std::string &hash) const

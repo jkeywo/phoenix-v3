@@ -1,4 +1,4 @@
-// Root content must pass the production C++ verifier before exposing its menu.
+// Gameplay entry requires production verification; display metadata can open the menu first.
 export function verifyLaunchBase(
 	bytes,
 	createWorker = () => new Worker(new URL("./base-verifier-worker.js", import.meta.url)),

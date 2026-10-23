@@ -114,3 +114,45 @@ assert.equal(legacy.ok, true);
 assert.equal(legacy.preview.base.render_mode, "sprites");
 assert.equal(verify(Buffer.from([1, 2, 3])).ok, false);
 console.log("PASS production WASM launch preflight rejects invalid roots/assets/models and ignores forged previews");
+
+function verifySelection(archives, operation = "phoenix_verify_menu_packs") {
+	module.ccall("phoenix_workshop_test_reset_blobs", null, [], []);
+	for (const bytes of archives) {
+		const pointer = module._malloc(bytes.length);
+		try {
+			module.HEAPU8.set(bytes, pointer);
+			assert(module.ccall("phoenix_workshop_test_blob", "number", ["number", "number"], [pointer, bytes.length]));
+		} finally {
+			module._free(pointer);
+		}
+	}
+	return JSON.parse(module.ccall(operation, "string", [], []));
+}
+const mission = { ...definitions.maps[0], id: "test.optional", name: "Optional test mission" };
+const child = zip({
+	"manifest.json": JSON.stringify({ schema: 1, id: "test-missions", parent: "test-core" }),
+	"definitions.json": JSON.stringify({ schema: 1, maps: [mission] }),
+});
+const childMenu = verifySelection([zip(source), child]);
+assert.equal(childMenu.ok, true);
+assert.equal(childMenu.preview.parent, "test-core");
+assert.equal(childMenu.preview.sidecar_version, 1);
+assert.equal(childMenu.preview.sources.length, 2);
+assert.deepEqual(
+	childMenu.preview.scenarios.map((m) => m.id),
+	[mission.id],
+);
+assert.equal(verifySelection([child, zip(source)]).ok, false);
+const oldDefinitions = structuredClone(definitions);
+oldDefinitions.maps.push({ ...mission, name: "Edited optional mission" });
+const migrated = verifySelection(
+	[zip(source), child, zip({ ...source, "definitions.json": JSON.stringify(oldDefinitions) })],
+	"phoenix_migrate_bundled_menu",
+);
+assert.equal(migrated.ok, true);
+assert.deepEqual(
+	migrated.preview[0].scenarios.map((m) => m.id),
+	definitions.maps.map((m) => m.id),
+);
+assert.equal(migrated.preview[1].scenarios[0].name, "Edited optional mission");
+console.log("PASS production WASM selection metadata and combined-pack migration preserve edited missions");

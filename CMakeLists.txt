@@ -707,7 +707,7 @@ add_library(
 if(EMSCRIPTEN)
 	target_sources(phoenix_tools PRIVATE src/platform/browser_workshop_test.cpp)
 	add_executable(phoenix_workshop_test src/entry/workshop_test.cpp)
-	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host)
+	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host phoenix_core)
 	target_link_options(
 		phoenix_workshop_test
 		PRIVATE

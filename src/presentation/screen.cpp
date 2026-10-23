@@ -97,8 +97,9 @@ std::string loading_markup, loading_art_identity;
 bool loading_visible = false;
 bool show_loading(Application &app)
 {
-	const bool eligible = app.screen == Screen::console || app.screen == Screen::viewscreen ||
-	                      app.screen == Screen::server_lobby || app.screen == Screen::client_lobby;
+	const bool eligible = static_cast<bool>(app.content_action) || app.screen == Screen::console ||
+	                      app.screen == Screen::viewscreen || app.screen == Screen::server_lobby ||
+	                      app.screen == Screen::client_lobby;
 	if (!eligible)
 	{
 		if (loading_document)
@@ -203,6 +204,11 @@ bool show_loading(Application &app)
 	{
 		if (action != "loading.cancel")
 			return false;
+		if (app.content_action)
+		{
+			app.content_action = {};
+			return true;
+		}
 		if (app.return_home)
 			app.return_home();
 		else

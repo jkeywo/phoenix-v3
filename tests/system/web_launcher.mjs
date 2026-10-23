@@ -7,6 +7,7 @@ import { verifyLaunchBase } from "../../web/base-verifier.mjs";
 import { acquireSessionProfile } from "../../web/session-profile.mjs";
 import { deflateRawSync } from "node:zlib";
 import {
+	stagedSelection,
 	viewportLayout,
 	introPlayback,
 	loadingFeedback,
@@ -679,4 +680,57 @@ test("loading feedback preserves the browser receiver when calling host timers",
 	const feedback = loadingFeedback(() => {});
 	feedback.update("Reading saved mods");
 	feedback.stop();
+});
+
+test("staged content keeps metadata usable, shares loading, and ignores superseded results", async () => {
+	const pending = new Map(),
+		verified = [],
+		accepted = [];
+	let packs = [{ id: "root", hash: "a", enabled: true }];
+	const loader = stagedSelection({
+		selection: () => packs,
+		load: (p) => new Promise((resolve, reject) => pending.set(p.hash, { resolve, reject })),
+		verify: async (archives) => {
+			verified.push(archives);
+			return archives.join();
+		},
+		accept: (result) => accepted.push(result.value),
+	});
+	const first = loader.ready(),
+		same = loader.ready();
+	assert.equal(pending.size, 1);
+	assert.deepEqual(accepted, []);
+	packs = [{ id: "root", hash: "b", enabled: true }];
+	const changed = loader.ready();
+	pending.get("a").resolve("old");
+	pending.get("b").resolve("new");
+	assert.deepEqual(await Promise.all([first, same, changed]), ["new", "new", "new"]);
+	assert(accepted.every((value) => value === "new"));
+	await loader.ready();
+	assert.equal(verified.length, 2, "entry after completion reuses verification");
+});
+
+test("staged content retries failures and a stale failure cannot reject the current selection", async () => {
+	const pending = new Map();
+	let packs = [{ id: "root", hash: "bad", enabled: true }];
+	const loader = stagedSelection({
+		selection: () => packs,
+		load: (p) => new Promise((resolve, reject) => pending.set(p.hash, { resolve, reject })),
+		verify: async (archives) => archives[0],
+		accept: () => {},
+	});
+	const old = loader.ready();
+	packs = [{ id: "root", hash: "current", enabled: true }];
+	const current = loader.ready();
+	pending.get("bad").reject(Error("Old archive failed"));
+	pending.get("current").resolve("verified");
+	assert.equal(await old, "verified");
+	assert.equal(await current, "verified");
+	packs = [{ id: "root", hash: "retry", enabled: true }];
+	const failed = loader.ready();
+	pending.get("retry").reject(Error("Hash mismatch"));
+	await assert.rejects(failed, /Hash mismatch/);
+	const retried = loader.ready();
+	pending.get("retry").resolve("recovered");
+	assert.equal(await retried, "recovered");
 });

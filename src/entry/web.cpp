@@ -151,14 +151,28 @@ int main(int argc, char **argv)
 		{
 			startup_phase("Reading the launch base and saved settings…");
 			app.native_menu = true;
+#if defined(PHOENIX_SERVER) || defined(PHOENIX_WORKSHOP)
 			const auto root_bytes = phoenix::read_file(base_file);
 			const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
 			app.library = std::make_shared<phoenix::MenuLibrary>(
 			    "/launcher/menu", menu_scope.empty() ? network.profile + "/" + root.id : menu_scope);
 			app.library->load();
-			startup_phase("Checking installed mods…");
 			app.library->launch_base(root_bytes);
-			network.expected_base = root;
+#else
+			const auto menu =
+			    phoenix::parse_json(phoenix::read_file(base_file + ".menu.json", 1024 * 1024), "root menu");
+			app.library = std::make_shared<phoenix::MenuLibrary>(
+			    "/launcher/menu",
+			    menu_scope.empty() ? network.profile + "/" + menu.at("id").get<std::string>() : menu_scope);
+			app.library->load();
+			app.library->launch_metadata(menu);
+#endif
+			network.expected_base = app.library->base();
+			for (const auto &pack : app.library->packs)
+				if (!pack.url.empty())
+					network.pack_urls[pack.hash] = pack.url;
+			network.pack_urls[network.expected_base.hash] = app.base_reference;
+
 			const auto &preferences = app.library->preferences;
 			app.music_volume = preferences.volume;
 			app.sfx_volume = preferences.sfx_volume;

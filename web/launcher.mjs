@@ -1,6 +1,41 @@
 import { startSessionPump } from "./session-pump.mjs";
 import { acquireSessionProfile } from "./session-profile.mjs";
 import { verifyLaunchBase } from "./base-verifier.mjs";
+// Metadata is available independently; only entry awaits this verified selection.
+export function stagedSelection({ selection, load, verify, accept }) {
+	const jobs = new Map();
+	const keyOf = (packs) => JSON.stringify(packs.map((p) => [p.id, p.hash]));
+	const current = () =>
+		selection()
+			.filter((p) => p.enabled)
+			.map((p) => ({ ...p }));
+	async function ready() {
+		const selected = current(),
+			key = keyOf(selected);
+		if (!jobs.has(key)) {
+			const job = Promise.all(selected.map(load)).then(async (archives) => ({
+				archives,
+				value: await verify(archives, key),
+			}));
+			jobs.set(key, job);
+			job.catch(() => jobs.delete(key));
+		}
+		let result;
+		try {
+			result = await jobs.get(key);
+		} catch (error) {
+			if (key !== keyOf(current())) return ready();
+			throw error;
+		}
+		if (key !== keyOf(current())) return ready();
+		accept(result, selected);
+		return result.value;
+	}
+	return {
+		ready,
+		seed: (selected, archives, value) => jobs.set(keyOf(selected), Promise.resolve({ archives, value })),
+	};
+}
 const globalPreferenceDefaults = {
 	volume: 50,
 	sfx_volume: 50,
@@ -14,7 +49,7 @@ const globalPreferenceDefaults = {
 };
 const globalPreferences = (data) =>
 	Object.fromEntries(Object.entries(globalPreferenceDefaults).map(([key, value]) => [key, data[key] ?? value]));
-const scopedPreferenceKeys = ["player_name", "avatar", "packs", "saves"];
+const scopedPreferenceKeys = ["player_name", "avatar", "packs", "saves", "pending_base_migration"];
 // Merge only the active namespaces, inside the IndexedDB read/write transaction.
 // Other tabs may have saved another base or local profile since this tab loaded.
 export function mergeScopedLibrary(latest, incoming, scope) {
@@ -529,6 +564,12 @@ export function menuPreview(source) {
 	if (source.schema !== 1) throw Error("Unsupported menu preview.");
 	return {
 		schema: 1,
+		hash: source.hash,
+		sidecar_version: source.sidecar_version,
+		sources: source.sources,
+		clients: source.clients,
+		overrides: source.overrides,
+		ships: source.ships,
 		id: source.id === undefined ? "" : text(source.id),
 		name: source.name === undefined ? "" : text(source.name),
 		dependencies: list(source.parent ? [source.parent] : source.dependencies || [], 32).map(text),
@@ -620,6 +661,57 @@ async function boot() {
 		launchBase,
 		launchBaseBytes;
 	let baseUrl;
+	const packJobs = new Map();
+	let migrationJob,
+		previousBase,
+		verifiedRoot = false;
+	const selectionKey = () => JSON.stringify(library.packs.filter((p) => p.enabled).map((p) => [p.id, p.hash]));
+	const progress = (...args) => {
+		if (busy || loading) loadingStage(...args);
+	};
+	async function loadArchive(pack) {
+		if (packJobs.has(pack.hash)) return packJobs.get(pack.hash);
+		const job = (async () => {
+			const key = `packs/${pack.hash}.zip`;
+			let bytes = files.get(key);
+			if (!bytes) bytes = await request(db.transaction("files").objectStore("files").get(key));
+			if (!bytes) {
+				if (!pack.url) throw Error("Installed pack archive is missing: " + pack.id);
+				bytes = await fetchFile(pack.url, undefined, "no-cache", (received, total) =>
+					progress("Downloading mod pack:", received, total, pack.id),
+				);
+			}
+			if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== pack.hash)
+				throw Error("Published content changed. Reload the menu.");
+			await write([[key, bytes]]);
+			return bytes;
+		})();
+		packJobs.set(pack.hash, job);
+		job.catch(() => packJobs.delete(pack.hash));
+		return job;
+	}
+	const staged = stagedSelection({
+		selection: () => library.packs,
+		load: loadArchive,
+		verify: (archives, key) =>
+			verifyLaunchBase(archives, undefined, ({ phase, received, total }) => {
+				if (key === selectionKey()) progress(phase, received, total);
+			}),
+		accept: ({ archives }) => {
+			launchBaseBytes = archives[0];
+		},
+	});
+	function prepareSelection() {
+		const promise = (async () => {
+			if (migrationJob) await migrationJob;
+			return staged.ready();
+		})();
+		promise.catch((error) => {
+			if (!busy) report(error);
+		});
+		return promise;
+	}
+
 	let library = defaults(),
 		nebulaFlashes,
 		menuAmbient,
@@ -850,35 +942,25 @@ async function boot() {
 		}
 		return result;
 	}
-	async function preview(bytes) {
+
+	async function derivePreview(bytes) {
 		const manifest = JSON.parse(decoder.decode(await zipEntry(bytes, "manifest.json")));
-		const declared = await zipEntry(bytes, "launcher.json", true);
-		if (declared) return menuPreview({ ...JSON.parse(decoder.decode(declared)), ...manifest });
-		// Older packs can expose direct authored slots; inherited setup is resolved in C++.
-		const definitions = JSON.parse(decoder.decode(await zipEntry(bytes, "definitions.json")));
-		return menuPreview({
-			schema: 1,
-			id: manifest.id,
-			name: manifest.name,
-			dependencies: manifest.dependencies,
-			parent: manifest.parent,
-			base: manifest.base,
-			scenarios: (definitions.maps || [])
-				.filter((map) => Array.isArray(map.ship_slots))
-				.map((map) => ({
-					id: map.id,
-					name: map.name || map.id,
-					slots: map.ship_slots.map((slot) => ({
-						id: slot.id,
-						default_ship: slot.default_ship,
-						ships: slot.allowed_ships.map((id) => ({
-							id,
-							name: definitions.entities?.find((e) => e.id === id)?.name || id,
-						})),
-					})),
-				})),
-		});
+		const ancestors = [],
+			visiting = new Set([manifest.id]);
+		async function append(id) {
+			if (visiting.has(id)) throw Error("Mod parent cycle.");
+			visiting.add(id);
+			const parent = library.packs.find((p) => p.id === id);
+			if (!parent) throw Error("Install the parent mod first: " + id);
+			const archive = await loadArchive(parent);
+			const meta = JSON.parse(decoder.decode(await zipEntry(archive, "manifest.json")));
+			if (meta.parent) await append(meta.parent);
+			ancestors.push(archive);
+		}
+		if (manifest.parent) await append(manifest.parent);
+		return menuPreview(await verifyLaunchBase([...ancestors, bytes]));
 	}
+
 	function scenarios() {
 		const result = new Map();
 		for (const pack of library.packs)
@@ -1378,6 +1460,7 @@ async function boot() {
 			toggle.onchange = run(async () => {
 				library.packs = togglePack(library.packs, pack.hash, previews);
 				await remember();
+				void prepareSelection();
 				render();
 				packs();
 			});
@@ -1388,6 +1471,7 @@ async function boot() {
 				const move = button(row, symbol, async () => {
 					library.packs = movePack(library.packs, pack.hash, shift, previews);
 					await remember();
+					void prepareSelection();
 					packs();
 				});
 				move.setAttribute("aria-label", t(title) + ": " + name);
@@ -1396,6 +1480,7 @@ async function boot() {
 			const remove = button(row, "🗑", async () => {
 				library.packs = removePack(library.packs, pack.hash, previews);
 				await remember();
+				void prepareSelection();
 				render();
 				packs();
 			});
@@ -1415,7 +1500,7 @@ async function boot() {
 			if (file.size > 32 * 1024 * 1024) throw Error("Archive exceeds 32 MiB.");
 			const bytes = new Uint8Array(await file.arrayBuffer());
 			if (kind === "pack") {
-				const meta = await preview(bytes),
+				const meta = await derivePreview(bytes),
 					hash = hex(await crypto.subtle.digest("SHA-256", bytes));
 				const next = installPack(library.packs, meta, hash, previews, launchBase.id);
 				if (next !== library.packs) {
@@ -1438,19 +1523,10 @@ async function boot() {
 		input.click();
 	}
 	async function ensurePacks(all = false) {
-		for (const pack of library.packs)
-			if ((pack.enabled || all) && !files.has(`packs/${pack.hash}.zip`)) {
-				if (!pack.url) throw Error("Installed pack archive is missing: " + pack.id);
-				loadingStage("Downloading mod pack:", undefined, undefined, pack.id);
-				const bytes = await fetchFile(pack.url, undefined, "no-cache", (received, total) =>
-					loadingStage("Downloading mod pack:", received, total, pack.id),
-				);
-				loadingStage("Checking mod pack:", undefined, undefined, pack.id);
-				if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== pack.hash)
-					throw Error("Published content changed. Reload the menu.");
-				await write([[`packs/${pack.hash}.zip`, bytes]]);
-			}
+		await prepareSelection();
+		if (all) await Promise.all(library.packs.map(loadArchive));
 	}
+
 	function snapshotRuntime() {
 		if (!window.Module?.FS || failed) return persist;
 		const fs = window.Module.FS;
@@ -1530,7 +1606,16 @@ async function boot() {
 		loadingStage("Preparing selected mod packs…");
 		$("settings").disabled = $("packs").disabled = true;
 		try {
-			await ensurePacks(o.action === "workshop");
+			if (o.type !== "client") {
+				await ensurePacks(o.action === "workshop");
+				for (const save of library.saves) {
+					const key = `saves/${save.id}.zip`;
+					if (!files.has(key)) {
+						const bytes = await request(db.transaction("files").objectStore("files").get(key));
+						if (bytes) files.set(key, bytes);
+					}
+				}
+			}
 			loadingStage("Saving your setup…");
 			await remember();
 			let tabStorage;
@@ -1594,9 +1679,19 @@ async function boot() {
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
-						fs.writeFile("/launcher/base.zip", launchBaseBytes);
+						if (o.type !== "client") fs.writeFile("/launcher/base.zip", launchBaseBytes);
+						fs.writeFile("/launcher/base.zip.menu.json", encoder.encode(JSON.stringify(launchBase)));
+						for (const pack of library.packs) {
+							const meta = previews.get(pack.hash);
+							if (meta)
+								fs.writeFile(
+									`/launcher/menu/packs/${pack.hash}.zip.menu.json`,
+									encoder.encode(JSON.stringify(meta)),
+								);
+						}
 						for (const [key, bytes] of runtimeLibraryFiles(library, files))
-							fs.writeFile("/launcher/menu/" + key, bytes);
+							if (o.type !== "client" || key === "library.json")
+								fs.writeFile("/launcher/menu/" + key, bytes);
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
 				],
@@ -1960,16 +2055,21 @@ async function boot() {
 			style.setProperty(prefix === "button" ? "--slice" : "--panel-slice", properties.slices);
 			style.setProperty(`--${prefix}-edge`, properties.edges);
 		}
-		loadingStage("Downloading base mod and levels…");
-		launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache", (received, total) =>
-			loadingStage("Downloading base mod and levels…", received, total),
-		);
-		loadingStage("Checking base mod and reading levels…");
-		launchBase = menuPreview(
-			await verifyLaunchBase(launchBaseBytes, undefined, ({ phase, received, total }) =>
-				loadingStage(phase, received, total),
-			),
-		);
+		loadingStage("Reading levels and ships...");
+		try {
+			launchBase = menuPreview(
+				JSON.parse(decoder.decode(await fetchFile(baseUrl + ".menu.json", 1024 * 1024, "no-cache"))),
+			);
+			if (launchBase.sidecar_version !== 1 || !/^[a-f0-9]{64}$/.test(launchBase.hash))
+				throw Error("Unsupported sidecar");
+		} catch {
+			launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache", (received, total) =>
+				loadingStage("Downloading base mod and levels...", received, total),
+			);
+			launchBase = menuPreview(await verifyLaunchBase([launchBaseBytes]));
+			verifiedRoot = true;
+		}
+
 		if (!launchBase.base || launchBase.parent || launchBase.dependencies.length)
 			throw Error("Launch base must be an independent root.");
 		if (!/^[a-z0-9._-]{1,128}$/.test(launchBase.id)) throw Error("Invalid base identity.");
@@ -1985,30 +2085,30 @@ async function boot() {
 		library.global_profiles ||= { default: globals(library) };
 		Object.assign(library, library.global_profiles[scopeKey.split("/")[0]] || globalDefaults);
 		library.base_profiles ||= {
-			"default/phoenix-base": Object.fromEntries(
-				["player_name", "avatar", "packs", "saves"].map((k) => [k, library[k]]),
-			),
+			"default/phoenix-base": Object.fromEntries(scopedPreferenceKeys.map((k) => [k, library[k]])),
 		};
 		Object.assign(
 			library,
+			{ pending_base_migration: null },
 			library.base_profiles[scopeKey] || { player_name: "<username>", avatar: [], packs: [], saves: [] },
 		);
-		const hash = hex(await crypto.subtle.digest("SHA-256", launchBaseBytes));
+		previousBase = library.pending_base_migration || library.packs.find((p) => p.id === launchBase.id);
+		const hash = launchBase.hash || hex(await crypto.subtle.digest("SHA-256", launchBaseBytes));
+		if (launchBase.id === "phoenix-base" && previousBase && previousBase.hash !== hash)
+			library.pending_base_migration = previousBase;
 		library.packs = library.packs.filter(
 			(p) => p.id !== launchBase.id && p.id !== "test" && p.id !== "phoenix-training",
 		);
 		library.packs.unshift({ id: launchBase.id, hash, enabled: true, locked: true, url: baseUrl });
 		previews.set(hash, launchBase);
+		if (verifiedRoot) staged.seed([library.packs[0]], [launchBaseBytes], launchBase);
 		await remember([
-			[`packs/${hash}.zip`, launchBaseBytes],
+			...(launchBaseBytes ? [[`packs/${hash}.zip`, launchBaseBytes]] : []),
 			[`preview/${hash}.json`, encoder.encode(JSON.stringify(launchBase))],
 		]);
 		loadingStage("Reading installed mods and saves…");
 		const stored = db.transaction("files").objectStore("files");
-		const needed = new Set([
-			...library.packs.flatMap((pack) => [`packs/${pack.hash}.zip`, `preview/${pack.hash}.json`]),
-			...library.saves.map((save) => `saves/${save.id}.zip`),
-		]);
+		const needed = new Set([...library.packs.map((pack) => `preview/${pack.hash}.json`)]);
 		await Promise.all(
 			[...needed]
 				.filter((key) => !files.has(key))
@@ -2017,6 +2117,82 @@ async function boot() {
 					if (bytes !== undefined) files.set(key, bytes);
 				}),
 		);
+
+		if (launchBase.id === "phoenix-base") {
+			const url = new URL("test-missions.zip", baseUrl).href;
+			try {
+				let meta;
+				try {
+					meta = menuPreview(
+						JSON.parse(decoder.decode(await fetchFile(url + ".menu.json", 1024 * 1024, "no-cache"))),
+					);
+					if (meta.sidecar_version !== 1 || !/^[a-f0-9]{64}$/.test(meta.hash))
+						throw Error("Unsupported sidecar");
+				} catch {
+					const bytes = await fetchFile(url);
+					const hash = hex(await crypto.subtle.digest("SHA-256", bytes));
+					const verified = await verifyLaunchBase([await loadArchive(library.packs[0]), bytes]);
+					meta = menuPreview(verified);
+					await remember([[`packs/${hash}.zip`, bytes]]);
+				}
+				if (
+					meta.id !== "phoenix-test-missions" ||
+					meta.parent !== launchBase.id ||
+					!/^[a-f0-9]{64}$/.test(meta.hash)
+				)
+					throw Error("Invalid bundled mod");
+				const old = library.packs.find((p) => p.id === meta.id);
+				if (!old || old.url) {
+					library.packs = library.packs.filter((p) => p.id !== meta.id);
+					library.packs.push({ id: meta.id, hash: meta.hash, enabled: old?.enabled || false, url });
+				}
+				previews.set(meta.hash, meta);
+				await remember([[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))]]);
+				if (previousBase && previousBase.hash !== hash) {
+					migrationJob = (async () => {
+						const oldBytes = await request(
+							db.transaction("files").objectStore("files").get(`packs/${previousBase.hash}.zip`),
+						);
+						if (!oldBytes)
+							throw Error(
+								"The previous installed base archive is missing; migration cannot preserve its edits.",
+							);
+						const inputs = [
+							await loadArchive(library.packs[0]),
+							await loadArchive({ id: meta.id, hash: meta.hash, url }),
+							oldBytes,
+						];
+						if (old && !old.url) inputs.push(await loadArchive(old));
+						const result = await verifyLaunchBase({ migration: inputs });
+						const changes = [];
+						for (const { menu, bytes } of result) {
+							const current = library.packs.find((p) => p.id === menu.id);
+							if (!current) continue;
+							current.hash = menu.hash;
+							if (menu.id === launchBase.id) {
+								launchBase = menuPreview(menu);
+								launchBaseBytes = bytes;
+							}
+							previews.set(menu.hash, menuPreview(menu));
+							changes.push(
+								[`packs/${menu.hash}.zip`, bytes],
+								[`preview/${menu.hash}.json`, encoder.encode(JSON.stringify(menu))],
+							);
+						}
+						library.pending_base_migration = null;
+						await remember(changes);
+						render();
+					})();
+					migrationJob.catch(report);
+				}
+			} catch (error) {
+				if (library.pending_base_migration) {
+					migrationJob = Promise.reject(error);
+					migrationJob.catch(() => {});
+				}
+				report(error);
+			}
+		}
 
 		if (!library.avatar?.length) {
 			library.avatar = [
@@ -2027,14 +2203,23 @@ async function boot() {
 			await remember();
 		}
 		for (const pack of library.packs) {
+			if (previews.has(pack.hash)) continue;
 			loadingStage("Reading levels from mod pack:", undefined, undefined, pack.id);
-			const cached = files.get(`preview/${pack.hash}.json`);
-			if (cached) previews.set(pack.hash, menuPreview(JSON.parse(decoder.decode(cached))));
-			else if (files.has(`packs/${pack.hash}.zip`)) {
-				try {
-					previews.set(pack.hash, await preview(files.get(`packs/${pack.hash}.zip`)));
-				} catch {}
+			let meta;
+			try {
+				const cached = files.get(`preview/${pack.hash}.json`);
+				meta = menuPreview(
+					JSON.parse(
+						decoder.decode(cached || (await fetchFile(pack.url + ".menu.json", 1024 * 1024, "no-cache"))),
+					),
+				);
+				if (meta.sidecar_version !== 1 || meta.hash !== pack.hash || meta.id !== pack.id)
+					throw Error("Invalid installed metadata");
+			} catch {
+				meta = await derivePreview(await loadArchive(pack));
 			}
+			previews.set(pack.hash, meta);
+			await remember([[`preview/${pack.hash}.json`, encoder.encode(JSON.stringify(meta))]]);
 		}
 
 		if (routes) {
@@ -2054,6 +2239,7 @@ async function boot() {
 		render();
 		finishLoading();
 		menuIntro = openingCrawl(data[3].intro);
+		void prepareSelection();
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
 		finishLoading();

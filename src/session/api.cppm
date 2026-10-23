@@ -29,6 +29,7 @@ struct LobbySlot
 	std::string id, ship, host;
 	bool mandatory = false;
 	std::vector<std::string> allowed_ships;
+	std::string briefing;
 };
 struct LobbyMember
 {
@@ -100,6 +101,8 @@ struct NetworkOptions
 {
 	LinkOptions link;
 	BaseConfiguration expected_base;
+	std::map<std::string, std::string> pack_urls;
+	std::map<std::string, Bytes> prepared_clients;
 	std::string server, data_location = "userdata", profile = "default";
 	bool inspector = false;
 	std::string admission;

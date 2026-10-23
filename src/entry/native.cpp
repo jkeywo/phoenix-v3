@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <future>
+#include <chrono>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -260,11 +263,34 @@ try
 	network.inspector = gm;
 	if (!remote)
 		network.link.self = network.server;
+	const auto content_started = std::chrono::steady_clock::now();
+	const auto content_elapsed = [&]
+	{
+		return std::chrono::duration<double>(std::chrono::steady_clock::now() - content_started).count();
+	};
+	const std::string root_path =
+	    base_file.empty() ? std::string(GetApplicationDirectory()) + "assets/base.zip" : base_file;
+	phoenix::Json root_menu;
+	bool staged = !remote && game_pack.empty() && mission.empty() && runtime_save.empty() && workshop_pack.empty() &&
+	              app.screen == phoenix::Screen::home;
 	try
 	{
-		launch_bytes = phoenix::read_file(base_file.empty() ? std::string(GetApplicationDirectory()) + "assets/base.zip"
-		                                                    : base_file);
-		network.expected_base = phoenix::base_configuration(phoenix::read_pack(launch_bytes));
+		try
+		{
+			root_menu = phoenix::parse_json(phoenix::read_file(root_path + ".menu.json", 1024 * 1024), "root menu");
+			phoenix::MenuLibrary metadata("unused");
+			metadata.launch_metadata(root_menu);
+			network.expected_base = metadata.base();
+		}
+		catch (...)
+		{
+			staged = false;
+			launch_bytes = phoenix::read_file(root_path);
+			const auto root = phoenix::read_pack(launch_bytes);
+			network.expected_base = phoenix::base_configuration(root);
+			root_menu = phoenix::pack_menu({root});
+		}
+
 		if (!base_file.empty() && app.base_reference == "base.zip")
 			app.base_reference = base_file.substr(
 			    base_file.find_last_of("/\\") == std::string::npos ? 0 : base_file.find_last_of("/\\") + 1);
@@ -291,6 +317,10 @@ try
 		auto options = network;
 		if (app.library)
 			options.expected_base = app.library->base();
+		for (const auto &pack : app.library->packs)
+			if (!pack.url.empty())
+				options.pack_urls[pack.hash] = pack.url;
+		options.pack_urls[options.expected_base.hash] = app.base_reference;
 		options.link.room = target.room;
 		options.server = target.server;
 		options.link.self.clear();
@@ -313,6 +343,10 @@ try
 		auto options = network;
 		if (app.library)
 			options.expected_base = app.library->base();
+		for (const auto &pack : app.library->packs)
+			if (!pack.url.empty())
+				options.pack_urls[pack.hash] = pack.url;
+		options.pack_urls[options.expected_base.hash] = app.base_reference;
 		options.link.room.clear();
 		options.link.self.clear();
 		options.server.clear();
@@ -327,7 +361,7 @@ try
 		if (app.reset_displays)
 			app.reset_displays();
 		auto candidate = app.new_host();
-		if (app.library)
+		if (app.library && !app.content_loading)
 			candidate->replace_packs(app.library->archives(app.library->packs));
 		if (app.session)
 			app.session->lobby_command({phoenix::LobbyAction::leave});
@@ -336,14 +370,56 @@ try
 		app.screen = phoenix::Screen::home;
 		app.menu_branch = phoenix::Application::MenuBranch::root;
 	};
+	struct PreparedMenu
+	{
+		std::shared_ptr<phoenix::MenuLibrary> library;
+		std::shared_ptr<phoenix::SessionPort> session;
+		std::uint64_t revision = 0;
+	};
+	struct PendingMenu
+	{
+		std::uint64_t revision;
+		std::future<PreparedMenu> future;
+	};
+	std::vector<PendingMenu> preparations;
+	std::function<void()> retry_content;
+	bool start_content_after_frame = false;
+	std::uint64_t content_revision = 0;
+	auto prepare_menu = [root_path, network, local_only, base_file, remote, base_reference = app.base_reference]()
+	{
+		PreparedMenu result;
+		result.library = std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu",
+		                                                        network.profile + "/" + network.expected_base.id);
+		result.library->load();
+		result.library->defer_index_writes(true);
+		auto bytes = phoenix::read_file(root_path);
+		if (base_file.empty())
+		{
+			const auto addon =
+			    phoenix::read_file((std::filesystem::path(root_path).parent_path() / "test-missions.zip").string());
+			result.library->install_bundled(bytes, addon);
+			for (const auto &entry : result.library->packs)
+				if (entry.id == "phoenix-base")
+					bytes = result.library->read_pack_archive(entry.hash);
+		}
+		result.library->launch_base(bytes);
+		auto options = network;
+		options.expected_base = result.library->base();
+		options.pack_urls[options.expected_base.hash] = base_reference;
+		for (const auto &pack : result.library->packs)
+			if (!pack.url.empty())
+				options.pack_urls[pack.hash] = pack.url;
+		result.session = remote ? phoenix::make_network_client(options) : phoenix::make_game_lobby(options, local_only);
+		if (!remote)
+			result.session->replace_packs(result.library->archives(result.library->packs));
+		return result;
+	};
 	try
 	{
-		const auto &root_bytes = launch_bytes;
-		const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
-		app.library =
-		    std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu", network.profile + "/" + root.id);
+		app.library = std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu",
+		                                                     network.profile + "/" + network.expected_base.id);
 		app.library->load();
-		app.library->launch_base(root_bytes);
+		app.library->launch_metadata(root_menu);
 		const auto &prefs = app.library->preferences;
 		app.music_volume = prefs.volume;
 		app.sfx_volume = prefs.sfx_volume;
@@ -357,14 +433,83 @@ try
 		app.player_name = prefs.player_name;
 		app.avatar = prefs.avatar;
 		app.session->set_player_profile(app.player_name, app.avatar);
-		if (!remote)
-			app.session->replace_packs(app.library->archives(app.library->packs));
+		if (staged)
+		{
+			std::vector<phoenix::Json> menus{root_menu};
+			for (const auto &pack : app.library->packs)
+				if (pack.enabled && pack.id != network.expected_base.id)
+					menus.push_back(app.library->metadata(pack));
+			app.menu_catalog = std::make_shared<phoenix::Catalog>(phoenix::menu_catalog(menus));
+			app.content_loading = true;
+			retry_content = [&]()
+			{
+				app.content_error.clear();
+				app.content_loading = true;
+				preparations.push_back({content_revision, std::async(std::launch::async, prepare_menu)});
+			};
+			start_content_after_frame = true;
+		}
+		else if (!remote || gm)
+		{
+			auto ready = prepare_menu();
+			ready.library->defer_index_writes(false);
+			ready.library->remember();
+			app.library = std::move(ready.library);
+			app.session = std::move(ready.session);
+		}
+		app.change_packs = [&, network](std::vector<phoenix::LibraryPack> selected)
+		{
+			std::vector<phoenix::Json> menus;
+			for (const auto &pack : selected)
+				if (pack.enabled)
+					menus.push_back(app.library->metadata(pack));
+			app.menu_catalog = std::make_shared<phoenix::Catalog>(phoenix::menu_catalog(menus));
+			app.content_loading = true;
+			app.content_error.clear();
+			app.content_action = {};
+			const auto revision = ++content_revision;
+			auto library = std::make_shared<phoenix::MenuLibrary>(*app.library);
+			library->defer_index_writes(true);
+			retry_content = [&, library, selected, revision, network, local_only]()
+			{
+				app.content_error.clear();
+				app.content_loading = true;
+				preparations.push_back({revision, std::async(std::launch::async,
+				                                             [library, selected, revision, network, local_only,
+				                                              base_reference = app.base_reference]()
+				                                             {
+					                                             library->apply(selected);
+					                                             auto options = network;
+					                                             options.expected_base = library->base();
+					                                             options.pack_urls[options.expected_base.hash] =
+					                                                 base_reference;
+					                                             for (const auto &pack : selected)
+						                                             if (!pack.url.empty())
+							                                             options.pack_urls[pack.hash] = pack.url;
+					                                             auto session =
+					                                                 phoenix::make_game_lobby(options, local_only);
+					                                             session->replace_packs(library->archives(selected));
+					                                             return PreparedMenu{library, session, revision};
+				                                             })});
+			};
+			retry_content();
+		};
+		app.await_content = [&](std::function<void()> action)
+		{
+			if (!app.content_error.empty() && retry_content)
+				retry_content();
+			if (app.content_loading)
+				app.content_action = std::move(action);
+			else
+				action();
+		};
 	}
 	catch (const std::exception &error)
 	{
 		std::cerr << "Launch failed: " << error.what() << "\n";
 		return 1;
 	}
+
 	phoenix::open_window();
 	app.host_display = GetCurrentMonitor();
 	for (int monitor = 0; monitor < GetMonitorCount() && app.native_displays.size() < 6; ++monitor)
@@ -715,6 +860,49 @@ try
 	while (!app.exit_requested && !phoenix::close_requested())
 	{
 		const auto frame_started = GetTime();
+		for (auto it = preparations.begin(); it != preparations.end();)
+		{
+			if (it->future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+			{
+				++it;
+				continue;
+			}
+			try
+			{
+				auto ready = it->future.get();
+				if (ready.revision == content_revision)
+				{
+					ready.library->preferences = app.library->preferences;
+					ready.library->defer_index_writes(false);
+					ready.library->remember();
+					app.library = std::move(ready.library);
+					if (app.screen == phoenix::Screen::home || app.content_action ||
+					    app.screen == phoenix::Screen::settings)
+						app.session = std::move(ready.session);
+					app.session->set_player_profile(app.player_name, app.avatar);
+					app.content_loading = false;
+					std::cout << "Content verified at " << content_elapsed() << " seconds\n";
+					if (app.content_action)
+					{
+						auto action = std::move(app.content_action);
+						app.content_action = {};
+						action();
+					}
+				}
+			}
+			catch (const std::exception &error)
+			{
+				// A superseded selection cannot cancel the current job.
+				if (it->revision == content_revision)
+				{
+					app.content_error = error.what();
+					app.status = error.what();
+					app.content_loading = false;
+				}
+			}
+			it = preparations.erase(it);
+		}
+
 		app.session->poll();
 		if (ai_config_smoke && !ai_config_opened && phoenix::ai_configuration_available(app) &&
 		    ++ai_config_ready_frames >= 120)
@@ -770,6 +958,12 @@ try
 		const auto drawing_finished = GetTime();
 		EndDrawing();
 		const auto frame_finished = GetTime();
+		if (start_content_after_frame)
+		{
+			start_content_after_frame = false;
+			std::cout << "Menu first frame at " << content_elapsed() << " seconds\n";
+			retry_content();
+		}
 		if (performance_ready &&
 		    performance.record(simulation_finished - frame_started, drawing_finished - simulation_finished,
 		                       frame_finished - previous_frame, app))

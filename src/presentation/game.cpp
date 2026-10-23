@@ -985,6 +985,8 @@ GameScreen::~GameScreen() = default;
 GameScreen::Loading GameScreen::preload(Application &app)
 {
 	auto &s = *state_;
+	if (app.content_action)
+		return {true, 0, 0, "Loading game packs", {}, app.content_error};
 	s.bind_session(app);
 	if (!app.session)
 		return {};

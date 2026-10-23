@@ -187,7 +187,8 @@ struct NativeMenuScreen::State
 	}
 	void new_game(Application &app)
 	{
-		const auto &maps = app.session->catalog().maps;
+		const auto &maps =
+		    ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog : app.session->catalog()).maps;
 		if (maps.size() == 1)
 			choose_scenario(app, maps.begin()->first);
 		else
@@ -253,7 +254,9 @@ struct NativeMenuScreen::State
 		using Branch = Application::MenuBranch;
 		if (app.menu_branch == Branch::ships)
 		{
-			const bool single_scenario = app.session->catalog().maps.size() == 1;
+			const bool single_scenario =
+			    ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog : app.session->catalog())
+			        .maps.size() == 1;
 			app.menu_branch = single_scenario ? Branch::host : Branch::scenarios;
 			focus_next = single_scenario ? "menu.new" : "menu.scenario/" + app.selected_scenario;
 		}
@@ -651,12 +654,20 @@ struct NativeMenuScreen::State
 					              }) +
 					          "</div>";
 					if (branch == Branch::scenarios ||
-					    (branch == Branch::ships && app.session->catalog().maps.size() != 1))
+					    (branch == Branch::ships &&
+					     ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+					                                                          : app.session->catalog())
+					             .maps.size() != 1))
 					{
 						markup += "<div class=\"menu-column\">" + heading("Scenarios");
-						if (app.session->catalog().maps.empty())
+						if (((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+						                                                         : app.session->catalog())
+						        .maps.empty())
 							markup += paragraph("Enable mod packs to choose a scenario.");
-						for (const auto &[id, scenario] : app.session->catalog().maps)
+						for (const auto &[id, scenario] :
+						     ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+						                                                          : app.session->catalog())
+						         .maps)
 							markup += add("menu.scenario/" + id, scenario.value("name", id),
 							              [&, id]
 							              {
@@ -664,7 +675,10 @@ struct NativeMenuScreen::State
 							              });
 						markup += "</div>";
 					}
-					if (branch == Branch::ships && app.session->catalog().maps.contains(app.selected_scenario))
+					if (branch == Branch::ships &&
+					    ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+					                                                         : app.session->catalog())
+					        .maps.contains(app.selected_scenario))
 					{
 						markup += "<div class=\"menu-column\">";
 						markup += add("menu.host-gm", "GM",
@@ -676,22 +690,30 @@ struct NativeMenuScreen::State
 							              app.screen = Screen::server_lobby;
 							              focus_next = "lobby.ready";
 						              });
-						for (const auto &slot : app.session->catalog().maps.at(app.selected_scenario).at("ship_slots"))
+						for (const auto &slot :
+						     ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+						                                                          : app.session->catalog())
+						         .maps.at(app.selected_scenario)
+						         .at("ship_slots"))
 						{
 							const std::string slot_id = slot.at("id");
 							markup += heading(slot_id);
 							for (const auto &choice : slot.at("allowed_ships"))
 							{
 								const std::string ship = choice;
-								markup += add("menu.ship/" + slot_id + "/" + ship,
-								              app.session->catalog().entities.at(ship).value("name", ship),
-								              [&, slot_id, ship]
-								              {
-									              app.session->prepare_lobby(
-									                  {app.selected_scenario, {{slot_id, ship}}, slot_id, ""});
-									              app.screen = Screen::server_lobby;
-									              focus_next = "lobby.ready";
-								              });
+								markup +=
+								    add("menu.ship/" + slot_id + "/" + ship,
+								        ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+								                                                             : app.session->catalog())
+								            .entities.at(ship)
+								            .value("name", ship),
+								        [&, slot_id, ship]
+								        {
+									        app.session->prepare_lobby(
+									            {app.selected_scenario, {{slot_id, ship}}, slot_id, ""});
+									        app.screen = Screen::server_lobby;
+									        focus_next = "lobby.ready";
+								        });
 							}
 						}
 						markup += "</div>";
@@ -936,6 +958,16 @@ struct NativeMenuScreen::State
 				    {
 					    if (!app.session)
 						    throw std::runtime_error("Choose packs from the main menu before opening Workshop.");
+					    if (app.change_packs)
+					    {
+						    if (game_active(app) || app.session->lobby().active)
+							    throw std::runtime_error("Leave the game before changing packs");
+						    app.change_packs(draft);
+						    app.selected_scenario.clear();
+						    app.menu_branch = Branch::root;
+						    notice = "Loading selected packs in the background.";
+						    return;
+					    }
 					    const auto archives = app.library->archives(draft);
 					    if (app.session->lobby().active || app.session->running() || app.session->recovery_pending())
 						    throw std::runtime_error("Leave the game before applying a different pack selection");
@@ -1017,7 +1049,13 @@ struct NativeMenuScreen::State
 				notice.clear();
 				app.status.clear();
 				action_error.clear();
-				callback();
+				const bool needs_content = id == "menu.workshop" || id == "menu.host-gm" ||
+				                           id.starts_with("menu.ship/") || id.starts_with("menu.save/") ||
+				                           id == "menu.packs" || id == "menu.import-save";
+				if (needs_content && app.await_content)
+					app.await_content(std::move(callback));
+				else
+					callback();
 				return true;
 			}
 			catch (const std::exception &error)
@@ -1143,10 +1181,15 @@ struct NativeMenuScreen::State
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(input.id)))
 				if (field->GetValue() != input.value)
 					field->SetValue(input.value);
-		const int columns = branch == Branch::ships       ? (app.session->catalog().maps.size() == 1 ? 3 : 4)
-		                    : branch == Branch::scenarios ? 3
-		                    : branch == Branch::root      ? 1
-		                                                  : 2;
+		const int columns =
+		    branch == Branch::ships
+		        ? (((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog : app.session->catalog())
+		                       .maps.size() == 1
+		               ? 3
+		               : 4)
+		    : branch == Branch::scenarios ? 3
+		    : branch == Branch::root      ? 1
+		                                  : 2;
 		const float column_width = std::clamp((region.width - reserved_right - 48.f) / columns, 180.f, 320.f);
 		const float target = 24.f;
 		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
