@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 		frame();
 		// Wait for initial graphics preparation before exercising lobby claims.
 		wait_for_board();
-		for (const auto *fit : {"base.delivery-courier", "base.delivery-cruiser"})
+		for (const auto *fit : {"base.rescue-courier", "base.delivery-cruiser"})
 		{
 			require(app.session->lobby_command({LobbyAction::claim_ship, "", "courier", fit}),
 			        "Select the delivery fit in the lobby");

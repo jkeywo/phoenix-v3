@@ -86,7 +86,8 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 								html += complexity_star_button(
 								    act(id, "Complexity: " + std::to_string(stars) + " of 3 stars",
 								        profile == seat.profile),
-								    stars, complexity_stars(seat.profile_stars, seat.profile), "menu/");
+								    stars, complexity_stars(seat.profile_stars, seat.profile),
+								    complexity_menu_assets());
 							else if (seat.profile_stars.empty())
 								html += act(id, profile, profile == seat.profile);
 						}
@@ -246,7 +247,7 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		{
 			const auto rating_id = "menu.complexity/" + seat.slot + "/" + seat.id;
 			html += "<div id=\"" + Rml::StringUtilities::EncodeRml(rating_id) + "\">" +
-			        complexity_star_readout(stars, "menu/") + "</div>";
+			        complexity_star_readout(stars, complexity_menu_assets()) + "</div>";
 			app.screen_readouts.emplace_back(rating_id, localise("Complexity") + ": " + std::to_string(stars) + "/3");
 		}
 #ifndef __EMSCRIPTEN__

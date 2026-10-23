@@ -1,6 +1,14 @@
 #pragma once
 namespace phoenix
 {
+inline std::string complexity_menu_assets()
+{
+#ifdef __EMSCRIPTEN__
+	return "/assets/menu/";
+#else
+	return std::string(GetApplicationDirectory()) + "assets/menu/";
+#endif
+}
 inline std::string complexity_star_styles()
 {
 	return ".complexity-star { background:#263b49; border:2dp #668493 solid; }"
