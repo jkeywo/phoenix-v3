@@ -241,6 +241,13 @@ void complete_craft_recovery(EntityId craft)
 			continue;
 		finish_away_recovery(s.home, m);
 	}
+	for (auto &mission : away_missions)
+		if (std::erase_if(mission.escorts,
+		                  [&](const auto &slot)
+		                  {
+			                  return slot.second == craft;
+		                  }))
+			++mission.revision;
 	s.mission.clear();
 }
 void request_craft_pickup(EntityId craft)

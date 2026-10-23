@@ -47,6 +47,20 @@ void escort_cases()
 	for (int i = 0; i < 500 && missions(world)[0].at("phase") != "deployed"; ++i)
 		world.tick();
 	require(missions(world)[0].at("phase") == "deployed", "Escorted transport delivers its real party");
+	World recalled;
+	recalled.restore(catalog, world.save());
+	require(recalled.submit(101, command(recalled, "away", "recall", "job")),
+	        "Owning Dispatch recalls the escorted party");
+	for (int i = 0; i < 1000; ++i)
+	{
+		recalled.tick();
+		if (missions(recalled)[0].at("phase") == "recovered" &&
+		    recalled.can_submit(101, command(recalled, "craft", "defend", escort)))
+			break;
+	}
+	require(missions(recalled)[0].at("phase") == "recovered" &&
+	            recalled.can_submit(101, command(recalled, "craft", "defend", escort)),
+	        "Recovered escort releases its shared reservation for a new sortie");
 	require(world.submit(101, command(world, "craft", "recall", escort)), "Two-star individual escort recall admitted");
 	ticks(world, 3);
 	require(missions(world)[0].at("phase") == "deployed" &&
