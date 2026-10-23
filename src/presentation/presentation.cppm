@@ -95,7 +95,7 @@ public:
 	void preload(const Catalog &, const std::string &);
 	std::optional<AttachmentPose> attachment(const Catalog &, const SceneBody &, const std::string &, Camera3D);
 	void draw(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, const Json &, double, Vector2,
-	          const SceneEnvironment &);
+	          const SceneEnvironment &, bool background = true);
 
 private:
 	struct State;

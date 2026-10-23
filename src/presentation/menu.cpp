@@ -701,6 +701,11 @@ struct NativeMenuScreen::State
 							for (const auto &choice : slot.at("allowed_ships"))
 							{
 								const std::string ship = choice;
+								markup += paragraph(mission_briefing(
+								    ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
+								                                                         : app.session->catalog())
+								        .maps.at(app.selected_scenario),
+								    ship));
 								markup +=
 								    add("menu.ship/" + slot_id + "/" + ship,
 								        ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog

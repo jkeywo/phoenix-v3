@@ -553,8 +553,9 @@ export function togglePack(selection, hash, metadata) {
 	return ordered;
 }
 export function menuPreview(source) {
-	const text = (value) => {
-		if (typeof value !== "string" || !value.length || value.length > 256) throw Error("Invalid menu preview text.");
+	const text = (value, limit = 256) => {
+		if (typeof value !== "string" || !value.length || value.length > limit)
+			throw Error("Invalid menu preview text.");
 		return value;
 	};
 	const list = (value, max) => {
@@ -572,7 +573,7 @@ export function menuPreview(source) {
 		ships: source.ships,
 		id: source.id === undefined ? "" : text(source.id),
 		name: source.name === undefined ? "" : text(source.name),
-		dependencies: list(source.parent ? [source.parent] : source.dependencies || [], 32).map(text),
+		dependencies: list(source.parent ? [source.parent] : source.dependencies || [], 32).map((value) => text(value)),
 		parent: source.parent,
 		base: source.base,
 		scenarios: list(source.scenarios, 1024).map((scene) => ({
@@ -581,7 +582,11 @@ export function menuPreview(source) {
 			slots: list(scene.slots, 64).map((slot) => ({
 				id: text(slot.id),
 				default_ship: slot.default_ship === undefined ? "" : text(slot.default_ship),
-				ships: list(slot.ships, 256).map((ship) => ({ id: text(ship.id), name: text(ship.name || ship.id) })),
+				ships: list(slot.ships, 256).map((ship) => ({
+					id: text(ship.id),
+					name: text(ship.name || ship.id),
+					briefing: ship.briefing ? text(ship.briefing, 4096) : "",
+				})),
 			})),
 		})),
 	};
@@ -1211,12 +1216,14 @@ async function boot() {
 					button(ships, "GM", () => start(options({ type: "server", action: "host-gm", scenario })));
 					for (const slot of scene?.slots || []) {
 						element("h2", slot.id, ships);
-						for (const ship of slot.ships)
+						for (const ship of slot.ships) {
+							if (ship.briefing) element("p", ship.briefing, ships);
 							button(ships, ship.name || ship.id, () =>
 								start(
 									options({ type: "server", action: "host", scenario, slot: slot.id, ship: ship.id }),
 								),
 							);
+						}
 					}
 				}
 			}

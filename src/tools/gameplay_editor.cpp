@@ -2261,6 +2261,11 @@ struct GameplayEditor
 	void scenario(WorkshopDocument &document)
 	{
 		auto &map = document.map();
+		optional_string(map, "briefing_key");
+		if (map.contains("ship_briefings"))
+			structure(map["ship_briefings"]);
+		else if (button("Add ship briefings"))
+			map["ship_briefings"] = Json::object();
 		records(map, "factions", {{"id", "faction"}, {"label", "Faction"}},
 		        [&](Json &f)
 		        {
@@ -2335,6 +2340,7 @@ struct GameplayEditor
 			        choice(c, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
 			        optional_string(c, "title_key");
 			        optional_string(c, "start_event");
+			        strings(c, "cancel_events");
 			        strings(c, "members");
 			        strings(c, "events");
 			        structured_field(c, "bindings");

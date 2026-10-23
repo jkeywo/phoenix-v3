@@ -64,14 +64,20 @@ Json launcher_catalog(const Catalog &catalog)
 			for (const auto &ship : slot.at("allowed_ships"))
 			{
 				const auto ship_id = ship.get<std::string>();
-				entry["ships"].push_back(
-				    {{"id", ship_id}, {"name", catalog.entities.at(ship_id).value("name", ship_id)}});
+				entry["ships"].push_back({{"id", ship_id},
+				                          {"name", catalog.entities.at(ship_id).value("name", ship_id)},
+				                          {"briefing", mission_briefing(map, ship_id)}});
 			}
 			scenario["slots"].push_back(std::move(entry));
 		}
 		result["scenarios"].push_back(std::move(scenario));
 	}
 	return result;
+}
+std::string mission_briefing(const Json &map, const std::string &ship)
+{
+	const auto variants = map.value("ship_briefings", Json::object());
+	return variants.value(ship, map.value("briefing_key", std::string{}));
 }
 Catalog menu_catalog(const std::vector<Json> &menus)
 {
@@ -104,7 +110,12 @@ Catalog menu_catalog(const std::vector<Json> &menus)
 					ships.push_back(ship_id);
 					result.entities[ship_id] = {{"id", ship_id}, {"name", text(ship.at("name"))}};
 					if (ship.contains("briefing"))
-						map["ship_briefings"][ship_id] = ship.at("briefing");
+					{
+						const auto &briefing = ship.at("briefing");
+						if (!briefing.is_string() || briefing.get_ref<const std::string &>().size() > 4096)
+							throw std::runtime_error("Invalid menu briefing");
+						map["ship_briefings"][ship_id] = briefing;
+					}
 				}
 				map["ship_slots"].push_back({{"id", text(slot.at("id"))}, {"allowed_ships", ships}});
 			}
@@ -696,7 +707,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 		const bool contact_only = render.value("contact_only", false);
 		if (contact_only && !catalog.presentation)
 			invalid(path + ".render", "contact-only visuals are restricted Console projections");
-		if (!catalog.presentation && !catalog.base.id.empty() && model != (catalog.base.render_mode == "models"))
+		if (!catalog.presentation && !catalog.base.id.empty() && !render.contains("star") &&
+		    model != (catalog.base.render_mode == "models"))
 			invalid(path + ".render", "entity representation must match launch base");
 		auto mode = (model || contact_only) ? std::string("camera") : text(render, "mode", path + ".render");
 		if (mode != "camera" && mode != "eight")
@@ -1025,6 +1037,21 @@ void verify_prepared_catalog(const Catalog &catalog)
 		if (map.contains("lighting"))
 			verify_lighting(map.at("lighting"), "maps." + id + ".lighting");
 		auto path = "maps." + id;
+		const auto briefings = map.value("ship_briefings", Json::object());
+		if (!briefings.is_object() || briefings.size() > 256)
+			invalid(path, "invalid ship briefings");
+		if (map.contains("briefing_key") && (!map.at("briefing_key").is_string() ||
+		                                     map.at("briefing_key").get_ref<const std::string &>().size() > 4096))
+			invalid(path, "invalid mission briefing");
+		for (const auto &[ship, briefing] : briefings.items())
+		{
+			bool allowed = false;
+			for (const auto &slot : map.at("ship_slots"))
+				for (const auto &choice : slot.at("allowed_ships"))
+					allowed |= choice == ship;
+			if (!allowed || !briefing.is_string() || briefing.get_ref<const std::string &>().size() > 4096)
+				invalid(path, "briefing requires an allowed ship and bounded text");
+		}
 		(void)scenario_assets(catalog, id);
 		if (map.contains("loading_background"))
 		{

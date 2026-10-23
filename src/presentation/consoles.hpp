@@ -1835,7 +1835,7 @@ button.on-screen-active .share-live {display:block;}
 		                                                             : std::vector<EngineeringCard>{};
 		const bool engineering = !cards.empty();
 		document_->SetClass("engineering", engineering);
-		std::string title = "Console", description;
+		std::string title = "Console", description, briefing;
 		std::string complexity;
 		std::vector<std::string> complexity_choices;
 		bool ready = false;
@@ -1864,9 +1864,12 @@ button.on-screen-active .share-live {display:block;}
 						}
 					for (const auto &slot : lobby.slots)
 						if (slot.id == seat.slot)
+						{
+							briefing = slot.briefing;
 							for (const auto &spec : console_specs(app, slot.ship))
 								if (spec.id == seat.id)
 									layout = &app.session->catalog().consoles.at(spec.definition);
+						}
 				}
 		}
 		if (layout)
@@ -1887,7 +1890,8 @@ button.on-screen-active .share-live {display:block;}
 		std::string signature = std::to_string(layout_identity_) + (app.pseudo_locale ? "pseudo" : "normal") +
 		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
 		                        (profile_open_ ? "" : profile_name_) + "/complexity/" + complexity +
-		                        (manual_toggle_ ? "/manual" : "") + (away_attention() ? "/away-attention" : "");
+		                        (manual_toggle_ ? "/manual" : "") + (away_attention() ? "/away-attention" : "") +
+		                        briefing;
 		for (const auto &choice : complexity_choices)
 			signature += "/" + choice;
 		if (model_.observation())
@@ -2010,6 +2014,7 @@ button.on-screen-active .share-live {display:block;}
 				lobby = "<div class=\"ready-card\"><h1 id=\"" + id("lobby-title") + "\">" +
 				        Rml::StringUtilities::EncodeRml(localise(title)) + "</h1><p>" +
 				        Rml::StringUtilities::EncodeRml(localise(description)) + "</p><p>" +
+				        Rml::StringUtilities::EncodeRml(localise(briefing)) + "</p><p>" +
 				        Rml::StringUtilities::EncodeRml(
 				            localise(ready ? "Ready. Waiting for the crew." : "Check your Console, then ready up.")) +
 				        "</p>";
@@ -2061,7 +2066,8 @@ button.on-screen-active .share-live {display:block;}
 		if (pregame && profile_open_)
 			app.screen_inputs.push_back({id("profile-name"), localise("Player name"), profile_name_});
 		if (pregame)
-			app.screen_readouts.emplace_back(id("lobby-title"), localise(title) + ". " + localise(description));
+			app.screen_readouts.emplace_back(id("lobby-title"),
+			                                 localise(title) + ". " + localise(description) + " " + localise(briefing));
 		if (auto *status = document_->GetElementById("connection-status"))
 		{
 			const auto text = localise(pregame ? description : model_.announcement());

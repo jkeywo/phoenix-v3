@@ -212,6 +212,9 @@ class GameLobby final : public SessionPort
 		data["console_profiles"] = Json::object();
 		for (const auto &slot : slots())
 		{
+			if (source_)
+				data["briefings"][slot.id] =
+				    mission_briefing(source_->catalog().maps.at(selection_.mission), slot.ship);
 			data["slots"].push_back({{"id", slot.id},
 			                         {"ship", slot.ship},
 			                         {"host", slot.host},
@@ -1354,8 +1357,12 @@ public:
 		result.scenario_name = data.value("scenario_name", result.scenario);
 		result.countdown_ms = data.value("countdown", -1);
 		for (const auto &s : data.value("slots", Json::array()))
+		{
 			result.slots.push_back({s.at("id"), s.at("ship"), s.at("host"), s.at("mandatory"),
 			                        s.at("allowed").get<std::vector<std::string>>()});
+			result.slots.back().briefing =
+			    data.value("briefings", Json::object()).value(s.at("id").get<std::string>(), std::string{});
+		}
 		for (const auto &m : data.value("members", Json::array()))
 		{
 			const auto hash = m.value("avatar", std::string{});

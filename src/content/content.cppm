@@ -418,6 +418,7 @@ Catalog prepared_catalog(const Catalog &catalog);
 void verify_catalog(const Catalog &catalog);
 // Public setup hints for the HTML launcher. Admission/setup still verify in C++.
 Json launcher_catalog(const Catalog &catalog);
+std::string mission_briefing(const Json &map, const std::string &ship);
 // Display-only metadata and optional public ship packages, pinned to exact source archives.
 Json pack_menu(const std::vector<Pack> &ordered);
 Catalog menu_catalog(const std::vector<Json> &menus);

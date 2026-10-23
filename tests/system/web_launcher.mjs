@@ -254,6 +254,22 @@ test("untrusted pack previews are bounded display data", () => {
 		scenarios: [{ id: "test.map", slots: [{ id: "test.slot", ships: [{ id: "test.ship" }] }] }],
 	};
 	assert.equal(menuPreview(preview).scenarios[0].slots[0].ships[0].name, "test.ship");
+	preview.scenarios[0].slots[0].ships[0].briefing = "Routine cargo. ".repeat(30);
+	assert.equal(
+		menuPreview(preview).scenarios[0].slots[0].ships[0].briefing,
+		preview.scenarios[0].slots[0].ships[0].briefing,
+	);
+	assert.throws(() =>
+		menuPreview({
+			...preview,
+			scenarios: [
+				{
+					id: "test.map",
+					slots: [{ id: "test.slot", ships: [{ id: "test.ship", briefing: "x".repeat(4097) }] }],
+				},
+			],
+		}),
+	);
 	assert.throws(() => menuPreview({ ...preview, scenarios: {} }));
 	assert.throws(() => menuPreview({ ...preview, id: "x".repeat(257) }));
 });

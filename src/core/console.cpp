@@ -234,6 +234,18 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 		}
 		for (const auto &[identity, record] : latest)
 		{
+			if (console_string(record, "schema") == "phoenix.objective")
+			{
+				const auto fields = record.value("fields", Json::object());
+				const auto title = localise(console_string(fields, "title"));
+				const auto description = localise(console_string(fields, "description"));
+				std::string text = title + " — " + console_objective_status(fields.value("status", Json{}));
+				if (!description.empty() && description != title)
+					text += ". " + description;
+				result.emplace_back("game.readout/" + std::string(scope) + "-" + console_encoded(identity),
+				                    std::move(text));
+				continue;
+			}
 			std::string text = localise(std::string(scope) == "shared" ? "Shipwide" : "Console") + " / " +
 			                   console_label(console_string(record, "schema"));
 			const auto fields = record.value("fields", Json::object());

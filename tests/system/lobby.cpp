@@ -111,6 +111,12 @@ int main(int argc, char **argv)
 		defs["consoles"][0]["name"] = "Synthetic Helm";
 		defs["consoles"][0]["description"] = "Steer and set speed.";
 		defs["maps"][0]["name"] = "Synthetic Mission";
+		auto alternate = public_ship;
+		alternate["id"] = "test.delivery";
+		defs["entities"].push_back(alternate);
+		defs["maps"][0]["ship_slots"][0]["allowed_ships"].push_back("test.delivery");
+		defs["maps"][0]["ship_briefings"] = {{"test.ship", "Routine synthetic delivery"},
+		                                     {"test.delivery", "Urgent synthetic delivery"}};
 		pack.files["definitions.json"] = json_bytes(defs);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		{
@@ -127,6 +133,8 @@ int main(int argc, char **argv)
 			content_lobby->poll();
 			content_lobby->poll();
 			require(content_lobby->preparation_phase().empty(), "Prepared session returns to lobby");
+			require(content_lobby->lobby().slots.front().briefing == "Routine synthetic delivery",
+			        "Native lobby resolves the selected hull briefing");
 			const auto main_seat = [](const LobbyProjection &projection)
 			{
 				for (const auto &seat : projection.consoles)
@@ -308,6 +316,29 @@ int main(int argc, char **argv)
 			                       });
 		    });
 		LobbyCommand reserve{LobbyAction::assign_local_console, "", "test.slot", "", "main"};
+		pump(
+		    [&]
+		    {
+			    return !crew->lobby().slots.empty() &&
+			           crew->lobby().slots.front().briefing == "Routine synthetic delivery";
+		    });
+		require(host->lobby_command({LobbyAction::claim_ship, "", "test.slot", "test.delivery"}),
+		        "Host changes delivery fit");
+		pump(
+		    [&]
+		    {
+			    return !crew->lobby().slots.empty() && crew->lobby().slots.front().ship == "test.delivery" &&
+			           crew->lobby().slots.front().briefing == "Urgent synthetic delivery";
+		    });
+		require(host->lobby().slots.front().briefing == "Urgent synthetic delivery",
+		        "Host and remote crew resolve the same selected briefing");
+		require(host->lobby_command({LobbyAction::claim_ship, "", "test.slot", "test.ship"}),
+		        "Host restores initial fit");
+		pump(
+		    [&]
+		    {
+			    return crew->lobby().slots.front().briefing == "Routine synthetic delivery";
+		    });
 		reserve.screen = 2;
 		require(host->lobby_command(reserve), "Native host reserves a console for a local display");
 		const auto reserved = host->lobby();

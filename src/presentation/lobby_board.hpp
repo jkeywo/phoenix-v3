@@ -9,6 +9,12 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		                              return member.id == lobby.self;
 	                              });
 	const auto controls = app.session->lobby_controls();
+	std::string briefing;
+	for (const auto &slot : lobby.slots)
+		if (lobby.slots.size() == 1 || (own != lobby.members.end() && own->slot == slot.id))
+			briefing = slot.briefing;
+	if (!briefing.empty())
+		app.screen_readouts.emplace_back("menu.mission-briefing", localise(briefing));
 	auto allowed = [&](const std::string &id)
 	{
 		return std::any_of(controls.begin(), controls.end(),
@@ -50,6 +56,7 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 	{
 		std::string html = "<div id=\"lobby-board\" class=\"lobby-board lobby-player-board\"><div id=\"lobby-player\">";
 		html += heading(own != lobby.members.end() && !own->console.empty() ? "Your console" : "Choose a console");
+		html += paragraph(briefing);
 		if (own == lobby.members.end() || !own->approved)
 			html += paragraph("Connecting to the ship lobby...");
 		else
@@ -130,6 +137,7 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 	                   "<h2 id=\"menu.lobby-mission\">" +
 	                   Rml::StringUtilities::EncodeRml(localise(mission_name)) + "</h2>" +
 	                   readout("menu.lobby-ship", ship_name) + "</div>";
+	html += "<div id=\"menu.mission-briefing\">" + paragraph(briefing) + "</div>";
 	if (!lobby.code.empty())
 	{
 		prepare_qr(app, lobby.code);

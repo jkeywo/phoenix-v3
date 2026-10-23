@@ -250,6 +250,7 @@ float sample_depth(const MaterialData &data, const SpriteFrame &f, float x, floa
 } // namespace
 struct SpriteScene::State
 {
+	ModelScene stars;
 	double last_simulation_time = -1, simulation_received = 0;
 	NavigationEffects navigation;
 	std::map<std::string, MaterialData> materials;
@@ -528,6 +529,8 @@ struct SpriteScene::State
 					continue;
 			}
 			const auto &render = catalog.entities.at(body.definition).at("render");
+			if (render.contains("star"))
+				continue;
 			Vector3 world = {body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f};
 			Vector3 p = Vector3Subtract(world, rebase);
 			if (const auto muzzle = muzzle_offsets.find({body.attack_source, body.attack_weapon});
@@ -781,6 +784,11 @@ void SpriteScene::preload(const Catalog &catalog, const std::string &definition)
 	auto &s = *state_;
 	s.init();
 	const auto &render = catalog.entities.at(definition).at("render");
+	if (render.contains("star"))
+	{
+		s.stars.preload(catalog, definition);
+		return;
+	}
 	if (render.contains("sprite"))
 	{
 		s.load(definition, render.at("sprite"), catalog);
@@ -975,6 +983,29 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
 	rlSetMatrixProjection(projection);
 	const auto vp = MatrixMultiply(MatrixLookAt(camera.position, camera.target, camera.up), projection);
 	s.navigation.background(catalog, environment, camera);
+	std::vector<SceneBody> stars;
+	for (const auto &body : bodies)
+		if (!body.definition.empty() && catalog.entities.at(body.definition).at("render").contains("star"))
+			stars.push_back(body);
+	if (!stars.empty())
+	{
+		EndMode3D();
+		auto world_camera = camera;
+		world_camera.position = Vector3Add(camera.position, s.rebase);
+		world_camera.target = Vector3Add(camera.target, s.rebase);
+		auto star_lighting = lighting;
+		star_lighting["shadows"] = false;
+		s.stars.draw(catalog, stars, world_camera, region, star_lighting, time, surface_size, environment, false);
+		rlEnableScissorTest();
+		rlScissor(static_cast<int>(region.x * sx),
+		          static_cast<int>((surface_size.y / sy - region.y - region.height) * sy),
+		          static_cast<int>(region.width * sx), static_cast<int>(region.height * sy));
+		rlViewport(static_cast<int>(region.x * sx),
+		           static_cast<int>((surface_size.y / sy - region.y - region.height) * sy),
+		           static_cast<int>(region.width * sx), static_cast<int>(region.height * sy));
+		BeginMode3D(camera);
+		rlSetMatrixProjection(projection);
+	}
 	const auto fog_environment = lighting.value("environment", Json::object());
 	s.fog_uniforms(s.shader, fog_environment);
 	if (!fog_environment.value("nebulae", Json::array()).empty())

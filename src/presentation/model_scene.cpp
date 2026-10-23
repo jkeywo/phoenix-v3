@@ -299,7 +299,8 @@ std::optional<AttachmentPose> ModelScene::attachment(const Catalog &catalog, con
 	return AttachmentPose{root, Vector3Normalize(Vector3Subtract(tip, root))};
 }
 void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
-                      const Json &lighting, double time, Vector2 size, const SceneEnvironment &environment)
+                      const Json &lighting, double time, Vector2 size, const SceneEnvironment &environment,
+                      bool background)
 {
 	auto &s = *state_;
 	s.init();
@@ -397,7 +398,8 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 	        : MatrixOrtho(-camera.fovy * aspect * .5, camera.fovy * aspect * .5, -camera.fovy * .5, camera.fovy * .5,
 	                      rlGetCullDistanceNear(), rlGetCullDistanceFar()));
 	const auto fog = lighting.value("environment", Json::object());
-	s.navigation.background(catalog, environment, camera, fog, rebase);
+	if (background)
+		s.navigation.background(catalog, environment, camera, fog, rebase);
 	set_scene_fog(s.shader, fog, rebase);
 	s.vec("cameraPosition", camera.position);
 	s.shadow_pass = false;
@@ -444,7 +446,8 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 	}
 	rlEnableDepthMask();
 	rlEnableBackfaceCulling();
-	s.navigation.draw(catalog, environment, camera, rebase, physical);
+	if (background)
+		s.navigation.draw(catalog, environment, camera, rebase, physical);
 	EndMode3D();
 	rlViewport(0, 0, static_cast<int>(size.x), static_cast<int>(size.y));
 	EndScissorMode();
