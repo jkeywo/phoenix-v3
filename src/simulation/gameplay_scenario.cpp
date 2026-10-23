@@ -155,6 +155,10 @@ ScenarioActionKind bridge_action_kind(GameplayTreeAction action)
 {
 	switch (action)
 	{
+	case GameplayTreeAction::ApplyShieldEffect:
+	case GameplayTreeAction::RefreshShieldEffect:
+	case GameplayTreeAction::RemoveShieldEffect:
+		return ScenarioActionKind::Event;
 	case GameplayTreeAction::SpawnEntity:
 	case GameplayTreeAction::SpawnGroup:
 		return ScenarioActionKind::Spawn;
@@ -584,6 +588,7 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 	auto old_runtime = runtime_;
 	auto old_controllers = controllers_;
 	auto old_receipts = receipts_;
+	auto old_shield_requests = shield_requests_;
 	const auto old_stepped = stepped_tick_;
 	try
 	{
@@ -594,6 +599,7 @@ void GameplayScenarioBridge::step(std::uint64_t ticks)
 		runtime_ = std::move(old_runtime);
 		controllers_ = std::move(old_controllers);
 		receipts_ = std::move(old_receipts);
+		shield_requests_ = std::move(old_shield_requests);
 		stepped_tick_ = old_stepped;
 		throw;
 	}
@@ -682,6 +688,24 @@ ScenarioTreeReceipt GameplayScenarioBridge::execute(ScenarioActionToken token, G
 	{
 		switch (action)
 		{
+		case GameplayTreeAction::ApplyShieldEffect:
+		case GameplayTreeAction::RefreshShieldEffect:
+		case GameplayTreeAction::RemoveShieldEffect:
+		{
+			const bool apply = action == GameplayTreeAction::ApplyShieldEffect;
+			const auto &grant = string(apply ? 2 : 1);
+			scenario_require(!grant.empty() && grant.size() <= 128, "bounded nonempty shield grant name required");
+			scenario_require(!apply || !string(1).empty(), "shield effect definition required");
+			ScenarioShieldEffectRequest request{
+			    token,
+			    apply                                               ? ScenarioShieldEffectOperation::Apply
+			    : action == GameplayTreeAction::RefreshShieldEffect ? ScenarioShieldEffectOperation::Refresh
+			                                                        : ScenarioShieldEffectOperation::Remove,
+			    static_cast<EntityId>(integer(0)), apply ? string(1) : std::string{}, grant};
+			shield_requests_.emplace(token, std::move(request));
+			out.result.status = ScenarioActionStatus::Pending;
+			break;
+		}
 		case GameplayTreeAction::SpawnEntity:
 		{
 			ScenarioPoint p{integer(2), integer(3)};
@@ -789,6 +813,21 @@ std::optional<ScenarioTreeReceipt> GameplayScenarioBridge::receipt(ScenarioActio
 	}
 	return out;
 }
+std::vector<ScenarioShieldEffectRequest> GameplayScenarioBridge::pending_shield_effects() const
+{
+	std::vector<ScenarioShieldEffectRequest> out;
+	for (const auto &[token, request] : shield_requests_)
+		out.push_back(request);
+	return out;
+}
+void GameplayScenarioBridge::confirm_shield_effect(ScenarioActionToken token, std::string failure)
+{
+	scenario_require(shield_requests_.contains(token), "shield request not pending");
+	auto &result = receipts_.at(token).result;
+	result.status = failure.empty() ? ScenarioActionStatus::Succeeded : ScenarioActionStatus::Failed;
+	result.reason = std::move(failure);
+	shield_requests_.erase(token);
+}
 std::vector<ScenarioSpawnRequest> GameplayScenarioBridge::pending_spawns() const
 {
 	return runtime_.pending_spawns();
@@ -893,6 +932,13 @@ Json GameplayScenarioBridge::save() const
 		                           {"handle", r.handle},
 		                           {"entities", r.entities}});
 	}
+	out["shield_requests"] = Json::array();
+	for (const auto &[token, request] : shield_requests_)
+		out["shield_requests"].push_back({{"token", bridge_token_json(token)},
+		                                  {"operation", static_cast<unsigned>(request.operation)},
+		                                  {"target", request.target},
+		                                  {"definition", request.definition},
+		                                  {"grant", request.grant}});
 	for (const auto &[id, b] : bodies_)
 		out["bodies"].push_back({{"id", id},
 		                         {"definition", b.definition},
@@ -953,7 +999,8 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 		const auto a = scenario_unsigned(j.at("action")), kind = scenario_unsigned(j.at("kind")),
 		           status = scenario_unsigned(j.at("status"));
 		scenario_require(a >= static_cast<unsigned>(GameplayTreeAction::SpawnEntity) &&
-		                     a <= static_cast<unsigned>(GameplayTreeAction::StartObjectiveSequence) &&
+		                     a < static_cast<unsigned>(GameplayTreeAction::Count) &&
+		                     a != static_cast<unsigned>(GameplayTreeAction::SetFollowContact) &&
 		                     kind <= static_cast<unsigned>(ScenarioActionKind::StartSituation) &&
 		                     status <= static_cast<unsigned>(ScenarioActionStatus::Failed),
 		                 "invalid saved scenario receipt vocabulary");
@@ -985,13 +1032,54 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 				                 "saved request/handle identity mismatch");
 		}
 		else
-			scenario_require(r.result.status == ScenarioActionStatus::Failed,
+			scenario_require(r.result.status == ScenarioActionStatus::Failed ||
+			                     r.action == GameplayTreeAction::ApplyShieldEffect ||
+			                     r.action == GameplayTreeAction::RefreshShieldEffect ||
+			                     r.action == GameplayTreeAction::RemoveShieldEffect,
 			                 "successful saved effect has no domain receipt");
 		if (r.action != GameplayTreeAction::SpawnEntity && r.action != GameplayTreeAction::SpawnGroup &&
 		    r.action != GameplayTreeAction::AddObjective && r.action != GameplayTreeAction::StartObjectiveSequence)
 			scenario_require(r.request == bridge_request(r.token), "saved receipt request identity mismatch");
 		scenario_require(candidate.receipts_.emplace(r.token, std::move(r)).second, "duplicate saved effect receipt");
 	}
+	for (const auto &j : saved.value("shield_requests", Json::array()))
+	{
+		ScenarioShieldEffectRequest request;
+		request.token = bridge_token(j.at("token"));
+		const auto operation = scenario_unsigned(j.at("operation"));
+		scenario_require(operation <= 2, "invalid shield request operation");
+		request.operation = static_cast<ScenarioShieldEffectOperation>(operation);
+		request.target = scenario_unsigned(j.at("target"));
+		request.definition = j.at("definition").get<std::string>();
+		request.grant = j.at("grant").get<std::string>();
+		const auto receipt = candidate.receipts_.find(request.token);
+		scenario_require(receipt != candidate.receipts_.end() &&
+		                     receipt->second.result.status == ScenarioActionStatus::Pending && request.target > 0 &&
+		                     !request.grant.empty() && request.grant.size() <= 128 && request.definition.size() <= 4096,
+		                 "invalid pending shield request");
+		const auto expected =
+		    request.operation == ScenarioShieldEffectOperation::Apply     ? GameplayTreeAction::ApplyShieldEffect
+		    : request.operation == ScenarioShieldEffectOperation::Refresh ? GameplayTreeAction::RefreshShieldEffect
+		                                                                  : GameplayTreeAction::RemoveShieldEffect;
+		scenario_require(receipt->second.action == expected &&
+		                     (request.operation != ScenarioShieldEffectOperation::Apply || !request.definition.empty()),
+		                 "pending shield request action mismatch");
+		std::vector<Value> arguments{Value{Type::Entity, static_cast<std::int64_t>(request.target), {}}};
+		if (request.operation == ScenarioShieldEffectOperation::Apply)
+			arguments.push_back(Value{Type::Text, 0, request.definition});
+		arguments.push_back(Value{Type::Text, 0, request.grant});
+		scenario_require(receipt->second.result.fingerprint ==
+		                     domain_fingerprint_prefix + bridge_fingerprint(expected, arguments),
+		                 "pending shield request arguments disagree with receipt");
+		scenario_require(candidate.shield_requests_.emplace(request.token, std::move(request)).second,
+		                 "duplicate shield request");
+	}
+	for (const auto &[token, receipt] : candidate.receipts_)
+		if (receipt.result.status == ScenarioActionStatus::Pending &&
+		    (receipt.action == GameplayTreeAction::ApplyShieldEffect ||
+		     receipt.action == GameplayTreeAction::RefreshShieldEffect ||
+		     receipt.action == GameplayTreeAction::RemoveShieldEffect))
+			scenario_require(candidate.shield_requests_.contains(token), "pending shield receipt missing request");
 	for (const auto &[id, c] : candidate.controllers_)
 	{
 		if (c.last_receipt)

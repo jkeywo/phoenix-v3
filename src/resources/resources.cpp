@@ -395,6 +395,28 @@ ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount
 	add_heat(i, scaled(received, d.charge_heat_ppm, s.charge_heat_remainder));
 	return received;
 }
+bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
+{
+	bounded(amount, "external operating payment");
+	if (i >= stores_.size())
+		throw std::runtime_error("Invalid external payer");
+	if (!operational(i) || amount > stores_[i].energy || amount > discharge_left_[i])
+		return false;
+	auto &s = stores_[i];
+	const auto &d = definition_.stores[i];
+	s.energy -= amount;
+	discharge_left_[i] -= amount;
+	telemetry_[i].consumed += amount;
+	telemetry_[i].discrete_paid = true;
+	auto heat = scaled(amount, d.operation_heat_ppm, s.operation_heat_remainder);
+	if (s.overdrive)
+		heat = divided(heat * d.overdrive_heat_permille, 1000, s.overdrive_heat_remainder);
+	add_heat(i, heat);
+	add_heat(i, scaled(amount, d.depletion_heat_ppm, s.depletion_heat_remainder));
+	if (d.stop_heat && s.heat >= d.stop_heat)
+		s.thermal_stop = true;
+	return true;
+}
 void ResourceNetwork::apply_operating_heat(ResourceIndex store, ResourceAmount heat)
 {
 	bounded(heat, "paid operating heat");

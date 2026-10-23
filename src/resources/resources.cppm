@@ -166,6 +166,8 @@ public:
 	void set_cooling(ResourceIndex link, ResourceAmount removal_per_second, bool isolated = false);
 	void tick();
 	ResourceAmount receive_external(ResourceIndex store, ResourceAmount offered);
+	// Atomic discrete operating payment against this tick's remaining discharge budget.
+	bool spend_external(ResourceIndex store, ResourceAmount amount);
 	ResourceAmount transfer_external(ResourceNetwork &destination, ResourceIndex source, ResourceIndex target,
 	                                 ResourceAmount offered);
 	void dormant_tick();

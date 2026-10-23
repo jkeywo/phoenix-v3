@@ -282,6 +282,8 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 			const auto reference = composition_text(spec, key, path);
 			composition_id(reference.starts_with('$') ? reference.substr(1) : reference, path + "." + key);
 		}
+	if (kind == "shield" && spec.contains("shield_effect"))
+		compile_shield_effect(catalog, composition_text(spec, "shield_effect", path));
 	if (spec.contains("controller"))
 	{
 		const auto controller = composition_text(spec, "controller", path);

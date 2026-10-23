@@ -382,6 +382,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("equipment", result.equipment);
 		add("assemblies", result.assemblies);
 		add("messages", result.messages);
+		add("effects", result.effects);
 		if (definitions.contains("knowledge"))
 		{
 			const auto &knowledge = definitions.at("knowledge");
@@ -427,6 +428,9 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(legacy_trees, "trees");
 	for (auto &[name, tree] : legacy_trees)
 		result.trees[name] = std::move(tree);
+	inherit_definitions(result.effects, "effects");
+	for (const auto &[id, effect] : result.effects)
+		compile_shield_effect(result, id);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
 	resolve_equipment(result);
@@ -650,10 +654,12 @@ namespace
 {
 void verify_prepared_catalog(const Catalog &catalog)
 {
+	for (const auto &[id, effect] : catalog.effects)
+		compile_shield_effect(catalog, id);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
-	     !catalog.messages.empty() || !catalog.knowledge.empty() ||
+	     !catalog.messages.empty() || !catalog.effects.empty() || !catalog.knowledge.empty() ||
 	     (catalog.selection ? (!catalog.entities.empty() || !catalog.consoles.empty() || !catalog.assets.empty())
 	                        : catalog.entities.size() != 1)))
 		invalid("presentation", "expected one own-ship definition without maps or controllers");

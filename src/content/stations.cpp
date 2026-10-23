@@ -200,6 +200,9 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 			spec.human_seeking =
 			    catalog.consoles.at(spec.definition)
 			        .value("human_seeking", catalog.consoles.at(spec.definition).value("command", false));
+			if (console.contains("shield_feed") && !console.at("shield_feed").is_boolean())
+				fail("shield_feed must be boolean");
+			spec.shield_feed = console.value("shield_feed", false);
 			spec.human_preferences = console.value("human_preferences", std::vector<std::string>{});
 			spec.controls = mask(console.value("systems", Json::array()), spec.controlled_systems);
 			spec.feeds = spec.controls | mask(console.value("feeds", Json::array()), spec.feed_systems);

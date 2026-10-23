@@ -41,6 +41,8 @@ DraftTable draft_table(const Catalog &library, WorkshopDefinitionKind kind)
 		return {"equipment", library.equipment};
 	case WorkshopDefinitionKind::Assembly:
 		return {"assemblies", library.assemblies};
+	case WorkshopDefinitionKind::Effect:
+		return {"effects", library.effects};
 	case WorkshopDefinitionKind::Message:
 		return {"messages", library.messages};
 	}
@@ -124,11 +126,15 @@ Catalog WorkshopDocument::preview_equipment() const
 	preview.entities = draft_definitions(definitions_, {"entities", preview.entities});
 	preview.equipment =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Equipment));
+	preview.effects = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Effect));
 	preview.assemblies =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Assembly));
 	preview.trees = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Tree));
-	for (const auto &[kind, table] : std::vector<std::pair<const char *, std::map<std::string, Json> *>>{
-	         {"entities", &preview.entities}, {"equipment", &preview.equipment}, {"assemblies", &preview.assemblies}})
+	for (const auto &[kind, table] :
+	     std::vector<std::pair<const char *, std::map<std::string, Json> *>>{{"effects", &preview.effects},
+	                                                                         {"entities", &preview.entities},
+	                                                                         {"equipment", &preview.equipment},
+	                                                                         {"assemblies", &preview.assemblies}})
 	{
 		inherit_definitions(*table, kind);
 	}

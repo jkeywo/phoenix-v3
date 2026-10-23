@@ -176,6 +176,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		                                  {"definition", seat.definition},
 		                                  {"systems", controls},
 		                                  {"feeds", feeds},
+		                                  {"shield_feed", seat.shield_feed},
 		                                  {"human_preferences", seat.human_preferences}});
 		if (included.insert(seat.definition).second)
 		{

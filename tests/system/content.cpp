@@ -23,12 +23,94 @@ int main()
 {
 	try
 	{
+		rejected(
+		    []
+		    {
+			    const std::string duplicate = R"({"contributions":{"fore":{},"fore":{}}})";
+			    parse_json(Bytes(duplicate.begin(), duplicate.end()), "duplicate-shield.json");
+		    },
+		    "duplicate object key");
 		auto base =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		auto bytes = write_pack(base);
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+		{
+			auto source = base;
+			auto definitions = parse_json(source.files.at("definitions.json"), "effect fixture");
+			definitions["effects"] =
+			    Json::array({{{"id", "test.shield-effect"},
+			                  {"kind", "shield"},
+			                  {"contributions", {{"fore", {{"capacity", 100}, {"recharge_per_second", 5}}}}}},
+			                 {{"id", "test.shield-child"},
+			                  {"extends", "test.shield-effect"},
+			                  {"contributions", {{"fore", {{"initial", 25}}}}}}});
+			source.files["definitions.json"] = json_bytes(definitions);
+			auto source_pack = read_pack(write_pack(source));
+			auto effects = resolve_packs({source_pack});
+			require(compile_shield_effect(effects, "test.shield-child").front().shield.reserve.initial == 25,
+			        "effect inheritance preserves explicit contribution specialisation");
+			PackDraft patch;
+			patch.manifest = {{"schema", 1},
+			                  {"id", "effect-mod"},
+			                  {"dependencies", {"test-core"}},
+			                  {"overrides", {"test.shield-effect"}}};
+			auto replacement = definitions["effects"][0];
+			replacement["contributions"]["fore"]["capacity"] = 200;
+			patch.files["definitions.json"] = json_bytes({{"schema", 4}, {"effects", Json::array({replacement})}});
+			effects = resolve_packs({source_pack, read_pack(write_pack(patch))});
+			require(compile_shield_effect(effects, "test.shield-child").front().shield.reserve.capacity == 200,
+			        "shared effect overrides reach inherited consumers before compilation");
+			WorkshopDocument effect_document;
+			effect_document.load_pack(write_pack(source));
+			require(!effect_document.definition_choices(WorkshopDefinitionKind::Effect).empty(),
+			        "Workshop exposes shared effects");
+			auto invalid_effect = source;
+			definitions["effects"][0]["contributions"]["fore"]["unsupported_hook"] = 1;
+			invalid_effect.files["definitions.json"] = json_bytes(definitions);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(invalid_effect))});
+			    },
+			    "unsupported_hook");
+			rejected(
+			    [&]
+			    {
+				    compile_shield_effect(effects, "missing.effect");
+			    },
+			    "unknown effect");
+			{
+				auto invalid = effects;
+				auto &arc = invalid.effects.at("test.shield-effect")["contributions"]["fore"];
+				arc["reactions"] =
+				    Json::array({{{"operations", Json::array({{{"kind", "remove"}, {"grant", "x"}, {"damage", 1}}})}}});
+				rejected(
+				    [&]
+				    {
+					    compile_shield_effect(invalid, "test.shield-effect");
+				    },
+				    "unsupported field for remove");
+				arc["reactions"] = Json::array({{{"operations", Json::array({{{"kind", "damage"}, {"damage", 1}},
+				                                                             {{"kind", "remove"}, {"grant", "x"}}})}}});
+				rejected(
+				    [&]
+				    {
+					    compile_shield_effect(invalid, "test.shield-effect");
+				    },
+				    "grant changes must precede damage");
+				arc.erase("reactions");
+				arc["pre_damage_permille"] = 1001;
+				rejected(
+				    [&]
+				    {
+					    compile_shield_effect(invalid, "test.shield-effect");
+				    },
+				    "outside supported bounds");
+			}
+		}
+
 		{
 			for (auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
 			{

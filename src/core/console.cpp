@@ -1763,7 +1763,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 				                        std::to_string(arc.at("bearing_mdeg").get<std::int64_t>() / 1000));
 	}
 	for (const auto &shield : combat.value("shields", Json::array()))
-		result.emplace_back("shield." + shield.at("id").get<std::string>(),
+		result.emplace_back("shield." + shield.value("component_id", shield.at("id").get<std::string>()),
 		                    shield.at("id").get<std::string>() + ": " + localise("Stored strength") + " " +
 		                        std::to_string(shield.at("strength").get<std::int64_t>()) + "/" +
 		                        std::to_string(shield.at("capacity").get<std::int64_t>()) + "; " + localise("Warm-up") +

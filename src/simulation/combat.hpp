@@ -69,10 +69,38 @@ struct ShieldState
 	std::int64_t strength = 0, warmup = 0, recharge_remainder = 0, discharge_remainder = 0, discharge_credit = 0;
 	bool discharge = false;
 };
+// Reserves belong to the protected ship. Equipment is only an optional payer/control binding.
+struct ShieldContribution
+{
+	std::uint64_t effect_id = 0;
+	std::string name, equipment, definition_id;
+	CombatSystemDefinition definition{OperatingSystem::Shield};
+	ShieldState state;
+	std::int64_t expiry = -1;
+	bool operating = true;
+	std::int64_t quoted_rate = 0, quoted_sustain = 0, quoted_discharge = 0, protection = 1000;
+};
+struct ShieldComponent
+{
+	std::vector<ShieldContribution> contributions;
+	std::uint64_t next_effect = 1;
+};
+struct ShieldReaction
+{
+	std::uint64_t id = 0, due = 0, hit = 0, effect = 0;
+	EntityId attacker = 0, protected_ship = 0;
+	std::string contribution, source, definition;
+	std::size_t group = 0;
+	std::int64_t presented = 0, modified = 0, negated = 0, absorbed = 0, residual = 0, strength = 0;
+	ShieldReactionDefinition execution;
+};
+struct ShieldBindingState
+{
+};
 struct CombatMechanism
 {
 	CombatSystemDefinition definition;
-	std::variant<WeaponState, TurretState, MagazineState, TeamState, ShieldState> state;
+	std::variant<WeaponState, TurretState, MagazineState, TeamState, ShieldBindingState> state;
 	template <class T> T &get()
 	{
 		return std::get<T>(state);

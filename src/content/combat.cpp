@@ -11,6 +11,181 @@ module;
 module phoenix.content;
 namespace phoenix
 {
+std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &catalog, const std::string &id)
+{
+	const auto path = "effects." + id;
+	const auto found = catalog.effects.find(id);
+	if (found == catalog.effects.end())
+		throw std::runtime_error(path + ": unknown effect reference");
+	const auto &effect = found->second;
+	if (effect.value("kind", std::string{}) != "shield")
+		throw std::runtime_error(path + ".kind: unsupported effect kind");
+	for (const auto &[key, value] : effect.items())
+		if (key != "id" && key != "kind" && key != "contributions" && key != "extends" && key != "name" &&
+		    key != "duration_ticks")
+			throw std::runtime_error(path + "." + key + ": unsupported effect field");
+	if (effect.contains("duration_ticks") && (!effect.at("duration_ticks").is_number_integer() ||
+	                                          effect.at("duration_ticks") < 0 || effect.at("duration_ticks") > 1000000))
+		throw std::runtime_error(path + ".duration_ticks: expected bounded nonnegative integer");
+	if (!effect.contains("contributions") || !effect.at("contributions").is_object() ||
+	    effect.at("contributions").empty() || effect.at("contributions").size() > 64)
+		throw std::runtime_error(path + ".contributions: expected 1..64 named contributions");
+	std::vector<ShieldContributionDefinition> result;
+	for (const auto &[name, value] : effect.at("contributions").items())
+	{
+		const auto at = path + ".contributions." + name;
+		if (!valid_identifier(name) || !value.is_object())
+			throw std::runtime_error(at + ": invalid named contribution");
+		static const std::set<std::string> fields{"capacity",
+		                                          "initial",
+		                                          "bearing_mdeg",
+		                                          "arc_mdeg",
+		                                          "sustain_energy_per_second",
+		                                          "energy_per_strength",
+		                                          "recharge_per_second",
+		                                          "off_recharge_per_second",
+		                                          "warmup_ticks",
+		                                          "layer",
+		                                          "discharge_per_second",
+		                                          "discharge_efficiency_permille",
+		                                          "pre_damage_permille",
+		                                          "post_damage",
+		                                          "reactions",
+		                                          "modifiers"};
+		for (const auto &[key, item] : value.items())
+			if (!fields.contains(key))
+				throw std::runtime_error(at + "." + key + ": unsupported shield field");
+		auto n = [&](const char *key, std::int64_t fallback, std::int64_t minimum, std::int64_t maximum)
+		{
+			if (!value.contains(key))
+				return fallback;
+			const auto &v = value.at(key);
+			if (!v.is_number_integer() || v.is_boolean() || v < minimum || v > maximum)
+				throw std::runtime_error(at + "." + key + ": integer outside supported bounds");
+			return v.get<std::int64_t>();
+		};
+		ShieldContributionDefinition c;
+		c.name = name;
+		c.bearing = n("bearing_mdeg", 0, 0, 359999);
+		c.arc = n("arc_mdeg", 360000, 1, 360000);
+		auto &d = c.shield;
+		if (value.contains("modifiers"))
+		{
+			const auto &modifiers = value.at("modifiers");
+			if (!modifiers.is_object())
+				throw std::runtime_error(at + ".modifiers: expected object");
+			for (const auto &[key, modifier] : modifiers.items())
+			{
+				if (!modifier.is_number_integer() || modifier < -1000 || modifier > 100000)
+					throw std::runtime_error(at + ".modifiers." + key + ": invalid percentage delta");
+				auto number = modifier.get<std::int64_t>();
+				if (key == "recharge")
+					d.recharge_modifier = number;
+				else if (key == "sustain")
+					d.sustain_modifier = number;
+				else if (key == "discharge")
+					d.discharge_modifier = number;
+				else if (key == "protection")
+					d.protection_modifier = number;
+				else
+					throw std::runtime_error(at + ".modifiers." + key + ": unsupported live property");
+			}
+		}
+
+		if (value.contains("reactions"))
+		{
+			const auto &groups = value.at("reactions");
+			if (!groups.is_array() || groups.size() > 32)
+				throw std::runtime_error(at + ".reactions: expected bounded array");
+			for (const auto &group : groups)
+			{
+				if (!group.is_object())
+					throw std::runtime_error(at + ".reactions: expected group object");
+				for (const auto &[key, field] : group.items())
+					if (key != "payer" && key != "energy" && key != "operations")
+						throw std::runtime_error(at + ".reactions: unsupported group field " + key);
+				ShieldReactionDefinition reaction;
+				reaction.payer = group.value("payer", std::string{});
+				const auto energy = group.value("energy", Json(0));
+				if (!energy.is_number_integer() || energy < 0 || energy > 1000000000)
+					throw std::runtime_error(at + ".reactions.energy: invalid cost");
+				reaction.energy = energy.get<std::int64_t>();
+				if (reaction.energy && !valid_identifier(reaction.payer))
+					throw std::runtime_error(at + ".reactions.payer: paid reaction requires equipment payer");
+				if (!group.contains("operations") || !group.at("operations").is_array() ||
+				    group.at("operations").empty() || group.at("operations").size() > 32)
+					throw std::runtime_error(at + ".reactions.operations: expected 1..32 operations");
+				bool damage_seen = false;
+				for (const auto &operation : group.at("operations"))
+				{
+					if (!operation.is_object())
+						throw std::runtime_error(at + ".reactions.operations: expected object");
+					for (const auto &[key, field] : operation.items())
+						if (key != "kind" && key != "target" && key != "damage" && key != "effect" && key != "grant")
+							throw std::runtime_error(at + ".reactions.operations: unsupported field " + key);
+					ShieldReactionOperation op;
+					op.target = operation.value("target", std::string("attacker"));
+					if (op.target != "attacker" && op.target != "protected")
+						throw std::runtime_error(at + ".reactions.target: expected attacker/protected");
+					const auto kind = operation.value("kind", std::string{});
+					for (const auto &[key, field] : operation.items())
+						if (key != "kind" && key != "target" &&
+						    !((kind == "damage" && key == "damage") ||
+						      (kind == "apply" && (key == "effect" || key == "grant")) ||
+						      (kind == "remove" && key == "grant")))
+							throw std::runtime_error(at + ".reactions.operations: unsupported field for " + kind +
+							                         ": " + key);
+					if (kind != "damage" && damage_seen)
+						throw std::runtime_error(at + ".reactions.operations: grant changes must precede damage");
+					if (kind == "damage")
+						damage_seen = true;
+					if (kind == "damage")
+					{
+						op.kind = ShieldReactionKind::Damage;
+						const auto damage = operation.value("damage", Json(0));
+						if (!damage.is_number_integer() || damage <= 0 || damage > 1000000)
+							throw std::runtime_error(at + ".reactions.damage: expected bounded positive damage");
+						op.damage = damage.get<std::int64_t>();
+					}
+					else if (kind == "apply" || kind == "remove")
+					{
+						op.kind = kind == "apply" ? ShieldReactionKind::Apply : ShieldReactionKind::Remove;
+						op.grant = operation.value("grant", std::string{});
+						if (!valid_identifier(op.grant))
+							throw std::runtime_error(at + ".reactions.grant: invalid handle");
+						if (kind == "apply")
+						{
+							op.effect = operation.value("effect", std::string{});
+							if (!catalog.effects.contains(op.effect))
+								throw std::runtime_error(at + ".reactions.effect: unknown effect");
+						}
+					}
+					else
+						throw std::runtime_error(at + ".reactions.kind: unsupported operation");
+					reaction.operations.push_back(std::move(op));
+				}
+				d.reactions.push_back(std::move(reaction));
+			}
+		}
+
+		d.pre_damage_permille = n("pre_damage_permille", 1000, 0, 1000);
+		d.post_damage = n("post_damage", 0, 0, 1000000);
+		d.reserve.capacity = n("capacity", 1, 1, 1000000);
+		d.reserve.initial = n("initial", d.reserve.capacity, 0, d.reserve.capacity);
+		d.sustain_energy = n("sustain_energy_per_second", 1, 0, 1000000000);
+		d.recharge_energy = n("energy_per_strength", 1, 1, 1000000);
+		d.recharge_rate = n("recharge_per_second", 1, 0, 1000000);
+		d.off_recharge_rate = n("off_recharge_per_second", 1, 0, d.recharge_rate);
+		if (d.off_recharge_rate > d.recharge_rate)
+			throw std::runtime_error(at + ": off recharge exceeds recharge");
+		d.warmup_ticks = n("warmup_ticks", 20, 1, 1000000);
+		d.layer = n("layer", 0, 0, 1000000);
+		d.discharge_rate = n("discharge_per_second", 1, 0, 1000000);
+		d.discharge_efficiency = n("discharge_efficiency_permille", 1000, 1, 1000);
+		result.push_back(std::move(c));
+	}
+	return result;
+}
 DestructionDefinition compile_destruction(const Json &v, const Catalog &catalog, const std::string &path)
 {
 	DestructionDefinition d;
@@ -256,17 +431,17 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		}
 		if (s.kind == OperatingSystem::Shield)
 		{
-			s.reserve().capacity = amount(v, "capacity", 0, 1, 1000000);
-			s.reserve().initial = amount(v, "initial", s.reserve().capacity, 0, s.reserve().capacity);
-			s.get<ShieldDefinition>().sustain_energy = amount(v, "sustain_energy_per_second", 1, 1, 1000000000);
-			s.get<ShieldDefinition>().recharge_energy = amount(v, "energy_per_strength", 1, 1, 1000000);
-			s.get<ShieldDefinition>().recharge_rate = amount(v, "recharge_per_second", 1, 1, 1000000);
-			s.get<ShieldDefinition>().off_recharge_rate =
-			    amount(v, "off_recharge_per_second", 1, 0, s.get<ShieldDefinition>().recharge_rate);
-			s.get<ShieldDefinition>().warmup_ticks = amount(v, "warmup_ticks", 20, 1, 1000000);
-			s.get<ShieldDefinition>().layer = amount(v, "layer", 0, 0, 1000000);
-			s.get<ShieldDefinition>().discharge_rate = amount(v, "discharge_per_second", 1, 1, 1000000);
-			s.get<ShieldDefinition>().discharge_efficiency = amount(v, "discharge_efficiency_permille", 1000, 1, 1000);
+			if (v.contains("shield_effect"))
+			{
+				s.shield_effect = v.at("shield_effect").get<std::string>();
+				s.shield_contributions = compile_shield_effect(catalog, s.shield_effect);
+				s.get<ShieldDefinition>() = s.shield_contributions.front().shield;
+				s.bearing = s.shield_contributions.front().bearing;
+				s.arc = s.shield_contributions.front().arc;
+			}
+			else
+				fail("shield requires catalogue shield_effect reference");
+
 			if (!v.contains("power_store"))
 				fail("shield requires power_store");
 		}

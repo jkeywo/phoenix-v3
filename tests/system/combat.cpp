@@ -43,7 +43,14 @@ Json state(const World &w, int id = 1)
 	const auto snapshot = w.save();
 	for (const auto &body : snapshot.at("bodies"))
 		if (body.at("body").at("id") == id)
-			return body.at("combat");
+		{
+			auto result = body.at("combat");
+			if (body.contains("shields"))
+				for (const auto &c : body.at("shields").at("contributions"))
+					if (!c.at("equipment").get<std::string>().empty())
+						result["systems"][c.at("equipment").get<std::string>()] = c.at("state");
+			return result;
+		}
 	throw std::runtime_error("missing combat state " + std::to_string(id) + " " + w.save().at("bodies").dump());
 }
 std::int64_t hp(const World &w, int id = 2)
@@ -328,8 +335,160 @@ void ordnance_contracts()
 		require(state(idle)["systems"]["pdc"]["mode"] == 1, "cancel returns Manual to Auto");
 	}
 }
+void shield_reaction_contracts()
+{
+	{
+		auto source = powered_fixture();
+		add_beam(source, 200);
+		source["effects"] = Json::parse(R"json([{"id":"test.negation","kind":"shield","contributions":{
+          "outer":{"capacity":1,"initial":1,"recharge_per_second":0,"off_recharge_per_second":0,
+            "sustain_energy_per_second":0,"warmup_ticks":1,"layer":0,"pre_damage_permille":0},
+          "inner":{"capacity":100,"initial":100,"recharge_per_second":0,"off_recharge_per_second":0,
+            "sustain_energy_per_second":0,"warmup_ticks":1,"layer":1,"post_damage":5}}}])json");
+		add_fit(
+		    source, "shield",
+		    {{"kind", "shield"}, {"compartment", "fore"}, {"shield_effect", "test.negation"}, {"power_store", "cell"}},
+		    {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, source["maps"][0]["id"]);
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto saved = world.save();
+		const auto &contributions = saved.at("bodies")[1].at("shields").at("contributions");
+		require(contributions[0].at("state").at("strength") == 100 && contributions[1].at("state").at("strength") == 1,
+		        "pre-negation transforms presented damage before reserve limiting");
+		require(saved.at("shield_reactions").at("pending").empty() && hp(world) == 20000,
+		        "negated incoming damage neither leaks to hull nor invokes an unreached layer");
+	}
+	for (const auto cost : {7, 1000000000})
+	{
+		auto source = powered_fixture();
+		add_beam(source, 20);
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.reactive","kind":"shield","contributions":{"main":{
+            "capacity":100,"initial":100,"recharge_per_second":0,"off_recharge_per_second":0,
+            "sustain_energy_per_second":0,"warmup_ticks":1,"reactions":[{
+              "payer":"shield","energy":7,"operations":[
+                {"kind":"apply","target":"protected","effect":"test.bubble","grant":"gift"},
+                {"kind":"damage","target":"attacker","damage":10}]}]}}},
+          {"id":"test.bubble","kind":"shield","duration_ticks":20,"contributions":{"bubble":{
+            "capacity":5,"initial":5,"recharge_per_second":0,"off_recharge_per_second":0,
+            "sustain_energy_per_second":0,"warmup_ticks":1}}}])json");
+		source["effects"][0]["contributions"]["main"]["reactions"][0]["energy"] = cost;
+		add_fit(
+		    source, "shield",
+		    {{"kind", "shield"}, {"compartment", "fore"}, {"shield_effect", "test.reactive"}, {"power_store", "cell"}},
+		    {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, source["maps"][0]["id"]);
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto pending = world.save();
+		require(pending.at("shield_reactions").at("pending").size() == 1,
+		        "reached shield produces one deferred reaction group");
+		const auto &event = pending.at("shield_reactions").at("pending")[0];
+		require(event.at("presented") == 1 && event.at("absorbed") == 1 && event.at("strength") == 99 &&
+		            event.at("attacker") == 1,
+		        "queued reaction captures committed per-contribution result");
+		World resumed;
+		resumed.restore(catalog, pending);
+		submit(world, 101, "beam", "target", 0);
+		// Claims and pending operator commands are deliberately identical after resume.
+		submit(resumed, 101, "beam", "target", 0);
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(), "pending typed reaction executes exactly once across continuation");
+		const auto saved = world.save();
+		const auto &target = saved.at("bodies")[1];
+		const auto &attacker = saved.at("bodies")[0];
+		if (cost == 7)
+		{
+			require(target.at("shields").at("contributions").size() == 2,
+			        ("paid reaction atomically applies reusable grant: " + saved.at("shield_reactions").dump() +
+			         " target " + target.at("resources").dump() + " shields " + target.at("shields").dump())
+			            .c_str());
+			require(attacker.at("shields").at("contributions")[0].at("state").at("strength") == 90,
+			        "paid reaction secondary damage resolves in next scheduled phase");
+			require(target.at("resources").at("network").at("stores")[0].at("energy") == 99993,
+			        "reaction pays its discrete cost exactly once");
+		}
+		else
+		{
+			require(target.at("shields").at("contributions").size() == 1 &&
+			            target.at("shields").at("contributions")[0].at("state").at("strength") == 99,
+			        "failed reaction leaves original damage committed and applies no partial grant");
+			require(attacker.at("shields").at("contributions")[0].at("state").at("strength") == 100 &&
+			            target.at("resources").at("network").at("stores")[0].at("energy") == 100000,
+			        "unaffordable reaction neither spends nor damages");
+		}
+	}
+}
 void effects_contracts()
 {
+	{
+		auto source = powered_fixture();
+		source["effects"] = Json::array({{{"id", "test.split-shield"},
+		                                  {"kind", "shield"},
+		                                  {"contributions",
+		                                   {{"fore",
+		                                     {{"capacity", 100},
+		                                      {"initial", 0},
+		                                      {"recharge_per_second", 20},
+		                                      {"off_recharge_per_second", 0},
+		                                      {"sustain_energy_per_second", 10},
+		                                      {"warmup_ticks", 1}}},
+		                                    {"aft",
+		                                     {{"capacity", 100},
+		                                      {"initial", 0},
+		                                      {"recharge_per_second", 20},
+		                                      {"off_recharge_per_second", 0},
+		                                      {"sustain_energy_per_second", 10},
+		                                      {"warmup_ticks", 1}}}}}}});
+		add_fit(source, "split",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"shield_effect", "test.split-shield"},
+		         {"power_store", "cell"}},
+		        {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, source["maps"][0]["id"]);
+		claim(world);
+		advance(world, 20);
+		const auto saved = world.save();
+		const auto &contributions = saved.at("bodies")[0].at("shields").at("contributions");
+		require(contributions.size() == 2 && contributions[0]["state"]["strength"] == 20 &&
+		            contributions[1]["state"]["strength"] == 20,
+		        "one equipment payer sustains and recharges both named contributions without spending its grant twice");
+		require(contributions[0]["effect_id"] == contributions[1]["effect_id"] &&
+		            contributions[0]["name"] != contributions[1]["name"],
+		        "named shield contributions share effect identity while owning independent reserves");
+		World resumed;
+		resumed.restore(catalog, saved);
+		advance(world, 3);
+		advance(resumed, 3);
+		require(world.save() == resumed.save(), "multi-contribution funding and fractions continue exactly");
+		auto malformed = saved;
+		malformed["bodies"][0]["shields"]["contributions"].erase(0);
+		bool refused = false;
+		const auto before = resumed.save();
+		try
+		{
+			resumed.restore(catalog, malformed);
+		}
+		catch (const std::exception &)
+		{
+			refused = true;
+		}
+		require(refused && resumed.save() == before, "incomplete named grant restore refuses transactionally");
+	}
+
 	{
 		auto source = powered_fixture();
 		add_beam(source, 20, 250);
@@ -1514,6 +1673,7 @@ int main(int argc, char **argv)
 		review_contracts();
 		ordnance_contracts();
 		effects_contracts();
+		shield_reaction_contracts();
 		std::cout << "Combat system contracts passed\n";
 		return 0;
 	}

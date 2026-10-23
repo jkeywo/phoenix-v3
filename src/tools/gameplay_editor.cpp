@@ -642,16 +642,7 @@ struct GameplayEditor
 		}
 		if (kind == "shield")
 		{
-			integer(spec, "capacity", 100);
-			integer(spec, "initial", 100);
-			integer(spec, "layer");
-			integer(spec, "sustain_energy_per_second", 20);
-			integer(spec, "energy_per_strength", 1);
-			integer(spec, "recharge_per_second", 20);
-			integer(spec, "off_recharge_per_second", 5);
-			integer(spec, "warmup_ticks", 20);
-			integer(spec, "discharge_per_second", 20);
-			integer(spec, "discharge_efficiency_permille", 1000);
+			string(spec, "shield_effect");
 		}
 		if (kind == "turret")
 		{
@@ -1374,6 +1365,7 @@ struct GameplayEditor
 				            choice(console, "definition", document.definition_choices(WorkshopDefinitionKind::Console));
 				            names(console, "systems", systems);
 				            names(console, "feeds", systems);
+				            boolean(console, "shield_feed");
 				            names(console, "human_preferences", ids(ship.at("stations")));
 				            gameplay_panel(console);
 			            });
@@ -2653,6 +2645,68 @@ struct GameplayEditor
 	void templates(WorkshopDocument &document)
 	{
 		auto &defs = document.definitions();
+		records(defs, "effects",
+		        {{"id", "shield-effect"}, {"kind", "shield"}, {"contributions", {{"main", {{"capacity", 100}}}}}},
+		        [&](Json &effect)
+		        {
+			        string(effect, "id");
+			        choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
+			        integer(effect, "duration_ticks");
+			        if (button("Add contribution"))
+			        {
+				        auto &contributions = effect["contributions"];
+				        if (!contributions.is_object())
+					        contributions = Json::object();
+				        std::string name = "arc";
+				        unsigned index = 1;
+				        while (contributions.contains(name))
+					        name = "arc" + std::to_string(index++);
+				        contributions[name] = {{"capacity", 100}};
+			        }
+			        std::string remove;
+			        if (effect.contains("contributions") && effect.at("contributions").is_object())
+				        for (auto &[name, arc] : effect["contributions"].items())
+				        {
+					        ScopedId scope(name.c_str());
+					        heading(name.c_str());
+					        for (const char *key : {"capacity", "initial", "bearing_mdeg", "arc_mdeg", "layer",
+					                                "sustain_energy_per_second", "energy_per_strength",
+					                                "recharge_per_second", "off_recharge_per_second", "warmup_ticks",
+					                                "discharge_per_second", "discharge_efficiency_permille"})
+						        integer(arc, key);
+					        integer(arc, "pre_damage_permille", 1000);
+					        integer(arc, "post_damage");
+					        scalar_map(arc, "modifiers");
+					        records(arc, "reactions", {{"energy", 0}, {"operations", Json::array()}},
+					                [&](Json &reaction)
+					                {
+						                string(reaction, "payer");
+						                integer(reaction, "energy");
+						                records(reaction, "operations",
+						                        {{"kind", "damage"}, {"target", "attacker"}, {"damage", 1}},
+						                        [&](Json &operation)
+						                        {
+							                        choice(operation, "kind", {"damage", "apply", "remove"});
+							                        choice(operation, "target", {"attacker", "protected"});
+							                        const auto kind = operation.value("kind", std::string("damage"));
+							                        if (kind == "damage")
+								                        integer(operation, "damage", 1);
+							                        else
+							                        {
+								                        string(operation, "grant");
+								                        if (kind == "apply")
+									                        choice(operation, "effect",
+									                               document.definition_choices(
+									                                   WorkshopDefinitionKind::Effect));
+							                        }
+						                        });
+					                });
+					        if (button("Remove contribution"))
+						        remove = name;
+				        }
+			        if (!remove.empty())
+				        effect["contributions"].erase(remove);
+		        });
 		records(defs, "equipment",
 		        {{"id", "equipment"}, {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}},
 		        [&](Json &equipment)
@@ -2661,9 +2715,11 @@ struct GameplayEditor
 			        choice(equipment, "extends", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 			        choice(equipment, "kind",
 			               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-			                "boost", "impulse"});
+			                "boost", "impulse", "shield"});
 			        const auto kind = equipment_kind(document, equipment);
 			        system_details(equipment, kind);
+			        if (kind == "shield")
+				        choice(equipment, "shield_effect", document.definition_choices(WorkshopDefinitionKind::Effect));
 			        telemetry_records(equipment, document);
 			        scalar_map(equipment, "parameters");
 		        });

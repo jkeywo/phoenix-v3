@@ -159,6 +159,9 @@ enum class GameplayTreeAction : std::uint32_t
 	SetObjectiveStatus,
 	StartObjectiveSequence,
 	SetFollowContact,
+	ApplyShieldEffect,
+	RefreshShieldEffect,
+	RemoveShieldEffect,
 	Count
 };
 enum class GameplayTreeRecordScope : std::uint8_t

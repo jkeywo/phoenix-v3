@@ -12,12 +12,12 @@ inline Json data(const std::string &cap, const Json &source)
 		            {"disposition", text(source.at("disposition"), 32)}};
 	if (cap.starts_with("finding:"))
 		return Json{{"id", text(source.at("id"), 64)}, {"text", text(source.at("text"), 4096)}};
-	if (!source.is_array() || source.size() > 256)
+	if (!source.is_array() || source.size() > (cap == "shield_sectors" ? 8192 : 256))
 		throw std::runtime_error("Invalid sensor finding rows");
 	Json out = Json::array();
 	for (const auto &row : source)
 	{
-		Json r{{"id", text(row.at("id"), 128)}};
+		Json r{{"id", text(row.at("id"), cap == "shield_sectors" ? 256 : 128)}};
 		if (cap == "findings")
 		{
 			r["text"] = text(row.at("text"), 4096);

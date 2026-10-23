@@ -146,20 +146,21 @@ Json sensor_data(EntityId ship, EntityId target, const std::string &cap) const
 			}
 		return data;
 	}
+	if (cap == "shield_sectors")
+		if (const auto *owner = entity.try_get<ShieldComponent>())
+			for (const auto &c : owner->contributions)
+				data.push_back({{"id", "effect:" + std::to_string(c.effect_id) + ":" + c.name},
+				                {"contribution", c.name},
+				                {"bearing_mdeg", combat_angle(entity.get<Pose>().heading + c.definition.bearing)},
+				                {"arc_mdeg", c.definition.arc},
+				                {"strength", c.state.strength},
+				                {"capacity", c.definition.reserve().capacity},
+				                {"enabled", c.operating && c.state.warmup > 0}});
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
 			const auto &d = m->definition;
-			if (cap == "shield_sectors" && d.kind == OperatingSystem::Shield)
-			{
-				const auto &s = m->get<ShieldState>();
-				data.push_back({{"id", d.id},
-				                {"bearing_mdeg", combat_angle(entity.get<Pose>().heading + d.bearing)},
-				                {"arc_mdeg", d.arc},
-				                {"strength", s.strength},
-				                {"capacity", d.get<ShieldDefinition>().reserve.capacity},
-				                {"enabled", child.get<Equipment>().enabled && !structurally_disabled(entity, d.id)}});
-			}
+
 			if (cap == "contact_arcs" && d.kind == OperatingSystem::Weapon)
 			{
 				auto heading = entity.get<Pose>().heading + d.bearing;

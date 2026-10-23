@@ -245,6 +245,11 @@ struct World::Impl
 	std::vector<std::pair<std::string, std::string>> packs;
 	std::map<std::string, CompiledDefinition> definitions;
 	std::map<std::string, Json> console_layouts;
+	std::map<std::string, CombatSystemDefinition> shield_templates;
+	std::map<std::string, std::int64_t> shield_durations;
+	std::vector<ShieldReaction> shield_reactions;
+	std::map<std::uint64_t, std::string> shield_reaction_results;
+	std::uint64_t next_shield_hit = 1, next_shield_reaction = 1;
 	std::map<std::string, std::vector<std::string>> camera_widgets;
 	std::string map;
 	FactionCatalog factions;
@@ -539,6 +544,14 @@ struct World::Impl
 	{
 		const auto content = convert_controller_content(source);
 		console_layouts = content.consoles;
+		for (const auto &[id, effect] : content.effects)
+		{
+			CombatSystemDefinition d(OperatingSystem::Shield);
+			d.shield_effect = id;
+			d.shield_contributions = compile_shield_effect(content, id);
+			shield_templates.emplace(id, std::move(d));
+			shield_durations.emplace(id, effect.value("duration_ticks", std::int64_t{0}));
+		}
 		packs = content.ordered_packs;
 		camera_widgets.clear();
 		for (const auto &[name, layout] : content.consoles)
@@ -893,6 +906,7 @@ struct World::Impl
 			                }))
 				entity.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 			entity.set<CombatStructure>(std::move(structure));
+			entity.set<ShieldComponent>({});
 		}
 		if (!data.docking.empty())
 		{
@@ -942,7 +956,7 @@ struct World::Impl
 					mechanism.state = MagazineState{mechanism.definition.reserve().initial};
 					break;
 				case OperatingSystem::Shield:
-					mechanism.state = ShieldState{mechanism.definition.reserve().initial};
+					mechanism.state = ShieldBindingState{};
 					break;
 				case OperatingSystem::Team:
 					mechanism.state = TeamState{
@@ -989,6 +1003,11 @@ struct World::Impl
 			}
 		}
 		entity.set<EquipmentIndex>(std::move(index));
+		if (entity.has<ShieldComponent>())
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (const auto *m = child.try_get<CombatMechanism>();
+				    m && m->definition.kind == OperatingSystem::Shield)
+					install_shield_grant(entity, m->definition, m->definition.id, m->definition.shield_effect);
 		if (!entities.emplace(id, entity).second)
 			throw std::runtime_error("duplicate entity identity");
 		construction.registry = &entities;
@@ -1851,6 +1870,7 @@ struct World::Impl
 	}
 
 #include "combat_execution.hpp"
+#include "shield_reactions.hpp"
 	void run_advanced_equipment()
 	{
 		std::vector<std::pair<EntityId, flecs::entity>> ships;
@@ -1894,6 +1914,56 @@ struct World::Impl
 			run_equipment_actuation(id, restrictions);
 		}
 		refresh_psychic_work();
+	}
+	void scenario_shield_effects()
+	{
+		if (!scenario)
+			return;
+		for (const auto &request : scenario->pending_shield_effects())
+		{
+			std::string failure;
+			try
+			{
+				const auto target = entities.find(request.target);
+				if (target == entities.end() || !target->second.has<ShieldComponent>() || combat_dead(target->second))
+					throw std::runtime_error("Shield target unavailable or incompatible");
+				auto ship = target->second;
+				auto &owner = ship.get_mut<ShieldComponent>();
+				const auto key = "scenario." + std::to_string(request.token.instance) + "." + request.grant;
+				const auto matches = [&](const auto &c)
+				{
+					return c.equipment.empty() && c.definition.id == key;
+				};
+				auto found = std::find_if(owner.contributions.begin(), owner.contributions.end(), matches);
+				if (request.operation == ScenarioShieldEffectOperation::Remove)
+					std::erase_if(owner.contributions, matches);
+				else if (request.operation == ScenarioShieldEffectOperation::Refresh)
+				{
+					if (found == owner.contributions.end())
+						throw std::runtime_error("Shield grant unavailable for refresh");
+					const auto duration = shield_durations.at(found->definition_id);
+					for (auto &c : owner.contributions)
+						if (matches(c) && duration > 0)
+							c.expiry = std::max(c.expiry, static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration);
+				}
+				else
+				{
+					if (found != owner.contributions.end())
+						throw std::runtime_error("Shield grant name already active; refresh it explicitly");
+					auto d = shield_templates.at(request.definition);
+					d.id = key;
+					const auto duration = shield_durations.at(request.definition);
+					install_shield_grant(ship, d, {}, request.definition,
+					                     duration > 0 ? static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration
+					                                  : -1);
+				}
+			}
+			catch (const std::exception &error)
+			{
+				failure = error.what();
+			}
+			scenario->confirm_shield_effect(request.token, failure);
+		}
 	}
 	void scenario_spawns()
 	{
@@ -2512,6 +2582,7 @@ void World::tick()
 				    proposal.value);
 		}
 	impl_->controller_pending.clear();
+	impl_->step_shield_effects();
 	if (impl_->scenario)
 	{
 		auto bodies = inspect();
@@ -2536,6 +2607,7 @@ void World::tick()
 		impl_->scenario->supply_knowledge(snapshots);
 		impl_->scenario->step();
 		impl_->scenario_spawns();
+		impl_->scenario_shield_effects();
 		impl_->scenario_publications();
 	}
 	impl_->brain_snapshots.clear();
@@ -2620,6 +2692,7 @@ void World::tick()
 	impl_->sync_docks();
 	impl_->resolve_collisions.run();
 	impl_->step_docking();
+	impl_->step_shield_reactions();
 	impl_->step_ordnance();
 	impl_->resolve_destructions();
 	impl_->resolve_lost_parties();
@@ -3616,8 +3689,9 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 17},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 18},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
+	result["shield_reactions"] = impl_->save_shield_reactions();
 	if (impl_->display_revision)
 	{
 		result["display_revision"] = impl_->display_revision;
@@ -3703,6 +3777,8 @@ Json World::save() const
 			result["bodies"].back()["personnel"] = impl_->personnel_snapshot(id);
 		if (entity.has<CombatStructure>())
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
+		if (entity.has<ShieldComponent>())
+			result["bodies"].back()["shields"] = impl_->save_shields(entity);
 		if (const auto *d = entity.try_get<Destructible>())
 			result["bodies"].back()["destructible"] = *d;
 		if (entity.has<EntityControls>())
@@ -3752,8 +3828,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 17)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 17 required)");
+	if (saved.at("schema") != 18)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 18 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -3831,6 +3907,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		}
 		if (entity.has<CombatStructure>())
 			candidate.impl_->restore_combat(entity, value.at("combat"));
+		if (entity.has<ShieldComponent>())
+			candidate.impl_->restore_shields(entity, value.at("shields"));
 		if (!candidate.impl_->definition(restored.id).personnel.officers.empty() && !value.contains("personnel"))
 			throw std::runtime_error("Missing saved personnel");
 		if (value.contains("personnel"))
@@ -4051,6 +4129,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
+	candidate.impl_->restore_shield_reactions(saved.at("shield_reactions"));
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});
 	for (const auto &value : saved.at("bodies"))

@@ -1,5 +1,6 @@
 #include "../support/fixtures.hpp"
 #include "../support/model_fixture.hpp"
+#include "../support/combat_fixture.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -820,6 +821,108 @@ void scenario_record_readers()
 	check(bridge.observations(readers[0].instance).at(offset).type == state_tree::Type::Missing,
 	      "Scenario stale evidence remained available");
 }
+void independent_shield_world()
+{
+	auto data = phoenix::test::combat_fixture();
+	data["entities"][0]["stations"][0]["consoles"][0]["shield_feed"] = true;
+	data["effects"] = Json::parse(R"json([{"id":"test.blessing","kind":"shield","duration_ticks":5,
+  "contributions":{"bubble":{"capacity":10,"initial":7,"sustain_energy_per_second":0,
+   "recharge_per_second":1,"off_recharge_per_second":0,"warmup_ticks":1,
+   "modifiers":{"recharge":500,"protection":-500}}}}])json");
+	data["maps"][0]["scenario"] = {{"tree", "test.blessing-tree"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	data["trees"].push_back(Json::parse(R"json({"id":"test.blessing-tree","context":"scenario","initial":"apply",
+  "states":[{"id":"apply","entry":[
+    {"action":"apply_shield_effect","arguments":[{"observation":"self.entity"},"test.blessing","first"]},
+    {"action":"apply_shield_effect","arguments":[{"observation":"self.entity"},"test.blessing","second"]}],
+    "transitions":[{"target":"refresh","conditions":[{"left":{"observation":"tick"},"op":"ge","right":2}]}]},
+   {"id":"refresh","entry":[{"action":"refresh_shield_effect","arguments":[{"observation":"self.entity"},"first"]}],
+    "transitions":[{"target":"remove","conditions":[{"left":{"observation":"tick"},"op":"ge","right":4}]}]},
+   {"id":"remove","entry":[{"action":"remove_shield_effect","arguments":[{"observation":"self.entity"},"second"]}]}]})json"));
+	const auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {});
+	check(world.claim(900, 1, "drive"), "Cannot claim shield test ship");
+	world.tick();
+	auto saved = world.save();
+	auto &contributions = saved["bodies"][0]["shields"]["contributions"];
+	check(contributions.size() == 2, "Production scenario failed to grant first shields to an unfitted ship");
+	check(contributions[0]["quoted_rate"] == 1500 && contributions[0]["protection"] == 500 &&
+	          contributions[0]["quoted_sustain"] == 0,
+	      "Independent shield process ignored named modifiers or invented an equipment payer");
+	const auto first_id = contributions[0].at("effect_id");
+	check(contributions[0].at("expiry") == 5, "Initial scenario grant expiry not based on processing tick zero");
+	// Resume a depleted reserve, then let the production action refresh it.
+	for (auto &c : contributions)
+		c["state"]["strength"] = 3;
+	World resumed;
+	resumed.restore(catalog, saved);
+	resumed.clear_claims();
+	check(resumed.claim(900, 1, "drive"), "Cannot reclaim temporary shield observation");
+	check(resumed.claim(901, 1, "observer"), "Cannot claim shield-restricted observer");
+	// World evaluates scenario work at the current tick, then advances its clock.
+	// Processing ticks 1 and 2 reaches the authored refresh condition tick >= 2.
+	resumed.tick();
+	resumed.tick();
+	const auto refreshed = resumed.save()["bodies"][0]["shields"]["contributions"];
+	check(refreshed.size() == 2 && refreshed[0].at("effect_id") == first_id && refreshed[0]["state"]["strength"] == 3,
+	      "Refreshing a scenario shield duplicated or refilled its reserve");
+	check(refreshed[0].at("expiry") == 7 && refreshed[1].at("expiry") == 5,
+	      "Scenario refresh did not selectively extend the named grant at tick two");
+	const auto observed = resumed.observe(900)->gameplay.at("combat").at("shields");
+	check(observed.size() == 2 && !observed[0].at("controllable").get<bool>(),
+	      "Temporary shield missing from common observation or granted control implicitly");
+	check(!observed[0].contains("source") && !observed[0].contains("definition"),
+	      "Temporary shield projection leaked source bookkeeping");
+	check(resumed.observe(901)->gameplay.at("combat").at("shields").empty(),
+	      "Console without authored shield feed observed temporary grants");
+	for (int i = 0; i < 2; ++i)
+		resumed.tick();
+	check(resumed.save()["bodies"][0]["shields"]["contributions"].size() == 1,
+	      "Selective scenario removal affected an independent grant");
+	World continued;
+	continued.restore(catalog, resumed.save());
+	resumed.clear_claims();
+	continued.clear_claims();
+	for (int i = 0; i < 5; ++i)
+	{
+		resumed.tick();
+		continued.tick();
+	}
+	check(resumed.save()["bodies"][0]["shields"]["contributions"].empty(), "Finite shield grant did not expire");
+	check(resumed.save() == continued.save(), "Scenario grant expiry replayed or diverged after restore");
+}
+void shield_action_receipts()
+{
+	const auto catalog = fixture();
+	GameplayScenarioBridge bridge;
+	bridge.load(catalog, "test.map");
+	const auto instance = bridge.controllers().begin()->first;
+	const ScenarioActionToken token{instance, 500, 0};
+	std::vector<state_tree::Value> args{{state_tree::Type::Entity, 1, {}},
+	                                    {state_tree::Type::Text, 0, "test.temporary-shield"},
+	                                    {state_tree::Type::Text, 0, "blessing"}};
+	const auto receipt = bridge.execute(token, GameplayTreeAction::ApplyShieldEffect, args);
+	check(receipt.result.status == ScenarioActionStatus::Pending && bridge.pending_shield_effects().size() == 1,
+	      "Scenario shield action did not produce physical pending work");
+	bridge.execute(token, GameplayTreeAction::ApplyShieldEffect, args);
+	check(bridge.pending_shield_effects().size() == 1, "Replay duplicated pending shield work");
+	GameplayScenarioBridge resumed;
+	resumed.restore(catalog, "test.map", bridge.save());
+	check(resumed.pending_shield_effects().size() == 1, "Pending shield request lost across resume");
+	resumed.confirm_shield_effect(token);
+	check(resumed.receipt(token)->result.status == ScenarioActionStatus::Succeeded,
+	      "Physical grant confirmation missing");
+	GameplayScenarioBridge committed;
+	committed.restore(catalog, "test.map", resumed.save());
+	committed.execute(token, GameplayTreeAction::ApplyShieldEffect, args);
+	check(committed.pending_shield_effects().empty(), "Committed shield creation replayed on resume");
+	const ScenarioActionToken refresh{instance, 501, 0};
+	committed.execute(refresh, GameplayTreeAction::RefreshShieldEffect,
+	                  {{state_tree::Type::Entity, 1, {}}, {state_tree::Type::Text, 0, "blessing"}});
+	committed.confirm_shield_effect(refresh, "target removed");
+	check(committed.receipt(refresh)->result.status == ScenarioActionStatus::Failed,
+	      "Physical failure was not retained");
+}
 std::vector<Json> objective_records(const Observation &observation)
 {
 	std::vector<Json> out;
@@ -841,6 +944,8 @@ int main(int argc, char **argv)
 			return scenario_probe(argv[2], argv[3], std::stoi(argv[4]), argv[5]);
 		if (argc == 5 && std::string(argv[1]) == "--smoke-pack")
 			return scenario_probe(argv[2], argv[3], std::stoi(argv[4]));
+		shield_action_receipts();
+		independent_shield_world();
 		const auto catalog = fixture();
 		World original;
 		original.load(catalog, "test.map", {{"test.slot", "test.ship"}});

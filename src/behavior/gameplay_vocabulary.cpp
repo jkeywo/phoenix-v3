@@ -485,7 +485,22 @@ const std::vector<ActionDefinition> &action_definitions()
 	     false,
 	     GameplayTreeIntent::Count,
 	     none,
-	     {0}}};
+	     {0}},
+	    {GameplayTreeAction::ApplyShieldEffect,
+	     "apply_shield_effect",
+	     scenario_context,
+	     {{"ship", Type::Entity}, {"definition", Type::Text}, {"grant", Type::Text}},
+	     true},
+	    {GameplayTreeAction::RefreshShieldEffect,
+	     "refresh_shield_effect",
+	     scenario_context,
+	     {{"ship", Type::Entity}, {"grant", Type::Text}},
+	     true},
+	    {GameplayTreeAction::RemoveShieldEffect,
+	     "remove_shield_effect",
+	     scenario_context,
+	     {{"ship", Type::Entity}, {"grant", Type::Text}},
+	     true}};
 	return result;
 }
 const char *type_name(Type type)

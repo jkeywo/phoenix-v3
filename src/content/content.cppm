@@ -269,7 +269,7 @@ BaseConfiguration base_configuration(const Pack &pack);
 struct Catalog
 {
 	std::map<std::string, Json> entities, maps, consoles, trees;
-	std::map<std::string, Json> equipment, assemblies, messages;
+	std::map<std::string, Json> equipment, assemblies, messages, effects;
 	Json knowledge = Json::object();
 	CompiledKnowledge knowledge_definition;
 	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
@@ -437,6 +437,7 @@ struct ConsoleSpec
 	std::vector<std::string> controlled_systems, feed_systems;
 	bool human_seeking = false;
 	std::vector<std::string> human_preferences;
+	bool shield_feed = false;
 };
 // Authored personnel is compiled once; runtime assignments never alter these records.
 state_tree::Registry team_registry();
@@ -753,14 +754,44 @@ struct TeamDefinition
 	std::set<std::string> capabilities{"repair"};
 	std::vector<TeamOrderDefinition> orders;
 };
+enum class ShieldReactionKind
+{
+	Damage,
+	Apply,
+	Remove
+};
+struct ShieldReactionOperation
+{
+	ShieldReactionKind kind = ShieldReactionKind::Damage;
+	std::string target = "attacker", effect, grant;
+	std::int64_t damage = 0;
+};
+struct ShieldReactionDefinition
+{
+	std::string payer;
+	std::int64_t energy = 0;
+	std::vector<ShieldReactionOperation> operations;
+};
 struct ShieldDefinition
 {
+	std::vector<ShieldReactionDefinition> reactions;
+	std::int64_t pre_damage_permille = 1000, post_damage = 0;
+	std::int64_t recharge_modifier = 0, sustain_modifier = 0, discharge_modifier = 0, protection_modifier = 0;
 	ReserveDefinition reserve;
 	std::int64_t sustain_energy = 0, recharge_energy = 1, recharge_rate = 0, off_recharge_rate = 0;
 	std::int64_t warmup_ticks = 1, layer = 0, discharge_rate = 0, discharge_efficiency = 1000;
 };
+struct ShieldContributionDefinition
+{
+	std::string name;
+	std::int64_t bearing = 0, arc = 360000;
+	ShieldDefinition shield;
+};
+std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &, const std::string &);
 struct CombatSystemDefinition
 {
+	std::string shield_effect;
+	std::vector<ShieldContributionDefinition> shield_contributions;
 	std::string id, compartment;
 	OperatingSystem kind = OperatingSystem::Weapon;
 	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000;
@@ -937,7 +968,8 @@ enum class WorkshopDefinitionKind
 	Tree,
 	Equipment,
 	Assembly,
-	Message
+	Message,
+	Effect
 };
 class WorkshopDocument
 {

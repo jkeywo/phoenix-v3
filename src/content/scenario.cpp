@@ -297,6 +297,15 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 							require(valid_identifier(task.arguments.at(index).literal.text),
 							        "action needs valid named result/instance handle");
 					};
+					if (action == GameplayTreeAction::ApplyShieldEffect)
+					{
+						valid_handle(2);
+						if (task.arguments.at(1).source == state_tree::Source::Literal)
+							compile_shield_effect(catalog, task.arguments.at(1).literal.text);
+					}
+					if (action == GameplayTreeAction::RefreshShieldEffect ||
+					    action == GameplayTreeAction::RemoveShieldEffect)
+						valid_handle(1);
 					if (action == GameplayTreeAction::SpawnEntity)
 					{
 						valid_handle(5);
@@ -480,7 +489,7 @@ LoadClosure load_closure(const Catalog &catalog, const std::string &map)
 			return;
 		}
 		for (const auto *table : {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees,
-		                          &catalog.equipment, &catalog.assemblies, &catalog.messages})
+		                          &catalog.equipment, &catalog.assemblies, &catalog.messages, &catalog.effects})
 			if (const auto found = table->find(id); found != table->end())
 			{
 				if (result.definitions.insert(id).second)

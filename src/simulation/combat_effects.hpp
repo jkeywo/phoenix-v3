@@ -52,136 +52,274 @@ void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t dam
 		}
 	}
 }
-std::int64_t shield_rate(flecs::entity child) const
+std::uint64_t install_shield_grant(flecs::entity ship, const CombatSystemDefinition &definition,
+                                   const std::string &equipment, const std::string &definition_id,
+                                   std::int64_t expiry = -1)
 {
-	const auto &m = child.get<CombatMechanism>();
-	const auto &d = m.definition;
-	return std::min((d.reserve().capacity - m.get<ShieldState>().strength) * rate,
-	                officer_value(child.parent().get<StableId>().id, d.id, "recharge",
-	                              child.get<Equipment>().enabled ? d.get<ShieldDefinition>().recharge_rate
-	                                                             : d.get<ShieldDefinition>().off_recharge_rate));
+	auto &owner = ship.get_mut<ShieldComponent>();
+	const auto count = std::max<std::size_t>(1, definition.shield_contributions.size());
+	if (owner.contributions.size() + count > 8192 || owner.next_effect >= 9007199254740991ULL)
+		throw std::runtime_error("Shield grant capacity exhausted");
+	const auto id = owner.next_effect;
+	std::vector<ShieldContribution> prepared;
+	const auto add = [&](const std::string &name, const CombatSystemDefinition &d)
+	{
+		ShieldContribution c;
+		c.effect_id = id;
+		c.name = name;
+		c.equipment = equipment;
+		c.definition_id = definition_id;
+		c.definition = d;
+		c.state.strength = d.reserve().initial;
+		c.expiry = expiry;
+		prepared.push_back(std::move(c));
+	};
+	if (definition.shield_contributions.empty())
+		throw std::runtime_error("Shield grant has no compiled contributions");
+	else
+		for (const auto &entry : definition.shield_contributions)
+		{
+			auto d = definition;
+			d.bearing = entry.bearing;
+			d.arc = entry.arc;
+			d.details = entry.shield;
+			d.shield_contributions.clear();
+			add(entry.name, d);
+		}
+	owner.contributions.reserve(owner.contributions.size() + prepared.size());
+	for (auto &c : prepared)
+		owner.contributions.push_back(std::move(c));
+	++owner.next_effect;
+	return id;
+}
+std::int64_t shield_modifier(flecs::entity ship, const std::string &equipment, bool recharge) const
+{
+	std::int64_t bonus = recharge ? officer_bonus(ship.get<StableId>().id, equipment, "recharge") : 0;
+	if (const auto *structure = ship.try_get<CombatStructure>())
+		if (const auto at = structure->faults.find(equipment); at != structure->faults.end())
+		{
+			const auto &defs = structure->definition.faults.at(equipment);
+			for (std::size_t i = 0; i < at->second.size(); ++i)
+				if (at->second[i].active)
+				{
+					const auto &d = defs[i];
+					if (d.destroys || d.effect == "disabled" || d.effect == "feed")
+						return 0;
+					bonus += d.effectiveness - 1000;
+				}
+		}
+	return std::max<std::int64_t>(0, 1000 + bonus);
+}
+void step_shield_effects()
+{
+	for (const auto &[id, ship] : combat_rows())
+		if (auto *owner = ship.try_get_mut<ShieldComponent>())
+			std::erase_if(owner->contributions,
+			              [&](const auto &c)
+			              {
+				              return c.expiry >= 0 && static_cast<std::int64_t>(ecs.get<Clock>().tick) >= c.expiry;
+			              });
 }
 void request_shields(flecs::entity ship)
 {
+	auto *owner = ship.try_get_mut<ShieldComponent>();
 	auto *power = ship.try_get_mut<ShipResources>();
-	if (!power)
+	if (!owner || !power)
 		return;
 	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Shield)
+		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Shield)
 		{
-			const auto &d = m->definition;
-			const bool working = !duel_ended() && !structurally_disabled(ship, d.id);
-			const auto energy = working
-			                        ? (child.get<Equipment>().enabled ? d.get<ShieldDefinition>().sustain_energy : 0) +
-			                              (m->get<ShieldState>().discharge
-			                                   ? 0
-			                                   : shield_rate(child) * d.get<ShieldDefinition>().recharge_energy)
-			                        : 0;
+			std::int64_t energy = 0;
+			for (auto &c : owner->contributions)
+				if (c.equipment == m->definition.id)
+				{
+					const auto &d = c.definition.get<ShieldDefinition>();
+					c.operating = !duel_ended() && !structurally_disabled(ship, c.equipment) &&
+					              shield_modifier(ship, c.equipment, false) > 0;
+					const auto base = child.get<Equipment>().enabled ? d.recharge_rate : d.off_recharge_rate;
+					c.quoted_rate = std::min((d.reserve.capacity - c.state.strength) * rate * 1000,
+					                         base * std::max<std::int64_t>(0, shield_modifier(ship, c.equipment, true) +
+					                                                              d.recharge_modifier));
+					c.protection = std::clamp<std::int64_t>(
+					    shield_modifier(ship, c.equipment, false) + d.protection_modifier, 0, 1000);
+					c.quoted_sustain = d.sustain_energy * std::max<std::int64_t>(0, 1000 + d.sustain_modifier) / 1000;
+					c.quoted_discharge =
+					    d.discharge_rate * std::max<std::int64_t>(0, 1000 + d.discharge_modifier) / 1000;
+					if (c.operating)
+						energy += (child.get<Equipment>().enabled ? c.quoted_sustain : 0) +
+						          (c.state.discharge ? 0 : (c.quoted_rate * d.recharge_energy + 999) / 1000);
+				}
 			request_system_resource(*power, child.get<ResourceBinding>().slot, 0, false, energy);
 		}
 }
 void actuate_shields(flecs::entity ship)
 {
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Shield)
+	auto *owner = ship.try_get_mut<ShieldComponent>();
+	if (!owner)
+		return;
+	for (auto &c : owner->contributions)
+		if (c.equipment.empty())
 		{
-			const auto &d = m->definition;
-			const bool enabled = child.get<Equipment>().enabled;
-			const auto *power_source = ship.try_get<ShipResources>();
-			const auto *grant = power_source ? &power_source->grants.at(child.get<ResourceBinding>().slot) : nullptr;
-			const auto sustain = enabled ? d.get<ShieldDefinition>().sustain_energy : 0;
-			const auto requested =
-			    sustain +
-			    (m->get<ShieldState>().discharge ? 0 : shield_rate(child) * d.get<ShieldDefinition>().recharge_energy);
-			const auto funded = grant && !grant->blocked ? requested * grant->supply_permille / 1000 : 0;
-			const bool paid = grant && !grant->blocked && !structurally_disabled(ship, d.id) && funded >= sustain;
-			m->get<ShieldState>().warmup =
-			    paid && enabled ? std::min(d.get<ShieldDefinition>().warmup_ticks, m->get<ShieldState>().warmup + 1)
-			                    : 0;
-			if (paid && !m->get<ShieldState>().discharge)
-			{
-				const auto recharge =
-				    std::min(shield_rate(child), (funded - sustain) / d.get<ShieldDefinition>().recharge_energy);
-				m->get<ShieldState>().recharge_remainder += recharge * fault_effectiveness(ship, d.id);
-				m->get<ShieldState>().strength =
-				    std::min(d.reserve().capacity,
-				             m->get<ShieldState>().strength + m->get<ShieldState>().recharge_remainder / (rate * 1000));
-				m->get<ShieldState>().recharge_remainder %= rate * 1000;
-			}
-			if (m->get<ShieldState>().discharge && paid)
-				if (auto *power = ship.try_get_mut<ShipResources>())
-				{
-					m->get<ShieldState>().discharge_remainder += d.get<ShieldDefinition>().discharge_rate;
-					const auto units =
-					    std::min(m->get<ShieldState>().strength, m->get<ShieldState>().discharge_remainder / rate);
-					const auto conversion =
-					    d.get<ShieldDefinition>().recharge_energy * d.get<ShieldDefinition>().discharge_efficiency;
-					const auto offered = (m->get<ShieldState>().discharge_credit + units * conversion) / 1000;
-					const auto slot = power->definition.systems.at(child.get<ResourceBinding>().slot).store;
-					const auto received = power->network.receive_external(slot, offered);
-					const auto spent = std::max<std::int64_t>(
-					    0, (received * 1000 - m->get<ShieldState>().discharge_credit + conversion - 1) / conversion);
-					m->get<ShieldState>().discharge_credit += spent * conversion - received * 1000;
-					m->get<ShieldState>().strength -= spent;
-					// Retain a sub-energy rate budget until it produces one energy unit.
-					// Blocked batteries cannot bank rate for later bursts. Credit is
-					// already-consumed reserve, bounded below one strength unit.
-					if (offered > 0)
-						m->get<ShieldState>().discharge_remainder %= rate;
-					else
-						m->get<ShieldState>().discharge_remainder = std::min(
-						    m->get<ShieldState>().discharge_remainder, rate * ((1000 + conversion - 1) / conversion));
-				}
+			const auto &d = c.definition.get<ShieldDefinition>();
+			c.quoted_rate = d.recharge_rate * std::max<std::int64_t>(0, 1000 + d.recharge_modifier);
+			c.quoted_sustain = 0;   // Independent scenario grants explicitly use the cost-free process.
+			c.quoted_discharge = 0; // No authored discharge destination exists for this process.
+			c.protection = std::clamp<std::int64_t>(1000 + d.protection_modifier, 0, 1000);
 		}
+	std::map<std::string, std::int64_t> budgets, sustains;
+	std::map<std::string, bool> paid_equipment;
+	for (const auto &c : owner->contributions)
+		if (!c.equipment.empty())
+		{
+			const auto child = instance(ship, c.equipment)->entity;
+			const auto &d = c.definition.get<ShieldDefinition>();
+			if (c.operating)
+			{
+				budgets[c.equipment] += (child.get<Equipment>().enabled ? c.quoted_sustain : 0) +
+				                        (c.state.discharge ? 0 : (c.quoted_rate * d.recharge_energy + 999) / 1000);
+				sustains[c.equipment] += child.get<Equipment>().enabled ? c.quoted_sustain : 0;
+			}
+		}
+	for (auto &[equipment, budget] : budgets)
+	{
+		const auto *power = ship.try_get<ShipResources>();
+		const auto child = instance(ship, equipment)->entity;
+		const auto *grant = power ? &power->grants.at(child.get<ResourceBinding>().slot) : nullptr;
+		budget = grant && !grant->blocked ? budget * grant->supply_permille / 1000 : 0;
+		paid_equipment[equipment] = grant && !grant->blocked && budget >= sustains[equipment];
+		budget = std::max<std::int64_t>(0, budget - sustains[equipment]);
+	}
+	for (auto &c : owner->contributions)
+	{
+		auto &s = c.state;
+		const auto &d = c.definition.get<ShieldDefinition>();
+		const bool independent = c.equipment.empty();
+		const bool enabled = independent || instance(ship, c.equipment)->entity.get<Equipment>().enabled;
+		const bool paid = c.operating && (independent || paid_equipment[c.equipment]);
+		s.warmup = paid && enabled ? std::min(d.warmup_ticks, s.warmup + 1) : 0;
+		if (paid && !s.discharge)
+		{
+			const auto desired =
+			    independent ? std::min((d.reserve.capacity - s.strength) * rate * 1000, c.quoted_rate) : c.quoted_rate;
+			auto recharge = desired;
+			if (!independent)
+			{
+				recharge = std::min(desired, budgets[c.equipment] * 1000 / d.recharge_energy);
+				budgets[c.equipment] -= (recharge * d.recharge_energy + 999) / 1000;
+			}
+			s.recharge_remainder += recharge;
+			s.strength = std::min(d.reserve.capacity, s.strength + s.recharge_remainder / (rate * 1000));
+			s.recharge_remainder %= rate * 1000;
+		}
+		if (s.discharge && paid && !independent)
+			if (auto *power = ship.try_get_mut<ShipResources>())
+			{
+				const auto child = instance(ship, c.equipment)->entity;
+				s.discharge_remainder += c.quoted_discharge;
+				const auto units = std::min(s.strength, s.discharge_remainder / rate);
+				const auto conversion = d.recharge_energy * d.discharge_efficiency;
+				const auto offered = (s.discharge_credit + units * conversion) / 1000;
+				const auto slot = power->definition.systems.at(child.get<ResourceBinding>().slot).store;
+				const auto received = power->network.receive_external(slot, offered);
+				const auto spent =
+				    std::max<std::int64_t>(0, (received * 1000 - s.discharge_credit + conversion - 1) / conversion);
+				s.discharge_credit += spent * conversion - received * 1000;
+				s.strength -= spent;
+				if (offered > 0)
+					s.discharge_remainder %= rate;
+				else
+					s.discharge_remainder =
+					    std::min(s.discharge_remainder, rate * ((1000 + conversion - 1) / conversion));
+			}
+	}
 }
 std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64_t damage, std::int64_t bypass,
-                            std::int64_t *carry = nullptr)
+                            std::int64_t *carry = nullptr, EntityId source = 0)
 {
+	ensure_shield_reaction_capacity(ship);
+	const auto hit = next_shield_hit++;
 	const auto budget = damage * bypass + (carry ? *carry : 0);
 	const auto bypassed = budget / 1000;
 	if (carry)
 		*carry = budget % 1000;
 	auto remaining = damage - bypassed;
-	std::vector<flecs::entity> layers;
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Shield &&
-		                                                      m->get<ShieldState>().warmup &&
-		                                                      !structurally_disabled(ship, m->definition.id))
-		{
-			const auto facing = combat_angle(heading + 180000 - ship.get<Pose>().heading);
-			if (std::abs(combat_delta(facing, m->definition.bearing)) <= m->definition.arc / 2)
-				layers.push_back(child);
-		}
+	auto *owner = ship.try_get_mut<ShieldComponent>();
+	if (!owner)
+		return damage;
+	std::vector<ShieldContribution *> layers;
+	for (auto &c : owner->contributions)
+		if (c.operating && c.state.warmup && c.state.strength &&
+		    std::abs(combat_delta(combat_angle(heading + 180000 - ship.get<Pose>().heading), c.definition.bearing)) <=
+		        c.definition.arc / 2)
+			layers.push_back(&c);
 	std::sort(layers.begin(), layers.end(),
 	          [](auto a, auto b)
 	          {
-		          const auto &x = a.template get<CombatMechanism>().definition;
-		          const auto &y = b.template get<CombatMechanism>().definition;
-		          return std::pair{x.template get<ShieldDefinition>().layer, x.id} <
-		                 std::pair{y.template get<ShieldDefinition>().layer, y.id};
+		          return std::tuple{a->definition.template get<ShieldDefinition>().layer, a->effect_id, a->name} <
+		                 std::tuple{b->definition.template get<ShieldDefinition>().layer, b->effect_id, b->name};
 	          });
-	for (auto child : layers)
+	for (std::size_t begin = 0; begin < layers.size() && remaining;)
 	{
-		auto &m = child.get_mut<CombatMechanism>();
-		const auto &d = m.definition;
-		const auto available = m.get<ShieldState>().strength * m.get<ShieldState>().warmup /
-		                       d.get<ShieldDefinition>().warmup_ticks * fault_effectiveness(ship, d.id) / 1000;
-		const auto stopped = std::min(remaining, available);
-		if (stopped && blast_visuals.size() < 8192)
+		auto end = begin + 1;
+		while (end < layers.size() && layers[end]->definition.get<ShieldDefinition>().layer ==
+		                                  layers[begin]->definition.get<ShieldDefinition>().layer)
+			++end;
+		std::vector<std::int64_t> capacity(end - begin), absorbed(end - begin);
+		for (std::size_t i = begin; i < end; ++i)
 		{
-			DestructionDefinition flash;
-			const auto &shape = ship.get<Collider>();
-			flash.size = 2 * (shape.box ? std::max(shape.half_width, shape.half_length) : shape.radius);
-			flash.growth_ticks = 1;
-			flash.fade_ticks = 5;
-			blast_visuals.push_back({next_blast++, ship.get<Pose>().position, 0,
-			                         static_cast<std::int64_t>(ecs.get<Clock>().tick), flash, 1,
-			                         combat_angle(ship.get<Pose>().heading + d.bearing), d.arc});
+			const auto &c = *layers[i];
+			const auto &d = c.definition.get<ShieldDefinition>();
+			const auto usable =
+			    std::min(c.state.strength, c.state.strength * c.state.warmup / d.warmup_ticks * c.protection / 1000);
+			// Allocate incoming damage, then transform it once. Cancellation can remove an entire share even from a weak reserve.
+			capacity[i - begin] = d.pre_damage_permille == 0
+			                          ? remaining
+			                          : std::min(remaining, ((usable + 1) * 1000 - 1) / d.pre_damage_permille);
 		}
-		m.get<ShieldState>().strength -= stopped;
-		remaining -= stopped;
-		if (!remaining)
-			break;
+		// Water-fill equal shares; depleted peers relinquish unused shares before the next layer.
+		for (;;)
+		{
+			std::int64_t count = 0;
+			for (std::size_t i = 0; i < capacity.size(); ++i)
+				if (capacity[i] > absorbed[i])
+					++count;
+			if (!count || !remaining)
+				break;
+			const auto share = remaining / count, residue = remaining % count;
+			std::int64_t rank = 0, used = 0;
+			for (std::size_t i = 0; i < capacity.size(); ++i)
+				if (capacity[i] > absorbed[i])
+				{
+					const auto amount = std::min(capacity[i] - absorbed[i], share + (rank++ < residue ? 1 : 0));
+					absorbed[i] += amount;
+					used += amount;
+				}
+			remaining -= used;
+			if (!used)
+				break;
+		}
+		for (std::size_t i = begin; i < end; ++i)
+		{
+			auto &c = *layers[i];
+			const auto assigned = absorbed[i - begin];
+			const auto &definition = c.definition.get<ShieldDefinition>();
+			const auto stopped = assigned * definition.pre_damage_permille / 1000;
+			c.state.strength -= stopped;
+			if (assigned)
+				queue_shield_reactions(ship, c, hit, source, assigned, stopped, assigned - stopped, stopped, remaining);
+			if (stopped && blast_visuals.size() < 8192)
+			{
+				DestructionDefinition flash;
+				const auto &shape = ship.get<Collider>();
+				flash.size = 2 * (shape.box ? std::max(shape.half_width, shape.half_length) : shape.radius);
+				flash.growth_ticks = 1;
+				flash.fade_ticks = 5;
+				blast_visuals.push_back(
+				    {next_blast++, ship.get<Pose>().position, 0, static_cast<std::int64_t>(ecs.get<Clock>().tick),
+				     flash, 1, combat_angle(ship.get<Pose>().heading + c.definition.bearing), c.definition.arc});
+			}
+		}
+		begin = end;
 	}
 	return bypassed + remaining;
 }

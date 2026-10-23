@@ -5444,7 +5444,8 @@
 							"id": "science",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.science"],
-							"systems": []
+							"systems": [],
+							"shield_feed": true
 						},
 						{
 							"id": "navigator",
@@ -11745,17 +11746,7 @@
 				},
 				"shield-fore": {
 					"kind": "shield",
-					"bearing_mdeg": 0,
-					"arc_mdeg": 100000,
-					"layer": 0,
-					"capacity": 3000,
-					"recharge_per_second": 100,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.1",
 					"power_store": "shields-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -11786,17 +11777,7 @@
 				},
 				"shield-port": {
 					"kind": "shield",
-					"bearing_mdeg": 90000,
-					"arc_mdeg": 100000,
-					"layer": 0,
-					"capacity": 3000,
-					"recharge_per_second": 100,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.2",
 					"power_store": "shields-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11827,17 +11808,7 @@
 				},
 				"shield-aft": {
 					"kind": "shield",
-					"bearing_mdeg": 180000,
-					"arc_mdeg": 100000,
-					"layer": 0,
-					"capacity": 3000,
-					"recharge_per_second": 100,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.3",
 					"power_store": "shields-cell",
 					"compartment": "engineering",
 					"faults": [
@@ -11868,17 +11839,7 @@
 				},
 				"shield-starboard": {
 					"kind": "shield",
-					"bearing_mdeg": 270000,
-					"arc_mdeg": 100000,
-					"layer": 0,
-					"capacity": 3000,
-					"recharge_per_second": 100,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.4",
 					"power_store": "shields-cell",
 					"compartment": "passage",
 					"faults": [
@@ -19405,17 +19366,7 @@
 				},
 				"shield-fore": {
 					"kind": "shield",
-					"bearing_mdeg": 0,
-					"arc_mdeg": 90000,
-					"layer": 0,
-					"capacity": 800,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.5",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -19445,17 +19396,7 @@
 				},
 				"shield-aft": {
 					"kind": "shield",
-					"bearing_mdeg": 180000,
-					"arc_mdeg": 270000,
-					"layer": 1,
-					"capacity": 500,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.6",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -19568,7 +19509,8 @@
 								"missile-launcher",
 								"pdc-mag",
 								"pdc"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "tactical",
@@ -19632,7 +19574,8 @@
 								"pdc",
 								"ftl.supply",
 								"ftl.cooling"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "comms",
@@ -21426,17 +21369,7 @@
 				},
 				"shield-fore": {
 					"kind": "shield",
-					"bearing_mdeg": 0,
-					"arc_mdeg": 90000,
-					"layer": 0,
-					"capacity": 1400,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.7",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -21466,17 +21399,7 @@
 				},
 				"shield-aft": {
 					"kind": "shield",
-					"bearing_mdeg": 180000,
-					"arc_mdeg": 270000,
-					"layer": 1,
-					"capacity": 1000,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.8",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -21551,7 +21474,8 @@
 								"missile-launcher",
 								"pdc-mag",
 								"pdc"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "tactical",
@@ -21607,7 +21531,8 @@
 								"missile-launcher",
 								"pdc-mag",
 								"pdc"
-							]
+							],
+							"shield_feed": true
 						}
 					]
 				}
@@ -25365,17 +25290,7 @@
 				},
 				"shield-fore": {
 					"kind": "shield",
-					"bearing_mdeg": 0,
-					"arc_mdeg": 90000,
-					"layer": 0,
-					"capacity": 800,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.5",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -25405,17 +25320,7 @@
 				},
 				"shield-aft": {
 					"kind": "shield",
-					"bearing_mdeg": 180000,
-					"arc_mdeg": 270000,
-					"layer": 1,
-					"capacity": 500,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.6",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -25606,7 +25511,8 @@
 								"pdc",
 								"displacement",
 								"dispatch"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "tactical",
@@ -25674,7 +25580,8 @@
 								"ftl.supply",
 								"ftl.cooling",
 								"medical-team"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "comms",
@@ -27808,17 +27715,7 @@
 				},
 				"shield-fore": {
 					"kind": "shield",
-					"bearing_mdeg": 0,
-					"arc_mdeg": 90000,
-					"layer": 0,
-					"capacity": 800,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.5",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -27848,17 +27745,7 @@
 				},
 				"shield-aft": {
 					"kind": "shield",
-					"bearing_mdeg": 180000,
-					"arc_mdeg": 270000,
-					"layer": 1,
-					"capacity": 500,
-					"recharge_per_second": 70,
-					"off_recharge_per_second": 15,
-					"energy_per_strength": 3,
-					"sustain_energy_per_second": 60,
-					"warmup_ticks": 40,
-					"discharge_per_second": 100,
-					"discharge_efficiency_permille": 900,
+					"shield_effect": "shield.effect.6",
 					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
@@ -27943,7 +27830,8 @@
 								"missile-launcher",
 								"pdc-mag",
 								"pdc"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "tactical",
@@ -28005,7 +27893,8 @@
 								"pdc",
 								"ftl.supply",
 								"ftl.cooling"
-							]
+							],
+							"shield_feed": true
 						},
 						{
 							"id": "comms",
@@ -52034,6 +51923,160 @@
 			"parameters": {
 				"request": {
 					"argument": "amount"
+				}
+			}
+		}
+	],
+	"effects": [
+		{
+			"id": "shield.effect.1",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 0,
+					"arc_mdeg": 100000,
+					"layer": 0,
+					"capacity": 3000,
+					"recharge_per_second": 100,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.2",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 90000,
+					"arc_mdeg": 100000,
+					"layer": 0,
+					"capacity": 3000,
+					"recharge_per_second": 100,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.3",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 180000,
+					"arc_mdeg": 100000,
+					"layer": 0,
+					"capacity": 3000,
+					"recharge_per_second": 100,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.4",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 270000,
+					"arc_mdeg": 100000,
+					"layer": 0,
+					"capacity": 3000,
+					"recharge_per_second": 100,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.5",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 0,
+					"arc_mdeg": 90000,
+					"layer": 0,
+					"capacity": 800,
+					"recharge_per_second": 70,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.6",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 180000,
+					"arc_mdeg": 270000,
+					"layer": 1,
+					"capacity": 500,
+					"recharge_per_second": 70,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.7",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 0,
+					"arc_mdeg": 90000,
+					"layer": 0,
+					"capacity": 1400,
+					"recharge_per_second": 70,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "shield.effect.8",
+			"kind": "shield",
+			"contributions": {
+				"main": {
+					"bearing_mdeg": 180000,
+					"arc_mdeg": 270000,
+					"layer": 1,
+					"capacity": 1000,
+					"recharge_per_second": 70,
+					"off_recharge_per_second": 15,
+					"energy_per_strength": 3,
+					"sustain_energy_per_second": 60,
+					"warmup_ticks": 40,
+					"discharge_per_second": 100,
+					"discharge_efficiency_permille": 900
 				}
 			}
 		}

@@ -117,3 +117,41 @@ For example, the final entry in `sprite_sheet.frames` is:
 Canonical frames use `azimuth` and `attachments` instead of sidecar bearings and markers. Their rectangle, pivot and mirror flag have the same meaning. An asymmetric source pivot at X=30 in a 100-pixel region displays at X=70; a source attachment at X=80 displays at X=20. Its displacement from the pivot changes from +50 to âˆ’50. Existing unmirrored packs need no migration, and mirroring does not change physical collision shapes or gameplay heading.
 
 Map packs may declare fixed factions and mutual relationships, with per-placement and ship-slot membership overrides. Shared action trees and their referenced execution subtrees participate in normal dependency closure. See [Controller actions and factions](controller-actions.md).
+
+## Shield effect catalogue
+
+Author reusable shields in the top-level `effects` array. Effect IDs share the normal definition namespace. Effects use the same explicit pack overrides and `extends` inheritance as equipment; overrides resolve before consumers compile. A shield System references the effect through `shield_effect`. Author power stores, enabled intent, faults and physical compartments on the fitted System.
+
+```json
+{
+  "id": "example.shield",
+  "kind": "shield",
+  "duration_ticks": 0,
+  "contributions": {
+    "fore": {
+      "capacity": 100,
+      "initial": 50,
+      "bearing_mdeg": 0,
+      "arc_mdeg": 180000,
+      "recharge_per_second": 5,
+      "off_recharge_per_second": 1,
+      "energy_per_strength": 1,
+      "sustain_energy_per_second": 2,
+      "warmup_ticks": 20,
+      "discharge_per_second": 5,
+      "discharge_efficiency_permille": 1000,
+      "layer": 0
+    }
+  }
+}
+```
+
+Each contribution name owns an independent reserve and warmup. A definition supports at most 64 named contributions. Omitted duration or zero denotes an indefinite grant; a positive duration expires in simulation ticks. Scenario actions `apply_shield_effect`, `refresh_shield_effect` and `remove_shield_effect` use an explicit grant name. Refresh preserves reserve and accounting state.
+
+The optional contribution `modifiers` object accepts `recharge`, `sustain`, `discharge` and `protection` percentage deltas in permille. Values add to officer/fault contributions before applying the property once. Fixed capacity, arc, layer and conversion parameters cannot change through these live modifiers.
+
+Pre-damage modification uses `pre_damage_permille` (1000 by default, zero negates presented damage). `post_damage` schedules secondary damage after resolution. Other undeclared fields and unsupported operations fail validation. Workshop exposes effect templates and equipment reference selection; private effect definitions stay outside presentation-only client packs.
+
+Station Console instances opt into component observations with `shield_feed: true`. This exposes permitted shield contributions independently of equipment feeds and grants no commands. Maintained shield-operating Consoles declare this explicitly; presentation companions preserve the flag.
+
+A contribution can declare `reactions`, an array of atomic groups. Each group contains `operations` and optionally `payer` (a fitted equipment ID) with `energy` (a nonnegative cost). Operation `kind` is `damage`, `apply` or `remove`; `target` is `attacker` or `protected`. Damage requires positive `damage`; apply requires catalogue `effect` and stable local `grant`; remove addresses `grant`. Unsupported operations fail validation. Reactions execute after the original damage, and failure cannot rewind it.

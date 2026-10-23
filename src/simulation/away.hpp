@@ -348,19 +348,17 @@ std::string boarding_insertion_blocker(std::size_t index, const std::string &tra
 		return hp * 2 >= maximum ? "Shuttle boarding requires hull below 50%" : "";
 	}
 	for (auto id : {ship, d.target})
-		for (auto e : entities.at(id).get<EquipmentIndex>().values)
-			if (e.get<Equipment>().kind == OperatingSystem::Shield && e.get<Equipment>().enabled &&
-			    e.get<CombatMechanism>().get<ShieldState>().warmup > 0 &&
-			    e.get<CombatMechanism>().get<ShieldState>().strength > 0)
-			{
-				const auto &sector = e.get<CombatMechanism>().definition;
-				const auto &pose = entities.at(id).get<Pose>();
-				const auto other = entities.at(id == ship ? d.target : ship).get<Pose>().position;
-				const auto bearing = combat_bearing(other - pose.position);
-				const auto difference = (bearing - pose.heading - sector.bearing + 540000) % 360000 - 180000;
-				if (std::abs(difference) <= sector.arc / 2)
-					return "Lower shields for displacement";
-			}
+		if (const auto *owner = entities.at(id).try_get<ShieldComponent>())
+			for (const auto &c : owner->contributions)
+				if (c.operating && c.state.warmup > 0 && c.state.strength > 0)
+				{
+					const auto &pose = entities.at(id).get<Pose>();
+					const auto other = entities.at(id == ship ? d.target : ship).get<Pose>().position;
+					const auto bearing = combat_bearing(other - pose.position);
+					if (std::abs(combat_delta(bearing - pose.heading, c.definition.bearing)) <= c.definition.arc / 2)
+						return "Lower shields for displacement";
+				}
+
 	return {};
 }
 std::string away_blocker(std::size_t index, bool power = true) const

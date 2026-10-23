@@ -160,7 +160,19 @@ Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source)
 	{
 		if (signature(bytes, json_magic))
 			return Json::from_cbor(bytes.begin() + json_magic.size(), bytes.end());
-		return Json::parse(bytes.begin(), bytes.end());
+		std::vector<std::set<std::string>> objects;
+		return Json::parse(bytes.begin(), bytes.end(),
+		                   [&](int, Json::parse_event_t event, Json &value)
+		                   {
+			                   if (event == Json::parse_event_t::object_start)
+				                   objects.emplace_back();
+			                   else if (event == Json::parse_event_t::key &&
+			                            !objects.back().insert(value.get<std::string>()).second)
+				                   throw std::runtime_error("duplicate object key '" + value.get<std::string>() + "'");
+			                   else if (event == Json::parse_event_t::object_end)
+				                   objects.pop_back();
+			                   return true;
+		                   });
 	}
 	catch (const std::exception &error)
 	{

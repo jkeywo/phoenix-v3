@@ -258,6 +258,7 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	if (target.has<CombatStructure>())
 	{
 		Projectile p;
+		p.source = ship.get<StableId>().id;
 		p.damage = damage;
 		p.continuous = true;
 		p.bypass_remainder = m.get<WeaponState>().bypass_remainder;
