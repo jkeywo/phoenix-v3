@@ -14,8 +14,10 @@ module;
 module phoenix.content;
 namespace phoenix
 {
-Pack console_assets(const Catalog &catalog, const std::string &ship, const std::vector<std::string> &console_ids,
-                    const std::string &background)
+namespace
+{
+PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
+                               const std::vector<std::string> &console_ids, const std::string &background)
 {
 	const auto &source = catalog.entities.at(ship);
 	PackDraft draft;
@@ -30,7 +32,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	{
 		draft.manifest["format"] = "phoenix-console-selection";
 		draft.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
-		return read_pack(write_pack(draft, PackEncoding::Dat));
+		return draft;
 	}
 	const bool contact_only = source.at("render").contains("model") || source.at("render").contains("star");
 	Json entity{{"id", ship}, {"systems", Json::object()}};
@@ -252,7 +254,14 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	}
 	draft.files["definitions.json"] =
 	    json_bytes(Json{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}});
-	auto pack = read_pack(write_pack(draft, console_ids.empty() ? PackEncoding::Zip : PackEncoding::Dat));
+	return draft;
+}
+} // namespace
+Pack console_assets(const Catalog &catalog, const std::string &ship, const std::vector<std::string> &console_ids,
+                    const std::string &background)
+{
+	auto pack = read_pack(write_pack(console_assets_draft(catalog, ship, console_ids, background),
+	                                 console_ids.empty() ? PackEncoding::Zip : PackEncoding::Dat));
 	resolve_packs({pack});
 	return pack;
 }
@@ -269,11 +278,12 @@ Pack ship_client_assets(const Catalog &catalog, const std::string &ship, const s
 		consoles.push_back(seat.id);
 	if (consoles.empty())
 		throw std::runtime_error("Ship has no player Consoles");
-	const auto presentation = console_assets(catalog, ship, consoles, background);
-	PackDraft draft{presentation.manifest(), presentation.files()};
+	auto draft = console_assets_draft(catalog, ship, consoles, background);
 	draft.manifest["source_packs"] = catalog.ordered_packs;
 	draft.manifest["ship"] = ship;
-	return read_pack(write_pack(draft, PackEncoding::Dat));
+	auto pack = read_pack(write_pack(draft, PackEncoding::Dat));
+	resolve_packs({pack});
+	return pack;
 }
 void validate_ship_client(const Pack &pack, const Json &descriptor)
 {

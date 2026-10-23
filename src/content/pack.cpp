@@ -265,7 +265,7 @@ Bytes write_pack(const PackDraft &source, PackEncoding encoding)
 	{
 		if (signature(bytes, json_magic))
 			bytes = json_bytes(parse_json(bytes, path));
-		else if (compiled_image(bytes))
+		else if (encoding == PackEncoding::Zip && compiled_image(bytes))
 			bytes = source_asset_image(bytes);
 	}
 	verify_pack_draft(pack);

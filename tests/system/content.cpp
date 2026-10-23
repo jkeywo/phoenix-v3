@@ -254,6 +254,10 @@ int main()
 		            compiled_catalog.maps == catalog.maps,
 		        "ZIP/DAT share the production catalogue and exact byte identity");
 		require(compiled_image(compiled_pack.files().at("assets/pixel.png")), "DAT stores versioned lossless pixels");
+		const auto repacked =
+		    read_pack(write_pack({compiled_pack.manifest(), compiled_pack.files()}, PackEncoding::Dat));
+		require(repacked.files().at("assets/pixel.png") == compiled_pack.files().at("assets/pixel.png"),
+		        "DAT repack preserves compiled image records without re-encoding");
 		require(decode_asset_image(compiled_pack.files().at("assets/pixel.png")).rgba ==
 		            decode_asset_image(base.files.at("assets/pixel.png")).rgba,
 		        "compiled pixels preserve source image");
