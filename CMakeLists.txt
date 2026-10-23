@@ -169,6 +169,7 @@ FetchContent_Declare(
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(webp)
+include(cmake/WebPScalar.cmake)
 
 FetchContent_Declare(
 	qrcodegen

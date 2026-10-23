@@ -20,6 +20,7 @@ FetchContent_Declare(
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(webp)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/WebPScalar.cmake")
 get_filename_component(REPO "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
 set(DEPS "${REPO}/build/native/_deps")
 add_library(

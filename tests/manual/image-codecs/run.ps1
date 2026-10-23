@@ -29,7 +29,7 @@ try
 	{
 		throw 'WASM encode/decode or pixel verification failed'
 	}
-	Invoke-BenchCommand './build/image-codec-bench/native/Release/image_codecs.exe' @('compare','build/image-codec-bench/corpus','build/image-codec-bench/corpus-web')
+	Invoke-BenchCommand './build/image-codec-bench/native/Release/image_codecs.exe' @('compare', 'build/image-codec-bench/corpus', 'build/image-codec-bench/corpus-web')
 	& node build/image-codec-bench/web/image_codecs.js decode content/base/assets build/image-codec-bench/corpus > build/image-codec-bench/web-results.json
 	if ($LASTEXITCODE -ne 0)
 	{
@@ -39,6 +39,6 @@ try
 }
 finally
 {
-	$env:PATH=$previousPath
+	$env:PATH = $previousPath
 	Pop-Location
 }
