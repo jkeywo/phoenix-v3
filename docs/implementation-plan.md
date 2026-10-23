@@ -209,3 +209,7 @@ The root now contains ships and Rescue; Test Missions is a disabled child preser
 ## Lossless DAT images — 23 October 2026
 
 DAT image entries now use exact lossless WebP after benchmarking production sprites in native and WASM. Source PNGs stay editable; each encoded image is decoded and compared byte-for-byte before export. The previous raw image decoder is removed, generated DAT artifacts are upgraded, and deployment checks enforce the new records. See [measurements and validation](smoke/lossless-images.md).
+
+## Interrupted station delivery — 23 October 2026
+
+Rescue under threat now opens with routine Courier supplies or Cruiser perishable essentials for Cairn orbital starbase. Mission-only fits, physical receiving-store completion, inclusive delivery deadlines, reminders, a swept halfway distress trigger and separate frozen delivery/rescue assessments are authored in content. The system contains an illustrated planet and side-on station billboard, a procedural star and a clear asteroid-field rescue approach. Only the selected ship's compact briefing appears in the lobby alongside its stations, without a briefing scrollbar. See [delivery rules and authoring](rescue-opening.md) and the [verification and graphical receipt](smoke/rescue-opening.md) for exercised paths and acceptance scope.

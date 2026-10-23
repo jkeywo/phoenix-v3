@@ -12,7 +12,7 @@
 		<pre id="result">Running manual mission debrief smoke…</pre>
 		<script>
 			var Module = {
-				arguments: ["/assets", new URLSearchParams(location.search).get("mode") || "success"],
+				arguments: ["/assets", new URLSearchParams(location.search).get("mode") || "delivery-courier"],
 				canvas: document.getElementById("canvas"),
 				onAbort(reason) {
 					document.getElementById("result").textContent = "FAIL Browser runtime: " + reason;
