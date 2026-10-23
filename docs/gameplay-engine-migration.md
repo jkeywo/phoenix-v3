@@ -39,6 +39,8 @@ The native absorption implementation currently orders contributions by layer and
 
 ## Subsequent slices
 
+The next selected slice is [shared property effects and Duty Officer buffs](property-effects-migration-plan.md), including existing fault and boost/impulse adapters on migrated properties. It replaces the remaining ordinary officer bonus paths and proves shared application through timed scenario and shield-reaction modifiers. Implementation is pending. Resource/store unification and directed-system/payload conversion are the recommended following stages.
+
 Order later slices by the dependencies exposed by the shield implementation and the remaining existing systems. Each slice migrates its maintained definitions, production execution, observations, presentation and continuation together. A broad combat migration is not the prerequisite for proving the framework.
 
 The coverage table in the system design is the inventory to reconcile against delivery. Track each migrated area and its evidence in implementation records; do not infer completion from the existence of catalogue types or a successful build.
