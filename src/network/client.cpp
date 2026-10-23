@@ -43,6 +43,9 @@ class NetworkClient final : public SessionPort
 	std::unique_ptr<BlobStore> blobs_;
 	std::unique_ptr<PackTransfer> transfer_;
 	std::unique_ptr<StateTransfer> state_transfer_;
+	std::unique_ptr<ContentDownload> download_;
+	Json client_descriptor_;
+	std::string download_offer_;
 	std::string projection_stream_;
 	std::deque<Job> jobs_;
 	std::optional<Job> active_job_;
@@ -121,6 +124,12 @@ class NetworkClient final : public SessionPort
 		cache_.clear();
 		if (transfer_->ready())
 			content_ready();
+		else if (!options_.inspector && client_descriptor_.is_object() && offer_.at("packs").size() == 1 &&
+		         client_descriptor_.value("hash", std::string{}) == offer_.at("packs")[0].at("hash").get<std::string>())
+		{
+			download_ = download_content(client_descriptor_.value("url", std::string{}));
+			download_offer_ = offer_id_;
+		}
 	}
 	void content_ready()
 	{
@@ -293,6 +302,8 @@ class NetworkClient final : public SessionPort
 			state_transfer_.reset();
 			observation_.reset();
 			offer_ = body.at("content");
+			client_descriptor_ = body.value("client", Json{});
+			download_.reset();
 			transfer_.reset();
 			ready_sent_ = false;
 			cache_.clear();
@@ -301,10 +312,22 @@ class NetworkClient final : public SessionPort
 			PackTransfer::validate_offer(offer_);
 			for (const auto &pack : offer_.at("packs"))
 			{
-				jobs_.push_back({JobType::cache_read, pack.at("hash"), offer_id_});
-				++cache_pending_;
+				const std::string hash = pack.at("hash");
+				if (options_.prepared_clients.contains(hash))
+				{
+					cache_[hash] = options_.prepared_clients.at(hash);
+					jobs_.push_back(
+					    {JobType::cache_write, hash, offer_id_, std::make_shared<const Bytes>(cache_.at(hash))});
+				}
+				else
+				{
+					jobs_.push_back({JobType::cache_read, hash, offer_id_});
+					++cache_pending_;
+				}
 			}
 			message_ = "Checking verified content cache";
+			if (!cache_pending_)
+				finish_cache();
 		}
 		else if (packet->type == "pack-chunk")
 		{
@@ -639,16 +662,43 @@ public:
 							send("offer-request", Json::object());
 						last_heartbeat_ = now_;
 					}
+					if (download_)
+					{
+						if (auto bytes = download_->poll())
+						{
+							download_.reset();
+							if (download_offer_ == offer_id_ && !bytes->empty())
+								try
+								{
+									validate_ship_client(read_pack(*bytes), client_descriptor_);
+									std::map<std::string, Bytes> cache{
+									    {client_descriptor_.at("hash").get<std::string>(), std::move(*bytes)}};
+									auto candidate = std::make_unique<PackTransfer>(offer_, cache);
+									if (candidate->ready())
+									{
+										for (const auto &[hash, data] : cache)
+											jobs_.push_back({JobType::cache_write, hash, offer_id_,
+											                 std::make_shared<const Bytes>(data)});
+										transfer_ = std::move(candidate);
+										content_ready();
+									}
+								}
+								catch (const std::exception &)
+								{ /* Use authenticated host transfer. */
+								}
+						}
+					}
 					if (transfer_)
 					{
 						if (state_transfer_ && !state_transfer_->ready())
 							for (const auto &request : state_transfer_->requests(now_))
 								send("state-request", request);
-						for (auto request : transfer_->requests(now_))
-						{
-							request["offer"] = offer_id_;
-							send("pack-request", request);
-						}
+						if (!download_)
+							for (auto request : transfer_->requests(now_))
+							{
+								request["offer"] = offer_id_;
+								send("pack-request", request);
+							}
 						if (transfer_->ready() && (!ready_sent_ || now_ - last_state_ > 1000))
 							ready_sent_ =
 							    send("ready", {{"offer", offer_id_}, {"packs", transfer_->catalog().ordered_packs}});

@@ -15,6 +15,7 @@ module;
 module phoenix.network.lobby.protocol;
 import phoenix.network.client;
 import phoenix.wire;
+import phoenix.blobs;
 namespace phoenix
 {
 namespace
@@ -66,6 +67,35 @@ class GameLobby final : public SessionPort
 	std::vector<std::string> recovery_slots_;
 	Bytes bundle_;
 	Json received_ = Json::object(), configuration_ = Json::object();
+	mutable std::map<std::string, Json> client_descriptors_;
+	std::unique_ptr<ContentDownload> client_download_;
+	std::string client_download_hash_, client_cache_hash_, client_cache_checked_;
+	std::unique_ptr<BlobStore> client_cache_;
+	bool client_cache_ready_ = false, client_cache_failed_ = false, client_cache_pending_ = false,
+	     client_preparing_ = false;
+	std::uint64_t client_cache_request_ = 0;
+	bool accept_client(const Bytes &bytes)
+	{
+		try
+		{
+			const auto pack = read_pack(bytes);
+			validate_ship_client(pack, configuration_.at("client"));
+			if (resolve_packs({pack}).base != options_.expected_base)
+				return false;
+			options_.prepared_clients.clear();
+			options_.prepared_clients[pack.hash()] = bytes;
+			return true;
+		}
+		catch (const std::exception &)
+		{
+			return false;
+		}
+	}
+	void download_client()
+	{
+		client_download_ = download_content(configuration_.at("client").value("url", std::string{}));
+		client_preparing_ = static_cast<bool>(client_download_);
+	}
 	std::unique_ptr<StateSource> setup_source_;
 	std::unique_ptr<StateTransfer> setup_transfer_;
 	std::unique_ptr<PackSource> packs_source_;
@@ -593,6 +623,19 @@ class GameLobby final : public SessionPort
 				if (p.member.approved && p.member.role != JoinRole::ship_server && p.member.slot == member.slot)
 					result["tickets"][runtime_identity(peer_id)] = {{"key", p.key},
 					                                                {"role", static_cast<int>(p.member.role)}};
+		if (member.role == JoinRole::player && !member.slot.empty() && selection_.ships.contains(member.slot))
+		{
+			const auto &ship = selection_.ships.at(member.slot);
+			if (!client_descriptors_.contains(ship))
+			{
+				const auto &catalog = source_->catalog();
+				const auto pack = ship_client_assets(
+				    catalog, ship, catalog.maps.at(selection_.mission).value("loading_background", std::string{}));
+				client_descriptors_[ship] = ship_client_descriptor(catalog, ship, pack.hash(), options_.pack_urls);
+			}
+			result["client"] = client_descriptors_.at(ship);
+		}
+
 		return result;
 	}
 	std::string endpoint(const std::string &slot) const
@@ -851,7 +894,29 @@ class GameLobby final : public SessionPort
 			}
 		}
 		else if (packet->type == "configuration")
+		{
 			configuration_ = body;
+			const auto descriptor = body.value("client", Json{});
+			if (role_ == JoinRole::player && descriptor.is_object())
+			{
+				const auto hash = descriptor.value("hash", std::string{});
+				if (valid_hex_token(hash) && hash != client_download_hash_)
+				{
+					client_download_hash_ = hash;
+					client_download_.reset();
+					client_cache_checked_.clear();
+					client_preparing_ = !options_.prepared_clients.contains(hash);
+					if (client_preparing_ && !client_cache_)
+						client_cache_ = open_blob_store(options_.data_location + ".client");
+				}
+			}
+			else
+			{
+				client_download_.reset();
+				client_download_hash_.clear();
+				client_preparing_ = false;
+			}
+		}
 		else if (packet->type == "pack-offer" && role_ == JoinRole::ship_server && !packs_transfer_)
 			packs_transfer_ = std::make_unique<PackTransfer>(body.at("content"));
 		else if (packet->type == "pack-chunk" && packs_transfer_ && !packs_transfer_->ready())
@@ -860,6 +925,7 @@ class GameLobby final : public SessionPort
 			if (packs_transfer_->ready())
 			{
 				controller_layouts_.clear();
+				client_descriptors_.clear();
 				for (const auto &pack : packs_transfer_->packs())
 					services_.add_pack(*source_, pack);
 			}
@@ -938,6 +1004,7 @@ public:
 		if (active_)
 			throw std::runtime_error("Leave the lobby before changing packs");
 		controller_layouts_.clear();
+		client_descriptors_.clear();
 		source_->add_pack(archive);
 	}
 	void replace_packs(const std::vector<Bytes> &archives) override
@@ -945,6 +1012,7 @@ public:
 		if (active_)
 			throw std::runtime_error("Leave the lobby before changing packs");
 		controller_layouts_.clear();
+		client_descriptors_.clear();
 		auto check = services_.world();
 		check->replace_packs(archives);
 		if (!options_.expected_base.id.empty() && check->catalog().base != options_.expected_base)
@@ -959,6 +1027,7 @@ public:
 		active_ = launched_ = recovery_ = false;
 		countdown_.reset();
 		controller_layouts_.clear();
+		client_descriptors_.clear();
 		if (source_)
 			source_->clear_packs();
 		selection_ = {};
@@ -1057,6 +1126,7 @@ public:
 		auto setup = services_.setup(*candidate);
 		backend_.reset();
 		controller_layouts_.clear();
+		client_descriptors_.clear();
 		source_ = std::move(candidate);
 		selection_ = std::move(setup);
 		recovery_slots_ = std::move(required);
@@ -1479,6 +1549,57 @@ public:
 	}
 	void poll() override
 	{
+		if (client_cache_)
+		{
+			while (auto result = client_cache_->poll())
+			{
+				if (result->opened)
+				{
+					client_cache_ready_ = result->error.empty();
+					client_cache_failed_ = !client_cache_ready_;
+				}
+				else if (client_cache_pending_ && result->request == client_cache_request_)
+				{
+					client_cache_pending_ = false;
+					if (client_cache_hash_ == client_download_hash_)
+					{
+						client_cache_checked_ = client_cache_hash_;
+						if (result->bytes && accept_client(*result->bytes))
+							client_preparing_ = false;
+						else
+							download_client();
+					}
+				}
+			}
+			if (client_preparing_ && !client_download_ && !client_cache_pending_ &&
+			    client_cache_checked_ != client_download_hash_)
+			{
+				if (client_cache_ready_)
+				{
+					client_cache_hash_ = client_download_hash_;
+					client_cache_pending_ = client_cache_->read(++client_cache_request_, client_cache_hash_);
+					if (!client_cache_pending_)
+					{
+						client_cache_checked_ = client_download_hash_;
+						download_client();
+					}
+				}
+				else if (client_cache_failed_)
+				{
+					client_cache_checked_ = client_download_hash_;
+					download_client();
+				}
+			}
+		}
+		if (client_download_)
+			if (auto bytes = client_download_->poll())
+			{
+				client_download_.reset();
+				client_preparing_ = false;
+				if (!bytes->empty())
+					(void)accept_client(*bytes);
+			}
+
 		if (inference_ && role_ == JoinRole::ship_server)
 		{
 			if (backend_)
@@ -1596,7 +1717,7 @@ public:
 			// Consume readiness/disconnect packets before committing a deferred launch.
 			if (launch_pending_ && launch_pending_ < 3)
 				++launch_pending_;
-			else if (launch_pending_ == 3)
+			else if (launch_pending_ == 3 && !client_preparing_)
 			{
 				launch_pending_ = 0;
 				if (!coordinator_ || all_ready())

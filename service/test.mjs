@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import http from "node:http";
 import assert from "node:assert/strict";
 import { WebSocket } from "ws";
 import { createSignallingServer } from "./server.mjs";
@@ -738,38 +739,66 @@ test(
 	},
 );
 
-test(
-	"pre-game ship admission, readiness countdown and deterministic AI slots",
-	{ skip: !process.env.PHOENIX_LOBBY_PROBE, timeout: 120000 },
-	async (context) => {
-		const service = createSignallingServer({ port: 0 });
-		const address = await service.listen();
-		let child;
-		try {
-			child = spawn(process.env.PHOENIX_LOBBY_PROBE, [`ws://127.0.0.1:${address.port}/phoenix`], {
-				windowsHide: true,
-				signal: context.signal,
-				cwd: process.env.PHOENIX_NATIVE_BUILD_DIR || new URL("../build/native/", import.meta.url),
+for (const published of ["valid", "missing", "corrupt"])
+	test(
+		`pre-game ship admission, readiness countdown and deterministic AI slots (${published} ship sidecars)`,
+		{ skip: !process.env.PHOENIX_LOBBY_PROBE, timeout: 120000 },
+		async (context) => {
+			const service = createSignallingServer({ port: 0 });
+			const address = await service.listen();
+			let downloads = 0;
+			const cwd =
+				process.env.PHOENIX_NATIVE_BUILD_DIR || fileURLToPath(new URL("../build/native/", import.meta.url));
+			const content = http.createServer((request, response) => {
+				if (!/^\/fixture\.zip\.clients\/[a-f0-9]{64}\.dat$/.test(request.url)) {
+					response.writeHead(404).end();
+					return;
+				}
+				downloads++;
+				try {
+					if (published === "missing") throw Error("Missing optional sidecar");
+					response.end(
+						published === "corrupt"
+							? Buffer.from("corrupt DAT")
+							: readFileSync(join(cwd, "lobby-sidecars", request.url.slice(1))),
+					);
+				} catch {
+					response.writeHead(404).end();
+				}
 			});
-			let output = "";
-			child.stdout.on("data", (data) => {
-				output += data;
-			});
-			child.stderr.on("data", (data) => {
-				output += data;
-			});
-			const code = await new Promise((resolve, reject) => {
-				child.once("error", reject);
-				child.once("exit", resolve);
-			});
-			assert.equal(code, 0, output);
-			assert.match(output, /PASS authenticated slot arbitration/);
-		} finally {
-			if (child && child.exitCode === null && child.signalCode === null) {
-				child.kill();
-				await new Promise((resolve) => child.once("exit", resolve));
+			await new Promise((resolve) => content.listen(0, "127.0.0.1", resolve));
+			let child;
+			try {
+				child = spawn(
+					process.env.PHOENIX_LOBBY_PROBE,
+					[`ws://127.0.0.1:${address.port}/phoenix`, `http://127.0.0.1:${content.address().port}`],
+					{
+						windowsHide: true,
+						signal: context.signal,
+						cwd: process.env.PHOENIX_NATIVE_BUILD_DIR || new URL("../build/native/", import.meta.url),
+					},
+				);
+				let output = "";
+				child.stdout.on("data", (data) => {
+					output += data;
+				});
+				child.stderr.on("data", (data) => {
+					output += data;
+				});
+				const code = await new Promise((resolve, reject) => {
+					child.once("error", reject);
+					child.once("exit", resolve);
+				});
+				assert.equal(code, 0, output);
+				assert.match(output, /PASS authenticated slot arbitration/);
+				assert.ok(downloads > 0, "Joining players attempted the advertised ship sidecar");
+			} finally {
+				if (child && child.exitCode === null && child.signalCode === null) {
+					child.kill();
+					await new Promise((resolve) => child.once("exit", resolve));
+				}
+				await new Promise((resolve) => content.close(resolve));
+				await service.close();
 			}
-			await service.close();
-		}
-	},
-);
+		},
+	);

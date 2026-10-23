@@ -1,5 +1,7 @@
 module;
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <memory>
 #include <set>
 #include <string>
@@ -51,6 +53,14 @@ public:
 };
 std::unique_ptr<PeerTransport> open_peer_transport(const LinkOptions &options);
 void verify_link_options(const LinkOptions &options);
+// Optional bounded public-content download. Empty bytes on failure trigger peer fallback.
+class ContentDownload
+{
+public:
+	virtual ~ContentDownload() = default;
+	virtual std::optional<std::vector<std::uint8_t>> poll() = 0;
+};
+std::unique_ptr<ContentDownload> download_content(const std::string &url);
 } // namespace phoenix
 
 // Shared adapter policy. These declarations belong to this module, but are not

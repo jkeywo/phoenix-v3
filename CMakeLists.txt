@@ -167,8 +167,9 @@ add_library(
 	${miniz_SOURCE_DIR}/miniz_tinfl.c
 	${miniz_SOURCE_DIR}/miniz_zip.c
 )
-target_compile_definitions(phoenix_zip PUBLIC MINIZ_NO_TIME)
 target_include_directories(phoenix_zip PUBLIC ${miniz_SOURCE_DIR} ${miniz_BINARY_DIR})
+# Public sidecars and host-generated fallback must have identical identities on every platform.
+target_compile_definitions(phoenix_zip PUBLIC MINIZ_NO_TIME)
 add_library(
 	phoenix_imgui
 	STATIC
@@ -859,15 +860,25 @@ else()
 			"$<TARGET_FILE_DIR:phoenix_comic_probe>/assets/pfx"
 	)
 endif()
-add_library(phoenix_transport STATIC src/transport/options.cpp src/transport/policy.cpp)
+add_library(
+	phoenix_transport
+	STATIC
+	src/transport/options.cpp
+	src/transport/policy.cpp
+	src/platform/content_download.cpp
+)
 target_link_libraries(phoenix_transport PUBLIC phoenix_foundation PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
 	target_sources(phoenix_transport PRIVATE src/platform/browser_transport.cpp)
+	target_link_options(phoenix_transport PUBLIC "-sFETCH=1")
 else()
 	target_sources(phoenix_transport PRIVATE src/platform/native_transport.cpp)
 	target_link_libraries(phoenix_transport PRIVATE datachannel-static)
 	if(WIN32)
-		target_link_libraries(phoenix_transport PRIVATE crypt32)
+		target_link_libraries(phoenix_transport PRIVATE crypt32 winhttp)
+	else()
+		find_package(CURL REQUIRED)
+		target_link_libraries(phoenix_transport PRIVATE CURL::libcurl)
 	endif()
 endif()
 add_executable(phoenix_network_probe tests/manual/network.cpp)

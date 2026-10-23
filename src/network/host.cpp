@@ -35,6 +35,7 @@ class NetworkHost final : public SessionPort
 		std::uint64_t seen = 0;
 		std::shared_ptr<StateSource> projection;
 		std::shared_ptr<PackSource> console_source;
+		Json descriptor;
 		std::string console, content_offer = random_token();
 		std::uint64_t projection_sequence = 0, projection_started = 0;
 		std::string projection_stream = random_token();
@@ -92,26 +93,26 @@ class NetworkHost final : public SessionPort
 		                                       : console_source_.get();
 		if (source && client.approved)
 			send(peer, "pack-offer",
-			     {{"offer", client.content_offer}, {"content", source->offer()}, {"stream", client.projection_stream}});
+			     {{"offer", client.content_offer},
+			      {"content", source->offer()},
+			      {"stream", client.projection_stream},
+			      {"client", client.descriptor}});
 	}
 	bool prepare_console_source(const std::string &peer, const Observation &observation)
 	{
 		auto &client = clients_.at(peer);
-		std::vector<std::string> consoles{observation.console};
-		for (const auto &additional : observation.additional_consoles)
-			consoles.push_back(additional.console);
-		std::sort(consoles.begin(), consoles.end());
-		consoles.erase(std::unique(consoles.begin(), consoles.end()), consoles.end());
 		std::string identity = observation.own.definition;
-		for (const auto &console : consoles)
-			identity += "/" + console;
+
 		if (client.console == identity && client.console_source)
 			return false;
 		client.console = identity;
 		client.content_offer = random_token();
-		client.console_source = std::make_shared<PackSource>(std::vector<Pack>{console_assets(
-		    world_->catalog(), observation.own.definition, consoles,
-		    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{}))});
+		const auto pack = ship_client_assets(
+		    world_->catalog(), observation.own.definition,
+		    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{}));
+		client.descriptor =
+		    ship_client_descriptor(world_->catalog(), observation.own.definition, pack.hash(), options_.pack_urls);
+		client.console_source = std::make_shared<PackSource>(std::vector<Pack>{pack});
 		client.ready = false;
 		client.projection.reset();
 		advertise(peer);

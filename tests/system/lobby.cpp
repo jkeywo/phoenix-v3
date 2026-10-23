@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 		require(parse_join_code("aBc123").room == "ABC123" && parse_join_code("aBc123").server == "host" &&
 		            display_join_code("ABC123", "host") == "ABC123" && parse_join_code("legacy/ship").server == "ship",
 		        "Short codes normalize for admission while existing direct invitations remain usable");
-		if (argc != 2)
+		if (argc != 2 && argc != 3)
 			throw std::runtime_error("Supply the private synthetic signalling URL");
 		NetworkOptions options;
 		options.link.url = argv[1];
@@ -219,6 +219,13 @@ int main(int argc, char **argv)
 		    {{"id", "spare"}, {"definition", "test.spare"}, {"systems", Json::array()}});
 		auto mixed_pack = pack;
 		mixed_pack.files["definitions.json"] = json_bytes(mixed_defs);
+		if (argc == 3)
+		{
+			const auto archive = read_pack(write_pack(mixed_pack));
+			write_companions("lobby-sidecars/fixture.zip", pack_companions({archive}, "fixture.zip"));
+			options.pack_urls[archive.hash()] = std::string(argv[2]) + "/fixture.zip";
+			host = make_game_lobby(options);
+		}
 		host->add_pack(write_pack(mixed_pack));
 		host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		const auto lobby_generation = host->generation();
