@@ -27,14 +27,14 @@ inline SystemView read_radar(const Json &v)
 	s.kind = OperatingSystem::Radar;
 	s.id = text(v.at("id"));
 	s.maximum = number(v.at("maximum"), 0);
-	s.effective_range = number(v.at("effective_range"), 0, s.maximum);
+	s.effective_range = number(v.at("effective_range"), 0, projection::sensor_range_limit);
 	s.enabled = v.at("enabled").get<bool>();
 	read_sensor_reach(s, v.value("reach_profile", Json::array()));
 	if (!v.at("radial_ranges").is_array() || (!v.at("radial_ranges").empty() && v.at("radial_ranges").size() != 128) ||
 	    !v.at("shows").is_array() || v.at("shows").size() > 256)
 		throw std::runtime_error("Invalid shared radar envelope");
 	for (const auto &r : v.at("radial_ranges"))
-		s.radial_ranges.push_back(number(r, 0, s.maximum));
+		s.radial_ranges.push_back(number(r, 0, s.effective_range));
 	for (const auto &tag : v.at("shows"))
 		s.shows.push_back(text(tag, 128));
 	return s;

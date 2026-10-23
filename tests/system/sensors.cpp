@@ -89,6 +89,41 @@ int main(int argc, char **argv)
 		w.load(catalog, "test.map");
 		require(w.claim(101, 1, "drive") && w.claim(102, 1, "observer"), "claim stations");
 		ticks(w, 1);
+		{
+			// The client DAT intentionally contains no private officer assignments.
+			// It must accept the host's bounded, bonus-adjusted public radar envelope.
+			auto boosted = *w.observe(101);
+			for (auto &system : boosted.systems)
+				if (system.kind == OperatingSystem::Radar)
+				{
+					system.effective_range = system.maximum + system.maximum / 5;
+					system.radial_ranges.assign(128, system.effective_range);
+					system.reach_profile = {{360000, system.effective_range}};
+					require(display::read_radar(display::radar_json(system)).effective_range == system.effective_range,
+					        "shared radar accepts authoritative bonuses above nominal range");
+				}
+			const auto client = resolve_packs({ship_client_assets(catalog, boosted.own.definition)});
+			const auto wire = network::observation_json(boosted);
+			require(network::read_observation(wire, client).systems.size() == boosted.systems.size(),
+			        "whole-ship DAT accepts bonus-adjusted sensor observations");
+			auto invalid = wire;
+			for (auto &system : invalid["systems"])
+				if (system["kind"] == "radar")
+				{
+					system["effective_range"] = projection::sensor_range_limit + 1;
+					system["reach_profile"] = Json::array();
+				}
+			bool rejected = false;
+			try
+			{
+				(void)network::read_observation(invalid, client);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "excessive projected sensor range remains rejected");
+		}
 		require(w.observe(101)->contacts.at(0).definition == "Test cruiser",
 		        "public class replaces private definition");
 		require(w.observe(102)->contacts.empty() && w.observe(102)->gameplay.at("sensors").at("contacts").empty(),

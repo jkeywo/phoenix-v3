@@ -57,7 +57,14 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		std::string html = "<div id=\"lobby-board\" class=\"lobby-board lobby-player-board\"><div id=\"lobby-player\">";
 		html += heading(own != lobby.members.end() && !own->console.empty() ? "Your console" : "Choose a console");
 		html += paragraph(briefing);
-		if (own == lobby.members.end() || !own->approved)
+		if (lobby.launched)
+		{
+			html += readout("menu.client-connection", app.session->connection_status());
+			for (const auto &[id, label] : controls)
+				if (id.starts_with("network."))
+					html += act(id, label);
+		}
+		else if (own == lobby.members.end() || !own->approved)
 			html += paragraph("Connecting to the ship lobby...");
 		else
 			for (const auto &seat : lobby.consoles)

@@ -2,6 +2,9 @@
 // Body fields shared by Console observations and public display allowlists.
 namespace phoenix::projection
 {
+// Authored radar range is at most 1e9 mm. Up to 128 officers, each with
+// sixteen +10000-permille traits, can contribute to the authoritative range.
+inline constexpr std::int64_t sensor_range_limit = 1000000000LL * (1 + 128 * 16 * 10);
 inline Json body_json(const BodyView &b)
 {
 	return {{"id", b.id},

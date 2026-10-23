@@ -356,7 +356,9 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		state.reach_limited = entry.value("reach_limited", false);
 		if (state.reach_uncertainty_mm < 0 || state.reach_uncertainty_mm > state.effective_range)
 			throw std::runtime_error("Invalid sensor uncertainty");
-		if (state.effective_range < 0 || state.effective_range > state.maximum ||
+		// The host applies officer bonuses; nominal authored range is not an effective-range cap.
+		const auto range_limit = state.kind == OperatingSystem::Radar ? projection::sensor_range_limit : state.maximum;
+		if (state.effective_range < 0 || state.effective_range > range_limit ||
 		    (!state.radial_ranges.empty() &&
 		     (state.kind != OperatingSystem::Radar || state.radial_ranges.size() != 128)) ||
 		    std::any_of(state.radial_ranges.begin(), state.radial_ranges.end(),

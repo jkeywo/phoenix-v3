@@ -446,7 +446,9 @@ struct NativeMenuScreen::State
 		if (modal || app.screen != Screen::home || app.reduced_motion || intro_reading || !action_error.empty())
 			intro_complete = true;
 		ambient.update(GetFrameTime(), !app.reduced_motion && !modal && app.screen == Screen::home);
-		const bool playing = game_active(app);
+		// A launched client still needs connection/claim controls until it has an observation.
+		const bool playing =
+		    game_active(app) && app.screen != Screen::client_lobby && app.screen != Screen::server_lobby;
 
 		button_enabled = !modal && !intro_reading;
 		auto add = [&](const std::string &id, const std::string &text, std::function<void()> action)
