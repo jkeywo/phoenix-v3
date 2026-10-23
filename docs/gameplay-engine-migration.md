@@ -4,6 +4,8 @@ Delivery direction · 23 October 2026
 
 The [system design](gameplay-engine-design.md) describes the finished architecture. This document records how to reach it and the implementation-level contracts still to specify. Neither document establishes completed implementation or acceptance.
 
+The [shield migration review](gameplay-engine-shield-review.md) compares that design with the current code and separates first-slice decisions from required integration work. Its recommendations remain proposals until resolved.
+
 ## Scope and replacement strategy
 
 Migrate existing gameplay in verified stages. Planned GDD systems inform extensibility but do not become additional implementation commitments in this overhaul. Remove each superseded runtime path when its replacement is usable; the final architecture has one gameplay model.
