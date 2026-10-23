@@ -24649,7 +24649,7 @@
 		},
 		{
 			"id": "base.rescue-courier",
-			"name": "Courier â€” Rescue watch",
+			"name": "Courier",
 			"tags": ["ship"],
 			"motion_model": "inertial",
 			"render": {
@@ -25018,7 +25018,9 @@
 						"basic_identity": 0,
 						"own_arcs": 0,
 						"contact_arcs": 0
-					}
+					},
+					"range_mm": 2500000,
+					"long_range_mm": 5000000
 				},
 				"top": {
 					"kind": "turret",
@@ -25391,19 +25393,10 @@
 				},
 				"comms-radio": {
 					"kind": "comms",
-					"range_mm": 450000,
+					"range_mm": 2500000,
 					"energy_per_second": 40,
 					"power_store": "combat-power.main",
 					"observation_console": "comms",
-					"compartment": "bow-port"
-				},
-				"displacement": {
-					"kind": "displacement",
-					"range_mm": 120000,
-					"capacity": 8,
-					"transfer_ticks": 60,
-					"energy_per_second": 200,
-					"power_store": "combat-power.main",
 					"compartment": "bow-port"
 				},
 				"dispatch": {
@@ -25472,34 +25465,6 @@
 					"capabilities": ["security"],
 					"compartment": "bow-starboard",
 					"injured_effectiveness_permille": 500
-				},
-				"shuttle-bay": {
-					"kind": "transport",
-					"mode": "shuttle",
-					"craft": "base.boarding-shuttle",
-					"count": 1,
-					"range_mm": 200000,
-					"capacity": 8,
-					"transfer_ticks": 20,
-					"energy_per_second": 0,
-					"compartment": "bow-starboard",
-					"arrival_distance_mm": 18000,
-					"arrival_speed_mm_s": 1500,
-					"cruise_speed_mm_s": 16000
-				},
-				"boarding-torpedo": {
-					"kind": "transport",
-					"mode": "boarding_torpedo",
-					"craft": "base.boarding-shuttle",
-					"count": 2,
-					"range_mm": 200000,
-					"capacity": 8,
-					"transfer_ticks": 20,
-					"energy_per_second": 0,
-					"compartment": "bow-starboard",
-					"arrival_distance_mm": 18000,
-					"arrival_speed_mm_s": 1500,
-					"cruise_speed_mm_s": 16000
 				}
 			},
 			"stations": [
@@ -25535,7 +25500,6 @@
 								"missile-launcher",
 								"pdc-mag",
 								"pdc",
-								"displacement",
 								"dispatch"
 							],
 							"shield_feed": true
@@ -25564,9 +25528,7 @@
 								"pdc",
 								"focused-scanner",
 								"sensor-turret",
-								"security-team",
-								"shuttle-bay",
-								"boarding-torpedo"
+								"security-team"
 							]
 						}
 					]
@@ -25623,6 +25585,14 @@
 							"feeds": ["ftl.drive"],
 							"human_preferences": ["support", "helm"],
 							"knowledge_roles": ["base.crew"]
+						},
+						{
+							"id": "navigation",
+							"definition": "base.console.navigation",
+							"systems": [],
+							"feeds": [],
+							"knowledge_roles": ["base.crew"],
+							"human_preferences": ["support", "helm"]
 						}
 					]
 				}
@@ -26054,19 +26024,6 @@
 						]
 					},
 					{
-						"id": "displacement",
-						"console": "helm",
-						"fallback": "hold",
-						"commands": [
-							{
-								"id": "enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["displacement"]
-							}
-						]
-					},
-					{
 						"id": "dispatch",
 						"console": "helm",
 						"fallback": "hold",
@@ -26167,28 +26124,16 @@
 						]
 					},
 					{
-						"id": "shuttle-bay",
-						"console": "tactical",
+						"id": "navigation.orders",
+						"console": "navigation",
 						"fallback": "hold",
 						"commands": [
 							{
-								"id": "enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["shuttle-bay"]
-							}
-						]
-					},
-					{
-						"id": "boarding-torpedo",
-						"console": "tactical",
-						"fallback": "hold",
-						"commands": [
-							{
-								"id": "enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["boarding-torpedo"]
+								"id": "waypoint",
+								"action": "waypoint",
+								"initial": 0,
+								"arguments": [0, 0],
+								"consumers": []
 							}
 						]
 					}
@@ -26199,7 +26144,7 @@
 						"id": "direct",
 						"consoles": {
 							"helm": {
-								"human": ["drive", "helm", "displacement", "dispatch"]
+								"human": ["drive", "helm", "dispatch"]
 							},
 							"tactical": {
 								"human": [
@@ -26218,9 +26163,7 @@
 									"pdc-mag",
 									"pdc",
 									"scanner",
-									"security-team",
-									"shuttle-bay",
-									"boarding-torpedo"
+									"security-team"
 								]
 							},
 							"support": {
@@ -26243,6 +26186,9 @@
 							},
 							"navigator": {
 								"human": ["ftl.drive"]
+							},
+							"navigation": {
+								"human": ["navigation.orders"]
 							}
 						},
 						"stars": 3
@@ -26251,7 +26197,7 @@
 						"id": "automatic",
 						"consoles": {
 							"helm": {
-								"ai": ["drive", "helm", "displacement", "dispatch"]
+								"ai": ["drive", "helm", "dispatch"]
 							},
 							"tactical": {
 								"ai": [
@@ -26270,9 +26216,7 @@
 									"pdc-mag",
 									"pdc",
 									"scanner",
-									"security-team",
-									"shuttle-bay",
-									"boarding-torpedo"
+									"security-team"
 								]
 							},
 							"support": {
@@ -26294,6 +26238,9 @@
 							},
 							"navigator": {
 								"human": ["ftl.drive"]
+							},
+							"navigation": {
+								"human": ["navigation.orders"]
 							}
 						},
 						"stars": 0
@@ -26539,11 +26486,6 @@
 						"id": "signals",
 						"label": "Signals",
 						"station": "support"
-					},
-					{
-						"id": "navigation",
-						"label": "Navigation",
-						"station": "helm"
 					},
 					{
 						"id": "passage",
@@ -26897,16 +26839,6 @@
 						}
 					},
 					{
-						"id": "navigator",
-						"label": "Navigator",
-						"department": "navigation",
-						"controller": "displacement",
-						"console": "helm",
-						"compartment": "bow-port",
-						"required_trait": "navigator",
-						"effects": {}
-					},
-					{
 						"id": "dispatch",
 						"label": "Dispatch",
 						"department": "sailing",
@@ -26987,21 +26919,12 @@
 						"effects": {}
 					},
 					{
-						"id": "shuttle-bay",
-						"label": "Shuttle bay",
-						"department": "tactical",
-						"controller": "shuttle-bay",
-						"console": "tactical",
-						"compartment": "bow-starboard",
-						"effects": {}
-					},
-					{
-						"id": "boarding-torpedo",
-						"label": "Boarding torpedoes",
-						"department": "tactical",
-						"controller": "boarding-torpedo",
-						"console": "tactical",
-						"compartment": "bow-starboard",
+						"id": "navigation.orders",
+						"label": "Navigation",
+						"department": "passage",
+						"controller": "navigation.orders",
+						"console": "navigation",
+						"compartment": "bow-port",
 						"effects": {}
 					}
 				],
@@ -27091,9 +27014,9 @@
 						"id": "navigator",
 						"name": "Sera Ilyan",
 						"portrait": "phoenix-base:assets/personnel/navigator.png",
-						"department": "navigation",
-						"duty": "navigator",
-						"compartment": "bow-port",
+						"department": "passage",
+						"duty": "ftl.drive",
+						"compartment": "stern-port",
 						"traits": ["navigator"]
 					},
 					{
@@ -27125,7 +27048,55 @@
 					}
 				]
 			},
-			"class_key": "Courier"
+			"class_key": "Courier",
+			"logistics": {
+				"controller": "team-1",
+				"materials": [
+					{
+						"id": "station-supplies",
+						"volume": 1
+					},
+					{
+						"id": "perishable-essentials",
+						"volume": 1
+					}
+				],
+				"units_per_second": 40,
+				"stores": [
+					{
+						"id": "mission-hold",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"capacity": 100,
+						"main": true,
+						"accepts": ["station-supplies"],
+						"initial": {
+							"station-supplies": 100
+						}
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "fore",
+						"controller": "drive",
+						"compartment": "bow-port",
+						"compatibility": "standard",
+						"x_mm": 15000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			}
 		},
 		{
 			"id": "base.rescue-casualty",
@@ -29208,7 +29179,28 @@
 					}
 				]
 			},
-			"class_key": "Courier"
+			"class_key": "Courier",
+			"docking": {
+				"ports": [
+					{
+						"id": "fore",
+						"controller": "drive",
+						"compartment": "bow-port",
+						"compatibility": "standard",
+						"x_mm": 15000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			}
 		},
 		{
 			"id": "base.boarding-shuttle",
@@ -29419,7 +29411,9 @@
 							"compartment": "mid-port",
 							"system": "reactor"
 						}
-					}
+					},
+					"allow_ship_transport": true,
+					"docking_ports": ["fore"]
 				}
 			]
 		},
@@ -30908,65 +30902,7 @@
 		{
 			"id": "base.delivery-courier",
 			"extends": "base.rescue-courier",
-			"name": "Courier — station delivery",
-			"faction": "crew",
-			"systems": {
-				"comms-radio": {
-					"range_mm": 2500000
-				},
-				"radar": {
-					"range_mm": 2500000,
-					"long_range_mm": 5000000
-				}
-			},
-			"logistics": {
-				"controller": "team-1",
-				"materials": [
-					{
-						"id": "station-supplies",
-						"volume": 1
-					},
-					{
-						"id": "perishable-essentials",
-						"volume": 1
-					}
-				],
-				"units_per_second": 40,
-				"stores": [
-					{
-						"id": "mission-hold",
-						"controller": "team-1",
-						"compartment": "stern-starboard",
-						"capacity": 100,
-						"main": true,
-						"accepts": ["station-supplies"],
-						"initial": {
-							"station-supplies": 100
-						}
-					}
-				]
-			},
-			"docking": {
-				"ports": [
-					{
-						"id": "fore",
-						"controller": "drive",
-						"compartment": "bow-port",
-						"compatibility": "standard",
-						"x_mm": 15000,
-						"heading_mdeg": 0,
-						"capture_range_mm": 1500,
-						"capture_speed_mm_s": 1000,
-						"mating_ticks": 40,
-						"separation_ticks": 30,
-						"units_per_second": 40,
-						"auto_accept_allies": true,
-						"supply": true,
-						"emergency_release": true,
-						"emergency_damage": 20
-					}
-				]
-			}
+			"name": "Courier"
 		},
 		{
 			"id": "base.delivery-shuttle",
@@ -32221,13 +32157,13 @@
 			"ship_slots": [
 				{
 					"id": "courier",
-					"name": "Delivery ship",
+					"name": "Courier",
 					"mandatory": true,
-					"allowed_ships": ["base.delivery-courier", "base.delivery-cruiser"],
+					"allowed_ships": ["base.rescue-courier", "base.delivery-cruiser"],
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,
-					"default_ship": "base.delivery-courier",
+					"default_ship": "base.rescue-courier",
 					"faction": "crew"
 				}
 			],
@@ -32403,7 +32339,9 @@
 							"required": false,
 							"capability": "medical"
 						}
-					]
+					],
+					"allow_ship_transport": true,
+					"docking_ports": ["fore"]
 				}
 			],
 			"scenario": {
@@ -32946,7 +32884,7 @@
 												{
 													"fact": "delivery-ship",
 													"op": "eq",
-													"value": "base.delivery-courier"
+													"value": "base.rescue-courier"
 												}
 											]
 										}
@@ -33033,7 +32971,7 @@
 				}
 			],
 			"ship_briefings": {
-				"base.delivery-courier": "mission.rescue.briefing.courier",
+				"base.rescue-courier": "mission.rescue.briefing.courier",
 				"base.delivery-cruiser": "mission.rescue.briefing.cruiser"
 			},
 			"factions": [
@@ -49352,7 +49290,7 @@
 										"observation": "self.definition"
 									},
 									"op": "eq",
-									"right": "base.delivery-courier"
+									"right": "base.rescue-courier"
 								}
 							]
 						}
@@ -49562,7 +49500,7 @@
 										"observation": "self.definition"
 									},
 									"op": "eq",
-									"right": "base.delivery-courier"
+									"right": "base.rescue-courier"
 								}
 							]
 						}

@@ -14,7 +14,7 @@
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,
-					"allowed_ships": ["base.courier", "base.courier-engineering", "base.cruiser"]
+					"allowed_ships": ["base.rescue-courier", "base.cruiser"]
 				}
 			]
 		},
@@ -244,7 +244,7 @@
 			},
 			"ship_slots": [
 				{
-					"allowed_ships": ["base.courier-engineering"],
+					"allowed_ships": ["base.rescue-courier"],
 					"heading_mdeg": 0,
 					"id": "base.player",
 					"x_mm": 0,
@@ -262,7 +262,7 @@
 				{
 					"id": "racer-a",
 					"mandatory": true,
-					"allowed_ships": ["base.race-courier"],
+					"allowed_ships": ["base.rescue-courier"],
 					"x_mm": -180000,
 					"y_mm": -40000,
 					"heading_mdeg": 0
@@ -270,7 +270,7 @@
 				{
 					"id": "racer-b",
 					"mandatory": true,
-					"allowed_ships": ["base.race-courier"],
+					"allowed_ships": ["base.rescue-courier"],
 					"x_mm": -180000,
 					"y_mm": 40000,
 					"heading_mdeg": 0
@@ -399,8 +399,8 @@
 					"x_mm": -140000,
 					"y_mm": -18000,
 					"heading_mdeg": 0,
-					"allowed_ships": ["base.armed-courier"],
-					"default_ship": "base.armed-courier",
+					"allowed_ships": ["base.rescue-courier"],
+					"default_ship": "base.rescue-courier",
 					"faction": "house"
 				}
 			],
@@ -465,7 +465,7 @@
 					"id": "courier",
 					"name": "First Courier",
 					"mandatory": true,
-					"allowed_ships": ["base.comms-courier"],
+					"allowed_ships": ["base.rescue-courier"],
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0
@@ -474,7 +474,7 @@
 					"id": "partner",
 					"name": "Second Courier",
 					"mandatory": true,
-					"allowed_ships": ["base.comms-courier"],
+					"allowed_ships": ["base.rescue-courier"],
 					"x_mm": 0,
 					"y_mm": 50000,
 					"heading_mdeg": 0
@@ -525,7 +525,7 @@
 			"ship_slots": [
 				{
 					"id": "courier",
-					"name": "Rescue Courier",
+					"name": "Courier",
 					"mandatory": true,
 					"allowed_ships": ["base.rescue-courier", "base.cruiser"],
 					"x_mm": 0,
