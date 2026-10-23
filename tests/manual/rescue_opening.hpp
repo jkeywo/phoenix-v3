@@ -1,20 +1,23 @@
 // Explicit manual smoke: normal authored cargo and rescue, rendered with real Consoles.
 int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opened, const std::string &checkpoint = {},
-                         bool preview = false)
+                         bool preview = false, bool render = true)
 {
 	Application app;
 	app.can_host = true;
 	app.native_menu = false;
 	app.session = make_local_session();
+	std::cout << "WAIT Rescue loading content" << std::endl;
 	const std::string fit = cruiser ? "base.delivery-cruiser" : "base.rescue-courier";
 	if (checkpoint.empty())
 	{
 		app.session->add_pack(read_file(directory + "/base.zip"));
+		std::cout << "WAIT Rescue starting fresh session" << std::endl;
 		std::map<std::string, std::map<std::string, std::string>> profiles;
 		if (!cruiser)
 			for (const auto *console : {"helm", "support", "tactical", "comms", "navigator", "navigation"})
 				profiles["courier"][console] = "detailed";
 		app.session->start({"base.rescue-under-threat", {{"courier", fit}}, "courier", "helm", profiles});
+		std::cout << "WAIT Rescue session started" << std::endl;
 	}
 	else
 	{
@@ -27,6 +30,16 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		if (!ok)
 			throw std::runtime_error(why);
 	};
+#ifndef __EMSCRIPTEN__
+	auto write_checkpoint = [&](const std::string &path, const auto &archive)
+	{
+		std::ofstream file(path, std::ios::binary);
+		ensure(bool(file), "Cannot create checkpoint: " + path);
+		file.write(reinterpret_cast<const char *>(archive.data()), archive.size());
+		file.close();
+		ensure(bool(file), "Could not write checkpoint: " + path);
+	};
+#endif
 	ensure(app.session->claim_console(2, {ship, cruiser ? "engineering" : "support"}), "Delivery engineering claim");
 	if (cruiser)
 	{
@@ -34,15 +47,20 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		for (const auto *seat : {"tactical", "comms", "science", "captain"})
 			ensure(app.session->claim_console(route++, {ship, seat}), std::string("Claim ") + seat);
 	}
-	open_window();
-	opened = true;
-	SetWindowSize(2560, 1080);
-	SetTargetFPS(0);
+	if (render)
+	{
+		open_window();
+		opened = true;
+		SetWindowSize(2560, 1080);
+		SetTargetFPS(0);
+	}
 	app.screen = Screen::console;
 	app.console_regions = {{1, 0, 0, 1280, 1080}, {2, 1280, 0, 1280, 1080}};
 	const std::string prefix = cruiser ? "cruiser" : "courier";
 	auto frame = [&]
 	{
+		if (!render)
+			return;
 		BeginDrawing();
 		ClearBackground(BLACK);
 		draw_screen(app);
@@ -53,6 +71,8 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	};
 	auto capture = [&](const std::string &name)
 	{
+		if (!render)
+			return;
 		for (int i = 0; i < 2; ++i)
 			frame();
 #ifdef __EMSCRIPTEN__
@@ -203,8 +223,27 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 			app.screen_action("console/" + std::to_string(route) + "/game.console/" + console);
 		frame();
 	};
+	auto wait_report = [&](std::uint64_t route)
+	{
+		if (!render)
+			return;
+		const auto control = "console/" + std::to_string(route) + "/mission.leave";
+		auto ready = [&]
+		{
+			return std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+			                   [&](const auto &c)
+			                   {
+				                   return c.first == control;
+			                   });
+		};
+		for (int i = 0; i < 400 && !ready(); ++i)
+			frame();
+		ensure(ready(), "Report controls did not become ready");
+	};
 	auto panel = [&](std::uint64_t route, const std::string &name)
 	{
+		if (!render)
+			return;
 		frame();
 		const auto root = "console/" + std::to_string(route) + "/";
 		if (name == "logistics" || name == "docking")
@@ -275,12 +314,12 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		    "navigate");
 		stop();
 	};
-	for (int i = 0; i < 800 && view("helm").second.gameplay.at("mission_report").is_null() &&
+	for (int i = 0; render && i < 800 && view("helm").second.gameplay.at("mission_report").is_null() &&
 	                std::none_of(
 	                    app.screen_controls.begin(), app.screen_controls.end(),
 	                    [](const auto &c)
 	                    {
-		                    return c.first == "console/1/personnel";
+		                    return c.first == "console/1/settings";
 	                    });
 	     ++i)
 		frame();
@@ -288,9 +327,11 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	const std::string dispatch = cruiser ? "comms" : "helm", transport = cruiser ? "science" : "helm";
 	if (!view("helm").second.gameplay.at("mission_report").is_null())
 	{
+		ensure(render, "Use delivery-cruiser to preview an existing report");
 		const auto route = view("navigator").first;
 		show(route, "navigator");
 		app.console_regions[1].console = route;
+		wait_report(route);
 		capture("report");
 		close_window();
 		opened = false;
@@ -299,6 +340,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	}
 	if (checkpoint.empty())
 	{
+		std::cout << "WAIT Rescue initial simulation" << std::endl;
 		advance(40);
 		const auto engineering_view = view(engineering).second;
 		for (const auto &c : engineering_view.gameplay.at("controllers"))
@@ -428,8 +470,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 #ifndef __EMSCRIPTEN__
 	{
 		const auto archive = app.session->save();
-		std::ofstream file("build/rescue-" + prefix + "-arrival.zip", std::ios::binary);
-		file.write(reinterpret_cast<const char *>(archive.data()), archive.size());
+		write_checkpoint("build/rescue-" + prefix + "-arrival.zip", archive);
 	}
 #endif
 	domain(dispatch, "away", "open", "repairs");
@@ -550,18 +591,23 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	       "Independent delivery result: " + report.dump());
 	show(route, "navigator");
 	app.console_regions[1].console = route;
+	wait_report(route);
 	capture("report");
 	std::cout << "DEBRIEF " << report.dump() << std::endl;
-#ifndef __EMSCRIPTEN__
 	advance(1);
 	{
 		const auto archive = app.session->save();
-		std::ofstream file("build/rescue-" + prefix + "-report.zip", std::ios::binary);
-		file.write(reinterpret_cast<const char *>(archive.data()), archive.size());
-	}
+#ifdef __EMSCRIPTEN__
+		EM_ASM({Module.missionCheckpoint=URL.createObjectURL(new Blob([HEAPU8.slice($0,$0+$1)],{type:"application/zip"}));},archive.data(),archive.size());
+#else
+		write_checkpoint("build/rescue-" + prefix + "-report.zip", archive);
 #endif
-	close_window();
+	}
+	if (render)
+		close_window();
 	opened = false;
-	std::cout << "PASS " << prefix << " delivery and rescue graphical smoke" << std::endl;
+	std::cout << "PASS " << prefix
+	          << (render ? " delivery and rescue graphical smoke" : " delivery and rescue fresh checkpoint")
+	          << std::endl;
 	return 0;
 }

@@ -8,7 +8,7 @@
 		<div id="semantics" aria-label="Player console" style="position: absolute; opacity: 0; pointer-events: none">
 			<p id="player-status" role="status" aria-live="polite"></p>
 		</div>
-		<canvas id="canvas" width="1280" height="900" style="max-width: 100%"></canvas>
+		<canvas id="canvas" width="2560" height="1080" style="width: 2560px; height: 1080px"></canvas>
 		<pre id="result">Running manual mission debrief smoke…</pre>
 		<script>
 			var Module = {
@@ -42,6 +42,13 @@
 					}
 					if (text.startsWith("PASS ")) {
 						document.getElementById("result").textContent = text;
+						if (Module.missionCheckpoint) {
+							const save = document.createElement("a");
+							save.href = Module.missionCheckpoint;
+							save.download = "rescue-report.zip";
+							save.textContent = "Download fresh mission save";
+							document.body.append(save);
+						}
 						for (const [name, data] of Object.entries(Module.missionCaptures || {})) {
 							const heading = document.createElement("h2");
 							heading.textContent = name;

@@ -21,13 +21,16 @@ int main(int argc, char **argv)
 	try
 	{
 		if (argc < 2)
-			throw std::runtime_error("Usage: phoenix_mission_smoke pack-directory "
-			                         "[delivery-courier|delivery-cruiser|preview-cruiser] [arrival-checkpoint]");
+			throw std::runtime_error(
+			    "Usage: phoenix_mission_smoke pack-directory "
+			    "[delivery-courier|delivery-cruiser|preview-cruiser|checkpoint-cruiser] [checkpoint]");
 		const std::string mode = argc > 2 ? argv[2] : "delivery-courier";
-		if (mode != "delivery-courier" && mode != "delivery-cruiser" && mode != "preview-cruiser")
-			throw std::runtime_error("Choose delivery-courier, delivery-cruiser or preview-cruiser.");
+		if (mode != "delivery-courier" && mode != "delivery-cruiser" && mode != "preview-cruiser" &&
+		    mode != "checkpoint-cruiser")
+			throw std::runtime_error(
+			    "Choose delivery-courier, delivery-cruiser, preview-cruiser or checkpoint-cruiser.");
 		return rescue_opening_smoke(argv[1], mode != "delivery-courier", opened, argc > 3 ? argv[3] : "",
-		                            mode == "preview-cruiser");
+		                            mode == "preview-cruiser", mode != "checkpoint-cruiser");
 	}
 	catch (const std::exception &e)
 	{
