@@ -98,6 +98,51 @@ int main(int argc, char **argv)
 			require(recalled.observe(102)->gameplay.at("logistics").at("stores")[0].at("quantities").at("parts") == 1,
 			        "Cargo cancellation does not teleport supplies back to the source");
 		}
+		{
+			World interrupted;
+			interrupted.restore(catalog, w.save());
+			for (int i = 0; i < 1000 && interrupted.save().at("logistics").at("cargo")[0].at("phase") != "outbound";
+			     ++i)
+				interrupted.tick();
+			require(interrupted.save().at("logistics").at("cargo")[0].at("phase") == "outbound",
+			        "Exercise a launched cargo commitment");
+			require(!interrupted.submit(102, command(interrupted, 102, "deliver", "hold", text, "team")),
+			        "A committed shuttle cannot accept a second cargo job");
+			auto radio = [](World &world, int enabled)
+			{
+				const auto o = *world.observe(101);
+				OperatingCommand c{o.own.id, {}, enabled, {}};
+				c.console = "drive";
+				c.controller = "radio";
+				c.channel = "enabled";
+				for (const auto &ctrl : o.gameplay.at("controllers"))
+					if (ctrl.at("id") == "radio")
+						c.generation = ctrl.at("generation");
+				require(world.submit(101, c), "Comms operator changes radio power");
+			};
+			radio(interrupted, 0);
+			ticks(interrupted, 30);
+			World reconnected;
+			reconnected.restore(catalog, interrupted.save());
+			ticks(interrupted, 30);
+			ticks(reconnected, 30);
+			require(interrupted.save() == reconnected.save(),
+			        "Cargo continuation remains exact during a communications outage");
+			radio(interrupted, 1);
+			radio(reconnected, 1);
+			ticks(interrupted, 1);
+			ticks(reconnected, 1);
+			for (int i = 0; i < 4000 && interrupted.save().at("logistics").at("cargo")[0].at("phase") != "complete";
+			     ++i)
+			{
+				interrupted.tick();
+				reconnected.tick();
+			}
+			require(interrupted.save() == reconnected.save(),
+			        "Cargo recovery resumes exactly after communications return");
+			require(interrupted.save().at("logistics").at("cargo")[0].at("phase") == "complete",
+			        "Interrupted cargo delivery unloads and recovers through the ordinary logistics path");
+		}
 		World resumed;
 		resumed.restore(catalog, w.save());
 		bool simultaneous_reservations = false;
