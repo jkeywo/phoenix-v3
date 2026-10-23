@@ -16,10 +16,14 @@ std::string logistics_markup()
 {
 	supply_readouts_.clear();
 	std::string html = "<h2>" + localise("Stores and deliveries") + "</h2>" + supply_line(localise(supply_notice_));
-	html += supply_line(localise("Transfer quantity") + ": " + std::to_string(supply_quantity_));
-	html += settings_button("supply-quantity/down", "Reduce transfer quantity");
-	html += settings_button("supply-quantity/up", "Increase transfer quantity");
 	const auto board = model_.logistics();
+	const bool manual = board.value("manual", true);
+	if (manual)
+	{
+		html += supply_line(localise("Transfer quantity") + ": " + std::to_string(supply_quantity_));
+		html += settings_button("supply-quantity/down", "Reduce transfer quantity");
+		html += settings_button("supply-quantity/up", "Increase transfer quantity");
+	}
 	for (const auto &s : board.value("stores", Json::array()))
 	{
 		bool controllable = false;
@@ -50,14 +54,16 @@ std::string logistics_markup()
 	{
 		html += supply_line(localise("Waiting delivery") + " #" + r.at("id").dump() + ": " +
 		                    r.at("material").get<std::string>() + " " + r.at("remaining").dump());
-		html += supply_button("logistics", "cancel", r.at("id").dump(), "", "Cancel waiting delivery");
+		if (manual)
+			html += supply_button("logistics", "cancel", r.at("id").dump(), "", "Cancel waiting delivery");
 	}
 	for (const auto &b : board.value("batches", Json::array()))
 	{
 		html += supply_line(localise("In transit") + " #" + b.at("id").dump() + ": " +
 		                    b.at("material").get<std::string>() + " " + b.at("quantity").dump() + " / " +
 		                    localise("Location") + " " + b.at("location").dump() + ":" + b.at("compartment").dump());
-		html += supply_button("logistics", "cancel", "batch:" + b.at("id").dump(), "", "Return delivery");
+		if (manual)
+			html += supply_button("logistics", "cancel", "batch:" + b.at("id").dump(), "", "Return delivery");
 	}
 	bool engineering_control = false;
 	if (model_.observation())
@@ -87,35 +93,37 @@ std::string logistics_markup()
 			    craft.at("authorised").get<bool>() ? "Revoke supply permission" : "Authorise cargo sorties");
 	}
 	for (const auto &offer : board.value("offers", Json::array()))
-		for (const auto &store : board.value("stores", Json::array()))
-		{
-			const auto material = offer.at("material").get<std::string>(), source = store.at("id").get<std::string>();
-			if (!store.at("quantities").contains(material) ||
-			    store.at("quantities").at(material).get<std::int64_t>() < 1)
-				continue;
-			const auto destination =
-			    offer.at("entity").dump() + "/" + offer.at("store").get<std::string>() + "/" + material + "/" +
-			    std::to_string(std::min(supply_quantity_, store.at("quantities").at(material).get<std::int64_t>()));
-			if (offer.at("connected").get<bool>())
-				html += supply_button("logistics", "transfer", source, destination,
-				                      localise("Send supply") + ": " + localise(material) + " → #" +
-				                          offer.at("entity").dump());
-			for (const auto &craft : board.value("cargo_craft", Json::array()))
-				if (craft.at("authorised").get<bool>() && craft.at("available").get<bool>())
-					for (const auto &cargo : craft.at("stores"))
-					{
-						bool accepts = false;
-						for (const auto &type : cargo.at("accepts"))
-							accepts |= type == material;
-						if (!accepts)
-							continue;
-						const auto text =
-						    craft.at("id").dump() + "/" + cargo.at("id").get<std::string>() + "/" + destination;
-						html += supply_button("logistics", "deliver", source, text,
-						                      localise("Deliver by shuttle") + ": " + localise(material) + " → #" +
-						                          offer.at("entity").dump());
-					}
-		}
+		if (manual)
+			for (const auto &store : board.value("stores", Json::array()))
+			{
+				const auto material = offer.at("material").get<std::string>(),
+				           source = store.at("id").get<std::string>();
+				if (!store.at("quantities").contains(material) ||
+				    store.at("quantities").at(material).get<std::int64_t>() < 1)
+					continue;
+				const auto destination =
+				    offer.at("entity").dump() + "/" + offer.at("store").get<std::string>() + "/" + material + "/" +
+				    std::to_string(std::min(supply_quantity_, store.at("quantities").at(material).get<std::int64_t>()));
+				if (offer.at("connected").get<bool>())
+					html += supply_button("logistics", "transfer", source, destination,
+					                      localise("Send supply") + ": " + localise(material) + " → #" +
+					                          offer.at("entity").dump());
+				for (const auto &craft : board.value("cargo_craft", Json::array()))
+					if (craft.at("authorised").get<bool>() && craft.at("available").get<bool>())
+						for (const auto &cargo : craft.at("stores"))
+						{
+							bool accepts = false;
+							for (const auto &type : cargo.at("accepts"))
+								accepts |= type == material;
+							if (!accepts)
+								continue;
+							const auto text =
+							    craft.at("id").dump() + "/" + cargo.at("id").get<std::string>() + "/" + destination;
+							html += supply_button("logistics", "deliver", source, text,
+							                      localise("Deliver by shuttle") + ": " + localise(material) + " → #" +
+							                          offer.at("entity").dump());
+						}
+			}
 	for (const auto &job : board.value("cargo", Json::array()))
 	{
 		html += supply_line(localise("Cargo delivery") + " #" + job.at("id").dump() + ": " + localise(job.at("phase")) +

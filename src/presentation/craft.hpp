@@ -37,6 +37,8 @@ std::string craft_markup()
 			html += line(localise("Order pending delivery"));
 		auto button = [&](const std::string &action, const std::string &target, const std::string &label)
 		{
+			if (!c.value("manual", true))
+				return std::string{};
 			return settings_button("craft/" + action + "/" + craft + "/" + target, label);
 		};
 		if (c.at("phase") != "lost" && c.at("phase") != "consumed" &&

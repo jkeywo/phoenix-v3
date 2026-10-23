@@ -559,7 +559,15 @@
 			"presentation": {
 				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
 			},
-			"entities": [],
+			"entities": [
+				{
+					"id": 90,
+					"definition": "base.supply-depot",
+					"x_mm": -900000,
+					"y_mm": -600000,
+					"heading_mdeg": 0
+				}
+			],
 			"ship_slots": [
 				{
 					"id": "cruiser",
@@ -866,6 +874,85 @@
 					"a": "house",
 					"b": "raiders",
 					"relation": "hostile"
+				}
+			],
+			"away_missions": [
+				{
+					"id": "depot-gift",
+					"title_key": "Depot spare-parts gift",
+					"ship_slot": "cruiser",
+					"target_entity": 90,
+					"dispatch": "engineering-dispatch",
+					"hail_tree": "base.dialogue.cruiser-supply",
+					"reveal_event": "A gift of spare parts is available. Engineering may send a utility shuttle.",
+					"tree": "base.away.supply",
+					"craft_slots": [
+						{
+							"id": "utility-shuttle",
+							"role": "transport",
+							"craft_role": "shuttle",
+							"required": true
+						},
+						{
+							"id": "interceptor-escort",
+							"role": "escort",
+							"craft_role": "interceptor"
+						}
+					],
+					"slots": [
+						{
+							"id": "quartermaster",
+							"kind": "officer",
+							"trait": "quartermaster",
+							"required": false
+						}
+					],
+					"supply": {
+						"provider_store": "receiving",
+						"home_store": "main-hold",
+						"material": "parts",
+						"limit": 200
+					}
+				},
+				{
+					"id": "depot-trade",
+					"title_key": "Depot medical barter",
+					"ship_slot": "cruiser",
+					"target_entity": 90,
+					"dispatch": "engineering-dispatch",
+					"hail_tree": "base.dialogue.cruiser-supply",
+					"reveal_event": "Medical supplies are available at one unit for two spare parts. Engineering may arrange collection.",
+					"tree": "base.away.supply",
+					"craft_slots": [
+						{
+							"id": "utility-shuttle",
+							"role": "transport",
+							"craft_role": "shuttle",
+							"required": true
+						},
+						{
+							"id": "interceptor-escort",
+							"role": "escort",
+							"craft_role": "interceptor"
+						}
+					],
+					"slots": [
+						{
+							"id": "quartermaster",
+							"kind": "officer",
+							"trait": "quartermaster",
+							"required": false
+						}
+					],
+					"supply": {
+						"provider_store": "receiving",
+						"home_store": "main-hold",
+						"material": "medical",
+						"limit": 100,
+						"payment": "parts",
+						"give": 1,
+						"pay": 2
+					}
 				}
 			]
 		}

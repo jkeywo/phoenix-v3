@@ -38,6 +38,8 @@ std::string away_markup()
 		{
 			const auto result = m.at("result").get<std::string>();
 			html += line(localise(result.starts_with("complete:") ? "Mission completed" : "Mission failed"));
+			if (m.contains("supply") && result.find(':') != std::string::npos)
+				html += line(localise(result.substr(result.find(':') + 1)));
 		}
 		html += line(localise(phase) + (m.at("blocker") == "" ? "" : " / " + localise(m.at("blocker"))));
 		for (const auto &o : m.at("accompanying"))
@@ -64,6 +66,38 @@ std::string away_markup()
 		{
 			return settings_button("away/" + action + "/" + key + "/" + value, label);
 		};
+		html += line(localise("Dispatch") + ": " + localise(m.value("owner", std::string{})));
+		if (m.value("can_contribute", false))
+			html += button("contribute", m.value("contributing", false) ? "0" : "1",
+			               m.value("contributing", false) ? "Withdraw department contribution"
+			                                              : "Authorise department contribution");
+		if (m.contains("supply"))
+		{
+			const auto &s = m.at("supply");
+			html += line(localise(s.at("material")) + ": " + std::to_string(s.at("quantity").get<std::int64_t>()) +
+			             " / " + localise(s.at("phase")));
+			html += line(localise("Payment") + ": " + localise(s.at("payment")) + " " +
+			             std::to_string(s.at("payment_quantity").get<std::int64_t>()));
+			html += line(localise("Delivered") + ": " + std::to_string(s.at("delivered").get<std::int64_t>()));
+			if (s.at("manual").get<bool>())
+				for (const auto &q : s.at("quantities"))
+					html += button("quantity", std::to_string(q.get<std::int64_t>()),
+					               q == 0 ? localise("Automatic manifest")
+					                      : localise("Collect") + " " + std::to_string(q.get<std::int64_t>()));
+		}
+		for (const auto &s : m.value("craft_slots", Json::array()))
+		{
+			html += line(localise(s.at("id")) + ": " + label(s.at("assigned").get<std::string>()));
+			if (s.value("lost", false))
+				html += line(localise("Escort lost"));
+			if (s.at("owned").get<bool>() && m.value("can_contribute", false))
+				html += button("escort", s.at("id").get<std::string>() + "/", "Withdraw escort");
+			for (const auto &choice : s.at("choices"))
+				html += button("escort", s.at("id").get<std::string>() + "/" + choice.get<std::string>(),
+				               localise("Assign escort") + ": " + label(choice.get<std::string>()));
+		}
+		if (m.value("transport_owned", false))
+			html += button("transport", "", "Withdraw transport");
 		if (m.at("dispatch").get<bool>())
 		{
 			if (phase == "available")
@@ -72,7 +106,7 @@ std::string away_markup()
 				html += button("send", "", "Send");
 			if (phase == "deployed")
 				html += button("recall", "", "Recall");
-			if (phase == "outbound" || phase == "inbound")
+			if (phase == "open" || phase == "outbound" || phase == "inbound")
 				html += button("cancel", "", "Cancel transfer");
 		}
 		if ((phase == "open" || phase == "recovered" || phase == "deployed") &&

@@ -5405,7 +5405,9 @@
 								"services-supply",
 								"services-cooling",
 								"psychic-supply",
-								"psychic-cooling"
+								"psychic-cooling",
+								"utility-bay",
+								"engineering-dispatch"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -5521,10 +5523,10 @@
 								"pdc-starboard-3",
 								"pdc-starboard-4-mag",
 								"pdc-starboard-4",
-								"utility-bay",
 								"combat-bay",
 								"security-1",
-								"security-2"
+								"security-2",
+								"dispatch"
 							],
 							"id": "tactical",
 							"knowledge_producers": ["base.machinery"],
@@ -5538,13 +5540,7 @@
 					"consoles": [
 						{
 							"definition": "base.console.cruiser-comms",
-							"feeds": [
-								"communications.reserve",
-								"comms-radio",
-								"sensors.radar",
-								"dispatch",
-								"psychic-choir"
-							],
+							"feeds": ["communications.reserve", "comms-radio", "sensors.radar", "psychic-choir"],
 							"id": "comms",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.comms"],
@@ -5579,7 +5575,6 @@
 					{
 						"id": "command.cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5589,7 +5584,8 @@
 								"initial": 100,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.command.cooling.orders"
 					},
 					{
 						"id": "command.cooling",
@@ -5613,7 +5609,6 @@
 					{
 						"id": "command.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5623,7 +5618,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.command.distribution.orders"
 					},
 					{
 						"id": "command.distribution",
@@ -5678,7 +5674,6 @@
 					{
 						"id": "communications.cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5688,7 +5683,8 @@
 								"initial": 100,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.communications.cooling.orders"
 					},
 					{
 						"id": "communications.cooling",
@@ -5712,7 +5708,6 @@
 					{
 						"id": "communications.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5722,7 +5717,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.communications.distribution.orders"
 					},
 					{
 						"id": "communications.distribution",
@@ -5777,7 +5773,6 @@
 					{
 						"id": "core.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5787,7 +5782,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.core.distribution.orders"
 					},
 					{
 						"id": "core.distribution",
@@ -5805,29 +5801,23 @@
 					{
 						"id": "core.generator.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
 								"action": "intent_integer",
 								"minimum": 0,
 								"maximum": 30000,
-								"initial": 19500,
+								"initial": 30000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.core.generator.orders"
 					},
 					{
 						"id": "core.generator",
 						"console": "engineering",
 						"tree": "base.control.cruiser.core.generator",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["core.generator"]
-							},
 							{
 								"id": "generator_output",
 								"action": "generator_output",
@@ -5839,7 +5829,7 @@
 					{
 						"id": "core.pump",
 						"console": "engineering",
-						"tree": "base.ai.standby",
+						"tree": "base.cruiser.assist.core.pump",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -5870,7 +5860,6 @@
 					{
 						"id": "core.reactor-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5880,7 +5869,8 @@
 								"initial": 3000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.core.reactor-cooling.orders"
 					},
 					{
 						"id": "core.reactor-cooling",
@@ -5904,7 +5894,7 @@
 					{
 						"id": "core.reserve",
 						"console": "engineering",
-						"tree": "base.ai.standby",
+						"tree": "base.cruiser.assist.core.reserve",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -5941,41 +5931,11 @@
 					{
 						"id": "drive.boost",
 						"console": "helm",
-						"tree": "base.ai.standby",
+						"tree": "base.cruiser.assist.drive.boost",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["drive.boost"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["drive.boost"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["drive.boost"]
-							},
 							{
 								"id": "boost",
 								"action": "boost",
-								"initial": 0,
-								"consumers": ["drive.boost"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["drive.boost"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
 								"initial": 0,
 								"consumers": ["drive.boost"]
 							}
@@ -5984,7 +5944,6 @@
 					{
 						"id": "drive.boost-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -5994,7 +5953,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.boost-cooling.orders"
 					},
 					{
 						"id": "drive.boost-cooling",
@@ -6018,7 +5978,6 @@
 					{
 						"id": "drive.boost-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6028,7 +5987,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.boost-supply.orders"
 					},
 					{
 						"id": "drive.boost-supply",
@@ -6046,7 +6006,6 @@
 					{
 						"id": "drive.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6056,7 +6015,8 @@
 								"initial": 8000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.distribution.orders"
 					},
 					{
 						"id": "drive.distribution",
@@ -6076,24 +6036,6 @@
 						"console": "helm",
 						"tree": "base.control.courier-engineering.drive.engine",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["drive.engine"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["drive.engine"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["drive.engine"]
-							},
 							{
 								"id": "destination",
 								"action": "destination",
@@ -6115,26 +6057,8 @@
 								"consumers": ["drive.engine"]
 							},
 							{
-								"id": "longitudinal_thrust",
-								"action": "longitudinal_thrust",
-								"initial": 0,
-								"consumers": ["drive.engine"]
-							},
-							{
 								"id": "match_speed",
 								"action": "match_speed",
-								"initial": 0,
-								"consumers": ["drive.engine"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["drive.engine"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
 								"initial": 0,
 								"consumers": ["drive.engine"]
 							}
@@ -6143,7 +6067,6 @@
 					{
 						"id": "drive.engine-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6153,7 +6076,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.engine-cooling.orders"
 					},
 					{
 						"id": "drive.engine-cooling",
@@ -6177,7 +6101,6 @@
 					{
 						"id": "drive.engine-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6187,7 +6110,8 @@
 								"initial": 4000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.engine-supply.orders"
 					},
 					{
 						"id": "drive.engine-supply",
@@ -6205,51 +6129,22 @@
 					{
 						"id": "drive.impulse",
 						"console": "helm",
-						"tree": "base.ai.standby",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["drive.impulse"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["drive.impulse"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["drive.impulse"]
-							},
 							{
 								"id": "impulse",
 								"action": "impulse",
 								"semantics": "request",
 								"initial": 0,
-								"consumers": ["drive.impulse"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["drive.impulse"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["drive.impulse"]
+								"consumers": ["drive.impulse"],
+								"individual_stars": 3,
+								"coordinated_group": "main-drives"
 							}
-						]
+						],
+						"fallback": "hold"
 					},
 					{
 						"id": "drive.impulse-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6259,7 +6154,8 @@
 								"initial": 1500,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.impulse-cooling.orders"
 					},
 					{
 						"id": "drive.impulse-cooling",
@@ -6283,7 +6179,6 @@
 					{
 						"id": "drive.impulse-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6293,7 +6188,8 @@
 								"initial": 1500,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.impulse-supply.orders"
 					},
 					{
 						"id": "drive.impulse-supply",
@@ -6311,50 +6207,12 @@
 					{
 						"id": "drive.lateral",
 						"console": "helm",
-						"tree": "base.ai.lateral-avoidance",
-						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["drive.lateral", "wing.lateral"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["drive.lateral", "wing.lateral"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["drive.lateral", "wing.lateral"]
-							},
-							{
-								"id": "lateral_thrust",
-								"action": "lateral_thrust",
-								"initial": 0,
-								"consumers": ["drive.lateral", "wing.lateral"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["drive.lateral", "wing.lateral"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["drive.lateral", "wing.lateral"]
-							}
-						]
+						"commands": [],
+						"fallback": "hold"
 					},
 					{
 						"id": "drive.lateral-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6364,7 +6222,8 @@
 								"initial": 200,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.lateral-cooling.orders"
 					},
 					{
 						"id": "drive.lateral-cooling",
@@ -6388,7 +6247,6 @@
 					{
 						"id": "drive.lateral-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6398,7 +6256,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.lateral-supply.orders"
 					},
 					{
 						"id": "drive.lateral-supply",
@@ -6419,24 +6278,6 @@
 						"tree": "base.control.courier-engineering.drive.steering",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["drive.steering"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["drive.steering"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["drive.steering"]
-							},
-							{
 								"id": "destination",
 								"action": "destination",
 								"initial": 0,
@@ -6454,31 +6295,12 @@
 								"id": "heading_mdeg",
 								"action": "heading_mdeg",
 								"consumers": ["drive.steering"]
-							},
-							{
-								"id": "manual_steering",
-								"action": "manual_steering",
-								"initial": 0,
-								"consumers": ["drive.steering"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["drive.steering"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["drive.steering"]
 							}
 						]
 					},
 					{
 						"id": "drive.steering-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6488,7 +6310,8 @@
 								"initial": 100,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.steering-cooling.orders"
 					},
 					{
 						"id": "drive.steering-cooling",
@@ -6512,7 +6335,6 @@
 					{
 						"id": "drive.steering-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6522,7 +6344,8 @@
 								"initial": 500,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.drive.steering-supply.orders"
 					},
 					{
 						"id": "drive.steering-supply",
@@ -6540,7 +6363,6 @@
 					{
 						"id": "sensors.cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6550,7 +6372,8 @@
 								"initial": 200,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.sensors.cooling.orders"
 					},
 					{
 						"id": "sensors.cooling",
@@ -6574,7 +6397,6 @@
 					{
 						"id": "sensors.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6584,7 +6406,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.sensors.distribution.orders"
 					},
 					{
 						"id": "sensors.distribution",
@@ -6615,7 +6438,6 @@
 					{
 						"id": "tactical.cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6625,7 +6447,8 @@
 								"initial": 200,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.tactical.cooling.orders"
 					},
 					{
 						"id": "tactical.cooling",
@@ -6649,7 +6472,6 @@
 					{
 						"id": "tactical.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6659,7 +6481,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.tactical.distribution.orders"
 					},
 					{
 						"id": "tactical.distribution",
@@ -6677,7 +6500,7 @@
 					{
 						"id": "tactical.radar",
 						"console": "tactical",
-						"tree": "base.ai.standby",
+						"tree": "base.cruiser.assist.tactical.radar",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -6702,50 +6525,23 @@
 					{
 						"id": "wing.boost",
 						"console": "helm",
-						"tree": "base.ai.standby",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["wing.boost"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["wing.boost"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["wing.boost"]
-							},
 							{
 								"id": "boost",
 								"action": "boost",
 								"initial": 0,
-								"consumers": ["wing.boost"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["wing.boost"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["wing.boost"]
+								"consumers": ["wing.boost"],
+								"shared_command": {
+									"controller": "drive.boost",
+									"channel": "boost"
+								}
 							}
-						]
+						],
+						"fallback": "hold"
 					},
 					{
 						"id": "wing.boost-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6755,7 +6551,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.boost-cooling.orders"
 					},
 					{
 						"id": "wing.boost-cooling",
@@ -6779,7 +6576,6 @@
 					{
 						"id": "wing.boost-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6789,7 +6585,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.boost-supply.orders"
 					},
 					{
 						"id": "wing.boost-supply",
@@ -6807,7 +6604,6 @@
 					{
 						"id": "wing.distribution.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6817,7 +6613,8 @@
 								"initial": 8000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.distribution.orders"
 					},
 					{
 						"id": "wing.distribution",
@@ -6835,76 +6632,55 @@
 					{
 						"id": "wing.engine",
 						"console": "helm",
-						"tree": "base.control.cruiser.wing.engine",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["wing.engine"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["wing.engine"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["wing.engine"]
-							},
 							{
 								"id": "destination",
 								"action": "destination",
 								"initial": 0,
 								"consumers": ["wing.engine"],
-								"arguments": [0, 0]
+								"arguments": [0, 0],
+								"shared_command": {
+									"controller": "drive.engine",
+									"channel": "destination"
+								}
 							},
 							{
 								"id": "follow_contact",
 								"action": "follow_contact",
 								"initial": 0,
 								"consumers": ["wing.engine"],
-								"arguments": [0, 40000, 12000]
+								"arguments": [0, 40000, 12000],
+								"shared_command": {
+									"controller": "drive.engine",
+									"channel": "follow_contact"
+								}
 							},
 							{
 								"id": "speed_mm_s",
 								"action": "speed_mm_s",
 								"initial": 0,
-								"consumers": ["wing.engine"]
-							},
-							{
-								"id": "longitudinal_thrust",
-								"action": "longitudinal_thrust",
-								"initial": 0,
-								"consumers": ["wing.engine"]
+								"consumers": ["wing.engine"],
+								"shared_command": {
+									"controller": "drive.engine",
+									"channel": "speed_mm_s"
+								}
 							},
 							{
 								"id": "match_speed",
 								"action": "match_speed",
 								"initial": 0,
-								"consumers": ["wing.engine"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["wing.engine"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["wing.engine"]
+								"consumers": ["wing.engine"],
+								"shared_command": {
+									"controller": "drive.engine",
+									"channel": "match_speed"
+								}
 							}
-						]
+						],
+						"fallback": "hold"
 					},
 					{
 						"id": "wing.engine-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6914,7 +6690,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.engine-cooling.orders"
 					},
 					{
 						"id": "wing.engine-cooling",
@@ -6938,7 +6715,6 @@
 					{
 						"id": "wing.engine-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -6948,7 +6724,8 @@
 								"initial": 4000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.engine-supply.orders"
 					},
 					{
 						"id": "wing.engine-supply",
@@ -6966,51 +6743,22 @@
 					{
 						"id": "wing.impulse",
 						"console": "helm",
-						"tree": "base.ai.standby",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["wing.impulse"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["wing.impulse"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["wing.impulse"]
-							},
 							{
 								"id": "impulse",
 								"action": "impulse",
 								"semantics": "request",
 								"initial": 0,
-								"consumers": ["wing.impulse"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["wing.impulse"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["wing.impulse"]
+								"consumers": ["wing.impulse"],
+								"individual_stars": 3,
+								"coordinated_group": "main-drives"
 							}
-						]
+						],
+						"fallback": "hold"
 					},
 					{
 						"id": "wing.impulse-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -7020,7 +6768,8 @@
 								"initial": 1500,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.impulse-cooling.orders"
 					},
 					{
 						"id": "wing.impulse-cooling",
@@ -7044,7 +6793,6 @@
 					{
 						"id": "wing.impulse-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -7054,7 +6802,8 @@
 								"initial": 1500,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.impulse-supply.orders"
 					},
 					{
 						"id": "wing.impulse-supply",
@@ -7072,7 +6821,6 @@
 					{
 						"id": "wing.lateral-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -7082,7 +6830,8 @@
 								"initial": 200,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.lateral-cooling.orders"
 					},
 					{
 						"id": "wing.lateral-cooling",
@@ -7106,7 +6855,6 @@
 					{
 						"id": "wing.lateral-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -7116,7 +6864,8 @@
 								"initial": 1000,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.lateral-supply.orders"
 					},
 					{
 						"id": "wing.lateral-supply",
@@ -7134,69 +6883,44 @@
 					{
 						"id": "wing.steering",
 						"console": "helm",
-						"tree": "base.control.courier-engineering.drive.steering",
 						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["wing.steering"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["wing.steering"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["wing.steering"]
-							},
 							{
 								"id": "destination",
 								"action": "destination",
 								"initial": 0,
 								"consumers": ["wing.steering"],
-								"arguments": [0, 0]
+								"arguments": [0, 0],
+								"shared_command": {
+									"controller": "drive.steering",
+									"channel": "destination"
+								}
 							},
 							{
 								"id": "follow_contact",
 								"action": "follow_contact",
 								"initial": 0,
 								"consumers": ["wing.steering"],
-								"arguments": [0, 40000, 12000]
+								"arguments": [0, 40000, 12000],
+								"shared_command": {
+									"controller": "drive.steering",
+									"channel": "follow_contact"
+								}
 							},
 							{
 								"id": "heading_mdeg",
 								"action": "heading_mdeg",
-								"consumers": ["wing.steering"]
-							},
-							{
-								"id": "manual_steering",
-								"action": "manual_steering",
-								"initial": 0,
-								"consumers": ["wing.steering"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["wing.steering"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["wing.steering"]
+								"consumers": ["wing.steering"],
+								"shared_command": {
+									"controller": "drive.steering",
+									"channel": "heading_mdeg"
+								}
 							}
-						]
+						],
+						"fallback": "hold"
 					},
 					{
 						"id": "wing.steering-cooling.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -7206,7 +6930,8 @@
 								"initial": 100,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.steering-cooling.orders"
 					},
 					{
 						"id": "wing.steering-cooling",
@@ -7230,7 +6955,6 @@
 					{
 						"id": "wing.steering-supply.orders",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "level",
@@ -7240,7 +6964,8 @@
 								"initial": 500,
 								"consumers": []
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.wing.steering-supply.orders"
 					},
 					{
 						"id": "wing.steering-supply",
@@ -7285,7 +7010,6 @@
 					{
 						"id": "ftl.supply",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "isolated",
@@ -7294,12 +7018,12 @@
 								"consumers": ["ftl.supply"],
 								"label_key": "FTL power isolation"
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.ftl.supply"
 					},
 					{
 						"id": "ftl.cooling",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "allocation",
@@ -7308,7 +7032,8 @@
 								"consumers": ["ftl.cooling"],
 								"label_key": "FTL cooling"
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.ftl.cooling"
 					},
 					{
 						"id": "fore-dorsal-gun",
@@ -7319,15 +7044,9 @@
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["fore-dorsal-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["fore-dorsal-gun"]
 							}
 						],
-						"tree": "base.cruiser.engage"
+						"tree": "base.cruiser.assist.fore-dorsal-gun"
 					},
 					{
 						"id": "fore-ventral-gun",
@@ -7338,15 +7057,9 @@
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["fore-ventral-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["fore-ventral-gun"]
 							}
 						],
-						"tree": "base.cruiser.engage"
+						"tree": "base.cruiser.assist.fore-ventral-gun"
 					},
 					{
 						"id": "aft-dorsal-gun",
@@ -7357,15 +7070,9 @@
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["aft-dorsal-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["aft-dorsal-gun"]
 							}
 						],
-						"tree": "base.cruiser.engage"
+						"tree": "base.cruiser.assist.aft-dorsal-gun"
 					},
 					{
 						"id": "aft-ventral-gun",
@@ -7376,15 +7083,9 @@
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["aft-ventral-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["aft-ventral-gun"]
 							}
 						],
-						"tree": "base.cruiser.engage"
+						"tree": "base.cruiser.assist.aft-ventral-gun"
 					},
 					{
 						"id": "mid-dorsal-gun",
@@ -7395,15 +7096,9 @@
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["mid-dorsal-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["mid-dorsal-gun"]
 							}
 						],
-						"tree": "base.cruiser.engage"
+						"tree": "base.cruiser.assist.mid-dorsal-gun"
 					},
 					{
 						"id": "bow-port-bank",
@@ -7419,31 +7114,9 @@
 									"bow-port-tube-3",
 									"bow-port-tube-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"bow-port-tube-1",
-									"bow-port-tube-2",
-									"bow-port-tube-3",
-									"bow-port-tube-4"
-								]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"initial": 0,
-								"consumers": [
-									"bow-port-tube-1",
-									"bow-port-tube-2",
-									"bow-port-tube-3",
-									"bow-port-tube-4"
-								]
 							}
 						],
-						"tree": "base.cruiser.missile"
+						"tree": "base.cruiser.assist.bow-port-bank"
 					},
 					{
 						"id": "bow-starboard-bank",
@@ -7459,31 +7132,9 @@
 									"bow-starboard-tube-3",
 									"bow-starboard-tube-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"bow-starboard-tube-1",
-									"bow-starboard-tube-2",
-									"bow-starboard-tube-3",
-									"bow-starboard-tube-4"
-								]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"initial": 0,
-								"consumers": [
-									"bow-starboard-tube-1",
-									"bow-starboard-tube-2",
-									"bow-starboard-tube-3",
-									"bow-starboard-tube-4"
-								]
 							}
 						],
-						"tree": "base.cruiser.missile"
+						"tree": "base.cruiser.assist.bow-starboard-bank"
 					},
 					{
 						"id": "port-fore-bank",
@@ -7499,31 +7150,9 @@
 									"port-fore-tube-3",
 									"port-fore-tube-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"port-fore-tube-1",
-									"port-fore-tube-2",
-									"port-fore-tube-3",
-									"port-fore-tube-4"
-								]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"initial": 0,
-								"consumers": [
-									"port-fore-tube-1",
-									"port-fore-tube-2",
-									"port-fore-tube-3",
-									"port-fore-tube-4"
-								]
 							}
 						],
-						"tree": "base.cruiser.missile"
+						"tree": "base.cruiser.assist.port-fore-bank"
 					},
 					{
 						"id": "port-aft-bank",
@@ -7539,31 +7168,9 @@
 									"port-aft-tube-3",
 									"port-aft-tube-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"port-aft-tube-1",
-									"port-aft-tube-2",
-									"port-aft-tube-3",
-									"port-aft-tube-4"
-								]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"initial": 0,
-								"consumers": [
-									"port-aft-tube-1",
-									"port-aft-tube-2",
-									"port-aft-tube-3",
-									"port-aft-tube-4"
-								]
 							}
 						],
-						"tree": "base.cruiser.missile"
+						"tree": "base.cruiser.assist.port-aft-bank"
 					},
 					{
 						"id": "starboard-fore-bank",
@@ -7579,31 +7186,9 @@
 									"starboard-fore-tube-3",
 									"starboard-fore-tube-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"starboard-fore-tube-1",
-									"starboard-fore-tube-2",
-									"starboard-fore-tube-3",
-									"starboard-fore-tube-4"
-								]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"initial": 0,
-								"consumers": [
-									"starboard-fore-tube-1",
-									"starboard-fore-tube-2",
-									"starboard-fore-tube-3",
-									"starboard-fore-tube-4"
-								]
 							}
 						],
-						"tree": "base.cruiser.missile"
+						"tree": "base.cruiser.assist.starboard-fore-bank"
 					},
 					{
 						"id": "starboard-aft-bank",
@@ -7619,31 +7204,9 @@
 									"starboard-aft-tube-3",
 									"starboard-aft-tube-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"starboard-aft-tube-1",
-									"starboard-aft-tube-2",
-									"starboard-aft-tube-3",
-									"starboard-aft-tube-4"
-								]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"initial": 0,
-								"consumers": [
-									"starboard-aft-tube-1",
-									"starboard-aft-tube-2",
-									"starboard-aft-tube-3",
-									"starboard-aft-tube-4"
-								]
 							}
 						],
-						"tree": "base.cruiser.missile"
+						"tree": "base.cruiser.assist.starboard-aft-bank"
 					},
 					{
 						"id": "point-defence",
@@ -7663,39 +7226,9 @@
 									"pdc-starboard-3",
 									"pdc-starboard-4"
 								]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": [
-									"pdc-port-1",
-									"pdc-port-2",
-									"pdc-port-3",
-									"pdc-port-4",
-									"pdc-starboard-1",
-									"pdc-starboard-2",
-									"pdc-starboard-3",
-									"pdc-starboard-4"
-								]
-							},
-							{
-								"id": "mode",
-								"action": "weapon_mode",
-								"initial": 1,
-								"consumers": [
-									"pdc-port-1",
-									"pdc-port-2",
-									"pdc-port-3",
-									"pdc-port-4",
-									"pdc-starboard-1",
-									"pdc-starboard-2",
-									"pdc-starboard-3",
-									"pdc-starboard-4"
-								]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.point-defence"
 					},
 					{
 						"id": "armament-services",
@@ -7739,7 +7272,7 @@
 								]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.armament-services"
 					},
 					{
 						"id": "shield-fore",
@@ -7860,20 +7393,9 @@
 						"console": "engineering",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["repair-1"]
-							},
-							{
 								"id": "repair_compartment",
 								"action": "repair_compartment",
 								"initial": 0,
-								"consumers": ["repair-1"]
-							},
-							{
-								"id": "system",
-								"action": "repair_system",
 								"consumers": ["repair-1"]
 							}
 						],
@@ -7884,20 +7406,9 @@
 						"console": "engineering",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["repair-2"]
-							},
-							{
 								"id": "repair_compartment",
 								"action": "repair_compartment",
 								"initial": 0,
-								"consumers": ["repair-2"]
-							},
-							{
-								"id": "system",
-								"action": "repair_system",
 								"consumers": ["repair-2"]
 							}
 						],
@@ -7908,20 +7419,9 @@
 						"console": "engineering",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["repair-3"]
-							},
-							{
 								"id": "repair_compartment",
 								"action": "repair_compartment",
 								"initial": 0,
-								"consumers": ["repair-3"]
-							},
-							{
-								"id": "system",
-								"action": "repair_system",
 								"consumers": ["repair-3"]
 							}
 						],
@@ -7932,20 +7432,9 @@
 						"console": "engineering",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["repair-4"]
-							},
-							{
 								"id": "repair_compartment",
 								"action": "repair_compartment",
 								"initial": 0,
-								"consumers": ["repair-4"]
-							},
-							{
-								"id": "system",
-								"action": "repair_system",
 								"consumers": ["repair-4"]
 							}
 						],
@@ -7966,7 +7455,7 @@
 					},
 					{
 						"id": "dispatch",
-						"console": "comms",
+						"console": "tactical",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -7988,7 +7477,7 @@
 								"consumers": ["interceptor-supply"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.interceptor-supply"
 					},
 					{
 						"id": "bomber-supply",
@@ -8001,11 +7490,11 @@
 								"consumers": ["bomber-supply"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.bomber-supply"
 					},
 					{
 						"id": "utility-bay",
-						"console": "tactical",
+						"console": "engineering",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -8014,7 +7503,7 @@
 								"consumers": ["utility-bay"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.utility-bay"
 					},
 					{
 						"id": "combat-bay",
@@ -8027,7 +7516,7 @@
 								"consumers": ["combat-bay"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.combat-bay"
 					},
 					{
 						"id": "weapons-supply",
@@ -8040,7 +7529,7 @@
 								"consumers": ["weapons-supply"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.weapons-supply"
 					},
 					{
 						"id": "weapons-cooling",
@@ -8053,7 +7542,7 @@
 								"consumers": ["weapons-cooling"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.weapons-cooling"
 					},
 					{
 						"id": "shields-supply",
@@ -8066,7 +7555,7 @@
 								"consumers": ["shields-supply"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.shields-supply"
 					},
 					{
 						"id": "shields-cooling",
@@ -8079,7 +7568,7 @@
 								"consumers": ["shields-cooling"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.shields-cooling"
 					},
 					{
 						"id": "services-supply",
@@ -8092,7 +7581,7 @@
 								"consumers": ["services-supply"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.services-supply"
 					},
 					{
 						"id": "services-cooling",
@@ -8105,7 +7594,7 @@
 								"consumers": ["services-cooling"]
 							}
 						],
-						"fallback": "hold"
+						"tree": "base.cruiser.assist.services-cooling"
 					},
 					{
 						"id": "medical-1",
@@ -8136,7 +7625,6 @@
 					{
 						"id": "security-1",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -8144,12 +7632,12 @@
 								"initial": 1,
 								"consumers": ["security-1"]
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.security-1"
 					},
 					{
 						"id": "security-2",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -8157,12 +7645,12 @@
 								"initial": 1,
 								"consumers": ["security-2"]
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.security-2"
 					},
 					{
 						"id": "psychic-supply",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "isolate",
@@ -8170,12 +7658,12 @@
 								"initial": 0,
 								"consumers": ["psychic-supply"]
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.psychic-supply"
 					},
 					{
 						"id": "psychic-cooling",
 						"console": "engineering",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "allocation",
@@ -8183,7 +7671,8 @@
 								"initial": 0,
 								"consumers": ["psychic-cooling"]
 							}
-						]
+						],
+						"tree": "base.cruiser.assist.psychic-cooling"
 					},
 					{
 						"id": "psychic-choir",
@@ -8288,6 +7777,974 @@
 								"maximum": 1000000000
 							}
 						]
+					},
+					{
+						"id": "engineering-dispatch",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["engineering-dispatch"]
+							}
+						]
+					},
+					{
+						"id": "logistics",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "automatic",
+								"action": "intent_boolean",
+								"initial": 1,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.generator.readiness",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.generator"]
+							}
+						],
+						"tree": "base.cruiser.assist.core.generator.readiness"
+					},
+					{
+						"id": "drive.boost.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.boost.machinery"
+					},
+					{
+						"id": "drive.boost.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.boost"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.boost.direct"
+					},
+					{
+						"id": "drive.engine.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.engine.machinery"
+					},
+					{
+						"id": "drive.engine.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "longitudinal_thrust",
+								"action": "longitudinal_thrust",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.engine.direct"
+					},
+					{
+						"id": "drive.impulse.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.impulse.machinery"
+					},
+					{
+						"id": "drive.impulse.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.impulse"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.impulse.direct"
+					},
+					{
+						"id": "drive.lateral.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.lateral", "wing.lateral"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.lateral", "wing.lateral"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.lateral", "wing.lateral"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.lateral", "wing.lateral"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.lateral.machinery"
+					},
+					{
+						"id": "drive.lateral.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.lateral", "wing.lateral"]
+							},
+							{
+								"id": "lateral_thrust",
+								"action": "lateral_thrust",
+								"initial": 0,
+								"consumers": ["drive.lateral", "wing.lateral"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.lateral.direct"
+					},
+					{
+						"id": "drive.steering.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.steering.machinery"
+					},
+					{
+						"id": "drive.steering.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "manual_steering",
+								"action": "manual_steering",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							}
+						],
+						"tree": "base.cruiser.assist.drive.steering.direct"
+					},
+					{
+						"id": "wing.boost.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["wing.boost"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["wing.boost"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["wing.boost"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["wing.boost"]
+							}
+						],
+						"tree": "base.cruiser.assist.wing.boost.machinery"
+					},
+					{
+						"id": "wing.boost.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["wing.boost"],
+								"shared_command": {
+									"controller": "drive.boost.direct",
+									"channel": "assisted"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "wing.engine.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["wing.engine"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["wing.engine"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["wing.engine"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["wing.engine"]
+							}
+						],
+						"tree": "base.cruiser.assist.wing.engine.machinery"
+					},
+					{
+						"id": "wing.engine.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["wing.engine"],
+								"shared_command": {
+									"controller": "drive.engine.direct",
+									"channel": "assisted"
+								}
+							},
+							{
+								"id": "longitudinal_thrust",
+								"action": "longitudinal_thrust",
+								"initial": 0,
+								"consumers": ["wing.engine"],
+								"shared_command": {
+									"controller": "drive.engine.direct",
+									"channel": "longitudinal_thrust"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "wing.impulse.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["wing.impulse"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["wing.impulse"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["wing.impulse"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["wing.impulse"]
+							}
+						],
+						"tree": "base.cruiser.assist.wing.impulse.machinery"
+					},
+					{
+						"id": "wing.impulse.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["wing.impulse"],
+								"shared_command": {
+									"controller": "drive.impulse.direct",
+									"channel": "assisted"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "wing.steering.machinery",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["wing.steering"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["wing.steering"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["wing.steering"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["wing.steering"]
+							}
+						],
+						"tree": "base.cruiser.assist.wing.steering.machinery"
+					},
+					{
+						"id": "wing.steering.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["wing.steering"],
+								"shared_command": {
+									"controller": "drive.steering.direct",
+									"channel": "assisted"
+								}
+							},
+							{
+								"id": "manual_steering",
+								"action": "manual_steering",
+								"initial": 0,
+								"consumers": ["wing.steering"],
+								"shared_command": {
+									"controller": "drive.steering.direct",
+									"channel": "manual_steering"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "fore-dorsal-gun.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["fore-dorsal-gun"],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "fore-ventral-gun.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["fore-ventral-gun"],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "aft-dorsal-gun.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["aft-dorsal-gun"],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "aft-ventral-gun.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["aft-ventral-gun"],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "mid-dorsal-gun.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["mid-dorsal-gun"],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "bow-port-bank.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"bow-port-tube-1",
+									"bow-port-tube-2",
+									"bow-port-tube-3",
+									"bow-port-tube-4"
+								],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "bow-port-bank.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"initial": 0,
+								"consumers": [
+									"bow-port-tube-1",
+									"bow-port-tube-2",
+									"bow-port-tube-3",
+									"bow-port-tube-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.bow-port-bank.ammo"
+					},
+					{
+						"id": "bow-starboard-bank.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"bow-starboard-tube-1",
+									"bow-starboard-tube-2",
+									"bow-starboard-tube-3",
+									"bow-starboard-tube-4"
+								],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "bow-starboard-bank.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"initial": 0,
+								"consumers": [
+									"bow-starboard-tube-1",
+									"bow-starboard-tube-2",
+									"bow-starboard-tube-3",
+									"bow-starboard-tube-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.bow-starboard-bank.ammo"
+					},
+					{
+						"id": "port-fore-bank.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"port-fore-tube-1",
+									"port-fore-tube-2",
+									"port-fore-tube-3",
+									"port-fore-tube-4"
+								],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "port-fore-bank.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"initial": 0,
+								"consumers": [
+									"port-fore-tube-1",
+									"port-fore-tube-2",
+									"port-fore-tube-3",
+									"port-fore-tube-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.port-fore-bank.ammo"
+					},
+					{
+						"id": "port-aft-bank.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"port-aft-tube-1",
+									"port-aft-tube-2",
+									"port-aft-tube-3",
+									"port-aft-tube-4"
+								],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "port-aft-bank.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"initial": 0,
+								"consumers": [
+									"port-aft-tube-1",
+									"port-aft-tube-2",
+									"port-aft-tube-3",
+									"port-aft-tube-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.port-aft-bank.ammo"
+					},
+					{
+						"id": "starboard-fore-bank.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"starboard-fore-tube-1",
+									"starboard-fore-tube-2",
+									"starboard-fore-tube-3",
+									"starboard-fore-tube-4"
+								],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "starboard-fore-bank.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"initial": 0,
+								"consumers": [
+									"starboard-fore-tube-1",
+									"starboard-fore-tube-2",
+									"starboard-fore-tube-3",
+									"starboard-fore-tube-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.starboard-fore-bank.ammo"
+					},
+					{
+						"id": "starboard-aft-bank.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"starboard-aft-tube-1",
+									"starboard-aft-tube-2",
+									"starboard-aft-tube-3",
+									"starboard-aft-tube-4"
+								],
+								"shared_target": {
+									"controller": "combat-target",
+									"channel": "target"
+								}
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "starboard-aft-bank.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"initial": 0,
+								"consumers": [
+									"starboard-aft-tube-1",
+									"starboard-aft-tube-2",
+									"starboard-aft-tube-3",
+									"starboard-aft-tube-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.starboard-aft-bank.ammo"
+					},
+					{
+						"id": "point-defence.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": [
+									"pdc-port-1",
+									"pdc-port-2",
+									"pdc-port-3",
+									"pdc-port-4",
+									"pdc-starboard-1",
+									"pdc-starboard-2",
+									"pdc-starboard-3",
+									"pdc-starboard-4"
+								]
+							},
+							{
+								"id": "mode",
+								"action": "weapon_mode",
+								"initial": 1,
+								"consumers": [
+									"pdc-port-1",
+									"pdc-port-2",
+									"pdc-port-3",
+									"pdc-port-4",
+									"pdc-starboard-1",
+									"pdc-starboard-2",
+									"pdc-starboard-3",
+									"pdc-starboard-4"
+								]
+							}
+						],
+						"tree": "base.cruiser.assist.pdc"
+					},
+					{
+						"id": "repair-1.priority",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["repair-1"],
+								"hull_priority": true
+							}
+						],
+						"tree": "base.cruiser.assist.repair-1.priority"
+					},
+					{
+						"id": "repair-1.readiness",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["repair-1"]
+							}
+						],
+						"tree": "base.cruiser.assist.repair-1.readiness"
+					},
+					{
+						"id": "repair-2.priority",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["repair-2"],
+								"hull_priority": true
+							}
+						],
+						"tree": "base.cruiser.assist.repair-2.priority"
+					},
+					{
+						"id": "repair-2.readiness",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["repair-2"]
+							}
+						],
+						"tree": "base.cruiser.assist.repair-2.readiness"
+					},
+					{
+						"id": "repair-3.priority",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["repair-3"],
+								"hull_priority": true
+							}
+						],
+						"tree": "base.cruiser.assist.repair-3.priority"
+					},
+					{
+						"id": "repair-3.readiness",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["repair-3"]
+							}
+						],
+						"tree": "base.cruiser.assist.repair-3.readiness"
+					},
+					{
+						"id": "repair-4.priority",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["repair-4"],
+								"hull_priority": true
+							}
+						],
+						"tree": "base.cruiser.assist.repair-4.priority"
+					},
+					{
+						"id": "repair-4.readiness",
+						"console": "engineering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["repair-4"]
+							}
+						],
+						"tree": "base.cruiser.assist.repair-4.readiness"
+					},
+					{
+						"id": "combat-target",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "sensor_target",
+								"consumers": ["tactical.radar"],
+								"label_key": "Combat target"
+							}
+						],
+						"tree": "base.cruiser.assist.combat-target"
 					}
 				],
 				"profiles": [
@@ -8299,38 +8756,85 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "dispatch", "psychic-orders"],
+								"human": ["communications.reserve", "external-comms", "psychic-orders"],
 								"ai": ["psychic-choir"]
 							},
 							"engineering": {
-								"human": [
+								"human": ["repair-1", "repair-2", "repair-3", "repair-4", "engineering-dispatch"],
+								"ai": [
 									"command.cooling.orders",
+									"command.cooling",
 									"command.distribution.orders",
+									"command.distribution",
 									"communications.cooling.orders",
+									"communications.cooling",
 									"communications.distribution.orders",
+									"communications.distribution",
 									"core.distribution.orders",
+									"core.distribution",
 									"core.generator.orders",
+									"core.generator",
+									"core.pump",
 									"core.reactor-cooling.orders",
+									"core.reactor-cooling",
+									"core.reserve",
 									"drive.boost-cooling.orders",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
 									"drive.distribution.orders",
+									"drive.distribution",
 									"drive.engine-cooling.orders",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
 									"drive.impulse-cooling.orders",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
 									"drive.lateral-cooling.orders",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
 									"drive.steering-cooling.orders",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
 									"sensors.cooling.orders",
+									"sensors.cooling",
 									"sensors.distribution.orders",
+									"sensors.distribution",
 									"tactical.cooling.orders",
+									"tactical.cooling",
 									"tactical.distribution.orders",
+									"tactical.distribution",
 									"wing.boost-cooling.orders",
+									"wing.boost-cooling",
+									"wing.boost-supply.orders",
+									"wing.boost-supply",
 									"wing.distribution.orders",
+									"wing.distribution",
 									"wing.engine-cooling.orders",
+									"wing.engine-cooling",
+									"wing.engine-supply.orders",
+									"wing.engine-supply",
 									"wing.impulse-cooling.orders",
+									"wing.impulse-cooling",
+									"wing.impulse-supply.orders",
+									"wing.impulse-supply",
 									"wing.lateral-cooling.orders",
+									"wing.lateral-cooling",
+									"wing.lateral-supply.orders",
+									"wing.lateral-supply",
 									"wing.steering-cooling.orders",
+									"wing.steering-cooling",
+									"wing.steering-supply.orders",
+									"wing.steering-supply",
 									"ftl.supply",
 									"ftl.cooling",
 									"interceptor-supply",
 									"bomber-supply",
+									"utility-bay",
 									"weapons-supply",
 									"weapons-cooling",
 									"shields-supply",
@@ -8338,63 +8842,51 @@
 									"services-supply",
 									"services-cooling",
 									"psychic-supply",
-									"psychic-cooling"
-								],
-								"ai": [
-									"command.cooling",
-									"command.distribution",
-									"communications.cooling",
-									"communications.distribution",
-									"core.distribution",
-									"core.generator",
-									"core.pump",
-									"core.reactor-cooling",
-									"core.reserve",
-									"drive.boost-cooling",
-									"drive.boost-supply.orders",
-									"drive.boost-supply",
-									"drive.distribution",
-									"drive.engine-cooling",
-									"drive.engine-supply.orders",
-									"drive.engine-supply",
-									"drive.impulse-cooling",
-									"drive.impulse-supply.orders",
-									"drive.impulse-supply",
-									"drive.lateral-cooling",
-									"drive.lateral-supply.orders",
-									"drive.lateral-supply",
-									"drive.steering-cooling",
-									"drive.steering-supply.orders",
-									"drive.steering-supply",
-									"sensors.cooling",
-									"sensors.distribution",
-									"tactical.cooling",
-									"tactical.distribution",
-									"wing.boost-cooling",
-									"wing.boost-supply.orders",
-									"wing.boost-supply",
-									"wing.distribution",
-									"wing.engine-cooling",
-									"wing.engine-supply.orders",
-									"wing.engine-supply",
-									"wing.impulse-cooling",
-									"wing.impulse-supply.orders",
-									"wing.impulse-supply",
-									"wing.lateral-cooling",
-									"wing.lateral-supply.orders",
-									"wing.lateral-supply",
-									"wing.steering-cooling",
-									"wing.steering-supply.orders",
-									"wing.steering-supply",
-									"repair-1",
-									"repair-2",
-									"repair-3",
-									"repair-4"
+									"psychic-cooling",
+									"logistics",
+									"core.generator.readiness",
+									"repair-1.priority",
+									"repair-1.readiness",
+									"repair-2.priority",
+									"repair-2.readiness",
+									"repair-3.priority",
+									"repair-3.readiness",
+									"repair-4.priority",
+									"repair-4.readiness"
 								]
 							},
 							"helm": {
-								"human": ["drive.engine", "drive.steering", "wing.engine", "wing.steering"],
-								"ai": ["drive.boost", "drive.impulse", "wing.boost", "wing.impulse", "drive.lateral"]
+								"human": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"wing.impulse"
+								],
+								"ai": [
+									"wing.boost",
+									"wing.engine",
+									"wing.steering",
+									"drive.boost.machinery",
+									"drive.boost.direct",
+									"drive.engine.machinery",
+									"drive.engine.direct",
+									"drive.impulse.machinery",
+									"drive.impulse.direct",
+									"drive.lateral.machinery",
+									"drive.lateral.direct",
+									"drive.steering.machinery",
+									"drive.steering.direct",
+									"wing.boost.machinery",
+									"wing.boost.direct",
+									"wing.engine.machinery",
+									"wing.engine.direct",
+									"wing.impulse.machinery",
+									"wing.impulse.direct",
+									"wing.steering.machinery",
+									"wing.steering.direct"
+								]
 							},
 							"science": {
 								"human": [
@@ -8409,7 +8901,6 @@
 							},
 							"tactical": {
 								"human": [
-									"tactical.radar",
 									"fore-dorsal-gun",
 									"fore-ventral-gun",
 									"aft-dorsal-gun",
@@ -8421,16 +8912,39 @@
 									"port-aft-bank",
 									"starboard-fore-bank",
 									"starboard-aft-bank",
+									"dispatch",
+									"combat-target"
+								],
+								"ai": [
+									"tactical.radar",
 									"point-defence",
-									"utility-bay",
+									"armament-services",
 									"combat-bay",
 									"security-1",
-									"security-2"
-								],
-								"ai": ["armament-services"]
+									"security-2",
+									"fore-dorsal-gun.settings",
+									"fore-ventral-gun.settings",
+									"aft-dorsal-gun.settings",
+									"aft-ventral-gun.settings",
+									"mid-dorsal-gun.settings",
+									"bow-port-bank.settings",
+									"bow-port-bank.ammo",
+									"bow-starboard-bank.settings",
+									"bow-starboard-bank.ammo",
+									"port-fore-bank.settings",
+									"port-fore-bank.ammo",
+									"port-aft-bank.settings",
+									"port-aft-bank.ammo",
+									"starboard-fore-bank.settings",
+									"starboard-fore-bank.ammo",
+									"starboard-aft-bank.settings",
+									"starboard-aft-bank.ammo",
+									"point-defence.settings"
+								]
 							},
 							"navigator": {
-								"human": ["ftl.drive"]
+								"human": ["ftl.drive"],
+								"ai": []
 							}
 						},
 						"stars": 1
@@ -8443,7 +8957,7 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "dispatch", "psychic-orders"],
+								"human": ["communications.reserve", "external-comms", "psychic-orders"],
 								"ai": ["psychic-choir"]
 							},
 							"engineering": {
@@ -8456,22 +8970,15 @@
 									"sensors.distribution",
 									"tactical.distribution",
 									"wing.distribution",
-									"ftl.supply",
-									"ftl.cooling",
 									"repair-1",
 									"repair-2",
 									"repair-3",
 									"repair-4",
-									"interceptor-supply",
-									"bomber-supply",
-									"weapons-supply",
-									"weapons-cooling",
-									"shields-supply",
-									"shields-cooling",
-									"services-supply",
-									"services-cooling",
-									"psychic-supply",
-									"psychic-cooling"
+									"engineering-dispatch",
+									"repair-1.priority",
+									"repair-2.priority",
+									"repair-3.priority",
+									"repair-4.priority"
 								],
 								"ai": [
 									"command.cooling.orders",
@@ -8533,7 +9040,26 @@
 									"wing.steering-cooling.orders",
 									"wing.steering-cooling",
 									"wing.steering-supply.orders",
-									"wing.steering-supply"
+									"wing.steering-supply",
+									"ftl.supply",
+									"ftl.cooling",
+									"interceptor-supply",
+									"bomber-supply",
+									"utility-bay",
+									"weapons-supply",
+									"weapons-cooling",
+									"shields-supply",
+									"shields-cooling",
+									"services-supply",
+									"services-cooling",
+									"psychic-supply",
+									"psychic-cooling",
+									"logistics",
+									"core.generator.readiness",
+									"repair-1.readiness",
+									"repair-2.readiness",
+									"repair-3.readiness",
+									"repair-4.readiness"
 								]
 							},
 							"helm": {
@@ -8543,12 +9069,31 @@
 									"drive.impulse",
 									"drive.lateral",
 									"drive.steering",
+									"wing.impulse",
+									"drive.boost.direct",
+									"drive.engine.direct",
+									"drive.impulse.direct",
+									"drive.lateral.direct",
+									"drive.steering.direct"
+								],
+								"ai": [
 									"wing.boost",
 									"wing.engine",
-									"wing.impulse",
-									"wing.steering"
-								],
-								"ai": []
+									"wing.steering",
+									"drive.boost.machinery",
+									"drive.engine.machinery",
+									"drive.impulse.machinery",
+									"drive.lateral.machinery",
+									"drive.steering.machinery",
+									"wing.boost.machinery",
+									"wing.boost.direct",
+									"wing.engine.machinery",
+									"wing.engine.direct",
+									"wing.impulse.machinery",
+									"wing.impulse.direct",
+									"wing.steering.machinery",
+									"wing.steering.direct"
+								]
 							},
 							"science": {
 								"human": [
@@ -8567,7 +9112,6 @@
 							},
 							"tactical": {
 								"human": [
-									"tactical.radar",
 									"fore-dorsal-gun",
 									"fore-ventral-gun",
 									"aft-dorsal-gun",
@@ -8580,16 +9124,38 @@
 									"starboard-fore-bank",
 									"starboard-aft-bank",
 									"point-defence",
+									"dispatch",
+									"combat-target"
+								],
+								"ai": [
+									"tactical.radar",
 									"armament-services",
-									"utility-bay",
 									"combat-bay",
 									"security-1",
-									"security-2"
-								],
-								"ai": []
+									"security-2",
+									"fore-dorsal-gun.settings",
+									"fore-ventral-gun.settings",
+									"aft-dorsal-gun.settings",
+									"aft-ventral-gun.settings",
+									"mid-dorsal-gun.settings",
+									"bow-port-bank.settings",
+									"bow-port-bank.ammo",
+									"bow-starboard-bank.settings",
+									"bow-starboard-bank.ammo",
+									"port-fore-bank.settings",
+									"port-fore-bank.ammo",
+									"port-aft-bank.settings",
+									"port-aft-bank.ammo",
+									"starboard-fore-bank.settings",
+									"starboard-fore-bank.ammo",
+									"starboard-aft-bank.settings",
+									"starboard-aft-bank.ammo",
+									"point-defence.settings"
+								]
 							},
 							"navigator": {
-								"human": ["ftl.drive"]
+								"human": ["ftl.drive"],
+								"ai": []
 							}
 						},
 						"stars": 2
@@ -8602,7 +9168,7 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "dispatch", "psychic-choir"],
+								"human": ["communications.reserve", "external-comms", "psychic-choir"],
 								"ai": ["psychic-orders"]
 							},
 							"engineering": {
@@ -8650,6 +9216,7 @@
 									"repair-4",
 									"interceptor-supply",
 									"bomber-supply",
+									"utility-bay",
 									"weapons-supply",
 									"weapons-cooling",
 									"shields-supply",
@@ -8657,7 +9224,18 @@
 									"services-supply",
 									"services-cooling",
 									"psychic-supply",
-									"psychic-cooling"
+									"psychic-cooling",
+									"engineering-dispatch",
+									"logistics",
+									"core.generator.readiness",
+									"repair-1.priority",
+									"repair-1.readiness",
+									"repair-2.priority",
+									"repair-2.readiness",
+									"repair-3.priority",
+									"repair-3.readiness",
+									"repair-4.priority",
+									"repair-4.readiness"
 								],
 								"ai": [
 									"command.cooling.orders",
@@ -8705,7 +9283,25 @@
 									"wing.boost",
 									"wing.engine",
 									"wing.impulse",
-									"wing.steering"
+									"wing.steering",
+									"drive.boost.machinery",
+									"drive.boost.direct",
+									"drive.engine.machinery",
+									"drive.engine.direct",
+									"drive.impulse.machinery",
+									"drive.impulse.direct",
+									"drive.lateral.machinery",
+									"drive.lateral.direct",
+									"drive.steering.machinery",
+									"drive.steering.direct",
+									"wing.boost.machinery",
+									"wing.boost.direct",
+									"wing.engine.machinery",
+									"wing.engine.direct",
+									"wing.impulse.machinery",
+									"wing.impulse.direct",
+									"wing.steering.machinery",
+									"wing.steering.direct"
 								],
 								"ai": []
 							},
@@ -8740,15 +9336,35 @@
 									"starboard-aft-bank",
 									"point-defence",
 									"armament-services",
-									"utility-bay",
+									"dispatch",
 									"combat-bay",
 									"security-1",
-									"security-2"
+									"security-2",
+									"fore-dorsal-gun.settings",
+									"fore-ventral-gun.settings",
+									"aft-dorsal-gun.settings",
+									"aft-ventral-gun.settings",
+									"mid-dorsal-gun.settings",
+									"bow-port-bank.settings",
+									"bow-port-bank.ammo",
+									"bow-starboard-bank.settings",
+									"bow-starboard-bank.ammo",
+									"port-fore-bank.settings",
+									"port-fore-bank.ammo",
+									"port-aft-bank.settings",
+									"port-aft-bank.ammo",
+									"starboard-fore-bank.settings",
+									"starboard-fore-bank.ammo",
+									"starboard-aft-bank.settings",
+									"starboard-aft-bank.ammo",
+									"point-defence.settings",
+									"combat-target"
 								],
 								"ai": []
 							},
 							"navigator": {
-								"human": ["ftl.drive"]
+								"human": ["ftl.drive"],
+								"ai": []
 							}
 						},
 						"stars": 3
@@ -8757,6 +9373,7 @@
 						"id": "automatic",
 						"consoles": {
 							"helm": {
+								"human": [],
 								"ai": [
 									"drive.boost",
 									"drive.engine",
@@ -8766,10 +9383,29 @@
 									"wing.boost",
 									"wing.engine",
 									"wing.impulse",
-									"wing.steering"
+									"wing.steering",
+									"drive.boost.machinery",
+									"drive.boost.direct",
+									"drive.engine.machinery",
+									"drive.engine.direct",
+									"drive.impulse.machinery",
+									"drive.impulse.direct",
+									"drive.lateral.machinery",
+									"drive.lateral.direct",
+									"drive.steering.machinery",
+									"drive.steering.direct",
+									"wing.boost.machinery",
+									"wing.boost.direct",
+									"wing.engine.machinery",
+									"wing.engine.direct",
+									"wing.impulse.machinery",
+									"wing.impulse.direct",
+									"wing.steering.machinery",
+									"wing.steering.direct"
 								]
 							},
 							"engineering": {
+								"human": [],
 								"ai": [
 									"command.cooling.orders",
 									"command.cooling",
@@ -8839,20 +9475,35 @@
 									"wing.steering-cooling",
 									"wing.steering-supply.orders",
 									"wing.steering-supply",
+									"ftl.supply",
+									"ftl.cooling",
 									"repair-1",
 									"repair-2",
 									"repair-3",
 									"repair-4",
 									"interceptor-supply",
 									"bomber-supply",
+									"utility-bay",
 									"weapons-supply",
 									"weapons-cooling",
 									"shields-supply",
 									"shields-cooling",
 									"services-supply",
-									"services-cooling"
-								],
-								"human": ["ftl.supply", "ftl.cooling", "psychic-supply", "psychic-cooling"]
+									"services-cooling",
+									"psychic-supply",
+									"psychic-cooling",
+									"engineering-dispatch",
+									"logistics",
+									"core.generator.readiness",
+									"repair-1.priority",
+									"repair-1.readiness",
+									"repair-2.priority",
+									"repair-2.readiness",
+									"repair-3.priority",
+									"repair-3.readiness",
+									"repair-4.priority",
+									"repair-4.readiness"
+								]
 							},
 							"science": {
 								"ai": [
@@ -8868,6 +9519,7 @@
 								"human": ["medical-1", "medical-2"]
 							},
 							"tactical": {
+								"human": [],
 								"ai": [
 									"tactical.radar",
 									"fore-dorsal-gun",
@@ -8883,32 +9535,69 @@
 									"starboard-aft-bank",
 									"point-defence",
 									"armament-services",
-									"utility-bay",
-									"combat-bay"
-								],
-								"human": ["security-1", "security-2"]
+									"dispatch",
+									"combat-bay",
+									"security-1",
+									"security-2",
+									"fore-dorsal-gun.settings",
+									"fore-ventral-gun.settings",
+									"aft-dorsal-gun.settings",
+									"aft-ventral-gun.settings",
+									"mid-dorsal-gun.settings",
+									"bow-port-bank.settings",
+									"bow-port-bank.ammo",
+									"bow-starboard-bank.settings",
+									"bow-starboard-bank.ammo",
+									"port-fore-bank.settings",
+									"port-fore-bank.ammo",
+									"port-aft-bank.settings",
+									"port-aft-bank.ammo",
+									"starboard-fore-bank.settings",
+									"starboard-fore-bank.ammo",
+									"starboard-aft-bank.settings",
+									"starboard-aft-bank.ammo",
+									"point-defence.settings",
+									"combat-target"
+								]
 							},
 							"comms": {
-								"ai": [
-									"communications.reserve",
-									"external-comms",
-									"dispatch",
-									"psychic-choir",
-									"psychic-orders"
-								],
+								"ai": ["communications.reserve", "external-comms", "psychic-choir", "psychic-orders"],
 								"human": []
 							},
 							"captain": {
-								"ai": ["command.reserve"]
+								"ai": ["command.reserve"],
+								"human": []
 							},
 							"navigator": {
-								"human": ["ftl.drive"]
+								"human": ["ftl.drive"],
+								"ai": []
 							}
 						},
 						"stars": 0
 					}
 				],
-				"default_profile": "middle"
+				"default_profile": "middle",
+				"station_complexity": ["helm", "tactical", "engineering"],
+				"default_profiles": {
+					"helm": "simple",
+					"tactical": "simple",
+					"engineering": "simple"
+				},
+				"manual_workloads": {
+					"tactical": {
+						"craft": 2,
+						"transport": 2,
+						"logistics": 3
+					},
+					"engineering": {
+						"craft": 2,
+						"transport": 2,
+						"logistics": 3
+					},
+					"helm": {
+						"logistics": 3
+					}
+				}
 			},
 			"bridge": {
 				"conditions": [
@@ -11898,25 +12587,29 @@
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"local_repair_priority": true
 				},
 				"repair-2": {
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"local_repair_priority": true
 				},
 				"repair-3": {
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"local_repair_priority": true
 				},
 				"repair-4": {
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"local_repair_priority": true
 				},
 				"displacement": {
 					"kind": "displacement",
@@ -11931,7 +12624,7 @@
 				"dispatch": {
 					"kind": "dispatch",
 					"compartment": "bridge",
-					"observation_console": "comms"
+					"observation_console": "tactical"
 				},
 				"interceptor-supply": {
 					"kind": "magazine",
@@ -12054,7 +12747,7 @@
 					"power_store": "services-cell",
 					"charge_per_second": 1500,
 					"ammunition": [],
-					"observation_console": "tactical",
+					"observation_console": "engineering",
 					"flight_spacing_mm": 4000
 				},
 				"combat-bay": {
@@ -12186,14 +12879,34 @@
 					"type": "security",
 					"capabilities": ["security"],
 					"compartment": "hangar",
-					"injured_effectiveness_permille": 500
+					"injured_effectiveness_permille": 500,
+					"orders": [
+						{
+							"id": "post",
+							"label": "Assign security post",
+							"icon": "security",
+							"target": "compartments",
+							"capability": "security",
+							"tree": "base.team.security-post"
+						}
+					]
 				},
 				"security-2": {
 					"kind": "team",
 					"type": "security",
 					"capabilities": ["security"],
 					"compartment": "weapons",
-					"injured_effectiveness_permille": 500
+					"injured_effectiveness_permille": 500,
+					"orders": [
+						{
+							"id": "post",
+							"label": "Assign security post",
+							"icon": "security",
+							"target": "compartments",
+							"capability": "security",
+							"tree": "base.team.security-post"
+						}
+					]
 				},
 				"psychic-choir": {
 					"kind": "psychic",
@@ -12236,6 +12949,11 @@
 					"kind": "coolant",
 					"compartment": "bridge",
 					"cooling_link": "psychic-cooling"
+				},
+				"engineering-dispatch": {
+					"kind": "dispatch",
+					"compartment": "engineering",
+					"observation_console": "engineering"
 				}
 			},
 			"comms": {
@@ -13368,8 +14086,8 @@
 						"id": "dispatch",
 						"label": "Dispatch",
 						"controller": "dispatch",
-						"console": "comms",
-						"department": "signals",
+						"console": "tactical",
+						"department": "tactical",
 						"compartment": "bridge",
 						"bindings": {}
 					},
@@ -13395,8 +14113,8 @@
 						"id": "utility-bay",
 						"label": "Utility Bay",
 						"controller": "utility-bay",
-						"console": "tactical",
-						"department": "tactical",
+						"console": "engineering",
+						"department": "engineering",
 						"compartment": "hangar",
 						"bindings": {}
 					},
@@ -13580,21 +14298,24 @@
 						"label": "veil",
 						"department": "signals",
 						"compartment": "bridge",
-						"choir": "psychic-choir"
+						"choir": "psychic-choir",
+						"bindings": {}
 					},
 					{
 						"id": "choir-phantoms",
 						"label": "phantoms",
 						"department": "signals",
 						"compartment": "bridge",
-						"choir": "psychic-choir"
+						"choir": "psychic-choir",
+						"bindings": {}
 					},
 					{
 						"id": "choir-ward",
 						"label": "ward",
 						"department": "signals",
 						"compartment": "bridge",
-						"choir": "psychic-choir"
+						"choir": "psychic-choir",
+						"bindings": {}
 					},
 					{
 						"id": "psychic-supply",
@@ -13602,7 +14323,8 @@
 						"department": "engineering",
 						"compartment": "bridge",
 						"controller": "psychic-supply",
-						"console": "engineering"
+						"console": "engineering",
+						"bindings": {}
 					},
 					{
 						"id": "psychic-cooling",
@@ -13610,7 +14332,8 @@
 						"department": "engineering",
 						"compartment": "bridge",
 						"controller": "psychic-cooling",
-						"console": "engineering"
+						"console": "engineering",
+						"bindings": {}
 					},
 					{
 						"id": "psychic-choir",
@@ -13618,7 +14341,8 @@
 						"department": "signals",
 						"compartment": "bridge",
 						"controller": "psychic-choir",
-						"console": "comms"
+						"console": "comms",
+						"bindings": {}
 					},
 					{
 						"id": "psychic-orders",
@@ -13626,7 +14350,440 @@
 						"department": "signals",
 						"compartment": "bridge",
 						"controller": "psychic-orders",
-						"console": "comms"
+						"console": "comms",
+						"bindings": {}
+					},
+					{
+						"id": "engineering-dispatch",
+						"label": "engineering-dispatch",
+						"controller": "engineering-dispatch",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "logistics",
+						"label": "logistics",
+						"controller": "logistics",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "core.generator.readiness",
+						"label": "core.generator.readiness",
+						"controller": "core.generator.readiness",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "drive.boost.machinery",
+						"label": "drive.boost.machinery",
+						"controller": "drive.boost.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.boost.direct",
+						"label": "drive.boost.direct",
+						"controller": "drive.boost.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.engine.machinery",
+						"label": "drive.engine.machinery",
+						"controller": "drive.engine.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.engine.direct",
+						"label": "drive.engine.direct",
+						"controller": "drive.engine.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.impulse.machinery",
+						"label": "drive.impulse.machinery",
+						"controller": "drive.impulse.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.impulse.direct",
+						"label": "drive.impulse.direct",
+						"controller": "drive.impulse.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.lateral.machinery",
+						"label": "drive.lateral.machinery",
+						"controller": "drive.lateral.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.lateral.direct",
+						"label": "drive.lateral.direct",
+						"controller": "drive.lateral.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.steering.machinery",
+						"label": "drive.steering.machinery",
+						"controller": "drive.steering.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "drive.steering.direct",
+						"label": "drive.steering.direct",
+						"controller": "drive.steering.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.boost.machinery",
+						"label": "wing.boost.machinery",
+						"controller": "wing.boost.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.boost.direct",
+						"label": "wing.boost.direct",
+						"controller": "wing.boost.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.engine.machinery",
+						"label": "wing.engine.machinery",
+						"controller": "wing.engine.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.engine.direct",
+						"label": "wing.engine.direct",
+						"controller": "wing.engine.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.impulse.machinery",
+						"label": "wing.impulse.machinery",
+						"controller": "wing.impulse.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.impulse.direct",
+						"label": "wing.impulse.direct",
+						"controller": "wing.impulse.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.steering.machinery",
+						"label": "wing.steering.machinery",
+						"controller": "wing.steering.machinery",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "wing.steering.direct",
+						"label": "wing.steering.direct",
+						"controller": "wing.steering.direct",
+						"console": "helm",
+						"department": "sailing",
+						"compartment": "engines",
+						"bindings": {}
+					},
+					{
+						"id": "fore-dorsal-gun.settings",
+						"label": "fore-dorsal-gun.settings",
+						"controller": "fore-dorsal-gun.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "fore-ventral-gun.settings",
+						"label": "fore-ventral-gun.settings",
+						"controller": "fore-ventral-gun.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "aft-dorsal-gun.settings",
+						"label": "aft-dorsal-gun.settings",
+						"controller": "aft-dorsal-gun.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "aft-ventral-gun.settings",
+						"label": "aft-ventral-gun.settings",
+						"controller": "aft-ventral-gun.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "mid-dorsal-gun.settings",
+						"label": "mid-dorsal-gun.settings",
+						"controller": "mid-dorsal-gun.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "magazines",
+						"bindings": {}
+					},
+					{
+						"id": "bow-port-bank.settings",
+						"label": "bow-port-bank.settings",
+						"controller": "bow-port-bank.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "bow-port-bank.ammo",
+						"label": "bow-port-bank.ammo",
+						"controller": "bow-port-bank.ammo",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "bow-starboard-bank.settings",
+						"label": "bow-starboard-bank.settings",
+						"controller": "bow-starboard-bank.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "bow-starboard-bank.ammo",
+						"label": "bow-starboard-bank.ammo",
+						"controller": "bow-starboard-bank.ammo",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "port-fore-bank.settings",
+						"label": "port-fore-bank.settings",
+						"controller": "port-fore-bank.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "port-fore-bank.ammo",
+						"label": "port-fore-bank.ammo",
+						"controller": "port-fore-bank.ammo",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "port-aft-bank.settings",
+						"label": "port-aft-bank.settings",
+						"controller": "port-aft-bank.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "magazines",
+						"bindings": {}
+					},
+					{
+						"id": "port-aft-bank.ammo",
+						"label": "port-aft-bank.ammo",
+						"controller": "port-aft-bank.ammo",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "magazines",
+						"bindings": {}
+					},
+					{
+						"id": "starboard-fore-bank.settings",
+						"label": "starboard-fore-bank.settings",
+						"controller": "starboard-fore-bank.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "starboard-fore-bank.ammo",
+						"label": "starboard-fore-bank.ammo",
+						"controller": "starboard-fore-bank.ammo",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "weapons",
+						"bindings": {}
+					},
+					{
+						"id": "starboard-aft-bank.settings",
+						"label": "starboard-aft-bank.settings",
+						"controller": "starboard-aft-bank.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "magazines",
+						"bindings": {}
+					},
+					{
+						"id": "starboard-aft-bank.ammo",
+						"label": "starboard-aft-bank.ammo",
+						"controller": "starboard-aft-bank.ammo",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "magazines",
+						"bindings": {}
+					},
+					{
+						"id": "point-defence.settings",
+						"label": "point-defence.settings",
+						"controller": "point-defence.settings",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "magazines",
+						"bindings": {}
+					},
+					{
+						"id": "repair-1.priority",
+						"label": "repair-1.priority",
+						"controller": "repair-1.priority",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-1.readiness",
+						"label": "repair-1.readiness",
+						"controller": "repair-1.readiness",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-2.priority",
+						"label": "repair-2.priority",
+						"controller": "repair-2.priority",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-2.readiness",
+						"label": "repair-2.readiness",
+						"controller": "repair-2.readiness",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-3.priority",
+						"label": "repair-3.priority",
+						"controller": "repair-3.priority",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-3.readiness",
+						"label": "repair-3.readiness",
+						"controller": "repair-3.readiness",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-4.priority",
+						"label": "repair-4.priority",
+						"controller": "repair-4.priority",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "repair-4.readiness",
+						"label": "repair-4.readiness",
+						"controller": "repair-4.readiness",
+						"console": "engineering",
+						"department": "engineering",
+						"compartment": "engineering",
+						"bindings": {}
+					},
+					{
+						"id": "combat-target",
+						"label": "combat-target",
+						"controller": "combat-target",
+						"console": "tactical",
+						"department": "tactical",
+						"compartment": "bridge",
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -13673,7 +14830,7 @@
 						"department": "engineering",
 						"duty": "command.cooling.orders",
 						"compartment": "engineering",
-						"traits": ["repair"]
+						"traits": ["repair", "quartermaster"]
 					},
 					{
 						"id": "officer-6",
@@ -13888,6 +15045,11 @@
 						"id": "security",
 						"label": "Boarding veteran",
 						"effects": ["base.modifier.security.p200"]
+					},
+					{
+						"id": "quartermaster",
+						"label": "Quartermaster",
+						"effects": []
 					}
 				],
 				"facilities": [
@@ -14094,7 +15256,8 @@
 					"fade_ticks": 60,
 					"damage": 2000,
 					"radius_mm": 200000
-				}
+				},
+				"access_controller": "logistics"
 			},
 			"resources": {
 				"stores": [
@@ -14272,7 +15435,7 @@
 				}
 			],
 			"logistics": {
-				"controller": "repair-1",
+				"controller": "logistics",
 				"materials": [
 					{
 						"id": "base.ammunition.havok"
@@ -14305,7 +15468,7 @@
 				"stores": [
 					{
 						"id": "main-hold",
-						"controller": "repair-1",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 52992,
 						"main": true,
@@ -14618,7 +15781,7 @@
 					{
 						"id": "repair-1-kit",
 						"system": "repair-1",
-						"controller": "repair-1",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 24,
 						"accepts": ["parts"],
@@ -14632,7 +15795,7 @@
 					{
 						"id": "repair-2-kit",
 						"system": "repair-2",
-						"controller": "repair-2",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 24,
 						"accepts": ["parts"],
@@ -14646,7 +15809,7 @@
 					{
 						"id": "repair-3-kit",
 						"system": "repair-3",
-						"controller": "repair-3",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 24,
 						"accepts": ["parts"],
@@ -14660,7 +15823,7 @@
 					{
 						"id": "repair-4-kit",
 						"system": "repair-4",
-						"controller": "repair-4",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 24,
 						"accepts": ["parts"],
@@ -14674,7 +15837,7 @@
 					{
 						"id": "interceptor-supply",
 						"system": "interceptor-supply",
-						"controller": "interceptor-supply",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 1200,
 						"accepts": ["base.craft.interceptor"],
@@ -14685,7 +15848,7 @@
 					{
 						"id": "bomber-supply",
 						"system": "bomber-supply",
-						"controller": "bomber-supply",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 64,
 						"accepts": ["base.craft.bomber"],
@@ -31510,7 +32673,7 @@
 			"name": "Cruiser — essential delivery",
 			"faction": "crew",
 			"logistics": {
-				"controller": "repair-1",
+				"controller": "logistics",
 				"materials": [
 					{
 						"id": "base.ammunition.havok"
@@ -31551,7 +32714,7 @@
 				"stores": [
 					{
 						"id": "main-hold",
-						"controller": "repair-1",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 52992,
 						"main": true,
@@ -31864,7 +33027,7 @@
 					{
 						"id": "repair-1-kit",
 						"system": "repair-1",
-						"controller": "repair-1",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 4000,
 						"accepts": ["parts"],
@@ -31878,7 +33041,7 @@
 					{
 						"id": "repair-2-kit",
 						"system": "repair-2",
-						"controller": "repair-2",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 4000,
 						"accepts": ["parts"],
@@ -31892,7 +33055,7 @@
 					{
 						"id": "repair-3-kit",
 						"system": "repair-3",
-						"controller": "repair-3",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 4000,
 						"accepts": ["parts"],
@@ -31906,7 +33069,7 @@
 					{
 						"id": "repair-4-kit",
 						"system": "repair-4",
-						"controller": "repair-4",
+						"controller": "logistics",
 						"compartment": "engineering",
 						"capacity": 4000,
 						"accepts": ["parts"],
@@ -31920,7 +33083,7 @@
 					{
 						"id": "interceptor-supply",
 						"system": "interceptor-supply",
-						"controller": "interceptor-supply",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 1200,
 						"accepts": ["base.craft.interceptor"],
@@ -31931,7 +33094,7 @@
 					{
 						"id": "bomber-supply",
 						"system": "bomber-supply",
-						"controller": "bomber-supply",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 64,
 						"accepts": ["base.craft.bomber"],
@@ -31982,7 +33145,7 @@
 					},
 					{
 						"id": "mission-hold",
-						"controller": "repair-1",
+						"controller": "logistics",
 						"compartment": "magazines",
 						"capacity": 100,
 						"main": true,
@@ -32629,6 +33792,48 @@
 			"id": "base.delivery-raider",
 			"extends": "base.pirate-raider",
 			"faction": "raiders"
+		},
+		{
+			"id": "base.supply-depot",
+			"extends": "base.delivery-station",
+			"name": "House supply depot",
+			"faction": "house",
+			"comms": {
+				"default_conversation": "base.dialogue.cruiser-supply",
+				"characters": [
+					{
+						"id": "quartermaster",
+						"name_key": "Depot quartermaster",
+						"public": true
+					}
+				]
+			},
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "parts"
+					},
+					{
+						"id": "medical"
+					}
+				],
+				"units_per_second": 40,
+				"stores": [
+					{
+						"id": "receiving",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 2000,
+						"main": true,
+						"accepts": ["parts", "medical"],
+						"initial": {
+							"parts": 600,
+							"medical": 200
+						}
+					}
+				]
+			}
 		}
 	],
 	"maps": [
@@ -34280,13 +35485,19 @@
 			"name": "Tactical",
 			"description": "Operate the Cruiser tactical watch.",
 			"knowledge_roles": ["base.crew", "base.tactical"],
-			"widgets": [],
-			"gameplay_panel": {
-				"x": 0,
-				"y": 0,
-				"width": 1,
-				"height": 1
-			}
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"binding": "radar.contacts",
+					"label": "Tactical sensor",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000,
+					"system": "tactical.radar"
+				}
+			]
 		},
 		{
 			"id": "base.console.cruiser-engineering",
@@ -51854,6 +53065,3492 @@
 					"transitions": []
 				}
 			]
+		},
+		{
+			"id": "base.cruiser.assist.command.cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [100]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.command.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.communications.cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [100]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.communications.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.core.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.core.generator.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [30000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.core.generator.readiness",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.core.pump",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "cooling_allocation",
+					"action": "cooling_allocation"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.cooling_allocation",
+							"arguments": [300]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.core.reactor-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [3000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.core.reserve",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "charge_limit",
+					"action": "charge_limit"
+				},
+				{
+					"channel": "discharge_limit",
+					"action": "discharge_limit"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.charge_limit",
+							"arguments": [30000]
+						},
+						{
+							"action": "write.discharge_limit",
+							"arguments": [30000]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.boost.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.boost.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.boost",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "boost",
+					"action": "boost",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.boost",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.boost-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.boost-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [8000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.engine.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.engine.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "longitudinal_thrust",
+					"action": "longitudinal_thrust"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.longitudinal_thrust",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.engine-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.engine-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [4000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.impulse.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.impulse.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.impulse-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.impulse-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.lateral.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.lateral.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "lateral_thrust",
+					"action": "lateral_thrust"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.lateral_thrust",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.lateral-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [200]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.lateral-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.steering.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.steering.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "manual_steering",
+					"action": "manual_steering"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.manual_steering",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.steering-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [100]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.drive.steering-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.sensors.cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [200]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.sensors.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.tactical.cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [200]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.tactical.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.tactical.radar",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.boost.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.boost.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.boost-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.boost-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.distribution.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [8000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.engine.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.engine.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "longitudinal_thrust",
+					"action": "longitudinal_thrust"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.longitudinal_thrust",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.engine-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.engine-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [4000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.impulse.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.impulse.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.impulse-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.impulse-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.lateral-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [200]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.lateral-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.steering.machinery",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "overdrive",
+					"action": "overdrive",
+					"type": "boolean"
+				},
+				{
+					"channel": "thermal_override",
+					"action": "thermal_override",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.overdrive",
+							"arguments": [false]
+						},
+						{
+							"action": "write.thermal_override",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.steering.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "manual_steering",
+					"action": "manual_steering"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.manual_steering",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.steering-cooling.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [100]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.wing.steering-supply.orders",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "level",
+					"action": "intent_integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.level",
+							"arguments": [500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.ftl.supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolated",
+					"action": "link_isolated",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolated",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.ftl.cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"action": "cooling_allocation"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [3750]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.fore-dorsal-gun.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.fore-dorsal-gun",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.fore-ventral-gun.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.fore-ventral-gun",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.aft-dorsal-gun.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.aft-dorsal-gun",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.aft-ventral-gun.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.aft-ventral-gun",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.mid-dorsal-gun.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.mid-dorsal-gun",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bow-port-bank.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bow-port-bank.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "homing",
+			"states": [
+				{
+					"id": "homing",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "havok",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "havok",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "homing",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "homing.stock",
+					"system": "bow-port-homing",
+					"field": "ammo",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bow-port-bank",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bow-starboard-bank.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bow-starboard-bank.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "homing",
+			"states": [
+				{
+					"id": "homing",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "havok",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "havok",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "homing",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "homing.stock",
+					"system": "bow-starboard-homing",
+					"field": "ammo",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bow-starboard-bank",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.port-fore-bank.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.port-fore-bank.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "homing",
+			"states": [
+				{
+					"id": "homing",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "havok",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "havok",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "homing",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "homing.stock",
+					"system": "port-fore-homing",
+					"field": "ammo",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.port-fore-bank",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.port-aft-bank.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.port-aft-bank.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "homing",
+			"states": [
+				{
+					"id": "homing",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "havok",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "havok",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "homing",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "homing.stock",
+					"system": "port-aft-homing",
+					"field": "ammo",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.port-aft-bank",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.starboard-fore-bank.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.starboard-fore-bank.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "homing",
+			"states": [
+				{
+					"id": "homing",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "havok",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "havok",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "homing",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "homing.stock",
+					"system": "starboard-fore-homing",
+					"field": "ammo",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.starboard-fore-bank",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.starboard-aft-bank.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.starboard-aft-bank.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "homing",
+			"states": [
+				{
+					"id": "homing",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "havok",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "havok",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "homing",
+							"conditions": [
+								{
+									"left": {
+										"observation": "homing.stock"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "homing.stock",
+					"system": "starboard-aft-homing",
+					"field": "ammo",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.starboard-aft-bank",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.point-defence.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [1]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.pdc",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
+			],
+			"initial": "defend",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "combat.target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [2]
+						}
+					],
+					"transitions": [
+						{
+							"target": "defend",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "defend",
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stars"
+									},
+									"op": "lt",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "defend",
+					"running": [
+						{
+							"action": "write.mode",
+							"arguments": [1]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "console.stars"
+									},
+									"op": "ge",
+									"right": 2
+								}
+							]
+						}
+					]
+				}
+			],
+			"complexity_observation": true,
+			"command_reads": [
+				{
+					"name": "combat.target",
+					"controller": "combat-target",
+					"channel": "target",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.point-defence",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.armament-services",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-1.priority",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-1.readiness",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-2.priority",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-2.readiness",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-3.priority",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-3.readiness",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-4.priority",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.repair-4.readiness",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.interceptor-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.bomber-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.utility-bay",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.combat-bay",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.weapons-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolated",
+					"action": "link_isolated",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolated",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.weapons-cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"action": "cooling_allocation"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [2500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.shields-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolated",
+					"action": "link_isolated",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolated",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.shields-cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"action": "cooling_allocation"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [1500]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.services-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolated",
+					"action": "link_isolated",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolated",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.services-cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"action": "cooling_allocation"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [1000]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.psychic-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolate",
+					"action": "link_isolated",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolate",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.psychic-cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"action": "cooling_allocation"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.security-1",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.security-2",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.combat-target",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "sensor_target"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.cruiser-supply",
+			"context": "conversation",
+			"title_key": "Depot supply offers",
+			"initial": "greeting",
+			"lines": {
+				"intro": {
+					"speaker": "target",
+					"text_key": "House depot. We can offer spare parts as a gift, and medical supplies in exchange for parts."
+				},
+				"gift": {
+					"speaker": "target",
+					"text_key": "A gift of spare parts is available. Engineering may send a utility shuttle."
+				},
+				"trade": {
+					"speaker": "target",
+					"text_key": "Medical supplies are available at one unit for two spare parts. Engineering may arrange collection."
+				},
+				"decline": {
+					"speaker": "target",
+					"text_key": "Understood. The depot will await your next hail."
+				}
+			},
+			"prompts": {
+				"offers": {
+					"speaker": "target",
+					"text_key": "Which supply offers shall we prepare?",
+					"timeout_ticks": 600,
+					"default_choice": "decline",
+					"ai_choice": "both",
+					"ai_delay_ticks": 60,
+					"choices": [
+						{
+							"id": "gift",
+							"text_key": "Prepare the gift of parts."
+						},
+						{
+							"id": "trade",
+							"text_key": "Prepare the medical barter."
+						},
+						{
+							"id": "both",
+							"text_key": "Prepare both offers."
+						},
+						{
+							"id": "decline",
+							"text_key": "We do not need supplies."
+						}
+					]
+				}
+			},
+			"states": [
+				{
+					"id": "greeting",
+					"entry": [
+						{
+							"memory": "last_hail",
+							"value": {
+								"observation": "hails"
+							}
+						},
+						{
+							"action": "say",
+							"arguments": ["intro"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "question",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "gift",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["gift"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "greeting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "hails"
+									},
+									"op": "gt",
+									"right": {
+										"memory": "last_hail"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "trade",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["trade"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "greeting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "hails"
+									},
+									"op": "gt",
+									"right": {
+										"memory": "last_hail"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "decline",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["decline"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "greeting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "hails"
+									},
+									"op": "gt",
+									"right": {
+										"memory": "last_hail"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "both",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["gift"]
+						},
+						{
+							"action": "say",
+							"arguments": ["trade"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "greeting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "hails"
+									},
+									"op": "gt",
+									"right": {
+										"memory": "last_hail"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "question",
+					"entry": [
+						{
+							"action": "offer",
+							"arguments": ["offers"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "gift",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "gift"
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							]
+						},
+						{
+							"target": "trade",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "trade"
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							]
+						},
+						{
+							"target": "both",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "both"
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							]
+						},
+						{
+							"target": "decline",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "decline"
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							]
+						}
+					]
+				}
+			],
+			"memory": [
+				{
+					"name": "last_hail",
+					"type": "integer",
+					"initial": 0
+				}
+			]
+		},
+		{
+			"id": "base.away.supply",
+			"context": "away",
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting"
+				}
+			]
+		},
+		{
+			"id": "base.team.security-post",
+			"context": "team",
+			"initial": "post",
+			"states": [
+				{
+					"id": "post",
+					"running": [
+						{
+							"action": "move"
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -54058,11 +58755,21 @@
 			}
 		},
 		{
-			"id": "base.modifier.comms.p200",
+			"id": "base.modifier.propulsion.p200",
 			"kind": "modifier",
 			"contributions": {
 				"main": {
-					"property": "comms",
+					"property": "propulsion",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.sensors.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "sensors",
 					"delta_permille": 200
 				}
 			}
@@ -54078,22 +58785,22 @@
 			}
 		},
 		{
-			"id": "base.modifier.medical.p250",
+			"id": "base.modifier.traverse.p200",
 			"kind": "modifier",
 			"contributions": {
 				"main": {
-					"property": "medical",
-					"delta_permille": 250
+					"property": "traverse",
+					"delta_permille": 200
 				}
 			}
 		},
 		{
-			"id": "base.modifier.propulsion.p200",
+			"id": "base.modifier.reload.p150",
 			"kind": "modifier",
 			"contributions": {
 				"main": {
-					"property": "propulsion",
-					"delta_permille": 200
+					"property": "reload",
+					"delta_permille": 150
 				}
 			}
 		},
@@ -54113,16 +58820,6 @@
 			}
 		},
 		{
-			"id": "base.modifier.reload.p150",
-			"kind": "modifier",
-			"contributions": {
-				"main": {
-					"property": "reload",
-					"delta_permille": 150
-				}
-			}
-		},
-		{
 			"id": "base.modifier.repair.p200",
 			"kind": "modifier",
 			"contributions": {
@@ -54133,31 +58830,31 @@
 			}
 		},
 		{
+			"id": "base.modifier.comms.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "comms",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.medical.p250",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "medical",
+					"delta_permille": 250
+				}
+			}
+		},
+		{
 			"id": "base.modifier.security.p200",
 			"kind": "modifier",
 			"contributions": {
 				"main": {
 					"property": "security",
-					"delta_permille": 200
-				}
-			}
-		},
-		{
-			"id": "base.modifier.sensors.p200",
-			"kind": "modifier",
-			"contributions": {
-				"main": {
-					"property": "sensors",
-					"delta_permille": 200
-				}
-			}
-		},
-		{
-			"id": "base.modifier.traverse.p200",
-			"kind": "modifier",
-			"contributions": {
-				"main": {
-					"property": "traverse",
 					"delta_permille": 200
 				}
 			}
