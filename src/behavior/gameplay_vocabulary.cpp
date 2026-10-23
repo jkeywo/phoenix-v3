@@ -127,7 +127,8 @@ const std::vector<ObservationDefinition> &observation_definitions()
 	    {GameplayTreeObservation::SummaryLevel, "summary.level", Type::Integer, system_context,
 	     "authored-intent-level"},
 	    {GameplayTreeObservation::Following, "flight.following", Type::Boolean, system_context, ""},
-	    {GameplayTreeObservation::FollowStale, "flight.follow_stale", Type::Boolean, system_context, ""}};
+	    {GameplayTreeObservation::FollowStale, "flight.follow_stale", Type::Boolean, system_context, ""},
+	    {GameplayTreeObservation::SelfDefinition, "self.definition", Type::Text, scenario_context, "identity"}};
 	return result;
 }
 struct IntentDefinition

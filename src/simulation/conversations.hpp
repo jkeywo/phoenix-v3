@@ -147,7 +147,8 @@ struct ConversationStart
 		std::string slot, character;
 	};
 	std::map<std::string, Binding> bindings;
-	std::vector<std::string> members, events;
+	std::vector<std::string> members, events, cancel_events;
+	bool cancelled = false;
 	ConversationId conversation = 0;
 	ScenarioId cursor = 0;
 };
@@ -164,6 +165,7 @@ void compile_conversation_starts(const Json &map)
 		s.start_event = j.value("start_event", std::string{});
 		s.members = j.at("members").get<std::vector<std::string>>();
 		s.events = j.value("events", std::vector<std::string>{});
+		s.cancel_events = j.value("cancel_events", std::vector<std::string>{});
 		for (auto it = j.at("bindings").begin(); it != j.at("bindings").end(); ++it)
 			s.bindings[it.key()] = {it.value().value("entity", EntityId{0}), it.value().value("slot", std::string{}),
 			                        it.value().value("character", std::string{})};
@@ -181,6 +183,7 @@ void conversation_scenarios()
 		{
 			std::set<std::string> names(s.events.begin(), s.events.end());
 			names.insert(s.start_event);
+			names.insert(s.cancel_events.begin(), s.cancel_events.end());
 			for (const auto &name : names)
 				for (const auto &e : scenario->runtime().events(name, s.cursor))
 					events.push_back(e);
@@ -189,6 +192,24 @@ void conversation_scenarios()
 			          {
 				          return a.id < b.id;
 			          });
+		}
+		for (const auto &e : events)
+			if (std::find(s.cancel_events.begin(), s.cancel_events.end(), e.name) != s.cancel_events.end())
+				s.cancelled = true;
+		if (s.cancelled)
+		{
+			if (s.conversation)
+			{
+				auto &conversation = conversations.conversations.at(s.conversation);
+				conversation.finished = true;
+				for (auto &message : conversation.messages)
+					for (const auto &recipient : message.recipients)
+						if (!message.delivered.contains(recipient))
+							message.expired.insert(recipient);
+			}
+			if (!events.empty())
+				s.cursor = events.back().id;
+			continue;
 		}
 		bool start = s.start_event.empty() || std::any_of(events.begin(), events.end(),
 		                                                  [&](const auto &e)
@@ -238,7 +259,8 @@ Json save_conversation_starts() const
 {
 	Json rows = Json::array();
 	for (const auto &s : conversation_starts)
-		rows.push_back({{"id", s.id}, {"conversation", s.conversation}, {"cursor", s.cursor}});
+		rows.push_back(
+		    {{"id", s.id}, {"conversation", s.conversation}, {"cursor", s.cursor}, {"cancelled", s.cancelled}});
 	return {{"instance", conversation_instance}, {"sequence", conversation_event_sequence}, {"starts", rows}};
 }
 void restore_conversation_starts(const Json &j)
@@ -270,6 +292,7 @@ void restore_conversation_starts(const Json &j)
 			throw std::runtime_error("Saved conversation configuration mismatch");
 		s.conversation = v.at("conversation");
 		s.cursor = v.at("cursor");
+		s.cancelled = v.value("cancelled", false);
 		if (s.conversation && !conversations.conversations.contains(s.conversation))
 			throw std::runtime_error("Missing saved scenario conversation");
 	}

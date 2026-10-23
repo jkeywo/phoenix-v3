@@ -66,6 +66,8 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 	};
 	for (const auto &[id, f] : definition.fact_bindings)
 	{
+		if (f.kind == "clock")
+			continue;
 		if (f.kind == "event")
 		{
 			if (f.subject.entity || !f.subject.name.empty())
@@ -86,6 +88,24 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 		else
 			for (const auto &[name, e] : catalog.entities)
 				hulls.push_back(name);
+		if (f.kind == "inventory")
+		{
+			bool found = false;
+			for (const auto &h : hulls)
+			{
+				const auto logistics = compile_logistics(catalog, h);
+				const bool valid = logistics.materials.contains(f.operation) &&
+				                   std::any_of(logistics.stores.begin(), logistics.stores.end(),
+				                               [&](const auto &s)
+				                               {
+					                               return s.id == f.field;
+				                               });
+				found |= valid;
+				if (f.subject.kind != ScenarioActorKind::Handle)
+					require(valid, "unknown inventory fact " + f.id);
+			}
+			require(found, "unknown spawned inventory fact " + f.id);
+		}
 		if (f.kind == "compartment")
 		{
 			bool found = false;

@@ -447,6 +447,7 @@ std::vector<Value> GameplayScenarioBridge::snapshot(ScenarioId id, ScenarioId *n
 			set(GameplayTreeObservation::SelfEntity, Value::reference(Type::Entity, *entity));
 			if (const auto b = bodies_.find(*entity); b != bodies_.end())
 			{
+				set(GameplayTreeObservation::SelfDefinition, Value::string(b->second.definition));
 				set(GameplayTreeObservation::PositionX, Value::integer(b->second.x));
 				set(GameplayTreeObservation::PositionY, Value::integer(b->second.y));
 				set(GameplayTreeObservation::VelocityX, Value::integer(b->second.vx));

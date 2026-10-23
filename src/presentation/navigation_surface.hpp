@@ -231,6 +231,11 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 			};
 
 			line(localise(report.at("explanation")));
+			for (const auto &a : report.value("assessments", Json::array()))
+			{
+				line(localise(a.at("title")) + ": " + localise(a.at("result_title")));
+				line(localise(a.at("explanation")));
+			}
 			for (const auto &f : report.at("facts"))
 			{
 				std::string value = f.at("value").is_null()      ? localise("Unresolved")

@@ -61,6 +61,8 @@ std::map<std::string, std::string> personnel_dispositions(EntityId ship) const
 state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b) const
 {
 	using state_tree::Value;
+	if (b.kind == "clock")
+		return Value::integer(static_cast<std::int64_t>(ecs.get<Clock>().tick));
 	if (b.kind == "event")
 	{
 		const bool filtered = b.subject.entity || !b.subject.name.empty();
@@ -87,10 +89,23 @@ state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding
 			if (o.instance == instance_id && (o.handle == b.operation || o.definition == b.operation) &&
 			    mission_subject(o.instance, o.actor) == id && (!latest || o.id > latest->id))
 				latest = &o;
+		if (b.field == "completed_tick")
+			return latest && latest->status == ObjectiveStatus::Completed ? Value::integer(latest->completed_tick)
+			                                                              : Value{};
 		return latest ? Value::string(objective_status_name(latest->status)) : Value{};
 	}
 	if (b.kind == "entity")
-		return Value::string(lifecycle(id));
+		return Value::string(b.field == "definition" ? entities.at(id).get<Definition>().name : lifecycle(id));
+	if (b.kind == "inventory")
+	{
+		const auto &d = definition(id).logistics;
+		if (!entities.at(id).has<MaterialInventory>() || !d.materials.contains(b.operation))
+			return {};
+		for (std::size_t i = 0; i < d.stores.size(); ++i)
+			if (d.stores[i].id == b.field)
+				return Value::integer(material_quantity(id, i, b.operation));
+		return {};
+	}
 	if (b.kind == "personnel")
 	{
 		const auto dispositions = personnel_dispositions(id);
@@ -305,7 +320,8 @@ void update_mission_facts()
 		const auto phase = p.get<std::string>();
 		const auto key = "away/" + std::to_string(ship) + "/" + d.id;
 		mission_change(key + "/phase", phase,
-		               phase == "deployed"    ? "away.deployed"
+		               phase == "available"   ? "away.available"
+		               : phase == "deployed"  ? "away.deployed"
 		               : phase == "recovered" ? "away.recovered"
 		                                      : "",
 		               ship, d.target, d.id);
@@ -349,6 +365,23 @@ Json authoritative_report(EntityId ship, Json legacy) const
 		legacy["facts"] = Json::array();
 		legacy["personnel"] = Json::array();
 		legacy["objectives"] = Json::array();
+		legacy["assessments"] = Json::array();
+		for (const auto &a : spec.assessments)
+		{
+			Json result{{"title", a.title_key},
+			            {"result", a.fallback},
+			            {"result_title", a.fallback_title_key},
+			            {"explanation", a.fallback_explanation_key}};
+			for (const auto &rule : a.rules)
+				if (scenario_condition(rule.when, facts).value_or(false))
+				{
+					result["result"] = rule.result;
+					result["result_title"] = rule.title_key;
+					result["explanation"] = rule.explanation_key;
+					break;
+				}
+			legacy["assessments"].push_back(std::move(result));
+		}
 		for (const auto &rule : spec.rules)
 			if (scenario_condition(rule.when, facts).value_or(false))
 			{

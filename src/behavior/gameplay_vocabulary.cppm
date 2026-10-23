@@ -94,6 +94,7 @@ enum class GameplayTreeObservation : std::uint32_t
 	SummaryLevel,
 	Following,
 	FollowStale,
+	SelfDefinition,
 	Count
 };
 enum class GameplayTreeIntent : std::uint32_t

@@ -385,6 +385,7 @@ void ai_departure()
 	for (const auto &body : no.save().at("bodies"))
 		require(!body.contains("mission_report"), "AI cannot bypass power refusal");
 }
+#include "mission_delivery.hpp"
 int main(int argc, char **argv)
 {
 	try
@@ -478,6 +479,8 @@ int main(int argc, char **argv)
 		loss_cases();
 		departure_batch();
 		ai_departure();
+		delivery_cases();
+		swept_approach_cases();
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << w.save().at("mission_ledger").dump() << "\n"
 			          << report.dump() << "\n"

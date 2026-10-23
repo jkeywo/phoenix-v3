@@ -28,6 +28,19 @@ inline Json report(const Json &v)
 		if (v.at("version") != 2)
 			throw std::runtime_error("Unsupported departure report version");
 		out["version"] = 2;
+		if (v.contains("assessments"))
+		{
+			if (!v.at("assessments").is_array() || v.at("assessments").size() > 16)
+				throw std::runtime_error("Invalid assessment bounds");
+			out["assessments"] = Json::array();
+			for (const auto &a : v.at("assessments"))
+			{
+				Json assessment;
+				for (const auto *key : {"title", "result", "result_title", "explanation"})
+					assessment[key] = projection::text(a.at(key), 4096);
+				out["assessments"].push_back(std::move(assessment));
+			}
+		}
 		for (const auto *key : {"title", "result", "result_title", "explanation"})
 			out[key] = projection::text(v.at(key), 4096);
 		if (!v.at("facts").is_array() || v.at("facts").size() > 128 || !v.at("personnel").is_array() ||

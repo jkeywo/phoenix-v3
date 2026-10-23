@@ -41,6 +41,10 @@ Json fixture()
 		                                        {"auto_accept_allies", true},
 		                                        {"supply", true}}})}};
 	}
+	s["trees"].push_back(Json::parse(
+	    R"({"id":"test.receipt","context":"scenario","initial":"wait","states":[{"id":"wait","entry":[{"action":"add_objective","arguments":["receipt",{"observation":"self.entity"},"receipt"]}]}]})"));
+	s["maps"][0]["scenario"] = Json::parse(
+	    R"({"tree":"test.receipt","bindings":{"actor":{"slot":"crew"}},"fact_bindings":[{"id":"quantity","kind":"inventory","subject":{"entity":1},"field":"hold","operation":"parts"}],"objectives":[{"id":"receipt","type":"condition","title_key":"Physical receipt","actor":{"slot":"crew"},"recipients":{"ship":{"slot":"crew"}},"complete_when":{"fact":"quantity","op":"ge","value":7}}]})");
 	return s;
 }
 OperatingCommand command(const World &w, std::uint64_t claim, const std::string &verb, const std::string &system,
@@ -78,6 +82,8 @@ int main(int argc, char **argv)
 		        "Engineering requests real cargo delivery");
 		ticks(w, 4);
 		require(!w.observe(102)->gameplay.at("logistics").at("cargo").empty(), "Cargo commitment is visible");
+		require(w.save().at("scenario").at("runtime").at("objectives")[0].at("status") == 1,
+		        "Dispatch and cargo reservations do not count as delivery");
 		{
 			World recalled;
 			recalled.restore(catalog, w.save());
@@ -100,6 +106,12 @@ int main(int argc, char **argv)
 			w.tick();
 			resumed.tick();
 			const auto checkpoint = w.save();
+			std::int64_t stock = 0;
+			for (const auto &body : checkpoint.at("bodies"))
+				if (body.at("body").at("id") == 1)
+					stock = body.at("inventory").at("stores")[0].at("quantities").at("parts");
+			require(checkpoint.at("scenario").at("runtime").at("objectives")[0].at("status") == (stock == 7 ? 2 : 1),
+			        "Only physical full receipt completes the objective, including partial unloading");
 			if (!simultaneous_reservations &&
 			    checkpoint.at("logistics").at("cargo")[0].at("reserved").get<std::int64_t>() > 0)
 				for (const auto &batch : checkpoint.at("logistics").at("batches"))

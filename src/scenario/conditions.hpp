@@ -71,12 +71,23 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 			if (v.contains("subject"))
 				b.subject = actor(v.at("subject"));
 		}
-		else
+		else if (b.kind != "clock")
 			b.subject = actor(v.at("subject"));
 		if (b.kind == "entity")
 		{
-			require(b.field == "lifecycle", "unknown entity fact");
+			require(b.field == "lifecycle" || b.field == "definition", "unknown entity fact");
 			b.type = state_tree::Type::Text;
+		}
+		else if (b.kind == "clock")
+		{
+			require(b.field == "tick", "unknown clock fact");
+			b.type = state_tree::Type::Integer;
+		}
+		else if (b.kind == "inventory")
+		{
+			require(valid_identifier(b.field) && valid_identifier(b.operation),
+			        "inventory fact needs store and material");
+			b.type = state_tree::Type::Integer;
 		}
 		else if (b.kind == "compartment")
 		{
@@ -93,8 +104,9 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 		}
 		else if (b.kind == "objective")
 		{
-			require(b.field == "status" && valid_identifier(b.operation), "invalid objective fact");
-			b.type = state_tree::Type::Text;
+			require((b.field == "status" || b.field == "completed_tick") && valid_identifier(b.operation),
+			        "invalid objective fact");
+			b.type = b.field == "status" ? state_tree::Type::Text : state_tree::Type::Integer;
 		}
 		else if (b.kind == "personnel")
 		{
@@ -109,9 +121,9 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 void compile_mission_reports(const Json &source, ScenarioDefinition &out)
 {
 	const std::set<std::string> kinds{
-	    "ftl.ready",        "away.deployed",    "away.work_completed", "away.completed",  "away.failed",
-	    "away.recovered",   "personnel.lost",   "entity.destroyed",    "entity.departed", "objective.completed",
-	    "objective.failed", "objective.active", "objective.cancelled"};
+	    "ftl.ready",           "away.deployed",    "away.work_completed", "away.completed",     "away.failed",
+	    "away.available",      "away.recovered",   "personnel.lost",      "entity.destroyed",   "entity.departed",
+	    "objective.completed", "objective.failed", "objective.active",    "objective.cancelled"};
 	for (const auto &v : list(source, "event_bindings", 128))
 	{
 		ScenarioEventBinding b;
@@ -154,6 +166,22 @@ void compile_mission_reports(const Json &source, ScenarioDefinition &out)
 		r.fallback = identifier(f, "result");
 		r.fallback_title_key = text(f, "title_key");
 		r.fallback_explanation_key = text(f, "explanation_key");
+		std::set<std::string> assessment_ids;
+		for (const auto &a : list(v, "assessments", 16))
+		{
+			ScenarioReportDefinition assessment;
+			assessment.id = identifier(a, "id");
+			require(assessment_ids.insert(assessment.id).second, "duplicate report assessment");
+			assessment.title_key = text(a, "title_key");
+			for (const auto &rule : list(a, "rules", 32))
+				assessment.rules.push_back({identifier(rule, "result"), text(rule, "title_key"),
+				                            text(rule, "explanation_key"), compile_condition(rule.at("when"), out)});
+			const auto &fallback = a.at("fallback");
+			assessment.fallback = identifier(fallback, "result");
+			assessment.fallback_title_key = text(fallback, "title_key");
+			assessment.fallback_explanation_key = text(fallback, "explanation_key");
+			r.assessments.push_back(std::move(assessment));
+		}
 		out.reports.push_back(std::move(r));
 	}
 }

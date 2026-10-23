@@ -47,10 +47,39 @@ Json fixture()
 	    {{"id", 2}, {"definition", "test.controllable"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
 	return s;
 }
+void cancelled_station_traffic()
+{
+	auto source = fixture();
+	source["trees"].push_back(Json::parse(
+	    R"({"id":"test.station-traffic","context":"scenario","initial":"start","states":[{"id":"start","entry":[{"action":"emit_scenario_event","arguments":["reminder",0,false,""]}],"transitions":[{"target":"terminal","conditions":[{"left":{"elapsed":true},"op":"ge","right":3}]}]},{"id":"terminal","entry":[{"action":"emit_scenario_event","arguments":["receipt",0,false,""]}]}]})"));
+	source["maps"][0]["scenario"] = {{"tree", "test.station-traffic"}, {"events", {"reminder", "receipt"}}};
+	source["maps"][0]["conversations"] = Json::parse(
+	    R"([{"id":"reminder","tree":"test.dialogue","start_event":"reminder","cancel_events":["receipt"],"bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"captain"}},"members":["caller","target"]}])");
+	const auto catalog = load(source);
+	World w;
+	w.load(catalog, "test.map");
+	require(w.claim(1, 1, "drive"), "Station traffic crew");
+	w.tick();
+	w.tick();
+	World resumed;
+	resumed.restore(catalog, w.save());
+	for (int i = 0; i < 30; ++i)
+	{
+		w.tick();
+		resumed.tick();
+	}
+	require(w.save() == resumed.save(), "Queued reminder cancellation survives continuation");
+	require(w.save().at("conversation_starts").at("starts")[0].at("cancelled") == true,
+	        "Terminal receipt latches traffic cancellation");
+	const auto observed = w.observe(1);
+	for (const auto &thread : observed->gameplay.at("conversations").at("threads"))
+		require(thread.at("messages").empty(), "Obsolete queued reminders never deliver");
+}
 int main(int argc, char **argv)
 {
 	try
 	{
+		cancelled_station_traffic();
 		for (const auto y : {0, 1})
 		{
 			auto boundary = fixture();

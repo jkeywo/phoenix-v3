@@ -181,6 +181,9 @@ void verify_conversation_authoring(const Catalog &catalog)
 				        "unknown or repeated member binding");
 			}
 			auto events = c.value("events", std::vector<std::string>{});
+			const auto cancellations = c.value("cancel_events", std::vector<std::string>{});
+			require(cancellations.size() <= 32, path, "too many cancellation events");
+			events.insert(events.end(), cancellations.begin(), cancellations.end());
 			const auto start = c.value("start_event", std::string{});
 			if (!start.empty())
 				events.push_back(start);

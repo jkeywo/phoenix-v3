@@ -2648,6 +2648,8 @@ void World::tick()
 	impl_->refresh_comms();
 	impl_->refresh_boarding_templates();
 	impl_->update_craft_reports();
+	// Physical receipt and deadlines settle before queued station traffic can be delivered.
+	impl_->update_mission_facts();
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
 	impl_->advance_away();
