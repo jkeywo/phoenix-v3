@@ -1,0 +1,31 @@
+# Rescue capture and pirate encounter
+
+The delivery opening and the three away priorities continue into a physical pirate encounter. Courier receives one raider; Cruiser receives three. A lone hostile raider engages the player while the player remains within engagement range. With a screen, the designated boarder may approach Morrow while the others fight. Arrival and flank positions stay inside the asteroid field's clear working area.
+
+The ultimatum starts at arrival, following the distress delay. Refusal or a committed shot against any pirate starts hostilities; selecting a target alone does not. Silence gives a second warning and then starts hostilities. These clocks use simulation ticks and continue without communications. Acceptance permits boarding and close approach. A new outbound insertion, or a committed attack, breaks that truce; an existing party may continue or recover.
+
+A takeover needs an actual docked connection. Threat, interrupted docking or replacement of the designated boarder resets unfinished work and cancels undelivered pleas. Destruction and a close threat take precedence over completion on the last tick. Completed ownership survives undocking. Pirates restore repairable hull and system faults through the shared repair paths, without filling resource stores or magazines. Unrepairable destroyed equipment remains destroyed.
+
+Pirate takeover kills Morrow's original complement and activates its authored occupation team. Surviving player visitors become captives with retained identities, health and duties. Ordinary hostile boarding can retake Morrow, free those captives and leave the new Security party as prize crew. Freed visitors still need physical extraction. Morrow's original crew remain dead.
+
+The rescue operation itself can claim Morrow at its final decision. That choice is absent unless operational Security is physically aboard; AI Comms chooses rescue. Claiming retains Security and its accompanying officer, while Repair, Medical and their officers remain recoverable. Intentional prize assignments do not count as accidentally abandoned personnel.
+
+## Authoring
+
+Map `interdictions` records bind a player slot, target, distress event, conversation, and scenario-context tree marked `interdiction: true`. `variants` selects the spawned fit and arrival transforms from the player's selected ship, with a `default` fleet. Each arrival has an authored `formation_mdeg`. Formation radius, combat standoff, cruise speed, threat/clearance/engagement distances, takeover duration and plea times remain content values.
+
+The encounter vocabulary exposes `started`, `attacked`, `reinforced`, `captured`, `target_lost`, `player_claimed`, `takeover_ready` and the admitted `answer`. Actions are `spawn`, `posture`, `say`, `offer`, `takeover`, `log`, `emit` and `finish`. Actions retain stable effect receipts. Repeated encounter log text is emitted once per operation. The conversation owns presentation and delivery; the state tree owns the ultimatum deadlines. Workshop exposes the operation records and its separate action/observation palette.
+
+Away action `claim` takes a declared team capability. Boarding bridge objectives may set `prize_capability` to retain only the qualified team and its accompanying officer, preserving the older whole-party behavior for templates that omit it. Personnel dispositions include `captured`, `freed` and `prize_crew`; reports carry custody location. Entity facts expose `captured` and `owner_faction`. Personnel facts count the new dispositions. Authored domain-event bindings can map capture, release and prize assignment into the mission log.
+
+## Departure and reports
+
+Ownership creates a departure group. Each member must undock and satisfy its own ordinary reactor, reserve, cooling, damage and transfer blockers. Controllers operate machinery through normal admitted commands. The authoritative departure boundary revalidates every live member and ownership before retiring any member. Destroyed members leave the group; changing Morrow's owner invalidates the obsolete pirate group. Captives travel with their captor. Friendly visitors awaiting recovery block the prize's departure.
+
+Player departure and player destruction freeze the same report projection. Objectives and chronological timestamped log entries remain the main column, with ship, officers and personnel dispositions alongside. Authored outcomes distinguish rescue, claim, pirate takeover, destruction and unfinished withdrawal. Claim is logged immediately; successful withdrawal with a prize requires the actual joint departure. Station delivery retains its independent physical quantity and frozen grade. Only the initial pirate demand and start of hostilities enter the log as pirate communications; warnings, pleas and replies remain in the Comms transcript.
+
+## Verification
+
+`tests/support/interdiction_fixture.hpp` and `tests/system/interdictions.cpp` use independent synthetic fits through production loaders. They exercise one/three-ship rosters, admission of replies at the silence boundary, communications loss, missed attacks, physical AI docking, last-tick interruption, replacement boarders, selective prize manifests, captivity, retaking, physical recovery, separate FTL charging, group revalidation and exact continuation. Existing conversation, away, boarding, docking, FTL and report cases cover the associated foundation. Native/WASM continuation checks compare the same fixture run; no shipped tuning is asserted.
+
+Graphical journeys are explicitly invoked through `phoenix_mission_smoke`; they are separate from CTest. Their receipt, rendering evidence and remaining acceptance limits belong in the smoke documentation. Successful compilation or content verification alone does not establish a complete gameplay walkthrough.

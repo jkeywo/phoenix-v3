@@ -33472,7 +33472,8 @@
 								"psychic-supply",
 								"psychic-cooling",
 								"utility-bay",
-								"engineering-dispatch"
+								"engineering-dispatch",
+								"sensors.radar"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -33931,13 +33932,2436 @@
 			"systems": {
 				"comms-radio": {
 					"range_mm": 2500000
+				},
+				"occupation": {
+					"kind": "team",
+					"type": "security",
+					"capabilities": ["security"],
+					"compartment": "bow-starboard",
+					"injured_effectiveness_permille": 500,
+					"enabled": false
 				}
+			},
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "drive",
+						"console": "helm",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive"]
+							}
+						]
+					},
+					{
+						"id": "helm",
+						"console": "helm",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["helm"]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"initial": 0,
+								"consumers": ["helm"]
+							}
+						]
+					},
+					{
+						"id": "radar",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["radar"]
+							}
+						]
+					},
+					{
+						"id": "top",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top"]
+							}
+						]
+					},
+					{
+						"id": "top-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-mag"]
+							}
+						]
+					},
+					{
+						"id": "top-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["top-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["top-gun"]
+							}
+						]
+					},
+					{
+						"id": "bottom",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom"]
+							}
+						]
+					},
+					{
+						"id": "bottom-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-mag"]
+							}
+						]
+					},
+					{
+						"id": "bottom-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["bottom-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["bottom-gun"]
+							}
+						]
+					},
+					{
+						"id": "forward-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["forward-mag"]
+							}
+						]
+					},
+					{
+						"id": "forward-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["forward-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["forward-gun"]
+							}
+						]
+					},
+					{
+						"id": "team-1",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["team-1"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-1"]
+							},
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["team-1"]
+							}
+						]
+					},
+					{
+						"id": "team-2",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["team-2"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-2"]
+							},
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["team-2"]
+							}
+						]
+					},
+					{
+						"id": "reactor",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["reactor"]
+							},
+							{
+								"id": "output",
+								"action": "generator_output",
+								"consumers": ["reactor"],
+								"initial": 1600
+							}
+						]
+					},
+					{
+						"id": "weapon-cell",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["weapon-cell"]
+							}
+						]
+					},
+					{
+						"id": "shield-cell",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["shield-cell"]
+							}
+						]
+					},
+					{
+						"id": "beam",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["beam"]
+							},
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["beam"]
+							}
+						]
+					},
+					{
+						"id": "shield-fore",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["shield-fore"]
+							},
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"consumers": ["shield-fore"]
+							}
+						]
+					},
+					{
+						"id": "shield-aft",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["shield-aft"]
+							},
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"consumers": ["shield-aft"]
+							}
+						]
+					},
+					{
+						"id": "homing-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["homing-mag"]
+							}
+						]
+					},
+					{
+						"id": "havok-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["havok-mag"]
+							}
+						]
+					},
+					{
+						"id": "missile-launcher",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["missile-launcher"]
+							},
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["missile-launcher"]
+							},
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"consumers": ["missile-launcher"]
+							}
+						]
+					},
+					{
+						"id": "pdc-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["pdc-mag"]
+							}
+						]
+					},
+					{
+						"id": "pdc",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["pdc"]
+							},
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["pdc"]
+							},
+							{
+								"id": "mode",
+								"action": "weapon_mode",
+								"consumers": ["pdc"]
+							}
+						]
+					},
+					{
+						"id": "external-comms",
+						"console": "comms",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["comms-radio"]
+							}
+						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						],
+						"tree": "base.policy.depart-after-visiting-work"
+					},
+					{
+						"id": "ftl.supply",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
+					},
+					{
+						"id": "occupation",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["occupation"]
+							}
+						]
+					}
+				],
+				"default_profile": "direct",
+				"profiles": [
+					{
+						"id": "direct",
+						"consoles": {
+							"helm": {
+								"human": ["drive", "helm"]
+							},
+							"tactical": {
+								"human": [
+									"top",
+									"top-mag",
+									"top-gun",
+									"bottom",
+									"bottom-mag",
+									"bottom-gun",
+									"forward-mag",
+									"forward-gun",
+									"beam",
+									"homing-mag",
+									"havok-mag",
+									"missile-launcher",
+									"pdc-mag",
+									"pdc"
+								],
+								"ai": ["occupation"]
+							},
+							"support": {
+								"human": [
+									"radar",
+									"team-1",
+									"team-2",
+									"reactor",
+									"weapon-cell",
+									"shield-cell",
+									"shield-fore",
+									"shield-aft",
+									"ftl.supply",
+									"ftl.cooling"
+								]
+							},
+							"comms": {
+								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
+							}
+						},
+						"stars": 3
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"helm": {
+								"ai": ["drive", "helm"]
+							},
+							"tactical": {
+								"ai": [
+									"top",
+									"top-mag",
+									"top-gun",
+									"bottom",
+									"bottom-mag",
+									"bottom-gun",
+									"forward-mag",
+									"forward-gun",
+									"beam",
+									"homing-mag",
+									"havok-mag",
+									"missile-launcher",
+									"pdc-mag",
+									"pdc",
+									"occupation"
+								]
+							},
+							"support": {
+								"ai": [
+									"radar",
+									"team-1",
+									"team-2",
+									"reactor",
+									"weapon-cell",
+									"shield-cell",
+									"shield-fore",
+									"shield-aft"
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
+							},
+							"comms": {
+								"ai": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
+							}
+						},
+						"stars": 0
+					}
+				]
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.combat-helm",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"forward-mag",
+								"forward-gun",
+								"team-1",
+								"team-2",
+								"reactor",
+								"weapon-cell",
+								"shield-cell",
+								"beam",
+								"shield-fore",
+								"shield-aft",
+								"homing-mag",
+								"havok-mag",
+								"missile-launcher",
+								"pdc-mag",
+								"pdc"
+							],
+							"shield_feed": true
+						},
+						{
+							"id": "tactical",
+							"definition": "base.console.combat-tactical",
+							"human_seeking": true,
+							"human_preferences": ["helm"],
+							"systems": [],
+							"feeds": [
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"forward-mag",
+								"forward-gun",
+								"beam",
+								"homing-mag",
+								"havok-mag",
+								"missile-launcher",
+								"pdc-mag",
+								"pdc",
+								"occupation"
+							]
+						}
+					]
+				},
+				{
+					"id": "support",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "base.console.combat-support",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"forward-mag",
+								"forward-gun",
+								"team-1",
+								"team-2",
+								"reactor",
+								"weapon-cell",
+								"shield-cell",
+								"beam",
+								"shield-fore",
+								"shield-aft",
+								"homing-mag",
+								"havok-mag",
+								"missile-launcher",
+								"pdc-mag",
+								"pdc",
+								"ftl.supply",
+								"ftl.cooling"
+							],
+							"shield_feed": true
+						},
+						{
+							"id": "comms",
+							"definition": "base.console.comms",
+							"systems": [],
+							"feeds": ["comms-radio", "radar"],
+							"human_preferences": ["support"]
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["support", "helm"],
+							"knowledge_roles": ["base.crew"]
+						}
+					]
+				}
+			],
+			"boarding_missions": [
+				{
+					"id": "morrow-prize",
+					"title_key": "Retake Morrow",
+					"entry": "bow-starboard",
+					"tree": "base.boarding-operation",
+					"dialogue": "base.boarding-dialogue",
+					"slots": [
+						{
+							"id": "security",
+							"kind": "team",
+							"capability": "security",
+							"required": true
+						},
+						{
+							"id": "medical",
+							"kind": "team",
+							"capability": "medical",
+							"required": false
+						}
+					],
+					"encounters": [
+						{
+							"id": "bridge-guards",
+							"compartment": "bow-port",
+							"defenders": ["occupation"],
+							"success_permille": 850,
+							"team_bonus_permille": 100,
+							"defender_penalty_permille": 150,
+							"injury_permille": 250,
+							"loss_permille": 50,
+							"medical_reduction_permille": 150,
+							"assessment_ticks": 100,
+							"report": "assessment"
+						},
+						{
+							"id": "reactor-guards",
+							"compartment": "mid-port",
+							"defenders": ["occupation"],
+							"success_permille": 850,
+							"team_bonus_permille": 100,
+							"defender_penalty_permille": 150,
+							"injury_permille": 250,
+							"loss_permille": 50,
+							"medical_reduction_permille": 150,
+							"assessment_ticks": 100,
+							"report": "assessment"
+						}
+					],
+					"objectives": {
+						"bridge": {
+							"kind": "bridge",
+							"compartment": "bow-port",
+							"prize_crew": true,
+							"prize_capability": "security"
+						},
+						"reactor": {
+							"kind": "hold",
+							"compartment": "mid-port",
+							"system": "reactor"
+						}
+					},
+					"allow_ship_transport": true,
+					"docking_ports": ["fore"]
+				}
+			],
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "support"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "support"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "support"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "support"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
+						"station": "support"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"effects": ["base.modifier.propulsion.p200"]
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"effects": ["base.modifier.sensors.p200"]
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"effects": ["base.modifier.cycling.p150"]
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"effects": ["base.modifier.traverse.p200"]
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"effects": ["base.modifier.reload.p150"]
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"effects": ["base.modifier.recharge.p200"]
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"effects": ["base.modifier.repair.p200"]
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"effects": ["base.modifier.comms.p200"]
+					}
+				],
+				"duties": [
+					{
+						"id": "drive",
+						"label": "Drive",
+						"department": "sailing",
+						"controller": "drive",
+						"compartment": "stern-port",
+						"bindings": {
+							"drive": ["propulsion"]
+						}
+					},
+					{
+						"id": "helm",
+						"label": "Helm",
+						"department": "sailing",
+						"controller": "helm",
+						"compartment": "bow-port",
+						"bindings": {}
+					},
+					{
+						"id": "radar",
+						"label": "Radar",
+						"department": "sciences",
+						"controller": "radar",
+						"compartment": "bow-starboard",
+						"bindings": {
+							"radar": ["sensors"]
+						}
+					},
+					{
+						"id": "top",
+						"label": "Top",
+						"department": "tactical",
+						"controller": "top",
+						"compartment": "mid-port",
+						"bindings": {
+							"top": ["traverse"]
+						}
+					},
+					{
+						"id": "top-mag",
+						"label": "Top Mag",
+						"department": "tactical",
+						"controller": "top-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"top-mag": ["reload"]
+						}
+					},
+					{
+						"id": "top-gun",
+						"label": "Top Gun",
+						"department": "tactical",
+						"controller": "top-gun",
+						"compartment": "mid-port",
+						"bindings": {
+							"top-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "bottom",
+						"label": "Bottom",
+						"department": "tactical",
+						"controller": "bottom",
+						"compartment": "mid-starboard",
+						"bindings": {
+							"bottom": ["traverse"]
+						}
+					},
+					{
+						"id": "bottom-mag",
+						"label": "Bottom Mag",
+						"department": "tactical",
+						"controller": "bottom-mag",
+						"compartment": "mid-starboard",
+						"bindings": {
+							"bottom-mag": ["reload"]
+						}
+					},
+					{
+						"id": "bottom-gun",
+						"label": "Bottom Gun",
+						"department": "tactical",
+						"controller": "bottom-gun",
+						"compartment": "mid-starboard",
+						"bindings": {
+							"bottom-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "forward-mag",
+						"label": "Forward Mag",
+						"department": "tactical",
+						"controller": "forward-mag",
+						"compartment": "bow-port",
+						"bindings": {
+							"forward-mag": ["reload"]
+						}
+					},
+					{
+						"id": "forward-gun",
+						"label": "Forward Gun",
+						"department": "tactical",
+						"controller": "forward-gun",
+						"compartment": "bow-port",
+						"bindings": {
+							"forward-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "team-1",
+						"label": "Team 1",
+						"department": "engineering",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team-2",
+						"label": "Team 2",
+						"department": "engineering",
+						"controller": "team-2",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-2": ["repair"]
+						}
+					},
+					{
+						"id": "reactor",
+						"label": "Reactor",
+						"department": "engineering",
+						"controller": "reactor",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "weapon-cell",
+						"label": "Weapon Cell",
+						"department": "engineering",
+						"controller": "weapon-cell",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "shield-cell",
+						"label": "Shield Cell",
+						"department": "engineering",
+						"controller": "shield-cell",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "beam",
+						"label": "Beam",
+						"department": "tactical",
+						"controller": "beam",
+						"compartment": "mid-port",
+						"bindings": {
+							"beam": ["cycling"]
+						}
+					},
+					{
+						"id": "shield-fore",
+						"label": "Shield Fore",
+						"department": "sciences",
+						"controller": "shield-fore",
+						"compartment": "mid-port",
+						"bindings": {
+							"shield-fore": ["recharge"]
+						}
+					},
+					{
+						"id": "shield-aft",
+						"label": "Shield Aft",
+						"department": "sciences",
+						"controller": "shield-aft",
+						"compartment": "mid-port",
+						"bindings": {
+							"shield-aft": ["recharge"]
+						}
+					},
+					{
+						"id": "homing-mag",
+						"label": "Homing Mag",
+						"department": "tactical",
+						"controller": "homing-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"homing-mag": ["reload"]
+						}
+					},
+					{
+						"id": "havok-mag",
+						"label": "Havok Mag",
+						"department": "tactical",
+						"controller": "havok-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"havok-mag": ["reload"]
+						}
+					},
+					{
+						"id": "missile-launcher",
+						"label": "Missile Launcher",
+						"department": "tactical",
+						"controller": "missile-launcher",
+						"compartment": "mid-port",
+						"bindings": {
+							"missile-launcher": ["cycling"]
+						}
+					},
+					{
+						"id": "pdc-mag",
+						"label": "Pdc Mag",
+						"department": "tactical",
+						"controller": "pdc-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"pdc-mag": ["reload"]
+						}
+					},
+					{
+						"id": "pdc",
+						"label": "Pdc",
+						"department": "tactical",
+						"controller": "pdc",
+						"compartment": "mid-port",
+						"bindings": {
+							"pdc": ["cycling"]
+						}
+					},
+					{
+						"id": "external-comms",
+						"label": "External Comms",
+						"department": "signals",
+						"controller": "external-comms",
+						"compartment": "bow-port",
+						"bindings": {
+							"comms-radio": ["comms"]
+						}
+					},
+					{
+						"id": "team.team-1",
+						"label": "Team 1 team",
+						"department": "engineering",
+						"team": "team-1",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team.team-2",
+						"label": "Team 2 team",
+						"department": "engineering",
+						"team": "team-2",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-2": ["repair"]
+						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "occupation-control",
+						"label": "Pirate occupation",
+						"department": "tactical",
+						"controller": "occupation",
+						"compartment": "bow-port",
+						"bindings": {
+							"drive": ["propulsion"]
+						},
+						"console": "tactical"
+					},
+					{
+						"id": "occupation-team",
+						"label": "Pirate occupation team",
+						"team": "occupation",
+						"department": "tactical",
+						"compartment": "bow-starboard"
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": ["propulsion"],
+						"condition": "minor"
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": ["traverse"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": ["reload"],
+						"condition": "severe"
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-7",
+						"name": "Elin Saye",
+						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-8",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": ["recharge"]
+					},
+					{
+						"id": "officer-9",
+						"name": "Iona Marr",
+						"portrait": "phoenix-base:assets/personnel/officer-9.png",
+						"department": "signals",
+						"duty": "external-comms",
+						"compartment": "bow-port",
+						"traits": ["comms"]
+					}
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				},
+				"facilities": [
+					{
+						"id": "sickbay",
+						"compartment": "stern-starboard",
+						"capacity": 1,
+						"recovery_ticks": 1200
+					}
+				]
 			}
 		},
 		{
 			"id": "base.delivery-raider",
 			"extends": "base.pirate-raider",
-			"faction": "raiders"
+			"faction": "raiders",
+			"name": "Pirate boarding raider",
+			"assemblies": [
+				{
+					"id": "combat-power",
+					"assembly": "base.assembly.combat-power"
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "combat-power.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 1200,
+								"charging_loss_per_second": 240,
+								"ready_loss_per_second": 600,
+								"off_discharge_per_second": 960,
+								"compartment": "stern-port",
+								"observation_console": "support"
+							},
+							"supply": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							},
+							"cooling": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 28800,
+									"initial": 0,
+									"charge_rate": 1200,
+									"discharge_rate": 1200,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 12,
+									"stop_heat": 36000,
+									"recover_heat": 18000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 1200
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 60000,
+									"removal_rate": 1200,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 1200,
+									"allocation_rate": 300
+								}
+							]
+						}
+					}
+				}
+			],
+			"systems": {
+				"comms-radio": {
+					"kind": "comms",
+					"range_mm": 2500000,
+					"energy_per_second": 40,
+					"power_store": "combat-power.main",
+					"observation_console": "support",
+					"compartment": "bow-port"
+				}
+			},
+			"comms": {
+				"default_conversation": "",
+				"characters": []
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "fore",
+						"controller": "drive",
+						"compartment": "bow-port",
+						"compatibility": "standard",
+						"x_mm": 15000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 0
+					}
+				]
+			},
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "drive",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive"]
+							}
+						],
+						"tree": "base.policy.combat-approach"
+					},
+					{
+						"id": "helm",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["helm"]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"initial": 0,
+								"consumers": ["helm"]
+							}
+						],
+						"tree": "base.policy.face-contact"
+					},
+					{
+						"id": "radar",
+						"console": "support",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["radar"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "top",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "top-mag",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-mag"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "top-gun",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["top-gun"]
+							}
+						],
+						"tree": "base.policy.engage-hostile"
+					},
+					{
+						"id": "bottom",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "bottom-mag",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-mag"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "bottom-gun",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["bottom-gun"]
+							}
+						],
+						"tree": "base.policy.engage-hostile"
+					},
+					{
+						"id": "team-1",
+						"console": "support",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["team-1"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-1"]
+							},
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["team-1"]
+							}
+						],
+						"tree": "base.policy.repair-compartment"
+					},
+					{
+						"id": "team-2",
+						"console": "support",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["team-2"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-2"]
+							},
+							{
+								"id": "system",
+								"action": "repair_system",
+								"consumers": ["team-2"]
+							}
+						],
+						"tree": "base.policy.repair-compartment"
+					},
+					{
+						"id": "reactor",
+						"console": "support",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["reactor"]
+							},
+							{
+								"id": "output",
+								"action": "generator_output",
+								"consumers": ["reactor"]
+							}
+						],
+						"tree": "base.policy.combat.reactor"
+					},
+					{
+						"id": "weapon-cell",
+						"console": "support",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["weapon-cell"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "shield-cell",
+						"console": "support",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["shield-cell"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "beam",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["beam"]
+							},
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["beam"]
+							}
+						],
+						"tree": "base.policy.engage-hostile.target"
+					},
+					{
+						"id": "shield-fore",
+						"console": "support",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["shield-fore"]
+							},
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"consumers": ["shield-fore"]
+							}
+						],
+						"tree": "base.policy.maintain-shield-distribution"
+					},
+					{
+						"id": "shield-aft",
+						"console": "support",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["shield-aft"]
+							},
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"consumers": ["shield-aft"]
+							}
+						],
+						"tree": "base.policy.maintain-shield-distribution"
+					},
+					{
+						"id": "homing-mag",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["homing-mag"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "havok-mag",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["havok-mag"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "missile-launcher",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["missile-launcher"]
+							},
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["missile-launcher"]
+							},
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"consumers": ["missile-launcher"]
+							}
+						],
+						"tree": "base.policy.engage-hostile-ammunition"
+					},
+					{
+						"id": "pdc-mag",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["pdc-mag"]
+							}
+						],
+						"tree": "base.policy.hold-configuration"
+					},
+					{
+						"id": "pdc",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["pdc"]
+							},
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["pdc"]
+							},
+							{
+								"id": "mode",
+								"action": "weapon_mode",
+								"consumers": ["pdc"]
+							}
+						],
+						"tree": "base.policy.point-defence"
+					},
+					{
+						"id": "external-comms",
+						"console": "support",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["comms-radio"]
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "ftl.drive",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "support",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "support",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						],
+						"fallback": "hold"
+					}
+				],
+				"default_profile": "direct",
+				"profiles": [
+					{
+						"id": "direct",
+						"consoles": {
+							"helm": {
+								"human": ["drive", "helm"]
+							},
+							"tactical": {
+								"human": [
+									"top",
+									"top-mag",
+									"top-gun",
+									"bottom",
+									"bottom-mag",
+									"bottom-gun",
+									"beam",
+									"homing-mag",
+									"havok-mag",
+									"missile-launcher",
+									"pdc-mag",
+									"pdc"
+								]
+							},
+							"support": {
+								"human": [
+									"radar",
+									"team-1",
+									"team-2",
+									"reactor",
+									"weapon-cell",
+									"shield-cell",
+									"shield-fore",
+									"shield-aft"
+								],
+								"ai": ["external-comms", "ftl.drive", "ftl.supply", "ftl.cooling"]
+							}
+						},
+						"stars": 3
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"helm": {
+								"ai": ["drive", "helm"]
+							},
+							"tactical": {
+								"ai": [
+									"top",
+									"top-mag",
+									"top-gun",
+									"bottom",
+									"bottom-mag",
+									"bottom-gun",
+									"beam",
+									"homing-mag",
+									"havok-mag",
+									"missile-launcher",
+									"pdc-mag",
+									"pdc"
+								]
+							},
+							"support": {
+								"ai": [
+									"radar",
+									"team-1",
+									"team-2",
+									"reactor",
+									"weapon-cell",
+									"shield-cell",
+									"shield-fore",
+									"shield-aft",
+									"external-comms",
+									"ftl.drive",
+									"ftl.supply",
+									"ftl.cooling"
+								]
+							}
+						},
+						"stars": 0
+					}
+				]
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.combat-helm",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"team-1",
+								"team-2",
+								"reactor",
+								"weapon-cell",
+								"shield-cell",
+								"beam",
+								"shield-fore",
+								"shield-aft",
+								"homing-mag",
+								"havok-mag",
+								"missile-launcher",
+								"pdc-mag",
+								"pdc"
+							],
+							"shield_feed": true
+						},
+						{
+							"id": "tactical",
+							"definition": "base.console.combat-tactical",
+							"human_seeking": true,
+							"human_preferences": ["helm"],
+							"systems": [],
+							"feeds": [
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"beam",
+								"homing-mag",
+								"havok-mag",
+								"missile-launcher",
+								"pdc-mag",
+								"pdc"
+							]
+						}
+					]
+				},
+				{
+					"id": "support",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "base.console.combat-support",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"team-1",
+								"team-2",
+								"reactor",
+								"weapon-cell",
+								"shield-cell",
+								"beam",
+								"shield-fore",
+								"shield-aft",
+								"homing-mag",
+								"havok-mag",
+								"missile-launcher",
+								"pdc-mag",
+								"pdc",
+								"comms-radio",
+								"ftl.drive",
+								"ftl.supply",
+								"ftl.cooling"
+							],
+							"shield_feed": true
+						}
+					]
+				}
+			],
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "support"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "support"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "support"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "support"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"effects": ["base.modifier.propulsion.p200"]
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"effects": ["base.modifier.sensors.p200"]
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"effects": ["base.modifier.cycling.p150"]
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"effects": ["base.modifier.traverse.p200"]
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"effects": ["base.modifier.reload.p150"]
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"effects": ["base.modifier.recharge.p200"]
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"effects": ["base.modifier.repair.p200"]
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"effects": ["base.modifier.comms.p200"]
+					}
+				],
+				"duties": [
+					{
+						"id": "drive",
+						"label": "Drive",
+						"department": "sailing",
+						"controller": "drive",
+						"compartment": "stern-port",
+						"bindings": {
+							"drive": ["propulsion"]
+						}
+					},
+					{
+						"id": "helm",
+						"label": "Helm",
+						"department": "sailing",
+						"controller": "helm",
+						"compartment": "bow-port",
+						"bindings": {}
+					},
+					{
+						"id": "radar",
+						"label": "Radar",
+						"department": "sciences",
+						"controller": "radar",
+						"compartment": "bow-starboard",
+						"bindings": {
+							"radar": ["sensors"]
+						}
+					},
+					{
+						"id": "top",
+						"label": "Top",
+						"department": "tactical",
+						"controller": "top",
+						"compartment": "mid-port",
+						"bindings": {
+							"top": ["traverse"]
+						}
+					},
+					{
+						"id": "top-mag",
+						"label": "Top Mag",
+						"department": "tactical",
+						"controller": "top-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"top-mag": ["reload"]
+						}
+					},
+					{
+						"id": "top-gun",
+						"label": "Top Gun",
+						"department": "tactical",
+						"controller": "top-gun",
+						"compartment": "mid-port",
+						"bindings": {
+							"top-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "bottom",
+						"label": "Bottom",
+						"department": "tactical",
+						"controller": "bottom",
+						"compartment": "mid-starboard",
+						"bindings": {
+							"bottom": ["traverse"]
+						}
+					},
+					{
+						"id": "bottom-mag",
+						"label": "Bottom Mag",
+						"department": "tactical",
+						"controller": "bottom-mag",
+						"compartment": "mid-starboard",
+						"bindings": {
+							"bottom-mag": ["reload"]
+						}
+					},
+					{
+						"id": "bottom-gun",
+						"label": "Bottom Gun",
+						"department": "tactical",
+						"controller": "bottom-gun",
+						"compartment": "mid-starboard",
+						"bindings": {
+							"bottom-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "team-1",
+						"label": "Team 1",
+						"department": "engineering",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team-2",
+						"label": "Team 2",
+						"department": "engineering",
+						"controller": "team-2",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-2": ["repair"]
+						}
+					},
+					{
+						"id": "reactor",
+						"label": "Reactor",
+						"department": "engineering",
+						"controller": "reactor",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "weapon-cell",
+						"label": "Weapon Cell",
+						"department": "engineering",
+						"controller": "weapon-cell",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "shield-cell",
+						"label": "Shield Cell",
+						"department": "engineering",
+						"controller": "shield-cell",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "beam",
+						"label": "Beam",
+						"department": "tactical",
+						"controller": "beam",
+						"compartment": "mid-port",
+						"bindings": {
+							"beam": ["cycling"]
+						}
+					},
+					{
+						"id": "shield-fore",
+						"label": "Shield Fore",
+						"department": "sciences",
+						"controller": "shield-fore",
+						"compartment": "mid-port",
+						"bindings": {
+							"shield-fore": ["recharge"]
+						}
+					},
+					{
+						"id": "shield-aft",
+						"label": "Shield Aft",
+						"department": "sciences",
+						"controller": "shield-aft",
+						"compartment": "mid-port",
+						"bindings": {
+							"shield-aft": ["recharge"]
+						}
+					},
+					{
+						"id": "homing-mag",
+						"label": "Homing Mag",
+						"department": "tactical",
+						"controller": "homing-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"homing-mag": ["reload"]
+						}
+					},
+					{
+						"id": "havok-mag",
+						"label": "Havok Mag",
+						"department": "tactical",
+						"controller": "havok-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"havok-mag": ["reload"]
+						}
+					},
+					{
+						"id": "missile-launcher",
+						"label": "Missile Launcher",
+						"department": "tactical",
+						"controller": "missile-launcher",
+						"compartment": "mid-port",
+						"bindings": {
+							"missile-launcher": ["cycling"]
+						}
+					},
+					{
+						"id": "pdc-mag",
+						"label": "Pdc Mag",
+						"department": "tactical",
+						"controller": "pdc-mag",
+						"compartment": "mid-port",
+						"bindings": {
+							"pdc-mag": ["reload"]
+						}
+					},
+					{
+						"id": "pdc",
+						"label": "Pdc",
+						"department": "tactical",
+						"controller": "pdc",
+						"compartment": "mid-port",
+						"bindings": {
+							"pdc": ["cycling"]
+						}
+					},
+					{
+						"id": "team.team-1",
+						"label": "Team 1 team",
+						"department": "engineering",
+						"team": "team-1",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team.team-2",
+						"label": "Team 2 team",
+						"department": "engineering",
+						"team": "team-2",
+						"compartment": "stern-starboard",
+						"bindings": {
+							"team-2": ["repair"]
+						}
+					},
+					{
+						"id": "external-comms",
+						"label": "Drive",
+						"department": "engineering",
+						"controller": "external-comms",
+						"compartment": "stern-port",
+						"bindings": {},
+						"console": "support"
+					},
+					{
+						"id": "ftl.drive",
+						"label": "Drive",
+						"department": "engineering",
+						"controller": "ftl.drive",
+						"compartment": "stern-port",
+						"bindings": {},
+						"console": "support"
+					},
+					{
+						"id": "ftl.supply",
+						"label": "Drive",
+						"department": "engineering",
+						"controller": "ftl.supply",
+						"compartment": "stern-port",
+						"bindings": {},
+						"console": "support"
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "Drive",
+						"department": "engineering",
+						"controller": "ftl.cooling",
+						"compartment": "stern-port",
+						"bindings": {},
+						"console": "support"
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": ["traverse"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": ["reload"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-7",
+						"name": "Elin Saye",
+						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-8",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": ["recharge"]
+					}
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
+			}
 		},
 		{
 			"id": "base.supply-depot",
@@ -34221,6 +36645,12 @@
 							"required": false,
 							"capability": "medical",
 							"assign_ai": true
+						},
+						{
+							"id": "security-team",
+							"kind": "team",
+							"required": false,
+							"capability": "security"
 						}
 					],
 					"allow_ship_transport": true,
@@ -34255,7 +36685,12 @@
 					"rescue.reactor-secured",
 					"rescue.wounded-saved",
 					"rescue.wounded-late",
-					"rescue.wounded-lost"
+					"rescue.wounded-lost",
+					"rescue.claimed",
+					"rescue.taken",
+					"rescue.player-captured",
+					"rescue.player-freed",
+					"rescue.prize-assigned"
 				],
 				"event_bindings": [
 					{
@@ -34319,6 +36754,27 @@
 						},
 						"operation": "delivery",
 						"event": "delivery.expired"
+					},
+					{
+						"kind": "personnel.captured",
+						"event": "rescue.player-captured",
+						"subject": {
+							"entity": 1
+						}
+					},
+					{
+						"kind": "personnel.freed",
+						"event": "rescue.player-freed",
+						"subject": {
+							"entity": 1
+						}
+					},
+					{
+						"kind": "prize.assigned",
+						"event": "rescue.prize-assigned",
+						"subject": {
+							"entity": 1
+						}
 					}
 				],
 				"fact_bindings": [
@@ -34475,6 +36931,59 @@
 						"id": "wounded-lost",
 						"kind": "event",
 						"event": "rescue.wounded-lost"
+					},
+					{
+						"id": "morrow-captured",
+						"kind": "entity",
+						"subject": {
+							"entity": 1
+						},
+						"field": "captured"
+					},
+					{
+						"id": "morrow-faction",
+						"kind": "entity",
+						"subject": {
+							"entity": 1
+						},
+						"field": "owner_faction"
+					},
+					{
+						"id": "player-lifecycle",
+						"kind": "entity",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "lifecycle"
+					},
+					{
+						"id": "pirate-takeover",
+						"kind": "event",
+						"event": "rescue.taken"
+					},
+					{
+						"id": "personnel-captured",
+						"kind": "personnel",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "captured"
+					},
+					{
+						"id": "personnel-freed",
+						"kind": "personnel",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "freed"
+					},
+					{
+						"id": "personnel-prize-crew",
+						"kind": "personnel",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "prize_crew"
 					}
 				],
 				"objectives": [
@@ -34735,11 +37244,79 @@
 							{
 								"fact": "essentials-received",
 								"label_key": "Perishable essentials received (of 100)"
+							},
+							{
+								"fact": "personnel-captured",
+								"label_key": "Player personnel captured"
+							},
+							{
+								"fact": "personnel-freed",
+								"label_key": "Freed awaiting recovery"
+							},
+							{
+								"fact": "personnel-prize-crew",
+								"label_key": "Player prize crew"
 							}
 						],
 						"rules": [
 							{
-								"result": "success",
+								"result": "destroyed",
+								"title_key": "Player ship destroyed",
+								"explanation_key": "The player ship was destroyed. This report preserves the mission and personnel state at its loss.",
+								"when": {
+									"fact": "player-lifecycle",
+									"value": "destroyed"
+								}
+							},
+							{
+								"result": "destroyed",
+								"title_key": "Morrow destroyed",
+								"explanation_key": "Morrow was destroyed. Its loss and the actual personnel outcomes are recorded below.",
+								"when": {
+									"fact": "casualty-state",
+									"value": "destroyed"
+								}
+							},
+							{
+								"result": "claimed",
+								"title_key": "Morrow claimed",
+								"explanation_key": "Your Security team holds Morrow as prize crew. The ship and cargo were claimed rather than returned to their owners.",
+								"when": {
+									"all": [
+										{
+											"fact": "morrow-captured",
+											"value": true
+										},
+										{
+											"fact": "morrow-faction",
+											"value": "crew"
+										},
+										{
+											"fact": "casualty-state",
+											"value": "departed"
+										}
+									]
+								}
+							},
+							{
+								"result": "taken",
+								"title_key": "Morrow taken by pirates",
+								"explanation_key": "The pirates killed Morrow’s original crew and took the ship. Player personnel still aboard were captured.",
+								"when": {
+									"all": [
+										{
+											"fact": "morrow-captured",
+											"value": true
+										},
+										{
+											"fact": "morrow-faction",
+											"value": "raiders"
+										}
+									]
+								}
+							},
+							{
+								"result": "rescued",
 								"title_key": "Rescue successful",
 								"explanation_key": "The casualty escaped and the repair party was recovered. See the crew assessment and mission log for injuries and deaths.",
 								"when": {
@@ -34812,9 +37389,9 @@
 							}
 						],
 						"fallback": {
-							"result": "failure",
-							"title_key": "Rescue unsuccessful",
-							"explanation_key": "The casualty was lost, personnel were lost, or no restoration objective was completed before departure."
+							"result": "unfinished",
+							"title_key": "Unfinished withdrawal",
+							"explanation_key": "The player ship withdrew before completing a rescue or departing with a claimed Morrow."
 						},
 						"assessments": [
 							{
@@ -34891,6 +37468,15 @@
 								"title_key": "Trapped crew",
 								"rules": [
 									{
+										"result": "killed",
+										"title_key": "Original crew killed",
+										"explanation_key": "The pirates killed Morrow’s original crew during their takeover. Retaking the ship does not undo those deaths.",
+										"when": {
+											"fact": "pirate-takeover",
+											"value": true
+										}
+									},
+									{
 										"result": "saved",
 										"title_key": "All rescued",
 										"explanation_key": "The deployed Medical team reached and stabilised every trapped survivor.",
@@ -34953,21 +37539,23 @@
 							{
 								"event": "delivery.expired",
 								"text_key": "Perishable delivery deadline expired."
+							},
+							{
+								"event": "rescue.player-captured",
+								"text_key": "Player visitors aboard Morrow were captured."
+							},
+							{
+								"event": "rescue.player-freed",
+								"text_key": "Player captives were freed and await physical recovery."
+							},
+							{
+								"event": "rescue.prize-assigned",
+								"text_key": "Security was assigned to remain aboard as prize crew."
 							}
 						]
 					}
 				],
 				"situations": [
-					{
-						"id": "pirate-delay",
-						"tree": "base.scenario.rescue-raider",
-						"bindings": {
-							"actor": {
-								"slot": "courier"
-							}
-						},
-						"start": true
-					},
 					{
 						"id": "delivery-reminders",
 						"tree": "base.scenario.delivery-reminders",
@@ -35175,6 +37763,69 @@
 							}
 						]
 					}
+				}
+			],
+			"interdictions": [
+				{
+					"id": "morrow-takeover",
+					"player_slot": "courier",
+					"target_entity": 1,
+					"target_character": "engineer",
+					"start_event": "rescue.distress",
+					"tree": "base.interdiction.rescue",
+					"dialogue": "base.dialogue.pirate-demand",
+					"threat_radius_mm": 600000,
+					"clearance_radius_mm": 750000,
+					"engagement_radius_mm": 2500000,
+					"formation_radius_mm": 350000,
+					"takeover_ticks": 2400,
+					"occupation_teams": ["occupation"],
+					"pleas": [
+						{
+							"ticks": 800,
+							"line": "help-first"
+						},
+						{
+							"ticks": 1600,
+							"line": "help-last"
+						}
+					],
+					"variants": {
+						"default": [
+							{
+								"definition": "base.delivery-raider",
+								"x_mm": 950000,
+								"y_mm": 350000,
+								"heading_mdeg": 90000,
+								"formation_mdeg": 270000
+							}
+						],
+						"base.delivery-cruiser": [
+							{
+								"definition": "base.delivery-raider",
+								"x_mm": 950000,
+								"y_mm": 350000,
+								"heading_mdeg": 90000,
+								"formation_mdeg": 270000
+							},
+							{
+								"definition": "base.delivery-raider",
+								"x_mm": 650000,
+								"y_mm": 1050000,
+								"heading_mdeg": 0,
+								"formation_mdeg": 150000
+							},
+							{
+								"definition": "base.delivery-raider",
+								"x_mm": 1250000,
+								"y_mm": 1050000,
+								"heading_mdeg": 180000,
+								"formation_mdeg": 30000
+							}
+						]
+					},
+					"combat_standoff_mm": 250000,
+					"cruise_speed_mm_s": 20000
 				}
 			]
 		}
@@ -45491,6 +48142,10 @@
 				"wounded-lost": {
 					"speaker": "engineer",
 					"text_key": "Without Medical assistance we could not recover the trapped crew alive. All of them have died."
+				},
+				"claimed": {
+					"speaker": "engineer",
+					"text_key": "Your Security team has taken control of Morrow. They will remain as prize crew. Recover Repair and Medical; prepare both ships for departure."
 				}
 			},
 			"prompts": {
@@ -45541,6 +48196,26 @@
 					"default_choice": "slow",
 					"ai_choice": "slow",
 					"ai_delay_ticks": 200
+				},
+				"disposition": {
+					"speaker": "engineer",
+					"text_key": "The reactor, wounded and propulsion work is resolved. Shall we return Morrow to its crew or claim the ship?",
+					"choices": [
+						{
+							"id": "rescue",
+							"text_key": "Return Morrow to its crew. Recover our party."
+						},
+						{
+							"id": "seize",
+							"text_key": "Claim Morrow. Security will remain aboard.",
+							"requires_capability": "security",
+							"hide_unavailable": true
+						}
+					],
+					"ai_choice": "rescue",
+					"ai_delay_ticks": 200,
+					"timeout_ticks": 600,
+					"default_choice": "rescue"
 				}
 			},
 			"states": [
@@ -45565,7 +48240,7 @@
 			"context": "away",
 			"initial": "wait",
 			"flags": ["reactor", "propulsion", "wounded", "wounded-late", "emergency"],
-			"team_capabilities": ["medical"],
+			"team_capabilities": ["medical", "security"],
 			"events": ["rescue.reactor-emergency"],
 			"states": [
 				{
@@ -46398,19 +49073,85 @@
 							"arguments": [""]
 						},
 						{
+							"action": "offer",
+							"arguments": ["disposition"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "claimed",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "seize"
+								},
+								{
+									"left": {
+										"observation": "team_capabilities.security"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "rescued",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "rescue"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "rescued",
+					"entry": [
+						{
 							"action": "say",
 							"arguments": ["done"]
 						},
 						{
 							"action": "log",
-							"arguments": ["Away work resolved; teams ready for recovery."]
+							"arguments": ["Away work resolved; repair party ready for recovery."]
 						},
 						{
 							"action": "complete",
 							"arguments": ["repairs"]
 						}
-					],
-					"transitions": []
+					]
+				},
+				{
+					"id": "claimed",
+					"entry": [
+						{
+							"action": "claim",
+							"arguments": ["security"]
+						},
+						{
+							"action": "emit",
+							"arguments": ["rescue.claimed"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Morrow claimed; Security remains aboard as prize crew."]
+						},
+						{
+							"action": "say",
+							"arguments": ["claimed"]
+						},
+						{
+							"action": "complete",
+							"arguments": ["repairs"]
+						}
+					]
 				}
 			]
 		},
@@ -51976,47 +54717,7 @@
 			"initial": "wait",
 			"states": [
 				{
-					"id": "wait",
-					"transitions": [
-						{
-							"target": "delay",
-							"conditions": [
-								{
-									"left": {
-										"observation": "event.name"
-									},
-									"op": "eq",
-									"right": "rescue.distress"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "delay",
-					"transitions": [
-						{
-							"target": "arrival",
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 1800
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "arrival",
-					"entry": [
-						{
-							"action": "spawn_entity",
-							"arguments": ["base.delivery-raider", "", 1600000, 1100000, 180000, "raider"]
-						}
-					]
+					"id": "wait"
 				}
 			]
 		},
@@ -57576,6 +60277,557 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.interdiction.rescue",
+			"context": "scenario",
+			"interdiction": true,
+			"initial": "wait",
+			"states": [
+				{
+					"id": "wait",
+					"transitions": [
+						{
+							"target": "delay",
+							"conditions": [
+								{
+									"left": {
+										"observation": "started"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "delay",
+					"transitions": [
+						{
+							"target": "warning",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1800
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "warning",
+					"entry": [
+						{
+							"action": "spawn",
+							"arguments": [""]
+						},
+						{
+							"action": "posture",
+							"arguments": ["watch"]
+						},
+						{
+							"action": "offer",
+							"arguments": ["ultimatum"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Pirates demanded that we withdraw and leave Morrow to them."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "refuse"
+								}
+							]
+						},
+						{
+							"target": "truce",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "withdraw"
+								}
+							]
+						},
+						{
+							"target": "strong-warning",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 300
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "strong-warning",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["warning"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "refuse"
+								}
+							]
+						},
+						{
+							"target": "truce",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "withdraw"
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 300
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "truce",
+					"entry": [
+						{
+							"action": "posture",
+							"arguments": ["truce"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "reinforced"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "takeover",
+							"conditions": [
+								{
+									"left": {
+										"observation": "takeover_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "hostile",
+					"entry": [
+						{
+							"action": "posture",
+							"arguments": ["hostile"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Pirate hostilities began."]
+						},
+						{
+							"action": "say",
+							"arguments": ["hostilities"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "takeover",
+							"conditions": [
+								{
+									"left": {
+										"observation": "takeover_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "takeover",
+					"entry": [
+						{
+							"action": "takeover",
+							"arguments": [""]
+						},
+						{
+							"action": "emit",
+							"arguments": ["rescue.taken"]
+						},
+						{
+							"action": "log",
+							"arguments": [
+								"Pirates took Morrow. Its original crew were killed; surviving visiting personnel were captured."
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "occupied",
+							"conditions": [
+								{
+									"left": {
+										"observation": "captured"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "occupied",
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "occupied-hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "occupied-hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "reinforced"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "occupied-hostile",
+					"entry": [
+						{
+							"action": "posture",
+							"arguments": ["hostile"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Pirate hostilities began."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "finish",
+					"entry": [
+						{
+							"action": "finish",
+							"arguments": [""]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.pirate-demand",
+			"context": "conversation",
+			"title_key": "Pirate ultimatum",
+			"initial": "wait",
+			"states": [
+				{
+					"id": "wait"
+				}
+			],
+			"lines": {
+				"warning": {
+					"speaker": "pirate",
+					"text_key": "Last warning. Recover your people and withdraw. We will open fire if you continue to ignore us."
+				},
+				"help-first": {
+					"speaker": "engineer",
+					"text_key": "Pirates are aboard Morrow. Please help us! They are moving toward the bridge."
+				},
+				"help-last": {
+					"speaker": "engineer",
+					"text_key": "They are breaking through. We are losing control of the ship. Please, do something!"
+				},
+				"hostilities": {
+					"speaker": "pirate",
+					"text_key": "Then we take Morrow by force. Stand aside or be destroyed."
+				}
+			},
+			"prompts": {
+				"ultimatum": {
+					"speaker": "pirate",
+					"text_key": "Assisting vessel: break off your operation and withdraw. Morrow belongs to us. Recover your people and leave. Send nobody else aboard.",
+					"choices": [
+						{
+							"id": "withdraw",
+							"text_key": "We will withdraw. Recovering our people."
+						},
+						{
+							"id": "refuse",
+							"text_key": "We refuse. Leave Morrow alone."
+						}
+					],
+					"ai_choice": "refuse",
+					"ai_delay_ticks": 100
+				}
+			}
 		}
 	],
 	"equipment": [
