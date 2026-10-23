@@ -313,7 +313,7 @@ void prepare_docking()
 {
 	for (const auto &[id, e] : dock_connections())
 	{
-		const auto c = e.get<DockConnection>();
+		auto &c = e.get_mut<DockConnection>();
 		if (c.phase != "approach" || !c.assisted)
 			continue;
 		const auto &own = e.get<Pose>();
@@ -374,11 +374,15 @@ void prepare_docking()
 		const auto delta = g.destination - own.position;
 		const auto distance = fixed::length(delta);
 		std::int64_t maximum = 10000, acceleration = 1000;
+		bool inertial_engine = false, lateral_thrust = false;
 		for (auto child : e.get<EquipmentIndex>().values)
 		{
+			if (const auto *f = child.try_get<FlightRuntime>())
+				lateral_thrust |= f->definition.lateral_acceleration > 0;
 			if (const auto *f = child.try_get<FlightRuntime>();
 			    f && child.get<Equipment>().kind == OperatingSystem::Engine)
 			{
+				inertial_engine = true;
 				maximum = f->definition.maximum_speed;
 				acceleration = f->definition.acceleration;
 			}
@@ -397,7 +401,56 @@ void prepare_docking()
 		const auto guidance = pursuit_guidance(own, e.get<Motion>(), desired_velocity, maximum, desired_heading);
 		g.heading = guidance.heading;
 		g.speed = guidance.speed;
-		if (!detour && distance < std::min(a.capture_range, b.capture_range) &&
+		if (inertial_engine && !lateral_thrust)
+		{
+			const auto bearing = [&](fixed::Vec direction)
+			{
+				return pursuit_guidance(own, Motion{}, direction, maximum, desired_heading).heading;
+			};
+			const auto angle = [](std::int64_t a, std::int64_t b)
+			{
+				return std::abs((a - b + 540000) % 360000 - 180000);
+			};
+			const auto tolerance = std::max<std::int64_t>(1, std::min(a.capture_speed, b.capture_speed) / 4);
+			const auto remaining = fixed::length(relative);
+			const auto course = bearing(delta);
+			const bool at_port = !detour && distance < std::min(a.capture_range, b.capture_range) / 2;
+			if (c.guidance_step == 0)
+			{
+				c.guidance_heading = remaining > tolerance ? bearing(relative) : at_port ? desired_heading : course;
+				c.guidance_step = remaining > tolerance ? 1 : at_port ? 5 : 3;
+			}
+			g.heading = c.guidance_heading;
+			const auto facing = fixed::direction(own.heading);
+			// Turning with neutral longitudinal acceleration preserves the velocity we intend to brake.
+			g.speed = std::clamp(fixed::dot(e.get<Motion>().velocity, facing) / fixed::unit, std::int64_t{0}, maximum);
+			if (c.guidance_step == 1 && angle(own.heading, c.guidance_heading) < 1000)
+				c.guidance_step = 2;
+			if (c.guidance_step == 2)
+			{
+				g.speed = std::clamp(fixed::dot(parent_velocity, facing) / fixed::unit, std::int64_t{0}, maximum);
+				if (remaining <= tolerance || std::abs(fixed::dot(relative, facing) / fixed::unit) <= tolerance)
+					c.guidance_step = 0; // Re-latch any small residual lateral drift before another turn.
+			}
+			else if (c.guidance_step == 3 && angle(own.heading, c.guidance_heading) < 1000)
+				c.guidance_step = 4;
+			if (c.guidance_step == 4)
+			{
+				if (at_port || angle(course, c.guidance_heading) > 5000)
+					c.guidance_step = 0;
+				else
+					g.speed = std::clamp(fixed::dot(parent_velocity, facing) / fixed::unit + approach_speed,
+					                     std::int64_t{0}, maximum);
+			}
+			else if (c.guidance_step == 5)
+			{
+				g.heading = desired_heading;
+				g.speed = std::clamp(fixed::dot(parent_velocity, facing) / fixed::unit, std::int64_t{0}, maximum);
+				if (!at_port || remaining > tolerance)
+					c.guidance_step = 0;
+			}
+		}
+		if (!(inertial_engine && !lateral_thrust) && !detour && distance < std::min(a.capture_range, b.capture_range) &&
 		    fixed::length(relative) <= std::min(a.capture_speed, b.capture_speed) / 2)
 		{
 			g.heading = desired_heading;
@@ -679,12 +732,18 @@ void restore_docking(const Json &saved)
 			throw std::runtime_error("Unexpected saved docking equipment");
 		if (b.contains("dock_connection"))
 		{
-			const auto c = b.at("dock_connection").get<DockConnection>();
+			auto saved_connection = b.at("dock_connection");
+			if (!saved_connection.contains("guidance_step"))
+				saved_connection["guidance_step"] = 0;
+			if (!saved_connection.contains("guidance_heading"))
+				saved_connection["guidance_heading"] = 0;
+			const auto c = saved_connection.get<DockConnection>();
 			if (c.parent == id || !entities.contains(c.parent) || c.port >= definition(id).docking.size() ||
 			    c.remote_port >= definition(c.parent).docking.size() || c.progress < 0 || c.progress > 36000 ||
 			    (c.phase != "approach" && c.phase != "mating" && c.phase != "docked" && c.phase != "separating") ||
 			    c.relative_heading < 0 || c.relative_heading >= 360000 || std::abs(c.relative.x) > 20000000 ||
-			    std::abs(c.relative.y) > 20000000 || std::abs(c.relative_z) > 2000000)
+			    std::abs(c.relative.y) > 20000000 || std::abs(c.relative_z) > 2000000 || c.guidance_step < 0 ||
+			    c.guidance_step > 5 || c.guidance_heading < 0 || c.guidance_heading >= 360000)
 				throw std::runtime_error("Invalid docking connection continuation");
 			if (definition(id).docking[c.port].compatibility !=
 			    definition(c.parent).docking[c.remote_port].compatibility)

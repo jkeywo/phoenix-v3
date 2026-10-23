@@ -48,7 +48,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 namespace phoenix
 {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockConnection, parent, port, remote_port, phase, controller, progress,
-                                   relative_heading, relative_z, relative, assisted, generation, generations)
+                                   relative_heading, relative_z, relative, assisted, generation, generations,
+                                   guidance_step, guidance_heading)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CraftState, home, target, bay, order, pending_order, pending_target, mission, slot,
                                    phase, revision, progress, ftl_recalled, report, rendezvous, rendezvous_velocity,
                                    target_position, target_velocity, rendezvous_altitude, target_altitude,

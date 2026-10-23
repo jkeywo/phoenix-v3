@@ -21,6 +21,9 @@ struct DockConnection
 	bool assisted = false;
 	std::uint64_t generation = 0;
 	std::map<std::string, std::uint64_t> generations;
+	// Inertial ships without lateral thrust brake, align, then translate on a latched course.
+	int guidance_step = 0;
+	std::int64_t guidance_heading = 0;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockPortState, accepting, supply, permitted)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockingState, ports, revision)

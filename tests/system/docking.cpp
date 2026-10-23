@@ -90,6 +90,49 @@ int main(int argc, char **argv)
 			require(flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") == "docked",
 			        "Assisted approach reaches a real mating envelope");
 		}
+		// Abeam, fore-to-fore approach with no lateral thruster must brake before turning.
+		{
+			auto source = fixture();
+			auto &ship = source["entities"][0];
+			ship["motion_model"] = "inertial";
+			ship["collision"] = {
+			    {"shape", "box"}, {"half_width_mm", 4000}, {"half_length_mm", 2000}, {"mass_grams", 900000}};
+			ship["systems"]["engine"]["max_speed_mm_s"] = 18000;
+			ship["systems"]["engine"]["acceleration_mm_s2"] = 9000;
+			for (const auto *system : {"engine", "steering"})
+			{
+				ship["systems"][system]["power_store"] = "cell";
+				ship["systems"][system]["power_rate"] = 20;
+			}
+			source["maps"][0]["entities"][0]["x_mm"] = 0;
+			source["maps"][0]["entities"][0]["y_mm"] = 37000;
+			source["maps"][0]["ship_slots"][0]["heading_mdeg"] = 90000;
+			const auto catalog = load(source);
+			World flight;
+			flight.load(catalog, "test.map", {{"crew", "test.away"}});
+			require(flight.claim(101, 2, "drive"), "Claim abeam inertial docking");
+			ticks(flight, 5);
+			require(flight.submit(101, command(flight, 101, "dock", "assist", "fore", "1/fore")),
+			        "Abeam docking accepted");
+			for (int tick = 0;
+			     tick < 2000 && flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") != "docked";
+			     ++tick)
+			{
+				flight.tick();
+				if (tick % 71 == 0)
+				{
+					auto saved = flight.save();
+					World restored;
+					restored.restore(catalog, saved);
+					require(restored.save() == saved, "Latched docking guidance restores exactly");
+					flight.tick();
+					restored.tick();
+					require(flight.save() == restored.save(), "Latched docking guidance continues identically");
+				}
+			}
+			require(flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") == "docked",
+			        "No-lateral inertial ship docks from abeam without orbiting");
+		}
 		for (const bool powered : {false, true})
 		{
 			auto source = fixture();
