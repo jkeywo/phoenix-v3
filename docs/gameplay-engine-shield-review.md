@@ -38,7 +38,7 @@ Recommendations below remain proposals unless explicitly marked agreed.
 
 **Recommendation.** The native shield contribution holds protection state. An equipment adapter binds its operating state, fault/structural dependency and existing power request to that contribution. The first non-equipment example uses an explicitly cost-free temporary grant with no discharge binding. Cost-free means no authored cost, not a privileged source class. A future paid non-equipment grant supplies an explicit payer/binding; no effect receives a fabricated equipment identity to satisfy the current allocator. Discharge requires an explicit destination and conversion contract.
 
-**Decision needed.** Confirm this first-slice funding boundary and whether non-equipment shields need player-controlled discharge immediately. General dynamic resource consumers can wait if the first reusable grant has no ongoing cost.
+**Agreed, 23 October 2026.** Costs and operating dependencies belong to the granting ability or process. Equipment grants use existing power allocation and equipment availability, with sustain taking priority over recharge. Other grants use their declared costs and dependencies, including none; there is no universal generator/battery requirement. Discharge requires an explicit destination and conversion rule. The first slice retains the equipment power adapter and demonstrates an explicitly cost-free temporary grant. Control of non-equipment contributions is addressed separately below.
 
 ### 4. Specify control and observation independently of the granting source
 

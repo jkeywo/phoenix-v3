@@ -29,6 +29,8 @@ The first slice establishes:
 
 Existing shield dependencies include energy funding, warmup, recharge/discharge, faults and damage absorption. Keep those integration paths usable while migrating shield ownership and effects. Replacing the entire resource network or weapon system is not a prerequisite. Confirm that this boundary stays small during implementation; shields are a candidate based on scope, not a measured claim that they require the fewest lines of code.
 
+Retain the equipment power adapter for the first slice and use an explicitly cost-free temporary grant as the second source. This exercises source-independent shield contributions without requiring general dynamic resource consumers first. The target model permits other grants to declare their own costs and dependencies.
+
 The native absorption implementation currently orders contributions by layer and identity. The agreed design's equal-layer sharing is an explicit change to implement and verify, not behaviour already established by that code. Further shield-specific resolution follows the domain implementation unless a separate design decision changes it.
 
 ## Subsequent slices
