@@ -28,6 +28,33 @@ inline Json report(const Json &v)
 		if (v.at("version") != 2)
 			throw std::runtime_error("Unsupported departure report version");
 		out["version"] = 2;
+		out["ship_condition"] = Json::array();
+		const auto compartments = v.value("ship_condition", Json::array());
+		if (!compartments.is_array() || compartments.size() > 256)
+			throw std::runtime_error("Invalid report ship condition");
+		for (const auto &part : compartments)
+			out["ship_condition"].push_back({{"name", projection::text(part.at("name"), 256)},
+			                                 {"hp", projection::number(part.at("hp"), 0, 1000000000000LL)},
+			                                 {"maximum", projection::number(part.at("maximum"), 1, 1000000000000LL)}});
+		for (const auto *key : {"log", "crew"})
+		{
+			const auto rows = v.value(key, Json::array());
+			if (!rows.is_array() || rows.size() > (std::string(key) == "log" ? 16384 : 256))
+				throw std::runtime_error("Invalid mission report history");
+			out[key] = Json::array();
+			for (const auto &entry : rows)
+			{
+				Json row{{"name", projection::text(entry.at("name"), 256)}};
+				if (std::string(key) == "log")
+				{
+					row["tick"] = projection::number(entry.at("tick"), 0, 9007199254740991LL);
+					row["text"] = projection::text(entry.at("text"), 4096);
+				}
+				else
+					row["condition"] = projection::text(entry.at("condition"), 32);
+				out[key].push_back(std::move(row));
+			}
+		}
 		if (v.contains("assessments"))
 		{
 			if (!v.at("assessments").is_array() || v.at("assessments").size() > 16)
@@ -59,7 +86,7 @@ inline Json report(const Json &v)
 		for (const auto &p : v.at("personnel"))
 		{
 			const auto status = projection::text(p.at("status"), 32);
-			if (status != "lost" && status != "deployed" && status != "recovered")
+			if (status != "lost" && status != "deployed" && status != "recovered" && status != "dead")
 				throw std::runtime_error("Invalid debrief personnel");
 			out["personnel"].push_back({{"name", projection::text(p.at("name"), 256)}, {"status", status}});
 		}

@@ -391,6 +391,8 @@ int main(int argc, char **argv)
 	try
 	{
 		auto source = fixture();
+		source["maps"][0]["scenario"]["reports"][0]["log_events"] =
+		    Json::array({{{"event", "observed-departure"}, {"text_key", "Departure recorded"}}});
 		source["maps"][0]["scenario"]["fact_bindings"].push_back({{"id", "filtered-event"},
 		                                                          {"kind", "event"},
 		                                                          {"event", "observed-departure"},
@@ -439,6 +441,9 @@ int main(int argc, char **argv)
 		require(w.submit(101, cmd(w, "ftl.depart")), "depart");
 		ticks(w, 1);
 		auto report = w.observe(101)->gameplay.at("mission_report");
+		require(report.at("log").size() == 1 && report.at("log")[0].at("text") == "Departure recorded" &&
+		            report.at("log")[0].at("tick") > 0 && report.at("log")[0].at("tick") <= w.ticks(),
+		        "authored timestamped objective log frozen at departure");
 		require(report.at("result") == "success" && report.at("objectives").size() == 3 &&
 		            report.at("facts")[1].at("value") == true && report.at("facts")[2].at("value") == false,
 		        "authoritative report contains undiscovered truth and committed departure");

@@ -44,6 +44,9 @@ void register_comms(EntityId id, const std::string &definition)
 void refresh_comms(bool disclose = true)
 {
 	conversations.endpoints.clear();
+	conversations.received_tags.clear();
+	conversations.capabilities.clear();
+	conversations.completed_choices.clear();
 	for (const auto &[id, entity] : entities)
 	{
 		if (entity.has(flecs::Disabled))
@@ -76,6 +79,44 @@ void refresh_comms(bool disclose = true)
 			}
 		}
 		conversations.endpoints[id] = endpoint;
+		if (knowledge.contains_ship(id))
+		{
+			const auto &kd = knowledge.definition();
+			const auto schema = kd.schema("phoenix.sensor.findings");
+			for (const auto &record : knowledge.project(*owner).records)
+				if (record.value.schema == schema)
+					for (const auto &finding :
+					     Json::parse(std::get<std::string>(record.value.fields.at(kd.field(schema, "payload")))))
+						if (finding.contains("tag"))
+							conversations.received_tags[id].insert(finding.at("tag"));
+		}
+		const auto self = "ship:" + std::to_string(id);
+		for (const auto &[cid, conversation] : conversations.conversations)
+			if (!conversation.program.empty())
+				for (const auto &message : conversation.messages)
+					if (message.delivered.contains(self))
+						for (const auto &[key, line] : conversations.programs.at(conversation.program).lines)
+							if (line.text == message.text && !line.received_tag.empty())
+								conversations.received_tags[id].insert(line.received_tag);
+	}
+	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	{
+		const auto &d = away_definitions[i];
+		const auto &m = away_missions[i];
+		const auto ship = away_ship(d);
+		const auto cid = away_conversation(d);
+		if (!ship || !cid)
+			continue;
+		conversations.completed_choices[cid] = m.flags;
+		if (m.deployed())
+			for (const auto &[slot, asset] : m.assignments)
+				if (asset.starts_with("team:"))
+					for (const auto &cap : away_equipment(ship, asset.substr(5))
+					                           .get<CombatMechanism>()
+					                           .definition.get<TeamDefinition>()
+					                           .capabilities)
+						if (away_has_capability(ship, m, cap))
+							conversations.capabilities[cid].insert(cap);
 	}
 	if (!disclose)
 		return;

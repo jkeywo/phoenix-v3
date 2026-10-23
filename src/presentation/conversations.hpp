@@ -181,8 +181,12 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	std::string choices;
 	if (thread)
 		for (const auto &c : thread->at("choices"))
-			choices +=
-			    button("comms/answer/" + c.at("id").get<std::string>(), localise(c.at("text").get<std::string>()));
+			if (c.value("enabled", true))
+				choices +=
+				    button("comms/answer/" + c.at("id").get<std::string>(), localise(c.at("text").get<std::string>()));
+			else
+				choices += "<p>" + escape(localise(c.at("text")) + " — " + localise(c.value("reason", "Unavailable"))) +
+				           "</p>";
 	if (choices != comms_choice_signature_)
 	{
 		document_->GetElementById("comms-choices")->SetInnerRML(choices);

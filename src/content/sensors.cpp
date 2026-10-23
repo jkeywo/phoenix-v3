@@ -83,6 +83,11 @@ std::vector<SensorFinding> compile_sensor_findings(const Catalog &catalog, const
 		f.requires_event = j.value("requires_event", std::string{});
 		f.unless_event = j.value("unless_event", std::string{});
 		f.event = j.value("discovery_event", std::string{});
+		f.tag = j.value("tag", std::string{});
+		f.destination_station = j.value("destination_station", std::string{});
+		sensor_require(f.tag.size() <= 64 && f.destination_station.size() <= 64 &&
+		                   (f.tag.empty() == f.destination_station.empty()),
+		               "finding tags require a destination station");
 		sensor_require(!f.id.empty() && f.id.size() <= 64 && ids.insert(f.id).second && !f.text.empty() &&
 		                   f.text.size() <= 4096 && f.ticks > 0 && f.ticks <= 1728000,
 		               "invalid finding");

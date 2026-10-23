@@ -33,10 +33,26 @@ state_tree::Registry away_registry(const Json &tree)
 		r.observations.push_back({"transport.capability." + key, Type::Boolean, 16, {}});
 		r.observations.push_back({"transport.operational." + key, Type::Boolean, 16, {}});
 	}
+	for (const auto *category : {"flags", "team_capabilities", "events"})
+	{
+		std::set<std::string> unique;
+		const auto values = tree.value(category, std::vector<std::string>{});
+		if (values.size() > 64)
+			throw std::runtime_error("Too many away observations");
+		for (const auto &key : values)
+		{
+			if (key.empty() || key.size() > 64 || !unique.insert(key).second)
+				throw std::runtime_error("Invalid away observation");
+			r.observations.push_back({std::string(category) + "." + key, Type::Boolean, 16, {}});
+		}
+	}
 	for (const auto &name :
-	     {"report", "checkpoint", "emit", "complete", "fail", "restore_compartment", "release_transport"})
+	     {"report", "checkpoint", "emit", "complete", "fail", "restore_compartment", "release_transport", "offer",
+	      "say", "mark", "pause", "log", "injure_duty", "kill_duty", "require_team"})
 		r.actions.push_back({name, 16, {Type::Text}, true});
 	r.actions.push_back({"work", 16, {Type::Integer}, true});
+	r.actions.push_back({"timed_work", 16, {Type::Integer}, true});
+	r.actions.push_back({"crew_deaths", 16, {Type::Integer}, true});
 	if (tree.value("boarding", false))
 	{
 		for (const auto *name : {"arrived", "encounter_done", "encounter_success"})
@@ -150,7 +166,20 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 								            events.end(),
 								        "undeclared mission event");
 							}
-							if (p.registry.actions.at(t.target).name == "work")
+							if (p.registry.actions.at(t.target).name == "offer")
+								require(cp.prompts.contains(t.arguments[0].literal.text), "unknown away prompt");
+							if (p.registry.actions.at(t.target).name == "say")
+								require(cp.lines.contains(t.arguments[0].literal.text), "unknown away line");
+							if (p.registry.actions.at(t.target).name == "require_team")
+								require(std::any_of(p.registry.observations.begin(), p.registry.observations.end(),
+								                    [&](const auto &o)
+								                    {
+									                    return o.name ==
+									                           "team_capabilities." + t.arguments[0].literal.text;
+								                    }),
+								        "undeclared work capability");
+							if (p.registry.actions.at(t.target).name == "work" ||
+							    p.registry.actions.at(t.target).name == "timed_work")
 								require(t.arguments[0].literal.number > 0 && t.arguments[0].literal.number <= 1728000,
 								        "invalid work duration");
 						}
@@ -170,6 +199,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 			        "invalid slot");
 			v.team_type = s.value("team_type", std::string{});
 			v.capability = s.value("capability", std::string{});
+			v.assign_ai = s.value("assign_ai", false);
 			require(v.team_type.size() <= 64 && v.capability.size() <= 64 &&
 			            (v.kind == "team" || (v.team_type.empty() && v.capability.empty())),
 			        "invalid team slot filter");

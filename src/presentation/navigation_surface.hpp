@@ -193,9 +193,9 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		    "<div class=\"mission-result\" style=\"width:" + std::to_string(region.width) +
 		    "px;height:" + std::to_string(region.height) + "px;\"><img class=\"mission-art\" src=\"" +
 		    asset_path("mission-terminal.png") +
-		    "\"/><div class=\"mission-copy\" style=\"left:" + std::to_string(region.width * .2f) +
-		    "px;top:" + std::to_string(region.height * .21f) + "px;width:" + std::to_string(region.width * .6f) +
-		    "px;height:" + std::to_string(region.height * .51f) + "px;\"><h1>" +
+		    "\"/><div class=\"mission-copy\" style=\"left:" + std::to_string(region.width * .07f) +
+		    "px;top:" + std::to_string(region.height * .08f) + "px;width:" + std::to_string(region.width * .86f) +
+		    "px;height:" + std::to_string(region.height * .8f) + "px;\"><h1>" +
 		    localise(!report.is_null() && report.value("version", 1) == 2 ? report.at("title").get<std::string>()
 		                                                                  : "MISSION REPORT // FINAL") +
 		    "</h1><h2>" +
@@ -209,6 +209,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		std::string report_text = localise(mission_outcome_ == "ftl" ? "Departed via FTL" : "Mission complete");
 		if (!report.is_null() && report.value("version", 1) == 2)
 			report_text += ". " + localise(report.at("title")) + ". " + localise(report.at("result_title"));
+		markup += "<div style=\"display:flex;gap:24px;\"><div style=\"width:68%;\">";
 		for (const auto &o : report.is_null() ? objectives : report.at("objectives"))
 		{
 			const auto status = o.value("status", "active");
@@ -236,6 +237,20 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 				line(localise(a.at("title")) + ": " + localise(a.at("result_title")));
 				line(localise(a.at("explanation")));
 			}
+			markup += "<h1>" + localise("Mission log") + "</h1>";
+			for (const auto &entry : report.value("log", Json::array()))
+			{
+				const auto seconds = entry.at("tick").get<std::uint64_t>() / 20;
+				line(std::to_string(seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") +
+				     std::to_string(seconds % 60) + " — " + localise(entry.at("text")) +
+				     (entry.value("name", "").empty() ? "" : ": " + localise(entry.at("name"))));
+			}
+			markup += "</div><div style=\"width:30%;border-left:1px #51744c;padding-left:16px;\"><h1>" +
+			          localise("Ship and crew") + "</h1>";
+			for (const auto &part : report.value("ship_condition", Json::array()))
+				line(localise(part.at("name")) + ": " + part.at("hp").dump() + "/" + part.at("maximum").dump());
+			for (const auto &crew : report.value("crew", Json::array()))
+				line(localise(crew.at("name")) + ": " + localise(crew.at("condition")));
 			for (const auto &f : report.at("facts"))
 			{
 				std::string value = f.at("value").is_null()      ? localise("Unresolved")
@@ -254,7 +269,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 				markup += "<p>" + Rml::StringUtilities::EncodeRml(line) + "</p>";
 				report_text += ". " + line;
 			}
-		markup += button("mission.leave", "Return to menu") + "</div></div>";
+		markup += "</div></div>" + button("mission.leave", "Return to menu") + "</div></div>";
 		app.screen_readouts.emplace_back(id("mission-result"), report_text);
 	}
 	else if (navigator_panel)
@@ -345,15 +360,15 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 				pane->SetProperty("height", std::to_string(region.height) + "px");
 				copy->SetProperty("display", "block");
 				copy->SetProperty("position", "absolute");
-				copy->SetProperty("left", std::to_string(region.width * .2f) + "px");
-				copy->SetProperty("top", std::to_string(region.height * .21f) + "px");
-				copy->SetProperty("width", std::to_string(region.width * .6f) + "px");
-				copy->SetProperty("height", std::to_string(region.height * .51f) + "px");
+				copy->SetProperty("left", std::to_string(region.width * .07f) + "px");
+				copy->SetProperty("top", std::to_string(region.height * .08f) + "px");
+				copy->SetProperty("width", std::to_string(region.width * .86f) + "px");
+				copy->SetProperty("height", std::to_string(region.height * .8f) + "px");
 				for (int child = 0; child < copy->GetNumChildren(); ++child)
 				{
 					auto *line = copy->GetChild(child);
 					if (line->GetTagName() == "h1" || line->GetTagName() == "h2" || line->GetTagName() == "p")
-						line->SetProperty("width", std::to_string(region.width * .6f) + "px");
+						line->SetProperty("width", std::to_string(region.width * .86f) + "px");
 				}
 			}
 

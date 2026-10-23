@@ -167,6 +167,7 @@ struct ScenarioReportDefinition
 	std::vector<ScenarioReportRule> rules;
 	std::string fallback, fallback_title_key, fallback_explanation_key;
 	std::vector<ScenarioReportDefinition> assessments;
+	std::map<std::string, std::string> log_events;
 };
 std::optional<bool> scenario_condition(const ScenarioCondition &, const ScenarioFacts &);
 struct ScenarioObjectiveDefinition

@@ -2064,7 +2064,12 @@ struct GameplayEditor
 				if (choice(context, "context", {"controller", "scenario", "conversation", "away", "team"}))
 					definition["context"] = context.at("context");
 				if (context.at("context") == "away")
+				{
 					boolean(definition, "boarding", false);
+					strings(definition, "flags");
+					strings(definition, "team_capabilities");
+					strings(definition, "events");
+				}
 				strings(definition, "transport_capabilities");
 				if (context.at("context") == "conversation")
 				{
@@ -2288,6 +2293,8 @@ struct GameplayEditor
 			        optional_string(f, "requires_event");
 			        optional_string(f, "unless_event");
 			        optional_string(f, "discovery_event");
+			        optional_string(f, "tag");
+			        optional_string(f, "destination_station");
 		        });
 		records(map, "away_missions",
 		        {{"id", "mission"},
@@ -2322,6 +2329,7 @@ struct GameplayEditor
 				                optional_string(s, "team_type");
 				                optional_string(s, "capability");
 				                boolean(s, "required", true);
+				                boolean(s, "assign_ai", false);
 			                });
 		        });
 		records(map, "conversations",

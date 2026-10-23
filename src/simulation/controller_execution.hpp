@@ -38,6 +38,15 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[brain.own[ControllerOwnField::Entity]] = Value::reference(Type::Entity, id);
 	values[brain.own[ControllerOwnField::Console]] = Value::reference(Type::Console, knowledge.console_id(address));
 	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
+	EntityId scan_objective = 0;
+	for (const auto &finding : sensor_findings)
+		if (!finding.requires_event.empty() && finding_available(finding) &&
+		    !sensor_discoveries.contains({id, finding.target, finding.id}))
+		{
+			scan_objective = finding.target;
+			break;
+		}
+	values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(scan_objective);
 	const auto &bridge = entities.at(id).get<BridgeBlackboard>();
 	const auto &bridge_spec = definition(id);
 	if (!bridge_spec.bridge.conditions.empty())

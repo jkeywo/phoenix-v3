@@ -54,7 +54,10 @@ inline Json thread(const Json &v, bool shared = false, std::size_t message_limit
 		if (v.at("choices").size() > 16)
 			throw std::runtime_error("Conversation choices bounds");
 		for (const auto &c : v.at("choices"))
-			out["choices"].push_back({{"id", text(c.at("id"))}, {"text", text(c.at("text"), 4096)}});
+			out["choices"].push_back({{"id", text(c.at("id"))},
+			                          {"text", text(c.at("text"), 4096)},
+			                          {"enabled", c.value("enabled", true)},
+			                          {"reason", text(c.value("reason", Json("")), 4096)}});
 	}
 	return out;
 }

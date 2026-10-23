@@ -33,10 +33,14 @@ OperatingCommand order(const World &w, const std::string &action, const std::str
 			c.generation = ctrl.at("generation");
 	return c;
 }
+#include "../support/away_priority_cases.hpp"
+#include "../support/away_medical_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		away_priority_cases();
+		away_medical_cases();
 		// Support the save/resume contract at the shared effect-journal boundary.
 		std::set<std::string> receipts;
 		state_tree::Output effect;

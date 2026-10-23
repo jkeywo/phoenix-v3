@@ -57,10 +57,10 @@ ConversationProgram compile_conversation(const Json &input, const state_tree::Ca
 	require(lines.is_object() && prompts.is_object() && lines.size() <= 1024 && prompts.size() <= 256,
 	        "definition bounds");
 	for (auto it = lines.begin(); it != lines.end(); ++it)
-		out.lines.emplace(it.key(),
-		                  ConversationLine{text(it.value(), "speaker"), text(it.value(), "text_key"),
-		                                   duration(it.value(), "delay_ticks"), duration(it.value(), "incoming_ticks"),
-		                                   duration(it.value(), "expires_after")});
+		out.lines.emplace(
+		    it.key(), ConversationLine{text(it.value(), "speaker"), text(it.value(), "text_key"),
+		                               duration(it.value(), "delay_ticks"), duration(it.value(), "incoming_ticks"),
+		                               duration(it.value(), "expires_after"), text(it.value(), "received_tag", false)});
 	for (auto it = prompts.begin(); it != prompts.end(); ++it)
 	{
 		const auto &p = it.value();
@@ -78,11 +78,20 @@ ConversationProgram compile_conversation(const Json &input, const state_tree::Ca
 		{
 			auto id = text(c, "id");
 			require(id.size() <= 256 && ids.insert(id).second, "invalid or duplicate choice identity");
-			d.choices.push_back({id, text(c, "text_key")});
+			d.choices.push_back(
+			    {id, text(c, "text_key"), text(c, "requires_capability", false), text(c, "unavailable_reason", false)});
+			require(d.choices.back().requires_capability.empty() || !d.choices.back().unavailable_reason.empty(),
+			        "capability-gated choices require an explanation");
 		}
 		require((!d.timeout && d.default_choice.empty()) || (d.timeout && ids.contains(d.default_choice)),
 		        "timeout requires a valid default choice");
 		require(d.ai_choice.empty() || ids.contains(d.ai_choice), "invalid AI choice");
+		for (const auto &rule : p.value("ai_rules", Json::array()))
+		{
+			const auto choice = text(rule, "choice");
+			require(ids.contains(choice) && d.ai_rules.size() < 16, "invalid AI rule");
+			d.ai_rules.emplace_back(text(rule, "received_tag"), choice);
+		}
 		out.prompts.emplace(it.key(), std::move(d));
 	}
 	// Literal action references are checked before play, including referenced trees.

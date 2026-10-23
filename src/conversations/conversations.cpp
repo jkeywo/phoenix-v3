@@ -163,6 +163,27 @@ void ConversationRuntime::resolve(Conversation &c, const std::string &who, const
 	if (!who.empty())
 		message(c, who, found->text);
 }
+bool ConversationRuntime::choice_available(const Conversation &c, const ConversationChoice &v) const
+{
+	return (!completed_choices.contains(c.id) || !completed_choices.at(c.id).contains(v.id)) &&
+	       (v.requires_capability.empty() ||
+	        (capabilities.contains(c.id) && capabilities.at(c.id).contains(v.requires_capability)));
+}
+bool ConversationRuntime::offer(ConversationId id, const std::string &prompt)
+{
+	if (!conversations.contains(id))
+		return false;
+	auto &c = conversations.at(id);
+	const auto &d = programs.at(c.program).prompts.at(prompt);
+	const auto sender = c.bindings.at(d.speaker);
+	const auto mid = message(c, sender, d.text);
+	// An authored away event may supersede an unanswered priority request.
+	c.prompt = {next_id_++, mid, prompt, "", "", d.timeout ? tick + d.timeout : 0, tick, {}};
+	for (const auto &member : c.members)
+		if (!participants.at(member).character && member != sender)
+			c.prompt.eligible.insert(member);
+	return true;
+}
 bool ConversationRuntime::answer(EntityId source, ConversationId id, ConversationId prompt, const std::string &choice,
                                  bool execute)
 {
@@ -185,7 +206,7 @@ bool ConversationRuntime::answer(EntityId source, ConversationId id, Conversatio
 	if (std::none_of(d.choices.begin(), d.choices.end(),
 	                 [&](const auto &v)
 	                 {
-		                 return v.id == choice;
+		                 return v.id == choice && choice_available(c, v);
 	                 }))
 		return false;
 	if (c.messages.size() >= 4096)
@@ -340,13 +361,42 @@ void ConversationRuntime::advance(std::uint64_t now)
 		{
 			const auto &d = programs.at(c.program).prompts.at(c.prompt.definition);
 			if (c.prompt.deadline && tick >= c.prompt.deadline)
-				resolve(c, "", d.default_choice);
+			{
+				const ConversationChoice *fallback = nullptr;
+				for (const auto &v : d.choices)
+					if (choice_available(c, v) && (!fallback || v.id == d.default_choice))
+						fallback = &v;
+				if (fallback)
+					resolve(c, "", fallback->id);
+			}
 			else if (!d.ai_choice.empty() && tick >= c.prompt.opened + d.ai_delay)
 				for (const auto &who : c.prompt.eligible)
 				{
 					const auto &p = participants.at(who);
+					auto choice = d.ai_choice;
+					for (const auto &[tag, candidate] : d.ai_rules)
+						if (received_tags[p.host].contains(tag))
+						{
+							choice = candidate;
+							break;
+						}
+					const auto available = [&](const std::string &id)
+					{
+						return std::any_of(d.choices.begin(), d.choices.end(),
+						                   [&](const auto &v)
+						                   {
+							                   return v.id == id && choice_available(c, v);
+						                   });
+					};
+					if (!available(choice))
+						for (const auto &v : d.choices)
+							if (choice_available(c, v))
+							{
+								choice = v.id;
+								break;
+							}
 					if (endpoints.contains(p.host) && !endpoints.at(p.host).human &&
-					    answer(p.host, id, c.prompt.id, d.ai_choice))
+					    answer(p.host, id, c.prompt.id, choice))
 						break;
 				}
 		}
@@ -423,7 +473,13 @@ Json ConversationRuntime::project(EntityId viewer) const
 			{
 				row["prompt"] = p.id;
 				for (const auto &v : programs.at(c.program).prompts.at(p.definition).choices)
-					row["choices"].push_back({{"id", v.id}, {"text", v.text}});
+					row["choices"].push_back(
+					    {{"id", v.id},
+					     {"text", v.text},
+					     {"enabled", choice_available(c, v)},
+					     {"reason", completed_choices.contains(c.id) && completed_choices.at(c.id).contains(v.id)
+					                    ? "Completed"
+					                    : v.unavailable_reason}});
 			}
 		}
 		out["threads"].push_back(std::move(row));

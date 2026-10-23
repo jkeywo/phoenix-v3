@@ -56,6 +56,11 @@ std::map<std::string, std::string> personnel_dispositions(EntityId ship) const
 	if (auto lost = mission_ledger.lost.find(ship); lost != mission_ledger.lost.end())
 		for (const auto &asset : lost->second)
 			dispositions[asset] = "lost";
+	const auto &pd = definition(ship).personnel;
+	const auto &ps = entities.at(ship).get<PersonnelState>();
+	for (std::size_t i = 0; i < pd.officers.size(); ++i)
+		if (ps.officers[i].condition == "dead" && dispositions.contains("officer:" + pd.officers[i].id))
+			dispositions["officer:" + pd.officers[i].id] = "dead";
 	return dispositions;
 }
 state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b) const
@@ -139,6 +144,8 @@ state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding
 				}
 				if (b.field == "outcome")
 					return Value::string(m.outcome);
+				if (b.field == "crew_deaths")
+					return Value::integer(m.crew_deaths);
 				if (b.field == "ever_deployed")
 					return Value::boolean(m.ever_deployed);
 				if (b.field == "recovered")
@@ -248,7 +255,6 @@ void resolve_lost_parties()
 					personnel.officers[o].edge_to = -1;
 				}
 			++personnel.revision;
-			refresh_personnel_bonuses(personnel, p);
 			if (transport && transport != ship)
 			{
 				auto &craft = entities.at(transport).get_mut<CraftState>();
@@ -366,6 +372,36 @@ Json authoritative_report(EntityId ship, Json legacy) const
 		legacy["personnel"] = Json::array();
 		legacy["objectives"] = Json::array();
 		legacy["assessments"] = Json::array();
+		legacy["log"] = Json::array();
+		legacy["crew"] = Json::array();
+		legacy["ship_condition"] = Json::array();
+		if (const auto *structure = entities.at(ship).try_get<CombatStructure>())
+			for (std::size_t i = 0; i < structure->compartments.size(); ++i)
+				legacy["ship_condition"].push_back({{"name", structure->definition.compartments[i].id},
+				                                    {"hp", structure->compartments[i].hp},
+				                                    {"maximum", structure->definition.compartments[i].maximum}});
+		const auto &pd = definition(ship).personnel;
+		const auto &ps = entities.at(ship).get<PersonnelState>();
+		for (std::size_t i = 0; i < pd.officers.size(); ++i)
+			legacy["crew"].push_back({{"name", pd.officers[i].name}, {"condition", ps.officers[i].condition}});
+		for (const auto &entry : mission_ledger.transitions)
+			if (entry.source == ship && entry.kind == "mission.log")
+				legacy["log"].push_back({{"tick", entry.tick}, {"text", entry.detail}, {"name", ""}});
+			else if (entry.source == ship && entry.kind == "mission.casualty")
+				legacy["log"].push_back(
+				    {{"tick", entry.tick},
+				     {"text", entry.detail == "dead" ? "Duty officer killed" : "Duty officer injured"},
+				     {"name", away_asset_label(ship, "officer:" + entry.operation)}});
+		for (const auto &[event, text] : spec.log_events)
+			for (const auto &entry : r.events(event))
+				if (!entry.payload.contains("ship") ||
+				    entry.payload.at("ship") == ScenarioParameter{static_cast<std::int64_t>(ship)})
+					legacy["log"].push_back({{"tick", entry.tick}, {"text", text}, {"name", ""}});
+		std::stable_sort(legacy["log"].begin(), legacy["log"].end(),
+		                 [](const auto &a, const auto &b)
+		                 {
+			                 return a.at("tick") < b.at("tick");
+		                 });
 		for (const auto &a : spec.assessments)
 		{
 			Json result{{"title", a.title_key},

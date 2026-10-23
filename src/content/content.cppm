@@ -140,6 +140,7 @@ enum class ControllerOwnField
 	CraftReserveLow,
 	CraftArmed,
 	CraftTargetPresent,
+	ObjectiveTarget,
 	Count
 };
 enum class ControllerRecordField
@@ -454,6 +455,7 @@ struct AwaySlot
 	std::string id, kind, trait;
 	bool required = true;
 	std::string team_type, capability;
+	bool assign_ai = false;
 };
 struct SensorDefinition
 {
@@ -465,6 +467,7 @@ struct SensorDefinition
 struct SensorFinding
 {
 	std::string id, text, requires_event, unless_event, event;
+	std::string tag, destination_station;
 	EntityId target = 0;
 	std::vector<std::string> capabilities;
 	std::int64_t ticks = 1;

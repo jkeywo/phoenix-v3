@@ -29,16 +29,19 @@ struct ConversationLine
 {
 	std::string speaker, text;
 	std::uint64_t delay = 0, incoming = 0, expiry = 0;
+	std::string received_tag;
 };
 struct ConversationChoice
 {
 	std::string id, text;
+	std::string requires_capability, unavailable_reason;
 };
 struct ConversationPromptDefinition
 {
 	std::string speaker, text, default_choice, ai_choice;
 	std::vector<ConversationChoice> choices;
 	std::uint64_t timeout = 0, ai_delay = 20;
+	std::vector<std::pair<std::string, std::string>> ai_rules;
 };
 struct ConversationProgram
 {
@@ -89,6 +92,12 @@ public:
 	std::map<EntityId, std::map<ConversationId, ConversationId>> read_through;
 	std::vector<std::pair<ConversationId, std::string>> emitted;
 	std::uint64_t tick = 0;
+	// Rebuilt by the owning simulation from delivered information and current party capabilities.
+	std::map<EntityId, std::set<std::string>> received_tags;
+	std::map<ConversationId, std::set<std::string>> capabilities;
+	std::map<ConversationId, std::set<std::string>> completed_choices;
+	bool choice_available(const Conversation &, const ConversationChoice &) const;
+	bool offer(ConversationId, const std::string &prompt);
 	void disclose(EntityId viewer, const std::string &participant);
 	bool linked(const std::string &, const std::string &) const;
 	ConversationId open(const std::string &program, std::map<std::string, std::string> bindings,

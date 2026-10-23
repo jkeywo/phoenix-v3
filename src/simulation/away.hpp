@@ -153,6 +153,20 @@ bool away_asset_owned(const ConsoleAddress &a, const std::string &asset) const
 	}
 	return false;
 }
+bool away_has_capability(EntityId ship, const AwayMission &m, const std::string &capability) const
+{
+	if (!m.deployed())
+		return false;
+	for (const auto &[slot, asset] : m.assignments)
+		if (asset.starts_with("team:"))
+			if (const auto team = away_equipment(ship, asset.substr(5));
+			    team && team.get<Equipment>().enabled && !structurally_disabled(entities.at(ship), asset.substr(5)) &&
+			    !team.get<CombatMechanism>().get<TeamState>().detained &&
+			    team.get<CombatMechanism>().get<TeamState>().condition != "lost" &&
+			    team.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(capability))
+				return true;
+	return false;
+}
 bool away_asset_healthy(EntityId ship, const std::string &asset) const
 {
 	const auto &pd = definition(ship).personnel;
@@ -803,6 +817,30 @@ void advance_away()
 		if (!ship || (departed(ship) && !m.absent()) || m.phase == AwayPhase::Lost)
 			continue;
 		const auto cid = away_conversation(d);
+		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
+			for (const auto &slot : d.slots)
+				if (slot.assign_ai && slot.kind == "team" && !m.assignments.contains(slot.id) && m.outcome.empty())
+					for (const auto &duty : definition(ship).personnel.duties)
+					{
+						if (duty.team.empty())
+							continue;
+						const auto asset = "team:" + duty.team;
+						if (away_reserved(ship, asset) || !away_asset_healthy(ship, asset) ||
+						    !away_slot_accepts(ship, slot, asset))
+							continue;
+						const auto owner = enabled_system_owner(ship, duty.team);
+						for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+							if (controller.definition.console == owner.console && !controller.human &&
+							    !m.assignments.contains(slot.id))
+							{
+								OperatingCommand command{ship, "away.assign", static_cast<std::int64_t>(m.revision),
+								                         d.id};
+								command.text = slot.id + "/" + asset;
+								command.controller = controller.definition.id;
+								command.generation = controller.generation;
+								away_command(owner, command, true, true);
+							}
+					}
 		if (m.phase == AwayPhase::Hidden)
 		{
 			if (d.boarding && boarding_visible(ship, d.target))
@@ -852,7 +890,10 @@ void advance_away()
 		}
 		if (m.outcome.empty())
 		{
-			if (m.deployed() && m.work > 0)
+			const bool work_ready = m.work_capability.empty() || away_has_capability(ship, m, m.work_capability);
+			if (m.deployed() && work_ready && m.work > 0 && m.timed_work)
+				m.progress = std::min(m.work, m.progress + 1000);
+			if (m.deployed() && work_ready && m.work > 0 && !m.timed_work)
 			{
 				std::vector<flecs::entity> teams;
 				std::int64_t specialist_bonus = 0, officer_work = 0;
@@ -893,14 +934,14 @@ void advance_away()
 			                       .definition.compartments.at(d.repair_compartments.at(m.repair_compartment))
 			                       .maximum;
 			if (scenario && !scenario->runtime().definition().event_bindings.empty() && m.work > 0 &&
-			    m.progress >= m.work && repaired)
+			    m.progress >= m.work && repaired && work_ready)
 				mission_change("work/" + std::to_string(ship) + "/" + d.id + "/" + m.work_key, "completed",
 				               "away.work_completed", ship, d.target, d.id, m.work_key);
 			const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
 			using state_tree::Value;
 			std::vector<Value> obs{Value::boolean(m.deployed()),
 			                       Value::boolean(m.recovered),
-			                       Value::boolean(m.work > 0 && m.progress >= m.work && repaired),
+			                       Value::boolean(m.work > 0 && m.progress >= m.work && repaired && work_ready),
 			                       Value::integer(tick),
 			                       Value::integer(m.progress),
 			                       Value::string(answer),
@@ -916,6 +957,21 @@ void advance_away()
 			     ++field)
 			{
 				const auto &name = d.program.registry.observations[field].name;
+				if (name.starts_with("flags."))
+				{
+					obs.push_back(Value::boolean(m.flags.contains(name.substr(6))));
+					continue;
+				}
+				if (name.starts_with("events."))
+				{
+					obs.push_back(Value::boolean(scenario && scenario->runtime().has_event(name.substr(7), {})));
+					continue;
+				}
+				if (name.starts_with("team_capabilities."))
+				{
+					obs.push_back(Value::boolean(away_has_capability(ship, m, name.substr(18))));
+					continue;
+				}
 				const bool operational = name.starts_with("transport.operational.");
 				const auto tag = name.substr(operational ? 22 : 21);
 				bool has = false;
@@ -953,15 +1009,16 @@ void advance_away()
 				const auto &arg = o.arguments.at(0);
 				if (d.boarding && boarding_action(i, name, arg.text))
 					continue;
-				if (name == "work")
+				if (name == "work" || name == "timed_work")
 				{
+					m.timed_work = name == "timed_work";
 					if (arg.number < 1 || arg.number > 1728000)
 						throw std::runtime_error("Invalid away work duration");
 					if (m.work_key != m.checkpoint || m.work != arg.number * 1000)
 					{
 						m.work_key = m.checkpoint;
 						m.work = arg.number * 1000;
-						m.progress = 0;
+						m.progress = std::min(m.work, m.saved_progress[m.checkpoint]);
 					}
 				}
 				else if (name == "restore_compartment")
@@ -972,9 +1029,72 @@ void advance_away()
 				}
 				else if (name == "checkpoint")
 				{
+					m.work_capability.clear();
 					if (m.checkpoint != arg.text)
+					{
+						if (m.work > 0 && !m.work_key.empty())
+							m.saved_progress[m.work_key] = m.progress;
+						m.work = 0;
+						m.progress = 0;
 						m.repair_compartment.clear();
+					}
 					m.checkpoint = arg.text;
+				}
+				else if (name == "pause")
+				{
+					if (m.work > 0 && !m.work_key.empty())
+						m.saved_progress[m.work_key] = m.progress;
+					m.work = 0;
+					m.progress = 0;
+				}
+				else if (name == "mark")
+					m.flags.insert(arg.text);
+				else if (name == "require_team")
+					m.work_capability = arg.text;
+				else if (name == "crew_deaths")
+				{
+					if (arg.number < 0 || arg.number > 4096)
+						throw std::runtime_error("Invalid away casualty count");
+					m.crew_deaths = arg.number;
+				}
+				else if (name == "offer" && cid)
+					conversations.offer(cid, arg.text);
+				else if (name == "say" && cid)
+					conversations.report(cid, arg.text);
+				else if (name == "log")
+					mission_transition("mission.log", ship, d.target, d.id, arg.text);
+				else if ((name == "injure_duty" || name == "kill_duty") && m.deployed())
+				{
+					if (m.assignments.contains(arg.text) && m.assignments.at(arg.text).starts_with("team:"))
+						if (const auto *duty = away_team_duty(ship, m.assignments.at(arg.text).substr(5)))
+						{
+							auto &ps = entities.at(ship).get_mut<PersonnelState>();
+							const auto &pd = definition(ship).personnel;
+							for (std::size_t oi = 0; oi < pd.officers.size(); ++oi)
+								if (ps.officers[oi].duty == duty->id && ps.officers[oi].condition != "dead" &&
+								    std::find(m.accompanying.begin(), m.accompanying.end(), pd.officers[oi].id) !=
+								        m.accompanying.end())
+								{
+									auto &officer = ps.officers[oi];
+									officer.condition = name == "kill_duty" ? "dead" : "severe";
+									officer.present = false;
+									officer.casualty_tick = tick;
+									officer.stun_until = officer.treatment = officer.recovery = officer.remaining = 0;
+									officer.stabilised = false;
+									officer.edge_to = -1;
+									officer.facility.clear();
+									officer.escort.clear();
+									if (name == "kill_duty")
+									{
+										officer.duty.clear();
+										std::erase(m.accompanying, pd.officers[oi].id);
+									}
+									++ps.revision;
+									mission_transition("mission.casualty", ship, ship, pd.officers[oi].id,
+									                   officer.condition);
+									break;
+								}
+						}
 				}
 				else if (name == "release_transport" && m.phase == AwayPhase::Deployed && transport &&
 				         transport != ship && !m.aboard_craft)
@@ -988,7 +1108,11 @@ void advance_away()
 				else if (name == "report" && cid)
 					conversations.event(cid, arg.text);
 				else if (name == "complete" || name == "fail")
+				{
 					m.outcome = name + ":" + arg.text;
+					if (cid)
+						conversations.conversations.at(cid).prompt = {};
+				}
 				else if (name == "emit" && scenario)
 					scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0}, arg.text,
 					                         {{"ship", static_cast<std::int64_t>(ship)}});
@@ -1217,6 +1341,17 @@ void restore_away(const Json &rows)
 		if (schema < 10)
 			record["entry_compartment"] = 0;
 		auto m = record.get<AwayMission>();
+		if (m.flags.size() > 64 || m.saved_progress.size() > 256 || m.crew_deaths < 0 || m.crew_deaths > 4096 ||
+		    (!m.work_capability.empty() &&
+		     std::none_of(d.program.registry.observations.begin(), d.program.registry.observations.end(),
+		                  [&](const auto &o)
+		                  {
+			                  return o.name == "team_capabilities." + m.work_capability;
+		                  })))
+			throw std::runtime_error("Invalid away job continuation");
+		for (const auto &[key, progress] : m.saved_progress)
+			if (key.empty() || key.size() > 256 || progress < 0 || progress > 1728000000)
+				throw std::runtime_error("Invalid saved away job progress");
 		if (m.entry_compartment < 0 ||
 		    (definition(d.target).combat &&
 		     m.entry_compartment >= static_cast<std::int64_t>(definition(d.target).combat->compartments.size())))

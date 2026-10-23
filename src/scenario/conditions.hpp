@@ -97,10 +97,12 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 		{
 			require(valid_identifier(b.operation), "away fact needs operation");
 			require(b.field == "phase" || b.field == "outcome" || b.field == "ever_deployed" ||
-			            b.field == "recovered" || b.field == "lost",
+			            b.field == "recovered" || b.field == "lost" || b.field == "crew_deaths",
 			        "unknown away fact");
 			if (b.field == "phase" || b.field == "outcome")
 				b.type = state_tree::Type::Text;
+			if (b.field == "crew_deaths")
+				b.type = state_tree::Type::Integer;
 		}
 		else if (b.kind == "objective")
 		{
@@ -148,6 +150,12 @@ void compile_mission_reports(const Json &source, ScenarioDefinition &out)
 		r.ship = actor(v.at("ship"));
 		r.instance = v.value("instance", std::string{"main"});
 		r.title_key = text(v, "title_key");
+		for (const auto &entry : list(v, "log_events", 128))
+		{
+			const auto event = identifier(entry, "event");
+			require(std::find(out.events.begin(), out.events.end(), event) != out.events.end(), "unknown log event");
+			require(r.log_events.emplace(event, text(entry, "text_key")).second, "duplicate log event");
+		}
 		for (const auto &o : list(v, "objectives", 256))
 		{
 			require(o.is_string() && out.objectives.contains(o.get<std::string>()), "unknown report objective");

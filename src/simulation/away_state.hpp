@@ -90,9 +90,16 @@ struct AwayMission
 	}
 	state_tree::Instance continuation;
 	std::set<std::string> effects;
+	std::set<std::string> flags;
+	std::map<std::string, std::int64_t> saved_progress;
+	bool timed_work = false;
+	std::string work_capability;
+	std::int64_t crew_deaths = 0;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayMission, phase, transport, checkpoint, outcome, work_key, repair_compartment,
-                                   assignments, accompanying, revision, sequence, transfer, work, progress, recovered,
-                                   effects, ever_deployed, participants, care, boarding, aboard_craft,
-                                   transport_released, entry_compartment)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AwayMission, phase, transport, checkpoint, outcome, work_key,
+                                                repair_compartment, assignments, accompanying, revision, sequence,
+                                                transfer, work, progress, recovered, effects, ever_deployed,
+                                                participants, care, boarding, aboard_craft, transport_released,
+                                                entry_compartment, flags, saved_progress, timed_work, crew_deaths,
+                                                work_capability)
 } // namespace phoenix

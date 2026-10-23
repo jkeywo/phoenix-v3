@@ -47,6 +47,7 @@ Json fixture()
 	    {{"id", 2}, {"definition", "test.controllable"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
 	return s;
 }
+#include "../support/received_information_cases.hpp"
 void cancelled_station_traffic()
 {
 	auto source = fixture();
@@ -80,6 +81,7 @@ int main(int argc, char **argv)
 	try
 	{
 		cancelled_station_traffic();
+		received_information_cases();
 		{
 			auto source = fixture();
 			auto &layout = source["entities"][0]["control_layout"];

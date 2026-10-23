@@ -63,8 +63,7 @@ bool sensor_powered(EntityId ship, const std::string &id) const
 	if (!d.turret.empty())
 	{
 		const auto mount = instance(entities.at(ship), d.turret);
-		if (!mount->enabled || structurally_disabled(entities.at(ship), d.turret) ||
-		    fault_effectiveness(entities.at(ship), d.turret) == 0)
+		if (!mount->enabled || structurally_disabled(entities.at(ship), d.turret))
 			return false;
 		if (const auto *power = entities.at(ship).try_get<ShipResources>();
 		    power && mount->entity.has<ResourceBinding>() &&
@@ -246,10 +245,60 @@ void publish_track_findings(EntityId ship, const std::string &id, EntityId targe
 	Json findings = Json::array();
 	for (const auto &[key, sample] : track.samples)
 		if (key.starts_with("finding:") && !sample.data.is_null())
-			findings.push_back(
-			    {{"id", sample.data.at("id")}, {"text", sample.data.at("text")}, {"observed", sample.observed}});
+		{
+			auto finding = sample.data;
+			finding["observed"] = sample.observed;
+			findings.push_back(std::move(finding));
+		}
 	if (!findings.empty())
 		publish_sensor(ship, id, target, "findings", findings, ecs.get<Clock>().tick);
+}
+void route_finding(EntityId ship, const std::string &system, const SensorFinding &finding, std::uint64_t tick,
+                   bool announce)
+{
+	if (finding.tag.empty() || !knowledge.contains_ship(ship))
+		return;
+	const auto &kd = knowledge.definition();
+	const auto schema = kd.schema("phoenix.sensor.findings");
+	KnowledgeRecordInput record;
+	record.schema = schema;
+	record.producer = kd.role("phoenix.scenario");
+	record.subject = finding.target;
+	record.provenance = {knowledge.system_id(ship, system), tick, tick, 0, EvidenceKind::Fact};
+	Json delivered = Json::array();
+	for (const auto &known : sensor_findings)
+		if (known.target == finding.target && known.destination_station == finding.destination_station &&
+		    !known.tag.empty() && sensor_discoveries.contains({ship, known.target, known.id}))
+			delivered.push_back({{"id", known.id}, {"tag", known.tag}, {"text", known.text}, {"observed", tick}});
+	record.fields[kd.field(schema, "payload")] = delivered.dump();
+	const auto source = system_owner(ship, system);
+	for (const auto &console : definition(ship).consoles)
+		if (console.station == finding.destination_station || console.id == finding.destination_station)
+		{
+			const ConsoleAddress destination{ship, console.id};
+			knowledge.publish_scenario_console(destination, record, tick);
+			bool human = false;
+			for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+			{
+				if (controller.definition.console == console.id && comms_controller(ship, controller.definition))
+					human |= conversation_operator(ship, controller);
+				for (const auto &command : controller.definition.commands)
+					for (const auto consumer : command.consumers)
+						if (definition(ship).fitted->values.at(consumer).id == system)
+							human |= controller.human;
+			}
+			if (announce && !human)
+			{
+				CoordinationInput message;
+				message.sender_system = record.provenance.source;
+				message.origin = ControlOrigin::Scenario;
+				message.destination = {MessageDestinationKind::Console, knowledge.console_id(destination)};
+				message.payload = record;
+				message.presentation.title_key = "Scan finding forwarded";
+				message.presentation.body_key = finding.text;
+				knowledge.publish_scenario_message(source, std::move(message), tick);
+			}
+		}
 }
 void record_sensor_dispel(const GhostReception &g)
 {
@@ -350,8 +399,13 @@ void advance_sensors(bool acquire_timed = true)
 							    continue;
 						    finding_changed |= sample.data.is_null();
 						    sample.data = Json{{"id", f.id}, {"text", f.text}};
+						    if (!f.tag.empty())
+							    sample.data["tag"] = f.tag;
 						    sample.observed = tick;
-						    if (sensor_discoveries.emplace(ship, target, f.id).second && scenario && !f.event.empty())
+						    const bool discovered = sensor_discoveries.emplace(ship, target, f.id).second;
+						    if (discovered || tick % 20 == 0)
+							    route_finding(ship, id, f, tick, discovered);
+						    if (discovered && scenario && !f.event.empty())
 							    scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0},
 							                             f.event,
 							                             {{"ship", static_cast<std::int64_t>(ship)},

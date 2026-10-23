@@ -70,7 +70,7 @@ bool conversation_allowed(const Observation &view, const OperatingCommand &comma
 				return !command.text.empty() && !command.request_id && thread.at("text_allowed") == true;
 			if (command.action == "comms.answer" && command.request_id && thread.at("prompt") == command.request_id)
 				for (const auto &choice : thread.at("choices"))
-					if (choice.at("id") == command.text)
+					if (choice.at("id") == command.text && choice.value("enabled", true))
 						return true;
 		}
 	return false;
