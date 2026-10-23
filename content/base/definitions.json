@@ -13785,6 +13785,42 @@
 						"compartment": "bridge",
 						"power": "ward",
 						"traits": []
+					},
+					{
+						"id": "repair-team-1.leader",
+						"name": "Chief Rao",
+						"department": "engineering",
+						"duty": "repair-team-1",
+						"compartment": "engineering",
+						"traits": ["repair"],
+						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+					},
+					{
+						"id": "repair-team-2.leader",
+						"name": "Lieutenant Voss",
+						"department": "engineering",
+						"duty": "repair-team-2",
+						"compartment": "engineering",
+						"traits": ["repair"],
+						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+					},
+					{
+						"id": "repair-team-3.leader",
+						"name": "Ensign Hale",
+						"department": "engineering",
+						"duty": "repair-team-3",
+						"compartment": "engineering",
+						"traits": ["repair"],
+						"portrait": "phoenix-base:assets/personnel/officer-5.png"
+					},
+					{
+						"id": "repair-team-4.leader",
+						"name": "Lieutenant Chen",
+						"department": "engineering",
+						"duty": "repair-team-4",
+						"compartment": "engineering",
+						"traits": ["repair"],
+						"portrait": "phoenix-base:assets/personnel/officer-5.png"
 					}
 				],
 				"casualties": {
@@ -25970,7 +26006,8 @@
 								"consumers": ["focused-scanner"],
 								"label_key": "Combat target"
 							}
-						]
+						],
+						"tree": "base.cruiser.scan"
 					},
 					{
 						"id": "ftl.drive",
@@ -31829,13 +31866,13 @@
 						"system": "repair-1",
 						"controller": "repair-1",
 						"compartment": "engineering",
-						"capacity": 2000,
+						"capacity": 4000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 2000
+							"parts": 4000
 						},
 						"targets": {
-							"parts": 2000
+							"parts": 4000
 						}
 					},
 					{
@@ -31843,13 +31880,13 @@
 						"system": "repair-2",
 						"controller": "repair-2",
 						"compartment": "engineering",
-						"capacity": 2000,
+						"capacity": 4000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 2000
+							"parts": 4000
 						},
 						"targets": {
-							"parts": 2000
+							"parts": 4000
 						}
 					},
 					{
@@ -31857,13 +31894,13 @@
 						"system": "repair-3",
 						"controller": "repair-3",
 						"compartment": "engineering",
-						"capacity": 2000,
+						"capacity": 4000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 2000
+							"parts": 4000
 						},
 						"targets": {
-							"parts": 2000
+							"parts": 4000
 						}
 					},
 					{
@@ -31871,13 +31908,13 @@
 						"system": "repair-4",
 						"controller": "repair-4",
 						"compartment": "engineering",
-						"capacity": 2000,
+						"capacity": 4000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 2000
+							"parts": 4000
 						},
 						"targets": {
-							"parts": 2000
+							"parts": 4000
 						}
 					},
 					{
@@ -32787,6 +32824,22 @@
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
+				},
+				{
+					"id": "reactor-escalation",
+					"tree": "base.dialogue.reactor-emergency",
+					"start_event": "rescue.reactor-emergency",
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"engineer": {
+							"entity": 1,
+							"character": "engineer"
+						}
+					},
+					"members": ["ship", "engineer"],
+					"cancel_events": ["rescue.reactor-secured"]
 				}
 			],
 			"away_missions": [
@@ -32815,7 +32868,8 @@
 							"id": "medical-team",
 							"kind": "team",
 							"required": false,
-							"capability": "medical"
+							"capability": "medical",
+							"assign_ai": true
 						}
 					],
 					"allow_ship_transport": true,
@@ -32845,7 +32899,12 @@
 					"delivery.reminder-5",
 					"delivery.reminder-8",
 					"delivery.reminder-15",
-					"delivery.reminder-18"
+					"delivery.reminder-18",
+					"rescue.reactor-emergency",
+					"rescue.reactor-secured",
+					"rescue.wounded-saved",
+					"rescue.wounded-late",
+					"rescue.wounded-lost"
 				],
 				"event_bindings": [
 					{
@@ -33036,6 +33095,35 @@
 							"slot": "courier"
 						},
 						"operation": "delivery"
+					},
+					{
+						"id": "trapped-crew-deaths",
+						"kind": "away",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "repairs",
+						"field": "crew_deaths"
+					},
+					{
+						"id": "reactor-secured",
+						"kind": "event",
+						"event": "rescue.reactor-secured"
+					},
+					{
+						"id": "wounded-saved",
+						"kind": "event",
+						"event": "rescue.wounded-saved"
+					},
+					{
+						"id": "wounded-late",
+						"kind": "event",
+						"event": "rescue.wounded-late"
+					},
+					{
+						"id": "wounded-lost",
+						"kind": "event",
+						"event": "rescue.wounded-lost"
 					}
 				],
 				"objectives": [
@@ -33067,9 +33155,9 @@
 					{
 						"id": "restore-services",
 						"type": "condition",
-						"title_key": "Restore casualty services",
-						"description_key": "Restore casualty services",
-						"optional": true,
+						"title_key": "Secure the casualty reactor",
+						"description_key": "Secure reactor control before containment becomes critical.",
+						"optional": false,
 						"actor": {
 							"slot": "courier"
 						},
@@ -33079,8 +33167,7 @@
 							}
 						},
 						"complete_when": {
-							"fact": "services-restored",
-							"op": "eq",
+							"fact": "reactor-secured",
 							"value": true
 						},
 						"fail_when": {
@@ -33218,6 +33305,36 @@
 								"slot": "courier"
 							}
 						}
+					},
+					{
+						"id": "rescue-wounded",
+						"type": "condition",
+						"title_key": "Rescue the trapped wounded",
+						"description_key": "Deploy Medical and reach the wounded before leaving them until last.",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"any": [
+								{
+									"fact": "wounded-saved",
+									"value": true
+								},
+								{
+									"fact": "wounded-late",
+									"value": true
+								}
+							]
+						},
+						"fail_when": {
+							"fact": "wounded-lost",
+							"value": true
+						}
 					}
 				],
 				"reports": [
@@ -33229,12 +33346,17 @@
 						"title_key": "Rescue operation debrief",
 						"objectives": [
 							"delivery",
+							"rescue-wounded",
 							"restore-propulsion",
 							"restore-services",
 							"recover-party",
 							"casualty-escape"
 						],
 						"facts": [
+							{
+								"fact": "trapped-crew-deaths",
+								"label_key": "Trapped crew deaths"
+							},
 							{
 								"fact": "propulsion-restored",
 								"label_key": "Propulsion restored"
@@ -33268,7 +33390,7 @@
 							{
 								"result": "success",
 								"title_key": "Rescue successful",
-								"explanation_key": "The casualty escaped and the repair party returned safely.",
+								"explanation_key": "The casualty escaped and the repair party was recovered. See the crew assessment and mission log for injuries and deaths.",
 								"when": {
 									"all": [
 										{
@@ -33412,6 +33534,74 @@
 									"title_key": "Delivery incomplete",
 									"explanation_key": "The receiving store had not received all 100 units before departure. Cargo still aboard or in transit earns no advance credit."
 								}
+							},
+							{
+								"id": "wounded",
+								"title_key": "Trapped crew",
+								"rules": [
+									{
+										"result": "saved",
+										"title_key": "All rescued",
+										"explanation_key": "The deployed Medical team reached and stabilised every trapped survivor.",
+										"when": {
+											"fact": "wounded-saved",
+											"value": true
+										}
+									},
+									{
+										"result": "late",
+										"title_key": "One death",
+										"explanation_key": "The wounded were left until last. One died before Medical reached them.",
+										"when": {
+											"fact": "wounded-late",
+											"value": true
+										}
+									},
+									{
+										"result": "lost",
+										"title_key": "All trapped crew died",
+										"explanation_key": "There was no deployed Medical team to rescue them.",
+										"when": {
+											"fact": "wounded-lost",
+											"value": true
+										}
+									}
+								],
+								"fallback": {
+									"result": "unresolved",
+									"title_key": "Unresolved",
+									"explanation_key": "The wounded had not been reached before departure."
+								}
+							}
+						],
+						"log_events": [
+							{
+								"event": "rescue.distress",
+								"text_key": "Distress call received: Morrow marked on navigation."
+							},
+							{
+								"event": "rescue.reactor-emergency",
+								"text_key": "Morrow escalated its reactor emergency."
+							},
+							{
+								"event": "rescue.party-recovered",
+								"text_key": "Away team recovered."
+							},
+							{
+								"event": "rescue.casualty-escaped",
+								"text_key": "Morrow escaped the system."
+							},
+							{
+								"event": "rescue.casualty-lost",
+								"text_key": "Morrow was lost."
+							},
+							{
+								"event": "delivery.completed",
+								"text_key": "The station received the complete consignment."
+							},
+							{
+								"event": "delivery.expired",
+								"text_key": "Perishable delivery deadline expired."
 							}
 						]
 					}
@@ -33436,6 +33626,16 @@
 							}
 						},
 						"start": true
+					},
+					{
+						"id": "reactor-clock",
+						"tree": "base.scenario.reactor-emergency",
+						"bindings": {
+							"actor": {
+								"slot": "courier"
+							}
+						},
+						"start": true
 					}
 				]
 			},
@@ -33446,6 +33646,17 @@
 					"text_key": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
 					"requires": ["findings", "compartment_condition"],
 					"scan_ticks": 300
+				},
+				{
+					"id": "reactor-warning",
+					"target_entity": 1,
+					"text_key": "Reactor containment is pre-critical. A controlled shutdown now avoids an emergency. Pass this to Comms before the away team chooses its priorities.",
+					"requires": ["findings", "compartment_condition"],
+					"scan_ticks": 200,
+					"requires_event": "rescue.distress",
+					"unless_event": "rescue.reactor-secured",
+					"tag": "reactor_critical",
+					"destination_station": "comms"
 				}
 			],
 			"ship_briefings": {
@@ -43849,8 +44060,7 @@
 				},
 				"arrived": {
 					"speaker": "engineer",
-					"text_key": "Your team is aboard. Beginning inspection.",
-					"incoming_ticks": 20
+					"text_key": "Your repair team is aboard. The sealed compartment contains injured crew. Medical can help us reach and stabilise them; reactor control and propulsion also need work."
 				},
 				"stable": {
 					"speaker": "engineer",
@@ -43864,13 +44074,11 @@
 				},
 				"done": {
 					"speaker": "engineer",
-					"text_key": "Repairs complete. The team is ready for recovery.",
-					"incoming_ticks": 20
+					"text_key": "All work is resolved. Recall your teams. We will wait until visiting personnel and transfers are clear before departing."
 				},
 				"interrupt": {
 					"speaker": "engineer",
-					"text_key": "Team recovered. Completed repairs remain in place; unfinished work can resume.",
-					"incoming_ticks": 20
+					"text_key": "The reactor has become critical. We have stopped the current job; completed work is retained."
 				},
 				"ready": {
 					"speaker": "engineer",
@@ -43891,25 +44099,87 @@
 					"speaker": "engineer",
 					"text_key": "mission.rescue.rescue.clearance",
 					"incoming_ticks": 40
+				},
+				"wounded": {
+					"speaker": "engineer",
+					"text_key": "We are opening the sealed compartment and stabilising the wounded."
+				},
+				"reactor": {
+					"speaker": "engineer",
+					"text_key": "We are securing reactor control before the situation deteriorates."
+				},
+				"propulsion": {
+					"speaker": "engineer",
+					"text_key": "We are restoring propulsion and steering."
+				},
+				"reactor-done": {
+					"speaker": "engineer",
+					"text_key": "The reactor is secure. The immediate danger is over."
+				},
+				"propulsion-done": {
+					"speaker": "engineer",
+					"text_key": "Propulsion and steering are restored. The other jobs still need to be finished."
+				},
+				"wounded-done": {
+					"speaker": "engineer",
+					"text_key": "The trapped crew are out and stabilised."
+				},
+				"wounded-late": {
+					"speaker": "engineer",
+					"text_key": "We reached the wounded last. One person died before we could stabilise them; the others are out."
+				},
+				"wounded-lost": {
+					"speaker": "engineer",
+					"text_key": "Without Medical assistance we could not recover the trapped crew alive. All of them have died."
 				}
 			},
 			"prompts": {
 				"priority": {
 					"speaker": "engineer",
-					"text_key": "Which work should we prioritise?",
+					"text_key": "We have injured crew trapped behind the sealed bulkhead. They need us now. We also need to secure the reactor and restore propulsion. Which job comes first?",
 					"choices": [
 						{
-							"id": "stabilise",
-							"text_key": "Stabilise services, then repair propulsion."
+							"id": "wounded",
+							"text_key": "Reach and stabilise the wounded first.",
+							"requires_capability": "medical",
+							"unavailable_reason": "A deployed Medical team is required to rescue the trapped crew."
+						},
+						{
+							"id": "reactor",
+							"text_key": "Secure the reactor first."
 						},
 						{
 							"id": "propulsion",
-							"text_key": "Prioritise propulsion."
+							"text_key": "Restore propulsion first."
 						}
 					],
 					"timeout_ticks": 600,
-					"default_choice": "stabilise",
-					"ai_choice": "stabilise",
+					"default_choice": "wounded",
+					"ai_choice": "wounded",
+					"ai_delay_ticks": 200,
+					"ai_rules": [
+						{
+							"received_tag": "reactor_critical",
+							"choice": "reactor"
+						}
+					]
+				},
+				"shutdown": {
+					"speaker": "engineer",
+					"text_key": "The reactor is going critical. Work has stopped. A controlled shutdown will expose our repair-team duty officer to serious injury; an immediate manual shutdown will kill that officer. If no officer is with the team, neither option risks an officer. Choose our shutdown procedure.",
+					"choices": [
+						{
+							"id": "slow",
+							"text_key": "Controlled shutdown: slower; duty officer injured."
+						},
+						{
+							"id": "fast",
+							"text_key": "Immediate shutdown: faster; duty officer killed."
+						}
+					],
+					"timeout_ticks": 600,
+					"default_choice": "slow",
+					"ai_choice": "slow",
 					"ai_delay_ticks": 200
 				}
 			},
@@ -43926,160 +44196,7 @@
 							"arguments": ["clearance"]
 						}
 					],
-					"transitions": [
-						{
-							"target": "ask",
-							"conditions": [
-								{
-									"left": {
-										"observation": "event"
-									},
-									"op": "eq",
-									"right": "arrived"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "ask",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["arrived"]
-						},
-						{
-							"action": "offer",
-							"arguments": ["priority"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "stable",
-							"conditions": [
-								{
-									"left": {
-										"observation": "answer"
-									},
-									"op": "eq",
-									"right": "stabilise"
-								}
-							]
-						},
-						{
-							"target": "priority",
-							"conditions": [
-								{
-									"left": {
-										"observation": "answer"
-									},
-									"op": "eq",
-									"right": "propulsion"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "stable",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["stable"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "done",
-							"conditions": [
-								{
-									"left": {
-										"observation": "event"
-									},
-									"op": "eq",
-									"right": "done"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "priority",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["priority"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "done",
-							"conditions": [
-								{
-									"left": {
-										"observation": "event"
-									},
-									"op": "eq",
-									"right": "done"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "done",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["done"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "charging",
-							"conditions": [
-								{
-									"left": {
-										"observation": "event"
-									},
-									"op": "eq",
-									"right": "rescue.work-completed"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "charging",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["ready"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "ready",
-							"conditions": [
-								{
-									"left": {
-										"observation": "event"
-									},
-									"op": "eq",
-									"right": "rescue.casualty-ready"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "ready",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["charged"]
-						}
-					]
+					"transitions": []
 				}
 			]
 		},
@@ -44087,12 +44204,16 @@
 			"id": "base.away.rescue",
 			"context": "away",
 			"initial": "wait",
+			"flags": ["reactor", "propulsion", "wounded", "wounded-late", "emergency"],
+			"team_capabilities": ["medical"],
+			"events": ["rescue.reactor-emergency"],
 			"states": [
 				{
 					"id": "wait",
+					"entry": [],
 					"transitions": [
 						{
-							"target": "inspect",
+							"target": "ask",
 							"conditions": [
 								{
 									"left": {
@@ -44103,28 +44224,41 @@
 								}
 							]
 						}
-					],
-					"entry": []
+					]
 				},
 				{
-					"id": "inspect",
+					"id": "ask",
 					"entry": [
 						{
-							"action": "checkpoint",
-							"arguments": ["inspection"]
+							"action": "pause",
+							"arguments": [""]
 						},
 						{
-							"action": "report",
-							"arguments": ["arrived"]
+							"action": "offer",
+							"arguments": ["priority"]
 						}
 					],
 					"transitions": [
 						{
-							"target": "recovered",
+							"target": "done",
 							"conditions": [
 								{
 									"left": {
-										"observation": "recovered"
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.propulsion"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.wounded"
 									},
 									"op": "eq",
 									"right": true
@@ -44132,19 +44266,125 @@
 							]
 						},
 						{
-							"target": "stable",
+							"target": "shutdown",
+							"conditions": [
+								{
+									"left": {
+										"observation": "events.rescue.reactor-emergency"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "no-medical",
+							"conditions": [
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.propulsion"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.wounded"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "team_capabilities.medical"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "wounded-start",
 							"conditions": [
 								{
 									"left": {
 										"observation": "answer"
 									},
 									"op": "eq",
-									"right": "stabilise"
+									"right": "wounded"
+								},
+								{
+									"left": {
+										"observation": "flags.wounded"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
 								}
 							]
 						},
 						{
-							"target": "priority",
+							"target": "reactor-start",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "reactor"
+								},
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "propulsion-start",
 							"conditions": [
 								{
 									"left": {
@@ -44152,17 +44392,196 @@
 									},
 									"op": "eq",
 									"right": "propulsion"
+								},
+								{
+									"left": {
+										"observation": "flags.propulsion"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
 								}
 							]
 						}
 					]
 				},
 				{
-					"id": "stable",
+					"id": "shutdown",
+					"entry": [
+						{
+							"action": "pause",
+							"arguments": [""]
+						},
+						{
+							"action": "mark",
+							"arguments": ["emergency"]
+						},
+						{
+							"action": "say",
+							"arguments": ["interrupt"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Reactor emergency interrupted the away operation."]
+						},
+						{
+							"action": "offer",
+							"arguments": ["shutdown"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "shutdown-slow",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "slow"
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "shutdown-fast",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "fast"
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "shutdown-slow",
 					"entry": [
 						{
 							"action": "checkpoint",
-							"arguments": ["services"]
+							"arguments": ["reactor-slow"]
+						},
+						{
+							"action": "injure_duty",
+							"arguments": ["repair-team"]
+						},
+						{
+							"action": "restore_compartment",
+							"arguments": ["mid-port"]
+						},
+						{
+							"action": "work",
+							"arguments": [1600]
+						},
+						{
+							"action": "log",
+							"arguments": ["Controlled reactor shutdown ordered."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "reactor-done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "shutdown-fast",
+					"entry": [
+						{
+							"action": "checkpoint",
+							"arguments": ["reactor-fast"]
+						},
+						{
+							"action": "kill_duty",
+							"arguments": ["repair-team"]
+						},
+						{
+							"action": "restore_compartment",
+							"arguments": ["mid-port"]
+						},
+						{
+							"action": "work",
+							"arguments": [200]
+						},
+						{
+							"action": "log",
+							"arguments": ["Immediate reactor shutdown ordered."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "reactor-done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "reactor-start",
+					"entry": [
+						{
+							"action": "checkpoint",
+							"arguments": ["reactor"]
+						},
+						{
+							"action": "say",
+							"arguments": ["reactor"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Priority: secure the reactor."]
 						},
 						{
 							"action": "restore_compartment",
@@ -44175,11 +44594,18 @@
 					],
 					"transitions": [
 						{
-							"target": "recovered",
+							"target": "reactor-done",
 							"conditions": [
 								{
 									"left": {
-										"observation": "recovered"
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "deployed"
 									},
 									"op": "eq",
 									"right": true
@@ -44187,11 +44613,25 @@
 							]
 						},
 						{
-							"target": "restore-services",
+							"target": "shutdown",
 							"conditions": [
 								{
 									"left": {
-										"observation": "work_done"
+										"observation": "events.rescue.reactor-emergency"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
 									},
 									"op": "eq",
 									"right": true
@@ -44201,54 +44641,50 @@
 					]
 				},
 				{
-					"id": "priority",
+					"id": "reactor-done",
 					"entry": [
 						{
-							"action": "checkpoint",
-							"arguments": ["priority-propulsion"]
+							"action": "pause",
+							"arguments": [""]
 						},
 						{
-							"action": "restore_compartment",
-							"arguments": ["stern-port"]
+							"action": "mark",
+							"arguments": ["reactor"]
 						},
 						{
-							"action": "work",
-							"arguments": [650]
+							"action": "emit",
+							"arguments": ["rescue.reactor-secured"]
+						},
+						{
+							"action": "say",
+							"arguments": ["reactor-done"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Reactor secured."]
 						}
 					],
 					"transitions": [
 						{
-							"target": "recovered",
-							"conditions": [
-								{
-									"left": {
-										"observation": "recovered"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
-						},
-						{
-							"target": "done",
-							"conditions": [
-								{
-									"left": {
-										"observation": "work_done"
-									},
-									"op": "eq",
-									"right": true
-								}
-							]
+							"target": "ask",
+							"conditions": []
 						}
 					]
 				},
 				{
-					"id": "drive",
+					"id": "propulsion-start",
 					"entry": [
 						{
 							"action": "checkpoint",
 							"arguments": ["propulsion"]
+						},
+						{
+							"action": "say",
+							"arguments": ["propulsion"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Priority: restore propulsion."]
 						},
 						{
 							"action": "restore_compartment",
@@ -44261,11 +44697,25 @@
 					],
 					"transitions": [
 						{
-							"target": "recovered",
+							"target": "shutdown",
 							"conditions": [
 								{
 									"left": {
-										"observation": "recovered"
+										"observation": "events.rescue.reactor-emergency"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
 									},
 									"op": "eq",
 									"right": true
@@ -44273,7 +44723,7 @@
 							]
 						},
 						{
-							"target": "done",
+							"target": "propulsion-done",
 							"conditions": [
 								{
 									"left": {
@@ -44281,8 +44731,302 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
 								}
 							]
+						}
+					]
+				},
+				{
+					"id": "propulsion-done",
+					"entry": [
+						{
+							"action": "pause",
+							"arguments": [""]
+						},
+						{
+							"action": "mark",
+							"arguments": ["propulsion"]
+						},
+						{
+							"action": "say",
+							"arguments": ["propulsion-done"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Propulsion and steering restored."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "ask",
+							"conditions": []
+						}
+					]
+				},
+				{
+					"id": "wounded-start",
+					"entry": [
+						{
+							"action": "checkpoint",
+							"arguments": ["wounded"]
+						},
+						{
+							"action": "require_team",
+							"arguments": ["medical"]
+						},
+						{
+							"action": "say",
+							"arguments": ["wounded"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Priority: rescue the wounded."]
+						},
+						{
+							"action": "timed_work",
+							"arguments": [600]
+						}
+					],
+					"transitions": [
+						{
+							"target": "wounded-last",
+							"conditions": [
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.propulsion"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "wounded-work",
+							"conditions": []
+						}
+					]
+				},
+				{
+					"id": "wounded-last",
+					"entry": [
+						{
+							"action": "mark",
+							"arguments": ["wounded-late"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "wounded-work",
+							"conditions": []
+						}
+					]
+				},
+				{
+					"id": "wounded-work",
+					"entry": [],
+					"transitions": [
+						{
+							"target": "ask",
+							"conditions": [
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "team_capabilities.medical"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "shutdown",
+							"conditions": [
+								{
+									"left": {
+										"observation": "events.rescue.reactor-emergency"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.reactor"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "wounded-late",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "flags.wounded-late"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "wounded-done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "wounded-done",
+					"entry": [
+						{
+							"action": "pause",
+							"arguments": [""]
+						},
+						{
+							"action": "mark",
+							"arguments": ["wounded"]
+						},
+						{
+							"action": "emit",
+							"arguments": ["rescue.wounded-saved"]
+						},
+						{
+							"action": "say",
+							"arguments": ["wounded-done"]
+						},
+						{
+							"action": "log",
+							"arguments": ["All trapped crew rescued and stabilised."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "ask",
+							"conditions": []
+						}
+					]
+				},
+				{
+					"id": "wounded-late",
+					"entry": [
+						{
+							"action": "pause",
+							"arguments": [""]
+						},
+						{
+							"action": "mark",
+							"arguments": ["wounded"]
+						},
+						{
+							"action": "crew_deaths",
+							"arguments": [1]
+						},
+						{
+							"action": "emit",
+							"arguments": ["rescue.wounded-late"]
+						},
+						{
+							"action": "say",
+							"arguments": ["wounded-late"]
+						},
+						{
+							"action": "log",
+							"arguments": [
+								"Wounded reached last: one trapped crew member died; the others were rescued."
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "ask",
+							"conditions": []
+						}
+					]
+				},
+				{
+					"id": "no-medical",
+					"entry": [
+						{
+							"action": "mark",
+							"arguments": ["wounded"]
+						},
+						{
+							"action": "crew_deaths",
+							"arguments": [4]
+						},
+						{
+							"action": "emit",
+							"arguments": ["rescue.wounded-lost"]
+						},
+						{
+							"action": "say",
+							"arguments": ["wounded-lost"]
+						},
+						{
+							"action": "log",
+							"arguments": ["No Medical team: all four trapped crew died."]
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": []
 						}
 					]
 				},
@@ -44290,110 +45034,23 @@
 					"id": "done",
 					"entry": [
 						{
-							"action": "report",
+							"action": "pause",
+							"arguments": [""]
+						},
+						{
+							"action": "say",
 							"arguments": ["done"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Away work resolved; teams ready for recovery."]
 						},
 						{
 							"action": "complete",
 							"arguments": ["repairs"]
 						}
-					]
-				},
-				{
-					"id": "recovered",
-					"entry": [
-						{
-							"action": "report",
-							"arguments": ["recovered"]
-						}
 					],
-					"transitions": [
-						{
-							"target": "inspect",
-							"conditions": [
-								{
-									"left": {
-										"observation": "deployed"
-									},
-									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "checkpoint"
-									},
-									"op": "eq",
-									"right": "inspection"
-								}
-							]
-						},
-						{
-							"target": "stable",
-							"conditions": [
-								{
-									"left": {
-										"observation": "deployed"
-									},
-									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "checkpoint"
-									},
-									"op": "eq",
-									"right": "services"
-								}
-							]
-						},
-						{
-							"target": "drive",
-							"conditions": [
-								{
-									"left": {
-										"observation": "deployed"
-									},
-									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "checkpoint"
-									},
-									"op": "eq",
-									"right": "propulsion"
-								}
-							]
-						},
-						{
-							"target": "priority",
-							"conditions": [
-								{
-									"left": {
-										"observation": "deployed"
-									},
-									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "checkpoint"
-									},
-									"op": "eq",
-									"right": "priority-propulsion"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "restore-services",
-					"entry": [],
-					"transitions": [
-						{
-							"target": "drive"
-						}
-					]
+					"transitions": []
 				}
 			]
 		},
@@ -47203,12 +47860,55 @@
 			"states": [
 				{
 					"id": "operate",
+					"entry": [],
+					"transitions": [
+						{
+							"target": "objective",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					],
 					"running": [
 						{
 							"action": "write.target",
 							"arguments": [
 								{
 									"observation": "tactical.target"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "objective",
+					"entry": [],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.target"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "objective.target"
 								}
 							]
 						}
@@ -49895,6 +50595,16 @@
 								},
 								"casualty-escape"
 							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"rescue-wounded",
+								{
+									"observation": "self.entity"
+								},
+								"rescue-wounded"
+							]
 						}
 					]
 				}
@@ -51066,6 +51776,82 @@
 					"controller": "shield-priority",
 					"channel": "priority",
 					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.scenario.reactor-emergency",
+			"context": "scenario",
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting",
+					"entry": [],
+					"transitions": [
+						{
+							"target": "safe",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.reactor-secured"
+								}
+							]
+						},
+						{
+							"target": "emergency",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tick"
+									},
+									"op": "ge",
+									"right": 7200
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "emergency",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["rescue.reactor-emergency", 0, false, ""]
+						}
+					],
+					"transitions": []
+				},
+				{
+					"id": "safe",
+					"entry": [],
+					"transitions": []
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.reactor-emergency",
+			"context": "conversation",
+			"initial": "hail",
+			"lines": {
+				"escalation": {
+					"speaker": "engineer",
+					"text_key": "Morrow to rescue ship: our reactor containment is failing. This is now critical. We need your repair team aboard to shut it down. The sealed compartments still contain injured crew.",
+					"received_tag": "reactor_critical"
+				}
+			},
+			"states": [
+				{
+					"id": "hail",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["escalation"]
+						}
+					],
+					"transitions": []
 				}
 			]
 		}
