@@ -55,6 +55,10 @@ jobs:
           path: |
             build/native/base.zip
             build/native/base.zip.menu.json
+            build/native/base.zip.clients/
+            build/native/test-missions.zip
+            build/native/test-missions.zip.menu.json
+            build/native/test-missions.zip.clients/
             build/native/continuation.trace
             build/native/*-continuation.trace
   linux:
@@ -70,7 +74,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-19 clang-tools-19 ninja-build python3-pip pkg-config openssl \
             libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
-            libasound2-dev libudev-dev libdbus-1-dev libgtk-3-dev
+            libasound2-dev libudev-dev libdbus-1-dev libgtk-3-dev libcurl4-openssl-dev
           python3 -m pip install --target .tools/linux cmake==3.31.6
           echo "$PWD/.tools/linux/cmake/data/bin" >> "$GITHUB_PATH"
       - name: Build game and packager; run native and network integration
@@ -113,7 +117,7 @@ jobs:
             }
           }
           Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $site
-          Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json -Destination $site
+          Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json,build/native/base.zip.clients,build/native/test-missions.zip,build/native/test-missions.zip.menu.json,build/native/test-missions.zip.clients -Destination $site -Recurse
           Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
           node scripts/verify-deployment.mjs build/pages
       - name: Upload GitHub Pages artifact

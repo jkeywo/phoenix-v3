@@ -201,3 +201,7 @@ a 30-second live confirmation, after correcting tree takeover and scheduling.
 The 4B comparison remained slower than the request deadline. Steering judgement,
 longer-run stability and six-display frame times remain unaccepted; an earlier
 75-second attempt timed out. See [measurements and limitations](smoke/controller-model-live.md).
+
+## Game-pack split and staged loading — 23 October 2026
+
+The root now contains ships and Rescue; Test Missions is a disabled child preserving the seven experimental mission IDs and migrated edits. CLI and Workshop generate menu metadata and whole-ship public Console DAT companions. Native/browser menus become interactive before background gameplay verification; entry awaits the current selection. Player joins prefer authenticated matching published/cached DATs and fall back to host-generated transfer. Build staging and deployment include the companions. See [packaging](asset-loading.md), [base migration](base-mods.md) and the [validation receipt](smoke/game-pack-loading.md) for exercised paths and remaining hardware scope.

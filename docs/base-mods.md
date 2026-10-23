@@ -8,9 +8,15 @@ Player name/avatar, pack selections and saves are isolated by local profile and 
 
 Invitation URLs include the base reference. Native hosts using a custom local archive can pass `--base-url <browser-accessible-pack-url>` for joining devices. The archive must be served to those devices; a native filesystem path is not a download URL. Admission checks the launched base ID and hash before accepting participants. Saves require their original base revision.
 
-Browser menus verify the complete root with the production C++ content loader in a disposable worker before displaying launch choices. Embedded `launcher.json` previews cannot bypass verification or replace verified definitions. IndexedDB writes merge the active base and global profile into the latest stored index in one transaction, preserving other tabs' namespaces.
+Menus open from adjacent `<archive>.menu.json` display metadata. Native verifies full content on a background thread after its first menu frame; browsers start a disposable C++ verification worker after metadata, preferences and artwork are ready. Lobby entry waits for the current enabled selection and validates the chosen mission/ship against verified definitions. Missing, unsupported or malformed sidecars use the full archive loader. Previews cannot bypass verification. IndexedDB writes merge the active base and global profile into the latest stored index in one transaction, preserving other tabs' namespaces.
 
 Pre-base `phoenix-base` archives have a narrowly scoped sprite/current-interface adapter. This permits migration of old default-profile preferences and saves when launched with their original root revision; it does not admit arbitrary manifests without a base declaration or bypass save content hashes. The application has no persisted recent-session list or operating-system pack associations; any future such settings must use the same profile/base namespace.
+
+## Bundled mission mod
+
+`content/base` keeps the `phoenix-base` identity, ships and their supporting content, and **Rescue under threat**. `content/test-missions` is the child `phoenix-test-missions`: Free Flight, Courier Patrol, Courier Race, Asteroid duel, Comms demonstration, Boarding action and Cruiser combat test retain their original mission IDs. The child is installed disabled. Enable it in Mod Packs to expose these missions.
+
+On upgrading a combined installed base, the production loader moves those seven missions, including edits, into the child. Other authored records remain in the base. The new child is disabled on that migration; subsequent launches retain the chosen enabled state. Exact old archive blobs and portable saves remain available. The independent development roots below are unchanged.
 
 ## Development roots
 

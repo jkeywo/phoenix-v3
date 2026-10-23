@@ -68,11 +68,11 @@ try
 		}
 		if ($Target -eq 'web')
 		{
-			foreach ($file in @('base.zip', 'base.zip.menu.json'))
+			foreach ($file in @('base.zip', 'base.zip.menu.json', 'test-missions.zip', 'test-missions.zip.menu.json', 'base.zip.clients', 'test-missions.zip.clients'))
 			{
 				if (Test-Path "build/native/$file")
 				{
-					Copy-Item -LiteralPath "build/native/$file" -Destination "build/web/$file"
+					Copy-Item -LiteralPath "build/native/$file" -Destination "build/web" -Recurse -Force
 				}
 			}
 		}

@@ -523,12 +523,17 @@ else()
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
 	)
 	file(GLOB_RECURSE mission_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions/*")
+	file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt" CONTENT "${mission_sources}" @ONLY)
 	add_custom_command(
 		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip.menu.json"
 		COMMAND
 			phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/test-missions" "${CMAKE_CURRENT_BINARY_DIR}/test-missions.zip"
 			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-		DEPENDS phoenix_pack ${mission_sources} "${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+		DEPENDS
+			phoenix_pack
+			${mission_sources}
+			"${CMAKE_CURRENT_BINARY_DIR}/test-missions-inputs.txt"
+			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
 		VERBATIM
 	)
 	add_custom_target(
