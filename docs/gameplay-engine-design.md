@@ -164,6 +164,10 @@ Value evaluation and lifetime dependency are separate. A launched projectile or 
 
 Loss of an ongoing dependency invokes the authored pause or stop behaviour. Completed damage, transfers and other independent consequences are not undone.
 
+Equipment-granted shield contributions persist while the equipment is installed. Installation creates the contribution and its initial reserve once. Enablement, funding and damage affect operation rather than removing and recreating the contribution. Lowering a shield or losing power removes coverage while preserving stored strength and fractional accounting; existing off-state recharge and discharge rules still apply. Raising it resumes the same contribution through normal warmup. Refreshing or updating its effect does not refill it.
+
+Removing the equipment removes its shield contribution and any remaining strength without an automatic refund. Temporary shields follow their authored duration and dependencies: expiry removes the contribution, while switching protection off need not expire it. Explicit fill operations can change the reserve when intended.
+
 ### Reapplication and source identity
 
 Reapplying the same timed modifier from the same original source to the same target refreshes that contribution rather than accumulating another copy. Refresh never shortens its remaining duration. Contributions from different sources add.

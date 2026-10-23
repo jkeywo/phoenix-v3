@@ -6,7 +6,7 @@ Reviewed the [target design](gameplay-engine-design.md) against catalogue compos
 
 **Conclusion:** shields remain a reasonable first slice, but the design is not yet an implementation specification for that slice. The main gaps concern the lifecycle and bindings of a shield contribution that is no longer identical to a fitted System. They do not require designing the whole resource/recipe engine first.
 
-Recommendations below are proposals, not newly agreed decisions.
+Recommendations below remain proposals unless explicitly marked agreed.
 
 ## Decisions to settle before the first slice
 
@@ -18,7 +18,7 @@ Recommendations below are proposals, not newly agreed decisions.
 
 **Recommendation.** Equipment installation creates a persistent contribution once. Enabled, funded, structurally available and discharging are operating states of that contribution, not reasons to recreate it. Preserve strength and fractional accounting through ordinary disablement/power loss. Removal/expiry is a distinct lifecycle event; subsequent genuinely new creation uses the authored initial value. Refresh updates the existing instance without refilling it. Explicit fill operations remain available when an author intends a refill.
 
-**Decision needed.** Confirm these distinctions, including what source destruction means for a dependent grant versus an independently applied shield. The general independent-effect rule is already agreed; the shield adapter must say which lifetime its grant uses.
+**Agreed, 23 October 2026.** Equipment grants persist while installed. Enablement, funding and damage change operation rather than contribution existence. Lowering/power loss retains reserve, raising resumes warmup, and refresh does not refill. Removing equipment removes its contribution and remaining strength without refund. Temporary grants follow their own duration and dependencies; stopping coverage does not itself expire them. This contract is incorporated into the target design.
 
 ### 2. Define contribution granularity and identity separately from modifier stacking
 
