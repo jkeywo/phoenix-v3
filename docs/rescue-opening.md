@@ -24,6 +24,8 @@ Outstanding Cruiser deliveries receive station reminders at 5, 8, 15 and 18 minu
 
 Crossing the station approach boundary halfway from arrival triggers Morrow's distress call once. Swept player-ship movement detects the crossing even at high speed; carried craft cannot trigger it. The pirate delay begins at that event. Morrow identifies its location, lost propulsion and steering, sealed damaged compartments and injured crew, then clears the existing repair deployment destination. The existing repair choices, optional Medical contribution, recall, recovery and escape remain available.
 
+The distress trigger immediately publishes **Respond to Morrow's distress call** at Morrow's position on the navigation map. It requires no acknowledgment or conversation choice. The approach objective completes when the player ship enters the rendezvous area; it does not complete repairs or change the delivery result. The rendezvous region is authored with the casualty's position and a Cruiser-safe approach radius.
+
 Departure freezes both the rescue result and a separate delivery assessment. A shuttle still in transit receives no advance delivery credit. The report also records the quantity actually received.
 
 ## Authoring and continuation

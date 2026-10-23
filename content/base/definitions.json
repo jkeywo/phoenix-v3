@@ -32863,6 +32863,15 @@
 								"slot": "courier"
 							}
 						}
+					},
+					{
+						"id": "respond-distress",
+						"type": "reach_region",
+						"region": "morrow-rendezvous",
+						"title_key": "Respond to Morrow's distress call",
+						"description_key": "Morrow's distress transmission marks its position in the asteroid field. Approach through the clear southern opening.",
+						"actor": { "slot": "courier" },
+						"recipients": { "ship": { "slot": "courier" } }
 					}
 				],
 				"reports": [
@@ -33122,6 +33131,13 @@
 					"x_mm": 1800000,
 					"y_mm": 0,
 					"radius_mm": 900000
+				},
+				{
+					"id": "morrow-rendezvous",
+					"shape": "circle",
+					"x_mm": 950000,
+					"y_mm": 900000,
+					"radius_mm": 300000
 				},
 				{
 					"id": "station-chart",
@@ -49461,6 +49477,10 @@
 				{
 					"id": "distress",
 					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": ["respond-distress", { "observation": "self.entity" }, "respond-distress"]
+						},
 						{
 							"action": "emit_scenario_event",
 							"arguments": ["rescue.distress", 0, false, ""]
