@@ -222,7 +222,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	{
 		// A Console needs public radar icons, not the ship's detailed hull material.
 		entity["render"] = {{"mode", "camera"}, {"scale", 1}, {"images", Json::array()}};
-		const Bytes pixel = {'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 1, 0, 0, 0, 1, 0, 0, 0, 255, 255, 255, 255};
+		const AssetImage pixel{1, 1, {255, 255, 255, 255}};
 		if (!own_icon.empty())
 			entity["render"]["radar_sprite"] = own_icon;
 		entity["render"]["radar_icon"] = std::string(radar_icon_name(render_radar_icon(source.at("render"))));

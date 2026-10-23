@@ -74,8 +74,7 @@ int main()
 		}
 		{
 			// Independent 2x1 panorama, never derived from production artwork.
-			const Bytes pixels{'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 2,  0,  0,  0,
-			                   1,   0,   0,   0,   80,  20,  10,  255, 10, 20, 80, 255};
+			const AssetImage pixels{2, 1, {80, 20, 10, 255, 10, 20, 80, 255}};
 			PackDraft sky;
 			sky.manifest = {{"schema", 1}, {"id", "test-sky"}};
 			sky.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
@@ -119,7 +118,7 @@ int main()
 				const auto scenario = read_pack(document.export_pack(encoding, true));
 				const auto roundtrip = resolve_packs({sky_pack, saved, scenario});
 				require(roundtrip.maps.at(map)["presentation"]["skybox"] == reference &&
-				            decode_asset_image(roundtrip.assets.at(reference)).rgba == decode_asset_image(pixels).rgba,
+				            decode_asset_image(roundtrip.assets.at(reference)).rgba == pixels.rgba,
 				        "ZIP/DAT scenario export retains dependency panorama and pixels");
 				document.map()["presentation"].erase("skybox");
 				require(!resolve_packs({sky_pack, read_pack(document.export_pack(encoding))})
@@ -131,9 +130,9 @@ int main()
 				require(!document.map().value("presentation", Json::object()).contains("skybox"),
 				        "new maps default to no skybox");
 			}
-			Bytes cube{'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 1, 0, 0, 0, 6, 0, 0, 0};
+			AssetImage cube{1, 6, {}};
 			for (int face = 0; face < 6; ++face)
-				cube.insert(cube.end(), {static_cast<unsigned char>(face * 40), 20, 80, 255});
+				cube.rgba.insert(cube.rgba.end(), {static_cast<unsigned char>(face * 40), 20, 80, 255});
 			sky.files["assets/sky.png"] = source_asset_image(cube);
 			auto cube_catalog = resolve_packs({read_pack(write_pack(sky)), read_pack(write_pack(draft))});
 			require(scenario_assets(cube_catalog, map) == prepared,
@@ -199,13 +198,62 @@ int main()
 				        "Workshop model export preserves representation and attachment definitions");
 			}
 		}
+		{
+			// Independent colour/data texture: all alpha levels and nonzero RGB under alpha=0.
+			AssetImage raw{256, 1, {}};
+			for (unsigned i = 0; i < 256; ++i)
+			{
+				raw.rgba.push_back(static_cast<std::uint8_t>(i));
+				raw.rgba.push_back(static_cast<std::uint8_t>(255 - i));
+				raw.rgba.push_back(static_cast<std::uint8_t>(i ^ 85));
+				raw.rgba.push_back(static_cast<std::uint8_t>(i % 4 ? i : 0));
+			}
+			auto draft = base;
+			const auto png = source_asset_image(raw);
+			draft.files["assets/lossless.png"] = png;
+			const auto encoded = write_pack(draft, PackEncoding::Dat);
+			const auto packed = read_pack(encoded);
+			resolve_packs({packed});
+			const auto &image = packed.files().at("assets/lossless.png");
+			require(std::string(image.begin(), image.begin() + 8) == "PHXWEBP1", "DAT uses versioned lossless WebP");
+			std::cout << "LOSSLESS-FIXTURE " << sha256(image) << "\n";
+			require(decode_asset_image(image).rgba == raw.rgba,
+			        "all RGBA bytes including hidden RGB survive DAT packaging");
+			require(draft.files.at("assets/lossless.png") == png, "packaging leaves PNG sources unchanged");
+			const auto editable = read_pack(write_pack(packed.draft()));
+			require(decode_asset_image(editable.files().at("assets/lossless.png")).rgba == raw.rgba,
+			        "Workshop-compatible PNG re-export preserves all decoded pixels");
+			auto truncated = image;
+			truncated.resize(25);
+			rejected(
+			    [&]
+			    {
+				    decode_asset_image(truncated);
+			    },
+			    "WebP");
+			auto obsolete = image;
+			std::copy_n("PHXRGBA1", 8, obsolete.begin());
+			rejected(
+			    [&]
+			    {
+				    decode_asset_image(obsolete);
+			    },
+			    "unsupported compiled image version");
+			draft.files["assets/lossless.png"] = obsolete;
+			rejected(
+			    [&]
+			    {
+				    write_pack(draft, PackEncoding::Dat);
+			    },
+			    "unsupported compiled image version");
+		}
 		const auto dat = write_pack(base, PackEncoding::Dat);
 		const auto compiled_pack = read_pack(dat);
 		const auto compiled_catalog = resolve_packs({compiled_pack});
 		require(compiled_pack.hash() == sha256(dat) && compiled_catalog.entities == catalog.entities &&
 		            compiled_catalog.maps == catalog.maps,
 		        "ZIP/DAT share the production catalogue and exact byte identity");
-		require(compiled_image(compiled_pack.files().at("assets/pixel.png")), "DAT stores predecoded pixels");
+		require(compiled_image(compiled_pack.files().at("assets/pixel.png")), "DAT stores versioned lossless pixels");
 		require(decode_asset_image(compiled_pack.files().at("assets/pixel.png")).rgba ==
 		            decode_asset_image(base.files.at("assets/pixel.png")).rgba,
 		        "compiled pixels preserve source image");

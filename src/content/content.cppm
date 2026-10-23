@@ -403,6 +403,7 @@ AssetImage decode_asset_image(std::span<const std::uint8_t> bytes);
 std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes);
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes);
 Bytes source_asset_image(std::span<const std::uint8_t> bytes);
+Bytes source_asset_image(const AssetImage &image);
 void verify_pack_draft(const PackDraft &pack);
 Catalog resolve_packs(const std::vector<Pack> &ordered);
 Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console = {},

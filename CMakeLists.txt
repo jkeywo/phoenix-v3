@@ -145,6 +145,31 @@ FetchContent_Declare(
 	SOURCE_SUBDIR phoenix-no-cmake
 )
 FetchContent_MakeAvailable(json miniz picosha2)
+# Exact lossless DAT pixels; identical scalar encoder on native and WASM.
+set(WEBP_ENABLE_SIMD OFF CACHE BOOL "" FORCE)
+set(WEBP_USE_THREAD OFF CACHE BOOL "" FORCE)
+foreach(
+	tool
+	ANIM_UTILS
+	CWEBP
+	DWEBP
+	GIF2WEBP
+	IMG2WEBP
+	VWEBP
+	WEBPINFO
+	WEBPMUX
+	EXTRAS
+)
+	set(WEBP_BUILD_${tool} OFF CACHE BOOL "" FORCE)
+endforeach()
+FetchContent_Declare(
+	webp
+	URL https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz
+	URL_HASH SHA256=e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564
+	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(webp)
+
 FetchContent_Declare(
 	qrcodegen
 	URL https://codeload.github.com/nayuki/QR-Code-generator/tar.gz/3c6d0b3cefb4e049dc337e82237c9644399716a8
@@ -285,7 +310,7 @@ add_library(
 target_link_libraries(
 	phoenix_content
 	PUBLIC phoenix_foundation phoenix_gameplay_definitions nlohmann_json::nlohmann_json
-	PRIVATE phoenix_zip
+	PRIVATE phoenix_zip webp
 )
 add_library(phoenix_persistence STATIC src/replication/store.cpp src/replication/durable.cpp)
 target_link_libraries(phoenix_persistence PUBLIC phoenix_replication)
@@ -702,6 +727,8 @@ configure_file(
 	COPYONLY
 )
 configure_file("${qrcodegen_SOURCE_DIR}/Readme.markdown" "${CMAKE_CURRENT_BINARY_DIR}/assets/QR-LICENSE.txt" COPYONLY)
+configure_file("${webp_SOURCE_DIR}/COPYING" "${CMAKE_CURRENT_BINARY_DIR}/assets/WEBP-LICENSE.txt" COPYONLY)
+configure_file("${webp_SOURCE_DIR}/PATENTS" "${CMAKE_CURRENT_BINARY_DIR}/assets/WEBP-PATENTS.txt" COPYONLY)
 add_library(
 	phoenix_tools
 	STATIC
