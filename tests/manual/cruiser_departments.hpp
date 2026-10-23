@@ -160,10 +160,14 @@ void cruiser_boarding(phoenix::Catalog catalog)
 		World world;
 		world.load(catalog, "base.boarding-action", {{"courier", "base.cruiser"}});
 		const auto ship = *world.ship_for_slot("courier");
-		for (const auto &[claim, console] :
-		     std::vector<std::pair<int, std::string>>{{901, "comms"}, {903, "science"}, {904, "tactical"}})
+		for (const auto &[claim, console] : std::vector<std::pair<int, std::string>>{
+		         {901, "comms"}, {902, "engineering"}, {903, "science"}, {904, "tactical"}})
 			if (!world.claim(claim, ship, console))
 				throw std::runtime_error("Cruiser boarding claim refused");
+		for (const auto claim : {902, 904})
+			if (!world.submit(claim, {ship, "preset", 2, {}}))
+				throw std::runtime_error("Boarding detailed workload refused");
+		world.tick();
 		for (const auto &definition : catalog.entities.at("base.cruiser").at("control_layout").at("controllers"))
 			for (const auto &channel : definition.at("commands"))
 				if (channel.at("action") == "system_enabled" &&
@@ -217,7 +221,7 @@ void cruiser_boarding(phoenix::Catalog catalog)
 				throw std::runtime_error("Cruiser boarding refused " + action + ": " + mission().dump());
 			world.tick();
 		};
-		order(901, "dispatch", "open");
+		order(904, "dispatch", "open");
 		order(904, "security-1", "assign", "security/team:security-1");
 		order(903, "medical-1", "assign", "medical/team:medical-1");
 		std::string craft;
@@ -228,10 +232,10 @@ void cruiser_boarding(phoenix::Catalog catalog)
 				craft = row.at("id");
 				break;
 			}
-		order(904, "utility-bay", "transport", "craft:" + craft);
+		order(902, "utility-bay", "transport", "craft:" + craft);
 		for (int i = 0; i < 200; ++i)
 			world.tick();
-		if (world.can_submit(901, command(901, "dispatch", "send")))
+		if (world.can_submit(904, command(904, "dispatch", "send")))
 			throw std::runtime_error("Cruiser shuttle bypassed boarding hull gate");
 		auto damaged = world.save();
 		for (auto &body : damaged["bodies"])
@@ -239,7 +243,7 @@ void cruiser_boarding(phoenix::Catalog catalog)
 				for (auto &room : body["combat"]["compartments"])
 					room["hp"] = room.at("hp").get<std::int64_t>() * 49 / 100;
 		world.restore(catalog, damaged);
-		order(901, "dispatch", "send");
+		order(904, "dispatch", "send");
 		for (int i = 0; i < 3000 && mission()["phase"] != "deployed"; i += 10)
 			for (int j = 0; j < 10; ++j)
 				world.tick();
@@ -305,7 +309,7 @@ void cruiser_boarding(phoenix::Catalog catalog)
 		            {"tick", world.ticks()}};
 		if (objective == "reactor")
 		{
-			order(901, "dispatch", "recall");
+			order(904, "dispatch", "recall");
 			for (int i = 0; i < 3000 && mission()["phase"] != "recovered"; i += 10)
 				for (int j = 0; j < 10; ++j)
 					world.tick();

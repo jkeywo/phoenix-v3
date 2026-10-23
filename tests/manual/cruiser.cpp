@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,6 +15,7 @@ import phoenix.presentation;
 using namespace phoenix;
 #include "cruiser_transport.hpp"
 #include "cruiser_departments.hpp"
+#include "cruiser_supply.hpp"
 
 int main(int argc, char **argv)
 {
@@ -23,12 +25,23 @@ int main(int argc, char **argv)
 	{
 		if (argc < 2)
 			throw std::runtime_error("Usage: phoenix_cruiser_smoke pack.zip [--headless] [maximum-ticks]");
+		if (argc > 2 && std::string(argv[2]) == "--supply")
+		{
+			if (argc < 4)
+				throw std::runtime_error("Supply smoke requires the Test Missions child pack as the fourth argument");
+			cruiser_supply(resolve_packs({read_pack(read_file(argv[1])), read_pack(read_file(argv[3]))}));
+			return 0;
+		}
 		const bool withdrawal = argc > 2 && std::string(argv[2]) == "--withdrawal";
 		const bool combat_frame = argc > 2 && std::string(argv[2]) == "--frame";
 		const bool powered_gallery = argc > 2 && std::string(argv[2]) == "--powered-gallery";
-		const bool headless = withdrawal || (argc > 2 && std::string(argv[2]) == "--headless");
+		const bool watch = argc > 2 && std::string(argv[2]) == "--watch";
+		const bool headless = watch || withdrawal || (argc > 2 && std::string(argv[2]) == "--headless");
 		const int maximum = argc > 3 ? std::stoi(argv[3]) : 12000;
-		const auto catalog = resolve_packs({read_pack(read_file(argv[1]))});
+		std::vector<Pack> packs{read_pack(read_file(argv[1]))};
+		if (argc > 4)
+			packs.push_back(read_pack(read_file(argv[4])));
+		const auto catalog = resolve_packs(packs);
 		if (argc > 2 && std::string(argv[2]) == "--medical")
 		{
 			cruiser_medical(catalog);
@@ -61,6 +74,38 @@ int main(int argc, char **argv)
 		}
 		for (std::uint64_t claim = 910; claim < station_claim; ++claim)
 			world.release(claim);
+		std::int64_t repair_before = 0;
+		std::size_t repair_room = 0;
+		bool observed_attack = false, observed_sortie = false;
+		if (watch)
+		{
+			if (!world.claim(901, ship, "tactical") || !world.claim(902, ship, "engineering"))
+				throw std::runtime_error("Watch crew refused");
+			world.tick();
+			const auto initial = *world.observe(902);
+			for (const auto &room : initial.gameplay.at("combat").at("compartments"))
+				if (room["id"] == "engines")
+					repair_room = room.at("index").get<std::size_t>() - 1;
+			auto saved = world.save();
+			for (auto &body : saved["bodies"])
+				if (body["body"]["id"] == ship)
+				{
+					auto &room = body["combat"]["compartments"].at(repair_room);
+					room["hp"] = room["hp"].get<std::int64_t>() - 100;
+					repair_before = room["hp"];
+				}
+			world.restore(catalog, saved);
+			const auto view = *world.observe(902);
+			OperatingCommand repair{ship, "", 0, "", "repair-1", "repair_compartment"};
+			for (const auto &room : view.gameplay.at("combat").at("compartments"))
+				if (room["id"] == "engines")
+					repair.value = room.at("index");
+			for (const auto &ctrl : view.gameplay.at("controllers"))
+				if (ctrl["id"] == repair.controller)
+					repair.generation = ctrl.at("generation");
+			if (!world.submit(902, repair))
+				throw std::runtime_error("One-star repair deployment refused");
+		}
 		std::unique_ptr<SceneRenderer> renderer;
 		if (!headless)
 		{
@@ -216,10 +261,30 @@ int main(int argc, char **argv)
 		{
 			if (window)
 				PollInputEvents();
+			if (watch && world.ticks() % 20 == 0)
+			{
+				const auto view = *world.observe(901);
+				for (const auto &contact : view.contacts)
+					if (contact.disposition == "hostile")
+					{
+						OperatingCommand target{ship,    "", static_cast<std::int64_t>(contact.id), "", "combat-target",
+						                        "target"};
+						for (const auto &ctrl : view.gameplay.at("controllers"))
+							if (ctrl["id"] == target.controller)
+								target.generation = ctrl.at("generation");
+						if (!world.submit(901, target))
+							throw std::runtime_error("One-star combat target refused");
+						break;
+					}
+				for (const auto &body : world.scene())
+					observed_attack |= body.attack_source == ship;
+				for (const auto &craft : view.gameplay.at("craft"))
+					observed_sortie |= craft["phase"] == "flying" && craft["role"] != "shuttle";
+			}
 			world.tick();
-			if (world.ticks() == 260)
+			if (!watch && world.ticks() == 260)
 				craft_orders(false);
-			if (world.ticks() == 1200)
+			if (!watch && world.ticks() == 1200)
 				craft_orders(true);
 			if (world.ticks() % 400 == 0)
 				cruiser_combat_medical(world, ship, catalog, receipt);
@@ -266,6 +331,29 @@ int main(int argc, char **argv)
 				if (finished)
 					break;
 			}
+		}
+		if (watch)
+		{
+			std::int64_t repaired = 0;
+			const auto saved = world.save();
+			for (const auto &body : saved["bodies"])
+				if (body["body"]["id"] == ship)
+					repaired = body["combat"]["compartments"].at(repair_room).at("hp");
+			std::ofstream("build/cruiser-watch-receipt.json") << Json{
+			    {"variant", "Combat exercise with 100 deliberate engine-room hull damage"},
+			    {"tick", world.ticks()},
+			    {"player_repair_compartment", true},
+			    {"repair_before", repair_before},
+			    {"repair_after", repaired},
+			    {"observed_weapon_fire", observed_attack},
+			    {"observed_automatic_sortie", observed_sortie},
+			    {"continuation_equal",
+			     receipt.value("continuation_equal", false)}}.dump(2);
+			if (!observed_attack || !observed_sortie || repaired <= repair_before)
+				throw std::runtime_error("One-star combat/repair watch did not exercise all required paths");
+			std::cout << "PASS Cruiser one-star target selection, automated weapons/sorties, player repair deployment "
+			             "and continuation\n";
+			return 0;
 		}
 		capture("final", false);
 		const auto encounter = world.save().at("scenario").at("runtime");

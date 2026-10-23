@@ -19,6 +19,10 @@ void cruiser_transport(phoenix::Catalog catalog)
 		         {901, "comms"}, {902, "engineering"}, {903, "science"}, {904, "tactical"}})
 			if (!world.claim(claim, ship, console))
 				throw std::runtime_error("Transport station claim refused: " + console);
+		for (const auto claim : {902, 904})
+			if (!world.submit(claim, {ship, "preset", 2, {}}))
+				throw std::runtime_error("Transport detailed workload refused");
+		world.tick();
 		auto advance = [&](int ticks)
 		{
 			while (ticks-- > 0)
@@ -60,7 +64,7 @@ void cruiser_transport(phoenix::Catalog catalog)
 				throw std::runtime_error("Cruiser transport timed out awaiting " + phase + ": " + mission().dump());
 		};
 		until("available");
-		order(901, "dispatch", "open");
+		order(904, "dispatch", "open");
 		order(902, "repair-1", "assign", "repair-team/team:repair-1");
 		order(903, "medical-1", "assign", "medical-team/team:medical-1");
 		for (const auto *shield : {"shield-fore", "shield-port", "shield-aft", "shield-starboard"})
@@ -87,13 +91,12 @@ void cruiser_transport(phoenix::Catalog catalog)
 		    {"tactical", tactical.gameplay},
 		    {"science", world.observe(903)->gameplay},
 		    {"selected_craft", craft}}.dump(2);
-		order(shuttle ? 904 : 903, shuttle ? "utility-bay" : "displacement", "transport",
+		order(shuttle ? 902 : 903, shuttle ? "utility-bay" : "displacement", "transport",
 		      shuttle ? "craft:" + craft : "displacement");
 		advance(160);
 		for (int i = 0; i < 1000 && mission().at("blocker") == "Personnel moving to transport"; ++i)
 			world.tick();
-		order(901, "dispatch", "send");
-		world.release(904);
+		order(904, "dispatch", "send");
 		until("deployed");
 		const auto deployed = mission();
 		bool treated = false;
@@ -138,7 +141,7 @@ void cruiser_transport(phoenix::Catalog catalog)
 			throw std::runtime_error("Cruiser away Medical did not treat and stabilise casualty officers");
 		if (!answered)
 			throw std::runtime_error("Cruiser rescue Comms decision was not answered");
-		order(901, "dispatch", "recall");
+		order(904, "dispatch", "recall");
 		until("recovered");
 		if (!world.claim(904, ship, "tactical"))
 			throw std::runtime_error("Tactical recovery observation unavailable");

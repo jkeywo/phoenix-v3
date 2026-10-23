@@ -1,6 +1,7 @@
 // Explicit native Console inspection, excluded from CTest and production tuning checks.
 #include <raylib.h>
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -22,16 +23,40 @@ int main(int argc, char **argv)
 		auto definitions = parse_json(draft.files.at("definitions.json"), "Cruiser clinical UI variant");
 		for (auto &entity : definitions["entities"])
 			if (entity["id"] == "base.cruiser")
-				entity["personnel"]["officers"][1]["condition"] = "minor";
+			{
+				if (!workloads)
+					entity["personnel"]["officers"][1]["condition"] = "minor";
+				else
+					for (auto &store : entity["logistics"]["stores"])
+						if (store["id"] == "main-hold")
+						{
+							store["initial"]["parts"] = 0;
+							store["initial"]["medical"] = 0;
+						}
+			}
 		draft.files["definitions.json"] = json_bytes(definitions);
 		app.can_host = true;
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(write_pack(draft));
 		if (argc > 2)
-			app.session->add_pack(read_file(argv[2]));
-		app.session->start(
-		    {"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", workloads ? "helm" : "science"});
+		{
+			auto child = read_pack(read_file(argv[2])).draft();
+			if (workloads)
+			{
+				auto data = parse_json(child.files.at("definitions.json"), "Quiet Cruiser UI variant");
+				for (auto &map : data["maps"])
+					if (map["id"] == "base.cruiser-combat")
+						map.erase("scenario");
+				child.files["definitions.json"] = json_bytes(data);
+			}
+			app.session->add_pack(write_pack(child));
+		}
+		const auto slot = workloads ? "cruiser" : "base.player";
+		app.session->start({workloads ? "base.cruiser-combat" : "base.free-flight",
+		                    {{slot, "base.cruiser"}},
+		                    slot,
+		                    workloads ? "helm" : "science"});
 		const auto ship = app.session->observation()->own.id;
 		if (!app.session->claim_console(2, {ship, "tactical"}))
 			throw std::runtime_error("Cruiser Tactical claim refused");
@@ -113,10 +138,73 @@ int main(int argc, char **argv)
 					frame(file.c_str());
 				}
 			}
+			if (!app.session->claim_console(4, {ship, "comms"}))
+				throw std::runtime_error("Cruiser Comms UI claim refused");
+			for (std::uint64_t route : {1, 2, 3})
+				if (!app.session->console_command(route, {ship, "preset", 0, {}}))
+					throw std::runtime_error("Assisted UI workload refused");
+			auto show = [&](std::uint64_t route)
+			{
+				app.console_regions = {{route, 0, 0, 1920, 1080}};
+				advance(1);
+			};
+			show(4);
+			advance(80);
+			action("console/4/comms/hail/ship:90/quartermaster");
+			for (int i = 0; i < 100; ++i)
+			{
+				advance(2);
+				if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+				                [](const auto &c)
+				                {
+					                return c.first == "console/4/comms/answer/both";
+				                }))
+					break;
+			}
+			action("console/4/comms/answer/both");
+			advance(20);
+			frame("build/cruiser-supply-comms-ui.png");
+			auto mission = [&](std::uint64_t route)
+			{
+				const auto view = *app.session->console_observation(route);
+				for (const auto &row : view.gameplay.at("away_missions"))
+					if (row["id"] == "depot-gift")
+						return row;
+				throw std::runtime_error("UI conversation did not reveal the Engineering offer");
+			};
+			show(3);
+			action("console/3/away");
+			advance(1);
+			action("console/3/away/open/depot-gift/");
+			advance(1);
+			show(2);
+			action("console/2/away");
+			advance(1);
+			action("console/2/away/contribute/depot-gift/1");
+			advance(1);
+			if (mission(2).at("dispatch") != false || mission(2).at("contributing") != true)
+				throw std::runtime_error("Tactical contribution UI violated Dispatch ownership");
+			frame("build/cruiser-supply-escort-ui.png");
+			show(3);
+			action("console/3/away");
+			advance(1);
+			for (int i = 0; i < 100 && mission(3).at("blocker") != ""; ++i)
+				advance(5);
+			frame("build/cruiser-supply-prepared-ui.png");
+			std::ofstream("build/cruiser-ui-prepared-receipt.json")
+			    << Json{{"mission", mission(3)}, {"controls", app.screen_controls}}.dump(2);
+			action("console/3/away/send/depot-gift/");
+			advance(1);
+			if (mission(3).at("phase") != "outbound")
+				throw std::runtime_error("Engineering Dispatch UI did not launch the prepared trip");
+			frame("build/cruiser-supply-dispatch-ui.png");
+			std::ofstream("build/cruiser-ui-dispatch-receipt.json")
+			    << Json{{"engineering", mission(3)}, {"tactical", mission(2)}}.dump(2);
 			close_window();
 			opened = false;
 			std::cout << "PASS Cruiser Helm, Tactical and Engineering one/two/three-star console render and admitted "
-			             "profile changes\n";
+			             "profile changes; Comms offer, Engineering dispatch and Tactical contribution through Console "
+			             "controls\n";
 			return 0;
 		}
 		advance(2);
