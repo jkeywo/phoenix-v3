@@ -747,9 +747,15 @@ for (const published of ["valid", "missing", "corrupt"])
 			const service = createSignallingServer({ port: 0 });
 			const address = await service.listen();
 			let downloads = 0;
+			let repeatedUnavailableDownloads = 0;
 			const cwd =
 				process.env.PHOENIX_NATIVE_BUILD_DIR || fileURLToPath(new URL("../build/native/", import.meta.url));
 			const content = http.createServer((request, response) => {
+				if (request.url.startsWith("/unavailable/")) {
+					repeatedUnavailableDownloads++;
+					response.writeHead(404).end();
+					return;
+				}
 				if (!/^\/fixture\.zip\.clients\/[a-f0-9]{64}\.dat$/.test(request.url)) {
 					response.writeHead(404).end();
 					return;
@@ -792,6 +798,11 @@ for (const published of ["valid", "missing", "corrupt"])
 				assert.equal(code, 0, output);
 				assert.match(output, /PASS authenticated slot arbitration/);
 				assert.ok(downloads > 0, "Joining players attempted the advertised ship sidecar");
+				assert.equal(
+					repeatedUnavailableDownloads,
+					0,
+					"A failed lobby descriptor is not downloaded again after handoff",
+				);
 			} finally {
 				if (child && child.exitCode === null && child.signalCode === null) {
 					child.kill();

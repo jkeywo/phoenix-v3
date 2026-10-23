@@ -103,6 +103,8 @@ struct NetworkOptions
 	BaseConfiguration expected_base;
 	std::map<std::string, std::string> pack_urls;
 	std::map<std::string, Bytes> prepared_clients;
+	// Session-local outcome carried from lobby preparation; retry changed descriptors.
+	Json unavailable_client;
 	std::string server, data_location = "userdata", profile = "default";
 	bool inspector = false;
 	std::string admission;

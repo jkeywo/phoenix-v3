@@ -93,8 +93,15 @@ class GameLobby final : public SessionPort
 	}
 	void download_client()
 	{
+		if (options_.unavailable_client == configuration_.at("client"))
+		{
+			client_preparing_ = false;
+			return;
+		}
 		client_download_ = download_content(configuration_.at("client").value("url", std::string{}));
 		client_preparing_ = static_cast<bool>(client_download_);
+		if (!client_preparing_)
+			options_.unavailable_client = configuration_.at("client");
 	}
 	std::unique_ptr<StateSource> setup_source_;
 	std::unique_ptr<StateTransfer> setup_transfer_;
@@ -898,12 +905,13 @@ class GameLobby final : public SessionPort
 		}
 		else if (packet->type == "configuration")
 		{
+			const auto previous_descriptor = configuration_.value("client", Json{});
 			configuration_ = body;
 			const auto descriptor = body.value("client", Json{});
 			if (role_ == JoinRole::player && descriptor.is_object())
 			{
 				const auto hash = descriptor.value("hash", std::string{});
-				if (valid_hex_token(hash) && hash != client_download_hash_)
+				if (valid_hex_token(hash) && (hash != client_download_hash_ || descriptor != previous_descriptor))
 				{
 					client_download_hash_ = hash;
 					client_download_.reset();
@@ -1603,8 +1611,8 @@ public:
 			{
 				client_download_.reset();
 				client_preparing_ = false;
-				if (!bytes->empty())
-					(void)accept_client(*bytes);
+				if (bytes->empty() || !accept_client(*bytes))
+					options_.unavailable_client = configuration_.at("client");
 			}
 
 		if (inference_ && role_ == JoinRole::ship_server)

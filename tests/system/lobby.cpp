@@ -577,6 +577,8 @@ int main(int argc, char **argv)
 		auto guarded_options = options;
 		guarded_options.link.room = "role-" + random_token();
 		guarded_options.link.self = "guarded";
+		if (argc == 3)
+			guarded_options.pack_urls[sha256(write_pack(pack))] = std::string(argv[2]) + "/unavailable/fixture.zip";
 		const auto gm_ticket = random_token();
 		guarded_options.lobby_tickets["wrong-role"] = {gm_ticket, JoinRole::gm};
 		auto guarded = make_network_host(guarded_options);
@@ -664,6 +666,17 @@ int main(int argc, char **argv)
 		direct_options.link.self = "menu-handshake";
 		direct_options.profile = "native-form";
 		direct_options.lobby_tickets.clear();
+		// A completed lobby attempt is carried into direct-server discovery and
+		// the running client. Its exact descriptor must fall straight back to the host.
+		if (argc == 3)
+		{
+			const auto presentation = ship_client_assets(guarded->catalog(), "test.ship");
+			direct_options.unavailable_client =
+			    ship_client_descriptor(guarded->catalog(), "test.ship", presentation.hash(), guarded_options.pack_urls);
+			require(direct_options.unavailable_client.at("url").get<std::string>().find("/unavailable/") !=
+			            std::string::npos,
+			        "Handoff regression uses an advertised HTTP download");
+		}
 		auto direct = join_client_lobby(direct_options, JoinRole::player);
 		nodes.push_back(direct);
 		std::string approve_direct;

@@ -124,11 +124,14 @@ class NetworkClient final : public SessionPort
 		cache_.clear();
 		if (transfer_->ready())
 			content_ready();
-		else if (!options_.inspector && client_descriptor_.is_object() && offer_.at("packs").size() == 1 &&
+		else if (!options_.inspector && client_descriptor_.is_object() &&
+		         client_descriptor_ != options_.unavailable_client && offer_.at("packs").size() == 1 &&
 		         client_descriptor_.value("hash", std::string{}) == offer_.at("packs")[0].at("hash").get<std::string>())
 		{
 			download_ = download_content(client_descriptor_.value("url", std::string{}));
 			download_offer_ = offer_id_;
+			if (!download_)
+				options_.unavailable_client = client_descriptor_;
 		}
 	}
 	void content_ready()
@@ -667,6 +670,8 @@ public:
 						if (auto bytes = download_->poll())
 						{
 							download_.reset();
+							if (download_offer_ == offer_id_)
+								options_.unavailable_client = client_descriptor_;
 							if (download_offer_ == offer_id_ && !bytes->empty())
 								try
 								{
@@ -680,6 +685,7 @@ public:
 											jobs_.push_back({JobType::cache_write, hash, offer_id_,
 											                 std::make_shared<const Bytes>(data)});
 										transfer_ = std::move(candidate);
+										options_.unavailable_client = Json{};
 										content_ready();
 									}
 								}
