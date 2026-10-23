@@ -9,6 +9,7 @@ module;
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 module phoenix.network.host;
@@ -51,6 +52,8 @@ class NetworkHost final : public SessionPort
 	std::unique_ptr<FleetRuntime> fleet_;
 	std::unique_ptr<PackSource> source_;
 	std::unique_ptr<PackSource> console_source_;
+	// One immutable presentation package per ship for the current world content.
+	std::map<std::string, std::pair<std::shared_ptr<PackSource>, Json>> ship_sources_;
 	std::map<std::string, Client> clients_;
 	Json grants_ = Json::object();
 	std::deque<Json> intents_;
@@ -107,12 +110,20 @@ class NetworkHost final : public SessionPort
 			return false;
 		client.console = identity;
 		client.content_offer = random_token();
-		const auto pack = ship_client_assets(
-		    world_->catalog(), observation.own.definition,
-		    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{}));
-		client.descriptor =
-		    ship_client_descriptor(world_->catalog(), observation.own.definition, pack.hash(), options_.pack_urls);
-		client.console_source = std::make_shared<PackSource>(std::vector<Pack>{pack});
+		auto found = ship_sources_.find(identity);
+		if (found == ship_sources_.end())
+		{
+			const auto pack = ship_client_assets(
+			    world_->catalog(), identity,
+			    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{}));
+			found = ship_sources_
+			            .emplace(identity, std::make_pair(std::make_shared<PackSource>(std::vector<Pack>{pack}),
+			                                              ship_client_descriptor(world_->catalog(), identity,
+			                                                                     pack.hash(), options_.pack_urls)))
+			            .first;
+		}
+		client.console_source = found->second.first;
+		client.descriptor = found->second.second;
 		client.ready = false;
 		client.projection.reset();
 		advertise(peer);
@@ -120,6 +131,7 @@ class NetworkHost final : public SessionPort
 	}
 	void refresh_source()
 	{
+		ship_sources_.clear();
 		source_.reset();
 		console_source_.reset();
 		if (!world_->content_packs().empty())
@@ -649,6 +661,7 @@ public:
 		fleet_generation_ = 0;
 		game_.reset();
 		world_->clear_packs();
+		ship_sources_.clear();
 		source_.reset();
 		console_source_.reset();
 		clients_.clear();
