@@ -78,9 +78,10 @@ ConversationProgram compile_conversation(const Json &input, const state_tree::Ca
 		{
 			auto id = text(c, "id");
 			require(id.size() <= 256 && ids.insert(id).second, "invalid or duplicate choice identity");
-			d.choices.push_back(
-			    {id, text(c, "text_key"), text(c, "requires_capability", false), text(c, "unavailable_reason", false)});
-			require(d.choices.back().requires_capability.empty() || !d.choices.back().unavailable_reason.empty(),
+			d.choices.push_back({id, text(c, "text_key"), text(c, "requires_capability", false),
+			                     text(c, "unavailable_reason", false), c.value("hide_unavailable", false)});
+			require(d.choices.back().requires_capability.empty() || d.choices.back().hide_unavailable ||
+			            !d.choices.back().unavailable_reason.empty(),
 			        "capability-gated choices require an explanation");
 		}
 		require((!d.timeout && d.default_choice.empty()) || (d.timeout && ids.contains(d.default_choice)),

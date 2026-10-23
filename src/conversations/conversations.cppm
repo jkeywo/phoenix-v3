@@ -35,6 +35,7 @@ struct ConversationChoice
 {
 	std::string id, text;
 	std::string requires_capability, unavailable_reason;
+	bool hide_unavailable = false;
 };
 struct ConversationPromptDefinition
 {

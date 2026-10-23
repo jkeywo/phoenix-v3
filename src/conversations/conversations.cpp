@@ -473,6 +473,9 @@ Json ConversationRuntime::project(EntityId viewer) const
 			{
 				row["prompt"] = p.id;
 				for (const auto &v : programs.at(c.program).prompts.at(p.definition).choices)
+				{
+					if (v.hide_unavailable && !choice_available(c, v))
+						continue;
 					row["choices"].push_back(
 					    {{"id", v.id},
 					     {"text", v.text},
@@ -480,6 +483,7 @@ Json ConversationRuntime::project(EntityId viewer) const
 					     {"reason", completed_choices.contains(c.id) && completed_choices.at(c.id).contains(v.id)
 					                    ? "Completed"
 					                    : v.unavailable_reason}});
+				}
 			}
 		}
 		out["threads"].push_back(std::move(row));

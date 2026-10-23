@@ -84,6 +84,25 @@ int main(int argc, char **argv)
 		received_information_cases();
 		{
 			auto source = fixture();
+			auto &choice = source["trees"].back()["prompts"]["question"]["choices"][1];
+			choice["requires_capability"] = "security";
+			choice["hide_unavailable"] = true;
+			ConversationRuntime runtime;
+			runtime.programs = load(source).conversation_programs;
+			runtime.participants = {{"ship:1", {"ship:1", "Crew", "", "", 1}},
+			                        {"ship:2", {"ship:2", "Target", "", "", 2}}};
+			runtime.endpoints = {{1, {1, 0, 0, 100000, true, true}}, {2, {2, 1000, 0, 100000, true, false}}};
+			const auto id =
+			    runtime.open("test.dialogue", {{"caller", "ship:1"}, {"target", "ship:2"}}, {"ship:1", "ship:2"});
+			for (int n = 0; n < 12; ++n)
+				runtime.advance(n);
+			require(runtime.project(1).at("threads")[0].at("choices").size() == 1,
+			        "Unavailable seizure choice is omitted");
+			runtime.capabilities[id].insert("security");
+			require(runtime.project(1).at("threads")[0].at("choices").size() == 2, "Deployed Security exposes seizure");
+		}
+		{
+			auto source = fixture();
 			auto &layout = source["entities"][0]["control_layout"];
 			layout["station_complexity"] = true;
 			layout["profiles"][0]["stars"] = 1;

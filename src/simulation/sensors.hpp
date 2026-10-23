@@ -281,7 +281,7 @@ void route_finding(EntityId ship, const std::string &system, const SensorFinding
 			for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
 			{
 				if (controller.definition.console == console.id && comms_controller(ship, controller.definition))
-					human |= conversation_operator(ship, controller);
+					human |= controller.human;
 				for (const auto &command : controller.definition.commands)
 					for (const auto consumer : command.consumers)
 						if (definition(ship).fitted->values.at(consumer).id == system)

@@ -59,8 +59,7 @@ void refresh_comms(bool disclose = true)
 		endpoint.altitude = altitude(id);
 		if (entity.has<EntityControls>())
 			for (const auto &c : entity.get<EntityControls>().controllers)
-				if (c.definition.console == owner->console && comms_controller(id, c.definition) &&
-				    conversation_operator(id, c))
+				if (c.definition.console == owner->console && comms_controller(id, c.definition) && c.human)
 					endpoint.human = true;
 		for (auto child : entity.get<EquipmentIndex>().values)
 		{
@@ -150,7 +149,7 @@ bool comms_command(const ConsoleAddress &address, const OperatingCommand &comman
 		endpoint.human = false;
 		if (entities.contains(id) && entities.at(id).has<EntityControls>())
 			for (const auto &c : entities.at(id).get<EntityControls>().controllers)
-				if (comms_controller(id, c.definition) && conversation_operator(id, c))
+				if (comms_controller(id, c.definition) && c.human)
 					endpoint.human = true;
 	}
 	bool accepted = false;
