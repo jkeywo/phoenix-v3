@@ -15,16 +15,27 @@ extern "C" void stock_accounting_contracts()
 		if (!value)
 			throw std::runtime_error(message);
 	};
-	const auto resources = compile_resource_catalogue(Json::parse(R"json([
-      {"id":"round","label":"Round","tags":["ammo","cargo"],"sizes":{"magazine":1,"cargo":3}},
-      {"id":"plasma","label":"Plasma","tags":["ammo","cargo"],"sizes":{"magazine":1,"cargo":4}},
-      {"id":"fuel","label":"Fuel","tags":["cargo"],"sizes":{"cargo":2}}
-    ])json"));
-	const auto mixed_definition =
-	    compile_stock_store(Json::parse(R"json({"id":"hold","capacity_tag":"cargo","capacity":20,
-      "filter":{"tags":["cargo"]},"initial":{"round":2,"fuel":3}})json"),
-	                        resources);
-	StockStore hold(mixed_definition, resources);
+	const ResourceCatalogue resources{
+	    {"round", {"round", "Round", {"ammo", "cargo"}, {{"magazine", 1}, {"cargo", 3}}, {}}},
+	    {"plasma", {"plasma", "Plasma", {"ammo", "cargo"}, {{"magazine", 1}, {"cargo", 4}}, {}}},
+	    {"fuel", {"fuel", "Fuel", {"cargo"}, {{"cargo", 2}}, {}}}};
+	StockStoreDefinition mixed_definition;
+	mixed_definition.id = "hold";
+	mixed_definition.capacity_tag = "cargo";
+	mixed_definition.capacity = 20;
+	mixed_definition.filter.tags = {"cargo"};
+	mixed_definition.initial = {{"round", 2}, {"fuel", 3}};
+	const auto shared_resources = share_resource_catalogue(resources);
+	StockStore hold(mixed_definition, shared_resources);
+	{
+		StockStore peer(mixed_definition, shared_resources);
+		auto copy = hold;
+		require(&hold.catalogue() == &peer.catalogue() && &hold.catalogue() == &copy.catalogue() &&
+		            &hold.definition() == &copy.definition(),
+		        "stores and staged copies share immutable catalogue and definition bindings");
+		require(copy.consume("fuel", 1) && hold.quantity("fuel") == 3 && peer.quantity("fuel") == 3,
+		        "shared immutable bindings do not share mutable stock quantities");
+	}
 	require(hold.occupied() == 12 && hold.headroom("round") == 2,
 	        "mixed stock uses the selected per-tag capacity measure");
 	require(hold.reserve_capacity("delivery:1", "round", 2) && hold.headroom("fuel") == 1,
@@ -43,10 +54,14 @@ extern "C" void stock_accounting_contracts()
 	require(hold.consume_claim("job:1") && !hold.consume_claim("job:1") && hold.quantity("fuel") == 2,
 	        "a finite stock claim consumes once without refunding completed work");
 
-	auto magazine_definition =
-	    compile_stock_store(Json::parse(R"json({"id":"magazine","capacity_tag":"magazine","capacity":5,
-      "filter":{"tags":["ammo"]},"single_resource":true,"selection":"round","initial":{"round":3}})json"),
-	                        resources);
+	StockStoreDefinition magazine_definition;
+	magazine_definition.id = "magazine";
+	magazine_definition.capacity_tag = "magazine";
+	magazine_definition.capacity = 5;
+	magazine_definition.filter.tags = {"ammo"};
+	magazine_definition.single_resource = true;
+	magazine_definition.selection = "round";
+	magazine_definition.initial = {{"round", 3}};
 	StockStore magazine(magazine_definition, resources);
 	require(magazine.consume("round", 3) && magazine.selected() == "round" && !magazine.add("plasma", 1),
 	        "empty single-resource stores retain selection rather than substituting resources");

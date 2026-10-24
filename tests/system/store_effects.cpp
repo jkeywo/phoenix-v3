@@ -160,6 +160,67 @@ Json committed_stock()
 	require(world.save() == resumed.save(), "stock commitments and terminal receipts survive continuation");
 	return world.save();
 }
+void paid_store_aliases()
+{
+	for (bool fail : {false, true})
+	{
+		auto data = source(Json::parse(R"json([
+ {"id":"test.paid","kind":"operations","payer":"radar","energy":2,"operations":[
+  {"kind":"set","store":"hold","resource":"fixture.resource.energy","amount":6},
+  {"kind":"consume","store":"logistics:hold","resource":"fixture.resource.energy","amount":1},
+  {"kind":"add","store":"supplies","resource":"fixture.resource.energy","amount":1},
+  {"kind":"consume","store":"cell","resource":"fixture.resource.energy","amount":1}]}
+])json"),
+		                   {"test.paid"});
+		data["effects"][0]["operations"][3]["amount"] = fail ? 2 : 1;
+		data["resources"][0]["tags"].push_back("cargo");
+		data["resources"][0]["sizes"]["cargo"] = 1;
+		auto &ship = data["entities"][0];
+		ship["systems"]["radar"]["power_store"] = "cell";
+		ship["resources"]["stores"][0]["operation_heat_ppm"] = 1000000;
+		ship["logistics"] = Json::parse(R"json({"controller":"radar","stores":[
+ {"id":"hold","compartment":"fore","stock":{"id":"supplies","capacity_tag":"cargo","capacity":10,
+  "filter":{"resources":["fixture.resource.energy"]},"initial":{"fixture.resource.energy":2}}}
+ ]})json");
+		const auto content = catalog(data);
+		World world;
+		world.load(content, "test.map", {});
+		world.tick();
+		World resumed;
+		resumed.restore(content, world.save());
+		world.tick();
+		resumed.tick();
+		auto saved = world.save();
+		const auto &owner = body(saved, 1);
+		require(energy(world, 1) == (fail ? 3 : 0) &&
+		            owner.at("stocks").at("logistics:hold").at("quantities").at("fixture.resource.energy") ==
+		                (fail ? 2 : 6) &&
+		            owner.at("resources").at("network").at("stores")[0].at("heat") == (fail ? 0 : 2),
+		        "aliases share one staged balance; entry payment, native heat and physical stock commit or roll back "
+		        "together");
+		require(saved == resumed.save(), "mixed paid stock operation continues identically after restore");
+		for (const auto *field : {"charge_left", "discharge_left"})
+		{
+			auto malformed = saved;
+			body(malformed, 1)["resources"]["network"]["stores"][0][field] = 6;
+			rejects(
+			    [&]
+			    {
+				    resumed.restore(content, malformed);
+			    },
+			    "saved network allowance cannot exceed a physical tick");
+			require(resumed.save() == saved, "invalid allowance cannot replace the live World");
+			body(malformed, 1)["resources"]["network"]["stores"][0].erase(field);
+			rejects(
+			    [&]
+			    {
+				    resumed.restore(content, malformed);
+			    },
+			    "missing network allowance must not silently reset payment capacity");
+		}
+	}
+}
+
 void pending_receipts()
 {
 	const auto data = source(Json::parse(R"json([{"id":"test.fill","kind":"operations","operations":[
@@ -173,14 +234,14 @@ void pending_receipts()
 	    {state_tree::Type::Entity, 1, {}}, {state_tree::Type::Entity, 2, {}}, {state_tree::Type::Text, 0, "test.fill"}};
 	bridge.execute(token, GameplayTreeAction::ApplyEffectGroup, arguments);
 	bridge.execute(token, GameplayTreeAction::ApplyEffectGroup, arguments);
-	require(bridge.pending_effect_groups().size() == 1, "pending effect group must be idempotent by execution receipt");
+	require(bridge.pending_effects().size() == 1, "pending effect group must be idempotent by execution receipt");
 	const auto saved = bridge.save();
 	GameplayScenarioBridge resumed;
 	resumed.restore(content, "test.map", saved);
-	require(resumed.pending_effect_groups().size() == 1, "pending stock execution must survive bridge continuation");
-	resumed.confirm_effect_group(token);
+	require(resumed.pending_effects().size() == 1, "pending stock execution must survive bridge continuation");
+	resumed.confirm_effect(token);
 	resumed.execute(token, GameplayTreeAction::ApplyEffectGroup, arguments);
-	require(resumed.pending_effect_groups().empty(), "committed stock receipt must not recreate pending execution");
+	require(resumed.pending_effects().empty(), "committed stock receipt must not recreate pending execution");
 	const auto before_rejection = resumed.save();
 	auto malformed = saved;
 	malformed["group_requests"][0]["definition"] = "test.missing";
@@ -192,6 +253,93 @@ void pending_receipts()
 	    "unknown pending operation definition rejected");
 	require(resumed.save() == before_rejection, "invalid pending definition preserves the previous continuation");
 }
+void shared_effect_lifecycle()
+{
+	const auto data = source(Json::parse(R"json([{"id":"test.fill","kind":"operations","operations":[
+ {"kind":"fill","store":"energy:cell","resource":"fixture.resource.energy"}]}])json"),
+	                         {"test.fill"});
+	const auto content = catalog(data);
+	GameplayScenarioBridge bridge;
+	bridge.load(content, "test.map");
+	const auto instance = bridge.controllers().begin()->first;
+	using state_tree::Type;
+	using state_tree::Value;
+	struct Action
+	{
+		GameplayTreeAction action;
+		std::vector<Value> arguments;
+	};
+	// Admit the families in the reverse of their established physical phase order.
+	const std::vector<Action> actions{
+	    {GameplayTreeAction::ApplyEffectGroup,
+	     {{Type::Entity, 1, {}}, {Type::Entity, 2, {}}, {Type::Text, 0, "test.fill"}}},
+	    {GameplayTreeAction::ApplyModifierEffect,
+	     {{Type::Entity, 1, {}},
+	      {Type::Text, 0, "radar"},
+	      {Type::Text, 0, "test.native-modifier"},
+	      {Type::Text, 0, "range"}}},
+	    {GameplayTreeAction::RefreshModifierEffect,
+	     {{Type::Entity, 1, {}}, {Type::Text, 0, "radar"}, {Type::Text, 0, "range"}}},
+	    {GameplayTreeAction::RemoveModifierEffect,
+	     {{Type::Entity, 1, {}}, {Type::Text, 0, "radar"}, {Type::Text, 0, "range"}}},
+	    {GameplayTreeAction::ApplyShieldEffect,
+	     {{Type::Entity, 1, {}}, {Type::Text, 0, "test.native-shield"}, {Type::Text, 0, "shield"}}},
+	    {GameplayTreeAction::RefreshShieldEffect, {{Type::Entity, 1, {}}, {Type::Text, 0, "shield"}}},
+	    {GameplayTreeAction::RemoveShieldEffect, {{Type::Entity, 1, {}}, {Type::Text, 0, "shield"}}}};
+	for (std::size_t i = 0; i < actions.size(); ++i)
+	{
+		const ScenarioActionToken token{instance, 200 + i, 0};
+		bridge.execute(token, actions[i].action, actions[i].arguments);
+		bridge.execute(token, actions[i].action, actions[i].arguments);
+	}
+	const auto saved = bridge.save();
+	require(saved.at("shield_requests").size() == 3 && saved.at("modifier_requests").size() == 3 &&
+	            saved.at("group_requests").size() == 1 && bridge.pending_effects().size() == 7,
+	        "all authored effect verbs share one idempotent queue and retain their continuation representation");
+	GameplayScenarioBridge resumed;
+	resumed.restore(content, "test.map", saved);
+	require(resumed.save() == saved,
+	        "mixed pending families round-trip without changing receipts or serialized arguments");
+	const auto pending = resumed.pending_effects();
+	require(pending[0].kind == ScenarioEffectKind::Shield && pending[0].operation == ScenarioEffectOperation::Apply &&
+	            pending[1].operation == ScenarioEffectOperation::Refresh &&
+	            pending[2].operation == ScenarioEffectOperation::Remove &&
+	            pending[3].kind == ScenarioEffectKind::Modifier && pending[6].kind == ScenarioEffectKind::Group,
+	        "the unified dispatcher preserves shield/modifier/group phases and token order within each phase");
+	for (const auto &request : pending)
+		resumed.confirm_effect(request.token, request.kind == ScenarioEffectKind::Modifier ? "target removed" : "");
+	for (std::size_t i = 0; i < actions.size(); ++i)
+	{
+		const auto receipt = resumed.execute({instance, 200 + i, 0}, actions[i].action, actions[i].arguments);
+		require(receipt.result.status ==
+		            (i >= 1 && i <= 3 ? ScenarioActionStatus::Failed : ScenarioActionStatus::Succeeded),
+		        "shared confirmation preserves success and failure receipts for every authored verb");
+	}
+	require(resumed.pending_effects().empty(), "terminal receipts cannot re-enqueue any effect family");
+	const auto terminal = resumed.save();
+	for (const auto *field : {"shield_requests", "modifier_requests", "group_requests"})
+	{
+		auto malformed = saved;
+		malformed[field].erase(malformed[field].begin());
+		rejects(
+		    [&]
+		    {
+			    resumed.restore(content, "test.map", malformed);
+		    },
+		    "missing pending request rejected for every family");
+		require(resumed.save() == terminal, "failed mixed continuation replacement remains atomic");
+	}
+	auto malformed = saved;
+	malformed["modifier_requests"][0]["equipment"] = "other";
+	rejects(
+	    [&]
+	    {
+		    resumed.restore(content, "test.map", malformed);
+	    },
+	    "pending modifier arguments must match their original receipt");
+	require(resumed.save() == terminal, "mismatched pending arguments leave the live continuation unchanged");
+}
+
 } // namespace
 int main(int argc, char **argv)
 {
@@ -199,6 +347,8 @@ int main(int argc, char **argv)
 	{
 		Json trace = Json::array({ordinary_operations(), committed_stock()});
 		pending_receipts();
+		paid_store_aliases();
+		shared_effect_lifecycle();
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 		{
 			for (auto &state : trace)

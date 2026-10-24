@@ -2,6 +2,7 @@ module;
 #include <optional>
 #include <variant>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
@@ -872,7 +873,7 @@ CoolantForecast ResourceNetwork::coolant_forecast(ResourceIndex source) const
 
 Json ResourceNetwork::save() const
 {
-	Json j = {{"version", 2},
+	Json j = {{"version", 3},
 	          {"definition", definition_.signature},
 	          {"random", random_},
 	          {"ticks", ticks_},
@@ -882,8 +883,12 @@ Json ResourceNetwork::save() const
 	          {"links", Json::array()},
 	          {"coolant_sources", Json::array()},
 	          {"cooling_links", Json::array()}};
-	for (const auto &s : stores_)
+	for (std::size_t i = 0; i < stores_.size(); ++i)
+	{
+		const auto &s = stores_[i];
 		j["stores"].push_back({{"stock", s.stock.save()},
+		                       {"charge_left", charge_left_[i]},
+		                       {"discharge_left", discharge_left_[i]},
 		                       {"charge_limit", s.charge_limit},
 		                       {"discharge_limit", s.discharge_limit},
 		                       {"heat", s.heat},
@@ -906,6 +911,7 @@ Json ResourceNetwork::save() const
 		                       {"thermal_stop", s.thermal_stop},
 		                       {"overdrive", s.overdrive},
 		                       {"thermal_override", s.thermal_override}});
+	}
 	for (const auto &s : generators_)
 		j["generators"].push_back({{"commanded_rate", s.commanded_rate},
 		                           {"actual_rate", s.actual_rate},
@@ -948,7 +954,7 @@ Json ResourceNetwork::save() const
 
 void ResourceNetwork::restore(const Json &j)
 {
-	if (!j.is_object() || j.value("version", 0) != 2 || j.value("definition", std::string()) != definition_.signature)
+	if (!j.is_object() || j.value("version", 0) != 3 || j.value("definition", std::string()) != definition_.signature)
 		throw std::runtime_error("resources.save: incompatible definition/version");
 	ResourceNetwork next(definition_);
 	auto sized = [&](const char *key, std::size_t size)
@@ -990,6 +996,13 @@ void ResourceNetwork::restore(const Json &j)
 		s.stock.restore(v.at("stock"));
 		s.charge_limit = read(v, "charge_limit", d.charge_rate);
 		s.discharge_limit = read(v, "discharge_limit", d.discharge_rate);
+		// Scenario effects can pay before the next network tick. These remaining
+		// per-tick allowances are continuation state, not reconstructed grants.
+		next.charge_left_[i] = read(v, "charge_left", (d.charge_rate + resource_tick_hz - 1) / resource_tick_hz);
+		next.discharge_left_[i] =
+		    read(v, "discharge_left", (d.discharge_rate + resource_tick_hz - 1) / resource_tick_hz);
+		if (!next.ticks_ && (next.charge_left_[i] || next.discharge_left_[i]))
+			throw std::runtime_error("resources.save: unticked network has operating allowance");
 		s.heat = read(v, "heat");
 		s.stress = read(v, "stress", d.stress_limit);
 		s.requested_rate = read(v, "requested_rate");

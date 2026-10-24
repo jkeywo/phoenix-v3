@@ -1,37 +1,45 @@
 // Included inside World::Impl. Resolve an explicit store identity across native
 // mechanisms; there is no implicit ship-wide pool or remote supply lookup.
-StockStore &named_stock(flecs::entity ship, const std::string &name) const
+struct NamedStock
+{
+	StockStore &stock;
+	bool physical;
+};
+NamedStock named_stock(flecs::entity ship, const std::string &name, ResourceNetwork *prepared_network = nullptr) const
 {
 	StockStore *result = nullptr;
-	const auto accept = [&](StockStore &stock, const std::string &key)
+	bool physical_store = false;
+	const auto accept = [&](StockStore &stock, const std::string &key, bool physical)
 	{
 		if (name != key && name != stock.definition().id)
 			return;
 		if (result && result != &stock)
 			throw std::runtime_error("Ambiguous store identity: " + name);
 		result = &stock;
+		physical_store = physical;
 	};
 	if (auto *physical = ship.try_get_mut<ShipStockStores>())
 		for (auto &[key, stock] : physical->stores)
-			accept(stock, key);
+			accept(stock, key, true);
 	if (auto *physical = ship.try_get_mut<ShipStockStores>())
 		if (const auto *inventory = ship.try_get<MaterialInventory>())
 		{
 			const auto &stores = definitions.at(ship.get<Definition>().name).logistics.stores;
 			for (std::size_t i = 0; i < stores.size(); ++i)
 				if (name == stores[i].id)
-					accept(physical->stores.at(inventory->stores.at(i).stock), name);
+					accept(physical->stores.at(inventory->stores.at(i).stock), name, true);
 		}
 	if (auto *power = ship.try_get_mut<ShipResources>())
 	{
-		for (ResourceIndex i = 0; i < power->network.stores().size(); ++i)
-			accept(power->network.stock(i), "energy:" + power->network.definition().stores[i].id);
-		for (ResourceIndex i = 0; i < power->network.coolant_sources().size(); ++i)
-			accept(power->network.coolant_stock(i), "coolant:" + power->network.definition().coolant_sources[i].id);
+		auto &network = prepared_network ? *prepared_network : power->network;
+		for (ResourceIndex i = 0; i < network.stores().size(); ++i)
+			accept(network.stock(i), "energy:" + network.definition().stores[i].id, false);
+		for (ResourceIndex i = 0; i < network.coolant_sources().size(); ++i)
+			accept(network.coolant_stock(i), "coolant:" + network.definition().coolant_sources[i].id, false);
 	}
 	if (!result)
 		throw std::runtime_error("Unknown store: " + name);
-	return *result;
+	return {*result, physical_store};
 }
 
 std::string execute_effect_group(const ShieldReactionDefinition &execution, EntityId protected_ship, EntityId attacker,
@@ -39,8 +47,10 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 {
 	std::map<EntityId, ShieldComponent> shields;
 	std::map<EntityId, PropertyEffects> properties;
-	std::map<EntityId, ShipStockStores> physical;
-	std::map<EntityId, ResourceNetwork> networks;
+	std::set<EntityId> changed_inventories;
+	// Only native entry funding needs network preparation: it also changes
+	// discharge budgets and heat. Ordinary stock operations stage touched stores.
+	std::optional<ResourceNetwork> payment;
 	std::vector<std::pair<EntityId, std::int64_t>> damages;
 	StockTransaction stocks;
 	const auto owner = [&](EntityId id)
@@ -50,47 +60,12 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			throw std::runtime_error("Required target unavailable");
 		return at->second;
 	};
-	const auto network = [&](EntityId id) -> ResourceNetwork &
-	{
-		auto ship = owner(id);
-		const auto *power = ship.try_get<ShipResources>();
-		if (!power)
-			throw std::runtime_error("Target has no electrical network");
-		return networks.try_emplace(id, power->network).first->second;
-	};
 	const auto stock = [&](EntityId id, const std::string &name) -> StockStore &
 	{
-		auto ship = owner(id);
-		StockStore *result = nullptr;
-		const auto accept = [&](StockStore &value, const std::string &key)
-		{
-			if (name != key && name != value.definition().id)
-				return;
-			if (result && result != &value)
-				throw std::runtime_error("Ambiguous store identity: " + name);
-			result = &value;
-		};
-		if (const auto *state = ship.try_get<ShipStockStores>())
-			for (auto &[key, value] : physical.try_emplace(id, *state).first->second.stores)
-				accept(value, key);
-		if (const auto *inventory = ship.try_get<MaterialInventory>())
-		{
-			const auto &stores = definitions.at(ship.get<Definition>().name).logistics.stores;
-			for (std::size_t i = 0; i < stores.size(); ++i)
-				if (name == stores[i].id)
-					accept(physical.at(id).stores.at(inventory->stores.at(i).stock), name);
-		}
-		if (ship.has<ShipResources>())
-		{
-			auto &power = network(id);
-			for (ResourceIndex i = 0; i < power.stores().size(); ++i)
-				accept(power.stock(i), "energy:" + power.definition().stores[i].id);
-			for (ResourceIndex i = 0; i < power.coolant_sources().size(); ++i)
-				accept(power.coolant_stock(i), "coolant:" + power.definition().coolant_sources[i].id);
-		}
-		if (!result)
-			throw std::runtime_error("Unknown store: " + name);
-		return *result;
+		auto resolved = named_stock(owner(id), name, id == protected_ship && payment ? &*payment : nullptr);
+		if (resolved.physical)
+			changed_inventories.insert(id);
+		return resolved.stock;
 	};
 	try
 	{
@@ -104,9 +79,9 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			    structurally_disabled(payer, execution.payer) || fault_effectiveness(payer, execution.payer) == 0)
 				throw std::runtime_error("Payer equipment unavailable");
 			const auto &power = payer.get<ShipResources>();
+			payment = power.network;
 			const auto index = power.definition.systems.at(fitted->entity.get<ResourceBinding>().slot).store;
-			if (index >= power.network.stores().size() ||
-			    !network(protected_ship).spend_external(index, execution.energy))
+			if (index >= power.network.stores().size() || !payment->spend_external(index, execution.energy))
 				throw std::runtime_error("Energy payment unavailable");
 		}
 		for (const auto &op : execution.operations)
@@ -191,14 +166,11 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	{
 		return error.what();
 	}
-	for (auto &[id, value] : networks)
-		entities.at(id).get_mut<ShipResources>().network = std::move(value);
-	for (auto &[id, value] : physical)
-	{
-		entities.at(id).set<ShipStockStores>(std::move(value));
+	if (payment)
+		entities.at(protected_ship).get_mut<ShipResources>().network = std::move(*payment);
+	for (auto id : changed_inventories)
 		if (auto *inventory = entities.at(id).try_get_mut<MaterialInventory>())
 			++inventory->revision;
-	}
 	for (auto &[id, value] : shields)
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : properties)
@@ -216,28 +188,18 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	return {};
 }
 
-void scenario_effect_groups()
+std::string execute_scenario_effect_group(const ScenarioEffectRequest &request)
 {
-	if (!scenario)
-		return;
-	for (const auto &request : scenario->pending_effect_groups())
-	{
-		std::string failure;
-		const auto found = effect_groups.find(request.definition);
-		if (found == effect_groups.end())
-			failure = "Unknown effect group";
-		else
-		{
-			auto source = "scenario." + std::to_string(request.token.instance) + ".group." +
-			              std::to_string(request.token.activation) + "." + std::to_string(request.token.task);
-			for (std::size_t i = 0; i < request.token.call_path.size(); ++i)
-				source += "." + std::to_string(request.token.call_path[i]) + ":" +
-				          std::to_string(request.token.call_activations.at(i));
-			failure = execute_effect_group(found->second, request.target,
-			                               request.source ? request.source : request.target, source);
-		}
-		scenario->confirm_effect_group(request.token, failure);
-	}
+	const auto found = effect_groups.find(request.definition);
+	if (found == effect_groups.end())
+		return "Unknown effect group";
+	auto source = "scenario." + std::to_string(request.token.instance) + ".group." +
+	              std::to_string(request.token.activation) + "." + std::to_string(request.token.task);
+	for (std::size_t i = 0; i < request.token.call_path.size(); ++i)
+		source += "." + std::to_string(request.token.call_path[i]) + ":" +
+		          std::to_string(request.token.call_activations.at(i));
+	return execute_effect_group(found->second, request.target, request.source ? request.source : request.target,
+	                            source);
 }
 
 void validate_stock_claim_owners()
@@ -260,7 +222,7 @@ void validate_stock_claim_owners()
 					if (recipe.id == processor.state().recipe)
 						for (const auto &[resource, quantity] : recipe.outputs)
 						{
-							auto &stock = named_stock(ship, processor.definition().outputs.at(resource));
+							auto &stock = named_stock(ship, processor.definition().outputs.at(resource)).stock;
 							processor_claims[&stock].insert(processor.output_claim(resource));
 						}
 			}

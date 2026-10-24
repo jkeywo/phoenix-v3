@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -73,7 +74,7 @@ struct CoolingLinkDefinition
 };
 struct ResourceNetworkDefinition
 {
-	ResourceCatalogue resources;
+	SharedResourceCatalogue resources;
 	std::vector<ResourceStoreDefinition> stores;
 	std::vector<ResourceGeneratorDefinition> generators;
 	std::vector<ResourceLinkDefinition> links;
@@ -85,6 +86,7 @@ struct ResourceNetworkDefinition
 	std::string signature;
 };
 ResourceNetworkDefinition compile_resource_network(const Json &definition, const ResourceCatalogue &resources);
+ResourceNetworkDefinition compile_resource_network(const Json &definition, SharedResourceCatalogue resources);
 
 struct ResourceStoreState
 {

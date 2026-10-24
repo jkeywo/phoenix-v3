@@ -254,7 +254,7 @@ struct World::Impl
 	std::map<std::string, ShieldEffectDefinition> shield_templates;
 	std::map<std::string, ModifierEffectDefinition> modifier_templates;
 	std::map<std::string, ShieldReactionDefinition> effect_groups;
-	ResourceCatalogue resource_catalogue;
+	SharedResourceCatalogue resource_catalogue;
 	std::vector<ShieldReaction> shield_reactions;
 	std::map<std::uint64_t, std::string> shield_reaction_results;
 	std::uint64_t next_shield_hit = 1, next_shield_reaction = 1;
@@ -552,7 +552,7 @@ struct World::Impl
 	{
 		const auto content = convert_controller_content(source);
 		console_layouts = content.consoles;
-		resource_catalogue = compile_resource_catalog(content);
+		resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
 		for (const auto &[id, effect] : content.effects)
 			if (effect.at("kind") == "modifier")
 				modifier_templates.emplace(id, compile_modifier_effect(content, id));
@@ -787,7 +787,10 @@ struct World::Impl
 				result.fitted.emplace();
 				result.gameplay.emplace();
 				if (auto power = compile_ship_resources(content, name))
+				{
+					power->network.resources = resource_catalogue;
 					result.gameplay->power = std::move(*power);
+				}
 				for (const auto &spec : resolve_systems(content, name))
 				{
 					CompiledGameplaySystem runtime;
@@ -2008,39 +2011,25 @@ struct World::Impl
 		}
 		refresh_psychic_work();
 	}
-	void scenario_shield_effects()
+	void scenario_effects()
 	{
 		if (!scenario)
 			return;
-		for (const auto &request : scenario->pending_shield_effects())
+		for (const auto &request : scenario->pending_effects())
 		{
 			std::string failure;
 			try
 			{
-				const auto target = entities.find(request.target);
-				if (target == entities.end() || !target->second.has<ShieldComponent>())
-					throw std::runtime_error("Shield target unavailable or incompatible");
-				auto ship = target->second;
-				auto prepared = ship.get<ShieldComponent>();
-				const auto operation =
-				    request.operation == ScenarioShieldEffectOperation::Remove    ? EffectApplicationOperation::Remove
-				    : request.operation == ScenarioShieldEffectOperation::Refresh ? EffectApplicationOperation::Refresh
-				                                                                  : EffectApplicationOperation::Apply;
-				prepare_effect_application(
-				    ship,
-				    {EffectApplicationKind::Shield,
-				     operation,
-				     effect_source(EffectSourceKind::Scenario, request.token.instance, request.grant),
-				     {},
-				     request.definition},
-				    &prepared, nullptr, ecs.get<Clock>().tick);
-				ship.set<ShieldComponent>(std::move(prepared));
+				if (request.kind == ScenarioEffectKind::Group)
+					failure = execute_scenario_effect_group(request);
+				else
+					apply_scenario_effect(request);
 			}
 			catch (const std::exception &error)
 			{
 				failure = error.what();
 			}
-			scenario->confirm_shield_effect(request.token, failure);
+			scenario->confirm_effect(request.token, std::move(failure));
 		}
 	}
 	void scenario_spawns()
@@ -2699,9 +2688,7 @@ void World::tick()
 		impl_->scenario->supply_knowledge(snapshots);
 		impl_->scenario->step();
 		impl_->scenario_spawns();
-		impl_->scenario_shield_effects();
-		impl_->scenario_modifier_effects();
-		impl_->scenario_effect_groups();
+		impl_->scenario_effects();
 		impl_->scenario_publications();
 	}
 	impl_->brain_snapshots.clear();
@@ -3850,7 +3837,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 22},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 23},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	if (impl_->display_revision)
@@ -4004,8 +3991,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 22)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 22 required)");
+	if (saved.at("schema") != 23)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 23 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))

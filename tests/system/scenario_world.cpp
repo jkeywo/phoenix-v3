@@ -902,24 +902,24 @@ void shield_action_receipts()
 	                                    {state_tree::Type::Text, 0, "test.temporary-shield"},
 	                                    {state_tree::Type::Text, 0, "blessing"}};
 	const auto receipt = bridge.execute(token, GameplayTreeAction::ApplyShieldEffect, args);
-	check(receipt.result.status == ScenarioActionStatus::Pending && bridge.pending_shield_effects().size() == 1,
+	check(receipt.result.status == ScenarioActionStatus::Pending && bridge.pending_effects().size() == 1,
 	      "Scenario shield action did not produce physical pending work");
 	bridge.execute(token, GameplayTreeAction::ApplyShieldEffect, args);
-	check(bridge.pending_shield_effects().size() == 1, "Replay duplicated pending shield work");
+	check(bridge.pending_effects().size() == 1, "Replay duplicated pending shield work");
 	GameplayScenarioBridge resumed;
 	resumed.restore(catalog, "test.map", bridge.save());
-	check(resumed.pending_shield_effects().size() == 1, "Pending shield request lost across resume");
-	resumed.confirm_shield_effect(token);
+	check(resumed.pending_effects().size() == 1, "Pending shield request lost across resume");
+	resumed.confirm_effect(token);
 	check(resumed.receipt(token)->result.status == ScenarioActionStatus::Succeeded,
 	      "Physical grant confirmation missing");
 	GameplayScenarioBridge committed;
 	committed.restore(catalog, "test.map", resumed.save());
 	committed.execute(token, GameplayTreeAction::ApplyShieldEffect, args);
-	check(committed.pending_shield_effects().empty(), "Committed shield creation replayed on resume");
+	check(committed.pending_effects().empty(), "Committed shield creation replayed on resume");
 	const ScenarioActionToken refresh{instance, 501, 0};
 	committed.execute(refresh, GameplayTreeAction::RefreshShieldEffect,
 	                  {{state_tree::Type::Entity, 1, {}}, {state_tree::Type::Text, 0, "blessing"}});
-	committed.confirm_shield_effect(refresh, "target removed");
+	committed.confirm_effect(refresh, "target removed");
 	check(committed.receipt(refresh)->result.status == ScenarioActionStatus::Failed,
 	      "Physical failure was not retained");
 }
@@ -1144,26 +1144,42 @@ void modifier_action_receipts()
 	                                    {state_tree::Type::Text, 0, "test.temporary-modifier"},
 	                                    {state_tree::Type::Text, 0, "blessing"}};
 	const auto receipt = bridge.execute(token, GameplayTreeAction::ApplyModifierEffect, args);
-	check(receipt.result.status == ScenarioActionStatus::Pending && bridge.pending_modifier_effects().size() == 1,
+	check(receipt.result.status == ScenarioActionStatus::Pending && bridge.pending_effects().size() == 1,
 	      "Scenario modifier action did not produce physical pending work");
 	bridge.execute(token, GameplayTreeAction::ApplyModifierEffect, args);
-	check(bridge.pending_modifier_effects().size() == 1, "Replay duplicated pending modifier work");
+	check(bridge.pending_effects().size() == 1, "Replay duplicated pending modifier work");
 	GameplayScenarioBridge resumed;
 	resumed.restore(catalog, "test.map", bridge.save());
-	check(resumed.pending_modifier_effects().size() == 1, "Pending modifier request lost across resume");
-	resumed.confirm_modifier_effect(token);
+	check(resumed.pending_effects().size() == 1, "Pending modifier request lost across resume");
+	const auto before_duplicate = resumed.save();
+	auto duplicate = before_duplicate;
+	auto cross_family = duplicate.at("modifier_requests")[0];
+	cross_family.erase("equipment");
+	duplicate["shield_requests"].push_back(cross_family);
+	bool rejected = false;
+	try
+	{
+		resumed.restore(catalog, "test.map", duplicate);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	check(rejected && resumed.save() == before_duplicate,
+	      "A token duplicated across effect families must reject replacement without disturbing pending work");
+	resumed.confirm_effect(token);
 	check(resumed.receipt(token)->result.status == ScenarioActionStatus::Succeeded,
 	      "Physical grant confirmation missing");
 	GameplayScenarioBridge committed;
 	committed.restore(catalog, "test.map", resumed.save());
 	committed.execute(token, GameplayTreeAction::ApplyModifierEffect, args);
-	check(committed.pending_modifier_effects().empty(), "Committed modifier creation replayed on resume");
+	check(committed.pending_effects().empty(), "Committed modifier creation replayed on resume");
 	const ScenarioActionToken refresh{instance, 501, 0};
 	committed.execute(refresh, GameplayTreeAction::RefreshModifierEffect,
 	                  {{state_tree::Type::Entity, 1, {}},
 	                   {state_tree::Type::Text, 0, "radar"},
 	                   {state_tree::Type::Text, 0, "blessing"}});
-	committed.confirm_modifier_effect(refresh, "target removed");
+	committed.confirm_effect(refresh, "target removed");
 	check(committed.receipt(refresh)->result.status == ScenarioActionStatus::Failed,
 	      "Physical failure was not retained");
 }

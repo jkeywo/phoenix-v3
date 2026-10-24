@@ -42,21 +42,6 @@ void stock_fields(const Json &value, const std::set<std::string> &allowed, const
 	for (const auto &[key, child] : value.items())
 		stock_require(allowed.contains(key), path + "." + key, "unsupported field");
 }
-bool stock_accepts(const StockFilter &filter, const ResourceDefinition &resource)
-{
-	const bool exact = filter.resources.contains(resource.id);
-	const bool any_tag = std::any_of(filter.tags.begin(), filter.tags.end(),
-	                                 [&](const auto &tag)
-	                                 {
-		                                 return resource.tags.contains(tag);
-	                                 });
-	const bool all_tags = std::all_of(filter.tags.begin(), filter.tags.end(),
-	                                  [&](const auto &tag)
-	                                  {
-		                                  return resource.tags.contains(tag);
-	                                  });
-	return filter.require_all ? (filter.resources.empty() || exact) && all_tags : exact || any_tag;
-}
 } // namespace
 ResourceCatalogue compile_resource_catalog(const Catalog &catalog)
 {
@@ -92,6 +77,7 @@ ResourceCatalogue compile_resource_catalog(const Catalog &catalog)
 		}
 		result.emplace(id, std::move(resource));
 	}
+	validate_resource_catalogue(result);
 	return result;
 }
 RecipeDefinition compile_recipe(const Catalog &catalog, const std::string &id)
@@ -148,41 +134,33 @@ StockStoreDefinition compile_stock_store(const Catalog &catalog, const Json &val
 	const auto mode = filter.value("mode", std::string("or"));
 	stock_require(mode == "or" || mode == "and", path, "invalid filter mode");
 	store.filter.require_all = filter.value("require_all", mode == "and");
+	stock_require(!filter.contains("mode") || !filter.contains("require_all") ||
+	                  store.filter.require_all == (mode == "and"),
+	              path + ".filter", "conflicting mode and require_all");
 	stock_require(!store.filter.tags.empty() || !store.filter.resources.empty(), path,
 	              "store requires acceptance filter");
-	for (const auto &resource : store.filter.resources)
-		stock_require(catalog.resources.contains(resource), path, "unknown exact resource " + resource);
-	const auto resources = compile_resource_catalog(catalog);
-	std::set<std::string> accepted;
-	for (const auto &[key, resource] : resources)
-		if (stock_accepts(store.filter, resource))
-		{
-			stock_require(resource.sizes.contains(store.capacity_tag), path,
-			              "accepted resource missing capacity size: " + key);
-			accepted.insert(key);
-		}
-	stock_require(!accepted.empty(), path, "filter accepts no resource");
-	if (store.single_resource && store.filter.tags.empty() && store.filter.resources.size() == 1)
-	{
-		const auto fixed = *store.filter.resources.begin();
-		stock_require(store.selection.empty() || store.selection == fixed, path, "fixed resource selection mismatch");
-		store.selection = fixed;
-	}
-	stock_require(store.selection.empty() || store.single_resource && accepted.contains(store.selection), path,
-	              "invalid chosen resource");
 	const auto initial = value.value("initial", Json::object());
 	stock_require(initial.is_object() && initial.size() <= 128, path, "invalid initial stock");
-	std::int64_t occupied = 0;
 	for (const auto &[resource, count] : initial.items())
+		store.initial[resource] = stock_number(count, path + ".initial." + resource);
+	const auto resources = compile_resource_catalog(catalog);
+	try
 	{
-		stock_require(accepted.contains(resource) && (!store.single_resource || store.selection == resource), path,
-		              "incompatible initial resource");
-		const auto quantity = stock_number(count, path + ".initial." + resource);
-		const auto size = resources.at(resource).sizes.at(store.capacity_tag);
-		stock_require(quantity <= (store.capacity - occupied) / size, path, "initial shared capacity exceeded");
-		occupied += quantity * size;
-		store.initial[resource] = quantity;
+		validate_stock_store(store, resources);
 	}
+	catch (const std::exception &error)
+	{
+		throw std::runtime_error(path + ": " + error.what());
+	}
+	stock_require(std::any_of(resources.begin(), resources.end(),
+	                          [&](const auto &resource)
+	                          {
+		                          return stock_filter_accepts(store.filter, resource.second);
+	                          }),
+	              path, "filter accepts no resource");
+	if (store.single_resource && store.filter.tags.empty() && store.filter.resources.size() == 1)
+		store.selection = *store.filter.resources.begin();
+
 	return store;
 }
 ProcessorDefinition compile_processor(const Catalog &catalog, const Json &value, const std::string &id)
@@ -332,7 +310,7 @@ std::vector<ProcessorDefinition> compile_processors(const Catalog &catalog, cons
 				stock_require(aliases.contains(address) && aliases.at(address).size() == 1, entity,
 				              "unknown or ambiguous processor store " + address);
 				const auto &store = stores.at(*aliases.at(address).begin());
-				stock_require(stock_accepts(store.filter, resources.at(resource)), entity,
+				stock_require(stock_filter_accepts(store.filter, resources.at(resource)), entity,
 				              "processor resource rejected by bound store " + address);
 			}
 		for (const auto &recipe : processor.recipes)

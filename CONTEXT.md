@@ -6,3 +6,7 @@
 - **Ship resource allocation**: one candidate physical resource tick prepared from frozen fitted-System demand and supply availability. Its grants support modifier decisions; committing installs that same tick once, retaining requested supply settings. It is transient rather than saved continuation state.
 - **Workshop draft**: editable authored definitions and assets composed with declared dependency packs. A draft can be incomplete while being edited; verification and export require a valid complete pack.
 - **Workshop draft resolution**: queries over the current draft and dependencies that supply authoring choices and previews without granting the draft verified status.
+
+- **Resource catalogue**: immutable compiled resource definitions shared by a World's physical stores and native resource networks. Workshop drafts remain editable; loading freezes a new catalogue.
+- **Stock transaction**: one prepared set of stock changes and commitments, deduplicated by actual store identity. It commits only if every touched store still matches its captured mutable state and immutable definition binding.
+- **Pending effect**: a receipt-owned scenario request awaiting World execution. Shield, modifier and operation-group actions share one pending lifecycle while retaining their native execution behavior and established phase ordering.

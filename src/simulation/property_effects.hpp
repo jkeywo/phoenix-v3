@@ -229,36 +229,3 @@ void restore_property_effects(flecs::entity ship, const Json &value)
 	}
 	ship.set<PropertyEffects>(std::move(restored));
 }
-void scenario_modifier_effects()
-{
-	if (!scenario)
-		return;
-	for (const auto &request : scenario->pending_modifier_effects())
-	{
-		std::string failure;
-		try
-		{
-			const auto target = entities.find(request.target);
-			if (target == entities.end() || !target->second.has<PropertyEffects>())
-				throw std::runtime_error("Modifier target unavailable");
-			auto ship = target->second;
-			auto prepared = ship.get<PropertyEffects>();
-			const auto operation =
-			    request.operation == ScenarioModifierEffectOperation::Remove    ? EffectApplicationOperation::Remove
-			    : request.operation == ScenarioModifierEffectOperation::Refresh ? EffectApplicationOperation::Refresh
-			                                                                    : EffectApplicationOperation::Apply;
-			prepare_effect_application(
-			    ship,
-			    {EffectApplicationKind::Modifier, operation,
-			     effect_source(EffectSourceKind::Scenario, request.token.instance, request.grant), request.equipment,
-			     request.definition},
-			    nullptr, &prepared, ecs.get<Clock>().tick);
-			ship.set<PropertyEffects>(std::move(prepared));
-		}
-		catch (const std::exception &error)
-		{
-			failure = error.what();
-		}
-		scenario->confirm_modifier_effect(request.token, failure);
-	}
-}

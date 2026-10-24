@@ -5,12 +5,7 @@ enum class EffectApplicationKind
 	Shield,
 	Modifier
 };
-enum class EffectApplicationOperation
-{
-	Apply,
-	Refresh,
-	Remove
-};
+using EffectApplicationOperation = ScenarioEffectOperation;
 enum class EffectSourceKind
 {
 	Scenario,
@@ -112,4 +107,37 @@ void prepare_effect_application(flecs::entity ship, const EffectApplication &app
 	const auto &compiled = shield_templates.at(application.definition);
 	install_shield_grant(*shields, compiled, application.source, {}, application.definition,
 	                     effect_expiry(tick, compiled.duration_ticks));
+}
+
+void apply_scenario_effect(const ScenarioEffectRequest &request)
+{
+	const auto target = entities.find(request.target);
+	if (target == entities.end())
+		throw std::runtime_error("Effect target unavailable");
+	auto ship = target->second;
+	std::optional<ShieldComponent> shields;
+	std::optional<PropertyEffects> properties;
+	const auto kind =
+	    request.kind == ScenarioEffectKind::Shield ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
+	if (kind == EffectApplicationKind::Shield)
+	{
+		if (!ship.has<ShieldComponent>())
+			throw std::runtime_error("Incompatible shield target");
+		shields = ship.get<ShieldComponent>();
+	}
+	else
+	{
+		if (!ship.has<PropertyEffects>())
+			throw std::runtime_error("Incompatible modifier target");
+		properties = ship.get<PropertyEffects>();
+	}
+	prepare_effect_application(
+	    ship,
+	    {kind, request.operation, effect_source(EffectSourceKind::Scenario, request.token.instance, request.grant),
+	     request.equipment, request.definition},
+	    shields ? &*shields : nullptr, properties ? &*properties : nullptr, ecs.get<Clock>().tick);
+	if (shields)
+		ship.set<ShieldComponent>(std::move(*shields));
+	if (properties)
+		ship.set<PropertyEffects>(std::move(*properties));
 }

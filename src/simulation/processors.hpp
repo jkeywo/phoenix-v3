@@ -3,7 +3,7 @@ ProcessorStores processor_stores(flecs::entity ship, const ProcessorDefinition &
 	ProcessorStores stores;
 	for (const auto *bindings : {&definition.inputs, &definition.outputs})
 		for (const auto &[resource, name] : *bindings)
-			stores.emplace(name, &named_stock(ship, name));
+			stores.emplace(name, &named_stock(ship, name).stock);
 	return stores;
 }
 void initialize_processors(flecs::entity ship, const CompiledDefinition &data)

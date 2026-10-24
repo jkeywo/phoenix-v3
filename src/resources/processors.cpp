@@ -89,29 +89,13 @@ ResourceAmount portion(ResourceAmount quantity, ResourceAmount progress, Resourc
 	}
 	return quotient + (round_up && remainder != 0);
 }
-struct Candidates
+StockStore &processor_stock(const ProcessorStores &stores, const std::string &name)
 {
-	const ProcessorStores &originals;
-	std::map<StockStore *, StockStore> copies;
-	explicit Candidates(const ProcessorStores &stores) : originals(stores)
-	{
-		for (const auto &[id, store] : stores)
-		{
-			if (!store)
-				throw std::runtime_error("Processor store binding unavailable");
-			copies.try_emplace(store, *store);
-		}
-	}
-	StockStore &at(const std::string &name)
-	{
-		return copies.at(originals.at(name));
-	}
-	void commit() noexcept
-	{
-		for (auto &[store, candidate] : copies)
-			store->swap(candidate);
-	}
-};
+	auto *store = stores.at(name);
+	if (!store)
+		throw std::runtime_error("Processor store binding unavailable");
+	return *store;
+}
 ResourceAmount integer(const Json &json, const char *key, ResourceAmount maximum)
 {
 	const auto &value = json.at(key);
@@ -190,28 +174,28 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 	if (!definition_.continuous)
 	{
 		const auto wanted = (state_.progress + maximum_work + total - 1) / total;
-		auto stage = [&](Candidates &prepared, ResourceAmount batches)
+		auto stage = [&](StockTransaction &prepared, ResourceAmount batches)
 		{
 			const auto additional = batches - state_.committed_batches;
 			for (const auto &[resource, quantity] : r.inputs)
 				if (additional > resource_limit / quantity ||
-				    (additional &&
-				     !prepared.at(definition_.inputs.at(resource)).consume(resource, quantity * additional)))
+				    (additional && !prepared.consume(processor_stock(stores, definition_.inputs.at(resource)), resource,
+				                                     quantity * additional)))
 					return false;
 			for (const auto &[resource, quantity] : r.outputs)
 			{
 				if (batches > resource_limit / quantity)
 					return false;
-				auto &store = prepared.at(definition_.outputs.at(resource));
-				if (store.capacity_claims().contains(output_claim(resource)))
-					store.release_capacity(output_claim(resource));
-				if (!store.reserve_capacity(output_claim(resource), resource, quantity * batches))
+				auto &store = processor_stock(stores, definition_.outputs.at(resource));
+				if (prepared.view(store).capacity_claims().contains(output_claim(resource)))
+					prepared.release_capacity(store, output_claim(resource));
+				if (!prepared.reserve_capacity(store, output_claim(resource), resource, quantity * batches))
 					return false;
 			}
 			return true;
 		};
 		ResourceAmount batches = std::max(wanted, state_.committed_batches);
-		Candidates prepared(stores);
+		StockTransaction prepared;
 		if (!stage(prepared, batches))
 		{
 			// Whole batch quantities are linear, so feasible counts form a prefix.
@@ -219,7 +203,7 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 			while (high - low > 1)
 			{
 				const auto middle = low + (high - low) / 2;
-				Candidates candidate(stores);
+				StockTransaction candidate;
 				if (stage(candidate, middle))
 					low = middle;
 				else
@@ -228,13 +212,14 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 			batches = low;
 			if (!batches)
 				return 0;
-			Candidates partial(stores);
+			StockTransaction partial;
 			if (!stage(partial, batches))
 				throw std::runtime_error("Committed processor batches unavailable");
-			partial.commit();
+			if (!partial.commit())
+				throw std::runtime_error("Processor stock transaction became stale");
 		}
-		else
-			prepared.commit();
+		else if (!prepared.commit())
+			throw std::runtime_error("Processor stock transaction became stale");
 		state_.committed_batches = batches;
 		state_.active = true;
 		const auto available = batches >= (state_.progress + maximum_work + total - 1) / total
@@ -291,32 +276,34 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 		if (!maximum_work)
 			return 0;
 	}
-	auto stage = [&](Candidates &prepared, ResourceAmount work)
+	auto stage = [&](StockTransaction &prepared, ResourceAmount work)
 	{
 		const auto next = state_.progress + work;
 		for (const auto &[resource, quantity] : r.inputs)
 		{
 			const auto paid = state_.input_paid.contains(resource) ? state_.input_paid.at(resource) : 0;
 			const auto required = std::max<ResourceAmount>(0, portion(quantity, next, total, true) - paid);
-			if (required && !prepared.at(definition_.inputs.at(resource)).consume(resource, required))
+			if (required &&
+			    !prepared.consume(processor_stock(stores, definition_.inputs.at(resource)), resource, required))
 				return false;
 		}
 		for (const auto &[resource, quantity] : r.outputs)
 		{
-			auto &store = prepared.at(definition_.outputs.at(resource));
-			if (store.capacity_claims().contains(output_claim(resource)))
-				store.release_capacity(output_claim(resource));
+			auto &store = processor_stock(stores, definition_.outputs.at(resource));
+			if (prepared.view(store).capacity_claims().contains(output_claim(resource)))
+				prepared.release_capacity(store, output_claim(resource));
 			const auto required =
 			    portion(quantity, next, total, true) - portion(quantity, state_.progress, total, false);
-			if (required && !store.reserve_capacity(output_claim(resource), resource, required))
+			if (required && !prepared.reserve_capacity(store, output_claim(resource), resource, required))
 				return false;
 		}
 		return true;
 	};
-	Candidates whole(stores);
+	StockTransaction whole;
 	if (stage(whole, maximum_work))
 	{
-		whole.commit();
+		if (!whole.commit())
+			throw std::runtime_error("Processor stock transaction became stale");
 		for (const auto &[resource, quantity] : r.inputs)
 			state_.input_paid[resource] =
 			    std::max(state_.input_paid[resource], portion(quantity, state_.progress + maximum_work, total, true));
@@ -339,7 +326,7 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 		while (high - low > 1)
 		{
 			const auto middle = low + (high - low) / 2;
-			Candidates candidate(stores);
+			StockTransaction candidate;
 			if (stage(candidate, middle))
 				low = middle;
 			else
@@ -347,10 +334,11 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 		}
 		if (!low)
 			return 0;
-		Candidates partial(stores);
+		StockTransaction partial;
 		if (!stage(partial, low))
 			return 0;
-		partial.commit();
+		if (!partial.commit())
+			throw std::runtime_error("Processor stock transaction became stale");
 		for (const auto &[resource, quantity] : r.inputs)
 			state_.input_paid[resource] =
 			    std::max(state_.input_paid[resource], portion(quantity, state_.progress + low, total, true));
@@ -455,10 +443,11 @@ ResourceAmount ResourceProcessor::prepare(const ProcessorStores &stores, Resourc
 	}
 	if (!low)
 		return 0;
-	Candidates partial(stores);
+	StockTransaction partial;
 	if (!stage(partial, low))
 		return 0;
-	partial.commit();
+	if (!partial.commit())
+		throw std::runtime_error("Processor stock transaction became stale");
 	for (const auto &[resource, quantity] : r.inputs)
 		state_.input_paid[resource] =
 		    std::max(state_.input_paid[resource], portion(quantity, state_.progress + low, total, true));
@@ -473,32 +462,35 @@ void ResourceProcessor::advance(const ProcessorStores &stores, ResourceAmount fu
 		return;
 	const auto &r = recipe();
 	const auto total = r.work * 1000, next = state_.progress + funded_work;
-	Candidates candidate(stores);
+	StockTransaction candidate;
 	if (definition_.continuous)
 	{
 		for (const auto &[resource, quantity] : r.outputs)
 		{
-			auto &store = candidate.at(definition_.outputs.at(resource));
-			if (store.capacity_claims().contains(output_claim(resource)))
-				store.release_capacity(output_claim(resource));
+			auto &store = processor_stock(stores, definition_.outputs.at(resource));
+			if (candidate.view(store).capacity_claims().contains(output_claim(resource)))
+				candidate.release_capacity(store, output_claim(resource));
 			const auto produced =
 			    portion(quantity, next, total, false) - portion(quantity, state_.progress, total, false);
 			const auto reserved = portion(quantity, next, total, true) - portion(quantity, next, total, false);
-			if ((produced && !store.add(resource, produced)) ||
-			    (reserved && !store.reserve_capacity(output_claim(resource), resource, reserved)))
+			if ((produced && !candidate.add(store, resource, produced)) ||
+			    (reserved && !candidate.reserve_capacity(store, output_claim(resource), resource, reserved)))
 				throw std::runtime_error("Reserved processor output unavailable");
 		}
 	}
 	else if (next >= total)
 		for (const auto &[resource, quantity] : r.outputs)
 		{
-			auto &store = candidate.at(definition_.outputs.at(resource));
+			auto &store = processor_stock(stores, definition_.outputs.at(resource));
 			const auto completed = next / total, remaining = state_.committed_batches - completed;
-			if (!store.release_capacity(output_claim(resource)) || !store.add(resource, quantity * completed) ||
-			    (remaining && !store.reserve_capacity(output_claim(resource), resource, quantity * remaining)))
+			if (!candidate.release_capacity(store, output_claim(resource)) ||
+			    !candidate.add(store, resource, quantity * completed) ||
+			    (remaining &&
+			     !candidate.reserve_capacity(store, output_claim(resource), resource, quantity * remaining)))
 				throw std::runtime_error("Reserved batch output unavailable");
 		}
-	candidate.commit();
+	if (!candidate.commit())
+		throw std::runtime_error("Processor stock transaction became stale");
 	const auto completed = next / total;
 	state_.progress = next % total;
 	if (definition_.continuous)
@@ -525,21 +517,22 @@ bool ResourceProcessor::select(const ProcessorStores &stores, const std::string 
 		return true;
 	if (!can_select(stores, id) || state_.selection_revision == 9000000000000000ULL)
 		return false;
-	Candidates candidate(stores);
+	StockTransaction candidate;
 	const auto &r = recipe();
 	for (const auto &[resource, quantity] : r.inputs)
 	{
-		auto &store = candidate.at(definition_.inputs.at(resource));
-		if (store.stock_claims().contains(input_claim(resource)))
-			store.release_stock(input_claim(resource));
+		auto &store = processor_stock(stores, definition_.inputs.at(resource));
+		if (candidate.view(store).stock_claims().contains(input_claim(resource)))
+			candidate.release_stock(store, input_claim(resource));
 	}
 	for (const auto &[resource, quantity] : r.outputs)
 	{
-		auto &store = candidate.at(definition_.outputs.at(resource));
-		if (store.capacity_claims().contains(output_claim(resource)))
-			store.release_capacity(output_claim(resource));
+		auto &store = processor_stock(stores, definition_.outputs.at(resource));
+		if (candidate.view(store).capacity_claims().contains(output_claim(resource)))
+			candidate.release_capacity(store, output_claim(resource));
 	}
-	candidate.commit();
+	if (!candidate.commit())
+		throw std::runtime_error("Processor stock transaction became stale");
 	const auto revision = state_.selection_revision + 1;
 	state_ = {};
 	state_.recipe = id;

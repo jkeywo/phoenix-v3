@@ -1,6 +1,7 @@
 #include "../support/fixtures.hpp"
 #include "../support/combat_fixture.hpp"
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -30,15 +31,15 @@ Catalog fixture()
 	return resolve_packs({read_pack(write_pack(pack))});
 }
 StockStore store(const ResourceCatalogue &resources, const std::string &id, std::int64_t capacity,
-                 Json initial = Json::object())
+                 const std::map<std::string, ResourceAmount> &initial = {})
 {
-	return StockStore(compile_stock_store({{"id", id},
-	                                       {"capacity_tag", "cargo"},
-	                                       {"capacity", capacity},
-	                                       {"filter", {{"tags", {"cargo"}}}},
-	                                       {"initial", initial}},
-	                                      resources),
-	                  resources);
+	StockStoreDefinition definition;
+	definition.id = id;
+	definition.capacity_tag = "cargo";
+	definition.capacity = capacity;
+	definition.filter.tags = {"cargo"};
+	definition.initial = initial;
+	return StockStore(definition, resources);
 }
 ProcessorDefinition definition(const Catalog &catalog, bool continuous)
 {

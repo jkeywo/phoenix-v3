@@ -2,6 +2,7 @@
 #include "../support/fixtures.hpp"
 #include "../support/model_fixture.hpp"
 #include "../support/controller_fixture.hpp"
+#include "../support/combat_fixture.hpp"
 #include <iostream>
 #include <array>
 #include <filesystem>
@@ -92,7 +93,7 @@ int main()
 			    {
 				    (void)compile_stock_store(resolved, stock, "hold");
 			    },
-			    "shared capacity");
+			    "initial stock exceeds capacity");
 			auto bad = source;
 			auto unknown = definitions;
 			unknown["recipes"][0]["inputs"]["missing.resource"] = 1;
@@ -112,6 +113,42 @@ int main()
 			const auto modified = resolve_packs({read_pack(write_pack(source)), read_pack(write_pack(patch))});
 			require(compile_resource_catalog(modified).at("test.ore").sizes.at("cargo") == 4,
 			        "declared resource override replaces catalogue metadata");
+		}
+		{
+			auto definitions = phoenix::test::combat_fixture();
+			definitions["resources"] = Json::array({{{"id", "test.filtered-round"},
+			                                         {"label", "Filtered round"},
+			                                         {"tags", Json::array({"ammo", "cargo"})},
+			                                         {"sizes", {{"ammo", 1}, {"cargo", 3}}}}});
+			auto &magazine = definitions["entities"][0]["systems"]["mag"];
+			magazine.erase("capacity");
+			magazine.erase("reload");
+			magazine["stock"] = {
+			    {"capacity_tag", "ammo"},
+			    {"capacity", 3},
+			    {"single_resource", true},
+			    {"selection", "test.filtered-round"},
+			    {"initial", {{"test.filtered-round", 3}}},
+			    {"filter", {{"tags", Json::array({"ammo"})}, {"resources", Json::array({"test.filtered-round"})}}}};
+			auto &filter = magazine["stock"]["filter"];
+			for (bool conjunction : {false, true})
+			{
+				filter["mode"] = conjunction ? "and" : "or";
+				filter["require_all"] = conjunction;
+				const auto accepted = phoenix::test::load(definitions);
+				const auto combat = compile_combat(accepted, "test.combat");
+				require(
+				    combat->systems[combat->system_ids.at("mag")].get<MagazineDefinition>().stock.filter.require_all ==
+				        conjunction,
+				    "matching filter composition options preserve their authored semantics through the loader");
+				filter["require_all"] = !conjunction;
+				rejected(
+				    [&]
+				    {
+					    (void)phoenix::test::load(definitions);
+				    },
+				    "conflicting mode and require_all");
+			}
 		}
 		{
 			auto definitions = phoenix::test::controller_fixture();

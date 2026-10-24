@@ -7,6 +7,8 @@ struct ResourceDefinition
 	std::vector<std::string> effects;
 };
 using ResourceCatalogue = std::map<std::string, ResourceDefinition>;
+using SharedResourceCatalogue = std::shared_ptr<const ResourceCatalogue>;
+SharedResourceCatalogue share_resource_catalogue(ResourceCatalogue);
 struct StockFilter
 {
 	std::set<std::string> tags, resources;
@@ -27,8 +29,6 @@ struct StockClaim
 	ResourceAmount quantity = 0;
 	bool operator==(const StockClaim &) const = default;
 };
-ResourceCatalogue compile_resource_catalogue(const Json &);
-StockStoreDefinition compile_stock_store(const Json &, const ResourceCatalogue &);
 void validate_resource_catalogue(const ResourceCatalogue &);
 void validate_stock_store(const StockStoreDefinition &, const ResourceCatalogue &);
 bool stock_filter_accepts(const StockFilter &, const ResourceDefinition &);
@@ -38,6 +38,7 @@ class StockStore
 public:
 	StockStore() = default;
 	StockStore(const StockStoreDefinition &, const ResourceCatalogue &);
+	StockStore(const StockStoreDefinition &, SharedResourceCatalogue);
 	const StockStoreDefinition &definition() const;
 	const ResourceCatalogue &catalogue() const;
 	const std::map<std::string, ResourceAmount> &quantities() const;
@@ -70,8 +71,12 @@ public:
 
 private:
 	friend class StockTransaction;
-	StockStoreDefinition definition_;
-	ResourceCatalogue catalogue_;
+	struct Binding
+	{
+		StockStoreDefinition definition;
+		SharedResourceCatalogue catalogue;
+	};
+	std::shared_ptr<const Binding> binding_;
 	std::map<std::string, ResourceAmount> quantities_;
 	std::map<std::string, StockClaim> capacity_claims_, stock_claims_;
 	std::string selected_;

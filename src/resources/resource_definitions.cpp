@@ -2,6 +2,7 @@ module;
 #include <optional>
 #include <variant>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
@@ -61,6 +62,13 @@ ResourceIndex reference(const Json &item, const char *field, const std::map<std:
 
 ResourceNetworkDefinition compile_resource_network(const Json &authored, const ResourceCatalogue &resources)
 {
+	return compile_resource_network(authored, share_resource_catalogue(resources));
+}
+ResourceNetworkDefinition compile_resource_network(const Json &authored, SharedResourceCatalogue catalogue)
+{
+	if (!catalogue)
+		throw std::runtime_error("resources: missing resource catalogue");
+	const auto &resources = *catalogue;
 	if (!authored.is_object())
 		throw std::runtime_error("resources: expected object");
 	Json json = authored;
@@ -79,7 +87,7 @@ ResourceNetworkDefinition compile_resource_network(const Json &authored, const R
 		          });
 	}
 	ResourceNetworkDefinition d;
-	d.resources = resources;
+	d.resources = std::move(catalogue);
 	identities(json, "stores", d.stores, d.store_ids);
 	identities(json, "generators", d.generators, d.generator_ids);
 	identities(json, "links", d.links, d.link_ids);

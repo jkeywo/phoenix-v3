@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -53,12 +54,18 @@ ResourceAmount saved_amount(const Json &value)
 }
 } // namespace
 StockStore::StockStore(const StockStoreDefinition &definition, const ResourceCatalogue &catalogue)
-    : definition_(definition), catalogue_(catalogue), selected_(definition.selection), revision_(1)
+    : StockStore(definition, share_resource_catalogue(catalogue))
 {
-	validate_resource_catalogue(catalogue_);
-	validate_stock_store(definition_, catalogue_);
-	if (definition_.single_resource && definition_.filter.tags.empty() && definition_.filter.resources.size() == 1)
-		selected_ = *definition_.filter.resources.begin();
+}
+StockStore::StockStore(const StockStoreDefinition &definition, SharedResourceCatalogue catalogue)
+    : binding_(std::make_shared<const Binding>(Binding{definition, std::move(catalogue)})),
+      selected_(definition.selection), revision_(1)
+{
+	if (!binding_->catalogue)
+		throw std::runtime_error("stock: missing resource catalogue");
+	validate_stock_store(definition, *binding_->catalogue);
+	if (definition.single_resource && definition.filter.tags.empty() && definition.filter.resources.size() == 1)
+		selected_ = *definition.filter.resources.begin();
 	for (const auto &[resource, amount] : definition.initial)
 		if (amount)
 			quantities_.emplace(resource, amount);
@@ -66,11 +73,15 @@ StockStore::StockStore(const StockStoreDefinition &definition, const ResourceCat
 }
 const StockStoreDefinition &StockStore::definition() const
 {
-	return definition_;
+	if (!binding_)
+		throw std::runtime_error("stock: unbound store definition");
+	return binding_->definition;
 }
 const ResourceCatalogue &StockStore::catalogue() const
 {
-	return catalogue_;
+	if (!binding_)
+		throw std::runtime_error("stock: unbound resource catalogue");
+	return *binding_->catalogue;
 }
 const std::map<std::string, ResourceAmount> &StockStore::quantities() const
 {
@@ -94,19 +105,23 @@ std::uint64_t StockStore::revision() const
 }
 bool StockStore::allows(const std::string &resource) const
 {
-	const auto found = catalogue_.find(resource);
-	return revision_ && found != catalogue_.end() && stock_filter_accepts(definition_.filter, found->second) &&
-	       found->second.sizes.contains(definition_.capacity_tag);
+	if (!binding_)
+		return false;
+	const auto found = catalogue().find(resource);
+	return revision_ && found != catalogue().end() && stock_filter_accepts(definition().filter, found->second) &&
+	       found->second.sizes.contains(definition().capacity_tag);
 }
 bool StockStore::accepts(const std::string &resource) const
 {
-	return allows(resource) && (!definition_.single_resource || selected_ == resource);
+	return allows(resource) && (!definition().single_resource || selected_ == resource);
 }
 ResourceAmount StockStore::size(const std::string &resource) const
 {
-	const auto found = catalogue_.find(resource);
-	return found != catalogue_.end() && found->second.sizes.contains(definition_.capacity_tag)
-	           ? found->second.sizes.at(definition_.capacity_tag)
+	if (!binding_)
+		return 0;
+	const auto found = catalogue().find(resource);
+	return found != catalogue().end() && found->second.sizes.contains(definition().capacity_tag)
+	           ? found->second.sizes.at(definition().capacity_tag)
 	           : 0;
 }
 ResourceAmount StockStore::quantity(const std::string &resource) const
@@ -140,7 +155,7 @@ ResourceAmount StockStore::headroom(const std::string &resource) const
 {
 	if (!accepts(resource))
 		return 0;
-	return (definition_.capacity - occupied() - reserved_capacity()) / size(resource);
+	return (definition().capacity - occupied() - reserved_capacity()) / size(resource);
 }
 void StockStore::changed()
 {
@@ -188,14 +203,14 @@ ResourceAmount StockStore::fill(const std::string &resource)
 }
 bool StockStore::select(const std::string &resource)
 {
-	if (!definition_.single_resource || !allows(resource))
+	if (!binding_ || !definition().single_resource || !allows(resource))
 		return false;
 	if (selected_ == resource)
 		return true;
 	if (!quantities_.empty() || !capacity_claims_.empty() || !stock_claims_.empty())
 		return false;
-	if (definition_.filter.tags.empty() && definition_.filter.resources.size() == 1 &&
-	    resource != *definition_.filter.resources.begin())
+	if (definition().filter.tags.empty() && definition().filter.resources.size() == 1 &&
+	    resource != *definition().filter.resources.begin())
 		return false;
 	changed();
 	selected_ = resource;
@@ -266,11 +281,11 @@ void StockStore::validate_state() const
 	if (!revision_ || revision_ > stock_revision_limit || quantities_.size() > 4096 || capacity_claims_.size() > 4096 ||
 	    stock_claims_.size() > 4096)
 		throw std::runtime_error("stock: invalid saved store bounds");
-	if ((!definition_.single_resource && !selected_.empty()) ||
-	    (definition_.single_resource && !selected_.empty() && !allows(selected_)))
+	if ((!definition().single_resource && !selected_.empty()) ||
+	    (definition().single_resource && !selected_.empty() && !allows(selected_)))
 		throw std::runtime_error("stock: incompatible saved selection");
-	if (definition_.single_resource && definition_.filter.tags.empty() && definition_.filter.resources.size() == 1 &&
-	    selected_ != *definition_.filter.resources.begin())
+	if (definition().single_resource && definition().filter.tags.empty() && definition().filter.resources.size() == 1 &&
+	    selected_ != *definition().filter.resources.begin())
 		throw std::runtime_error("stock: fixed resource selection changed");
 	for (const auto &[resource, quantity] : quantities_)
 		if (!accepts(resource) || quantity <= 0 || !stock_amount(quantity))
@@ -280,7 +295,7 @@ void StockStore::validate_state() const
 			if (!claim_key(key) || !accepts(claim.resource) || claim.quantity <= 0 || !stock_amount(claim.quantity))
 				throw std::runtime_error("stock: invalid saved claim");
 	const auto used = occupied(), reserved = reserved_capacity();
-	if (used > definition_.capacity || reserved > definition_.capacity - used)
+	if (used > definition().capacity || reserved > definition().capacity - used)
 		throw std::runtime_error("stock: saved capacity exceeded");
 	std::map<std::string, ResourceAmount> claims;
 	for (const auto &[key, claim] : stock_claims_)
@@ -297,7 +312,7 @@ Json StockStore::save() const
 		capacities[key] = {{"resource", claim.resource}, {"quantity", claim.quantity}};
 	for (const auto &[key, claim] : stock_claims_)
 		stocks[key] = {{"resource", claim.resource}, {"quantity", claim.quantity}};
-	return {{"store", definition_.id},       {"selection", selected_}, {"quantities", quantities_},
+	return {{"store", definition().id},      {"selection", selected_}, {"quantities", quantities_},
 	        {"capacity_claims", capacities}, {"stock_claims", stocks}, {"revision", revision_}};
 }
 void StockStore::restore(const Json &json)
@@ -305,7 +320,7 @@ void StockStore::restore(const Json &json)
 	if (!revision_)
 		throw std::runtime_error("stock: restore requires a bound definition");
 	exact_fields(json, {"store", "selection", "quantities", "capacity_claims", "stock_claims", "revision"});
-	if (json.at("store") != definition_.id || !json.at("selection").is_string() ||
+	if (json.at("store") != definition().id || !json.at("selection").is_string() ||
 	    !json.at("revision").is_number_integer() || json.at("revision").is_boolean() || json.at("revision") <= 0 ||
 	    json.at("revision") > stock_revision_limit)
 		throw std::runtime_error("stock: saved identity/revision mismatch");
@@ -392,16 +407,7 @@ bool StockTransaction::transfer(StockStore &from, StockStore &to, const std::str
 }
 void StockStore::swap(StockStore &other) noexcept
 {
-	definition_.id.swap(other.definition_.id);
-	definition_.capacity_tag.swap(other.definition_.capacity_tag);
-	std::swap(definition_.capacity, other.definition_.capacity);
-	definition_.filter.tags.swap(other.definition_.filter.tags);
-	definition_.filter.resources.swap(other.definition_.filter.resources);
-	std::swap(definition_.filter.require_all, other.definition_.filter.require_all);
-	std::swap(definition_.single_resource, other.definition_.single_resource);
-	definition_.selection.swap(other.definition_.selection);
-	definition_.initial.swap(other.definition_.initial);
-	catalogue_.swap(other.catalogue_);
+	binding_.swap(other.binding_);
 	quantities_.swap(other.quantities_);
 	capacity_claims_.swap(other.capacity_claims_);
 	stock_claims_.swap(other.stock_claims_);
@@ -418,25 +424,7 @@ bool StockTransaction::commit()
 		    store->quantities_ != entry.quantities || store->capacity_claims_ != entry.capacity_claims ||
 		    store->stock_claims_ != entry.stock_claims)
 			return result(false);
-		// Operations never change definitions, so the staged copy also retains
-		// the original immutable binding. Reject replacing the entire live store.
-		const auto &live = store->definition_;
-		const auto &original = entry.staged.definition_;
-		if (live.id != original.id || live.capacity_tag != original.capacity_tag ||
-		    live.capacity != original.capacity || live.filter.tags != original.filter.tags ||
-		    live.filter.resources != original.filter.resources ||
-		    live.filter.require_all != original.filter.require_all ||
-		    live.single_resource != original.single_resource || live.selection != original.selection ||
-		    live.initial != original.initial ||
-		    !std::equal(store->catalogue_.begin(), store->catalogue_.end(), entry.staged.catalogue_.begin(),
-		                entry.staged.catalogue_.end(),
-		                [](const auto &left, const auto &right)
-		                {
-			                const auto &a = left.second;
-			                const auto &b = right.second;
-			                return left.first == right.first && a.id == b.id && a.label == b.label &&
-			                       a.tags == b.tags && a.sizes == b.sizes && a.effects == b.effects;
-		                }))
+		if (store->binding_ != entry.staged.binding_)
 			return result(false);
 	}
 	static_assert(noexcept(std::declval<StockStore &>().swap(std::declval<StockStore &>())));

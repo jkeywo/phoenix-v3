@@ -16,7 +16,7 @@ Trusted `apply_effect_group` actions and shield reactions share preparation for 
 
 ## Continuation and review
 
-World saves require schema 22 and electrical-network saves require version 2. Restore binds stock records to compiled definitions and checks physical deliveries, loaded weapons and processors against their exact commitments. Unknown or orphan claims fail replacement restore.
+The initial migration used World schema 22 and electrical-network version 2; the architecture follow-up below advances these to 23 and 3. Restore binds stock records to compiled definitions and checks physical deliveries, loaded weapons and processors against their exact commitments. Unknown or orphan claims fail replacement restore.
 
 The independent source review found and prompted corrections for loaded-round reservation validation, orphan weapon reservations, processor work lost at batch boundaries, feasible partial conversion within a shared store, pathological rounded-ratio search and small property modifiers lost before fixed-point scaling. Source re-review passed after the bounded periodic solver, milliwork modifier evaluation and generic team-processor targeting fixes. The reviewer also checked the final session-schema and portable selector changes; there are no outstanding findings. Runtime gates are recorded separately below.
 
@@ -40,3 +40,25 @@ The independent source review found and prompted corrections for loaded-round re
 Reproduction: use `scripts/check.ps1 -Target native` with a short writable `PHOENIX_NATIVE_BUILD_DIR` when running from a deep Windows worktree, then `scripts/check.ps1 -Target web`. Verify development content with the `development_packs` native target. Builds used separate native and WebAssembly output trees; reused pinned dependency sources were not used as evidence of this migration's test results.
 
 No graphical, touch, gamepad, screen-reader, six-display performance or browser storage smoke journey was run for this migration. Those acceptance areas remain separate from the automatic integration evidence. Directed systems, weapon payload effects and new fabrication/recycling gameplay remain deferred.
+
+## Architecture consolidation - 24 October 2026
+
+The follow-up to `28faf12` removes the five duplication/copying issues found in source review:
+
+- Authored resources and stores have one JSON compiler in `phoenix.content`. The runtime shares typed filter/definition validation; accounting fixtures construct typed definitions instead of maintaining a second authoring parser. Production compilation rejects contradictory `mode` and `require_all` filter settings.
+- `StockStore` shares immutable definition bindings and a frozen resource catalogue. World physical stores and native networks share the same catalogue. Transaction snapshots copy mutable stock state and compare binding identity, without copying or deeply comparing the catalogue. Same-revision restoration and definition replacement still invalidate stale prepared changes.
+- Processors use `StockTransaction` for preparation, output publication and recipe switching. Their separate candidate-store transaction implementation is removed. Batch/continuous rounding, funding and exact output reservations remain unchanged.
+- Effects and processors use one named-store resolver, including canonical names, definition IDs, logistics aliases and ambiguity checks. Ordinary effects stage only touched stores. Native entry payment additionally prepares the payer's network because payment changes heat, discharge limits and telemetry as well as stock.
+- Scenario shield, modifier and operation-group requests share one pending queue, operation vocabulary, confirmation path and restore validation. The existing authored actions, shield/modifier/group phase order, source identities and the existing saved request-array representation are retained. The three saved request arrays are compatibility serialization of the one runtime queue.
+
+Regression coverage exercises production filter parsing, shared immutable bindings with independent mutable stocks, aliases in paid mixed stock operations and rollback of native heat/payment, mixed effect-family continuation, and invalid pending receipt replacement. The initial focused native run passed four of five cases; the new paid-effect continuation case exposed the missing network allowance described below. That case passed after the fix, including invalid-allowance rejection. Independent source review passed both the consolidation and the subsequent allowance fix. Integrated validation is recorded below.
+
+The new paid-effect continuation regression exposed an existing gap: the resource network restored remaining charge/discharge allowances as zero, so a pending scenario effect could fail payment only after resume. Both allowances are now saved and validated. This requires network version 3 and World/session schema 23; prior versions are explicitly rejected. Phase ordering and native payment rules remain unchanged.
+
+Follow-up validation:
+
+- The complete native build, all 39 CTest integration cases and the native application build check passed. All 17 native continuation traces were recorded; the final two were run separately after the network step stopped the combined script.
+- Base, test-missions, test and test-3d packs verified successfully, including the `development_packs` target.
+- The first network run passed ten of twelve cases. Two lobby admission cases timed out while the WebAssembly optimizer was also running. The complete separate network rerun passed all 12 cases after WebAssembly compilation finished, with unchanged assertions and time limits. No network code was changed for these timeouts.
+- The complete WebAssembly build and `scripts/check.ps1 -Target web` passed: content preflight, all integration cases and all 17 native/WebAssembly continuation comparisons, including processors and paid stock effects.
+- The final repository formatting check and `git diff --check` passed for the follow-up changes. Validation logs are retained under `build/effect-cleanup-*.log` in the implementation worktree. No manual graphical smoke journey was run.

@@ -1,13 +1,13 @@
 module;
 #include <algorithm>
 #include <cstdint>
-#include <limits>
+#include <memory>
 #include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
-#include <nlohmann/json.hpp>
 module phoenix.resources;
 namespace phoenix
 {
@@ -22,32 +22,6 @@ bool stock_id(const std::string &s)
 		                   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
 		                          c == '.' || c == '_' || c == '-' || c == ':';
 	                   });
-}
-void stock_fields(const Json &j, const std::set<std::string> &allowed, const std::string &where)
-{
-	if (!j.is_object())
-		throw std::runtime_error(where + ": expected object");
-	for (const auto &[key, v] : j.items())
-		if (!allowed.contains(key))
-			throw std::runtime_error(where + ": unsupported field " + key);
-}
-ResourceAmount stock_number(const Json &j, ResourceAmount minimum, const std::string &where)
-{
-	if (!j.is_number_integer() || j.is_boolean() || j < minimum || j > resource_limit)
-		throw std::runtime_error(where + ": amount outside supported bounds");
-	return j.get<ResourceAmount>();
-}
-std::set<std::string> stock_names(const Json &j, const std::string &where)
-{
-	if (!j.is_array() || j.size() > 4096)
-		throw std::runtime_error(where + ": expected bounded array");
-	std::set<std::string> names;
-	for (const auto &value : j)
-	{
-		if (!value.is_string() || !stock_id(value.get<std::string>()) || !names.insert(value.get<std::string>()).second)
-			throw std::runtime_error(where + ": invalid or duplicate identity");
-	}
-	return names;
 }
 ResourceAmount stock_product(ResourceAmount a, ResourceAmount b)
 {
@@ -93,38 +67,10 @@ void validate_resource_catalogue(const ResourceCatalogue &catalogue)
 				throw std::runtime_error("resources: invalid effect reference " + id);
 	}
 }
-ResourceCatalogue compile_resource_catalogue(const Json &json)
+SharedResourceCatalogue share_resource_catalogue(ResourceCatalogue catalogue)
 {
-	if ((!json.is_array() && !json.is_object()) || json.size() > 4096)
-		throw std::runtime_error("resources: expected catalogue array or object");
-	ResourceCatalogue result;
-	auto record = [&](const Json &value, const std::string &key)
-	{
-		stock_fields(value, {"id", "label", "tags", "sizes", "effects"}, "resource");
-		ResourceDefinition d;
-		d.id = value.value("id", key);
-		if (!key.empty() && d.id != key)
-			throw std::runtime_error("resource: key/id mismatch");
-		d.label = value.value("label", d.id);
-		d.tags = stock_names(value.value("tags", Json::array()), "resource.tags");
-		const auto &sizes = value.at("sizes");
-		if (!sizes.is_object())
-			throw std::runtime_error("resource.sizes: expected object");
-		for (const auto &[tag, size] : sizes.items())
-			d.sizes.emplace(tag, stock_number(size, 1, "resource.sizes"));
-		const auto effects = stock_names(value.value("effects", Json::array()), "resource.effects");
-		d.effects.assign(effects.begin(), effects.end());
-		if (!result.emplace(d.id, d).second)
-			throw std::runtime_error("resource: duplicate identity");
-	};
-	if (json.is_array())
-		for (const auto &value : json)
-			record(value, {});
-	else
-		for (const auto &[id, value] : json.items())
-			record(value, id);
-	validate_resource_catalogue(result);
-	return result;
+	validate_resource_catalogue(catalogue);
+	return std::make_shared<const ResourceCatalogue>(std::move(catalogue));
 }
 void validate_stock_store(const StockStoreDefinition &d, const ResourceCatalogue &catalogue)
 {
@@ -165,38 +111,5 @@ void validate_stock_store(const StockStoreDefinition &d, const ResourceCatalogue
 			throw std::runtime_error("stock store: initial stock exceeds capacity");
 		occupied += size;
 	}
-}
-StockStoreDefinition compile_stock_store(const Json &j, const ResourceCatalogue &catalogue)
-{
-	stock_fields(j, {"id", "capacity_tag", "capacity", "filter", "single_resource", "selection", "initial"},
-	             "stock store");
-	StockStoreDefinition d;
-	d.id = j.at("id").get<std::string>();
-	d.capacity_tag = j.at("capacity_tag").get<std::string>();
-	d.capacity = stock_number(j.at("capacity"), 0, "stock store.capacity");
-	d.single_resource = j.value("single_resource", false);
-	d.selection = j.value("selection", std::string{});
-	if (j.contains("filter"))
-	{
-		const auto &f = j.at("filter");
-		stock_fields(f, {"tags", "resources", "mode", "require_all"}, "stock store.filter");
-		d.filter.tags = stock_names(f.value("tags", Json::array()), "stock store.filter.tags");
-		d.filter.resources = stock_names(f.value("resources", Json::array()), "stock store.filter.resources");
-		const auto mode = f.value("mode", std::string("or"));
-		if (mode != "and" && mode != "or")
-			throw std::runtime_error("stock store.filter: unsupported mode");
-		d.filter.require_all = f.value("require_all", mode == "and");
-		if (f.contains("mode") && f.contains("require_all") && d.filter.require_all != (mode == "and"))
-			throw std::runtime_error("stock store.filter: conflicting composition");
-	}
-	if (j.contains("initial"))
-	{
-		if (!j.at("initial").is_object())
-			throw std::runtime_error("stock store.initial: expected object");
-		for (const auto &[id, amount] : j.at("initial").items())
-			d.initial.emplace(id, stock_number(amount, 0, "stock store.initial"));
-	}
-	validate_stock_store(d, catalogue);
-	return d;
 }
 } // namespace phoenix
