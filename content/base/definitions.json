@@ -29130,8 +29130,8 @@
 						"name": "Tomas Rook",
 						"portrait": "phoenix-base:assets/personnel/officer-4.png",
 						"department": "tactical",
-						"duty": "top-mag",
-						"compartment": "mid-port",
+						"duty": "team.security",
+						"compartment": "bow-starboard",
 						"traits": ["reload"]
 					},
 					{
