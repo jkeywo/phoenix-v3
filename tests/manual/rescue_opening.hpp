@@ -574,6 +574,10 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		}
 		if (preview)
 		{
+			const auto stocks = view(engineering).second.gameplay.at("logistics").at("stores");
+			for (const auto &store : stocks)
+				if (store.at("id") == "cargo-hold")
+					std::cout << "STARTING CARGO " << store.at("quantities").dump() << std::endl;
 			std::cout << "STARTING PERSONNEL " << view("tactical").second.gameplay.at("personnel").dump() << std::endl;
 			close_window();
 			opened = false;
@@ -589,7 +593,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 			const auto craft = board.at("cargo_craft")[0].at("id").get<std::uint64_t>();
 			domain("tactical", "logistics", "craft_allow", std::to_string(craft), "1");
 			advance(1);
-			domain(engineering, "logistics", "deliver", "mission-hold",
+			domain(engineering, "logistics", "deliver", "cargo-hold",
 			       std::to_string(craft) + "/cargo/2/receiving/perishable-essentials/100");
 			advance(2);
 			panel(2, "logistics");
@@ -616,7 +620,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 			    },
 			    "station docking");
 			capture("docked");
-			domain(engineering, "logistics", "transfer", "mission-hold", "2/receiving/station-supplies/100");
+			domain(engineering, "logistics", "transfer", "cargo-hold", "2/receiving/station-supplies/100");
 			advance(1);
 			until(
 			    [&]

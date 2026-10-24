@@ -6,7 +6,7 @@ The system contains a procedural star, a single-billboard planet and side-on orb
 
 ## Playing the opening
 
-The Courier carries 100 units of routine station supplies. Helm approaches Cairn, docks at a compatible station port, and Support uses **Stores and deliveries** to transfer the mission hold into the station's **Receiving store**. There is no delivery deadline.
+The Courier carries 100 units of routine station supplies. Helm approaches Cairn, docks at a compatible station port, and Support uses **Stores and deliveries** to transfer the cargo hold into the station's **Receiving store**. There is no delivery deadline.
 
 The Cruiser carries 100 units of perishable essentials. Tactical authorises a utility shuttle's cargo use; Engineering orders the delivery in **Stores and deliveries**. One shuttle holds the entire consignment. The Cruiser can divert while the shuttle works, or Helm can dock the Cruiser and Engineering can unload directly. No shuttle launches automatically.
 

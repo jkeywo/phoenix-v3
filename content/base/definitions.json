@@ -29173,7 +29173,7 @@
 				"units_per_second": 40,
 				"stores": [
 					{
-						"id": "mission-hold",
+						"id": "cargo-hold",
 						"controller": "team-1",
 						"compartment": "stern-starboard",
 						"main": true,
@@ -29181,11 +29181,9 @@
 							"capacity_tag": "cargo",
 							"capacity": 100,
 							"filter": {
-								"resources": ["station-supplies"]
+								"tags": ["cargo"]
 							},
-							"initial": {
-								"station-supplies": 100
-							}
+							"initial": {}
 						}
 					}
 				]
@@ -32214,16 +32212,7 @@
 							"capacity_tag": "cargo",
 							"capacity": 200,
 							"filter": {
-								"resources": [
-									"base.ammunition.havok",
-									"base.ammunition.homing",
-									"base.ammunition.kinetic",
-									"base.ammunition.pdc",
-									"base.craft.bomber",
-									"base.craft.interceptor",
-									"medical",
-									"parts"
-								]
+								"tags": ["cargo"]
 							},
 							"initial": {}
 						}
@@ -32237,7 +32226,7 @@
 						"controller": "flight",
 						"compartment": "hull",
 						"compatibility": "standard",
-						"x_mm": 7000,
+						"x_mm": 11000,
 						"heading_mdeg": 0,
 						"capture_range_mm": 1500,
 						"capture_speed_mm_s": 1000,
@@ -33115,71 +33104,9 @@
 			"faction": "raiders"
 		},
 		{
-			"id": "base.delivery-courier",
-			"extends": "base.rescue-courier",
-			"name": "Courier"
-		},
-		{
-			"id": "base.delivery-shuttle",
-			"extends": "base.shuttle",
-			"name": "Utility delivery shuttle",
-			"faction": "crew",
-			"logistics": {
-				"controller": "flight",
-				"stores": [
-					{
-						"id": "cargo",
-						"controller": "flight",
-						"compartment": "hull",
-						"main": true,
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 200,
-							"filter": {
-								"resources": [
-									"base.ammunition.havok",
-									"base.ammunition.homing",
-									"base.ammunition.kinetic",
-									"base.ammunition.pdc",
-									"base.craft.bomber",
-									"base.craft.interceptor",
-									"medical",
-									"parts",
-									"station-supplies",
-									"perishable-essentials"
-								]
-							},
-							"initial": {}
-						}
-					}
-				]
-			},
-			"docking": {
-				"ports": [
-					{
-						"id": "service",
-						"controller": "flight",
-						"compartment": "hull",
-						"compatibility": "standard",
-						"x_mm": 11000,
-						"heading_mdeg": 0,
-						"capture_range_mm": 1500,
-						"capture_speed_mm_s": 1000,
-						"mating_ticks": 40,
-						"separation_ticks": 30,
-						"units_per_second": 40,
-						"auto_accept_allies": true,
-						"supply": true,
-						"emergency_release": true,
-						"emergency_damage": 20
-					}
-				]
-			}
-		},
-		{
 			"id": "base.delivery-cruiser",
 			"extends": "base.cruiser",
-			"name": "Cruiser \u2014 essential delivery",
+			"name": "Cruiser \u2014 logistics fit",
 			"faction": "crew",
 			"logistics": {
 				"controller": "logistics",
@@ -33760,7 +33687,7 @@
 						"controller": "logistics",
 						"compartment": "engineering",
 						"targets": {
-							"parts": 4000
+							"parts": 24
 						},
 						"stock": {
 							"capacity_tag": "cargo",
@@ -33769,7 +33696,7 @@
 								"resources": ["parts"]
 							},
 							"initial": {
-								"parts": 4000
+								"parts": 24
 							}
 						}
 					},
@@ -33779,7 +33706,7 @@
 						"controller": "logistics",
 						"compartment": "engineering",
 						"targets": {
-							"parts": 4000
+							"parts": 24
 						},
 						"stock": {
 							"capacity_tag": "cargo",
@@ -33788,7 +33715,7 @@
 								"resources": ["parts"]
 							},
 							"initial": {
-								"parts": 4000
+								"parts": 24
 							}
 						}
 					},
@@ -33798,7 +33725,7 @@
 						"controller": "logistics",
 						"compartment": "engineering",
 						"targets": {
-							"parts": 4000
+							"parts": 24
 						},
 						"stock": {
 							"capacity_tag": "cargo",
@@ -33807,7 +33734,7 @@
 								"resources": ["parts"]
 							},
 							"initial": {
-								"parts": 4000
+								"parts": 24
 							}
 						}
 					},
@@ -33817,7 +33744,7 @@
 						"controller": "logistics",
 						"compartment": "engineering",
 						"targets": {
-							"parts": 4000
+							"parts": 24
 						},
 						"stock": {
 							"capacity_tag": "cargo",
@@ -33826,7 +33753,7 @@
 								"resources": ["parts"]
 							},
 							"initial": {
-								"parts": 4000
+								"parts": 24
 							}
 						}
 					},
@@ -33929,7 +33856,7 @@
 						}
 					},
 					{
-						"id": "mission-hold",
+						"id": "cargo-hold",
 						"controller": "logistics",
 						"compartment": "magazines",
 						"main": true,
@@ -33937,11 +33864,9 @@
 							"capacity_tag": "cargo",
 							"capacity": 100,
 							"filter": {
-								"resources": ["perishable-essentials"]
+								"tags": ["cargo"]
 							},
-							"initial": {
-								"perishable-essentials": 100
-							}
+							"initial": {}
 						}
 					}
 				],
@@ -34029,11 +33954,6 @@
 					}
 				],
 				"cargo_authorisation_controller": "dispatch"
-			},
-			"systems": {
-				"utility-bay": {
-					"initial": ["base.delivery-shuttle", "base.delivery-shuttle"]
-				}
 			},
 			"stations": [
 				{
@@ -34292,8 +34212,8 @@
 					"gain": 0.15
 				}
 			},
-			"id": "base.delivery-station",
-			"name": "Cairn orbital starbase",
+			"id": "base.orbital-station",
+			"name": "Orbital starbase",
 			"tags": ["ship", "contact", "station"],
 			"motion_model": "inertial",
 			"half_height_mm": 500,
@@ -34458,7 +34378,7 @@
 							"capacity_tag": "cargo",
 							"capacity": 1000,
 							"filter": {
-								"resources": ["station-supplies", "perishable-essentials"]
+								"tags": ["cargo"]
 							},
 							"initial": {}
 						}
@@ -34509,25 +34429,25 @@
 				"characters": [
 					{
 						"id": "quartermaster",
-						"name_key": "Cairn Receiving",
+						"name_key": "Station Receiving",
 						"public": true
 					},
 					{
 						"id": "captain",
-						"name_key": "Cairn Control",
+						"name_key": "Station Control",
 						"public": true
 					},
 					{
 						"id": "engineer",
-						"name_key": "Cairn Engineering",
+						"name_key": "Station Engineering",
 						"public": false
 					}
 				]
 			}
 		},
 		{
-			"id": "base.delivery-planet",
-			"name": "Cairn",
+			"id": "base.planet-billboard",
+			"name": "Planet",
 			"tags": ["contact", "planet"],
 			"render": {
 				"mode": "camera",
@@ -34557,7 +34477,7 @@
 			}
 		},
 		{
-			"id": "base.delivery-star",
+			"id": "base.system-star",
 			"render": {
 				"scale": 1000,
 				"radar_icon": "sun",
@@ -34576,7 +34496,7 @@
 				"radius_mm": 450000,
 				"mass_grams": 0
 			},
-			"name": "Cairn primary",
+			"name": "Star",
 			"tags": ["contact", "star"]
 		},
 		{
@@ -37023,7 +36943,7 @@
 		},
 		{
 			"id": "base.supply-depot",
-			"extends": "base.delivery-station",
+			"extends": "base.orbital-station",
 			"name": "House supply depot",
 			"faction": "house",
 			"comms": {
@@ -37059,6 +36979,58 @@
 					}
 				]
 			}
+		},
+		{
+			"id": "base.delivery-station",
+			"extends": "base.orbital-station",
+			"name": "Cairn orbital starbase",
+			"comms": {
+				"characters": [
+					{
+						"id": "quartermaster",
+						"name_key": "Cairn Receiving",
+						"public": true
+					},
+					{
+						"id": "captain",
+						"name_key": "Cairn Control",
+						"public": true
+					},
+					{
+						"id": "engineer",
+						"name_key": "Cairn Engineering",
+						"public": false
+					}
+				]
+			},
+			"logistics": {
+				"stores": [
+					{
+						"id": "receiving",
+						"controller": "flight",
+						"compartment": "hull",
+						"main": true,
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 1000,
+							"filter": {
+								"resources": ["station-supplies", "perishable-essentials"]
+							},
+							"initial": {}
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "base.delivery-planet",
+			"extends": "base.planet-billboard",
+			"name": "Cairn"
+		},
+		{
+			"id": "base.delivery-star",
+			"extends": "base.system-star",
+			"name": "Cairn primary"
 		}
 	],
 	"maps": [
@@ -37131,7 +37103,7 @@
 				},
 				{
 					"id": "delivery-courier-arrival",
-					"tree": "base.dialogue.delivery-courier-arrival",
+					"tree": "base.dialogue.rescue-delivery-courier-arrival",
 					"start_event": "delivery.courier-arrival",
 					"bindings": {
 						"ship": {
@@ -37147,7 +37119,7 @@
 				},
 				{
 					"id": "delivery-cruiser-arrival",
-					"tree": "base.dialogue.delivery-cruiser-arrival",
+					"tree": "base.dialogue.rescue-delivery-cruiser-arrival",
 					"start_event": "delivery.cruiser-arrival",
 					"bindings": {
 						"ship": {
@@ -37163,7 +37135,7 @@
 				},
 				{
 					"id": "delivery-completed",
-					"tree": "base.dialogue.delivery-completed",
+					"tree": "base.dialogue.rescue-delivery-completed",
 					"start_event": "delivery.completed",
 					"bindings": {
 						"ship": {
@@ -37178,7 +37150,7 @@
 				},
 				{
 					"id": "delivery-expired",
-					"tree": "base.dialogue.delivery-expired",
+					"tree": "base.dialogue.rescue-delivery-expired",
 					"start_event": "delivery.expired",
 					"bindings": {
 						"ship": {
@@ -37193,7 +37165,7 @@
 				},
 				{
 					"id": "delivery-reminder-5",
-					"tree": "base.dialogue.delivery-reminder-5",
+					"tree": "base.dialogue.rescue-delivery-reminder-5",
 					"start_event": "delivery.reminder-5",
 					"bindings": {
 						"ship": {
@@ -37209,7 +37181,7 @@
 				},
 				{
 					"id": "delivery-reminder-8",
-					"tree": "base.dialogue.delivery-reminder-8",
+					"tree": "base.dialogue.rescue-delivery-reminder-8",
 					"start_event": "delivery.reminder-8",
 					"bindings": {
 						"ship": {
@@ -37225,7 +37197,7 @@
 				},
 				{
 					"id": "delivery-reminder-15",
-					"tree": "base.dialogue.delivery-reminder-15",
+					"tree": "base.dialogue.rescue-delivery-reminder-15",
 					"start_event": "delivery.reminder-15",
 					"bindings": {
 						"ship": {
@@ -37241,7 +37213,7 @@
 				},
 				{
 					"id": "delivery-reminder-18",
-					"tree": "base.dialogue.delivery-reminder-18",
+					"tree": "base.dialogue.rescue-delivery-reminder-18",
 					"start_event": "delivery.reminder-18",
 					"bindings": {
 						"ship": {
@@ -37257,7 +37229,7 @@
 				},
 				{
 					"id": "reactor-escalation",
-					"tree": "base.dialogue.reactor-emergency",
+					"tree": "base.dialogue.rescue-reactor-emergency",
 					"start_event": "rescue.reactor-emergency",
 					"bindings": {
 						"ship": {
@@ -38186,7 +38158,7 @@
 				"situations": [
 					{
 						"id": "delivery-reminders",
-						"tree": "base.scenario.delivery-reminders",
+						"tree": "base.scenario.rescue-delivery-reminders",
 						"bindings": {
 							"actor": {
 								"slot": "courier"
@@ -38196,7 +38168,7 @@
 					},
 					{
 						"id": "reactor-clock",
-						"tree": "base.scenario.reactor-emergency",
+						"tree": "base.scenario.rescue-reactor-emergency",
 						"bindings": {
 							"actor": {
 								"slot": "courier"
@@ -38400,7 +38372,7 @@
 					"target_character": "engineer",
 					"start_event": "rescue.distress",
 					"tree": "base.interdiction.rescue",
-					"dialogue": "base.dialogue.pirate-demand",
+					"dialogue": "base.dialogue.rescue-pirate-demand",
 					"threat_radius_mm": 600000,
 					"clearance_radius_mm": 750000,
 					"engagement_radius_mm": 2500000,
@@ -38452,7 +38424,44 @@
 						]
 					},
 					"combat_standoff_mm": 250000,
-					"cruise_speed_mm_s": 20000
+					"cruise_speed_mm_s": 20000,
+					"takeover_effects": {
+						"repair": true,
+						"original_crew": "kill",
+						"capture_visitors": true
+					}
+				}
+			],
+			"starting_stocks": [
+				{
+					"ship_slot": "courier",
+					"definition": "base.rescue-courier",
+					"stores": {
+						"cargo-hold": {
+							"station-supplies": 100
+						}
+					}
+				},
+				{
+					"ship_slot": "courier",
+					"definition": "base.delivery-cruiser",
+					"stores": {
+						"cargo-hold": {
+							"perishable-essentials": 100
+						},
+						"repair-1-kit": {
+							"parts": 4000
+						},
+						"repair-2-kit": {
+							"parts": 4000
+						},
+						"repair-3-kit": {
+							"parts": 4000
+						},
+						"repair-4-kit": {
+							"parts": 4000
+						}
+					}
 				}
 			]
 		}
@@ -55360,17 +55369,7 @@
 			]
 		},
 		{
-			"id": "base.scenario.rescue-raider",
-			"context": "scenario",
-			"initial": "wait",
-			"states": [
-				{
-					"id": "wait"
-				}
-			]
-		},
-		{
-			"id": "base.scenario.delivery-reminders",
+			"id": "base.scenario.rescue-delivery-reminders",
 			"context": "scenario",
 			"initial": "check",
 			"states": [
@@ -55569,7 +55568,7 @@
 			]
 		},
 		{
-			"id": "base.dialogue.delivery-courier-arrival",
+			"id": "base.dialogue.rescue-delivery-courier-arrival",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55593,7 +55592,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-cruiser-arrival",
+			"id": "base.dialogue.rescue-delivery-cruiser-arrival",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55617,7 +55616,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-completed",
+			"id": "base.dialogue.rescue-delivery-completed",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55641,7 +55640,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-expired",
+			"id": "base.dialogue.rescue-delivery-expired",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55665,7 +55664,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-reminder-5",
+			"id": "base.dialogue.rescue-delivery-reminder-5",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55689,7 +55688,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-reminder-8",
+			"id": "base.dialogue.rescue-delivery-reminder-8",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55713,7 +55712,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-reminder-15",
+			"id": "base.dialogue.rescue-delivery-reminder-15",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -55737,7 +55736,7 @@
 			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
-			"id": "base.dialogue.delivery-reminder-18",
+			"id": "base.dialogue.rescue-delivery-reminder-18",
 			"context": "conversation",
 			"initial": "message",
 			"lines": {
@@ -56489,7 +56488,7 @@
 			]
 		},
 		{
-			"id": "base.scenario.reactor-emergency",
+			"id": "base.scenario.rescue-reactor-emergency",
 			"context": "scenario",
 			"initial": "waiting",
 			"states": [
@@ -56565,7 +56564,7 @@
 			]
 		},
 		{
-			"id": "base.dialogue.reactor-emergency",
+			"id": "base.dialogue.rescue-reactor-emergency",
 			"context": "conversation",
 			"initial": "hail",
 			"lines": {
@@ -61455,7 +61454,7 @@
 			]
 		},
 		{
-			"id": "base.dialogue.pirate-demand",
+			"id": "base.dialogue.rescue-pirate-demand",
 			"context": "conversation",
 			"title_key": "Pirate ultimatum",
 			"initial": "wait",
@@ -65869,20 +65868,6 @@
 			"id": "base.console.cruiser-captain.layout"
 		}
 	],
-	"ui_groups": [
-		{
-			"id": "phoenix-base.group.operations",
-			"schema": 1,
-			"root": {
-				"id": "operations",
-				"kind": "component",
-				"component": "gameplay",
-				"label": "Operations",
-				"min_width": 260,
-				"min_height": 320
-			}
-		}
-	],
 	"themes": [
 		{
 			"id": "phoenix-base.theme.current",
@@ -65904,6 +65889,20 @@
 				"gap": 12
 			},
 			"assets": {}
+		}
+	],
+	"ui_groups": [
+		{
+			"id": "phoenix-base.group.operations",
+			"schema": 1,
+			"root": {
+				"id": "operations",
+				"kind": "component",
+				"component": "gameplay",
+				"label": "Operations",
+				"min_width": 260,
+				"min_height": 320
+			}
 		}
 	]
 }

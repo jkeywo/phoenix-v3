@@ -17,7 +17,7 @@ Medical remains optional. A deployed Medical team enables the wounded-rescue cho
 - `injure_duty` and `kill_duty` take a team slot identity and affect only its actual accompanying officer. `crew_deaths` records the authored count of trapped NPC deaths. `log` appends an authored localisation key to the timestamped mission ledger. Effect receipts prevent replayed injuries, deaths and log entries after restore.
 - Report `log_events` maps declared scenario events to text keys, including events about other vessels such as Morrow's escape. The final report freezes those events, away-tree log entries, officer casualties, objectives, independent assessments and final ship/crew condition at departure. The report's main column presents objectives and the log; the side column summarises ship and crew.
 
-Current content uses a six-minute escalation, four trapped crew, and editable job durations in `base.away.rescue`. These are tuning values, not production-content assertions in automated tests. The mission Cruiser carries finite 4,000-part repair kits to allow the slower shutdown plus the remaining repairs; unrelated Cruiser fittings retain their existing supplies.
+Current content uses a six-minute escalation, four trapped crew, and editable job durations in `base.away.rescue`. These are tuning values, not production-content assertions in automated tests. The rescue map supplies the logistics Cruiser with finite 4,000-part repair kits through `starting_stocks` to allow the slower shutdown plus the remaining repairs; unrelated Cruiser fittings retain their existing supplies.
 
 This chunk does not change the pirate encounter or introduce a new reason for choosing the faster shutdown. It adds no general spoilage or evacuation simulation.
 

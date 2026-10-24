@@ -36,7 +36,7 @@ Below three stars, officer assignments for duties and authorised away contributi
 
 Implementation must reuse authored Controller profiles, ordinary trees and admitted commands. Hidden controls must also be refused authoritatively. Station-level profile changes are atomic and retain accepted physical work. AI uses permitted observations, finite resources, real travel and existing docking/mission rules.
 
-The implementation uses the common `base.rescue-courier` definition for playable Courier selections. `base.delivery-courier` remains an equipment-identical compatibility alias. Mission-specific objectives and initial cargo remain authored scenario data. NPC patrol definitions are unchanged.
+The implementation uses the common `base.rescue-courier` definition for playable Courier selections. The unused `base.delivery-courier` compatibility alias has been removed. Mission-specific objectives and initial cargo remain authored scenario data. NPC patrol definitions are unchanged.
 
 The three profiles divide existing Controller command channels and reuse ordinary state trees. New runtime support covers shared combat targeting, split direct-flight bindings, department-scoped officer assistance, authorised team contributions while Medical is automatic, and conversation authority independent of radio readiness. Automatic Medical selects eligible authored patient orders and clears completed work when starting another order. FTL departure remains a deliberate player action.
 

@@ -20,6 +20,14 @@ Helm owns its actual propulsion/steering mechanisms. Engineering owns generator,
 
 All local reserves have real finite quantities, transfer limits and thermal parameters. Boost and charged impulse draw their authored operating costs. The central coolant provider names the pump's `power_store`, so unpaid pump operation cannot remove heat or spend coolant. Redundant engine feeds share the same upstream stock, and individually isolated links do not create replacement capacity. A second drive placement receives independent local state and controller instances.
 
+## Reusable logistics and scenery
+
+The normal Courier's legacy ID is `base.rescue-courier`; its cargo hold is empty outside a mission assignment. `base.delivery-cruiser` adds cargo storage and high-capacity repair kits to `base.cruiser`. `base.shuttle` supplies generic finite cargo storage and docking. `base.delivery-raider` supplies a pirate raider with boarding-compatible docking and ordinary FTL. None carries an implicit station consignment.
+
+`base.orbital-station` provides docking, a finite cargo receiving store and powered Comms with neutral speakers. `base.planet-billboard` and `base.system-star` provide configurable scenery. Rescue adds Cairn-specific thin definitions; the House depot derives directly from the neutral station. Shared art, equipment, UI, operating policies and cargo resource identities stay in the base library.
+
+Mission authors assign initial consignments using [map starting stocks](content-format.md#mission-starting-stocks), and choose takeover consequences independently of dialogue. Rescue's reminders, reactor clock, three-job away sequence and outcome grading remain explicitly mission-specific trees and rules.
+
 ## Console Controllers, complexity and information
 
 Maintained craft author Console Controllers with owned command sections and explicit physical subscriptions. The survey, tug and traffic retain vector mechanisms; powered engineering and patrol fits retain inertial mechanisms. AI trees operate these command sections through the same admission and execution as human controls, reading permitted Console observations and entity knowledge. Physical fittings retain resource and thermal behavior; always-active factual reporters handle heat warnings and recovery independently of the operator.
