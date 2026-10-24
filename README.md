@@ -40,6 +40,8 @@ The runtime foundation uses **C++20 + Flecs + raylib**, with **RmlUi player cons
 
 Linux builds of the native game and command-line packager use `./scripts/build-linux.sh`; see [Linux prerequisites, checks and current platform limits](docs/building.md#linux-native-game-and-packager).
 
+[Headless native profiling](docs/headless-performance-2026-10-24.md) records simulation CPU bottlenecks, measured fixes and the manual profiling command.
+
 The [testing policy](docs/testing.md) uses three categories: manually invoked smoke captures, content verification without frozen tuning values, and automated system integration tests using synthetic fixtures. Equipment tuning and player workload require prototyping and playtesting. Historical implementation claims refer to Phoenix V2 and do not describe working V3 features.
 
 The [Console Controller architecture](docs/controller-architecture.md) separates human/AI decision-making from physical Systems through shared blackboards and Controller-owned command sections. All live command decisions use that common runtime. Complexity profiles choose operators; physical mechanisms consume commands and report facts. The [refactoring plan](docs/controller-refactor-plan.md) records implementation and verification evidence. See [Controller authoring](docs/controller-content.md) for channels, subscriptions, observation scope, messaging and compatibility.

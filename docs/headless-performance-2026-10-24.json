@@ -1,0 +1,492 @@
+{
+	"date": "2026-10-24",
+	"baseline_simulation_revision": "59c361edeb4091f31b4b99811f50ecae6ee44f9d",
+	"optimized_simulation_revision": "7d5334d0de355c1a22f08c8e962fd85503235d0b",
+	"machine": {
+		"cpu": "AMD EPYC 9V74",
+		"cpu_quota": 4,
+		"memory_limit_gib": 16,
+		"os": "Linux 6.18.55 x86_64",
+		"compiler": "Clang 19.1.7",
+		"cmake": "3.31.6",
+		"configuration": "Release, -O3 -DNDEBUG"
+	},
+	"method": {
+		"ticks_per_run": 600,
+		"runs_per_version_per_case": 2,
+		"ordering": ["baseline then optimized", "optimized then baseline"],
+		"inputs": "Default authored profiles, autonomous AI, no human claims or commands",
+		"timed_region": "World::tick only; loading and final saves excluded",
+		"timing_instrumentation": "steady_clock around each tick; no phase logging or CPU sampling",
+		"summary": "Arithmetic mean of the two per-run statistics; p95/p99 are not pooled percentiles"
+	},
+	"pack_sha256": {
+		"base.zip": "d6fd667566379e4ac4702592128a42363beb26fa9b4b4215354f9497119e6ca4",
+		"test-missions.zip": "2657faf23850c62395c3d3f443e5165b222131dfe42346bbc882399c4e0c6f75"
+	},
+	"executable_sha256": {
+		"baseline": "67dac3ee408ff3e53f958057523cc07eb756b237899a1910d5d84601fc4fe715",
+		"optimized": "be08a1543cb6aa6e229a0f2dcae01c5bfe6ce207adec51d9447ebd7aab2328e3"
+	},
+	"summary": {
+		"courier": {
+			"baseline": {
+				"mean": 30.1207963441667,
+				"p50": 30.1188505,
+				"p95": 35.1234435,
+				"p99": 40.4450545,
+				"max": 62.7545545
+			},
+			"optimized": {
+				"mean": 13.611005747499998,
+				"p50": 13.454594499999999,
+				"p95": 17.0895985,
+				"p99": 23.365992,
+				"max": 26.3479365
+			},
+			"speedup": 2.212973596730656,
+			"reduction_percent": 54.811932619650165,
+			"canonical_state_sha256": "69491f4e827dc4ff822e59e6e0497fdd910f868a05e0f54a65b93826f06b3087"
+		},
+		"cruiser": {
+			"baseline": {
+				"mean": 155.49793150250008,
+				"p50": 150.83839999999998,
+				"p95": 198.2168035,
+				"p99": 230.75788999999997,
+				"max": 292.97832800000003
+			},
+			"optimized": {
+				"mean": 40.14542817166666,
+				"p50": 36.215755,
+				"p95": 66.9675615,
+				"p99": 108.9362035,
+				"max": 132.368141
+			},
+			"speedup": 3.8733658746289192,
+			"reduction_percent": 74.18266096290728,
+			"canonical_state_sha256": "b42642b6b27758993a4b29cae4bb77f6224312a094581df13dcc99cf508727d7"
+		},
+		"combat": {
+			"baseline": {
+				"mean": 67.21387610083333,
+				"p50": 69.66866350000001,
+				"p95": 112.88116099999999,
+				"p99": 116.34071399999999,
+				"max": 119.88951850000001
+			},
+			"optimized": {
+				"mean": 33.92113276083332,
+				"p50": 35.28236149999999,
+				"p95": 58.449113,
+				"p99": 63.922994,
+				"max": 74.7263235
+			},
+			"speedup": 1.9814749871337174,
+			"reduction_percent": 49.53254487221462,
+			"canonical_state_sha256": "d984e5115ab5d0e63e2760f7f15cb8c307f482e6ede9dbed1daea65006180f8b"
+		}
+	},
+	"baseline_phase_means_ms": {
+		"admission_personnel_effects": 5.1005835049999995,
+		"combat_teams_repairs": 1.8099967483333328,
+		"command_snapshots": 0.08292850333333333,
+		"console_observation_snapshots": 58.108325793333314,
+		"controllers": 24.394245623333326,
+		"equipment": 15.267968666666674,
+		"knowledge_snapshots": 0.7748970166666667,
+		"logistics_motion_collision": 4.957863993333333,
+		"missions_comms_away_sensors": 9.472224275,
+		"missions_conversations_away": 0.09176517666666663,
+		"navigation_blackboards": 0.3074593600000001,
+		"prepare_craft_docking": 17.940862025,
+		"refresh_comms_boarding_craft": 12.314792470000004,
+		"scenario": 0.28426022166666665,
+		"scenario_evaluation_knowledge": 0.15073908000000005
+	},
+	"optimized_phase_means_ms": {
+		"admission_personnel_effects": 0.16888972500000002,
+		"combat_teams_repairs": 1.655678048333334,
+		"command_snapshots": 0.06677171833333334,
+		"console_observation_snapshots": 11.22949909833333,
+		"controllers": 6.066471779999998,
+		"equipment": 10.678863696666669,
+		"knowledge_snapshots": 0.6144941483333334,
+		"logistics_motion_collision": 0.2864702216666667,
+		"missions_comms_away_sensors": 4.725227883333334,
+		"missions_conversations_away": 0.08083496166666668,
+		"navigation_blackboards": 0.27063925999999994,
+		"prepare_craft_docking": 0.8861024449999999,
+		"refresh_comms_boarding_craft": 1.749300973333333,
+		"scenario": 0.24161776499999996,
+		"scenario_evaluation_knowledge": 0.1474193716666666
+	},
+	"cpu_sampling": {
+		"tool": "google-perftools 2.16",
+		"frequency_hz": 100,
+		"filter": "World.*tick",
+		"baseline_cpu_sha256": "4f0d0b091f6dd9f2a09cb1b1cf9a1bb6fcd1ee47d607b3473f5f833bd216383d",
+		"optimized_cpu_sha256": "02d3e9ad787ffe626956cae05f961fa793b10e05d652adaf713126538861ce41"
+	},
+	"validation": {
+		"native_ctest_passed": 41,
+		"native_ctest_failed": 0,
+		"ctest_log_sha256": "e1808d303e1dc4fe4bd7b762ddd24afa34983189f6817666fa5c200b65caf654",
+		"all_measured_final_states_equal": true,
+		"built": ["41 integration executables", "phoenix_cruiser_smoke", "phoenix_headless_profile"]
+	},
+	"runs": [
+		{
+			"iteration": 1,
+			"version": "baseline",
+			"case": "courier",
+			"command": [
+				"build/headless-profile/baseline",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.rescue-courier",
+				"600",
+				"build/headless-profile/run-1-baseline-courier"
+			],
+			"result": {
+				"max": 45.190491,
+				"mean": 30.25706916333335,
+				"p50": 30.228068,
+				"p95": 36.495703,
+				"p99": 40.885765,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.rescue-courier",
+				"ticks": 600,
+				"total": 18154.24149800001,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "8671cf36ecc156f636e650b2fc5f4e02981a772bb6cccdf2c7da8abc6cd12479",
+			"log_sha256": "84c82dd949103471cf62e4bbae33089890d7037b3c51931bdf9f9368ef96e037",
+			"canonical_state_sha256": "69491f4e827dc4ff822e59e6e0497fdd910f868a05e0f54a65b93826f06b3087"
+		},
+		{
+			"iteration": 1,
+			"version": "optimized",
+			"case": "courier",
+			"command": [
+				"build/headless-profile/optimized",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.rescue-courier",
+				"600",
+				"build/headless-profile/run-1-optimized-courier"
+			],
+			"result": {
+				"max": 26.986123,
+				"mean": 13.707964203333335,
+				"p50": 13.441429,
+				"p95": 17.959412,
+				"p99": 23.577491,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.rescue-courier",
+				"ticks": 600,
+				"total": 8224.778522,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "54af75577494a30dcd50d72e2bb67c9b49b3228d66dc4a3b956ea9252c31ba7b",
+			"log_sha256": "83f93017573aded01f818a28337ff91651e35b90d90d3d8f5da7de2fc28a72b0",
+			"canonical_state_sha256": "69491f4e827dc4ff822e59e6e0497fdd910f868a05e0f54a65b93826f06b3087"
+		},
+		{
+			"iteration": 1,
+			"version": "baseline",
+			"case": "cruiser",
+			"command": [
+				"build/headless-profile/baseline",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.delivery-cruiser",
+				"600",
+				"build/headless-profile/run-1-baseline-cruiser"
+			],
+			"result": {
+				"max": 354.352149,
+				"mean": 156.78701873666674,
+				"p50": 151.098032,
+				"p95": 216.204826,
+				"p99": 234.109526,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.delivery-cruiser",
+				"ticks": 600,
+				"total": 94072.21124200005,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "a3088e4920795ab7fa02aef1c7074ad7d7c6cfe45a4c0727501c63a66b9837c9",
+			"log_sha256": "7689e5a67f6359cacbae7f047bab65532bcecac56a36a0c12769b8d36f388239",
+			"canonical_state_sha256": "b42642b6b27758993a4b29cae4bb77f6224312a094581df13dcc99cf508727d7"
+		},
+		{
+			"iteration": 1,
+			"version": "optimized",
+			"case": "cruiser",
+			"command": [
+				"build/headless-profile/optimized",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.delivery-cruiser",
+				"600",
+				"build/headless-profile/run-1-optimized-cruiser"
+			],
+			"result": {
+				"max": 149.224702,
+				"mean": 40.46855200499998,
+				"p50": 36.200273,
+				"p95": 69.472989,
+				"p99": 111.361153,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.delivery-cruiser",
+				"ticks": 600,
+				"total": 24281.131202999986,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "9ab0f1b527eaa0a5de97c6a31db7335da28638eec3385f778ee1a75f952e4ede",
+			"log_sha256": "e4396f355c85d8e0f6bbed879799797281fa9257c31ba86142e2a01260ce0e59",
+			"canonical_state_sha256": "b42642b6b27758993a4b29cae4bb77f6224312a094581df13dcc99cf508727d7"
+		},
+		{
+			"iteration": 1,
+			"version": "baseline",
+			"case": "combat",
+			"command": [
+				"build/headless-profile/baseline",
+				"build/linux/base.zip",
+				"base.cruiser-combat",
+				"base.cruiser",
+				"600",
+				"build/headless-profile/run-1-baseline-combat",
+				"build/linux/test-missions.zip"
+			],
+			"result": {
+				"max": 119.135699,
+				"mean": 67.15398387666669,
+				"p50": 70.04416,
+				"p95": 113.053029,
+				"p99": 116.918841,
+				"scenario": "base.cruiser-combat",
+				"ship": "base.cruiser",
+				"ticks": 600,
+				"total": 40292.39032600001,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "08b08e7e382ca3d688c17ad08e3be3c59cd2dfca513febdccff7797431aff92e",
+			"log_sha256": "1770d5684a4a2d00b409c276d672f33b8ad690804c28c2a3d076733018637a90",
+			"canonical_state_sha256": "d984e5115ab5d0e63e2760f7f15cb8c307f482e6ede9dbed1daea65006180f8b"
+		},
+		{
+			"iteration": 1,
+			"version": "optimized",
+			"case": "combat",
+			"command": [
+				"build/headless-profile/optimized",
+				"build/linux/base.zip",
+				"base.cruiser-combat",
+				"base.cruiser",
+				"600",
+				"build/headless-profile/run-1-optimized-combat",
+				"build/linux/test-missions.zip"
+			],
+			"result": {
+				"max": 76.014138,
+				"mean": 33.30575495500001,
+				"p50": 34.80658,
+				"p95": 55.962854,
+				"p99": 59.687086,
+				"scenario": "base.cruiser-combat",
+				"ship": "base.cruiser",
+				"ticks": 600,
+				"total": 19983.452973000007,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "8318809dbcc9e170b59e2f7df1c35916fa5270e06b61266a8c45c9c7db2ce962",
+			"log_sha256": "610d8a4383a82775607a63e4ab6b9919e05da23b4ac3fa60a40c5a94dac95eeb",
+			"canonical_state_sha256": "d984e5115ab5d0e63e2760f7f15cb8c307f482e6ede9dbed1daea65006180f8b"
+		},
+		{
+			"iteration": 2,
+			"version": "optimized",
+			"case": "courier",
+			"command": [
+				"build/headless-profile/optimized",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.rescue-courier",
+				"600",
+				"build/headless-profile/run-2-optimized-courier"
+			],
+			"result": {
+				"max": 25.70975,
+				"mean": 13.51404729166666,
+				"p50": 13.46776,
+				"p95": 16.219785,
+				"p99": 23.154493,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.rescue-courier",
+				"ticks": 600,
+				"total": 8108.428374999996,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "ede563c95dc6fc7d62cafd51d589b32b6d2434c8f6572cb3ec21269ad5a0ce31",
+			"log_sha256": "fd6f5d832dc8681dd60a1326ab63c583e8aab855cbf1b521230d93546a389fd5",
+			"canonical_state_sha256": "69491f4e827dc4ff822e59e6e0497fdd910f868a05e0f54a65b93826f06b3087"
+		},
+		{
+			"iteration": 2,
+			"version": "baseline",
+			"case": "courier",
+			"command": [
+				"build/headless-profile/baseline",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.rescue-courier",
+				"600",
+				"build/headless-profile/run-2-baseline-courier"
+			],
+			"result": {
+				"max": 80.318618,
+				"mean": 29.984523525000046,
+				"p50": 30.009633,
+				"p95": 33.751184,
+				"p99": 40.004344,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.rescue-courier",
+				"ticks": 600,
+				"total": 17990.714115000028,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "e37d58645902c558d2cb655e606a13b14dd10b85f19924047ef43d4b95610db9",
+			"log_sha256": "cddd1a0ef41af842aecbfd8f6fe35436ad2fa0fe1ca59793aa0fe5fc4463621a",
+			"canonical_state_sha256": "69491f4e827dc4ff822e59e6e0497fdd910f868a05e0f54a65b93826f06b3087"
+		},
+		{
+			"iteration": 2,
+			"version": "optimized",
+			"case": "cruiser",
+			"command": [
+				"build/headless-profile/optimized",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.delivery-cruiser",
+				"600",
+				"build/headless-profile/run-2-optimized-cruiser"
+			],
+			"result": {
+				"max": 115.51158,
+				"mean": 39.82230433833334,
+				"p50": 36.231237,
+				"p95": 64.462134,
+				"p99": 106.511254,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.delivery-cruiser",
+				"ticks": 600,
+				"total": 23893.382603000005,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "1bcfdc0c9188ac366428281ebd99bde9f8952c1b1ee03f0e901741f8a8d9d378",
+			"log_sha256": "abbd09d0f88ab8cda9a4b446a5d262e5cea4d0ddbd903830e3fb86d2cc133a5c",
+			"canonical_state_sha256": "b42642b6b27758993a4b29cae4bb77f6224312a094581df13dcc99cf508727d7"
+		},
+		{
+			"iteration": 2,
+			"version": "baseline",
+			"case": "cruiser",
+			"command": [
+				"build/headless-profile/baseline",
+				"build/linux/base.zip",
+				"base.rescue-under-threat",
+				"base.delivery-cruiser",
+				"600",
+				"build/headless-profile/run-2-baseline-cruiser"
+			],
+			"result": {
+				"max": 231.604507,
+				"mean": 154.2088442683334,
+				"p50": 150.578768,
+				"p95": 180.228781,
+				"p99": 227.406254,
+				"scenario": "base.rescue-under-threat",
+				"ship": "base.delivery-cruiser",
+				"ticks": 600,
+				"total": 92525.30656100003,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "d89af638380e6121c64d1fd8e12fa0d8e50daf48b45b4f7791ac27b1868804d4",
+			"log_sha256": "266b2a8e0317fceb04dadcd4c6f2c62f3cd9d38a3dbd45aa30e58d65246af43c",
+			"canonical_state_sha256": "b42642b6b27758993a4b29cae4bb77f6224312a094581df13dcc99cf508727d7"
+		},
+		{
+			"iteration": 2,
+			"version": "optimized",
+			"case": "combat",
+			"command": [
+				"build/headless-profile/optimized",
+				"build/linux/base.zip",
+				"base.cruiser-combat",
+				"base.cruiser",
+				"600",
+				"build/headless-profile/run-2-optimized-combat",
+				"build/linux/test-missions.zip"
+			],
+			"result": {
+				"max": 73.438509,
+				"mean": 34.536510566666635,
+				"p50": 35.758143,
+				"p95": 60.935372,
+				"p99": 68.158902,
+				"scenario": "base.cruiser-combat",
+				"ship": "base.cruiser",
+				"ticks": 600,
+				"total": 20721.906339999983,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "593f5f076dbd5edec39aa3fe2c898f7c88d482710e8044bd3285a162eb380c63",
+			"log_sha256": "a1fd8145592833665b4af7765f173dc5f37342c9e243e5009bb93ad72d1b3f7f",
+			"canonical_state_sha256": "d984e5115ab5d0e63e2760f7f15cb8c307f482e6ede9dbed1daea65006180f8b"
+		},
+		{
+			"iteration": 2,
+			"version": "baseline",
+			"case": "combat",
+			"command": [
+				"build/headless-profile/baseline",
+				"build/linux/base.zip",
+				"base.cruiser-combat",
+				"base.cruiser",
+				"600",
+				"build/headless-profile/run-2-baseline-combat",
+				"build/linux/test-missions.zip"
+			],
+			"result": {
+				"max": 120.643338,
+				"mean": 67.27376832499998,
+				"p50": 69.293167,
+				"p95": 112.709293,
+				"p99": 115.762587,
+				"scenario": "base.cruiser-combat",
+				"ship": "base.cruiser",
+				"ticks": 600,
+				"total": 40364.26099499998,
+				"units": "milliseconds"
+			},
+			"state_equal": true,
+			"report_sha256": "f4bbd8d7a720201cae6bb6bf6c65935aaa79f4b657b0c7cb94afe222b67c5ef7",
+			"log_sha256": "13ba5a892b80075df77b3bac5562a68c2085c7065f77e25f1d89f5c6fe02c33a",
+			"canonical_state_sha256": "d984e5115ab5d0e63e2760f7f15cb8c307f482e6ede9dbed1daea65006180f8b"
+		}
+	]
+}
