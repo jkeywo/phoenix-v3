@@ -49,3 +49,13 @@ Console visibility filtering now rejects other routes before querying the docume
 The profiler now reports discarded simulation seconds, maximum backlog and remaining backlog. The browser runner supports headed captures and disabling CPU sampling, derives its timeout from the capture duration, retains completed measurements on capture timeout and closes its own browser in a finally block.
 
 The pinned SDK was repaired using CRC-checked entries from its 6.0.12 release archive, reusing the already installed identical Clang binary and local Node runtime. Full WebAssembly integration execution resumed successfully. Performance acceptance remains pending.
+
+## Indexed equipment and shared read-pass telemetry
+
+Fitted equipment is now addressed by a derived name-to-entity index; its ordered handle vector remains the source for deterministic execution. Duty-to-equipment relations cache only resolved immutable definition relationships. Sensor evidence chooses the same first maximum timestamp before decoding ordinary capabilities, retaining local evidence on ties; finding bundles retain their original per-entry merge behavior.
+
+A fixed decision-snapshot pass shares physical telemetry among overlapping Console feeds. Presentation readers share a separate telemetry cache, cleared with permitted snapshots on every existing tick/command/claim/provider invalidation boundary. Neither cache is serialized or reused across mutable simulation phases. Native and WebAssembly personnel, sensors, Controller, simulation and session checks pass.
+
+The frozen native autonomous Cruiser is now 22.60 ms mean tick, p95 26.97 ms, p99 30.76 ms (600 ticks). The intermediate native bridge is 221.07 ms mean frame. Its readout scroll/semantic probe passes. This remains far from the presentation target.
+
+A buffered-geometry renderer was trialled on native and WebGL2 and rendered the sampled Console correctly, but did not materially reduce the Console stage. It has been removed; its patch and diagnostic captures remain under ignored performance artifacts. The original renderer is retained. Separate timers now distinguish RmlUi view updates, custom painting and RmlUi rendering.

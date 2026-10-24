@@ -331,7 +331,14 @@ struct World::Impl
 	std::map<EntityId, fixed::Vec> step_starts;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
+	using TelemetrySnapshot = std::map<std::pair<EntityId, std::size_t>, std::map<std::string, std::int64_t>>;
+	mutable TelemetrySnapshot presentation_telemetry;
 	mutable std::map<std::uint64_t, std::shared_ptr<const Observation>> presentation_snapshots;
+	void clear_presentation_snapshots()
+	{
+		presentation_snapshots.clear();
+		presentation_telemetry.clear();
+	}
 	std::map<EntityId, std::vector<std::vector<ControllerChannelState>>> command_snapshots;
 	std::map<ControllerAddress, std::vector<CoordinationDelivery>> controller_inboxes;
 	bool gameplay = false;
@@ -985,6 +992,7 @@ struct World::Impl
 			auto child =
 			    ecs.entity().child_of(entity).set<Equipment>({v.id, v.kind, i, v.maximum, v.advanced, v.enabled});
 			index.values.push_back(child);
+			index.by_id.emplace(v.id, child);
 			if (data.combat && data.combat->system_ids.contains(v.id))
 			{
 				CombatMechanism mechanism;
@@ -1145,10 +1153,9 @@ struct World::Impl
 	}
 	std::optional<EquipmentRef> instance(flecs::entity ship, const std::string &id) const
 	{
-		for (auto entity : ship.get<EquipmentIndex>().values)
-			if (entity.get<Equipment>().id == id)
-				return equipment_ref(entity);
-		return {};
+		const auto &index = ship.get<EquipmentIndex>().by_id;
+		const auto found = index.find(id);
+		return found == index.end() ? std::optional<EquipmentRef>{} : equipment_ref(found->second);
 	}
 	std::uint64_t console_operator(const ConsoleAddress &address) const
 	{
@@ -2625,7 +2632,7 @@ std::vector<EntityId> World::operational_fleet(EntityId origin) const
 }
 bool World::prepare_console_profile(const ConsoleAddress &address, const std::string &profile)
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	if (ticks() || !impl_->claims.empty() || !impl_->entities.contains(address.ship))
 		return false;
 	auto entity = impl_->entities.at(address.ship);
@@ -2648,7 +2655,7 @@ bool World::prepare_console_profile(const ConsoleAddress &address, const std::st
 }
 bool World::claim(std::uint64_t console, EntityId ship, const std::string &name, bool sidebar)
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	if (!can_claim(console, ship, name, sidebar))
 		return false;
 	const auto &seat = *impl_->seat(ship, name);
@@ -2667,7 +2674,7 @@ std::optional<EntityId> World::ship_for_slot(const std::string &slot) const
 }
 bool World::release(std::uint64_t console)
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	auto found = impl_->claims.find(console);
 	if (found == impl_->claims.end())
 		return false;
@@ -2708,7 +2715,7 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 }
 bool World::submit(std::uint64_t console, const OperatingCommand &command)
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	if (!can_submit(console, command))
 		return false;
 	if (impl_->meta(console, command, false))
@@ -2726,7 +2733,7 @@ bool World::submit(std::uint64_t console, const OperatingCommand &command)
 }
 void World::clear_claims()
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	impl_->claims.clear();
 	impl_->displays.clear();
 	impl_->meta_pending.clear();
@@ -2738,7 +2745,7 @@ void World::clear_claims()
 }
 void World::tick()
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	TickProfile profile;
 	impl_->retire_audio();
 	// Keep committed frame numbering live after the race, but freeze its world.
@@ -2830,11 +2837,12 @@ void World::tick()
 			}
 		}
 	profile.mark("command_snapshots");
+	Impl::TelemetrySnapshot decision_telemetry;
 	for (const auto &[id, entity] : impl_->entities)
 		for (const auto &console : impl_->definition(id).consoles)
 		{
 			const ConsoleAddress address{id, console.id};
-			impl_->observation_snapshots.emplace(address, impl_->capture_decision_observation(address));
+			impl_->observation_snapshots.emplace(address, impl_->capture_decision_observation(address, &decision_telemetry));
 		}
 	profile.mark("console_observation_snapshots");
 	for (const auto &[id, entity] : impl_->entities)
@@ -3293,7 +3301,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 {
 	auto entity = impl_->entities.at(address.ship);
 	const auto &seat = *impl_->seat(address.ship, address.console);
-	Observation result = impl_->capture_console_observation(address, impl_->knowledge.project_json(address));
+	Observation result = impl_->capture_console_observation(address, impl_->knowledge.project_json(address),
+	                                                      Impl::ObservationDetail::Presentation, &impl_->presentation_telemetry);
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
@@ -3712,7 +3721,7 @@ Json World::controller_decision_snapshot(const ControllerAddress &address)
 }
 bool World::configure_controller_provider(const ControllerAddress &address, const std::string &provider)
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	if (provider != "tree" && provider != "anyjev" && provider != "llamacpp" && provider != "jev")
 		return false;
 	auto *c = impl_->model_controller(address);
@@ -3740,7 +3749,7 @@ bool World::configure_controller_provider(const ControllerAddress &address, cons
 }
 bool World::submit_controller_decision(const Json &decision)
 {
-	impl_->presentation_snapshots.clear();
+	impl_->clear_presentation_snapshots();
 	try
 	{
 		const auto &snapshot = decision.at("snapshot");

@@ -125,7 +125,8 @@ enum class ObservationDetail
 	Contacts
 };
 Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object(),
-                                        ObservationDetail detail = ObservationDetail::Presentation) const
+                                        ObservationDetail detail = ObservationDetail::Presentation,
+                                        TelemetrySnapshot *telemetry_snapshot = nullptr) const
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
@@ -198,7 +199,18 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 			state.enabled = radar->enabled;
 		}
 		if (instance && entity.has<NamedEquipment>())
-			state.telemetry = telemetry(address.ship, instance->ordinal);
+		{
+			if (telemetry_snapshot)
+			{
+				const auto key = std::pair{address.ship, instance->ordinal};
+				auto found = telemetry_snapshot->find(key);
+				if (found == telemetry_snapshot->end())
+					found = telemetry_snapshot->emplace(key, telemetry(address.ship, instance->ordinal)).first;
+				state.telemetry = found->second;
+			}
+			else
+				state.telemetry = telemetry(address.ship, instance->ordinal);
+		}
 		if (instance && instance->advanced)
 		{
 			const auto index = static_cast<std::size_t>(instance->ordinal);
@@ -264,9 +276,10 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	}
 	return result;
 }
-Observation capture_decision_observation(const ConsoleAddress &address) const
+Observation capture_decision_observation(const ConsoleAddress &address,
+                                         TelemetrySnapshot *telemetry_snapshot = nullptr) const
 {
-	return capture_console_observation(address, Json::object(), ObservationDetail::Decision);
+	return capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot);
 }
 // Visibility consumers use the identical Console feed/type/contact boundary,
 // without building combat and UI boards just to discard them.

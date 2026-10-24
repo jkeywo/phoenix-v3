@@ -803,15 +803,25 @@ void validate_medical_state() const
 		}
 }
 
+// This relation depends only on the resolved fit, not officer assignment,
+// condition or Controller ownership. A new World owns a fresh definition cache.
+mutable std::map<std::pair<std::string, std::string>, std::set<std::string>> duty_systems_;
 bool duty_affects_system(EntityId id, const PersonnelDuty &duty, const std::string &system) const
 {
 	if (duty.team == system || duty.choir == system || duty.effects.contains(system))
 		return true;
-	for (const auto &c : definition(id).layout->controllers)
-		if (c.console == duty.console && c.id == duty.controller)
-			for (const auto &command : c.commands)
-				for (auto consumer : command.consumers)
-					if (definition(id).fitted->values.at(consumer).id == system)
-						return true;
-	return false;
+	const auto key = std::pair{entities.at(id).get<Definition>().name, duty.id};
+	auto found = duty_systems_.find(key);
+	if (found == duty_systems_.end())
+	{
+		std::set<std::string> systems;
+		const auto &resolved = definition(id);
+		for (const auto &c : resolved.layout->controllers)
+			if (c.console == duty.console && c.id == duty.controller)
+				for (const auto &command : c.commands)
+					for (const auto consumer : command.consumers)
+						systems.insert(resolved.fitted->values.at(consumer).id);
+		found = duty_systems_.emplace(key, std::move(systems)).first;
+	}
+	return found->second.contains(system);
 }

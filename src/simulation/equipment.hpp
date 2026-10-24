@@ -27,6 +27,7 @@ struct AdvancedEquipment
 struct EquipmentIndex
 {
 	std::vector<flecs::entity> values;
+	std::map<std::string, flecs::entity> by_id;
 };
 struct ResourceBinding
 {

@@ -560,6 +560,7 @@ std::map<EntityId, Json> sensor_evidence(const ConsoleAddress &address) const
 	if (knowledge.contains_ship(address.ship))
 	{
 		const auto &kd = knowledge.definition();
+		std::map<std::pair<EntityId, std::string>, const KnowledgeRecord *> candidates;
 		for (const auto *view : knowledge.sensor_records(address))
 		{
 			const auto &record = *view;
@@ -570,13 +571,33 @@ std::map<EntityId, Json> sensor_evidence(const ConsoleAddress &address) const
 			if (!record.value.fields.contains(field))
 				continue;
 			const auto cap = name.substr(15);
+			if (cap != "findings")
+			{
+				// Select the same first maximum timestamp before decoding. Local
+				// samples win equal timestamps, including retained non-live samples.
+				const auto target = contacts.find(record.value.subject);
+				if (target != contacts.end())
+				{
+					const auto &findings = target->second.at("findings");
+					const auto current = findings.find(cap);
+					if (current != findings.end() && current->at("observed") >= record.value.provenance.observed_tick)
+						continue;
+				}
+				auto &candidate = candidates[{record.value.subject, cap}];
+				if (!candidate || candidate->value.provenance.observed_tick < record.value.provenance.observed_tick)
+					candidate = view;
+				continue;
+			}
 			const auto payload = knowledge.decoded_field(record, field);
 			if (cap == "findings")
 				for (const auto &entry : *payload)
 					finding(record.value.subject, "finding:" + entry.at("id").get<std::string>(),
 					        Json{{"id", entry.at("id")}, {"text", entry.at("text")}}, entry.at("observed"), false);
-			else
-				finding(record.value.subject, cap, *payload, record.value.provenance.observed_tick, false);
+		}
+		for (const auto &[key, record] : candidates)
+		{
+			const auto payload = knowledge.decoded_field(*record, kd.field(record->value.schema, "payload"));
+			finding(key.first, key.second, *payload, record->value.provenance.observed_tick, false);
 		}
 	}
 	return contacts;
