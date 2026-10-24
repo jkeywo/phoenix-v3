@@ -825,7 +825,7 @@ try
 		{
 			if (resume_local)
 				app.session = local_only ? phoenix::make_local_session() : phoenix::make_network_host(network);
-			app.session->restore(phoenix::read_file(runtime_save));
+			app.session->restore(phoenix::read_file(runtime_save, phoenix::runtime_save_archive_limit));
 			app.screen = phoenix::Screen::server_lobby;
 			if (resume_local)
 			{

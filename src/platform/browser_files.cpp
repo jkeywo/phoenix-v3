@@ -9,6 +9,7 @@ module;
 #include <vector>
 
 module phoenix.files;
+import phoenix.content;
 
 namespace
 {
@@ -26,18 +27,19 @@ EM_JS(void, copy_browser_text, (const char* text), {
     navigator.clipboard.writeText(value).then(()=>reply(""),error=>reply('Could not copy the link: '+String(error)));
 });
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_file(unsigned id, const char* name, const unsigned char* bytes, unsigned size) {
-    if (size > 32*1024*1024) { phoenix::complete_import(id,name,{},"File exceeds 32 MiB"); return; }
+    if (size > phoenix::runtime_save_archive_limit) { phoenix::complete_import(id,name,{},"File exceeds 128 MiB"); return; }
     phoenix::complete_import(id,name,phoenix::Bytes(bytes,bytes+size));
 }
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_error(unsigned id, const char* message, int cancelled) { phoenix::complete_import(id,{},{},message,cancelled != 0); }
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_selected(unsigned id, const char* name, const unsigned char* bytes, unsigned size, const char* destination) {
-    if (size > 32*1024*1024) { phoenix::complete_import(id,name,{},"File exceeds 32 MiB"); return; }
+    if (size > phoenix::runtime_save_archive_limit) { phoenix::complete_import(id,name,{},"File exceeds 128 MiB"); return; }
     phoenix::complete_import(id,name,phoenix::Bytes(bytes,bytes+size),{},false,destination);
 }
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_save_result(unsigned id, const char* name, const char* destination, const char* error, int cancelled) {
     phoenix::complete_import(id,name,{},error,cancelled != 0,destination);
 }
 EM_JS(void, choose_file, (unsigned id, int purpose), {
+    const sizeLimit = (purpose === 1 ? 128 : 32)*1024*1024;
     if ((purpose === 2 || purpose === 4) && window.showOpenFilePicker && window.isSecureContext) {
         (async () => {
             let pointer = 0;
@@ -45,7 +47,7 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
                 const extension = purpose === 4 ? '.json' : '.zip,.dat';
                 const [handle] = await window.showOpenFilePicker({multiple:false,types:[{description:'Phoenix content',accept:{'application/octet-stream':extension.split(',')}}]});
                 const file = await handle.getFile();
-                if (file.size > 32*1024*1024) throw new Error('File exceeds 32 MiB');
+                if (file.size > sizeLimit) throw new Error(purpose === 1 ? 'File exceeds 128 MiB' : 'File exceeds 32 MiB');
                 const bytes = new Uint8Array(await file.arrayBuffer());
                 pointer = Module._malloc(bytes.length || 1);
                 if (!pointer) throw new Error('Unable to allocate file buffer');
@@ -75,7 +77,7 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
     input.addEventListener('change', async () => {
         const file = input.files[0]; if (!file) { failure("",true); return; }
         try {
-            if (file.size > 32*1024*1024) throw new Error('File exceeds 32 MiB');
+            if (file.size > sizeLimit) throw new Error(purpose === 1 ? 'File exceeds 128 MiB' : 'File exceeds 32 MiB');
             const bytes = new Uint8Array(await file.arrayBuffer());
             const pointer = Module._malloc(bytes.length || 1);
             if (!pointer) throw new Error('Unable to allocate file buffer');

@@ -211,7 +211,7 @@ public:
 	}
 	Bytes save() const override
 	{
-		return write_pack(save_container());
+		return write_pack(save_container(), PackEncoding::Zip, ArchivePurpose::Save);
 	}
 	PackDraft save_container() const override
 	{
@@ -250,7 +250,7 @@ public:
 	}
 	void restore(const Bytes &archive) override
 	{
-		restore_container(read_pack(archive).draft());
+		restore_container(read_pack(archive, ArchivePurpose::Save).draft());
 	}
 	void restore_container(const PackDraft &container) override
 	{

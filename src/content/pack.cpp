@@ -33,6 +33,18 @@ constexpr std::size_t max_archive = 32 * 1024 * 1024;
 constexpr std::size_t max_file = 16 * 1024 * 1024;
 constexpr std::size_t max_total = 64 * 1024 * 1024;
 constexpr std::size_t max_compiled_total = 256 * 1024 * 1024;
+void archive_size(std::size_t size, ArchivePurpose purpose)
+{
+	if (size > (purpose == ArchivePurpose::Save ? runtime_save_archive_limit : max_archive))
+		throw std::runtime_error(purpose == ArchivePurpose::Save ? "save: archive exceeds 128 MiB limit"
+		                                                         : "pack: archive exceeds 32 MiB limit");
+}
+void archive_purpose(const Json &manifest, ArchivePurpose purpose)
+{
+	const auto format = manifest.value("format", std::string{});
+	if (purpose == ArchivePurpose::Save && format != "phoenix-runtime-save" && format != "phoenix-fleet-setup")
+		throw std::runtime_error("save: expected a runtime save or fleet setup envelope");
+}
 constexpr std::string_view dat_magic = "PHXDAT1\n", json_magic = "PHXCBR1\n", webp_magic = "PHXWEBP1";
 bool signature(std::span<const std::uint8_t> bytes, std::string_view magic)
 {
@@ -179,26 +191,23 @@ Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source)
 		throw std::runtime_error(source + ": " + error.what());
 	}
 }
-Pack read_pack(std::span<const std::uint8_t> bytes)
+Pack read_pack(std::span<const std::uint8_t> bytes, ArchivePurpose purpose)
 {
-	if (bytes.size() > max_archive)
-		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
-	return read_pack(Bytes(bytes.begin(), bytes.end()));
+	archive_size(bytes.size(), purpose);
+	return read_pack(Bytes(bytes.begin(), bytes.end()), purpose);
 }
-Pack read_pack(Bytes &&archive)
+Pack read_pack(Bytes &&archive, ArchivePurpose purpose)
 {
-	if (archive.size() > max_archive)
-		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	archive_size(archive.size(), purpose);
 	std::span<const std::uint8_t> bytes(archive);
 	const bool compiled = signature(bytes, dat_magic);
 	if (!compiled && signature(bytes, "PHXDAT"))
 		throw std::runtime_error("pack: unsupported DAT version");
 	if (compiled)
 		bytes = bytes.subspan(dat_magic.size());
-	const auto entry_limit = compiled ? 64 * 1024 * 1024 + 16 : max_file;
-	const auto total_limit = compiled ? max_compiled_total : max_total;
-	if (bytes.size() > max_archive)
-		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	const auto entry_limit = compiled && purpose == ArchivePurpose::Content ? 64 * 1024 * 1024 + 16 : max_file;
+	const auto total_limit = compiled || purpose == ArchivePurpose::Save ? max_compiled_total : max_total;
+	archive_size(bytes.size(), purpose);
 	mz_zip_archive zip{};
 	if (!mz_zip_reader_init_mem(&zip, bytes.data(), bytes.size(), 0))
 		throw std::runtime_error("pack: invalid ZIP");
@@ -244,12 +253,15 @@ Pack read_pack(Bytes &&archive)
 		throw std::runtime_error("pack: missing manifest.json or definitions.json");
 	result.manifest = parse_json(result.files.at("manifest.json"), "manifest.json");
 	validate_manifest(result.manifest);
+	archive_purpose(result.manifest, purpose);
 	storage->archive = std::move(archive);
 	return Pack(std::move(storage));
 }
-void verify_pack_draft(const PackDraft &pack)
+void verify_pack_draft(const PackDraft &pack, ArchivePurpose purpose)
 {
 	validate_manifest(pack.manifest);
+	archive_purpose(pack.manifest, purpose);
+	const auto total_limit = purpose == ArchivePurpose::Save ? max_compiled_total : max_total;
 	if (!pack.files.contains("definitions.json"))
 		throw std::runtime_error("pack: missing definitions.json");
 	if (pack.files.size() + (pack.files.contains("manifest.json") ? 0 : 1) > 1024)
@@ -264,12 +276,12 @@ void verify_pack_draft(const PackDraft &pack)
 			continue;
 		if (path.ends_with(".png") && signature(bytes, "PHX") && !compiled_image(bytes))
 			throw std::runtime_error(path + ": unsupported compiled image version; rebuild the DAT");
-		if (bytes.size() > max_file || bytes.size() > max_total - total)
+		if (bytes.size() > max_file || bytes.size() > total_limit - total)
 			throw std::runtime_error(path + ": oversized pack entry");
 		total += bytes.size();
 	}
 }
-Bytes write_pack(const PackDraft &source, PackEncoding encoding)
+Bytes write_pack(const PackDraft &source, PackEncoding encoding, ArchivePurpose purpose)
 {
 	PackDraft pack = source;
 	// Re-exporting compiled input to ZIP restores editable JSON and PNG sources.
@@ -282,7 +294,7 @@ Bytes write_pack(const PackDraft &source, PackEncoding encoding)
 		else if (compiled_image(bytes))
 			(void)decode_asset_image(bytes);
 	}
-	verify_pack_draft(pack);
+	verify_pack_draft(pack, purpose);
 	if (encoding == PackEncoding::Dat)
 	{
 		std::size_t total = 0;
@@ -334,15 +346,13 @@ Bytes write_pack(const PackDraft &source, PackEncoding encoding)
 	if (!mz_zip_writer_finalize_heap_archive(&zip, &output, &size))
 		throw std::runtime_error("pack: ZIP finalise failed");
 	std::unique_ptr<void, decltype(&mz_free)> allocation(output, &mz_free);
-	if (size > max_archive)
-		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	archive_size(size, purpose);
 	auto *begin = static_cast<std::uint8_t *>(output);
 	Bytes result;
 	if (encoding == PackEncoding::Dat)
 		result.assign(dat_magic.begin(), dat_magic.end());
 	result.insert(result.end(), begin, begin + size);
-	if (result.size() > max_archive)
-		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	archive_size(result.size(), purpose);
 	return result;
 }
 bool compiled_image(std::span<const std::uint8_t> bytes)

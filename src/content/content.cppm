@@ -57,6 +57,12 @@ struct PackDraft
 	Json manifest;
 	std::map<std::string, Bytes> files;
 };
+enum class ArchivePurpose
+{
+	Content,
+	Save
+};
+inline constexpr std::size_t runtime_save_archive_limit = 128 * 1024 * 1024;
 // Loaded packs share immutable decoded content and the exact original archive.
 // Editing requires a separate draft; a draft has no transferable archive identity.
 class Pack
@@ -73,8 +79,8 @@ private:
 	struct Storage;
 	std::shared_ptr<const Storage> storage_;
 	explicit Pack(std::shared_ptr<const Storage> storage);
-	friend Pack read_pack(std::span<const std::uint8_t> bytes);
-	friend Pack read_pack(Bytes &&bytes);
+	friend Pack read_pack(std::span<const std::uint8_t> bytes, ArchivePurpose purpose);
+	friend Pack read_pack(Bytes &&bytes, ArchivePurpose purpose);
 };
 // Resolution only; a root restricts traversal to its dependency closure.
 void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
@@ -394,14 +400,15 @@ void apply_sprite_sidecar(Json &render, const Json &sidecar, const std::map<std:
                           const Catalog &catalog, bool engine_effect = false);
 // Throws an actionable exception. ZIP is read into bounded memory, never
 // extracted to caller-controlled paths on disk.
-Pack read_pack(std::span<const std::uint8_t> bytes);
-Pack read_pack(Bytes &&bytes);
+Pack read_pack(std::span<const std::uint8_t> bytes, ArchivePurpose purpose = ArchivePurpose::Content);
+Pack read_pack(Bytes &&bytes, ArchivePurpose purpose = ArchivePurpose::Content);
 enum class PackEncoding
 {
 	Zip,
 	Dat
 };
-Bytes write_pack(const PackDraft &pack, PackEncoding encoding = PackEncoding::Zip);
+Bytes write_pack(const PackDraft &pack, PackEncoding encoding = PackEncoding::Zip,
+                 ArchivePurpose purpose = ArchivePurpose::Content);
 Pack read_pack_path(const std::string &path);
 struct AssetImage
 {
@@ -415,7 +422,7 @@ std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes);
 Bytes source_asset_image(std::span<const std::uint8_t> bytes);
 Bytes source_asset_image(const AssetImage &image);
-void verify_pack_draft(const PackDraft &pack);
+void verify_pack_draft(const PackDraft &pack, ArchivePurpose purpose = ArchivePurpose::Content);
 Catalog resolve_packs(const std::vector<Pack> &ordered);
 Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console = {},
                     const std::string &background = {});

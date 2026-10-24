@@ -25,6 +25,62 @@ int main()
 		auto pack =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		{
+			// A portable save contains multiple individually bounded content packs.
+			// Incompressible synthetic assets exercise the envelope, not production art.
+			auto large_base = pack;
+			PackDraft extra;
+			extra.manifest = {{"schema", 1}, {"id", "test-save-assets"}, {"dependencies", {"test-core"}}};
+			extra.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
+			std::uint32_t random = 0x9e3779b9;
+			for (int n = 0; n < 2; ++n)
+			{
+				Bytes payload(9 * 1024 * 1024);
+				for (auto &byte : payload)
+				{
+					random ^= random << 13;
+					random ^= random >> 17;
+					random ^= random << 5;
+					byte = static_cast<std::uint8_t>(random);
+				}
+				large_base.files["assets/save-" + std::to_string(n) + ".bin"] = payload;
+				extra.files["assets/save-" + std::to_string(n) + ".bin"] = std::move(payload);
+			}
+			auto original = make_local_session();
+			original->add_pack(write_pack(large_base));
+			original->add_pack(write_pack(extra));
+			original->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			original->tick();
+			const auto portable_large = original->save();
+			require(portable_large.size() > 32 * 1024 * 1024,
+			        "Portable fixture must cross the content-archive boundary");
+			bool rejected = false;
+			try
+			{
+				(void)read_pack(portable_large);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "Runtime-save allowance must not expand ordinary content limits");
+			auto recovered_large = make_local_session();
+			recovered_large->restore(portable_large);
+			require(recovered_large->recovery_pending() &&
+			            recovered_large->catalog().ordered_packs == original->catalog().ordered_packs,
+			        "Large portable save must preserve exact nested content identities and paused recovery");
+			recovered_large->resume_local();
+			for (int n = 0; n < 5; ++n)
+			{
+				original->tick();
+				recovered_large->tick();
+			}
+			require(original->ticks() == recovered_large->ticks() &&
+			            original->observation()->own.x == recovered_large->observation()->own.x &&
+			            original->observation()->own.y == recovered_large->observation()->own.y,
+			        "Large portable save must continue through ordinary Session recovery");
+		}
+
+		{
 			auto multi_pack = pack;
 			auto data = parse_json(multi_pack.files.at("definitions.json"), "stations fixture");
 			data["schema"] = 2;

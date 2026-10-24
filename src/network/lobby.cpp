@@ -1138,7 +1138,7 @@ public:
 	{
 		if (!coordinator_)
 			throw std::runtime_error("Only a host can restore a save");
-		auto pack = read_pack(archive);
+		auto pack = read_pack(archive, ArchivePurpose::Save);
 		auto candidate = services_.world();
 		std::vector<std::string> required;
 		if (pack.manifest().value("format", std::string{}) == "phoenix-fleet-setup")

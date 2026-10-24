@@ -10,6 +10,7 @@ module;
 #include <vector>
 
 module phoenix.files;
+import phoenix.content;
 
 namespace phoenix
 {
@@ -71,8 +72,8 @@ void complete_import(ImportId id, std::string filename, Bytes bytes, std::string
 	requests.erase(found);
 	if (!state || state->pending != id)
 		return;
-	if (bytes.size() > 32 * 1024 * 1024)
-		error = "File exceeds 32 MiB";
+	if (bytes.size() > (state->purpose == FilePurpose::GameSave ? runtime_save_archive_limit : 32 * 1024 * 1024))
+		error = state->purpose == FilePurpose::GameSave ? "File exceeds 128 MiB" : "File exceeds 32 MiB";
 	const auto status = cancelled       ? ImportStatus::Cancelled
 	                    : error.empty() ? ImportStatus::Success
 	                                    : ImportStatus::Failed;

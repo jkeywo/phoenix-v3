@@ -709,7 +709,7 @@ public:
 	}
 	void restore(const Bytes &archive) override
 	{
-		auto pack = read_pack(archive);
+		auto pack = read_pack(archive, ArchivePurpose::Save);
 		if (pack.manifest().value("format", std::string{}) == "phoenix-fleet-setup")
 		{
 			const auto plan = parse_json(pack.files().at("fleet.json"), "fleet.json");

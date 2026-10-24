@@ -710,7 +710,7 @@ void MenuLibrary::apply(const std::vector<LibraryPack> &selection)
 }
 ManagedSave MenuLibrary::store_save(const Bytes &archive, const std::string &name, const std::string &scenario)
 {
-	const auto pack = read_pack(archive);
+	const auto pack = read_pack(archive, ArchivePurpose::Save);
 	const auto format = pack.manifest().value("format", std::string{});
 	if (format != "phoenix-runtime-save" && format != "phoenix-fleet-setup")
 		throw std::runtime_error("Select a Phoenix runtime save");
@@ -750,6 +750,6 @@ Bytes MenuLibrary::read_save(const std::string &id) const
 		                 return s.id == id;
 	                 }))
 		throw std::runtime_error("Unknown managed save");
-	return read_file(path("saves", id, ".zip"));
+	return read_file(path("saves", id, ".zip"), runtime_save_archive_limit);
 }
 } // namespace phoenix

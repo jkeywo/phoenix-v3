@@ -133,11 +133,11 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	                                                {"members", members},
 	                                                {"gm_host", selection.gm_host},
 	                                                {"creator", creator}});
-	return write_pack(container);
+	return write_pack(container, PackEncoding::Zip, ArchivePurpose::Save);
 }
 PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 {
-	auto container = read_pack(archive).draft();
+	auto container = read_pack(archive, ArchivePurpose::Save).draft();
 	if (container.manifest.value("format", std::string{}) != "phoenix-fleet-setup")
 		throw std::runtime_error("Select a private Phoenix fleet setup ZIP");
 	if (container.files.at("fleet.json").size() > 65536)
@@ -185,6 +185,6 @@ Bytes save_fleet_recovery(const HostAccess &source, const Json &plan)
 	                                                {"creator", plan.at("creator")},
 	                                                {"gm_host", plan.value("gm_host", false)},
 	                                                {"recovery", true}});
-	return write_pack(container);
+	return write_pack(container, PackEncoding::Zip, ArchivePurpose::Save);
 }
 } // namespace phoenix

@@ -52,7 +52,7 @@ std::optional<std::string> pick(bool save, const std::string &suggested = {})
 	return path;
 }
 } // namespace
-void open_file(ImportId id, FilePurpose)
+void open_file(ImportId id, FilePurpose purpose)
 {
 	try
 	{
@@ -60,8 +60,10 @@ void open_file(ImportId id, FilePurpose)
 		if (!path)
 			complete_import(id, {}, {}, {}, true);
 		else
-			complete_import(id, std::filesystem::path(*path).filename().string(), read_file(*path, 32 * 1024 * 1024),
-			                {}, false, *path);
+			complete_import(
+			    id, std::filesystem::path(*path).filename().string(),
+			    read_file(*path, purpose == FilePurpose::GameSave ? runtime_save_archive_limit : 32 * 1024 * 1024), {},
+			    false, *path);
 	}
 	catch (const std::exception &error)
 	{
