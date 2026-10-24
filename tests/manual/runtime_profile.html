@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Phoenix manual runtime profile</title>
+	</head>
+	<body style="margin: 0">
+		<div id="semantics" style="position: absolute; opacity: 0; pointer-events: none">
+			<p id="player-status" role="status" aria-live="polite"></p>
+		</div>
+		<canvas id="canvas"></canvas>
+		<script>
+			const q = new URLSearchParams(location.search);
+			const width = +(q.get("width") || 1920),
+				height = +(q.get("height") || 1080);
+			const canvas = document.getElementById("canvas");
+			canvas.width = width;
+			canvas.height = height;
+			Object.assign(canvas.style, { width: width + "px", height: height + "px" });
+			window.profileReports = [];
+			var Module = {
+				canvas,
+				arguments: [
+					"/assets",
+					q.get("ship") || "base.rescue-courier",
+					q.get("layout") || "console",
+					q.get("frames") || "600",
+					String(width),
+					String(height),
+				],
+				print: (line) => {
+					console.log(line);
+					if (line.startsWith("PHOENIX_")) window.profileReports.push(line);
+				},
+				printErr: console.error,
+			};
+		</script>
+		{{{ SCRIPT }}}
+	</body>
+</html>

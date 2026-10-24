@@ -1,5 +1,8 @@
 module;
 #include <flecs.h>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
 #include <algorithm>
 #include <array>
 #include <variant>
@@ -51,6 +54,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 }
 namespace phoenix
 {
+#include "tick_profile.hpp"
 #include "payload_serialization.hpp"
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockConnection, parent, port, remote_port, phase, controller, progress,
                                    relative_heading, relative_z, relative, assisted, generation, generations,
@@ -2706,6 +2710,7 @@ void World::clear_claims()
 }
 void World::tick()
 {
+	TickProfile profile;
 	impl_->retire_audio();
 	// Keep committed frame numbering live after the race, but freeze its world.
 	if (impl_->scenario && impl_->scenario->runtime().mission_complete())
@@ -2747,6 +2752,7 @@ void World::tick()
 	impl_->controller_pending.clear();
 	impl_->step_shield_effects();
 	impl_->step_property_effects();
+	profile.mark("admission_personnel_effects");
 	if (impl_->scenario)
 	{
 		auto bodies = inspect();
@@ -2775,11 +2781,13 @@ void World::tick()
 		impl_->scenario_publications();
 	}
 	impl_->brain_snapshots.clear();
+	profile.mark("scenario");
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
 	impl_->prepare_craft();
 	impl_->prepare_docking();
+	profile.mark("prepare_craft_docking");
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 		{
@@ -2792,15 +2800,18 @@ void World::tick()
 					section.push_back(command);
 			}
 		}
+	profile.mark("command_snapshots");
 	for (const auto &[id, entity] : impl_->entities)
 		for (const auto &console : impl_->definition(id).consoles)
 		{
 			const ConsoleAddress address{id, console.id};
 			impl_->observation_snapshots.emplace(address, impl_->capture_console_observation(address));
 		}
+	profile.mark("console_observation_snapshots");
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 			impl_->refresh_navigation_blackboard(id);
+	profile.mark("navigation_blackboards");
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 			for (const auto &controller : entity.get<EntityControls>().controllers)
@@ -2815,6 +2826,7 @@ void World::tick()
 					impl_->brain_snapshots.emplace(address, impl_->knowledge.project(address));
 			}
 	impl_->step_starts.clear();
+	profile.mark("knowledge_snapshots");
 	impl_->bodies.each(
 	    [&](const StableId &id, const Definition &, const Pose &pose, const Motion &)
 	    {
@@ -2828,6 +2840,7 @@ void World::tick()
 	for (const auto &[claim, command] : departures)
 		impl_->meta(claim, command, true);
 	impl_->apply_interdiction_orders();
+	profile.mark("controllers");
 	impl_->commit_departures();
 	impl_->apply_structural_disablement();
 	impl_->capture_dock_propulsion();
@@ -2841,6 +2854,7 @@ void World::tick()
 				impl_->knowledge.ingest_telemetry(id, fit.id, impl_->telemetry(id, fit.ordinal), ticks());
 			}
 	impl_->run_advanced_equipment();
+	profile.mark("equipment");
 	impl_->adjust_dock_propulsion();
 	impl_->step_vertical();
 	impl_->service_craft();
@@ -2857,6 +2871,7 @@ void World::tick()
 	impl_->integrate.run();
 	impl_->sync_docks();
 	impl_->resolve_collisions.run();
+	profile.mark("logistics_motion_collision");
 	impl_->step_docking();
 	impl_->step_payload_effects();
 	impl_->step_shield_reactions();
@@ -2868,6 +2883,7 @@ void World::tick()
 	impl_->step_medical_facilities();
 	impl_->index_contacts.run();
 	impl_->waypoint_arrivals();
+	profile.mark("combat_teams_repairs");
 	if (impl_->scenario)
 	{
 		std::vector<ScenarioMotionSegment> motion;
@@ -2885,23 +2901,27 @@ void World::tick()
 	++impl_->ecs.get_mut<Clock>().tick;
 	++impl_->environment_tick;
 	impl_->knowledge.tick(ticks());
+	profile.mark("scenario_evaluation_knowledge");
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<BridgeBlackboard>())
 			impl_->reconcile_objective_priority(id);
 	impl_->refresh_comms();
 	impl_->refresh_boarding_templates();
 	impl_->update_craft_reports();
+	profile.mark("refresh_comms_boarding_craft");
 	// Physical receipt and deadlines settle before queued station traffic can be delivered.
 	impl_->update_mission_facts();
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
 	impl_->advance_away();
+	profile.mark("missions_conversations_away");
 	impl_->advance_interdictions();
 	impl_->advance_psychic();
 	impl_->advance_sensors();
 	impl_->update_mission_facts();
 	impl_->finalise_destroyed_missions();
 	impl_->prune_property_targets();
+	profile.mark("missions_comms_away_sensors");
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();

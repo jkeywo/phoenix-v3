@@ -1290,3 +1290,5 @@ target_link_libraries(phoenix_psychic_smoke PRIVATE phoenix_session phoenix_pres
 if(NOT EMSCRIPTEN)
 	add_dependencies(phoenix_psychic_smoke base_pack)
 endif()
+
+include(cmake/runtime-profile.cmake)

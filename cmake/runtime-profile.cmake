@@ -1,0 +1,19 @@
+# Manually invoked diagnostic; deliberately absent from CTest/CI.
+if(TARGET phoenix_runtime_profile)
+	return()
+endif()
+add_executable(phoenix_runtime_profile EXCLUDE_FROM_ALL tests/manual/runtime_profile.cpp)
+set_property(TARGET phoenix_runtime_profile PROPERTY CXX_SCAN_FOR_MODULES ON)
+target_link_libraries(phoenix_runtime_profile PRIVATE phoenix_session phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_runtime_profile PROPERTIES SUFFIX ".html")
+	target_link_options(phoenix_runtime_profile PRIVATE
+		"-O2" "--profiling-funcs" "-sALLOW_MEMORY_GROWTH=1" "-sSTACK_SIZE=1048576"
+		"--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+		"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+		"--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/runtime_profile.html")
+	set_property(TARGET phoenix_runtime_profile APPEND PROPERTY LINK_DEPENDS
+		"${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/runtime_profile.html")
+else()
+	add_dependencies(phoenix_runtime_profile base_pack)
+endif()
