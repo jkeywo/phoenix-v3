@@ -121,9 +121,8 @@ void refresh_comms(bool disclose = true)
 	for (const auto &[id, endpoint] : conversations.endpoints)
 	{
 		const auto owner = comms_owner(id);
-		const auto observed = capture_console_observation(*owner);
 		std::set<EntityId> visible{id};
-		for (const auto &c : observed.contacts)
+		for (const auto &c : capture_console_contacts(*owner))
 			visible.insert(c.id);
 		for (const auto &[name, p] : conversations.participants)
 			if (visible.contains(p.host) && p.public_directory)

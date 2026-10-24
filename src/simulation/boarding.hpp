@@ -8,7 +8,7 @@ bool boarding_visible(EntityId origin, EntityId target) const
 	if (operational_owner(origin) == operational_owner(target) || (!a.empty() && a == b))
 		return false;
 	for (const auto &seat : definition(origin).consoles)
-		for (const auto &contact : capture_console_observation({origin, seat.id}).contacts)
+		for (const auto &contact : capture_console_contacts({origin, seat.id}))
 			if (contact.id == target)
 				return true;
 	return false;

@@ -121,7 +121,8 @@ std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) con
 enum class ObservationDetail
 {
 	Presentation,
-	Decision
+	Decision,
+	Contacts
 };
 Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object(),
                                         ObservationDetail detail = ObservationDetail::Presentation) const
@@ -141,7 +142,8 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	result.controls = seat.controls;
 	result.feeds = seat.feeds;
 	result.gameplay = std::move(gameplay);
-	project_combat(address, result);
+	if (detail != ObservationDetail::Contacts)
+		project_combat(address, result);
 	if (presentation)
 	{
 		result.gameplay["processors"] = project_processors(address);
@@ -156,7 +158,7 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 				result.gameplay["directed"].push_back(std::move(row));
 			}
 	}
-	else
+	else if (detail == ObservationDetail::Decision)
 	{
 		result.gameplay["logistics"] = {{"revision", logistics_revision(entity)}};
 		const auto *docking = entity.try_get<DockingState>();
@@ -265,4 +267,10 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 Observation capture_decision_observation(const ConsoleAddress &address) const
 {
 	return capture_console_observation(address, Json::object(), ObservationDetail::Decision);
+}
+// Visibility consumers use the identical Console feed/type/contact boundary,
+// without building combat and UI boards just to discard them.
+std::vector<BodyView> capture_console_contacts(const ConsoleAddress &address) const
+{
+	return capture_console_observation(address, Json::object(), ObservationDetail::Contacts).contacts;
 }
