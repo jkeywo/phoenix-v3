@@ -35446,6 +35446,7 @@
 							"stores": [
 								{
 									"id": "cell",
+									"resource": "base.resource.energy",
 									"capacity": 28800,
 									"initial": 0,
 									"charge_rate": 1200,
@@ -35468,6 +35469,8 @@
 							"coolant_sources": [
 								{
 									"id": "coolant",
+									"resource": "base.resource.coolant",
+									"capacity": 60000,
 									"initial": 60000,
 									"removal_rate": 1200,
 									"coolant_per_heat_ppm": 100000

@@ -62,3 +62,9 @@ Follow-up validation:
 - The first network run passed ten of twelve cases. Two lobby admission cases timed out while the WebAssembly optimizer was also running. The complete separate network rerun passed all 12 cases after WebAssembly compilation finished, with unchanged assertions and time limits. No network code was changed for these timeouts.
 - The complete WebAssembly build and `scripts/check.ps1 -Target web` passed: content preflight, all integration cases and all 17 native/WebAssembly continuation comparisons, including processors and paid stock effects.
 - The final repository formatting check and `git diff --check` passed for the follow-up changes. Validation logs are retained under `build/effect-cleanup-*.log` in the implementation worktree. No manual graphical smoke journey was run.
+
+## Integration with main - 24 October 2026
+
+Rebased the migration and architecture consolidation onto `b6385d3`. Localisation and roadmap conflicts retain both the resource migration and the newer rescue/directed-systems work. The newly authored `base.delivery-raider` FTL assembly override now explicitly binds its energy and coolant resource identities and coolant capacity; its existing stock quantities, rates and thermal settings are unchanged.
+
+The combined native build, authored base/test-missions pack verification, native application build check and all 40 CTest integration cases passed, including the new interdiction/takeover case. The earlier WebAssembly/network evidence above predates this rebase; those gates were not repeated for this integration. Logs: `build/rebase-main-native.log` and `build/rebase-main-tests.log`.
