@@ -279,6 +279,7 @@ BaseConfiguration base_configuration(const Pack &pack);
 struct Catalog
 {
 	std::map<std::string, Json> entities, maps, consoles, trees;
+	std::map<std::string, Json> layouts, ui_groups, themes;
 	std::map<std::string, Json> equipment, assemblies, messages, effects, resources, recipes;
 	Json knowledge = Json::object();
 	CompiledKnowledge knowledge_definition;
@@ -291,8 +292,78 @@ struct Catalog
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false, selection = false;
 	std::string loading_background;
+	std::string ui_theme;
 	BaseConfiguration base;
 };
+// Presentation-only definitions. Components refer to existing permitted widgets/panels.
+struct UiRect
+{
+	float x = 0, y = 0, width = 0, height = 0;
+};
+struct UiNode
+{
+	std::string id, kind = "column", label, component;
+	float minimum_width = 44, minimum_height = 44, preferred_width = 0, preferred_height = 0;
+	float stretch = 1, gap = 12, padding = 8, aspect = 0;
+	std::string align = "stretch";
+	std::string region;
+	float circle_x = .5f, circle_y = .5f, circle_radius = .35f;
+	UiRect rect{0, 0, 1000, 1000};
+	Json style = Json::object();
+	std::vector<UiNode> children;
+};
+struct UiLayout
+{
+	UiNode root;
+	std::optional<UiNode> compact;
+};
+struct UiTab
+{
+	std::string id, label;
+	bool enabled = true, attention = false;
+};
+class UiTabs
+{
+public:
+	bool update(std::vector<UiTab> tabs);
+	bool select(const std::string &id);
+	const std::string &selected() const
+	{
+		return selected_;
+	}
+	const std::vector<UiTab> &items() const
+	{
+		return items_;
+	}
+
+private:
+	std::string selected_;
+	std::vector<UiTab> items_;
+};
+struct UiPlacement
+{
+	std::string id, component, page;
+	UiRect bounds;
+	bool visible = true;
+	Json style = Json::object();
+};
+struct UiResolved
+{
+	std::vector<UiPlacement> placements;
+	std::vector<UiTab> pages;
+	std::map<std::string, std::string> page_groups;
+	std::map<std::string, UiRect> containers;
+	std::vector<std::string> diagnostics;
+	bool compact = false;
+};
+UiLayout compile_ui_layout(const Catalog &, const Json &console);
+UiLayout compile_ui_tree(const Catalog &, const Json &definition);
+UiResolved resolve_ui_layout(const UiLayout &, UiRect available, float text_scale,
+                             const std::map<std::string, std::string> &selected_pages = {});
+Json convert_console_layout(const Json &console);
+Json resolved_ui_theme(const Catalog &, const std::string &id = {}, const Json &overrides = Json::object());
+Json public_ui_theme(const Catalog &);
+void verify_ui_definitions(const Catalog &);
 ResourceCatalogue compile_resource_catalog(const Catalog &);
 std::map<std::string, RecipeDefinition> compile_recipe_catalog(const Catalog &);
 RecipeDefinition compile_recipe(const Catalog &, const std::string &);
@@ -1079,7 +1150,10 @@ enum class WorkshopDefinitionKind
 	Message,
 	Effect,
 	Resource,
-	Recipe
+	Recipe,
+	Layout,
+	UiGroup,
+	Theme
 };
 class WorkshopDocument
 {
@@ -1105,10 +1179,12 @@ public:
 	void erase(std::uint64_t instance);
 	void duplicate(std::uint64_t instance);
 	std::string import_image(const std::string &filename, Bytes bytes);
+	std::string import_font(const std::string &filename, Bytes bytes);
 	std::string import_model(const std::string &filename, Bytes bytes);
 	Catalog verify() const;
 	// Resolves reusable equipment and controller namespaces without requiring finished ownership/presets.
 	Catalog preview_equipment() const;
+	Catalog preview_ui() const;
 	Json preview_tree(const Json &tree) const;
 	Json preview_tree(const std::string &id) const;
 	std::vector<std::string> definition_choices(WorkshopDefinitionKind kind) const;

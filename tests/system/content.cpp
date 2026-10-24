@@ -40,6 +40,64 @@ int main()
 		auto catalog = resolve_packs({loaded});
 		{
 			auto source = base;
+			auto definitions = parse_json(source.files.at("definitions.json"), "UI fixture");
+			auto &console = definitions["consoles"][0];
+			console["layout"] = convert_console_layout(console);
+			definitions["layouts"] = Json::array(
+			    {{{"id", "test.layout"},
+			      {"schema", 1},
+			      {"root",
+			       {{"id", "root"},
+			        {"kind", "row"},
+			        {"children",
+			         Json::array(
+			             {{{"id", "first"}, {"kind", "component"}, {"component", "gameplay"}, {"min_width", 300}},
+			              {{"id", "second"},
+			               {"kind", "component"},
+			               {"component", "messages"},
+			               {"min_width", 300}}})}}}}});
+			console["layout"] = "test.layout";
+			definitions["themes"] =
+			    Json::array({{{"id", "test.theme"}, {"schema", 1}, {"tokens", {{"accent", "#123456"}}}}});
+			console["theme"] = "test.theme";
+			source.files["definitions.json"] = json_bytes(definitions);
+			const auto ui_catalog = resolve_packs({read_pack(write_pack(source))});
+			const auto program =
+			    compile_ui_layout(ui_catalog, ui_catalog.consoles.at(console.at("id").get<std::string>()));
+			const auto wide = resolve_ui_layout(program, {0, 0, 1200, 700}, 1);
+			const auto phone = resolve_ui_layout(program, {0, 0, 360, 700}, 1);
+			require(!wide.compact && wide.placements.size() == 2 && wide.pages.empty(),
+			        "wide containers retain both components");
+			require(phone.compact && phone.pages.size() == 2 && phone.placements[0].visible &&
+			            !phone.placements[1].visible,
+			        "compact fallback creates named pages without changing component identity");
+			const auto second = resolve_ui_layout(program, {0, 0, 360, 700}, 1, {{"root", "root.second"}});
+			require(!second.placements[0].visible && second.placements[1].visible,
+			        "page selection resolves permitted geometry");
+			UiTabs tabs;
+			tabs.update({{"a", "First"}, {"b", "Second"}, {"c", "Third"}});
+			require(tabs.select("b") && !tabs.select("unknown"), "tab selection accepts only available identities");
+			tabs.update({{"a", "First"}, {"c", "Third"}});
+			require(tabs.selected() == "c", "revoked tab selects next available authored neighbour");
+			require(resolved_ui_theme(ui_catalog, "test.theme").at("tokens").at("accent") == "#123456",
+			        "theme merges built-in defaults");
+			const auto ship = ui_catalog.entities.begin()->first;
+			const auto client = resolve_packs({console_assets(ui_catalog, ship)});
+			require(client.layouts.contains("test.layout") && client.themes.contains("test.theme"),
+			        "client bundle retains reachable presentation definitions");
+			definitions["layouts"][0]["compact"] = {
+			    {"id", "compact"}, {"kind", "component"}, {"component", "messages"}};
+			source.files["definitions.json"] = json_bytes(definitions);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(source))});
+			    },
+			    "preserve all component targets");
+		}
+
+		{
+			auto source = base;
 			auto definitions = parse_json(source.files.at("definitions.json"), "resource fixture");
 			definitions["resources"] = Json::array(
 			    {{{"id", "test.ore"}, {"label", "Ore"}, {"tags", Json::array({"cargo"})}, {"sizes", {{"cargo", 3}}}},

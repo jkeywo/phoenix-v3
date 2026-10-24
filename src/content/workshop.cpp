@@ -29,6 +29,12 @@ DraftTable draft_table(const Catalog &library, WorkshopDefinitionKind kind)
 {
 	switch (kind)
 	{
+	case WorkshopDefinitionKind::Layout:
+		return {"layouts", library.layouts};
+	case WorkshopDefinitionKind::UiGroup:
+		return {"ui_groups", library.ui_groups};
+	case WorkshopDefinitionKind::Theme:
+		return {"themes", library.themes};
 	case WorkshopDefinitionKind::Entity:
 		return {"entities", library.entities};
 	case WorkshopDefinitionKind::Map:
@@ -121,12 +127,36 @@ WorkshopDocument::WorkshopDocument()
 {
 	reset();
 }
+Catalog WorkshopDocument::preview_ui() const
+{
+	Catalog preview = library_catalog_;
+	preview.ui_theme = pack_.manifest.value("theme", preview.ui_theme);
+	preview.layouts = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Layout));
+	preview.ui_groups = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::UiGroup));
+	preview.themes = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Theme));
+	preview.consoles = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Console));
+	inherit_definitions(preview.layouts, "layouts");
+	inherit_definitions(preview.ui_groups, "ui_groups");
+	inherit_definitions(preview.themes, "themes");
+	inherit_definitions(preview.consoles, "consoles");
+	const auto prefix = pack_.manifest.at("id").get<std::string>() + ":";
+	for (const auto &[path, bytes] : pack_.files)
+		if (path.starts_with("assets/"))
+			preview.assets[prefix + path] = bytes;
+	return preview;
+}
 Catalog WorkshopDocument::preview_equipment() const
 {
 	Catalog preview;
 	preview.entities = library_catalog_.entities;
 	for (auto &[id, entity] : preview.entities)
 		entity = authored_equipment_source(std::move(entity));
+	preview.layouts = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Layout));
+	preview.ui_groups = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::UiGroup));
+	preview.themes = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Theme));
+	inherit_definitions(preview.layouts, "layouts");
+	inherit_definitions(preview.ui_groups, "ui_groups");
+	inherit_definitions(preview.themes, "themes");
 	preview.entities = draft_definitions(definitions_, {"entities", preview.entities});
 	preview.equipment =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Equipment));
@@ -313,7 +343,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	if (resolved.presentation)
 		throw std::runtime_error("Console assets are not an editable gameplay pack");
 	auto definitions = parse_json(loaded.files().at("definitions.json"), "definitions.json");
-	for (auto kind : {"entities", "maps", "consoles", "trees"})
+	for (auto kind : {"entities", "maps", "consoles", "trees", "layouts", "ui_groups", "themes"})
 		if (!definitions.contains(kind))
 			definitions[kind] = Json::array();
 	auto flatten = [&](const char *kind, const auto &table)
@@ -336,6 +366,9 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 		}
 	flatten("maps", resolved.maps);
 	flatten("consoles", resolved.consoles);
+	flatten("layouts", resolved.layouts);
+	flatten("ui_groups", resolved.ui_groups);
+	flatten("themes", resolved.themes);
 	flatten("trees", resolved.trees);
 	if (definitions["maps"].empty())
 		definitions["maps"].push_back(
@@ -750,6 +783,24 @@ std::string WorkshopDocument::import_image(const std::string &filename, Bytes by
 	verify_catalog(probe);
 	pack_.files[path] = std::move(bytes);
 	return reference;
+}
+std::string WorkshopDocument::import_font(const std::string &filename, Bytes bytes)
+{
+	const auto leaf =
+	    filename.substr(filename.find_last_of("/\\") == std::string::npos ? 0 : filename.find_last_of("/\\") + 1);
+	if (leaf.empty() ||
+	    leaf.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.") !=
+	        std::string::npos ||
+	    !(leaf.ends_with(".ttf") || leaf.ends_with(".otf")) || bytes.size() < 12 || bytes.size() > 16 * 1024 * 1024)
+		throw std::runtime_error("Expected a bounded .ttf or .otf font");
+	if (!(bytes[0] == 0 && bytes[1] == 1 && bytes[2] == 0 && bytes[3] == 0) &&
+	    !(bytes[0] == 'O' && bytes[1] == 'T' && bytes[2] == 'T' && bytes[3] == 'O'))
+		throw std::runtime_error("Unsupported font header");
+	const auto path = "assets/fonts/" + leaf;
+	if (pack_.files.contains(path))
+		throw std::runtime_error("Font already exists; rename the imported file");
+	pack_.files[path] = std::move(bytes);
+	return pack_.manifest.at("id").get<std::string>() + ":" + path;
 }
 
 bool WorkshopHistory::same_resources(const WorkshopDocument &a, const WorkshopDocument &b)

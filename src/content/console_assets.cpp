@@ -1,5 +1,7 @@
 module;
 #include <algorithm>
+#include <functional>
+#include <tuple>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -181,8 +183,9 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		if (included.insert(seat.definition).second)
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
-			for (const char *field : {"name", "description", "human_seeking", "stances", "default_stance", "command",
-			                          "hide_without_ai", "viewscreen", "compact"})
+			for (const char *field :
+			     {"name", "description", "human_seeking", "stances", "default_stance", "command", "hide_without_ai",
+			      "viewscreen", "compact", "layout", "layout_overrides", "theme", "theme_overrides", "gameplay_panel"})
 				if (catalog.consoles.at(seat.definition).contains(field))
 					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
@@ -253,8 +256,70 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		draft.files["assets/loading.png"] = catalog.assets.at(loading);
 		draft.manifest["loading_background"] = pack_id + ":assets/loading.png";
 	}
-	draft.files["definitions.json"] =
-	    json_bytes(Json{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}});
+	Json definitions{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}};
+	// Only definitions reachable from the admitted Console presentation are transferred.
+	std::set<std::string> layouts, groups, themes;
+	if (!catalog.ui_theme.empty())
+	{
+		themes.insert(catalog.ui_theme);
+		draft.manifest["theme"] = catalog.ui_theme;
+	}
+	std::function<void(const Json &)> collect = [&](const Json &node)
+	{
+		if (node.is_object())
+		{
+			if (node.contains("group") && node.at("group").is_string())
+			{
+				const auto id = node.at("group").get<std::string>();
+				if (groups.insert(id).second)
+					collect(catalog.ui_groups.at(id));
+			}
+			for (const auto &value : node.items())
+				collect(value.value());
+		}
+		else if (node.is_array())
+			for (const auto &value : node)
+				collect(value);
+	};
+	for (const auto &console : consoles)
+	{
+		if (console.contains("layout"))
+		{
+			if (console.at("layout").is_string())
+			{
+				const auto id = console.at("layout").get<std::string>();
+				layouts.insert(id);
+				collect(catalog.layouts.at(id));
+			}
+			else
+				collect(console.at("layout"));
+		}
+		if (console.contains("theme"))
+			themes.insert(console.at("theme").get<std::string>());
+	}
+	for (const auto &[ids, table, name] :
+	     {std::tuple{layouts, catalog.layouts, "layouts"}, std::tuple{groups, catalog.ui_groups, "ui_groups"},
+	      std::tuple{themes, catalog.themes, "themes"}})
+	{
+		definitions[name] = Json::array();
+		for (const auto &id : ids)
+		{
+			auto definition = table.at(id);
+			definition.erase("extends");
+			if (std::string(name) == "themes" && definition.contains("assets"))
+				for (auto &asset : definition["assets"].items())
+				{
+					const auto ref = asset.value().get<std::string>();
+					const auto dot = ref.find_last_of('.');
+					const auto path = "assets/theme/" + sha256(catalog.assets.at(ref)) +
+					                  (dot == std::string::npos ? "" : ref.substr(dot));
+					draft.files[path] = catalog.assets.at(ref);
+					asset.value() = pack_id + ":" + path;
+				}
+			definitions[name].push_back(std::move(definition));
+		}
+	}
+	draft.files["definitions.json"] = json_bytes(definitions);
 	return draft;
 }
 } // namespace

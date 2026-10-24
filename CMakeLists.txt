@@ -304,6 +304,7 @@ add_library(
 	src/content/psychic.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
+	src/content/ui_layout.cpp
 	src/content/workshop.cpp
 	src/content/equipment.cpp
 	src/content/scenario.cpp

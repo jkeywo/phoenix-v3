@@ -47,6 +47,7 @@ BaseConfiguration base_configuration(const Pack &pack)
 Json launcher_catalog(const Catalog &catalog)
 {
 	Json result{{"schema", 1}, {"scenarios", Json::array()}};
+	result["theme"] = public_ui_theme(catalog);
 	result["base"] = {{"id", catalog.base.id},
 	                  {"hash", catalog.base.hash},
 	                  {"render_mode", catalog.base.render_mode},
@@ -355,6 +356,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		}
 		if (pack.manifest.contains("loading_background"))
 			result.loading_background = pack.manifest.at("loading_background").get<std::string>();
+		if (pack.manifest.contains("theme"))
+			result.ui_theme = pack.manifest.at("theme").get<std::string>();
 		auto definitions = parse_json(pack.files.at("definitions.json"), id + "/definitions.json");
 		if (!definitions.is_object() || definitions.value("schema", 0) < 1 || definitions.value("schema", 0) > 4)
 			invalid(id + "/definitions.json", "expected schema 1..4 object");
@@ -386,6 +389,9 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("entities", result.entities);
 		add("maps", result.maps);
 		add("consoles", result.consoles);
+		add("layouts", result.layouts);
+		add("ui_groups", result.ui_groups);
+		add("themes", result.themes);
 		add("trees", result.trees);
 		add("equipment", result.equipment);
 		add("assemblies", result.assemblies);
@@ -431,6 +437,9 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(result.entities, "entities");
 	inherit_definitions(result.maps, "maps");
 	inherit_definitions(result.consoles, "consoles");
+	inherit_definitions(result.layouts, "layouts");
+	inherit_definitions(result.ui_groups, "ui_groups");
+	inherit_definitions(result.themes, "themes");
 	std::map<std::string, Json> legacy_trees;
 	for (const auto &[name, tree] : result.trees)
 		if (!contextual_tree(result.trees, name))
@@ -669,6 +678,7 @@ namespace
 {
 void verify_prepared_catalog(const Catalog &catalog)
 {
+	verify_ui_definitions(catalog);
 	(void)compile_resource_catalog(catalog);
 	(void)compile_recipe_catalog(catalog);
 	for (const auto &[id, effect] : catalog.effects)
