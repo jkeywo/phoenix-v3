@@ -1,5 +1,7 @@
 # Rescue away mission
 
+The completed pirate, custody, seizure and group departure flow is described in [Rescue capture and pirate encounter](rescue-completion.md).
+
 The delivery opening continues into three jobs aboard Morrow: rescue the trapped wounded, secure reactor control, and restore propulsion. All three resolve during the operation. Comms chooses the next priority at an event boundary; selecting another job cannot redirect work already in progress.
 
 The reactor clock starts at system arrival, including time spent delivering cargo. A focused scan can disclose the `reactor_critical` tag before the emergency. At the authored escalation time Morrow hails the player, even if the repair party has not arrived. The reactor is still resolved by the deployed party. Early reactor work avoids the emergency. During an emergency, controlled shutdown injures the player's accompanying repair-team duty officer; immediate shutdown kills that officer. With no accompanying officer, neither procedure substitutes a team casualty. Their different work durations still apply.
