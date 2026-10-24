@@ -18,7 +18,6 @@ struct SensorTrack
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SensorTrack, apparent, x, y, vx, vy, heading, altitude, seen, samples)
 struct SensorRuntime
 {
-	EntityId target = 0;
 	std::map<EntityId, SensorTrack> tracks;
 	std::optional<BearingContactView> last_bearing;
 	// Acquisition belongs to its authored mode; published evidence stays on tracks.

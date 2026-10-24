@@ -43,3 +43,24 @@ The reviewer also flagged the old implicit point-defence targeting behavior. Sep
 Logs are retained in the isolated worktree under `build/native-gate.log`, `build/native-final-build.log`, `build/native-final-check.log`, `build/development-packs.log`, `build/web-build-2.log` and `build/web-gate.log`.
 
 No graphical, touch, gamepad, screen-reader, six-display performance or browser-storage smoke journey has been run for this migration. Linux checks were updated but not executed on Linux.
+
+## Architecture simplification - 24 October 2026
+
+Follow-up to `df2e5c0` addresses the six source-review findings without changing authored costs, targets, hit semantics or periodic timing:
+
+- Effect groups stage periodic state only when applying or removing a periodic condition. Damage-only ticks and unrelated stock/shield groups do not copy the world roster.
+- DirectedRuntime owns selected targets and policies. Weapon and scanner mechanisms retain physical commitments and evidence; legacy observations derive their target/mode fields from directed intent.
+- Projectiles capture immutable payload references and evaluated physical values. Payload definitions remain in the compiled world catalogue instead of being copied into every projectile and save.
+- Shield and payload reactions share bounded result handling and due-job draining, preserving typed contexts and phase order.
+- Integrated content compilation shares one directed catalogue through native compiler adapters, with standalone entry points retaining validation of their supplied authored content.
+- Each turret binds its single directed owner. Its selected operation chooses native aiming; obsolete competing-weapon priority passes are removed.
+
+World/session schema **25** reflects the removed duplicate intent and embedded payload-definition fields. Earlier runtime saves require a new session. Gameplay continuity is checked with synthetic uninterrupted/resumed journeys rather than maintaining a second save implementation.
+
+Independent review found a remaining persisted turret target and a queue predicate that moved its elements. Turret telemetry now derives its target from its directed owner, including Off and interception behavior; the queue uses explicit move compaction. The focused sensor suite then exposed a missing acquisition-roster check previously enforced indirectly by duplicated target state. Restore now requires every fitted scanner row. Independent re-review passed all three corrections.
+
+The four focused suites (directed, combat, sensors and Workshop) pass after these fixes. Their synthetic journeys cover periodic rollback, deferred callbacks, source destruction during projectile flight, mode switching, incomplete scanner saves and fresh compilation of edited catalogues. The complete native build, all **41** CTest integration cases, native application build check and **29** launcher tests pass. Base, test-missions, test and test-3d packs verify. The native gate passed **11/12** live-network cases; the corrupt-sidecar lobby case timed out waiting for approval. That one case passed an isolated retry with unchanged binaries and timeout. The two traces after the network step were generated separately, completing all **19** native continuations. This is a successful focused retry, not a claim that the original full native gate passed.
+
+The complete WebAssembly build and `scripts/check.ps1 -Target web` pass, including production-content preflight, all integration suites and all **19** native/WebAssembly continuation comparisons. Final C++/Markdown formatting and whitespace checks pass. No new graphical, device, browser-storage or Linux smoke evidence is claimed.
+
+Follow-up logs are retained under `build/effect-simplify-focused-retry-build.log`, `build/effect-simplify-focused-retry-tests.log`, `build/effect-simplify-native-gate.log`, `build/effect-simplify-network-retry.log`, `build/effect-simplify-development-packs.log`, `build/effect-simplify-web-build.log` and `build/effect-simplify-web-gate.log`.

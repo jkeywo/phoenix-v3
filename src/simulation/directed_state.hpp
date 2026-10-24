@@ -13,4 +13,9 @@ struct DirectedRuntime
 	std::string loading_mode, loaded_mode;
 	std::int64_t beam_funding_remainder = 0;
 };
+// Derived once from the validated fitting; the mount has exactly one directed owner.
+struct DirectedMountOwner
+{
+	flecs::entity equipment;
+};
 } // namespace phoenix

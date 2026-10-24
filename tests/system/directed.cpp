@@ -67,6 +67,7 @@ Json sensor(const World &world, const std::string &system = "gun")
 	throw std::runtime_error("Missing multimode sensor acquisition state");
 }
 #include "../support/directed_blast_cases.hpp"
+#include "../support/effect_transaction_cases.hpp"
 void generated_directed_controls()
 {
 	auto source = directed_fixture();
@@ -128,6 +129,23 @@ void validate_catalogue()
 	const auto all = compile_directed(catalog, "test.combat");
 	require(all.at("gun").modes.size() == 2 && all.at("gun").targeting.size() == 2,
 	        "A single production-compiled capability has independent operation and targeting selections");
+	auto edited = catalog;
+	edited.effects.at("test.directed.scan")["range_mm"] = 123456;
+	edited.effects.at("test.directed.scan")["capabilities"]["compartment_condition"] = 7;
+	const auto compiled = compile_directed_catalog(edited);
+	require(compiled.at("test.combat").at("gun").modes.front().range == 123456 &&
+	            compile_sensors(edited, "test.combat").at("gun").capabilities.at("compartment_condition") == 7,
+	        "A fresh catalogue and standalone native compiler reflect edited directed templates");
+	edited.entities["test.unrelated-invalid"] = edited.entities.at("test.combat");
+	edited.entities.at("test.unrelated-invalid")["systems"]["gun"]["directed"]["initial_mode"] = "missing.mode";
+	require(compile_combat(edited, "test.combat").has_value(),
+	        "Standalone native compilation validates only the requested entity");
+	rejects(
+	    [&]
+	    {
+		    compile_directed_catalog(edited);
+	    },
+	    "A whole-catalogue preparation still rejects an unrelated malformed entity");
 	auto invalid = source;
 	invalid["entities"][0]["systems"]["second"]["turret"] = "mount";
 	rejects(
@@ -195,6 +213,18 @@ Json switching_and_continuation()
 		throw std::runtime_error(std::string("world load: ") + error.what());
 	}
 	require(world.claim(101, 1, "drive"), "Claim multimode fitting");
+	const auto mount_target = [](const World &value)
+	{
+		const auto observation = value.observe(101);
+		for (const auto &system : observation->systems)
+			if (system.id == "mount")
+			{
+				require(system.requested == system.telemetry.at("target"),
+				        "Mount requested and target telemetry share the unique owner's intent");
+				return system.requested;
+			}
+		throw std::runtime_error("Missing mount observation");
+	};
 	try
 	{
 		ticks(world, 1);
@@ -226,6 +256,7 @@ Json switching_and_continuation()
 	ticks(world, 1);
 	require(weapon(world).at("shots").get<std::int64_t>() == 1,
 	        "The same fitting launches through its selected fire operation");
+	require(mount_target(world) == 2, "The same mount follows its owner when scan switches to launch");
 	require(sensor(world).at("acquisitions") == unfinished.at("acquisitions"),
 	        "Focused acquisition cannot advance while the fire operation owns this capability");
 	const auto cooldown = weapon(world).at("cooldown").get<std::int64_t>();
@@ -245,6 +276,7 @@ Json switching_and_continuation()
 	require(directed(world).at("operating_mode") == 1 && directed(world).at("targeting_mode") == 1 &&
 	            directed(world).at("target") == 2,
 	        "Targeting policy changes independently of operating mode and retained target intent");
+	require(mount_target(world) == 0, "Off preserves owner intent but leaves the physical mount inactive");
 	const auto shots = weapon(world).at("shots");
 	const auto paused_acquisition = sensor(world).at("acquisitions");
 	ticks(world, 25);
@@ -259,6 +291,9 @@ Json switching_and_continuation()
 	        "Native equipment-local acquisition survives incompatible fire work");
 	World resumed;
 	resumed.restore(content, world.save());
+	require(mount_target(world) == 2 && mount_target(resumed) == 2 &&
+	            !body(world).at("combat").at("systems").at("mount").contains("target"),
+	        "Restored mount derives its scanner target without a second persisted intent");
 	for (int n = 0; n < 15; ++n)
 	{
 		world.tick();
@@ -266,6 +301,13 @@ Json switching_and_continuation()
 		require(world.save() == resumed.save(), "Multimode acquisition, readiness and intent continue exactly");
 	}
 	const auto good = world.save();
+	require(!weapon(world).contains("target") && !weapon(world).contains("mode") && !sensor(world).contains("target"),
+	        "Directed intent is persisted once, independently of native mechanism state");
+	const auto observation = world.observe(101)->gameplay;
+	for (const auto &scanner : observation.at("sensors").at("scanners"))
+		if (scanner.at("id") == "gun")
+			require(scanner.at("target") == directed(world).at("target"),
+			        "Native scanner telemetry derives its selected target from the shared capability");
 	auto wire = network::observation_json(*world.observe(101));
 	auto &board = wire["gameplay"]["directed"];
 	require(!board.empty(), "Directed capabilities have standard human and network projections");
@@ -281,15 +323,21 @@ Json switching_and_continuation()
 		    network::read_observation(wire, content);
 	    },
 	    "Invalid directed projection selection rejected");
-	for (int variant = 0; variant < 3; ++variant)
+	for (int variant = 0; variant < 6; ++variant)
 	{
 		auto bad = good;
 		if (variant == 0)
 			bad["directed"][0]["operating_mode"] = 999;
 		else if (variant == 1)
 			bad["directed"].push_back(bad["directed"][0]);
-		else
+		else if (variant == 2)
 			bad["directed"].erase(bad["directed"].begin());
+		else if (variant == 3)
+			bad["directed"][0]["target"] = bad["directed"][0]["ship"];
+		else if (variant == 4)
+			bad["sensors"][0]["target"] = 2;
+		else
+			bad["bodies"][0]["combat"]["systems"]["gun"]["target"] = 2;
 		rejects(
 		    [&]
 		    {
@@ -1109,6 +1157,17 @@ int main(int argc, char **argv)
 		                    []
 		                    {
 			                    return source_loss_and_removal();
+		                    }));
+		for (auto &state : run("periodic-rollback",
+		                       []
+		                       {
+			                       return periodic_transaction_rollback();
+		                       }))
+			trace.push_back(std::move(state));
+		trace.push_back(run("deferred-callback",
+		                    []
+		                    {
+			                    return deferred_callback_continuation();
 		                    }));
 		trace.push_back(run("scenario-removal",
 		                    []

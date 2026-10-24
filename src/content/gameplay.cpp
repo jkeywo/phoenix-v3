@@ -118,10 +118,16 @@ bool uses_advanced_machinery(const Catalog &catalog, const std::string &entity_i
 
 void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_id)
 {
+	const DirectedCatalog directed_catalog{{entity_id, compile_directed(catalog, entity_id)}};
+	return verify_gameplay_fitting(catalog, entity_id, directed_catalog);
+}
+void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_id,
+                             const DirectedCatalog &directed_catalog)
+{
 	const auto &entity = catalog.entities.at(entity_id);
 	const auto path = "entities." + entity_id;
 	const auto fitted = resolve_systems(catalog, entity_id);
-	const auto directed = compile_directed(catalog, entity_id);
+	const auto &directed = directed_catalog.at(entity_id);
 	const auto consoles = resolve_consoles(catalog, entity_id);
 	std::map<std::string, const FittedSystemSpec *> systems;
 	std::map<std::string, const ConsoleSpec *> console_ids;

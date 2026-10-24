@@ -445,7 +445,7 @@ void advance_sensors(bool acquire_timed = true)
 			    };
 			    if (!input.focused_only)
 				    acquire(false);
-			    if (acquire_timed && state.target == target &&
+			    if (acquire_timed && directed_target(ship, id) == target &&
 			        directed_operation(ship, id, DirectedOperationKind::Scan))
 				    execute_directed(entities.at(ship), child, DirectedOperationKind::Scan,
 				                     directed_scan_covers(ship, id, body),
@@ -459,41 +459,37 @@ void advance_sensors(bool acquire_timed = true)
 	}
 }
 // Sensor mounts use only current permitted returns or their last observation.
-std::optional<std::pair<fixed::Vec, std::int64_t>> sensor_aim(EntityId ship, const std::string &turret,
+std::optional<std::pair<fixed::Vec, std::int64_t>> sensor_aim(EntityId ship, const std::string &id,
                                                               ConsoleContacts &cache)
 {
-	for (const auto &[id, d] : definition(ship).sensors)
-		if (d.turret == turret && directed_operation(ship, id, DirectedOperationKind::Scan) &&
-		    directed_targeting(ship, id) != DirectedTargetingKind::Off)
-		{
-			auto &state = instance(entities.at(ship), id)->entity.get_mut<SensorRuntime>();
-			if (!state.target || !sensor_powered(ship, id))
-				return {};
-			if (const auto aim = directed_contact(ship, id, state.target, cache); aim && !aim->bearing)
-			{
-				if (!state.tracks.contains(aim->body.id) && state.tracks.size() >= 256)
-					return {};
-				auto &track = state.tracks[aim->body.id];
-				track.x = aim->body.x;
-				track.y = aim->body.y;
-				state.last_bearing.reset();
-				return std::pair{fixed::Vec{aim->body.x, aim->body.y}, d.bearing};
-			}
-			for (const auto &b : console_detection(system_owner(ship, id), cache).bearing_contacts)
-				if (b.id == state.target)
-					state.last_bearing = b;
-			if (state.last_bearing && (!state.tracks.contains(state.target) ||
-			                           state.last_bearing->observed_tick >= state.tracks.at(state.target).seen))
-				return std::pair{
-				    sensor_origin(ship, d) +
-				        fixed::scale(fixed::direction(state.last_bearing->bearing_mdeg), sensor_range(ship, id)),
-				    d.bearing};
-			if (state.tracks.contains(state.target))
-			{
-				const auto &t = state.tracks.at(state.target);
-				return std::pair{fixed::Vec{t.x, t.y}, d.bearing};
-			}
-		}
+	const auto &d = definition(ship).sensors.at(id);
+	auto &state = instance(entities.at(ship), id)->entity.get_mut<SensorRuntime>();
+	const auto target = directed_target(ship, id);
+	if (!target || !sensor_powered(ship, id))
+		return {};
+	if (const auto aim = directed_contact(ship, id, target, cache); aim && !aim->bearing)
+	{
+		if (!state.tracks.contains(aim->body.id) && state.tracks.size() >= 256)
+			return {};
+		auto &track = state.tracks[aim->body.id];
+		track.x = aim->body.x;
+		track.y = aim->body.y;
+		state.last_bearing.reset();
+		return std::pair{fixed::Vec{aim->body.x, aim->body.y}, d.bearing};
+	}
+	for (const auto &b : console_detection(system_owner(ship, id), cache).bearing_contacts)
+		if (b.id == target)
+			state.last_bearing = b;
+	if (state.last_bearing &&
+	    (!state.tracks.contains(target) || state.last_bearing->observed_tick >= state.tracks.at(target).seen))
+		return std::pair{sensor_origin(ship, d) +
+		                     fixed::scale(fixed::direction(state.last_bearing->bearing_mdeg), sensor_range(ship, id)),
+		                 d.bearing};
+	if (state.tracks.contains(target))
+	{
+		const auto &t = state.tracks.at(target);
+		return std::pair{fixed::Vec{t.x, t.y}, d.bearing};
+	}
 	return {};
 }
 // One permitted evidence view supplies both radar identity and detailed readouts.
@@ -566,8 +562,9 @@ Json sensor_projection(const ConsoleAddress &address, const std::map<EntityId, J
 		{
 			const auto d = sensor_acquisition_definition(address.ship, id);
 			const auto &s = instance(entities.at(address.ship), id)->entity.get<SensorRuntime>();
+			const auto selected = directed_target(address.ship, id);
 			Json scanner{{"id", id},
-			             {"target", s.target},
+			             {"target", selected},
 			             {"bearing_mdeg", sensor_heading(address.ship, d)},
 			             {"arc_mdeg", d.arc},
 			             {"range_mm", sensor_range(address.ship, id)},
@@ -577,7 +574,7 @@ Json sensor_projection(const ConsoleAddress &address, const std::map<EntityId, J
 			             {"progress", Json::array()}};
 			if (!sensor_powered(address.ship, id))
 				scanner["blocker"] = "Scanner unavailable or unpowered";
-			else if (s.target && (!s.tracks.contains(s.target) || s.tracks.at(s.target).seen != tick))
+			else if (selected && (!s.tracks.contains(selected) || s.tracks.at(selected).seen != tick))
 				scanner["blocker"] = "Target outside scanner coverage";
 			const auto *mode = directed_mode(address.ship, id);
 			const std::map<EntityId, std::map<std::string, SensorSample>> empty_progress;
@@ -587,10 +584,10 @@ Json sensor_projection(const ConsoleAddress &address, const std::map<EntityId, J
 			{
 				for (const auto &[cap, sample] : samples)
 				{
-					if (target == s.target && d.capabilities.contains(cap) && d.capabilities.at(cap) > 0)
+					if (target == selected && d.capabilities.contains(cap) && d.capabilities.at(cap) > 0)
 						scanner["progress"].push_back(
 						    {{"capability", cap}, {"ticks", sample.exposure}, {"required", d.capabilities.at(cap)}});
-					if (target == s.target && cap.starts_with("finding:"))
+					if (target == selected && cap.starts_with("finding:"))
 					{
 						auto &progress = scanner["progress"];
 						auto found = std::find_if(progress.begin(), progress.end(),
@@ -670,7 +667,6 @@ Json save_sensors() const
 							acquisitions.push_back({{"mode", mode}, {"target", target}, {"samples", samples}});
 					out.push_back({{"ship", ship},
 					               {"system", child.get<Equipment>().id},
-					               {"target", s->target},
 					               {"tracks", tracks},
 					               {"acquisitions", acquisitions},
 					               {"last_bearing",
@@ -715,11 +711,9 @@ void restore_sensors(const Json &rows)
 		if (!entities.contains(ship) || !definition(ship).sensors.contains(id) || !seen.emplace(ship, id).second)
 			throw std::runtime_error("Invalid saved scanner");
 		SensorRuntime state;
-		state.target = row.at("target");
-		if (ghost_receptions.contains(state.target) && ghost_receptions.at(state.target).observer != ship)
-			throw std::runtime_error("Unknown saved apparent scan target");
-		if (state.target == ship)
-			throw std::runtime_error("Invalid saved scan target");
+		if (row.contains("target"))
+			throw std::runtime_error("Scanner intent belongs to the directed capability");
+		const auto selected = directed_target(ship, id);
 		auto read_bearing = [&](const Json &b)
 		{
 			if (!b.at("id").is_number_integer() || b.at("id") <= 0 || !b.at("observed_tick").is_number_integer() ||
@@ -741,13 +735,13 @@ void restore_sensors(const Json &rows)
 			const auto value = read_bearing(b);
 			if (!bearing_ids.insert(value.id).second)
 				throw std::runtime_error("Duplicate saved bearing");
-			if (!row.contains("last_bearing") && value.id == state.target)
+			if (!row.contains("last_bearing") && value.id == selected)
 				state.last_bearing = value;
 		}
 		if (row.contains("last_bearing") && !row.at("last_bearing").is_null())
 		{
 			const auto value = read_bearing(row.at("last_bearing"));
-			if (value.id != state.target)
+			if (value.id != selected)
 				throw std::runtime_error("Saved bearing does not match scan target");
 			state.last_bearing = value;
 		}
@@ -819,4 +813,9 @@ void restore_sensors(const Json &rows)
 		}
 		instance(entities.at(ship), id)->entity.set<SensorRuntime>(state);
 	}
+	for (const auto &[ship, entity] : entities)
+		if (entity.has<EquipmentIndex>())
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (child.has<SensorRuntime>() && !seen.contains({ship, child.get<Equipment>().id}))
+					throw std::runtime_error("Missing saved scanner acquisition state");
 }

@@ -85,11 +85,13 @@ DirectedTargetingDefinition compile_targeting_policy(const Catalog &catalog, con
 	directed_require(!result.label.empty() && result.label.size() <= 256, id, "invalid label");
 	return result;
 }
-std::vector<PayloadDefinition> compile_payloads(const Catalog &catalog, const Json &refs, const std::string &path)
+std::vector<std::string> compile_payloads(const Catalog &catalog, const Json &refs, const std::string &path)
 {
-	std::vector<PayloadDefinition> result;
-	for (const auto &id : directed_names(refs, path))
-		result.push_back(compile_payload(catalog, id));
+	// The catalogue validates payload bodies independently, including unused templates.
+	// Fittings retain references, not copies of those immutable effect graphs.
+	auto result = directed_names(refs, path);
+	for (const auto &id : result)
+		(void)directed_effect(catalog, id, "payload");
 	return result;
 }
 PayloadDefinition compile_payload(const Catalog &catalog, const std::string &id)
@@ -331,5 +333,12 @@ std::map<std::string, DirectedDefinition> compile_directed(const Catalog &catalo
 		out.emplace(system, std::move(definition));
 	}
 	return out;
+}
+DirectedCatalog compile_directed_catalog(const Catalog &catalog)
+{
+	DirectedCatalog result;
+	for (const auto &[id, entity] : catalog.entities)
+		result.emplace(id, compile_directed(catalog, id));
+	return result;
 }
 } // namespace phoenix

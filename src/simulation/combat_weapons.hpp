@@ -65,7 +65,8 @@ std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanis
 {
 	const auto id = ship.get<StableId>().id;
 	const bool intercept = directed_targeting(id, m.definition.id) == DirectedTargetingKind::Intercept;
-	const auto wanted = intercept ? 7000000000000000ULL + m.get<WeaponState>().intercept : m.target();
+	const auto wanted =
+	    intercept ? 7000000000000000ULL + m.get<WeaponState>().intercept : directed_target(id, m.definition.id);
 	if (intercept && !m.get<WeaponState>().intercept)
 		return {};
 	auto aim = directed_contact(id, m.definition.id, wanted, cache, !intercept);
@@ -243,38 +244,28 @@ void prepare_weapons(flecs::entity ship)
 				}
 			}
 		}
-	// The first usable hosted weapon supplies the shared mount's physical solution.
+	// The fitting's unique directed owner supplies its selected native aiming solution.
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Turret)
 		{
 			const auto &d = m->definition;
 			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
 				continue;
-			const CombatMechanism *weapon = nullptr;
-			std::optional<WeaponAim> target;
-			for (int priority = 0; priority < 2 && !weapon; ++priority)
-				for (auto candidate : ship.get<EquipmentIndex>().values)
-				{
-					const auto *w = candidate.try_get<CombatMechanism>();
-					if (!w || w->definition.kind != OperatingSystem::Weapon ||
-					    w->definition.get<WeaponDefinition>().turret != d.id || !candidate.get<Equipment>().enabled ||
-					    structurally_disabled(ship, w->definition.id) ||
-					    directed_operation(id, w->definition.id, DirectedOperationKind::Scan) ||
-					    directed_targeting(id, w->definition.id) == DirectedTargetingKind::Off)
-						continue;
-					if ((directed_targeting(id, w->definition.id) == DirectedTargetingKind::Intercept) !=
-					    (priority == 1))
-						continue;
-					if (auto found = weapon_contact(ship, *w, contacts_by_console))
-					{
-						weapon = w;
-						target = found;
-						break;
-					}
-				}
-			const auto scanner_aim = weapon ? std::optional<std::pair<fixed::Vec, std::int64_t>>{}
-			                                : sensor_aim(id, d.id, contacts_by_console);
-			if (!weapon && !scanner_aim)
+			const auto *binding = child.try_get<DirectedMountOwner>();
+			if (!binding)
+				continue;
+			const auto owner = binding->equipment;
+			const auto &owner_id = owner.get<Equipment>().id;
+			if (!owner.get<Equipment>().enabled || structurally_disabled(ship, owner_id) ||
+			    directed_targeting(id, owner_id) == DirectedTargetingKind::Off)
+				continue;
+			const bool scanning = directed_operation(id, owner_id, DirectedOperationKind::Scan);
+			const auto *weapon = scanning ? nullptr : owner.try_get<CombatMechanism>();
+			const auto target =
+			    weapon ? weapon_contact(ship, *weapon, contacts_by_console) : std::optional<WeaponAim>{};
+			const auto scanner_aim = scanning ? sensor_aim(id, owner_id, contacts_by_console)
+			                                  : std::optional<std::pair<fixed::Vec, std::int64_t>>{};
+			if (!target && !scanner_aim)
 				continue;
 			const auto origin = combat_world({d.x, d.y}, pose);
 			const auto lead = scanner_aim ? scanner_aim->first : weapon_lead(ship, *weapon, *target, origin);
@@ -390,7 +381,7 @@ void fire_weapons(flecs::entity ship)
 			    {
 				    if (operation == DirectedOperationKind::Beam)
 				    {
-					    record_interdiction_attack(id, m->target());
+					    record_interdiction_attack(id, directed_target(id, d.id));
 					    fire_beam(ship, child, origin, bearing);
 					    return true;
 				    }
@@ -416,7 +407,7 @@ void fire_weapons(flecs::entity ship)
 				    prepared.stock_claim = false;
 				    m->get<WeaponState>().cooldown = prepared.cycle_ticks;
 				    ++m->get<WeaponState>().shots;
-				    record_interdiction_attack(ship.get<StableId>().id, m->target());
+				    record_interdiction_attack(ship.get<StableId>().id, directed_target(ship.get<StableId>().id, d.id));
 				    psychic_weapon_emission(ship.get<StableId>().id);
 				    auto &s = ship.get_mut<CombatStructure>();
 				    s.random = s.random * 6364136223846793005ULL + 1;
@@ -430,7 +421,7 @@ void fire_weapons(flecs::entity ship)
 				    p.id = next_projectile++;
 				    p.source = id;
 				    p.weapon = d.id;
-				    p.target = m->target();
+				    p.target = directed_target(ship.get<StableId>().id, d.id);
 				    p.position = origin;
 				    p.altitude = altitude(id);
 				    p.launch_altitude = p.altitude;

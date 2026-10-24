@@ -26,6 +26,9 @@ export import phoenix.conversations;
 export namespace phoenix
 {
 struct Catalog;
+struct DirectedDefinition;
+// A caller-owned immutable compilation scope, shared by native fitting adapters.
+using DirectedCatalog = std::map<std::string, std::map<std::string, DirectedDefinition>>;
 struct FactionCatalog
 {
 	std::map<std::string, std::string> labels;
@@ -88,6 +91,7 @@ Json resolve_tree_definition(const Json &, const Catalog &);
 void resolve_equipment(Catalog &catalog);
 bool uses_advanced_machinery(const Catalog &, const std::string &entity);
 void verify_gameplay_fitting(const Catalog &, const std::string &);
+void verify_gameplay_fitting(const Catalog &, const std::string &, const DirectedCatalog &);
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &, const Catalog &);
 struct GameplayTreeSummaryBinding
 {
@@ -370,6 +374,7 @@ RecipeDefinition compile_recipe(const Catalog &, const std::string &);
 StockStoreDefinition compile_stock_store(const Catalog &, const Json &, const std::string &);
 ProcessorDefinition compile_processor(const Catalog &, const Json &, const std::string &);
 std::vector<ProcessorDefinition> compile_processors(const Catalog &, const std::string &);
+std::vector<ProcessorDefinition> compile_processors(const Catalog &, const std::string &, const DirectedCatalog &);
 
 struct ModelPart
 {
@@ -387,6 +392,7 @@ void verify_model_render(const Json &render, const Catalog &catalog, const std::
 ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &);
 void verify_conversation_authoring(const Catalog &catalog);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
+void verify_scenario_authoring(const Catalog &catalog, const Json &map, const DirectedCatalog &);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig
 {
@@ -562,6 +568,7 @@ struct SensorFinding
 	std::int64_t ticks = 1;
 };
 std::map<std::string, SensorDefinition> compile_sensors(const Catalog &, const std::string &);
+std::map<std::string, SensorDefinition> compile_sensors(const Catalog &, const std::string &, const DirectedCatalog &);
 std::vector<SensorFinding> compile_sensor_findings(const Catalog &, const Json &);
 struct BoardingEncounter
 {
@@ -588,6 +595,7 @@ struct BoardingDefinition
 	std::map<std::string, BoardingObjective> objectives;
 };
 std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity);
+std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity, const DirectedCatalog &);
 struct AwayCraftSlot
 {
 	std::string id, role, craft_role;
@@ -619,6 +627,7 @@ struct AwayDefinition
 };
 state_tree::Registry away_registry(const Json &tree = Json::object());
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
+std::vector<AwayDefinition> compile_away(const Catalog &, const Json &, const DirectedCatalog &);
 struct InterdictionShip
 {
 	std::string definition;
@@ -637,6 +646,7 @@ struct InterdictionDefinition
 };
 state_tree::Registry interdiction_registry();
 std::vector<InterdictionDefinition> compile_interdictions(const Catalog &, const Json &);
+std::vector<InterdictionDefinition> compile_interdictions(const Catalog &, const Json &, const DirectedCatalog &);
 struct MaterialDefinition
 {
 	std::string id;
@@ -665,6 +675,7 @@ struct LogisticsDefinition
 	std::vector<MaterialConsumerDefinition> consumers;
 };
 LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
+LogisticsDefinition compile_logistics(const Catalog &, const std::string &, const DirectedCatalog &);
 struct DockPortDefinition
 {
 	std::string id, controller, compartment, compatibility;
@@ -673,6 +684,7 @@ struct DockPortDefinition
 	bool auto_accept_allies = false, supply = false, emergency_release = false;
 };
 std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &);
+std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &, const DirectedCatalog &);
 struct TransportDefinition
 {
 	std::string compartment;
@@ -707,8 +719,11 @@ struct CraftBayDefinition
 };
 void expand_transport_fittings(Catalog &);
 TransportDefinition compile_transport(const Catalog &, const std::string &);
+TransportDefinition compile_transport(const Catalog &, const std::string &, const DirectedCatalog &);
 std::optional<CraftDefinition> compile_craft(const Catalog &, const std::string &);
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &);
+std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &,
+                                                             const DirectedCatalog &);
 struct PsychicPowerDefinition
 {
 	std::string id, kind, label, apparent_class = "Unidentified contact";
@@ -736,6 +751,7 @@ struct PsychicDefinition
 	std::map<std::string, ChoirDefinition> choirs;
 };
 PsychicDefinition compile_psychic(const Catalog &, const std::string &);
+PsychicDefinition compile_psychic(const Catalog &, const std::string &, const DirectedCatalog &);
 struct ModifierContributionDefinition
 {
 	std::string name, role, property;
@@ -808,6 +824,7 @@ struct PersonnelDefinition
 	std::vector<Link> links;
 };
 PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity);
+PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity, const DirectedCatalog &);
 struct BridgeChoice
 {
 	std::string id, label, description;
@@ -900,14 +917,14 @@ struct PeriodicEffectDefinition
 };
 PayloadDefinition compile_payload(const Catalog &, const std::string &);
 PeriodicEffectDefinition compile_periodic_effect(const Catalog &, const std::string &);
-std::vector<PayloadDefinition> compile_payloads(const Catalog &, const Json &, const std::string &);
+std::vector<std::string> compile_payloads(const Catalog &, const Json &, const std::string &);
 struct DestructionDefinition
 {
 	std::string visual, sound;
 	std::int64_t chance = 1000, damage = 0, radius = 0, shield_bypass = 0;
 	std::int64_t growth_ticks = 1, fade_ticks = 10, size = 10000;
 	bool affects_missiles = true;
-	std::vector<PayloadDefinition> payloads;
+	std::vector<std::string> payloads;
 };
 struct ProjectileDefinition
 {
@@ -918,7 +935,7 @@ struct ProjectileDefinition
 	std::int64_t shield_bypass = 0, turn_rate = 0, seeker_range = 0, arc_height = 0, chaos = 0;
 	std::int64_t durability = 0, radius = 100, resistance = 1, blast_radius = 0, fuse_radius = 0;
 	DestructionDefinition destruction;
-	std::vector<PayloadDefinition> payloads;
+	std::vector<std::string> payloads;
 };
 ProjectileDefinition compile_projectile_profile(const Catalog &, const Json &, const std::string &);
 struct FaultDefinition
@@ -959,7 +976,7 @@ struct DirectedModeDefinition
 	std::int64_t ammo_use = 1, beam_damage = 0;
 	AmmunitionDefinition ammunition;
 	std::map<std::string, std::int64_t> capabilities;
-	std::vector<PayloadDefinition> payloads;
+	std::vector<std::string> payloads;
 	bool resource_payloads = true;
 };
 struct DirectedDefinition
@@ -972,6 +989,7 @@ bool property_compatible(std::string_view, OperatingSystem, const DirectedDefini
 DirectedModeDefinition compile_directed_mode(const Catalog &, const std::string &);
 DirectedTargetingDefinition compile_targeting_policy(const Catalog &, const std::string &);
 std::map<std::string, DirectedDefinition> compile_directed(const Catalog &, const std::string &);
+DirectedCatalog compile_directed_catalog(const Catalog &);
 struct ReserveDefinition
 {
 	std::int64_t capacity = 0, initial = 0;
@@ -1101,6 +1119,7 @@ struct CombatDefinition
 	DestructionDefinition destruction;
 };
 std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity);
+std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity, const DirectedCatalog &);
 DestructionDefinition compile_destruction(const Json &, const Catalog &, const std::string &path);
 struct FittedSystemSpec
 {
@@ -1183,6 +1202,7 @@ struct ControllableLayout
 ControllableLayout compile_controllable_layout(const Catalog &, const std::string &entity);
 // Boundary conversion only. Unsupported decision/ownership mappings fail before runtime creation.
 Catalog convert_controller_content(const Catalog &);
+Catalog convert_controller_content(const Catalog &, const DirectedCatalog &);
 std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
 // Includes standard capability channels and the fitted controller's inherited declarations.
 std::vector<std::string> gameplay_summary_channels(const Catalog &, const std::string &entity,

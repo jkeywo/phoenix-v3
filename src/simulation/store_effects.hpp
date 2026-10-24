@@ -59,7 +59,11 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		bool outcome;
 	};
 	std::vector<PreparedDamage> damages;
-	auto prepared_periodic = periodic_effects;
+	std::optional<std::vector<PeriodicEffectInstance>> prepared_periodic;
+	const auto periodic_roster = [&]() -> const std::vector<PeriodicEffectInstance> &
+	{
+		return prepared_periodic ? *prepared_periodic : periodic_effects;
+	};
 	auto prepared_next_periodic = next_periodic_instance;
 	StockTransaction stocks;
 	const auto owner = [&](EntityId id, bool outcome = true)
@@ -149,14 +153,16 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			}
 			else if (periodic_templates.contains(op.effect) ||
 			         (op.kind == ShieldReactionKind::Remove &&
-			          std::any_of(prepared_periodic.begin(), prepared_periodic.end(),
+			          std::any_of(periodic_roster().begin(), periodic_roster().end(),
 			                      [&](const auto &c)
 			                      {
 				                      return c.source == source + "." + op.grant && c.context.target == id;
 			                      })))
 			{
 				PayloadHitContext context = outcome ? *hit_context : PayloadHitContext{id};
-				prepare_periodic_application(prepared_periodic, prepared_next_periodic, op, source + "." + op.grant,
+				if (!prepared_periodic)
+					prepared_periodic = periodic_effects;
+				prepare_periodic_application(*prepared_periodic, prepared_next_periodic, op, source + "." + op.grant,
 				                             attacker, context, source, original_equipment);
 			}
 			else
@@ -204,7 +210,8 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				for (const auto &c : shield->contributions)
 					reserve += c.definition.shield.reactions.size();
 		}
-		if (shield_reactions.size() + reserve > 8192 || next_shield_reaction + reserve >= 9007199254740991ULL ||
+		if (shield_reactions.size() + draining_shield_reactions + reserve > 8192 ||
+		    next_shield_reaction + reserve >= 9007199254740991ULL ||
 		    next_shield_hit + damages.size() >= 9007199254740991ULL)
 			throw std::runtime_error("Effect reaction capacity exhausted before execution");
 		if (!stocks.commit())
@@ -214,8 +221,11 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	{
 		return error.what();
 	}
-	periodic_effects = std::move(prepared_periodic);
-	next_periodic_instance = prepared_next_periodic;
+	if (prepared_periodic)
+	{
+		periodic_effects = std::move(*prepared_periodic);
+		next_periodic_instance = prepared_next_periodic;
+	}
 	if (payment)
 		entities.at(protected_ship).get_mut<ShipResources>().network = std::move(*payment);
 	for (auto id : changed_inventories)

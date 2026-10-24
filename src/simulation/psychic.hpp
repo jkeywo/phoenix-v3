@@ -30,7 +30,7 @@ std::int64_t emission(EntityId ship) const
 			}
 		if (child.has<Engine>())
 			result += std::abs(child.get<Engine>().forward_output) * funded / 2000;
-		if (child.has<Radar>() && child.get<Radar>().enabled && child.get<SensorRuntime>().target)
+		if (child.has<Radar>() && child.get<Radar>().enabled && directed_target(ship, e.id))
 			result += funded / 4;
 	}
 	if (weapon_emissions.contains(ship) && weapon_emissions.at(ship) > ecs.get<Clock>().tick)

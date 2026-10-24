@@ -10,6 +10,12 @@ namespace phoenix
 {
 std::vector<DockPortDefinition> compile_docking(const Catalog &catalog, const std::string &id)
 {
+	const DirectedCatalog directed_catalog{{id, compile_directed(catalog, id)}};
+	return compile_docking(catalog, id, directed_catalog);
+}
+std::vector<DockPortDefinition> compile_docking(const Catalog &catalog, const std::string &id,
+                                                const DirectedCatalog &directed_catalog)
+{
 	std::vector<DockPortDefinition> out;
 	const auto &e = catalog.entities.at(id);
 	if (catalog.presentation)
@@ -21,7 +27,7 @@ std::vector<DockPortDefinition> compile_docking(const Catalog &catalog, const st
 		if (!ok)
 			throw std::runtime_error(id + ".docking: " + why);
 	};
-	const auto combat = compile_combat(catalog, id);
+	const auto combat = compile_combat(catalog, id, directed_catalog);
 	require(combat.has_value(), "ports require compartments");
 	const auto &rows = e.at("docking").at("ports");
 	require(rows.is_array() && rows.size() <= 16, "invalid ports");

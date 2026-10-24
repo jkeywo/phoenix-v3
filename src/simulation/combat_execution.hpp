@@ -254,13 +254,13 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 		case OperatingSystem::Weapon:
 		{
 			const auto &w = m->get<WeaponState>();
-			v["target"] = v["requested"] = w.target;
+			v["target"] = v["requested"] = directed_target(ship.get<StableId>().id, m->definition.id);
 			v["ready"] = w.ready;
 			v["shots"] = w.shots;
 			break;
 		}
 		case OperatingSystem::Turret:
-			v["target"] = v["requested"] = m->get<TurretState>().target;
+			v["target"] = v["requested"] = directed_mount_target(ship, child);
 			v["heading_mdeg"] = m->get<TurretState>().heading;
 			break;
 		case OperatingSystem::Magazine:
@@ -746,7 +746,8 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				     {"bearing_mdeg", combat_angle(heading)},
 				     {"rest_mdeg", combat_angle(ship.get<Pose>().heading + d.bearing)},
 				     {"arc_mdeg", d.arc},
-				     {"active", m->target() != 0},
+				     {"active", d.kind == OperatingSystem::Turret ? directed_mount_target(ship, child) != 0
+				                                                  : directed_target(address.ship, d.id) != 0},
 				     {"disabled", structurally_disabled(ship, d.id) || !child.get<Equipment>().enabled}});
 			}
 		}
@@ -827,7 +828,9 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				     {"unload_ticks", m->get<WeaponState>().loaded_magazine < 0
 				                          ? 0
 				                          : load_duration(ship, *m, m->get<WeaponState>().loaded_magazine)},
-				     {"mode", m->get<WeaponState>().mode},
+				     {"mode", directed_targeting(address.ship, d.id) == DirectedTargetingKind::Off         ? 0
+				              : directed_targeting(address.ship, d.id) == DirectedTargetingKind::Intercept ? 1
+				                                                                                           : 2},
 				     {"point_defence", d.get<WeaponDefinition>().point_defence},
 				     {"intercept", m->get<WeaponState>().intercept}});
 				auto &options = output["weapons"].back()["ammunition_options"] = Json::array();
@@ -1001,7 +1004,6 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Weapon:
 			{
 				const auto &w = m->get<WeaponState>();
-				bounded("target", 0, 7999999999999999LL);
 				bounded("cooldown", 0, 1000000000);
 				bounded("shots", 0, 1000000000000LL);
 				bounded(
@@ -1010,7 +1012,6 @@ void restore_combat(flecs::entity ship, const Json &j)
 				                                  (m->definition.get<WeaponDefinition>().magazines.empty() ? 0 : 1)));
 				bounded("loaded_magazine", -1,
 				        static_cast<std::int64_t>(m->definition.get<WeaponDefinition>().magazines.size()) - 1);
-				bounded("mode", 0, 2);
 				bounded("beam_remainder", 0, rate * 1000 - 1);
 				bounded("beam_tick", -1, 1000000000000LL);
 				bounded("bypass_remainder", 0, 999);
@@ -1019,7 +1020,6 @@ void restore_combat(flecs::entity ship, const Json &j)
 				break;
 			}
 			case OperatingSystem::Turret:
-				bounded("target", 0, 2000000000);
 				bounded("heading", 0, 359999);
 				bounded("turn_remainder", 0, rate - 1);
 				break;
@@ -1183,14 +1183,17 @@ void restore_projectiles(const Json &saved)
 		p.weapon = v.value("weapon", std::string{});
 		if (p.weapon.size() > 256 || !v.at("payloads").is_array() || v.at("payloads").size() > 256)
 			throw std::runtime_error("Invalid captured projectile payloads");
-		p.payloads = v.at("payloads").get<std::vector<PayloadDefinition>>();
-		if (Json(p.payloads) != v.at("payloads"))
-			throw std::runtime_error("Unexpected captured payload fields");
-		std::set<std::string> captured;
-		for (const auto &payload : p.payloads)
-			if (!captured.insert(payload.id).second || !payload_templates.contains(payload.id) ||
-			    Json(payload) != Json(payload_templates.at(payload.id)))
-				throw std::runtime_error("Invalid captured payload definition");
+		p.payloads = v.at("payloads").get<std::vector<std::string>>();
+		const auto validate_payloads = [&](const std::vector<std::string> &payloads)
+		{
+			std::set<std::string> captured;
+			if (payloads.size() > 256)
+				throw std::runtime_error("Too many projectile payloads");
+			for (const auto &payload : payloads)
+				if (!captured.insert(payload).second || !payload_templates.contains(payload))
+					throw std::runtime_error("Invalid captured payload identity");
+		};
+		validate_payloads(p.payloads);
 		p.position = v.at("position").get<fixed::Vec>();
 		p.velocity = v.at("velocity").get<fixed::Vec>();
 		p.remainder = v.at("remainder").get<fixed::Vec>();
@@ -1202,10 +1205,8 @@ void restore_projectiles(const Json &saved)
 		p.resistance_remainder = v.at("resistance_remainder");
 		p.decks = v.at("decks").get<std::map<EntityId, std::string>>();
 		p.definition = v.at("definition").get<ProjectileDefinition>();
-		for (const auto *payloads : {&p.definition.payloads, &p.definition.destruction.payloads})
-			for (const auto &payload : *payloads)
-				if (!payload_templates.contains(payload.id) || Json(payload) != Json(payload_templates.at(payload.id)))
-					throw std::runtime_error("Invalid projectile profile payload");
+		validate_payloads(p.definition.payloads);
+		validate_payloads(p.definition.destruction.payloads);
 		p.target = v.at("target").get<decltype(p.target)>();
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
 		p.launch_altitude =

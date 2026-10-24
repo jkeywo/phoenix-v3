@@ -68,6 +68,14 @@ Json state(const World &w, int id = 1)
 		}
 	throw std::runtime_error("missing combat state " + std::to_string(id) + " " + w.save().at("bodies").dump());
 }
+Json directed_intent(const World &world, const std::string &system, EntityId ship = 1)
+{
+	const auto saved = world.save();
+	for (const auto &row : saved.at("directed"))
+		if (row.at("ship") == ship && row.at("system") == system)
+			return row;
+	throw std::runtime_error("Missing directed intent");
+}
 std::int64_t hp(const World &w, int id = 2)
 {
 	std::int64_t total = 0;
@@ -407,19 +415,20 @@ void ordnance_contracts()
 		        "Off stops standby draw");
 		submit(idle, 101, "pdc", "target", 2);
 		idle.tick();
-		require(state(idle)["systems"]["pdc"]["mode"] == 0,
+		require(directed_intent(idle, "pdc").at("targeting_mode") == 0,
 		        "target assignment preserves the independently selected Off policy");
 		submit(idle, 101, "pdc", "mode", 2);
 		idle.tick();
-		require(state(idle)["systems"]["pdc"]["mode"] == 2,
+		require(directed_intent(idle, "pdc").at("targeting_mode") == 2,
 		        "explicit designated policy activates the retained ship target");
 		submit(idle, 101, "pdc", "target", 0);
 		idle.tick();
-		require(state(idle)["systems"]["pdc"]["mode"] == 2,
+		require(directed_intent(idle, "pdc").at("targeting_mode") == 2,
 		        "target cancellation preserves the independently selected designated policy");
 		submit(idle, 101, "pdc", "mode", 1);
 		idle.tick();
-		require(state(idle)["systems"]["pdc"]["mode"] == 1, "automatic interception resumes only when selected");
+		require(directed_intent(idle, "pdc").at("targeting_mode") == 1,
+		        "automatic interception resumes only when selected");
 	}
 }
 void shield_reaction_contracts(Json *trace = nullptr)
@@ -1524,17 +1533,15 @@ int main(int argc, char **argv)
 			        "projectile, magazine and Controller continuation resumes deterministically");
 			submit(w, 101, "second", "target", 3);
 			w.tick();
-			const auto s = state(w);
-			require(s.at("systems").at("gun").at("target") == 2 && s.at("systems").at("second").at("target") == 3,
+			require(directed_intent(w, "gun").at("target") == 2 && directed_intent(w, "second").at("target") == 3,
 			        "independently mounted directed capabilities retain separate targets");
 			submit(w, 101, "gun", "target", 2);
 			w.tick();
-			require(state(w).at("systems").at("second").at("target") == 3,
+			require(directed_intent(w, "second").at("target") == 3,
 			        "reasserting a target cannot retarget another directed capability");
 			submit(w, 101, "gun", "target", 0);
 			w.tick();
-			require(state(w).at("systems").at("second").at("target") == 3,
-			        "cancelling one weapon retains its neighbour");
+			require(directed_intent(w, "second").at("target") == 3, "cancelling one weapon retains its neighbour");
 			const auto observer = w.observe(102);
 			require(observer->gameplay.at("combat").at("compartments").size() == 2,
 			        "repair Console sees structural map");
@@ -1894,14 +1901,12 @@ int main(int argc, char **argv)
 			require(state(ai).at("systems").at("gun").at("shots").get<int>() > 0,
 			        "unoccupied Tactical uses ordinary admitted combat policy against visible ship contacts");
 
-			require(state(ai).at("systems").at("gun").at("target") == 2,
-			        "equidistant hostile candidates use stable identity");
+			require(directed_intent(ai, "gun").at("target") == 2, "equidistant hostile candidates use stable identity");
 			auto closer = ai.save();
 			closer["bodies"][2]["body"]["y"] = 30000;
 			ai.restore(visible, closer);
 			ai.tick();
-			require(state(ai).at("systems").at("gun").at("target") == 2,
-			        "a still-valid target survives a nearer alternative");
+			require(directed_intent(ai, "gun").at("target") == 2, "a still-valid target survives a nearer alternative");
 			for (const auto *disposition : {"friendly", "neutral"})
 			{
 				auto peaceful = setup;

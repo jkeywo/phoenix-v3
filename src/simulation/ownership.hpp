@@ -88,10 +88,6 @@ void set_operational_owner(EntityId target_id, EntityId origin_id)
 	for (auto child : target.get<EquipmentIndex>().values)
 		if (child.has<DirectedRuntime>())
 			directed_setting(target_id, child.get<Equipment>().id, "target", 0, true);
-		else if (auto *mechanism = child.try_get_mut<CombatMechanism>();
-		         mechanism && (mechanism->definition.kind == OperatingSystem::Weapon ||
-		                       mechanism->definition.kind == OperatingSystem::Turret))
-			mechanism->target() = 0;
 	// Original personnel are not automatically recruited into the prize crew.
 	for (auto child : target.get<EquipmentIndex>().values)
 		if (auto *mechanism = child.try_get_mut<CombatMechanism>();

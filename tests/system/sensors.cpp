@@ -223,16 +223,23 @@ int main(int argc, char **argv)
 		require(samples(w).at("compartment_condition").at("observed") <
 		            samples(w, 3).at("compartment_condition").at("observed"),
 		        "previous target retains stale timestamp");
-		auto legacy = w.save();
-		legacy.erase("sensors");
-		legacy.erase("sensor_discoveries");
-		World old;
-		rejects(
-		    [&]
-		    {
-			    old.restore(catalog, legacy);
-		    },
-		    "A directed continuation cannot discard its selected scanner's acquisition state");
+		for (int variant = 0; variant < 3; ++variant)
+		{
+			auto incomplete = w.save();
+			if (variant == 0)
+				incomplete.erase("sensors");
+			else if (variant == 1)
+				incomplete["sensors"] = Json::array();
+			else
+				incomplete["sensors"].erase(incomplete["sensors"].begin());
+			rejects(
+			    [&]
+			    {
+				    World missing;
+				    missing.restore(catalog, incomplete);
+			    },
+			    "A continuation must retain acquisition state for every fitted sensor");
+		}
 		auto hidden = fixture();
 		hidden["entities"][0]["systems"]["radar"]["capabilities"] = Json::object();
 		World unidentified;
@@ -447,8 +454,9 @@ int main(int argc, char **argv)
 					            .at("data")
 					            .is_null(),
 					        "second scanner cannot pool first scanner exposure");
-			require(saved.at("bodies")[0].at("combat").at("systems").at("gun").at("target") == 0,
-			        "scan targeting leaves weapon target untouched");
+			for (const auto &directed : saved.at("directed"))
+				if (directed.at("ship") == 1 && directed.at("system") == "gun")
+					require(directed.at("target") == 0, "scan targeting leaves weapon intent untouched");
 		}
 
 		{

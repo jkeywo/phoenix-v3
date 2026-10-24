@@ -142,6 +142,12 @@ void expand_transport_fittings(Catalog &catalog)
 }
 TransportDefinition compile_transport(const Catalog &catalog, const std::string &id)
 {
+	const DirectedCatalog directed_catalog{{id, compile_directed(catalog, id)}};
+	return compile_transport(catalog, id, directed_catalog);
+}
+TransportDefinition compile_transport(const Catalog &catalog, const std::string &id,
+                                      const DirectedCatalog &directed_catalog)
+{
 	const auto &e = catalog.entities.at(id);
 	const auto j = e.value("transport", Json::object());
 	craft_require(j.is_object(), "transport must be an object");
@@ -150,7 +156,7 @@ TransportDefinition compile_transport(const Catalog &catalog, const std::string 
 	d.compartment = j.value("compartment", std::string{});
 	if (e.contains("personnel"))
 	{
-		const auto p = compile_personnel(catalog, id);
+		const auto p = compile_personnel(catalog, id, directed_catalog);
 		if (d.compartment.empty() && !p.compartments.empty())
 			d.compartment = p.compartments.front();
 		craft_require(d.compartment.empty() || std::find(p.compartments.begin(), p.compartments.end(), d.compartment) !=
@@ -215,6 +221,12 @@ std::optional<CraftDefinition> compile_craft(const Catalog &catalog, const std::
 }
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &catalog, const std::string &id)
 {
+	const auto directed_catalog = compile_directed_catalog(catalog);
+	return compile_craft_bays(catalog, id, directed_catalog);
+}
+std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &catalog, const std::string &id,
+                                                             const DirectedCatalog &directed_catalog)
+{
 	std::map<std::string, CraftBayDefinition> out;
 	if (catalog.presentation)
 		return out;
@@ -245,7 +257,7 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 		craft_require(initial.is_array() && initial.size() <= static_cast<std::size_t>(d.slots), "bay exceeds slots");
 		if (!catalog.presentation)
 		{
-			const auto combat = compile_combat(catalog, id);
+			const auto combat = compile_combat(catalog, id, directed_catalog);
 			craft_require(combat && combat->compartment_ids.contains(d.compartment),
 			              "bay requires a physical compartment");
 			if (d.charge_rate)
@@ -272,7 +284,7 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 			craft_require(source.value("kind", a.source) == "magazine", "ammunition source must be a magazine");
 			auto binding = [&](const std::string &definition, const std::string &magazine)
 			{
-				const auto logistics = compile_logistics(catalog, definition);
+				const auto logistics = compile_logistics(catalog, definition, directed_catalog);
 				for (std::size_t index = 0; index < logistics.stores.size(); ++index)
 					if (logistics.stores[index].system == magazine)
 						return std::pair{index, logistics.stores[index]};

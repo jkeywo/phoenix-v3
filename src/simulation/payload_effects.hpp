@@ -66,20 +66,16 @@ bool payload_context_available(const PayloadHitContext &c) const
 	}
 	return c.kind == PayloadOutcomeKind::Compartment;
 }
-std::vector<PayloadDefinition> capture_directed_payloads(flecs::entity ship, const CombatMechanism &mechanism,
-                                                         const std::string &resource) const
+std::vector<std::string> capture_directed_payloads(flecs::entity ship, const CombatMechanism &mechanism,
+                                                   const std::string &resource) const
 {
-	std::vector<PayloadDefinition> result;
+	std::vector<std::string> result;
 	const auto *mode = directed_mode(ship.get<StableId>().id, mechanism.definition.id);
 	if (mode)
 		result = mode->payloads;
-	const auto append = [&](const PayloadDefinition &payload)
+	const auto append = [&](const std::string &payload)
 	{
-		if (std::none_of(result.begin(), result.end(),
-		                 [&](const auto &p)
-		                 {
-			                 return p.id == payload.id;
-		                 }))
+		if (std::find(result.begin(), result.end(), payload) == result.end())
 			result.push_back(payload);
 	};
 	if (mechanism.definition.kind == OperatingSystem::Weapon)
@@ -93,7 +89,7 @@ std::vector<PayloadDefinition> capture_directed_payloads(flecs::entity ship, con
 	if (mode && mode->operation == DirectedOperationKind::Launch && mode->resource_payloads && !resource.empty())
 		for (const auto &effect : resource_catalogue->at(resource).effects)
 			if (const auto at = payload_templates.find(effect); at != payload_templates.end())
-				append(at->second);
+				append(at->first);
 	return result;
 }
 void queue_payload_outcome(const Projectile &projectile, const PayloadHitContext &context, std::int64_t damage)
@@ -101,7 +97,7 @@ void queue_payload_outcome(const Projectile &projectile, const PayloadHitContext
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	std::vector<PendingPayload> prepared;
 	for (const auto &payload : projectile.payloads)
-		for (const auto &binding : payload.bindings)
+		for (const auto &binding : payload_templates.at(payload).bindings)
 			if (binding.outcome == context.kind && (!binding.positive_damage || damage > 0))
 			{
 				PendingPayload pending;
@@ -109,9 +105,9 @@ void queue_payload_outcome(const Projectile &projectile, const PayloadHitContext
 				pending.original_equipment = projectile.weapon;
 				// Opaque deterministic identity keeps maximum-length authored names
 				// within the shared effect source bound, including appended grants.
-				pending.source = payload_source_identity(projectile.source, projectile.weapon, payload.id, binding.id);
+				pending.source = payload_source_identity(projectile.source, projectile.weapon, payload, binding.id);
 				validate_effect_identity(pending.source, {}, false);
-				pending.payload = payload.id;
+				pending.payload = payload;
 				pending.binding = binding.id;
 				pending.context = context;
 				pending.due = effect_expiry(tick, 1);
@@ -122,15 +118,13 @@ void queue_payload_outcome(const Projectile &projectile, const PayloadHitContext
 	for (auto &pending : prepared)
 	{
 		pending.id = next_payload_job++;
-		if (pending_payloads.size() < 8192)
+		if (pending_payloads.size() + draining_payloads < 8192)
 			pending_payloads.push_back(std::move(pending));
 		else
 		{
 			// Native contact is already committed. Failure of its secondary work
 			// is a receipt, never a rollback or an exception half way through damage.
-			payload_results[pending.id] = "failed: payload outcome capacity exhausted";
-			while (payload_results.size() > 1024)
-				payload_results.erase(payload_results.begin());
+			record_effect_result(payload_results, pending.id, "failed: payload outcome capacity exhausted");
 		}
 	}
 }
@@ -226,38 +220,21 @@ void step_payload_effects()
 		                     captured.original_source, captured.group_source, &captured.context,
 		                     captured.original_equipment);
 	}
-	std::vector<PendingPayload> due;
-	for (const auto &pending : pending_payloads)
-		if (pending.due <= tick)
-			due.push_back(pending);
-	std::sort(due.begin(), due.end(),
-	          [](const auto &a, const auto &b)
-	          {
-		          return a.id < b.id;
-	          });
-	for (const auto &pending : due)
-	{
-		std::erase_if(pending_payloads,
-		              [&](const auto &p)
-		              {
-			              return p.id == pending.id;
-		              });
-		std::string failure = "Hit target unavailable";
-		if (payload_context_available(pending.context))
-		{
-			const auto &bindings = payload_templates.at(pending.payload).bindings;
-			const auto binding = std::find_if(bindings.begin(), bindings.end(),
-			                                  [&](const auto &b)
-			                                  {
-				                                  return b.id == pending.binding;
-			                                  });
-			failure = execute_effect_group(binding->reaction, pending.context.target, pending.original_source,
-			                               pending.source, &pending.context, pending.original_equipment);
-		}
-		payload_results[pending.id] = failure.empty() ? "committed" : "failed: " + failure;
-		while (payload_results.size() > 1024)
-			payload_results.erase(payload_results.begin());
-	}
+	drain_effect_queue(pending_payloads, payload_results, draining_payloads, tick,
+	                   [&](const PendingPayload &pending)
+	                   {
+		                   if (!payload_context_available(pending.context))
+			                   return std::string("Hit target unavailable");
+		                   const auto &bindings = payload_templates.at(pending.payload).bindings;
+		                   const auto binding = std::find_if(bindings.begin(), bindings.end(),
+		                                                     [&](const auto &b)
+		                                                     {
+			                                                     return b.id == pending.binding;
+		                                                     });
+		                   return execute_effect_group(binding->reaction, pending.context.target,
+		                                               pending.original_source, pending.source, &pending.context,
+		                                               pending.original_equipment);
+	                   });
 }
 
 Json save_payload_effects() const

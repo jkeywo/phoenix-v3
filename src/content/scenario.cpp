@@ -17,6 +17,11 @@ namespace phoenix
 {
 void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 {
+	const auto directed_catalog = compile_directed_catalog(catalog);
+	return verify_scenario_authoring(catalog, map, directed_catalog);
+}
+void verify_scenario_authoring(const Catalog &catalog, const Json &map, const DirectedCatalog &directed_catalog)
+{
 	if (!map.contains("scenario"))
 		return;
 	const auto name = map.at("id").get<std::string>();
@@ -93,7 +98,7 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 			bool found = false;
 			for (const auto &h : hulls)
 			{
-				const auto logistics = compile_logistics(catalog, h);
+				const auto logistics = compile_logistics(catalog, h, directed_catalog);
 				const bool valid = logistics.materials.contains(f.operation) &&
 				                   std::any_of(logistics.stores.begin(), logistics.stores.end(),
 				                               [&](const auto &s)
@@ -111,7 +116,7 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 			bool found = false;
 			for (const auto &h : hulls)
 			{
-				auto combat = compile_combat(catalog, h);
+				auto combat = compile_combat(catalog, h, directed_catalog);
 				const bool valid = combat && combat->compartment_ids.contains(f.field);
 				found |= valid;
 				if (f.subject.kind != ScenarioActorKind::Handle)

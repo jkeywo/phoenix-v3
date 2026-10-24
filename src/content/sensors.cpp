@@ -20,9 +20,15 @@ const std::set<std::string> sensor_capabilities{"basic_identity",        "own_ar
 } // namespace
 std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, const std::string &entity)
 {
+	const DirectedCatalog directed_catalog{{entity, compile_directed(catalog, entity)}};
+	return compile_sensors(catalog, entity, directed_catalog);
+}
+std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, const std::string &entity,
+                                                        const DirectedCatalog &directed_catalog)
+{
 	std::map<std::string, SensorDefinition> out;
 	const auto &hull = catalog.entities.at(entity);
-	const auto directed = compile_directed(catalog, entity);
+	const auto &directed = directed_catalog.at(entity);
 	for (const auto &fit : resolve_systems(catalog, entity))
 		if (fit.kind == OperatingSystem::Radar ||
 		    (directed.contains(fit.id) &&

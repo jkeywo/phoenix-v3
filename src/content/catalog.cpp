@@ -676,7 +676,7 @@ std::span<const WidgetBinding> widget_bindings()
 }
 namespace
 {
-void verify_prepared_catalog(const Catalog &catalog)
+void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog)
 {
 	verify_ui_definitions(catalog);
 	(void)compile_resource_catalog(catalog);
@@ -904,15 +904,15 @@ void verify_prepared_catalog(const Catalog &catalog)
 		    (!entity["controller"].is_string() || !catalog.trees.contains(entity["controller"].get<std::string>())))
 			invalid(path + ".controller", "unresolved state tree");
 		resolve_consoles(catalog, id);
-		verify_gameplay_fitting(catalog, id);
+		verify_gameplay_fitting(catalog, id, directed_catalog);
 		(void)compile_ftl(catalog, id);
-		(void)compile_logistics(catalog, id);
-		(void)compile_processors(catalog, id);
-		(void)compile_docking(catalog, id);
-		(void)compile_transport(catalog, id);
+		(void)compile_logistics(catalog, id, directed_catalog);
+		(void)compile_processors(catalog, id, directed_catalog);
+		(void)compile_docking(catalog, id, directed_catalog);
+		(void)compile_transport(catalog, id, directed_catalog);
 		(void)compile_craft(catalog, id);
-		(void)compile_craft_bays(catalog, id);
-		(void)compile_combat(catalog, id);
+		(void)compile_craft_bays(catalog, id, directed_catalog);
+		(void)compile_combat(catalog, id, directed_catalog);
 		if (entity.contains("destruction"))
 			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
 		if (entity.contains("durability"))
@@ -938,9 +938,9 @@ void verify_prepared_catalog(const Catalog &catalog)
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		(void)compile_bridge(catalog, id);
-		(void)compile_personnel(catalog, id);
-		(void)compile_psychic(catalog, id);
-		(void)compile_boarding(catalog, id);
+		(void)compile_personnel(catalog, id, directed_catalog);
+		(void)compile_psychic(catalog, id, directed_catalog);
+		(void)compile_boarding(catalog, id, directed_catalog);
 	}
 	for (const auto &[id, console] : catalog.consoles)
 	{
@@ -1202,6 +1202,7 @@ void prepare_catalog(Catalog &catalog)
 	expand_transport_fittings(catalog);
 	expand_combat_policies(catalog);
 	expand_officer_policies(catalog);
+	const auto directed_catalog = compile_directed_catalog(catalog);
 	catalog.tree_programs.clear();
 	catalog.conversation_programs.clear();
 	catalog.controller_bindings.clear();
@@ -1236,16 +1237,16 @@ void prepare_catalog(Catalog &catalog)
 			invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
 	for (const auto &[id, map] : catalog.maps)
 	{
-		verify_scenario_authoring(catalog, map);
-		(void)compile_away(catalog, map);
-		(void)compile_interdictions(catalog, map);
+		verify_scenario_authoring(catalog, map, directed_catalog);
+		(void)compile_away(catalog, map, directed_catalog);
+		(void)compile_interdictions(catalog, map, directed_catalog);
 		(void)compile_sensor_findings(catalog, map);
 	}
 	verify_conversation_authoring(catalog);
 	if (!catalog.presentation)
 		for (const auto &[id, entity] : catalog.entities)
-			(void)compile_sensors(catalog, id);
-	verify_prepared_catalog(catalog);
+			(void)compile_sensors(catalog, id, directed_catalog);
+	verify_prepared_catalog(catalog, directed_catalog);
 }
 } // namespace
 Catalog prepared_catalog(const Catalog &catalog)

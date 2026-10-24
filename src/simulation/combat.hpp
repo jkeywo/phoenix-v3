@@ -36,10 +36,9 @@ struct CombatStructure
 };
 struct WeaponState
 {
-	EntityId target = 0;
 	std::int64_t cooldown = 0, shots = 0;
 	bool ready = false;
-	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, unloading = 0, mode = 1;
+	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, unloading = 0;
 	std::string loaded_resource;
 	std::int64_t loaded_quantity = 0;
 	std::int64_t beam_remainder = 0, beam_tick = -1, bypass_remainder = 0;
@@ -48,7 +47,6 @@ struct WeaponState
 };
 struct TurretState
 {
-	EntityId target = 0;
 	std::int64_t heading = 0, turn_remainder = 0;
 };
 struct MagazineState
@@ -113,21 +111,13 @@ struct CombatMechanism
 	{
 		return std::get<T>(state);
 	}
-	EntityId &target()
-	{
-		return definition.kind == OperatingSystem::Turret ? get<TurretState>().target : get<WeaponState>().target;
-	}
-	EntityId target() const
-	{
-		return definition.kind == OperatingSystem::Turret ? get<TurretState>().target : get<WeaponState>().target;
-	}
 };
 struct Projectile
 {
 	std::uint64_t id = 0;
 	EntityId source = 0;
 	std::string weapon;
-	std::vector<PayloadDefinition> payloads;
+	std::vector<std::string> payloads;
 	fixed::Vec position, velocity, remainder;
 	std::int64_t heading = 0, life = 0, penetration = 0, damage = 0, deposit_remainder = 0, resistance_remainder = 0;
 	ProjectileDefinition definition;

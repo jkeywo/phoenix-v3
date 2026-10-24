@@ -205,6 +205,32 @@ Json directed_inflight_source_loss()
 	                }),
 	    "The committed projectile retains original gun identity and captured payload after native source destruction");
 	require(hp(world, 2) == 20000, "The victim has not yet been reached at the destroyed-source flight checkpoint");
+	for (std::size_t i = 0; i < in_flight.at("projectiles").size(); ++i)
+	{
+		const auto &payloads = in_flight.at("projectiles")[i].at("payloads");
+		for (const auto &payload : payloads)
+			require(payload.is_string(), "Captured payloads save catalogue IDs rather than immutable definition trees");
+		if (payloads.empty())
+			continue;
+		for (bool duplicate : {false, true})
+		{
+			auto invalid = in_flight;
+			auto &captured = invalid["projectiles"][i]["payloads"];
+			if (duplicate)
+				captured.push_back(payloads[0]);
+			else
+				captured[0] = "test.missing-payload";
+			rejects(
+			    [&]
+			    {
+				    World rejected;
+				    rejected.restore(content, invalid);
+			    },
+			    "Restore rejects duplicate or unresolved captured payload IDs");
+		}
+		break;
+	}
+
 	World resumed;
 	resumed.restore(content, in_flight);
 	bool inflicted = false;

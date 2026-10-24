@@ -24,6 +24,12 @@ std::int64_t material_number(const Json &j, const char *key, std::int64_t fallba
 } // namespace
 LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string &id)
 {
+	const DirectedCatalog directed_catalog{{id, compile_directed(catalog, id)}};
+	return compile_logistics(catalog, id, directed_catalog);
+}
+LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string &id,
+                                      const DirectedCatalog &directed_catalog)
+{
 	LogisticsDefinition d;
 	const auto &e = catalog.entities.at(id);
 	if (catalog.presentation)
@@ -32,7 +38,7 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 		return d;
 	const auto &j = e.at("logistics");
 	material_require(j.is_object(), id + ": expected object");
-	const auto structure = compile_combat(catalog, id);
+	const auto structure = compile_combat(catalog, id, directed_catalog);
 	material_require(structure.has_value(), id + ": stores require compartments");
 	material_require(!j.contains("materials") && j.at("stores").is_array() && j.at("stores").size() <= 128 &&
 	                     j.value("consumers", Json::array()).is_array(),

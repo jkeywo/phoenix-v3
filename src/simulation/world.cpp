@@ -67,10 +67,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, sp
                                                 seeker_range, arc_height, chaos, tracer, durability, radius, resistance,
                                                 blast_radius, fuse_radius, destruction, payloads)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, target, cooldown, shots, ready, selected_magazine, loaded_magazine,
-                                   loading, unloading, mode, loaded_resource, loaded_quantity, beam_remainder,
-                                   beam_tick, bypass_remainder, beam_end, intercept)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, cooldown, shots, ready, selected_magazine, loaded_magazine, loading,
+                                   unloading, loaded_resource, loaded_quantity, beam_remainder, beam_tick,
+                                   bypass_remainder, beam_end, intercept)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, heading, turn_remainder)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, stock)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
                                                 repair_system, repair_auto, revision, order, activity, patient,
@@ -553,9 +553,9 @@ struct World::Impl
 			                         contact_index.rebuild(contact_boxes);
 		                         });
 	}
-	void compile(const Catalog &source)
+	void compile(const Catalog &source, const DirectedCatalog &directed_catalog)
 	{
-		const auto content = convert_controller_content(source);
+		const auto content = convert_controller_content(source, directed_catalog);
 		console_layouts = content.consoles;
 		resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
 		for (const auto &[id, effect] : content.effects)
@@ -585,7 +585,7 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
-			result.combat = compile_combat(content, name);
+			result.combat = compile_combat(content, name, directed_catalog);
 			if (result.combat)
 				result.destruction = result.combat->destruction;
 			if (definition.contains("destruction"))
@@ -599,18 +599,18 @@ struct World::Impl
 				throw std::runtime_error("Invalid entity durability/vertical extent");
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
-			result.personnel = compile_personnel(content, name);
-			result.psychic = compile_psychic(content, name);
-			result.boarding = compile_boarding(content, name);
+			result.personnel = compile_personnel(content, name, directed_catalog);
+			result.psychic = compile_psychic(content, name, directed_catalog);
+			result.boarding = compile_boarding(content, name, directed_catalog);
 			for (const auto &row : definition.value("boarding_missions", Json::array()))
 				result.boarding_docking_ports[row.at("id").get<std::string>()] =
 				    row.value("docking_ports", std::vector<std::string>{});
-			result.transport = compile_transport(content, name);
-			result.logistics = compile_logistics(content, name);
-			result.processors = compile_processors(content, name);
-			result.docking = compile_docking(content, name);
+			result.transport = compile_transport(content, name, directed_catalog);
+			result.logistics = compile_logistics(content, name, directed_catalog);
+			result.processors = compile_processors(content, name, directed_catalog);
+			result.docking = compile_docking(content, name, directed_catalog);
 			result.craft = compile_craft(content, name);
-			result.craft_bays = compile_craft_bays(content, name);
+			result.craft_bays = compile_craft_bays(content, name, directed_catalog);
 			result.ftl = compile_ftl(content, name);
 			for (const auto &[key, s] : definition.at("systems").items())
 				if (s.value("kind", key) == "displacement" || s.value("kind", key) == "transport")
@@ -745,8 +745,8 @@ struct World::Impl
 				result.publications.push_back(publication.at("id"));
 			for (const auto &message : definition.value("message_templates", Json::array()))
 				result.message_templates.push_back(message);
-			result.sensors = compile_sensors(content, name);
-			result.directed = compile_directed(content, name);
+			result.sensors = compile_sensors(content, name, directed_catalog);
+			result.directed = directed_catalog.at(name);
 			result.sensor_class = definition.value("class_key", definition.value("name", std::string{"Unknown class"}));
 			result.tags = definition.value("tags", std::vector<std::string>{"contact"});
 			result.faction = definition.value("faction", std::string{});
@@ -1996,6 +1996,7 @@ struct World::Impl
 #include "property_effects.hpp"
 #include "effect_application.hpp"
 #include "store_effects.hpp"
+#include "effect_queue.hpp"
 #include "payload_effects.hpp"
 #include "processors.hpp"
 #include "shield_reactions.hpp"
@@ -2489,8 +2490,9 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
 	if (!content.maps.contains(map))
 		throw std::runtime_error("Unknown map: " + map);
+	const auto directed_catalog = compile_directed_catalog(content);
 	auto candidate = std::make_unique<Impl>();
-	candidate->compile(content);
+	candidate->compile(content, directed_catalog);
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
@@ -2534,8 +2536,8 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	}
 	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
-	candidate->away_definitions = compile_away(content, data);
-	candidate->interdiction_definitions = compile_interdictions(content, data);
+	candidate->away_definitions = compile_away(content, data, directed_catalog);
+	candidate->interdiction_definitions = compile_interdictions(content, data, directed_catalog);
 	candidate->interdictions.resize(candidate->interdiction_definitions.size());
 	candidate->sensor_findings = compile_sensor_findings(content, data);
 	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
@@ -3956,7 +3958,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 24},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 25},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	result["payload_effects"] = impl_->save_payload_effects();
@@ -4112,8 +4114,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 24)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 24 required)");
+	if (saved.at("schema") != 25)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 25 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4157,7 +4159,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->captured_by = saved.value("captured_by", std::map<EntityId, EntityId>{});
 	if (!saved.at("bodies").is_array() || saved.at("bodies").size() != candidate.impl_->entities.size())
 		throw std::runtime_error("Saved state entity roster mismatch");
-	candidate.impl_->prepare_restore_directed(saved.at("directed"));
+	candidate.impl_->restore_directed(saved.at("directed"));
 	std::set<EntityId> seen;
 	for (const auto &value : saved.at("bodies"))
 	{
@@ -4481,7 +4483,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		}
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
-	candidate.impl_->restore_directed(saved.at("directed"));
+	candidate.impl_->validate_directed_commitments();
 	candidate.impl_->sensor_discoveries =
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));

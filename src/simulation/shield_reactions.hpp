@@ -8,8 +8,8 @@ void ensure_shield_reaction_capacity(flecs::entity ship) const
 			const auto &d = c.definition.shield;
 			possible += d.reactions.size();
 		}
-	if (shield_reactions.size() + possible > 8192 || next_shield_hit >= 9007199254740991ULL ||
-	    next_shield_reaction + possible >= 9007199254740991ULL)
+	if (shield_reactions.size() + draining_shield_reactions + possible > 8192 ||
+	    next_shield_hit >= 9007199254740991ULL || next_shield_reaction + possible >= 9007199254740991ULL)
 		throw std::runtime_error("Shield reaction capacity exhausted before damage");
 }
 void queue_shield_reactions(flecs::entity ship, const ShieldContribution &c, std::uint64_t hit, EntityId attacker,
@@ -148,27 +148,10 @@ void restore_shield_reactions(const Json &value)
 }
 void step_shield_reactions()
 {
-	std::vector<ShieldReaction> due;
-	for (const auto &r : shield_reactions)
-		if (r.due <= ecs.get<Clock>().tick)
-			due.push_back(r);
-	std::sort(due.begin(), due.end(),
-	          [](const auto &a, const auto &b)
-	          {
-		          return a.id < b.id;
-	          });
-	for (const auto &r : due)
-	{
-		std::erase_if(shield_reactions,
-		              [&](const auto &pending)
-		              {
-			              return pending.id == r.id;
-		              });
-		shield_reaction_results[r.id] = "failed: required target or grant unavailable";
-		while (shield_reaction_results.size() > 1024)
-			shield_reaction_results.erase(shield_reaction_results.begin());
-		const auto failure = execute_effect_group(r.execution, r.protected_ship, r.attacker,
-		                                          "reaction." + std::to_string(r.protected_ship) + "." + r.source);
-		shield_reaction_results[r.id] = failure.empty() ? "committed" : "failed: " + failure;
-	}
+	drain_effect_queue(shield_reactions, shield_reaction_results, draining_shield_reactions, ecs.get<Clock>().tick,
+	                   [&](const ShieldReaction &r)
+	                   {
+		                   return execute_effect_group(r.execution, r.protected_ship, r.attacker,
+		                                               "reaction." + std::to_string(r.protected_ship) + "." + r.source);
+	                   });
 }

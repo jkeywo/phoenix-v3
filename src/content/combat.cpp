@@ -341,6 +341,12 @@ AmmunitionDefinition compile_ammunition_resource(const Catalog &catalog, const s
 }
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name)
 {
+	const DirectedCatalog directed_catalog{{name, compile_directed(catalog, name)}};
+	return compile_combat(catalog, name, directed_catalog);
+}
+std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,
+                                               const DirectedCatalog &directed_catalog)
+{
 	const auto &entity = catalog.entities.at(name);
 	if (catalog.presentation)
 		return {};
@@ -365,7 +371,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			fail(std::string(key) + ": invalid bounded integer");
 		return v.get<std::int64_t>();
 	};
-	const auto directed = compile_directed(catalog, name);
+	const auto &directed = directed_catalog.at(name);
 	CombatDefinition d;
 	const auto &c = entity.at("combat");
 	d.half_height = amount(c, "half_height_mm", 5000, 1, 1000000);

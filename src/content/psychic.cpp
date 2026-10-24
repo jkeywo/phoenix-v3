@@ -11,6 +11,12 @@ namespace phoenix
 {
 PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity)
 {
+	const DirectedCatalog directed_catalog{{entity, compile_directed(catalog, entity)}};
+	return compile_psychic(catalog, entity, directed_catalog);
+}
+PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity,
+                                  const DirectedCatalog &directed_catalog)
+{
 	PsychicDefinition out;
 	if (catalog.presentation)
 		return out;
@@ -54,7 +60,7 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 		fail(!p.apparent_class.empty() && p.apparent_class.size() <= 128, "invalid apparent class");
 		out.powers.emplace(id, p);
 	}
-	const auto personnel = compile_personnel(catalog, entity);
+	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
 	const auto layout = compile_controllable_layout(catalog, entity);
 	std::set<std::string> duties;
 	std::set<std::pair<std::size_t, std::size_t>> bound;

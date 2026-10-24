@@ -807,6 +807,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 
 Catalog convert_controller_content(const Catalog &source)
 {
+	const auto directed_catalog = compile_directed_catalog(source);
+	return convert_controller_content(source, directed_catalog);
+}
+Catalog convert_controller_content(const Catalog &source, const DirectedCatalog &directed_catalog)
+{
 	auto result = source;
 	for (auto &[id, entity] : result.entities)
 	{
@@ -816,7 +821,7 @@ Catalog convert_controller_content(const Catalog &source)
 		const auto systems = resolve_systems(source, id);
 		const auto seats = resolve_consoles(source, id);
 		const auto resources = compile_ship_resources(source, id);
-		const auto directed = compile_directed(source, id);
+		const auto &directed = directed_catalog.at(id);
 		const bool advanced = uses_advanced_machinery(source, id);
 		for (const auto &preset : entity.value("presets", Json::array()))
 			for (const auto &console : preset.at("consoles"))

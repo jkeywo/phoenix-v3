@@ -23,6 +23,12 @@ state_tree::Registry team_registry()
 }
 PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity)
 {
+	const DirectedCatalog directed_catalog{{entity, compile_directed(catalog, entity)}};
+	return compile_personnel(catalog, entity, directed_catalog);
+}
+PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity,
+                                      const DirectedCatalog &directed_catalog)
+{
 	PersonnelDefinition out;
 	const auto &hull = catalog.entities.at(entity);
 	if (catalog.presentation)
@@ -42,7 +48,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	};
 	const auto &data = hull.at("personnel");
 	std::set<std::string> processor_owners;
-	for (const auto &processor : compile_processors(catalog, entity))
+	for (const auto &processor : compile_processors(catalog, entity, directed_catalog))
 		processor_owners.insert(processor.equipment);
 	auto identifier = [&](const Json &v)
 	{
@@ -62,7 +68,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	const auto seats = resolve_consoles(catalog, entity);
 	const auto layout = compile_controllable_layout(catalog, entity);
 	const auto systems = resolve_systems(catalog, entity);
-	const auto directed = compile_directed(catalog, entity);
+	const auto &directed = directed_catalog.at(entity);
 	std::map<std::string, OperatingSystem> kinds;
 	for (const auto &system : systems)
 		kinds.emplace(system.id, system.kind);
@@ -77,7 +83,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		out.departments.push_back(d);
 	}
 	fail(out.departments.size() <= 32, "too many departments");
-	const auto combat = compile_combat(catalog, entity);
+	const auto combat = compile_combat(catalog, entity, directed_catalog);
 	if (combat)
 	{
 		for (const auto &c : combat->compartments)

@@ -10,3 +10,5 @@
 - **Resource catalogue**: immutable compiled resource definitions shared by a World's physical stores and native resource networks. Workshop drafts remain editable; loading freezes a new catalogue.
 - **Stock transaction**: one prepared set of stock changes and commitments, deduplicated by actual store identity. It commits only if every touched store still matches its captured mutable state and immutable definition binding.
 - **Pending effect**: a receipt-owned scenario request awaiting World execution. Shield, modifier and operation-group actions share one pending lifecycle while retaining their native execution behavior and established phase ordering.
+- **Directed intent**: the operating mode, targeting policy and requested target owned by one directed capability. Native mechanisms retain physical commitments and observations, but do not own additional copies of that intent.
+- **Payload reference**: the immutable catalogue identity selected for a launched operation. Evaluated physical shot values are captured separately; source disappearance does not invalidate the reference.
