@@ -2,7 +2,7 @@
 struct PadSurface
 {
 	PadNavigation navigation;
-	std::string device;
+	std::string device, identity;
 	ConsoleId route = 0;
 	bool ui = true, flight = false;
 	Screen screen = Screen::home;
@@ -56,9 +56,11 @@ void prepare_pad(const std::string &device, ConsoleId route, const Application &
 	pad.device = device;
 	const bool flight = console_surfaces.contains(route) && console_surfaces.at(route)->controller_flight() &&
 	                    app.screen != Screen::settings;
+	const auto identity =
+	    console_surfaces.contains(route) ? console_surfaces.at(route)->controller_identity() : std::string{};
 	const auto generation = app.session ? app.session->generation() : 0;
 	if (pad.route != route || pad.screen != app.screen || pad.session.lock() != app.session ||
-	    pad.generation != generation || pad.flight != flight)
+	    pad.generation != generation || pad.flight != flight || pad.identity != identity)
 	{
 		release_pad(pad.route);
 		input.assign_gamepad(device, {});
@@ -68,6 +70,7 @@ void prepare_pad(const std::string &device, ConsoleId route, const Application &
 		pad.session = app.session;
 		pad.generation = generation;
 		pad.flight = flight;
+		pad.identity = identity;
 		pad.ui = !flight;
 		pad_selections[route].selected.clear();
 	}

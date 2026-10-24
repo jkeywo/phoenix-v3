@@ -17,7 +17,7 @@ Menus, lobbies and non-flight Consoles default to UI navigation. Flight Consoles
 
 Numeric edits remain pending until South commits; East discards them. Hidden/disabled controls are excluded, and selected controls scroll into view. Stick navigation activates at 25%, releases below 15%, repeats after 400 ms and then at 100 ms intervals. Activation does not repeat. The pre-launch HTML shell uses ordinary DOM controls with the same timing policy; runtime browser/native input shares the C++ navigator. Browser file dialogs retain platform user-activation requirements.
 
-Mode changes, reassignment, disconnect, focus loss and invalidated controls cancel held actions. Sticks and buttons must return to neutral before resuming. Held inputs and controller selection are transient presentation state, never restored from a save.
+Mode/authority changes, reassignment, disconnect, focus loss and invalidated controls cancel held actions. Sticks and buttons must return to neutral before resuming. Held inputs and controller selection are transient presentation state, never restored from a save.
 
 ## Text and tools
 

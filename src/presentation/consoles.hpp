@@ -968,6 +968,17 @@ button.on-screen-active .share-live {display:block;}
 			return model_.release_control(key);
 		return !settings_open_ && model_.hold_control(key);
 	}
+	std::string controller_identity() const
+	{
+		if (!model_.observation())
+			return {};
+		std::string identity = std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
+		for (const auto &controller : model_.observation()->gameplay.value("controllers", Json::array()))
+			identity += "/" + controller.at("id").get<std::string>() + "/" + controller.at("generation").dump() + "/" +
+			            controller.at("human").dump();
+		return identity;
+	}
+
 	bool controller_flight() const
 	{
 		return !settings_open_ && model_.layout() &&
@@ -1183,14 +1194,7 @@ button.on-screen-active .share-live {display:block;}
 		const auto *focus = context_->GetFocusElement();
 		if (focus && focus->GetTagName() == "input")
 			manual_input_.cancel_source("keyboard");
-		std::string identity;
-		if (model_.observation())
-		{
-			identity = std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
-			for (const auto &controller : model_.observation()->gameplay.value("controllers", Json::array()))
-				identity += controller.at("id").get<std::string>() + "/" + controller.at("generation").dump() +
-				            controller.at("human").dump();
-		}
+		const auto identity = controller_identity();
 		const bool active = model_.manual_active();
 		if (identity != manual_identity_ || active != manual_was_active_ || !active || settings_open_ || !focused)
 		{

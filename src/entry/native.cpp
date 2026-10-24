@@ -1068,7 +1068,7 @@ try
 					app.tools_scale = scale;
 					app.pseudo_locale = scale >= 150;
 				}
-			if (smoke_frames == 46)
+			if (smoke_frames == 48)
 				app.screen = phoenix::Screen::gm;
 			for (int frame : {90, 75, 60, 45, 30})
 				if (smoke_frames == frame)
