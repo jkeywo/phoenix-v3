@@ -1,6 +1,7 @@
 // Explicit manual smoke: normal authored cargo and rescue, rendered with real Consoles.
 int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opened, const std::string &checkpoint = {},
-                         bool preview = false, bool render = true, bool seize = false, bool takeover = false)
+                         bool preview = false, bool render = true, bool seize = false, bool takeover = false,
+                         bool recapture = false)
 {
 	Application app;
 	app.can_host = true;
@@ -60,7 +61,8 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	}
 	app.screen = Screen::console;
 	app.console_regions = {{1, 0, 0, 1280, 1080}, {2, 1280, 0, 1280, 1080}};
-	const std::string prefix = std::string(cruiser ? "cruiser" : "courier") + (seize      ? "-seize"
+	const std::string prefix = std::string(cruiser ? "cruiser" : "courier") + (recapture  ? "-recapture"
+	                                                                           : seize    ? "-seize"
 	                                                                           : takeover ? "-takeover"
 	                                                                                      : "");
 	auto frame = [&]
@@ -187,7 +189,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 					bool answered = false;
 					for (const auto &preferred :
 					     cruiser
-					         ? std::vector<std::string>{"reactor", "wounded", "propulsion", "slow",
+					         ? std::vector<std::string>{"bridge", "reactor", "wounded", "propulsion", "slow",
 					                                    seize ? "seize" : "rescue", takeover ? "withdraw" : "refuse"}
 					         : std::vector<std::string>{"wounded", "reactor", "propulsion", "slow",
 					                                    seize ? "seize" : "rescue", takeover ? "withdraw" : "refuse"})
@@ -230,7 +232,34 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 							// turn inside the raider; a wide orbit lets its nose catch up.
 							const auto own = view("helm").second.own;
 							const double nose = contact.heading * 3.141592653589793 / 180000;
-							const double rear_x = -85000 * std::cos(nose), rear_y = -85000 * std::sin(nose);
+							double aspect = nose + 3.141592653589793;
+							// A beam striking ruined stern rooms cannot finish the surviving bow.
+							// Change aspect only after our own scanner reports most rooms disabled.
+							for (const auto &scan : tactical.gameplay.at("sensors").at("contacts"))
+								if (scan.at("id") == contact.id &&
+								    scan.at("findings").contains("compartment_condition"))
+								{
+									const auto &finding = scan.at("findings").at("compartment_condition");
+									const auto &rooms = finding.at("data");
+									const auto disabled =
+									    std::count_if(rooms.begin(), rooms.end(),
+									                  [](const auto &r)
+									                  {
+										                  return r.at("disabled").template get<bool>();
+									                  });
+									if (finding.value("live", false) && disabled * 3 >= rooms.size() * 2)
+									{
+										std::int64_t most_hp = 0;
+										for (const auto &room : rooms)
+											if (room.at("hp").template get<std::int64_t>() > most_hp)
+											{
+												most_hp = room.at("hp");
+												aspect = nose + std::atan2(room.at("y_mm").template get<double>(),
+												                           room.at("x_mm").template get<double>());
+											}
+									}
+								}
+							const double rear_x = 85000 * std::cos(aspect), rear_y = 85000 * std::sin(aspect);
 							const auto now = app.session->ticks();
 							const double turn =
 							    last_raider_tick && now > last_raider_tick
@@ -437,6 +466,21 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		std::cout << "PASS " << prefix << " saved report graphical smoke" << std::endl;
 		return 0;
 	}
+	if (!cruiser && seize && !checkpoint.empty())
+	{
+		// A separate seizure walkthrough can resume the real post-combat arrival.
+		// Select the ordinary detailed Tactical profile to give the crew Security authority.
+		const auto layout = compile_controllable_layout(app.session->catalog(), fit);
+		for (std::size_t i = 0; i < layout.profiles.size(); ++i)
+			if (layout.profiles[i].id == "detailed")
+			{
+				OperatingCommand command{ship, "preset", static_cast<std::int64_t>(i), {}};
+				command.console = "tactical";
+				ensure(app.session->console_command(view("tactical").first, command),
+				       "Select detailed Tactical authority");
+				advance(1);
+			}
+	}
 	shields(true);
 	const auto tactical_initial = view("tactical").second;
 	for (const auto &controller : tactical_initial.gameplay.at("controllers"))
@@ -453,7 +497,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		    [&]
 		    {
 			    const auto tactical = view("tactical").second;
-			    bool covering = false, radar_available = false;
+			    bool covering = !observed_raider && !checkpoint.empty(), radar_available = false;
 			    for (const auto &sensor : tactical.systems)
 				    if (sensor.kind == OperatingSystem::Radar && sensor.enabled && sensor.effective_range > 0)
 				    {
@@ -463,7 +507,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 				    }
 			    ensure(radar_available, "Courier lost radar; combat outcome unresolved");
 			    // No contact is not a victory when blind or outside the last known position's coverage.
-			    return observed_raider && covering &&
+			    return (observed_raider || !checkpoint.empty()) && covering &&
 			           std::none_of(tactical.contacts.begin(), tactical.contacts.end(),
 			                        [](const auto &c)
 			                        {
@@ -530,6 +574,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		}
 		if (preview)
 		{
+			std::cout << "STARTING PERSONNEL " << view("tactical").second.gameplay.at("personnel").dump() << std::endl;
 			close_window();
 			opened = false;
 			std::cout << "PASS " << prefix << " opening scenery preview" << std::endl;
@@ -621,25 +666,160 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	if (takeover)
 	{
 		stop();
-		until(
-		    [&]
-		    {
-			    const auto contacts = view("tactical").second.contacts;
-			    for (const auto &contact : contacts)
-				    if (contact.id == 1 && contact.disposition == "hostile")
-					    return true;
-			    return false;
-		    },
-		    "physical pirate takeover");
+		const bool already_recaptured =
+		    recapture &&
+		    view("comms")
+		            .second.gameplay.at("conversations")
+		            .dump()
+		            .find("Bridge secured. Prize crew is taking command of the ship.") != std::string::npos;
+		if (recapture && !already_recaptured)
+		{
+			ensure(cruiser, "Recapture driver requires Cruiser transport authority");
+			// Truce allows a close approach. This is ordinary Helm movement from a real saved attempt.
+			move(950000, 650000, 15000);
+			shields(false);
+			advance(150);
+		}
+		if (!already_recaptured)
+		{
+			until(
+			    [&]
+			    {
+				    const auto contacts = view("tactical").second.contacts;
+				    for (const auto &contact : contacts)
+					    if (contact.id == 1 && contact.disposition == "hostile")
+						    return true;
+				    return false;
+			    },
+			    "physical pirate takeover");
 #ifndef __EMSCRIPTEN__
-		write_checkpoint("build/rescue-" + prefix + "-occupied.zip", app.session->save());
+			write_checkpoint("build/rescue-" + prefix + "-occupied.zip", app.session->save());
 #endif
-		until(
-		    [&]
-		    {
-			    return objective("Secure the casualty escape");
-		    },
-		    "pirate group departure");
+		}
+
+		if (recapture)
+		{
+			std::string boarding;
+			const auto board = view(dispatch).second;
+			for (const auto &mission : board.gameplay.at("away_missions"))
+				if (mission.at("target") == 1 && mission.at("id").template get<std::string>().starts_with("board."))
+					boarding = mission.at("id");
+			ensure(!boarding.empty(), "Ordinary Retake Morrow mission is visible");
+			if (!already_recaptured)
+			{
+				domain(dispatch, "away", "open", boarding);
+				advance(1);
+				domain("tactical", "away", "assign", boarding, "security/team:security-1");
+				advance(1);
+				domain("science", "away", "assign", boarding, "medical/team:medical-1");
+				advance(1);
+				domain(transport, "away", "transport", boarding, "displacement");
+				advance(1);
+				until(
+				    [&]
+				    {
+					    const auto observation = view(dispatch).second;
+					    for (const auto &mission : observation.gameplay.at("away_missions"))
+						    if (mission.at("id") == boarding)
+							    return mission.at("blocker") == "";
+					    return false;
+				    },
+				    "recapture party ready");
+				domain(dispatch, "away", "send", boarding);
+				until(
+				    [&]
+				    {
+					    const auto observation = view(dispatch).second;
+					    for (const auto &mission : observation.gameplay.at("away_missions"))
+						    if (mission.at("id") == boarding)
+							    return mission.at("phase") == "deployed";
+					    return false;
+				    },
+				    "recapture physical insertion");
+				shields(true);
+				until(
+				    [&]
+				    {
+					    const auto contacts = view("tactical").second.contacts;
+					    return std::any_of(contacts.begin(), contacts.end(),
+					                       [](const auto &c)
+					                       {
+						                       return c.id == 1 && c.disposition == "friendly";
+					                       });
+				    },
+				    "recapture boarding encounter");
+			}
+
+			// Follow the public obstruction assessment around terrain before closing for recovery.
+			const auto approach = view("helm").second;
+			if (approach.gameplay.at("navigation").value("blocked", false) &&
+			    std::any_of(approach.contacts.begin(), approach.contacts.end(),
+			                [&](const auto &contact)
+			                {
+				                return contact.id == 1 && std::hypot(double(contact.x - approach.own.x),
+				                                                     double(contact.y - approach.own.y)) > 300000;
+			                }))
+			{
+				const auto bearing =
+				    (approach.gameplay.at("navigation").at("left_heading").get<std::int64_t>() + 60000) % 360000;
+				const double angle = bearing * 3.141592653589793 / 180000;
+				move(approach.own.x + static_cast<std::int64_t>(180000 * std::cos(angle)),
+				     approach.own.y + static_cast<std::int64_t>(180000 * std::sin(angle)), 15000);
+			}
+
+			const auto tracked = view("tactical").second;
+			for (const auto &contact : tracked.contacts)
+				if (contact.id == 1)
+				{
+					const auto own = view("helm").second.own;
+					const double distance =
+					    std::max(1.0, std::hypot(double(own.x - contact.x), double(own.y - contact.y)));
+					if (distance > 260000)
+						move(contact.x + static_cast<std::int64_t>((own.x - contact.x) * 250000 / distance),
+						     contact.y + static_cast<std::int64_t>((own.y - contact.y) * 250000 / distance), 15000);
+				}
+
+			shields(false);
+			advance(150);
+			// Combat can incapacitate the qualified navigator. Use an available utility
+			// shuttle through the normal replacement-transport controls in that case.
+			const auto recovery_view = view(dispatch).second;
+			for (const auto &mission : recovery_view.gameplay.at("away_missions"))
+				if (mission.at("id") == boarding && mission.at("blocker") == "Qualified navigator required")
+				{
+					const auto engineering_view = view(engineering).second;
+					bool selected = false;
+					for (const auto &operation : engineering_view.gameplay.at("away_missions"))
+						if (operation.at("id") == boarding)
+							for (const auto &transport_option : operation.at("transports"))
+								if (!selected && transport_option.get<std::string>().starts_with("craft:"))
+								{
+									domain(engineering, "away", "transport", boarding, transport_option);
+									selected = true;
+								}
+					ensure(selected, "Replacement recovery shuttle available");
+					advance(1);
+				}
+			domain(dispatch, "away", "recall", boarding);
+			until(
+			    [&]
+			    {
+				    const auto observation = view(dispatch).second;
+				    for (const auto &mission : observation.gameplay.at("away_missions"))
+					    if (mission.at("id") == boarding)
+						    return mission.at("phase") == "recovered";
+				    return false;
+			    },
+			    "recapture selective recovery");
+			shields(true);
+		}
+		else
+			until(
+			    [&]
+			    {
+				    return objective("Secure the casualty escape");
+			    },
+			    "pirate group departure");
 	}
 	else
 	{
@@ -807,9 +987,9 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	ensure(app.session->console_command(route, depart), "Departure accepted");
 	advance(20);
 	const auto report = view("helm").second.gameplay.at("mission_report");
-	ensure(report.at("result") == (seize      ? "claimed"
-	                               : takeover ? "taken"
-	                                          : "rescued"),
+	ensure(report.at("result") == (seize || recapture ? "claimed"
+	                               : takeover         ? "taken"
+	                                                  : "rescued"),
 	       "Rescue result: " + report.dump());
 	ensure(report.at("assessments")[0].at("result") == (cruiser ? "prompt" : "delivered"),
 	       "Independent delivery result: " + report.dump());
