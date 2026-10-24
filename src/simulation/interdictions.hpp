@@ -58,6 +58,38 @@ void record_interdiction_insertion(EntityId ship, EntityId target)
 		    ship == slot_entities.at(interdiction_definitions[i].slot))
 			interdictions[i].reinforced = true;
 }
+// Encounter goals own the relevant AI Controllers, not human Console slots.
+// Machinery, repairs and defensive fire retain their ordinary policies.
+bool encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const
+{
+	bool owned = false;
+	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	{
+		const auto &operation = interdictions[i];
+		owned |= std::find(operation.ships.begin(), operation.ships.end(), ship) != operation.ships.end();
+		if (ship == interdiction_definitions[i].target && operation.captured && captured_by.contains(ship))
+			owned |= std::find(operation.ships.begin(), operation.ships.end(), operational_owner(ship)) !=
+			         operation.ships.end();
+	}
+	if (!owned)
+		return false;
+	return std::any_of(controller.commands.begin(), controller.commands.end(),
+	                   [](const auto &command)
+	                   {
+		                   return command.action == OperatingAction::Speed ||
+		                          command.action == OperatingAction::Heading ||
+		                          command.action == OperatingAction::Destination ||
+		                          command.action == OperatingAction::FollowContact ||
+		                          command.action == OperatingAction::MatchSpeed ||
+		                          command.action == OperatingAction::WeaponTarget;
+	                   });
+}
+void release_encounter_navigation(EntityId ship)
+{
+	encounter_command(ship, OperatingAction::Destination, 0);
+	encounter_command(ship, OperatingAction::FollowContact, 0);
+	encounter_command(ship, OperatingAction::MatchSpeed, 0);
+}
 bool encounter_command(EntityId ship, OperatingAction action, std::int64_t value)
 {
 	if (!entities.contains(ship) || !entities.at(ship).has<EntityControls>())
@@ -90,7 +122,7 @@ bool encounter_command(EntityId ship, OperatingAction action, std::int64_t value
 				     c.generation,
 				     0,
 				     false,
-				     {}});
+				     c.definition.commands[j].initial_arguments});
 			}
 	}
 	return accepted;
@@ -397,6 +429,7 @@ void apply_interdiction_orders()
 		    std::find(s.ships.begin(), s.ships.end(), operational_owner(d.target)) != s.ships.end() &&
 		    !truly_destroyed(d.target) && !departed(d.target))
 		{
+			release_encounter_navigation(d.target);
 			std::set<EntityId> group{d.target};
 			for (auto id : s.ships)
 				if (!truly_destroyed(id) && !departed(id))
@@ -415,6 +448,9 @@ void apply_interdiction_orders()
 			const auto id = s.ships[n];
 			if (truly_destroyed(id) || departed(id))
 				continue;
+			release_encounter_navigation(id);
+			if (entities.at(id).has<DockConnection>())
+				apply_docking_controller(entities.at(id));
 			if (s.finished && entities.at(id).has<DockConnection>())
 				encounter_dock_order(id, "dock.undock");
 			const auto delta = entities.at(player).get<Pose>().position - entities.at(id).get<Pose>().position;

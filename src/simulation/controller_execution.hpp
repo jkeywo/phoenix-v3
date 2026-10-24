@@ -987,6 +987,15 @@ void run_console_controllers(flecs::entity entity)
 		auto &controller = controls.controllers[i];
 		if (controller.human)
 			continue;
+		if (encounter_owns_controller(id, controller.definition))
+		{
+			if (controller.action.status == "running")
+			{
+				const auto observations = controller_observations(id, controller);
+				cancel_controller_action(id, i, "operation_owned", observations);
+			}
+			continue;
+		}
 		if (controller.brain)
 		{
 			process_controller_coordination(id, i);
@@ -1018,7 +1027,8 @@ void consume_controller_commands(flecs::entity entity)
 		{
 			const auto &spec = controller.definition.commands[i];
 			auto &state = controller.commands[i];
-			if (spec.shared_target_controller.empty())
+			if (spec.shared_target_controller.empty() ||
+			    (!controller.human && encounter_owns_controller(entity.get<StableId>().id, controller.definition)))
 				continue;
 			if (!controller.human)
 				state.target_override = false;

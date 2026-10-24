@@ -3537,6 +3537,8 @@ bool World::submit_controller_decision(const Json &decision)
 		const auto &snapshot = decision.at("snapshot");
 		ControllerAddress address{snapshot.at("ship"), snapshot.at("console"), snapshot.at("controller")};
 		auto *c = impl_->model_controller(address);
+		if (c && !c->human && impl_->encounter_owns_controller(address.entity, c->definition))
+			return false;
 		const auto chosen = decision.value("candidate", std::string("defer_to_tree"));
 		bool cancels_activity = false;
 		for (const auto &candidate : snapshot.at("candidates"))

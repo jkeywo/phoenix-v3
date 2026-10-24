@@ -424,6 +424,12 @@ int main(int argc, char **argv)
 			w.load(catalog, "test.map", {{"crew", "test.away"}});
 			w.claim(101, 2, "drive");
 			ticks(w, 4);
+			auto before = w.save();
+			for (const auto id : state(w)["ships"])
+			{
+				require(body(before, id.get<EntityId>())["combat"]["systems"]["gun"]["target"] == 0,
+				        "Shared targeting must not override encounter hold-fire authority");
+			}
 			require(w.submit(101, reply(w, "withdraw")), "Accept the demand through normal Comms");
 			ticks(w, 1);
 			require(state(w)["posture"] == "truce", "Accepted demand ends ultimatum");

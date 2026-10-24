@@ -97,7 +97,8 @@ Json model_basis(EntityId id, const ConsoleControllerRuntime &controller)
 Json model_snapshot(const ControllerAddress &address)
 {
 	auto *controller = model_controller(address);
-	if (!controller || controller->human || controller->candidates.empty() || !controller->brain)
+	if (!controller || controller->human || controller->candidates.empty() || !controller->brain ||
+	    encounter_owns_controller(address.entity, controller->definition))
 		return nullptr;
 	const auto observed = controller_observations(address.entity, *controller);
 	auto all = model_candidates(*controller, observed);

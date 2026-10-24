@@ -78,6 +78,44 @@ inline Json interdiction_fixture(int ships = 1)
 	auto pirate = e;
 	pirate["id"] = "test.pirate";
 	pirate["faction"] = "pirates";
+	// The ship's ordinary policy deliberately competes with encounter flight.
+	// Its initial persistent destination also exercises takeover of already active guidance.
+	for (auto &controller : pirate["control_layout"]["controllers"])
+	{
+		if (controller["id"] == "engine")
+		{
+			controller["tree"] = "test.pirate.route";
+			controller["commands"].push_back({{"id", "destination"},
+			                                  {"action", "destination"},
+			                                  {"initial", 1},
+			                                  {"arguments", {500000, 500000}},
+			                                  {"consumers", {"engine", "steering"}}});
+		}
+		if (controller["id"] == "gun")
+			for (auto &command : controller["commands"])
+				if (command["id"] == "target")
+					command["shared_target"] = {{"controller", "source-scanner"}, {"channel", "target"}};
+	}
+	pirate["systems"]["source-scanner"] = pirate["systems"]["radar"];
+	pirate["systems"]["source-scanner"]["capabilities"] = {{"basic_identity", 0}};
+	pirate["control_layout"]["controllers"].push_back(
+	    {{"id", "source-scanner"},
+	     {"console", "drive"},
+	     {"fallback", "hold"},
+	     {"commands",
+	      Json::array(
+	          {{{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"source-scanner"}}},
+	           {{"id", "target"}, {"action", "sensor_target"}, {"initial", 2}, {"consumers", {"source-scanner"}}}})}});
+	pirate["control_layout"]["profiles"][0]["consoles"]["drive"]["ai"].push_back("source-scanner");
+	pirate["stations"][0]["consoles"][0]["feeds"].push_back("source-scanner");
+	pirate["personnel"]["duties"].push_back({{"id", "source-scanner"},
+	                                         {"label", "Target source"},
+	                                         {"controller", "source-scanner"},
+	                                         {"department", "navigation"},
+	                                         {"compartment", "bridge"}});
+	f["trees"].push_back(Json::parse(
+	    R"({"id":"test.pirate.route","context":"controller","initial":"go","command_bindings":[{"channel":"destination","action":"destination","type":"boolean"}],
+       "states":[{"id":"go","running":[{"action":"write.destination","arguments":[true,500000,500000]}]}]})"));
 	f["entities"].push_back(target);
 	f["entities"].push_back(pirate);
 	auto &map = f["maps"][0];
