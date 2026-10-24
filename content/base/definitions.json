@@ -37215,7 +37215,7 @@
 						"facts": [
 							{
 								"fact": "trapped-crew-deaths",
-								"label_key": "Trapped crew deaths"
+								"label_key": "Trapped deaths during away work"
 							},
 							{
 								"fact": "propulsion-restored",
