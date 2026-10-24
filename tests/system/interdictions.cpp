@@ -192,7 +192,8 @@ void captive_party(Json &trace)
 	      {"tree", "test.retake"},
 	      {"dialogue", "test.retake-dialogue"},
 	      {"slots",
-	       Json::array({{{"id", "security"}, {"kind", "team"}, {"capability", "security"}, {"required", true}}})},
+	       Json::array({{{"id", "security"}, {"kind", "team"}, {"capability", "security"}, {"required", true}},
+	                    {{"id", "medical"}, {"kind", "team"}, {"capability", "medical"}, {"required", false}}})},
 	      {"encounters", Json::array({{{"id", "occupation"},
 	                                   {"compartment", "bridge"},
 	                                   {"defenders", {"occupation"}},
@@ -250,6 +251,9 @@ void captive_party(Json &trace)
 	require(w.submit(102, order("assign", "security/team:security", 102, "security")),
 	        "Send reserve Security to retake the ship");
 	w.tick();
+	require(w.submit(102, order("assign", "medical/team:medical", 102, "medical")),
+	        "Send Medical alongside required Security");
+	w.tick();
 	require(w.submit(101, order("transport", "transport", 101, "transport")), "Use physical displacement insertion");
 	ticks(w, 20);
 	require(w.submit(101, order("send")), "Retaking uses normal boarding admission");
@@ -259,6 +263,31 @@ void captive_party(Json &trace)
 	require(w.save()["away_missions"][0]["phase"] == "deployed",
 	        "Successful retaking frees captives awaiting extraction");
 	continuation(catalog, w, 5, "Freed visitors and new Security prize crew continue exactly");
+	auto retained = w.save();
+	auto retake_state = [&]() -> const Json &
+	{
+		for (const auto &mission : retained.at("away_missions"))
+			if (mission.at("id") == retake)
+				return mission;
+		throw std::runtime_error("Retake operation missing");
+	};
+	require(retake_state().at("outcome") == "complete:retaken",
+	        "Intentional Security prize assignment cannot turn successful boarding into party loss");
+	require(retake_state().at("assignments") == Json{{"medical", "team:medical"}},
+	        "Medical remains aboard for selective recovery after required Security is retained");
+	require(w.submit(101, order("recall")), "Recall non-prize Medical after successful capture");
+	w.tick();
+	for (int n = 0; n < 180; ++n)
+	{
+		retained = w.save();
+		if (retake_state().at("phase") == "recovered")
+			break;
+		w.tick();
+	}
+	retained = w.save();
+	require(retake_state().at("phase") == "recovered" && retake_state().at("outcome") == "complete:retaken",
+	        "Selective Medical recovery preserves the successful boarding result");
+	continuation(catalog, w, 5, "Recovered Medical, Security prize crew and freed captives resume exactly");
 	require(w.submit(101, away_order(w, "recall")), "Freed visitors still need physical recovery");
 	w.tick();
 	ticks(w, 50);

@@ -234,6 +234,13 @@ void advance_boarding(std::size_t index)
 	auto &s = m.boarding;
 	const auto origin = away_ship(d), target = d.target;
 	const auto &pd = definition(target).personnel;
+	// Required Security deliberately leaves this manifest when it becomes prize crew.
+	// Continue care for recoverable visitors without reopening the completed assault.
+	if (s.captured)
+	{
+		boarding_field_care(origin, m, true);
+		return;
+	}
 	if (boarding_party_teams(origin, m, "security").empty())
 	{
 		m.outcome = "fail:Boarding party lost";
