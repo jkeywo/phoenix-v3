@@ -1,6 +1,6 @@
 # Directed systems and payload migration evidence
 
-24 October 2026. Implementation follows the [migration plan](directed-systems-migration-plan.md), using the delivered resource/store interfaces at `99726b1`. The isolated branch `codex/directed-payloads` includes the subsequently committed GUI navigation work at `68e2a7c`, preserving unrelated uncommitted work in the primary checkout. Automatic integration validation is in progress; this record does not yet establish completion.
+24 October 2026. Implementation follows the [migration plan](directed-systems-migration-plan.md), using the delivered resource/store interfaces at `99726b1`. The isolated branch `codex/directed-payloads` includes the subsequently committed GUI navigation work at `68e2a7c`, preserving unrelated uncommitted work in the primary checkout. Implementation is committed at `df2e5c0`. Automatic integration validation and independent review passed; manual acceptance remains separate.
 
 ## Execution and ownership
 
@@ -38,8 +38,8 @@ The reviewer also flagged the old implicit point-defence targeting behavior. Sep
 - Base and test-missions packs verified. The separate `development_packs` target verified test and test-3d packs. Verification checks definitions without freezing shipped balance.
 - After the WebAssembly module-header fix, a final complete native rebuild, eight affected regression suites and the application build check passed. The base pack was regenerated from the final formatted definitions.
 - Independent review has no remaining concrete findings. Final C++ formatting and whitespace checks passed.
-- WebAssembly build and continuation parity are still in progress; this record does not yet establish complete automatic acceptance.
+- The complete WebAssembly build and `scripts/check.ps1 -Target web` passed: production-content preflight, all integration suites and all **19** native/WebAssembly continuation comparisons, including directed operations, periodic payloads, processors and shared stock effects.
 
-Logs are retained in the isolated worktree under `build/native-gate.log`, `build/native-final-build.log`, `build/native-final-check.log`, `build/development-packs.log` and `build/web-build-2.log`.
+Logs are retained in the isolated worktree under `build/native-gate.log`, `build/native-final-build.log`, `build/native-final-check.log`, `build/development-packs.log`, `build/web-build-2.log` and `build/web-gate.log`.
 
 No graphical, touch, gamepad, screen-reader, six-display performance or browser-storage smoke journey has been run for this migration. Linux checks were updated but not executed on Linux.

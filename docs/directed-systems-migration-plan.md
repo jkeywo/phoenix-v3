@@ -1,6 +1,6 @@
 # Directed systems and payload effects migration
 
-23 October 2026 · implementation plan. Implemented 24 October; native validation passed, with final WebAssembly validation in progress. See the [implementation evidence](directed-systems-evidence.md) and [authoring reference](directed-systems-content.md).
+23 October 2026 · implementation plan. Implemented 24 October; independent review and native/WebAssembly automated validation passed. See the [implementation evidence](directed-systems-evidence.md) and [authoring reference](directed-systems-content.md).
 
 This is the fourth slice of the [shared gameplay engine](gameplay-engine-design.md), following [resource, store and recipe unification](resource-store-migration-plan.md). The resource prerequisite was delivered at `99726b1`; this implementation uses its shared stores, grants and loaded-resource commitments.
 
@@ -134,4 +134,4 @@ Commit each verified logical step. Intermediate steps may use temporary adapters
 - [x] Beams, impact blasts and destruction explosions retain physical behaviour and distinct payloads.
 - [x] Periodic Burning proves independent lifetime, source-aware refresh, removal and exact continuation.
 - [x] Human/AI interfaces, Workshop, content and saves are migrated; obsolete paths are removed.
-- [ ] Review findings are resolved and automated/manual evidence is reported accurately under the [testing policy](testing.md).
+- [x] Review findings are resolved and automated/manual evidence is reported accurately under the [testing policy](testing.md).
