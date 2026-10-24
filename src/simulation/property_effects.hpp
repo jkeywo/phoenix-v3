@@ -71,7 +71,9 @@ bool modifier_target_compatible(flecs::entity ship, const std::string &equipment
 		    definition.contributions.begin(), definition.contributions.end(),
 		    [&](const auto &c)
 		    {
-			    if (!property_compatible(c.property, fitted->kind))
+			    const auto *directed = directed_definition(ship.get<StableId>().id, equipment);
+			    if (!(directed ? property_compatible(c.property, fitted->kind, *directed)
+			                   : property_compatible(c.property, fitted->kind)))
 				    return false;
 			    if (c.property == "processing")
 			    {

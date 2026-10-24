@@ -10,7 +10,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	for (std::size_t i = 0; i < controller.commands.size(); ++i)
 	{
 		const auto &spec = controller.definition.commands[i];
-		if (spec.action == OperatingAction::WeaponTarget)
+		if (spec.action == OperatingAction::WeaponTarget || spec.action == OperatingAction::DirectedTarget)
 			current = controller.commands[i].value;
 		if (spec.action == OperatingAction::RepairCompartment)
 			repair = controller.commands[i].value;
@@ -179,7 +179,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			}
 		}
 	}
-	bool point_defence = false;
+	bool point_defence = false, intercepting = false;
 	const auto owns = [&](const std::string &system)
 	{
 		const auto &entity = entities.at(observed.own.id);
@@ -211,6 +211,8 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		if (owns(weapon.at("id")))
 		{
 			point_defence = weapon.value("point_defence", false);
+			intercepting |= point_defence && directed_targeting(observed.own.id, weapon.at("id").get<std::string>()) ==
+			                                     DirectedTargetingKind::Intercept;
 			facts[3] = weapon.value("selected", std::int64_t{0});
 			std::int64_t best = std::numeric_limits<std::int64_t>::max();
 			for (const auto &option : weapon.value("ammunition_options", Json::array()))
@@ -221,7 +223,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 					facts[3] = option.at("index");
 				}
 		}
-	if (point_defence)
+	if (intercepting)
 		facts[0] = 0;
 	for (std::size_t i = 0; i < facts.size(); ++i)
 		values.at(controller.brain->decision_base + i) = state_tree::Value::integer(facts[i]);

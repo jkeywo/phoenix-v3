@@ -1,8 +1,8 @@
 # Directed systems and payload effects migration
 
-23 October 2026 · implementation plan; implementation and acceptance are pending.
+23 October 2026 · implementation plan. Implemented 24 October; native validation passed, with final WebAssembly validation in progress. See the [implementation evidence](directed-systems-evidence.md) and [authoring reference](directed-systems-content.md).
 
-This is the fourth slice of the [shared gameplay engine](gameplay-engine-design.md), following [resource, store and recipe unification](resource-store-migration-plan.md). The resource slice is a prerequisite, not completed work. Recheck its delivered interfaces and the live combat/sensor paths before implementation.
+This is the fourth slice of the [shared gameplay engine](gameplay-engine-design.md), following [resource, store and recipe unification](resource-store-migration-plan.md). The resource prerequisite was delivered at `99726b1`; this implementation uses its shared stores, grants and loaded-resource commitments.
 
 ## Intended result
 
@@ -27,17 +27,17 @@ Broad radar detection remains equipment-local native sensing; it is not turned i
 
 This inventory describes the checkout used for planning, before the resource migration. Several combat and content files have concurrent work; reconcile it when implementing rather than restoring an older snapshot.
 
-| Area | Current path and responsibility | Migration responsibility |
-| --- | --- | --- |
-| Weapon definitions/state | `content/content.cppm`, `content/combat.cpp`, `simulation/combat.hpp`: weapon families, magazines, load/cycle state, beam fractions, point-defence mode | Compile shared directed definitions and mode references; retain native mechanism state with one owner. |
-| Targeting and launch | `simulation/combat_weapons.hpp`: permitted contact lookup, lead, mount geometry, interception, loading and launch | Shared targeting/qualification and funded operation; keep contact visibility and physical aiming. |
-| Turrets | Combat mechanisms and weapon/sensor aiming passes | Shared directed aim interface; preserve mount traversal, geometry, faults and single targeting ownership. |
-| Focused acquisition | `content/sensors.cpp`, `simulation/sensors.hpp` and sensor state | Invoke native acquisition through directed operation effects, retaining exposure, snapshots, discovery receipts and publication on the sensing equipment. Verify exact file boundaries before editing. |
-| Damage and shielding | `simulation/combat_execution.hpp`, `combat_effects.hpp`: penetration, compartment damage, faults, shield absorption and reactions | Typed hit outcomes, shared damage operations and payload bindings without duplicating the native damage calculation. |
-| Ordnance and destruction | `simulation/combat_ordnance.hpp`: beams, collision, proximity, blast exposure, cover and once-only destruction | Carry committed payloads; route impact and destruction through shared effect execution, preserving separate profiles. |
-| Existing effects | `simulation/effect_application.hpp`, property/shield effect state and deferred reactions | Extend common preparation, identity and lifetime handling for immediate operations, payload applications and periodic reactions. |
-| Resource prerequisite | Shared stores, loaded-resource commitments, native grants and resource ammunition profiles from slice three | Use delivered accounting and the actually loaded resource; no parallel ammunition or energy payment path. |
-| Integration | Controller commands, Console models, rendering, Workshop, serializers, scenario effects and tests | Replace old family-specific execution paths and retain supported controls, knowledge boundaries and continuation. |
+| Area                     | Current path and responsibility                                                                                                                         | Migration responsibility                                                                                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Weapon definitions/state | `content/content.cppm`, `content/combat.cpp`, `simulation/combat.hpp`: weapon families, magazines, load/cycle state, beam fractions, point-defence mode | Compile shared directed definitions and mode references; retain native mechanism state with one owner.                                                                                                 |
+| Targeting and launch     | `simulation/combat_weapons.hpp`: permitted contact lookup, lead, mount geometry, interception, loading and launch                                       | Shared targeting/qualification and funded operation; keep contact visibility and physical aiming.                                                                                                      |
+| Turrets                  | Combat mechanisms and weapon/sensor aiming passes                                                                                                       | Shared directed aim interface; preserve mount traversal, geometry, faults and single targeting ownership.                                                                                              |
+| Focused acquisition      | `content/sensors.cpp`, `simulation/sensors.hpp` and sensor state                                                                                        | Invoke native acquisition through directed operation effects, retaining exposure, snapshots, discovery receipts and publication on the sensing equipment. Verify exact file boundaries before editing. |
+| Damage and shielding     | `simulation/combat_execution.hpp`, `combat_effects.hpp`: penetration, compartment damage, faults, shield absorption and reactions                       | Typed hit outcomes, shared damage operations and payload bindings without duplicating the native damage calculation.                                                                                   |
+| Ordnance and destruction | `simulation/combat_ordnance.hpp`: beams, collision, proximity, blast exposure, cover and once-only destruction                                          | Carry committed payloads; route impact and destruction through shared effect execution, preserving separate profiles.                                                                                  |
+| Existing effects         | `simulation/effect_application.hpp`, property/shield effect state and deferred reactions                                                                | Extend common preparation, identity and lifetime handling for immediate operations, payload applications and periodic reactions.                                                                       |
+| Resource prerequisite    | Shared stores, loaded-resource commitments, native grants and resource ammunition profiles from slice three                                             | Use delivered accounting and the actually loaded resource; no parallel ammunition or energy payment path.                                                                                              |
+| Integration              | Controller commands, Console models, rendering, Workshop, serializers, scenario effects and tests                                                       | Replace old family-specific execution paths and retain supported controls, knowledge boundaries and continuation.                                                                                      |
 
 ## Shared directed contract
 
@@ -127,11 +127,11 @@ Commit each verified logical step. Intermediate steps may use temporary adapters
 
 ## Completion checklist
 
-- [ ] The resource prerequisite is delivered and its actual interfaces are used.
-- [ ] Weapons and focused scanners share directed operation, targeting/mode and effect-execution contracts.
-- [ ] Mode switching preserves commitments, readiness and compatible acquisition progress.
-- [ ] Native hits drive explicit shield/compartment/System payload bindings without hidden-target shortcuts.
-- [ ] Beams, impact blasts and destruction explosions retain physical behaviour and distinct payloads.
-- [ ] Periodic Burning proves independent lifetime, source-aware refresh, removal and exact continuation.
-- [ ] Human/AI interfaces, Workshop, content and saves are migrated; obsolete paths are removed.
+- [x] The resource prerequisite is delivered and its actual interfaces are used.
+- [x] Weapons and focused scanners share directed operation, targeting/mode and effect-execution contracts.
+- [x] Mode switching preserves commitments, readiness and compatible acquisition progress.
+- [x] Native hits drive explicit shield/compartment/System payload bindings without hidden-target shortcuts.
+- [x] Beams, impact blasts and destruction explosions retain physical behaviour and distinct payloads.
+- [x] Periodic Burning proves independent lifetime, source-aware refresh, removal and exact continuation.
+- [x] Human/AI interfaces, Workshop, content and saves are migrated; obsolete paths are removed.
 - [ ] Review findings are resolved and automated/manual evidence is reported accurately under the [testing policy](testing.md).

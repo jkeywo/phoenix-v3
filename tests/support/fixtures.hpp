@@ -2,9 +2,12 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <utility>
+#include <vector>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 import phoenix.content;
+#include "directed_materialisation.hpp"
 namespace phoenix::test
 {
 // Legacy shorthand is confined to synthetic fixture construction. Production packs
@@ -172,6 +175,7 @@ inline PackDraft fixture_pack(const Bytes &definitions, const std::string &id)
 	// Runtime and production loaders accept only references.
 	auto authored = parse_json(definitions, "synthetic fixture");
 	materialise_fixture_resources(authored);
+	materialise_fixture_directed(authored);
 	std::size_t shield_index = 0, modifier_index = 0;
 	std::function<void(Json &)> materialise = [&](Json &value)
 	{

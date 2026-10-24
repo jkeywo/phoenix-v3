@@ -112,6 +112,14 @@ void compile_effect(const Catalog &catalog, const std::string &id)
 		(void)compile_modifier_effect(catalog, id);
 	else if (effect.value("kind", std::string{}) == "operations")
 		(void)compile_effect_group(catalog, id);
+	else if (effect.value("kind", std::string{}) == "directed_mode")
+		(void)compile_directed_mode(catalog, id);
+	else if (effect.value("kind", std::string{}) == "targeting_policy")
+		(void)compile_targeting_policy(catalog, id);
+	else if (effect.value("kind", std::string{}) == "payload")
+		(void)compile_payload(catalog, id);
+	else if (effect.value("kind", std::string{}) == "periodic")
+		(void)compile_periodic_effect(catalog, id);
 	else
 		(void)compile_shield_effect(catalog, id);
 }
@@ -255,6 +263,7 @@ DestructionDefinition compile_destruction(const Json &v, const Catalog &catalog,
 	d.fade_ticks = n("fade_ticks", 10, 10000);
 	d.size = n("size_mm", 10000, 10000000);
 	d.affects_missiles = v.value("affects_missiles", true);
+	d.payloads = compile_payloads(catalog, v.value("payloads", Json::array()), path + ".payloads");
 	if ((d.damage && !d.radius) || !d.growth_ticks || !d.fade_ticks || !d.size)
 		throw std::runtime_error(path + ": invalid destruction geometry/timing");
 	return d;
@@ -277,7 +286,8 @@ ProjectileDefinition compile_projectile_profile(const Catalog &catalog, const Js
 	r.speed = amount(p, "speed_mm_s", 0, 1, 10000000);
 	r.lifetime = amount(p, "lifetime_ticks", 200, 1, 100000);
 	r.penetration = amount(p, "penetration", 1, 1, 1000000);
-	r.damage = amount(p, "damage", 1, 1, 1000000);
+	r.damage = amount(p, "damage", 1, 0, 1000000);
+	r.payloads = compile_payloads(catalog, p.value("payloads", Json::array()), path + ".payloads");
 	r.deposition = amount(p, "damage_per_m", 1, 1, 1000000);
 	r.spread = amount(p, "spread_mdeg", 0, 0, 45000);
 	r.shield_bypass = amount(p, "shield_bypass_permille", 0, 0, 1000);
@@ -355,6 +365,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			fail(std::string(key) + ": invalid bounded integer");
 		return v.get<std::int64_t>();
 	};
+	const auto directed = compile_directed(catalog, name);
 	CombatDefinition d;
 	const auto &c = entity.at("combat");
 	d.half_height = amount(c, "half_height_mm", 5000, 1, 1000000);
@@ -465,9 +476,15 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			fault.destroys = f.value("destroyed", false);
 			d.faults[fit.id].push_back(fault);
 		}
-		if (fit.kind < OperatingSystem::Weapon || fit.kind > OperatingSystem::Shield)
+		const bool directed_weapon =
+		    directed.contains(fit.id) && std::any_of(directed.at(fit.id).modes.begin(), directed.at(fit.id).modes.end(),
+		                                             [](const auto &m)
+		                                             {
+			                                             return m.operation != DirectedOperationKind::Scan;
+		                                             });
+		if (!directed_weapon && (fit.kind < OperatingSystem::Weapon || fit.kind > OperatingSystem::Shield))
 			continue;
-		CombatSystemDefinition s(fit.kind);
+		CombatSystemDefinition s(directed_weapon ? OperatingSystem::Weapon : fit.kind);
 		s.id = fit.id;
 		s.compartment = compartment;
 		s.x = amount(v, "x_mm", 0, -1000000, 1000000);
@@ -476,44 +493,38 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		s.arc = amount(v, "arc_mdeg", 360000, 1, 360000);
 		if (s.kind == OperatingSystem::Weapon)
 		{
-			s.get<WeaponDefinition>().family = v.value("family", std::string("projectile"));
-			if (s.get<WeaponDefinition>().family != "projectile" && s.get<WeaponDefinition>().family != "beam")
-				fail("unsupported weapon family");
+			const auto &capability = directed.at(fit.id);
+			const auto mode = std::find_if(capability.modes.begin(), capability.modes.end(),
+			                               [](const auto &m)
+			                               {
+				                               return m.operation != DirectedOperationKind::Scan;
+			                               });
+			if (mode == capability.modes.end())
+				fail("weapon requires at least one launch or beam mode");
+			auto &weapon = s.get<WeaponDefinition>();
+			weapon.family = mode->operation == DirectedOperationKind::Beam ? "beam" : "projectile";
 			const auto magazine = v.value("magazine", std::string{});
-			s.get<WeaponDefinition>().magazines = v.value("magazines", std::vector<std::string>{});
-			if (s.get<WeaponDefinition>().magazines.empty() && !magazine.empty())
-				s.get<WeaponDefinition>().magazines.push_back(magazine);
-			if (s.get<WeaponDefinition>().family == "projectile" && s.get<WeaponDefinition>().magazines.empty())
-				fail("projectile weapon requires magazines");
-			s.get<WeaponDefinition>().turret = v.value("turret", std::string{});
-			s.get<WeaponDefinition>().muzzle_marker = v.value("muzzle_marker", std::string{});
-			s.ammunition().interval = amount(v, "fire_ticks", 20, 1, 1000000);
-			s.get<WeaponDefinition>().ammo_use = amount(v, "ammo_use", 1, 1, 1000000);
-			s.ammunition().load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
-			s.get<WeaponDefinition>().range = amount(v, "range_mm", 1000000, 1, 10000000);
-			s.get<WeaponDefinition>().beam_damage = amount(v, "damage_per_second", 1, 1, 1000000);
-			s.get<WeaponDefinition>().standby_energy = amount(v, "auto_energy_per_second", 0, 0, 1000000000);
-			if (s.get<WeaponDefinition>().family == "beam" &&
-			    (!v.contains("power_store") || amount(v, "energy_per_second", 0) == 0))
-				fail("beam requires positive operating energy and power_store");
-			s.get<WeaponDefinition>().point_defence = v.value("point_defence", false);
-			if (s.get<WeaponDefinition>().point_defence &&
-			    (!v.contains("power_store") || !s.get<WeaponDefinition>().standby_energy))
-				fail("point defence requires standby energy and power_store");
-			s.get<WeaponDefinition>().intercept_classes =
-			    v.value("intercept_classes", std::vector<std::string>{"missile"});
-			for (const auto &tag : s.get<WeaponDefinition>().intercept_classes)
+			weapon.magazines = v.value("magazines", std::vector<std::string>{});
+			if (weapon.magazines.empty() && !magazine.empty())
+				weapon.magazines.push_back(magazine);
+			weapon.turret = v.value("turret", std::string{});
+			weapon.muzzle_marker = v.value("muzzle_marker", std::string{});
+			weapon.ammunition = mode->ammunition;
+			weapon.ammo_use = mode->ammo_use;
+			weapon.range = mode->range;
+			weapon.beam_damage = mode->beam_damage;
+			weapon.standby_energy = mode->standby_energy;
+			for (const auto &policy : capability.targeting)
+				weapon.point_defence |= policy.kind == DirectedTargetingKind::Intercept;
+			weapon.intercept_classes = v.value("intercept_classes", std::vector<std::string>{"missile"});
+			for (const auto &tag : weapon.intercept_classes)
 				if (tag != "missile")
 					fail("unsupported intercept class");
-			if (v.contains("projectile"))
-				s.ammunition().projectile = projectile(v.at("projectile"));
-			else if (s.get<WeaponDefinition>().family == "beam")
-			{
-				s.ammunition().projectile.speed = 10000000;
-				s.ammunition().projectile.penetration = amount(v, "penetration", 1000, 1, 1000000);
-				s.ammunition().projectile.deposition = amount(v, "damage_per_m", 1000000, 1, 1000000);
-				s.ammunition().projectile.shield_bypass = amount(v, "shield_bypass_permille", 0, 0, 1000);
-			}
+			for (const auto &m : capability.modes)
+				for (const auto &target : m.targeting)
+					for (const auto &policy : capability.targeting)
+						if (policy.id == target && policy.kind == DirectedTargetingKind::Intercept && !m.standby_energy)
+							fail("missile interception mode requires standby energy");
 		}
 		if (s.kind == OperatingSystem::Shield)
 		{
@@ -700,11 +711,17 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 				if (!seen_magazines.insert(mag).second ||
 				    s.get<WeaponDefinition>().ammo_use > d.systems[d.system_ids.at(mag)].reserve().capacity)
 					fail(s.id + ": invalid magazine capacity/duplicate");
-				if (s.ammunition().projectile.visual.empty())
-					for (const auto &[resource, profile] :
-					     d.systems[d.system_ids.at(mag)].get<MagazineDefinition>().ammunition_profiles)
-						if (profile.projectile.visual.empty())
-							fail(s.id + ": missing ammunition projectile for " + resource);
+				for (const auto &mode : directed.at(s.id).modes)
+					if (mode.operation == DirectedOperationKind::Launch)
+					{
+						if (mode.ammo_use > d.systems[d.system_ids.at(mag)].reserve().capacity)
+							fail(s.id + ": mode ammunition use exceeds magazine capacity");
+						if (mode.ammunition.projectile.visual.empty())
+							for (const auto &[resource, profile] :
+							     d.systems[d.system_ids.at(mag)].get<MagazineDefinition>().ammunition_profiles)
+								if (profile.projectile.visual.empty())
+									fail(s.id + ": missing ammunition projectile for " + resource);
+					}
 			}
 			if (!s.get<WeaponDefinition>().turret.empty())
 				check(s.get<WeaponDefinition>().turret, OperatingSystem::Turret);

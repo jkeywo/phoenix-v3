@@ -290,6 +290,7 @@ add_library(
 	src/content/model.cpp
 	src/content/stations.cpp
 	src/content/combat.cpp
+	src/content/directed.cpp
 	src/content/conversations.cpp
 	src/content/bridge.cpp
 	src/content/factions.cpp
@@ -421,6 +422,7 @@ foreach(
 		gameplay_knowledge
 		processors
 		store_effects
+		directed
 		gameplay_flight
 		scenario_world
 		summary_bindings

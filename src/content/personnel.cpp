@@ -62,6 +62,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	const auto seats = resolve_consoles(catalog, entity);
 	const auto layout = compile_controllable_layout(catalog, entity);
 	const auto systems = resolve_systems(catalog, entity);
+	const auto directed = compile_directed(catalog, entity);
 	std::map<std::string, OperatingSystem> kinds;
 	for (const auto &system : systems)
 		kinds.emplace(system.id, system.kind);
@@ -212,7 +213,10 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				fail(role_properties.contains(key) && unique.insert(key).second, "unknown or duplicate target role");
 				for (const auto &property : role_properties.at(key))
 				{
-					fail(property_compatible(property, kinds.at(system)), "incompatible property target " + property);
+					fail(directed.contains(system)
+					         ? property_compatible(property, kinds.at(system), directed.at(system))
+					         : property_compatible(property, kinds.at(system)),
+					     "incompatible property target " + property);
 					if (property == "processing")
 						fail(processor_owners.contains(system), "processing effect requires a generic processor");
 				}

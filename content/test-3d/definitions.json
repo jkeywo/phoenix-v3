@@ -38,7 +38,15 @@
 					"turn_mdeg_s": 45000
 				},
 				"radar": {
-					"range_mm": 500000
+					"range_mm": 500000,
+					"directed": {
+						"modes": ["test3d.courier.radar.scan"],
+						"targeting": ["test3d.targeting.designated"]
+					},
+					"broad_capabilities": {
+						"basic_identity": 0,
+						"own_arcs": 0
+					}
 				}
 			},
 			"collision": {
@@ -1845,7 +1853,15 @@
 						"systems": {
 							"radar": {
 								"range_mm": 300000,
-								"observation_console": "tactical"
+								"observation_console": "tactical",
+								"directed": {
+									"modes": ["test3d.cruiser.tactical.scan"],
+									"targeting": ["test3d.targeting.designated"]
+								},
+								"broad_capabilities": {
+									"basic_identity": 0,
+									"own_arcs": 0
+								}
 							},
 							"cooling": {
 								"observation_console": "engineering"
@@ -14524,7 +14540,15 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"directed": {
+				"modes": ["test3d.equipment.radar.scan"],
+				"targeting": ["test3d.targeting.designated"]
+			},
+			"broad_capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
 		},
 		{
 			"id": "test3d.equipment.generator",
@@ -15517,6 +15541,47 @@
 				"coolant": 1
 			},
 			"effects": []
+		}
+	],
+	"effects": [
+		{
+			"id": "test3d.targeting.designated",
+			"kind": "targeting_policy",
+			"label": "Designated contact",
+			"policy": "designated"
+		},
+		{
+			"id": "test3d.equipment.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["test3d.targeting.designated"],
+			"range_mm": 650000,
+			"energy_per_second": 0,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
+		},
+		{
+			"id": "test3d.courier.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["test3d.targeting.designated"],
+			"range_mm": 500000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "test3d.cruiser.tactical.scan",
+			"extends": "test3d.equipment.radar.scan",
+			"kind": "directed_mode",
+			"range_mm": 300000,
+			"energy_per_second": 0
 		}
 	]
 }

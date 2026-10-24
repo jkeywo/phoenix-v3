@@ -30,6 +30,8 @@ import phoenix.gameplay_scenario;
 #include "ftl_state.hpp"
 #include "controllers.hpp"
 #include "combat.hpp"
+#include "directed_state.hpp"
+#include "payload_state.hpp"
 #include "logistics_state.hpp"
 #include "processors_state.hpp"
 #include "docking_state.hpp"
@@ -49,6 +51,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 }
 namespace phoenix
 {
+#include "payload_serialization.hpp"
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockConnection, parent, port, remote_port, phase, controller, progress,
                                    relative_heading, relative_z, relative, assisted, generation, generations,
                                    guidance_step, guidance_heading)
@@ -57,11 +60,12 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CraftState, home, target, bay, order, pending
                                    target_position, target_velocity, rendezvous_altitude, target_altitude,
                                    pending_position, pending_velocity, pending_altitude)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DestructionDefinition, visual, sound, chance, damage, radius,
-                                                shield_bypass, growth_ticks, fade_ticks, size, affects_missiles)
+                                                shield_bypass, growth_ticks, fade_ticks, size, affects_missiles,
+                                                payloads)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, speed, lifetime, penetration, damage,
                                                 deposition, spread, guidance, trail, shield_bypass, turn_rate,
                                                 seeker_range, arc_height, chaos, tracer, durability, radius, resistance,
-                                                blast_radius, fuse_radius, destruction)
+                                                blast_radius, fuse_radius, destruction, payloads)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, target, cooldown, shots, ready, selected_magazine, loaded_magazine,
                                    loading, unloading, mode, loaded_resource, loaded_quantity, beam_remainder,
@@ -165,6 +169,7 @@ struct CompiledDefinition
 	std::vector<std::string> tags;
 	std::map<std::string, std::vector<std::string>> radar_shows;
 	std::map<std::string, SensorDefinition> sensors;
+	std::map<std::string, DirectedDefinition> directed;
 	std::string sensor_class;
 	std::vector<std::string> sprite_entries;
 	std::uint32_t sprite_entry = 0;
@@ -558,8 +563,12 @@ struct World::Impl
 				modifier_templates.emplace(id, compile_modifier_effect(content, id));
 			else if (effect.at("kind") == "operations")
 				effect_groups.emplace(id, compile_effect_group(content, id));
-			else
+			else if (effect.at("kind") == "shield")
 				shield_templates.emplace(id, compile_shield_effect(content, id));
+			else if (effect.at("kind") == "payload")
+				payload_templates.emplace(id, compile_payload(content, id));
+			else if (effect.at("kind") == "periodic")
+				periodic_templates.emplace(id, compile_periodic_effect(content, id));
 		packs = content.ordered_packs;
 		camera_widgets.clear();
 		for (const auto &[name, layout] : content.consoles)
@@ -737,13 +746,13 @@ struct World::Impl
 			for (const auto &message : definition.value("message_templates", Json::array()))
 				result.message_templates.push_back(message);
 			result.sensors = compile_sensors(content, name);
+			result.directed = compile_directed(content, name);
 			result.sensor_class = definition.value("class_key", definition.value("name", std::string{"Unknown class"}));
 			result.tags = definition.value("tags", std::vector<std::string>{"contact"});
 			result.faction = definition.value("faction", std::string{});
-			for (const auto &spec : resolve_systems(content, name))
-				if (spec.kind == OperatingSystem::Radar)
-					result.radar_shows[spec.id] =
-					    definition.at("systems").at(spec.id).value("shows", std::vector<std::string>{"contact"});
+			for (const auto &[sensor_id, sensor] : result.sensors)
+				result.radar_shows[sensor_id] =
+				    definition.at("systems").at(sensor_id).value("shows", std::vector<std::string>{"contact"});
 			result.radar_icon = render_radar_icon(definition.at("render"));
 			result.radar_sprite = render_radar_sprite(definition.at("render"), content);
 			if (definition.at("render").contains("sprite"))
@@ -1008,6 +1017,14 @@ struct World::Impl
 			}
 			if (v.radar)
 				child.set<Radar>(*v.radar).set<SensorRuntime>({});
+			else if (data.sensors.contains(v.id))
+			{
+				std::int64_t range = 0;
+				for (const auto &mode : data.directed.at(v.id).modes)
+					if (mode.operation == DirectedOperationKind::Scan)
+						range = std::max(range, mode.range);
+				child.set<Radar>({range, v.enabled}).set<SensorRuntime>({});
+			}
 			if (!data.gameplay)
 			{
 				child.add<BasicEquipment>();
@@ -1046,6 +1063,7 @@ struct World::Impl
 			throw std::runtime_error("duplicate entity identity");
 		construction.registry = &entities;
 		construction.id = id;
+		initialize_directed(entity);
 		BridgeBlackboard board;
 		board.condition = data.bridge.initial;
 		for (const auto &[console, spec] : data.console_bridge)
@@ -1227,6 +1245,14 @@ struct World::Impl
 	}
 	bool operate(flecs::entity entity, const std::string &name, OperatingRequest output, bool execute)
 	{
+		if (output.action == OperatingAction::DirectedOperatingMode ||
+		    output.action == OperatingAction::DirectedTargetingMode || output.action == OperatingAction::DirectedTarget)
+			return output.arguments.empty() &&
+			       directed_setting(entity.get<StableId>().id, name,
+			                        output.action == OperatingAction::DirectedOperatingMode   ? "operating_mode"
+			                        : output.action == OperatingAction::DirectedTargetingMode ? "targeting_mode"
+			                                                                                  : "target",
+			                        output.value, execute);
 		if (output.action == OperatingAction::Altitude)
 		{
 			const auto equipment = instance(entity, name);
@@ -1424,6 +1450,13 @@ struct World::Impl
 			return 0;
 		auto range =
 		    outer ? std::max(sensor->radar->range, sensor_definition(ship, name).long_range) : sensor->radar->range;
+		if (sensor->kind == OperatingSystem::Weapon && directed_definition(ship, name))
+		{
+			const auto *mode = directed_mode(ship, name);
+			if (!mode || mode->operation != DirectedOperationKind::Scan)
+				return 0;
+			range = mode->range;
+		}
 		range = effective_property(entity, name, "sensors", range);
 		if (auto systems = gameplay_systems(entity); systems && systems->power)
 		{
@@ -1958,10 +1991,12 @@ struct World::Impl
 		}
 	}
 
+#include "directed.hpp"
 #include "combat_execution.hpp"
 #include "property_effects.hpp"
 #include "effect_application.hpp"
 #include "store_effects.hpp"
+#include "payload_effects.hpp"
 #include "processors.hpp"
 #include "shield_reactions.hpp"
 	void run_advanced_equipment()
@@ -1985,6 +2020,7 @@ struct World::Impl
 			prepare_processors(ship);
 			request_flight_resources(ship, restrictions);
 			request_combat_resources(ship);
+			request_directed_resources(ship);
 			request_psychic_resources(id);
 			if (!definition(id).ftl.empty())
 				prepare_ftl(ship);
@@ -1999,6 +2035,50 @@ struct World::Impl
 					    boarding_inhibited(id, child.get<Equipment>().id))
 						unavailable.push_back(child.get<ResourceBinding>().slot);
 				allocation.emplace(*power, unavailable);
+				// A launch is indivisible: its continuous and discrete costs must both
+				// qualify. Requote from the unchanged network after removing failed
+				// launch intents, so an abandoned shot spends neither energy nor heat.
+				// Every pass removes an intent; native budgets and ordering stay intact.
+				for (;;)
+				{
+					bool removed = false;
+					for (auto child : ship.get<EquipmentIndex>().values)
+					{
+						const auto &equipment = child.get<Equipment>();
+						if (!child.has<DirectedRuntime>() ||
+						    !directed_operation(id, equipment.id, DirectedOperationKind::Launch))
+							continue;
+						const auto slot = child.get<ResourceBinding>().slot;
+						const auto &grant = allocation->grants().at(slot);
+						if (power->requests.at(slot).discrete &&
+						    (grant.blocked || grant.supply_permille < 1000 ||
+						     (power->definition.systems.at(slot).discrete_energy && !grant.discrete_paid)))
+						{
+							child.get_mut<CombatMechanism>().get<WeaponState>().ready = false;
+							auto &state = child.get_mut<DirectedRuntime>();
+							state.ready = false;
+							state.blocker = "Insufficient operating power";
+							auto &request = power->requests.at(slot);
+							request.discrete = false;
+							request.discrete_amount = 0;
+							request.extra_rate -= directed_mode(id, equipment.id)->energy_per_second;
+							auto &operation = directed_operations.at({id, equipment.id});
+							if (operation.stock_claim)
+							{
+								const auto magazine = instance(ship, operation.magazine)->entity;
+								auto &stock =
+								    physical_stock(ship, magazine.get<CombatMechanism>().get<MagazineState>().stock);
+								stock.release_stock("directed-launch:" + equipment.id);
+								operation.stock_claim = false;
+							}
+							removed = true;
+						}
+					}
+					if (!removed)
+						break;
+					retry_blocked_processors(ship);
+					allocation.emplace(*power, unavailable);
+				}
 			}
 			prepare_paid_modifiers(ship, restrictions, allocation ? &*allocation : nullptr);
 			if (allocation)
@@ -2775,6 +2855,7 @@ void World::tick()
 	impl_->sync_docks();
 	impl_->resolve_collisions.run();
 	impl_->step_docking();
+	impl_->step_payload_effects();
 	impl_->step_shield_reactions();
 	impl_->step_ordnance();
 	impl_->resolve_destructions();
@@ -3244,6 +3325,38 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					                       : channel.maximum - channel.minimum;
 					const auto step = std::max<std::int64_t>(1, scale / 20);
 					std::set<std::int64_t> values;
+					if (channel.action == OperatingAction::DirectedOperatingMode ||
+					    channel.action == OperatingAction::DirectedTargetingMode)
+					{
+						if (channel.consumers.empty())
+							continue;
+						const auto child = entity.get<EquipmentIndex>().values.at(channel.consumers.front());
+						const auto projection = impl_->directed_projection(address.ship, child.get<Equipment>().id);
+						const auto key = channel.action == OperatingAction::DirectedOperatingMode ? "operating_modes"
+						                                                                          : "targeting_modes";
+						if (!projection.contains(key))
+							continue;
+						for (const auto &choice : projection.at(key))
+						{
+							if (!choice.at("compatible").get<bool>())
+								continue;
+							OperatingCommand command{address.ship,
+							                         std::string(operating_action(channel.action).name),
+							                         choice.at("value").get<std::int64_t>(),
+							                         {},
+							                         controller.definition.id,
+							                         channel.id,
+							                         controller.generation};
+							auto descriptor = encode_operating_command(command);
+							descriptor["id"] = "directed." + controller.definition.id + "." + channel.id + "." +
+							                   std::to_string(command.value);
+							descriptor["label"] = choice.at("label");
+							descriptor["label_prefix"] = controller.definition.id + ": ";
+							descriptor["selected"] = state.value == command.value;
+							buttons.push_back(std::move(descriptor));
+						}
+						continue;
+					}
 					if (channel.action == OperatingAction::MagazineSelect ||
 					    channel.action == OperatingAction::WeaponMode ||
 					    channel.action == OperatingAction::RepairSystem)
@@ -3289,11 +3402,13 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						continue;
 					}
 					if (channel.action == OperatingAction::WeaponTarget ||
+					    channel.action == OperatingAction::DirectedTarget ||
 					    channel.action == OperatingAction::SensorTarget ||
 					    channel.action == OperatingAction::RepairCompartment)
 					{
 						std::set<std::int64_t> choices{0};
 						if (channel.action == OperatingAction::WeaponTarget ||
+						    channel.action == OperatingAction::DirectedTarget ||
 						    channel.action == OperatingAction::SensorTarget)
 						{
 							for (const auto &contact : result.contacts)
@@ -3324,7 +3439,9 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 							    "combat." + controller.definition.id + "." + channel.id + "." + std::to_string(choice);
 							descriptor["label"] =
 							    choice ? controller.definition.id : "Cancel " + controller.definition.id;
-							descriptor["combat_choice"] = channel.action == OperatingAction::WeaponTarget   ? "weapon"
+							descriptor["combat_choice"] = (channel.action == OperatingAction::WeaponTarget ||
+							                               channel.action == OperatingAction::DirectedTarget)
+							                                  ? "weapon"
 							                              : channel.action == OperatingAction::SensorTarget ? "sensor"
 							                                                                                : "repair";
 							if (channel.action == OperatingAction::SensorTarget)
@@ -3839,9 +3956,10 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 23},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 24},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
+	result["payload_effects"] = impl_->save_payload_effects();
 	if (impl_->display_revision)
 	{
 		result["display_revision"] = impl_->display_revision;
@@ -3978,6 +4096,7 @@ Json World::save() const
 	result["craft"] = impl_->save_craft();
 	result["mission_ledger"] = impl_->mission_ledger;
 	result["sensors"] = impl_->save_sensors();
+	result["directed"] = impl_->save_directed();
 	result["psychic"] = impl_->save_psychic();
 	result["sensor_discoveries"] = impl_->sensor_discoveries;
 	result["conversation_starts"] = impl_->save_conversation_starts();
@@ -3993,8 +4112,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 23)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 23 required)");
+	if (saved.at("schema") != 24)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 24 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4038,6 +4157,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->captured_by = saved.value("captured_by", std::map<EntityId, EntityId>{});
 	if (!saved.at("bodies").is_array() || saved.at("bodies").size() != candidate.impl_->entities.size())
 		throw std::runtime_error("Saved state entity roster mismatch");
+	candidate.impl_->prepare_restore_directed(saved.at("directed"));
 	std::set<EntityId> seen;
 	for (const auto &value : saved.at("bodies"))
 	{
@@ -4361,11 +4481,13 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		}
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
+	candidate.impl_->restore_directed(saved.at("directed"));
 	candidate.impl_->sensor_discoveries =
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
 	candidate.impl_->restore_shield_reactions(saved.at("shield_reactions"));
+	candidate.impl_->restore_payload_effects(saved.at("payload_effects"));
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});
 	for (const auto &[id, report] : departure_reports)

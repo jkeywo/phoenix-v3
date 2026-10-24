@@ -26,7 +26,29 @@ std::int64_t load_duration(flecs::entity ship, const CombatMechanism &m, std::in
 	if (m.definition.get<WeaponDefinition>().magazines.empty())
 		return 0;
 	const auto &ammunition = weapon_ammunition(ship, m, magazine);
-	return ammunition.load_ticks ? ammunition.load_ticks : m.definition.ammunition().load_ticks;
+	if (ammunition.load_ticks)
+		return ammunition.load_ticks;
+	const auto child = instance(ship, m.definition.id)->entity;
+	if (const auto *state = child.try_get<DirectedRuntime>())
+	{
+		const auto &selected = m.get<WeaponState>();
+		const auto &mode_id = selected.loaded_magazine >= 0 && (magazine < 0 || magazine == selected.loaded_magazine)
+		                          ? state->loaded_mode
+		                          : state->loading_mode;
+		if (!mode_id.empty())
+		{
+			const auto &modes = directed_definition(ship.get<StableId>().id, m.definition.id)->modes;
+			const auto mode = std::find_if(modes.begin(), modes.end(),
+			                               [&](const auto &v)
+			                               {
+				                               return v.id == mode_id;
+			                               });
+			if (mode == modes.end() || mode->operation != DirectedOperationKind::Launch)
+				throw std::runtime_error("Invalid committed loading mode");
+			return mode->ammunition.load_ticks;
+		}
+	}
+	return m.definition.ammunition().load_ticks;
 }
 const ProjectileDefinition &weapon_payload(flecs::entity ship, const CombatMechanism &m) const
 {
@@ -38,64 +60,30 @@ const ProjectileDefinition &weapon_payload(flecs::entity ship, const CombatMecha
 	}
 	return m.definition.ammunition().projectile;
 }
-struct WeaponAim
-{
-	BodyView body;
-	std::int64_t altitude = 0, vz = 0;
-	std::optional<std::int64_t> bearing;
-};
-using ConsoleContacts = std::map<ConsoleAddress, Observation>;
-const Observation &console_detection(const ConsoleAddress &owner, ConsoleContacts &cache) const
-{
-	if (!cache.contains(owner))
-		cache.emplace(owner, capture_sensor_observation(owner));
-	return cache.at(owner);
-}
-const std::vector<BodyView> &console_contacts(const ConsoleAddress &owner, ConsoleContacts &cache) const
-{
-	return console_detection(owner, cache).contacts;
-}
+using WeaponAim = DirectedAim;
 std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanism &m, ConsoleContacts &cache) const
 {
-	const auto &contacts = console_contacts(system_owner(ship.get<StableId>().id, m.definition.id), cache);
-	const auto wanted = m.definition.get<WeaponDefinition>().point_defence && m.get<WeaponState>().mode == 1
-	                        ? 7000000000000000ULL + m.get<WeaponState>().intercept
-	                        : m.target();
-	if (!wanted)
+	const auto id = ship.get<StableId>().id;
+	const bool intercept = directed_targeting(id, m.definition.id) == DirectedTargetingKind::Intercept;
+	const auto wanted = intercept ? 7000000000000000ULL + m.get<WeaponState>().intercept : m.target();
+	if (intercept && !m.get<WeaponState>().intercept)
 		return {};
-	for (const auto &contact : contacts)
-		if (contact.id == wanted)
-		{
-			WeaponAim aim{contact, contact.altitude, contact.vz};
-			if (m.get<WeaponState>().intercept && m.get<WeaponState>().mode == 1)
-				for (auto missile : projectile_rows())
-				{
-					const auto &p = missile.get<Projectile>();
-					if (ship.has<CraftState>() && entities.contains(p.source) &&
-					    factions.relationship(ship.get<FactionMembership>().id,
-					                          entities.at(p.source).get<FactionMembership>().id) != "hostile")
-						continue;
-					if (p.id == m.get<WeaponState>().intercept && missile.get<Destructible>().durability > 0)
-					{
-						aim.altitude = p.altitude;
-						aim.vz = p.vz;
-						return aim;
-					}
-				}
-			else
-				return aim;
-		}
-	if (!(m.get<WeaponState>().intercept && m.get<WeaponState>().mode == 1))
-		for (const auto &b :
-		     console_detection(system_owner(ship.get<StableId>().id, m.definition.id), cache).bearing_contacts)
-			if (b.id == wanted)
-			{
-				WeaponAim aim{};
-				aim.body.id = b.id;
-				aim.bearing = b.bearing_mdeg;
-				aim.altitude = altitude(ship.get<StableId>().id);
-				return aim;
-			}
+	auto aim = directed_contact(id, m.definition.id, wanted, cache, !intercept);
+	if (!aim || !intercept)
+		return aim;
+	for (auto missile : projectile_rows())
+	{
+		const auto &p = missile.get<Projectile>();
+		if (p.id != m.get<WeaponState>().intercept || missile.get<Destructible>().durability <= 0)
+			continue;
+		if (ship.has<CraftState>() && entities.contains(p.source) &&
+		    factions.relationship(ship.get<FactionMembership>().id,
+		                          entities.at(p.source).get<FactionMembership>().id) != "hostile")
+			continue;
+		aim->altitude = p.altitude;
+		aim->vz = p.vz;
+		return aim;
+	}
 	return {};
 }
 std::pair<fixed::Vec, std::int64_t> weapon_mount(flecs::entity ship, const CombatMechanism &m) const
@@ -176,6 +164,7 @@ std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinit
 }
 void prepare_weapons(flecs::entity ship)
 {
+	release_directed_operations(ship);
 	ConsoleContacts contacts_by_console;
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
@@ -186,10 +175,16 @@ void prepare_weapons(flecs::entity ship)
 			if (m->get<WeaponState>().cooldown > 0)
 				--m->get<WeaponState>().cooldown;
 			const auto &d = m->definition;
+			if (child.has<DirectedRuntime>())
+			{
+				auto &directed = child.get_mut<DirectedRuntime>();
+				directed.ready = false;
+				directed.blocker = "Target or operation not ready";
+			}
 			if (d.kind != OperatingSystem::Weapon || !child.get<Equipment>().enabled ||
 			    structurally_disabled(ship, d.id))
 				continue;
-			if (d.get<WeaponDefinition>().point_defence && m->get<WeaponState>().mode == 1)
+			if (directed_targeting(id, d.id) == DirectedTargetingKind::Intercept)
 				m->get<WeaponState>().intercept = point_defence_target(
 				    ship, d, console_contacts(system_owner(id, m->definition.id), contacts_by_console));
 			if (m->get<WeaponState>().unloading)
@@ -204,9 +199,12 @@ void prepare_weapons(flecs::entity ship)
 					m->get<WeaponState>().loaded_resource.clear();
 					m->get<WeaponState>().loaded_quantity = 0;
 					m->get<WeaponState>().loaded_magazine = -1;
+					child.get_mut<DirectedRuntime>().loaded_mode.clear();
 				}
 				continue;
 			}
+			if (!directed_operation(id, d.id, DirectedOperationKind::Launch))
+				continue;
 			if (load_duration(ship, *m) && m->get<WeaponState>().loaded_magazine < 0 &&
 			    !d.get<WeaponDefinition>().magazines.empty())
 			{
@@ -215,13 +213,21 @@ void prepare_weapons(flecs::entity ship)
 				        ->entity;
 				auto &a = mag.get_mut<CombatMechanism>();
 				auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
+				auto quantity = d.get<WeaponDefinition>().ammo_use;
+				const auto &loading_mode = child.get<DirectedRuntime>().loading_mode;
+				if (!loading_mode.empty())
+					for (const auto &mode : directed_definition(id, d.id)->modes)
+						if (mode.id == loading_mode)
+							quantity = mode.ammo_use;
 				if (mag.get<Equipment>().enabled && !structurally_disabled(ship, a.definition.id) &&
-				    stock.available(stock.selected()) >= d.get<WeaponDefinition>().ammo_use &&
-				    ++m->get<WeaponState>().loading >= load_duration(ship, *m))
+				    stock.available(stock.selected()) >= quantity)
 				{
+					if (!m->get<WeaponState>().loading)
+						child.get_mut<DirectedRuntime>().loading_mode = directed_mode(id, d.id)->id;
+					if (++m->get<WeaponState>().loading < load_duration(ship, *m))
+						continue;
 					StockTransaction transaction;
 					const auto resource = stock.selected();
-					const auto quantity = d.get<WeaponDefinition>().ammo_use;
 					if (!transaction.consume(stock, resource, quantity) ||
 					    !transaction.reserve_capacity(stock, "weapon:" + d.id, resource, quantity) ||
 					    !transaction.commit())
@@ -230,6 +236,10 @@ void prepare_weapons(flecs::entity ship)
 					m->get<WeaponState>().loaded_quantity = quantity;
 					m->get<WeaponState>().loaded_magazine = m->get<WeaponState>().selected_magazine;
 					m->get<WeaponState>().loading = 0;
+					child.get_mut<DirectedRuntime>().loaded_mode = child.get<DirectedRuntime>().loading_mode;
+					child.get_mut<DirectedRuntime>().loading_mode.clear();
+					if (quantity != d.get<WeaponDefinition>().ammo_use)
+						m->get<WeaponState>().unloading = std::max<std::int64_t>(1, load_duration(ship, *m));
 				}
 			}
 		}
@@ -249,9 +259,10 @@ void prepare_weapons(flecs::entity ship)
 					if (!w || w->definition.kind != OperatingSystem::Weapon ||
 					    w->definition.get<WeaponDefinition>().turret != d.id || !candidate.get<Equipment>().enabled ||
 					    structurally_disabled(ship, w->definition.id) ||
-					    (w->definition.get<WeaponDefinition>().point_defence && !w->get<WeaponState>().mode))
+					    directed_operation(id, w->definition.id, DirectedOperationKind::Scan) ||
+					    directed_targeting(id, w->definition.id) == DirectedTargetingKind::Off)
 						continue;
-					if ((w->definition.get<WeaponDefinition>().point_defence && w->get<WeaponState>().mode == 1) !=
+					if ((directed_targeting(id, w->definition.id) == DirectedTargetingKind::Intercept) !=
 					    (priority == 1))
 						continue;
 					if (auto found = weapon_contact(ship, *w, contacts_by_console))
@@ -261,7 +272,8 @@ void prepare_weapons(flecs::entity ship)
 						break;
 					}
 				}
-			const auto scanner_aim = sensor_aim(id, d.id, contacts_by_console);
+			const auto scanner_aim = weapon ? std::optional<std::pair<fixed::Vec, std::int64_t>>{}
+			                                : sensor_aim(id, d.id, contacts_by_console);
 			if (!weapon && !scanner_aim)
 				continue;
 			const auto origin = combat_world({d.x, d.y}, pose);
@@ -286,14 +298,15 @@ void prepare_weapons(flecs::entity ship)
 			                       std::clamp(combat_delta(desired, m->get<TurretState>().heading), -step, step))
 			        : combat_angle(d.bearing + current + std::clamp(offset - current, -step, step));
 		}
-	std::map<std::string, std::int64_t> reserved;
+	std::size_t planned_projectiles = projectile_rows().size();
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
 		{
 			const auto &d = m->definition;
 			if (m->get<WeaponState>().cooldown || !child.get<Equipment>().enabled ||
 			    effective_property(ship, d.id, "cycling", 1000) == 0 || structurally_disabled(ship, d.id) ||
-			    (d.get<WeaponDefinition>().point_defence && !m->get<WeaponState>().mode))
+			    directed_operation(id, d.id, DirectedOperationKind::Scan) ||
+			    directed_targeting(id, d.id) == DirectedTargetingKind::Off)
 				continue;
 			const auto target = weapon_contact(ship, *m, contacts_by_console);
 			if (!target)
@@ -306,14 +319,31 @@ void prepare_weapons(flecs::entity ship)
 				continue;
 			if (m->get<WeaponState>().unloading)
 				continue;
+			PreparedDirectedOperation prepared;
+			prepared.aim = *target;
+			prepared.origin = origin;
+			prepared.bearing = combat_bearing(lead - origin);
 			if (d.get<WeaponDefinition>().family != "beam")
 			{
+				if (planned_projectiles >= 8192)
+					continue;
 				const auto &name = d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine);
 				const auto mag = instance(ship, name)->entity;
 				const auto &a = mag.get<CombatMechanism>();
 				if (!mag.get<Equipment>().enabled || structurally_disabled(ship, name))
 					continue;
-				if (load_duration(ship, *m))
+				prepared.magazine = name;
+				auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
+				prepared.loaded = load_duration(ship, *m) != 0;
+				prepared.resource = prepared.loaded ? m->get<WeaponState>().loaded_resource : stock.selected();
+				prepared.ammunition = weapon_ammunition(ship, *m);
+				const auto interval =
+				    prepared.ammunition.interval ? prepared.ammunition.interval : d.ammunition().interval;
+				prepared.cycle_ticks =
+				    std::max<std::int64_t>(1, interval * 1000 / effective_property(ship, d.id, "cycling", 1000));
+				prepared.projectile = weapon_payload(ship, *m);
+				prepared.payloads = capture_directed_payloads(ship, *m, prepared.resource);
+				if (prepared.loaded)
 				{
 					if (m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine ||
 					    m->get<WeaponState>().unloading)
@@ -321,19 +351,23 @@ void prepare_weapons(flecs::entity ship)
 				}
 				else
 				{
-					const auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
-					if (stock.available(stock.selected()) - reserved[name] < d.get<WeaponDefinition>().ammo_use)
+					if (!stock.claim_stock("directed-launch:" + d.id, prepared.resource,
+					                       d.get<WeaponDefinition>().ammo_use))
 						continue;
-					reserved[name] += d.get<WeaponDefinition>().ammo_use;
+					prepared.stock_claim = true;
 				}
+				++planned_projectiles;
 			}
+			directed_operations.emplace(std::pair{id, d.id}, std::move(prepared));
 			m->get<WeaponState>().ready = true;
+			if (child.has<DirectedRuntime>())
+				child.get_mut<DirectedRuntime>().ready = true;
 		}
 }
 void fire_weapons(flecs::entity ship)
 {
-	// Resource allocation may have changed sensing since prepare_weapons.
-	ConsoleContacts contacts_by_console;
+	// Funding cannot retract the permitted aim used to prepare this operation.
+	// Stock claims keep processors from consuming its ammunition before commit.
 	const auto id = ship.get<StableId>().id;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>();
@@ -342,84 +376,83 @@ void fire_weapons(flecs::entity ship)
 			const auto &d = m->definition;
 			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
 				continue;
-			if (const auto *power = ship.try_get<ShipResources>())
-			{
-				const auto slot = child.get<ResourceBinding>().slot;
-				const auto &g = power->grants[slot];
-				if (g.blocked || g.supply_permille < 1000 ||
-				    (power->definition.systems[slot].discrete_energy && !g.discrete_paid))
-					continue;
-			}
-			const auto target = weapon_contact(ship, *m, contacts_by_console);
-			if (!target)
+			const auto at = directed_operations.find({id, d.id});
+			if (at == directed_operations.end())
 				continue;
-			const auto [origin, orientation] = weapon_mount(ship, *m);
-			if (orientation < 0)
-				continue;
-			const auto lead = weapon_lead(ship, *m, *target, origin);
-			if (!weapon_covers(ship, *m, *target, origin, orientation, lead))
-				continue;
-			auto bearing = combat_bearing(lead - origin);
-			if (d.get<WeaponDefinition>().family == "beam")
-			{
-				record_interdiction_attack(id, m->target());
-				fire_beam(ship, child, origin, bearing);
-				continue;
-			}
-			auto &a = instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
-			              ->entity.get_mut<CombatMechanism>();
-			auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
-			const auto ammunition = weapon_ammunition(ship, *m);
-			auto payload = weapon_payload(ship, *m);
-			if (load_duration(ship, *m))
-			{
-				if (m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine ||
-				    !stock.release_capacity("weapon:" + d.id))
-					continue;
-				m->get<WeaponState>().loaded_magazine = -1;
-				m->get<WeaponState>().loaded_resource.clear();
-				m->get<WeaponState>().loaded_quantity = 0;
-			}
-			else if (!stock.consume(stock.selected(), d.get<WeaponDefinition>().ammo_use))
-				continue;
-			const auto interval = ammunition.interval ? ammunition.interval : d.ammunition().interval;
-			m->get<WeaponState>().cooldown =
-			    std::max<std::int64_t>(1, interval * 1000 / effective_property(ship, d.id, "cycling", 1000));
-			++m->get<WeaponState>().shots;
-			record_interdiction_attack(ship.get<StableId>().id, m->target());
-			psychic_weapon_emission(ship.get<StableId>().id);
-			auto &s = ship.get_mut<CombatStructure>();
-			s.random = s.random * 6364136223846793005ULL + 1;
-			if (payload.spread)
-				bearing = combat_angle(
-				    bearing + static_cast<std::int64_t>((s.random >> 16) % (payload.spread * 2 + 1)) - payload.spread);
-			if (projectile_rows().size() >= 8192)
-				throw std::runtime_error("Combat projectile capacity exceeded");
-			Projectile p;
-			p.definition = payload;
-			p.id = next_projectile++;
-			p.source = id;
-			p.weapon = d.id;
-			p.target = m->target();
-			p.position = origin;
-			p.altitude = altitude(id);
-			p.launch_altitude = p.altitude;
-			p.heading = bearing;
-			p.base_heading = bearing;
-			p.velocity = fixed::scale(fixed::direction(bearing), payload.speed) + ship.get<Motion>().velocity;
-			p.life = payload.lifetime;
-			p.penetration = payload.penetration;
-			p.damage = payload.damage;
-			p.random = s.random;
-			p.bearing_launch = target->bearing.has_value();
-			p.seeker_altitude = p.launch_altitude;
-			p.initial_distance =
-			    target->bearing
-			        ? d.get<WeaponDefinition>().range
-			        : std::max<std::int64_t>(1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));
-			p.vz = (target->altitude - p.altitude +
-			        target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
-			       payload.speed / p.initial_distance;
-			ecs.entity().set<Projectile>(p).set<Destructible>({payload.destruction, payload.durability});
+			auto &prepared = at->second;
+			const auto *target = &prepared.aim;
+			const auto origin = prepared.origin;
+			auto bearing = prepared.bearing;
+			const auto operation = directed_mode(id, d.id)->operation;
+			execute_directed(
+			    ship, child, operation, m->get<WeaponState>().ready,
+			    [&]()
+			    {
+				    if (operation == DirectedOperationKind::Beam)
+				    {
+					    record_interdiction_attack(id, m->target());
+					    fire_beam(ship, child, origin, bearing);
+					    return true;
+				    }
+				    auto &a =
+				        instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
+				            ->entity.get_mut<CombatMechanism>();
+				    auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
+				    const auto &payload = prepared.projectile;
+				    if (projectile_rows().size() >= 8192)
+					    return false;
+				    if (prepared.loaded)
+				    {
+					    if (m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine ||
+					        !stock.release_capacity("weapon:" + d.id))
+						    return false;
+					    m->get<WeaponState>().loaded_magazine = -1;
+					    m->get<WeaponState>().loaded_resource.clear();
+					    m->get<WeaponState>().loaded_quantity = 0;
+					    child.get_mut<DirectedRuntime>().loaded_mode.clear();
+				    }
+				    else if (!stock.consume_claim("directed-launch:" + d.id))
+					    return false;
+				    prepared.stock_claim = false;
+				    m->get<WeaponState>().cooldown = prepared.cycle_ticks;
+				    ++m->get<WeaponState>().shots;
+				    record_interdiction_attack(ship.get<StableId>().id, m->target());
+				    psychic_weapon_emission(ship.get<StableId>().id);
+				    auto &s = ship.get_mut<CombatStructure>();
+				    s.random = s.random * 6364136223846793005ULL + 1;
+				    if (payload.spread)
+					    bearing = combat_angle(bearing +
+					                           static_cast<std::int64_t>((s.random >> 16) % (payload.spread * 2 + 1)) -
+					                           payload.spread);
+				    Projectile p;
+				    p.definition = payload;
+				    p.payloads = std::move(prepared.payloads);
+				    p.id = next_projectile++;
+				    p.source = id;
+				    p.weapon = d.id;
+				    p.target = m->target();
+				    p.position = origin;
+				    p.altitude = altitude(id);
+				    p.launch_altitude = p.altitude;
+				    p.heading = bearing;
+				    p.base_heading = bearing;
+				    p.velocity = fixed::scale(fixed::direction(bearing), payload.speed) + ship.get<Motion>().velocity;
+				    p.life = payload.lifetime;
+				    p.penetration = payload.penetration;
+				    p.damage = payload.damage;
+				    p.random = s.random;
+				    p.bearing_launch = target->bearing.has_value();
+				    p.seeker_altitude = p.launch_altitude;
+				    p.initial_distance =
+				        target->bearing ? d.get<WeaponDefinition>().range
+				                        : std::max<std::int64_t>(
+				                              1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));
+				    p.vz = (target->altitude - p.altitude +
+				            target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
+				           payload.speed / p.initial_distance;
+				    ecs.entity().set<Projectile>(p).set<Destructible>({payload.destruction, payload.durability});
+				    return true;
+			    });
 		}
+	release_directed_operations(ship);
 }

@@ -56,11 +56,50 @@ WorkshopTestRequest operation(WorkshopTestAction action)
 	request.action = action;
 	return request;
 }
+void directed_template_roundtrip()
+{
+	auto source = phoenix::test::controller_session_fixture();
+	source["effects"] = Json::parse(R"json([
+	 {"id":"test.designated","kind":"targeting_policy","label":"Designated contact","policy":"designated"},
+	 {"id":"test.scan-base","kind":"directed_mode","label":"Focused scan","operation":"scan",
+	  "targeting":["test.designated"],"range_mm":40000,"capabilities":{"basic_identity":7}},
+	 {"id":"test.scan-detail","extends":"test.scan-base","label":"Detailed scan","capabilities":{"shield_sectors":11}},
+	 {"id":"test.damage","kind":"operations","operations":[{"kind":"damage","target":"protected","damage":2}]},
+	 {"id":"test.burning","kind":"periodic","duration_ticks":20,"period_ticks":5,"effect":"test.damage"},
+	 {"id":"test.ignite","kind":"operations","operations":[{"kind":"apply","target":"protected","effect":"test.burning","grant":"burning"}]},
+	 {"id":"test.payload","kind":"payload","bindings":[{"id":"penetration","outcome":"compartment","positive_damage":true,"effect":"test.ignite"}]}
+	])json");
+	source["entities"][0]["systems"]["scanner"] = {
+	    {"kind", "radar"},
+	    {"range_mm", 40000},
+	    {"directed", {{"modes", {"test.scan-base", "test.scan-detail"}}, {"targeting", {"test.designated"}}}}};
+	WorkshopDocument document;
+	document.load_pack(phoenix::test::archive(source));
+	require(document.definitions().at("entities")[0].at("control_layout").at("controllers")[0] ==
+	            source.at("entities")[0].at("control_layout").at("controllers")[0],
+	        "Workshop retains authored Controller fallback instead of orphaned generated policy references");
+	const auto preview = document.preview_definition(WorkshopDefinitionKind::Effect, "test.scan-detail");
+	require(preview.at("operation") == "scan" && preview.at("targeting")[0] == "test.designated",
+	        "Workshop resolves inherited directed operation and target policy references");
+	const auto verified = document.verify();
+	const auto closure = scenario_definitions(verified, "test.map");
+	for (const auto *id : {"test.scan-base", "test.scan-detail", "test.designated"})
+		require(std::find(closure.begin(), closure.end(), id) != closure.end(),
+		        "scenario dependency closure retains shared directed mode and target policy templates");
+	WorkshopDocument reopened;
+	reopened.load_pack(document.export_pack());
+	const auto result = reopened.verify();
+	require(compile_directed(result, "test.controllable").at("scanner").modes.size() == 2 &&
+	            compile_payload(result, "test.payload").bindings.size() == 1 &&
+	            compile_periodic_effect(result, "test.burning").period_ticks == 5,
+	        "Workshop export and reopen preserve directed, payload and periodic catalogue contracts");
+}
 } // namespace
 int main()
 {
 	try
 	{
+		directed_template_roundtrip();
 		const auto snapshot = fixture();
 		GameplayTestHost first, second;
 		require(first.submit(snapshot),

@@ -121,6 +121,7 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 	const auto &entity = catalog.entities.at(entity_id);
 	const auto path = "entities." + entity_id;
 	const auto fitted = resolve_systems(catalog, entity_id);
+	const auto directed = compile_directed(catalog, entity_id);
 	const auto consoles = resolve_consoles(catalog, entity_id);
 	std::map<std::string, const FittedSystemSpec *> systems;
 	std::map<std::string, const ConsoleSpec *> console_ids;
@@ -216,6 +217,15 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 		    kind == "engine" || kind == "steering" || kind == "lateral" || kind == "boost" || kind == "impulse";
 		ResourceAmount operating = fitting_amount(spec, "energy_per_second", at),
 		               discrete = fitting_amount(spec, "discrete_energy", at), thermal = 0;
+		if (directed.contains(system.id))
+			for (const auto &mode : directed.at(system.id).modes)
+			{
+				operating =
+				    std::max(operating, mode.energy_per_second + (system.kind == OperatingSystem::Radar
+				                                                      ? fitting_amount(spec, "energy_per_second", at)
+				                                                      : 0));
+				discrete = std::max(discrete, mode.discrete_energy);
+			}
 		if (flight && advanced)
 		{
 			auto definition = spec;

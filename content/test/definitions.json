@@ -297,7 +297,15 @@
 					"turn_mdeg_s": 45000
 				},
 				"radar": {
-					"range_mm": 500000
+					"range_mm": 500000,
+					"directed": {
+						"modes": ["test.courier.radar.scan"],
+						"targeting": ["test.targeting.designated"]
+					},
+					"broad_capabilities": {
+						"basic_identity": 0,
+						"own_arcs": 0
+					}
 				}
 			},
 			"collision": {
@@ -2059,7 +2067,15 @@
 						"systems": {
 							"radar": {
 								"range_mm": 300000,
-								"observation_console": "tactical"
+								"observation_console": "tactical",
+								"directed": {
+									"modes": ["test.cruiser.tactical.scan"],
+									"targeting": ["test.targeting.designated"]
+								},
+								"broad_capabilities": {
+									"basic_identity": 0,
+									"own_arcs": 0
+								}
 							},
 							"cooling": {
 								"observation_console": "engineering"
@@ -6868,10 +6884,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -7082,10 +7102,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -7113,12 +7137,13 @@
 				"weapon": {
 					"kind": "weapon",
 					"magazine": "intercept-mag",
-					"range_mm": 150000,
-					"fire_ticks": 4,
 					"compartment": "hull",
-					"point_defence": true,
 					"power_store": "cell",
-					"auto_energy_per_second": 10
+					"directed": {
+						"modes": ["test.carrier.interceptor.weapon.launch"],
+						"targeting": ["test.targeting.off", "test.targeting.intercept", "test.targeting.designated"],
+						"initial_targeting": "test.targeting.intercept"
+					}
 				}
 			},
 			"resources": {
@@ -7323,10 +7348,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -7354,9 +7383,11 @@
 				"weapon": {
 					"kind": "weapon",
 					"magazine": "bomb-mag",
-					"range_mm": 150000,
-					"fire_ticks": 15,
-					"compartment": "hull"
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.bomber.weapon.launch"],
+						"targeting": ["test.targeting.designated"]
+					}
 				}
 			},
 			"resources": {
@@ -7555,10 +7586,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -8169,10 +8204,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -8357,10 +8396,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -8388,9 +8431,11 @@
 				"weapon": {
 					"kind": "weapon",
 					"magazine": "bomb-mag",
-					"fire_ticks": 80,
-					"range_mm": 300000,
-					"compartment": "hull"
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.raider.weapon.launch"],
+						"targeting": ["test.targeting.designated"]
+					}
 				}
 			},
 			"resources": {
@@ -8519,10 +8564,14 @@
 					"kind": "radar",
 					"range_mm": 600000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["test.carrier.shuttle.radar.scan"],
+						"targeting": ["test.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -19631,7 +19680,15 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"directed": {
+				"modes": ["test.equipment.radar.scan"],
+				"targeting": ["test.targeting.designated"]
+			},
+			"broad_capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
 		},
 		{
 			"id": "test.equipment.generator",
@@ -20616,6 +20673,97 @@
 					"delta_permille": 100
 				}
 			}
+		},
+		{
+			"id": "test.targeting.off",
+			"kind": "targeting_policy",
+			"label": "Off",
+			"policy": "off"
+		},
+		{
+			"id": "test.targeting.intercept",
+			"kind": "targeting_policy",
+			"label": "Automatic interception",
+			"policy": "intercept"
+		},
+		{
+			"id": "test.targeting.designated",
+			"kind": "targeting_policy",
+			"label": "Designated contact",
+			"policy": "designated"
+		},
+		{
+			"id": "test.equipment.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["test.targeting.designated"],
+			"range_mm": 650000,
+			"energy_per_second": 0,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
+		},
+		{
+			"id": "test.courier.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["test.targeting.designated"],
+			"range_mm": 500000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "test.carrier.shuttle.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["test.targeting.designated"],
+			"range_mm": 600000,
+			"capabilities": {
+				"basic_identity": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "test.carrier.interceptor.weapon.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["test.targeting.off", "test.targeting.intercept", "test.targeting.designated"],
+			"fire_ticks": 4,
+			"range_mm": 150000,
+			"auto_energy_per_second": 10
+		},
+		{
+			"id": "test.carrier.bomber.weapon.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["test.targeting.designated"],
+			"fire_ticks": 15,
+			"range_mm": 150000
+		},
+		{
+			"id": "test.carrier.raider.weapon.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["test.targeting.designated"],
+			"fire_ticks": 80,
+			"range_mm": 300000
+		},
+		{
+			"id": "test.cruiser.tactical.scan",
+			"extends": "test.equipment.radar.scan",
+			"kind": "directed_mode",
+			"range_mm": 300000,
+			"energy_per_second": 0
 		}
 	],
 	"resources": [

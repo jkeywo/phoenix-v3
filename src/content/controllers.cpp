@@ -39,6 +39,10 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	                    kind == OperatingSystem::Impulse;
 	switch (action)
 	{
+	case OperatingAction::DirectedOperatingMode:
+	case OperatingAction::DirectedTargetingMode:
+	case OperatingAction::DirectedTarget:
+		return spec.contains("directed");
 	case OperatingAction::Altitude:
 		return kind == OperatingSystem::Engine;
 	case OperatingAction::SensorTarget:
@@ -109,6 +113,17 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		result[action] = {contract.minimum, contract.maximum};
 	};
 	const auto kind = fit.kind;
+	if (spec.contains("directed"))
+	{
+		const auto &directed = spec.at("directed");
+		add(OperatingAction::DirectedTarget);
+		if (directed.contains("modes") && !directed.at("modes").empty())
+			result[OperatingAction::DirectedOperatingMode] = {
+			    0, static_cast<std::int64_t>(directed.at("modes").size() - 1)};
+		if (directed.contains("targeting") && !directed.at("targeting").empty())
+			result[OperatingAction::DirectedTargetingMode] = {
+			    0, static_cast<std::int64_t>(directed.at("targeting").size() - 1)};
+	}
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
 	    kind == OperatingSystem::Team || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
 	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch || kind == OperatingSystem::Ftl ||
@@ -229,6 +244,10 @@ OperatingAction input_key(OperatingAction action)
 {
 	if (action == OperatingAction::EngineEnabled || action == OperatingAction::RadarEnabled)
 		return OperatingAction::SystemEnabled;
+	if (action == OperatingAction::WeaponTarget || action == OperatingAction::SensorTarget)
+		return OperatingAction::DirectedTarget;
+	if (action == OperatingAction::WeaponMode)
+		return OperatingAction::DirectedTargetingMode;
 	return action;
 }
 ControllerCommandSpec command_spec(const FittedSystemSpec &fit, const OperatingActionSpec &action, std::size_t index)
@@ -278,6 +297,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					controller.tree = entity.at("controller").get<std::string>();
 				for (const auto &action : operating_actions)
 					if (accepts(fit, entity.at("systems").at(fit.id), action.action) &&
+					    !(entity.at("systems").at(fit.id).contains("directed") &&
+					      (action.action == OperatingAction::WeaponTarget ||
+					       action.action == OperatingAction::SensorTarget ||
+					       action.action == OperatingAction::WeaponMode)) &&
 					    action.action != OperatingAction::SystemEnabled)
 						controller.commands.push_back(command_spec(fit, action, i));
 				if (std::none_of(controller.commands.begin(), controller.commands.end(),
@@ -441,12 +464,31 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			        field.at("consumers").size() <= 256 &&
 			        (intent ? field.at("consumers").empty() : !field.at("consumers").empty()),
 			    where, "intent channels require no physical consumers; actuator channels require physical consumers");
+			std::optional<std::int64_t> directed_initial;
 			for (const auto &consumer : field.at("consumers"))
 			{
 				control_require(consumer.is_string() && system_ids.contains(consumer.get<std::string>()), where,
 				                "unknown physical consumer");
 				const auto index = system_ids.at(consumer.get<std::string>());
 				control_require(capabilities[index].contains(command.action), where, "incompatible physical input");
+				if (!field.contains("initial") && (command.action == OperatingAction::DirectedOperatingMode ||
+				                                   command.action == OperatingAction::DirectedTargetingMode))
+				{
+					const auto &directed = entity.at("systems").at(consumer.get<std::string>()).at("directed");
+					const bool operation = command.action == OperatingAction::DirectedOperatingMode;
+					const auto &choices = directed.at(operation ? "modes" : "targeting");
+					control_require(choices.is_array() && !choices.empty(), where, "directed setting requires choices");
+					const auto selected =
+					    directed.value(operation ? "initial_mode" : "initial_targeting", choices.front());
+					const auto position = std::find(choices.begin(), choices.end(), selected);
+					control_require(position != choices.end(), where, "unknown initial directed selection");
+					const auto value = static_cast<std::int64_t>(position - choices.begin());
+					control_require(
+					    !directed_initial || *directed_initial == value, where,
+					    "grouped directed settings require matching initial selections or explicit initial");
+					directed_initial = value;
+					command.initial = value;
+				}
 				control_require(inputs.emplace(index, input_key(command.action)).second, where,
 				                "physical input has multiple command sources");
 				const auto [low, high] = capabilities[index].at(command.action);
@@ -473,10 +515,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			command.label_key = field.value("label_key", std::string{});
 			if (field.contains("shared_target") || field.contains("shared_command"))
 			{
-				control_require(
-				    command.semantics == CommandSemantics::Setting &&
-				        (!field.contains("shared_target") || command.action == OperatingAction::WeaponTarget),
-				    where, "shared commands require settings; shared targets require weapon targeting");
+				control_require(command.semantics == CommandSemantics::Setting &&
+				                    (!field.contains("shared_target") ||
+				                     input_key(command.action) == OperatingAction::DirectedTarget),
+				                where, "shared commands require settings; shared targets require directed targeting");
 				const auto &shared = field.at(field.contains("shared_target") ? "shared_target" : "shared_command");
 				command.shared_target_controller = control_name(shared, "controller", where);
 				command.shared_target_channel = control_name(shared, "channel", where);
@@ -614,11 +656,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				for (const auto &source : result.controllers)
 					if (source.console == controller.console && source.id == command.shared_target_controller)
 						for (const auto &channel : source.commands)
-							valid |=
-							    channel.id == command.shared_target_channel &&
-							    channel.shared_target_controller.empty() &&
-							    (channel.action == command.action || (command.action == OperatingAction::WeaponTarget &&
-							                                          channel.action == OperatingAction::SensorTarget));
+							valid |= channel.id == command.shared_target_channel &&
+							         channel.shared_target_controller.empty() &&
+							         (channel.action == command.action ||
+							          (input_key(channel.action) == OperatingAction::DirectedTarget &&
+							           input_key(command.action) == OperatingAction::DirectedTarget));
 				control_require(valid, path,
 				                "shared target must name an independent target channel on the same Console");
 			}
@@ -774,6 +816,7 @@ Catalog convert_controller_content(const Catalog &source)
 		const auto systems = resolve_systems(source, id);
 		const auto seats = resolve_consoles(source, id);
 		const auto resources = compile_ship_resources(source, id);
+		const auto directed = compile_directed(source, id);
 		const bool advanced = uses_advanced_machinery(source, id);
 		for (const auto &preset : entity.value("presets", Json::array()))
 			for (const auto &console : preset.at("consoles"))
@@ -801,11 +844,22 @@ Catalog convert_controller_content(const Catalog &source)
 				const auto &fit = systems.at(i);
 				const auto &spec = entity.at("systems").at(fit.id);
 				const auto capabilities = fitted_commands(fit, spec, resources ? &*resources : nullptr, i, advanced);
+				std::set<OperatingAction> emitted_inputs;
 				for (const auto &[action, bounds] : capabilities)
 				{
+					// New directed capabilities expose canonical commands. Legacy
+					// aliases remain supported only when explicitly authored.
+					if (spec.contains("directed") &&
+					    (action == OperatingAction::WeaponTarget || action == OperatingAction::SensorTarget ||
+					     action == OperatingAction::WeaponMode))
+						continue;
 					if (action == OperatingAction::SystemEnabled &&
 					    (capabilities.contains(OperatingAction::EngineEnabled) ||
 					     capabilities.contains(OperatingAction::RadarEnabled)))
+						continue;
+					// Compatibility aliases advertise the same physical input. A
+					// generated layout needs one owner, just like an authored layout.
+					if (!emitted_inputs.insert(input_key(action)).second)
 						continue;
 					const auto name = std::string(operating_action(action).name);
 					Json command{{"id", consumers.size() == 1 ? name : fit.id + "." + name},
@@ -816,6 +870,21 @@ Catalog convert_controller_content(const Catalog &source)
 					if (action == OperatingAction::Impulse)
 						command["semantics"] = "request";
 					std::int64_t initial = 0;
+					if (const auto capability = directed.find(fit.id); capability != directed.end())
+					{
+						const auto &definition = capability->second;
+						if (action == OperatingAction::DirectedOperatingMode)
+							initial = static_cast<std::int64_t>(definition.initial_mode);
+						if (action == OperatingAction::DirectedTargetingMode)
+							initial = static_cast<std::int64_t>(definition.initial_targeting);
+						if (action == OperatingAction::WeaponMode)
+						{
+							const auto policy = definition.targeting.at(definition.initial_targeting).kind;
+							initial = policy == DirectedTargetingKind::Off         ? 0
+							          : policy == DirectedTargetingKind::Intercept ? 1
+							                                                       : 2;
+						}
+					}
 					if (action == OperatingAction::Assisted)
 						initial = 1;
 					if (action == OperatingAction::SystemEnabled || action == OperatingAction::EngineEnabled ||

@@ -227,8 +227,12 @@ int main(int argc, char **argv)
 		legacy.erase("sensors");
 		legacy.erase("sensor_discoveries");
 		World old;
-		old.restore(catalog, legacy);
-		require(samples(old).empty(), "older saves start without scans");
+		rejects(
+		    [&]
+		    {
+			    old.restore(catalog, legacy);
+		    },
+		    "A directed continuation cannot discard its selected scanner's acquisition state");
 		auto hidden = fixture();
 		hidden["entities"][0]["systems"]["radar"]["capabilities"] = Json::object();
 		World unidentified;

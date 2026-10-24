@@ -474,6 +474,7 @@ struct GameplayEditor
 	}
 	void destruction_fields(Json &d)
 	{
+		strings(d, "payloads");
 		optional_string(d, "visual");
 		optional_string(d, "sound");
 		integer(d, "chance_permille", 1000);
@@ -487,6 +488,7 @@ struct GameplayEditor
 	}
 	void projectile_fields(Json &p)
 	{
+		strings(p, "payloads");
 		string(p, "visual");
 		for (const auto *key : {"speed_mm_s", "lifetime_ticks", "penetration", "damage", "damage_per_m", "spread_mdeg",
 		                        "shield_bypass_permille", "durability", "arc_height_mm", "chaos_mdeg",
@@ -511,10 +513,14 @@ struct GameplayEditor
 	}
 	void system_details(Json &spec, const std::string &fallback_kind = "engine")
 	{
+		const auto kind = spec.value("kind", fallback_kind);
 		for (const char *key : {"power_store", "generator", "power_group", "conduit", "cooling_link", "coolant_source"})
 			optional_string(spec, key);
-		integer(spec, "energy_per_second");
-		integer(spec, "discrete_energy");
+		if (kind != "weapon")
+		{
+			integer(spec, "energy_per_second");
+			integer(spec, "discrete_energy");
+		}
 		boolean(spec, "powerless_start");
 		records(spec, "reporters", {{"id", "reporter"}, {"field", "heat"}, {"above", 0}, {"message", ""}},
 		        [&](Json &report)
@@ -529,7 +535,25 @@ struct GameplayEditor
 			        integer(report, "minimum_gap_ticks");
 			        text("Physical reporters emit measured facts under both human and AI operation.");
 		        });
-		const auto kind = spec.value("kind", fallback_kind);
+		if (kind == "weapon" || kind == "radar")
+		{
+			if (spec.contains("directed"))
+			{
+				ScopedId scope("directed-capability");
+				heading("Directed capability");
+				auto &directed = spec["directed"];
+				strings(directed, "modes");
+				strings(directed, "targeting");
+				optional_string(directed, "initial_mode");
+				optional_string(directed, "initial_targeting");
+				text("One operating mode and one targeting policy are selected independently. Concurrent operations "
+				     "use separate capabilities and mounts.");
+				if (button("Remove directed capability"))
+					spec.erase("directed");
+			}
+			else if (button("Add directed capability"))
+				spec["directed"] = {{"modes", Json::array()}, {"targeting", Json::array()}};
+		}
 		if (kind == "ftl")
 		{
 			boolean(spec, "enabled");
@@ -616,28 +640,12 @@ struct GameplayEditor
 		        });
 		if (kind == "weapon")
 		{
-			choice(spec, "family", {"projectile", "beam"});
 			optional_string(spec, "magazine");
 			strings(spec, "magazines");
 			optional_string(spec, "turret");
 			optional_string(spec, "muzzle_marker");
-			integer(spec, "fire_ticks", 20);
-			integer(spec, "ammo_use", 1);
-			integer(spec, "load_ticks");
-			integer(spec, "range_mm", 1000000);
-			integer(spec, "damage_per_second", 1);
-			boolean(spec, "point_defence");
-			integer(spec, "auto_energy_per_second");
 			strings(spec, "intercept_classes");
-			if (spec.contains("projectile"))
-			{
-				ScopedId scope("weapon-projectile");
-				projectile_fields(spec["projectile"]);
-				if (button("Remove weapon projectile"))
-					spec.erase("projectile");
-			}
-			else if (button("Add weapon projectile"))
-				spec["projectile"] = Json::object();
+			text("Weapon timing, costs, range and payloads are authored on its directed operating modes.");
 		}
 		if (kind == "shield")
 		{
@@ -716,7 +724,7 @@ struct GameplayEditor
 			integer(spec, "arc_mdeg", 360000);
 			integer(spec, "bearing_mdeg");
 			optional_string(spec, "turret");
-			scalar_map(spec, "capabilities");
+			text("Focused acquisition capabilities are authored on the directed scan mode.");
 			strings(spec, "shows");
 		}
 		if (kind == "engine")
@@ -2790,88 +2798,145 @@ struct GameplayEditor
 				        string(processor, "equipment");
 				        processor_fields(processor);
 			        });
-		records(defs, "effects",
-		        {{"id", "shield-effect"}, {"kind", "shield"}, {"contributions", {{"main", {{"capacity", 100}}}}}},
-		        [&](Json &effect)
-		        {
-			        string(effect, "id");
-			        choice(effect, "kind", {"shield", "modifier", "operations"}, true);
-			        choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
-			        auto kind = effect.value("kind", std::string{});
-			        if (kind.empty() && effect.contains("extends"))
-			        {
-				        try
-				        {
-					        kind = document
-					                   .preview_definition(WorkshopDefinitionKind::Effect,
-					                                       effect.at("extends").get<std::string>())
-					                   .value("kind", std::string{});
-				        }
-				        catch (const std::exception &)
-				        {
-				        }
-			        }
-			        if (kind == "operations")
-			        {
-				        effect.erase("contributions");
-				        effect.erase("duration_ticks");
-				        effect_operations_fields(effect, document);
-				        return;
-			        }
-			        effect.erase("operations");
-			        effect.erase("payer");
-			        effect.erase("energy");
-			        const bool modifier = kind == "modifier";
-			        integer(effect, "duration_ticks");
-			        if (button("Add contribution"))
-			        {
-				        auto &contributions = effect["contributions"];
-				        if (!contributions.is_object())
-					        contributions = Json::object();
-				        std::string name = "arc";
-				        unsigned index = 1;
-				        while (contributions.contains(name))
-					        name = "arc" + std::to_string(index++);
-				        contributions[name] = modifier ? Json{{"property", "recharge"}, {"delta_permille", 100}}
-				                                       : Json{{"capacity", 100}};
-			        }
-			        std::string remove;
-			        if (effect.contains("contributions") && effect.at("contributions").is_object())
-				        for (auto &[name, arc] : effect["contributions"].items())
-				        {
-					        ScopedId scope(name.c_str());
-					        heading(name.c_str());
-					        if (modifier)
-					        {
-						        std::vector<std::string> properties;
-						        for (const auto &property : modifier_properties())
-							        properties.push_back(property.id);
-						        choice(arc, "property", properties);
-						        optional_string(arc, "role");
-						        integer(arc, "delta_permille");
-						        if (button("Remove contribution"))
-							        remove = name;
-						        continue;
-					        }
-					        for (const char *key : {"capacity", "initial", "bearing_mdeg", "arc_mdeg", "layer",
-					                                "sustain_energy_per_second", "energy_per_strength",
-					                                "recharge_per_second", "off_recharge_per_second", "warmup_ticks",
-					                                "discharge_per_second", "discharge_efficiency_permille"})
-						        integer(arc, key);
-					        integer(arc, "pre_damage_permille", 1000);
-					        integer(arc, "post_damage");
-					        scalar_map(arc, "modifiers");
-					        records(arc, "reactions", {{"energy", 0}, {"operations", Json::array()}},
-					                [&](Json &reaction)
-					                {
-						                effect_operations_fields(reaction, document);
-					                });
-					        if (button("Remove contribution"))
-						        remove = name;
-				        }
-			        if (!remove.empty())
-				        effect["contributions"].erase(remove);
-		        });
+		records(
+		    defs, "effects", {{"id", "effect"}},
+		    [&](Json &effect)
+		    {
+			    string(effect, "id");
+			    choice(effect, "kind",
+			           {"shield", "modifier", "operations", "directed_mode", "targeting_policy", "payload", "periodic"},
+			           true);
+			    choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
+			    text("Changing template kind preserves authored fields. Verification reports fields incompatible with "
+			         "the selected kind.");
+			    auto kind = effect.value("kind", std::string{});
+			    if (kind.empty() && effect.contains("extends"))
+			    {
+				    try
+				    {
+					    kind = document
+					               .preview_definition(WorkshopDefinitionKind::Effect,
+					                                   effect.at("extends").get<std::string>())
+					               .value("kind", std::string{});
+				    }
+				    catch (const std::exception &)
+				    {
+				    }
+			    }
+			    if (kind == "targeting_policy")
+			    {
+				    string(effect, "label");
+				    choice(effect, "policy", {"designated", "intercept", "off"});
+				    return;
+			    }
+			    if (kind == "directed_mode")
+			    {
+				    string(effect, "label");
+				    choice(effect, "operation", {"launch", "beam", "scan"});
+				    names(effect, "targeting", document.definition_choices(WorkshopDefinitionKind::Effect));
+				    names(effect, "payloads", document.definition_choices(WorkshopDefinitionKind::Effect));
+				    boolean(effect, "resource_payloads", true);
+				    integer(effect, "range_mm", 1000000);
+				    integer(effect, "ammo_use", 1);
+				    integer(effect, "fire_ticks", 20);
+				    integer(effect, "penetration", 1000);
+				    integer(effect, "damage_per_m", 1000000);
+				    for (const auto *field : {"energy_per_second", "discrete_energy", "auto_energy_per_second",
+				                              "damage_per_second", "load_ticks", "shield_bypass_permille"})
+					    integer(effect, field);
+				    if (effect.value("operation", std::string{}) == "scan")
+					    scalar_map(effect, "capabilities");
+				    if (effect.contains("projectile"))
+				    {
+					    projectile_fields(effect["projectile"]);
+					    if (button("Remove mode projectile"))
+						    effect.erase("projectile");
+				    }
+				    else if (button("Add mode projectile"))
+					    effect["projectile"] = Json::object();
+				    return;
+			    }
+			    if (kind == "payload")
+			    {
+				    records(effect, "bindings",
+				            {{"id", "hit"}, {"outcome", "compartment"}, {"positive_damage", true}, {"effect", ""}},
+				            [&](Json &binding)
+				            {
+					            string(binding, "id");
+					            choice(binding, "outcome", {"shield", "compartment", "system", "entity"});
+					            boolean(binding, "positive_damage", true);
+					            choice(binding, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
+				            });
+				    return;
+			    }
+			    if (kind == "periodic")
+			    {
+				    integer(effect, "duration_ticks", 100);
+				    integer(effect, "period_ticks", 20);
+				    choice(effect, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
+				    return;
+			    }
+			    if (kind == "operations")
+			    {
+				    effect.erase("contributions");
+				    effect.erase("duration_ticks");
+				    effect_operations_fields(effect, document);
+				    return;
+			    }
+			    effect.erase("operations");
+			    effect.erase("payer");
+			    effect.erase("energy");
+			    const bool modifier = kind == "modifier";
+			    integer(effect, "duration_ticks");
+			    if (button("Add contribution"))
+			    {
+				    auto &contributions = effect["contributions"];
+				    if (!contributions.is_object())
+					    contributions = Json::object();
+				    std::string name = "arc";
+				    unsigned index = 1;
+				    while (contributions.contains(name))
+					    name = "arc" + std::to_string(index++);
+				    contributions[name] =
+				        modifier ? Json{{"property", "recharge"}, {"delta_permille", 100}} : Json{{"capacity", 100}};
+			    }
+			    std::string remove;
+			    if (effect.contains("contributions") && effect.at("contributions").is_object())
+				    for (auto &[name, arc] : effect["contributions"].items())
+				    {
+					    ScopedId scope(name.c_str());
+					    heading(name.c_str());
+					    if (modifier)
+					    {
+						    std::vector<std::string> properties;
+						    for (const auto &property : modifier_properties())
+							    properties.push_back(property.id);
+						    choice(arc, "property", properties);
+						    optional_string(arc, "role");
+						    integer(arc, "delta_permille");
+						    if (button("Remove contribution"))
+							    remove = name;
+						    continue;
+					    }
+					    for (const char *key :
+					         {"capacity", "initial", "bearing_mdeg", "arc_mdeg", "layer", "sustain_energy_per_second",
+					          "energy_per_strength", "recharge_per_second", "off_recharge_per_second", "warmup_ticks",
+					          "discharge_per_second", "discharge_efficiency_permille"})
+						    integer(arc, key);
+					    integer(arc, "pre_damage_permille", 1000);
+					    integer(arc, "post_damage");
+					    scalar_map(arc, "modifiers");
+					    records(arc, "reactions", {{"energy", 0}, {"operations", Json::array()}},
+					            [&](Json &reaction)
+					            {
+						            effect_operations_fields(reaction, document);
+					            });
+					    if (button("Remove contribution"))
+						    remove = name;
+				    }
+			    if (!remove.empty())
+				    effect["contributions"].erase(remove);
+		    });
 		records(defs, "equipment",
 		        {{"id", "equipment"}, {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}},
 		        [&](Json &equipment)

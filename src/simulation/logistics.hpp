@@ -68,7 +68,11 @@ bool select_physical_resource(flecs::entity ship, const std::string &key, const 
 			                                  ->entity.get<CombatMechanism>()
 			                                  .get<MagazineState>()
 			                                  .stock == key)
+			{
 				state.loading = 0;
+				if (child.has<DirectedRuntime>())
+					child.get_mut<DirectedRuntime>().loading_mode.clear();
+			}
 		}
 	return true;
 }

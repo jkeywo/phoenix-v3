@@ -21,6 +21,8 @@ struct SensorRuntime
 	EntityId target = 0;
 	std::map<EntityId, SensorTrack> tracks;
 	std::optional<BearingContactView> last_bearing;
+	// Acquisition belongs to its authored mode; published evidence stays on tracks.
+	std::map<std::string, std::map<EntityId, std::map<std::string, SensorSample>>> acquisitions;
 };
 
 } // namespace phoenix

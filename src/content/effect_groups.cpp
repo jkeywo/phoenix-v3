@@ -61,9 +61,25 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 				fields.insert("grant");
 				fields.insert("equipment");
 				op.kind = kind == "apply" ? ShieldReactionKind::Apply : ShieldReactionKind::Remove;
+				if (kind == "remove")
+				{
+					fields.insert("all_sources");
+					op.all_sources = value.value("all_sources", false);
+					if (op.all_sources)
+					{
+						fields.insert("effect");
+						op.effect = value.value("effect", std::string{});
+						if (!catalog.effects.contains(op.effect) ||
+						    catalog.effects.at(op.effect).value("kind", std::string{}) != "periodic")
+							fail("all_sources removal requires a periodic effect definition");
+					}
+				}
 				op.grant = value.value("grant", std::string{});
 				op.equipment = value.value("equipment", std::string{});
-				if (!valid_identifier(op.grant) || (!op.equipment.empty() && !valid_identifier(op.equipment)))
+				if (op.all_sources && !op.equipment.empty())
+					fail("all_sources removal targets the entity, not equipment");
+				if ((!op.all_sources && !valid_identifier(op.grant)) ||
+				    (!op.equipment.empty() && op.equipment != "$hit" && !valid_identifier(op.equipment)))
 					fail("invalid grant or equipment binding");
 				if (kind == "apply")
 				{
@@ -72,10 +88,10 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 					if (!catalog.effects.contains(op.effect))
 						fail("unknown effect " + op.effect);
 					const auto effect_kind = catalog.effects.at(op.effect).value("kind", std::string{});
-					if (effect_kind != "shield" && effect_kind != "modifier")
+					if (effect_kind != "shield" && effect_kind != "modifier" && effect_kind != "periodic")
 						fail("nested operation groups are unsupported");
 					if ((effect_kind == "modifier") != !op.equipment.empty())
-						fail("modifier needs equipment; shield omits it");
+						fail("modifier needs equipment; shield and periodic omit it");
 				}
 			}
 			else

@@ -137,6 +137,14 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	result.gameplay["docking"] = docking_board(address);
 	const auto evidence = sensor_evidence(address);
 	result.gameplay["sensors"] = sensor_projection(address, evidence);
+	result.gameplay["directed"] = Json::array();
+	for (const auto &id : seat.feed_systems)
+		if (directed_definition(address.ship, id))
+		{
+			auto row = directed_projection(address.ship, id);
+			row["id"] = id;
+			result.gameplay["directed"].push_back(std::move(row));
+		}
 	result.engine_enabled = false;
 	result.radar_enabled = false;
 	for (const auto &id : seat.feed_systems)

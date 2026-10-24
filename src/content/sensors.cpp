@@ -22,8 +22,15 @@ std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, 
 {
 	std::map<std::string, SensorDefinition> out;
 	const auto &hull = catalog.entities.at(entity);
+	const auto directed = compile_directed(catalog, entity);
 	for (const auto &fit : resolve_systems(catalog, entity))
-		if (fit.kind == OperatingSystem::Radar)
+		if (fit.kind == OperatingSystem::Radar ||
+		    (directed.contains(fit.id) &&
+		     std::any_of(directed.at(fit.id).modes.begin(), directed.at(fit.id).modes.end(),
+		                 [](const auto &m)
+		                 {
+			                 return m.operation == DirectedOperationKind::Scan;
+		                 })))
 		{
 			const auto &j = hull.at("systems").at(fit.id);
 			SensorDefinition d;
@@ -39,28 +46,36 @@ std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, 
 			d.turret = j.value("turret", std::string{});
 			sensor_require(d.arc > 0 && d.arc <= 360000 && d.bearing >= 0 && d.bearing < 360000,
 			               "invalid sensor coverage");
-			const auto caps = j.value("capabilities", Json{{"basic_identity", 0}, {"own_arcs", 0}});
-			sensor_require(caps.is_object() && caps.size() <= 6, "invalid capabilities");
-			for (const auto &[key, value] : caps.items())
+			const auto passive = j.value("broad_capabilities", Json::object());
+			sensor_require(passive.is_object() && passive.size() <= sensor_capabilities.size(),
+			               "invalid broad capabilities");
+			sensor_require(passive.empty() || fit.kind == OperatingSystem::Radar,
+			               "broad capabilities require native radar");
+			for (const auto &[key, value] : passive.items())
 			{
-				sensor_require(sensor_capabilities.contains(key) && value.is_number_integer(),
-				               "unknown capability or noninteger exposure");
-				auto ticks = value.get<std::int64_t>();
-				sensor_require(ticks >= 0 && ticks <= 1728000, "invalid exposure ticks");
-				d.capabilities.emplace(key, ticks);
+				sensor_require(sensor_capabilities.contains(key) && value.is_number_integer() && value == 0,
+				               "broad capabilities must be known instantaneous acquisition types");
+				d.passive_capabilities[key] = 0;
 			}
+			if (directed.contains(fit.id))
+				for (const auto &mode : directed.at(fit.id).modes)
+					if (mode.operation == DirectedOperationKind::Scan)
+						for (const auto &[key, ticks] : mode.capabilities)
+						{
+							const auto found = d.capabilities.find(key);
+							if (found == d.capabilities.end() || ticks < found->second)
+								d.capabilities[key] = ticks;
+						}
+			if (!directed.contains(fit.id) && !j.contains("broad_capabilities"))
+				d.passive_capabilities = {{"basic_identity", 0}, {"own_arcs", 0}};
+			for (const auto &[key, ticks] : d.passive_capabilities)
+				d.capabilities[key] = ticks;
 			if (!d.turret.empty())
 			{
 				sensor_require(hull.at("systems").contains(d.turret) &&
 				                   hull.at("systems").at(d.turret).value("kind", d.turret) == "turret",
 				               "unknown sensor turret");
 				sensor_require(d.arc < 360000, "turret scanner must be directional");
-				for (const auto &[key, system] : hull.at("systems").items())
-					if (system.value("kind", key) == "weapon")
-						sensor_require(system.value("turret", std::string{}) != d.turret,
-						               "scanner turret cannot share weapon targeting");
-				for (const auto &[key, other] : out)
-					sensor_require(other.turret != d.turret, "sensor turrets require one targeting owner");
 			}
 			out.emplace(fit.id, std::move(d));
 		}

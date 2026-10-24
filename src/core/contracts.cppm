@@ -63,7 +63,10 @@ enum class OperatingAction
 	RepairSystem,
 	ShieldDischarge,
 	SensorTarget,
-	Altitude
+	Altitude,
+	DirectedOperatingMode,
+	DirectedTargetingMode,
+	DirectedTarget
 };
 enum class OperatingSystem
 {
@@ -172,7 +175,13 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::Team, false, 256},
     OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1},
     OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 2000000000},
-    OperatingActionSpec{OperatingAction::Altitude, "altitude_mm", OperatingSystem::Engine, false, 1000000, -1000000}};
+    OperatingActionSpec{OperatingAction::Altitude, "altitude_mm", OperatingSystem::Engine, false, 1000000, -1000000},
+    OperatingActionSpec{OperatingAction::DirectedOperatingMode, "directed_operating_mode", OperatingSystem::Weapon,
+                        false, 255},
+    OperatingActionSpec{OperatingAction::DirectedTargetingMode, "directed_targeting_mode", OperatingSystem::Weapon,
+                        false, 255},
+    OperatingActionSpec{OperatingAction::DirectedTarget, "directed_target", OperatingSystem::Weapon, false,
+                        2000000000}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)

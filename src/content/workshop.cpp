@@ -343,6 +343,17 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	if (resolved.presentation)
 		throw std::runtime_error("Console assets are not an editable gameplay pack");
 	auto definitions = parse_json(loaded.files().at("definitions.json"), "definitions.json");
+	// Resolved Controllers can refer to generated officer/combat programs. Keep
+	// their authored layouts so export regenerates those programs on the next
+	// load instead of serialising references to programs absent from the draft.
+	DefinitionTable authored_entities;
+	for (const auto &pack : order)
+	{
+		const auto source = parse_json(pack.files().at("definitions.json"), "definitions.json");
+		for (const auto &entity : source.value("entities", Json::array()))
+			authored_entities[entity.at("id").get<std::string>()] = entity;
+	}
+	inherit_definitions(authored_entities, "entities");
 	for (auto kind : {"entities", "maps", "consoles", "trees", "layouts", "ui_groups", "themes"})
 		if (!definitions.contains(kind))
 			definitions[kind] = Json::array();
@@ -352,6 +363,12 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 			value = table.at(value.at("id").template get<std::string>());
 	};
 	flatten("entities", resolved.entities);
+	for (auto &entity : definitions["entities"])
+	{
+		const auto &authored = authored_entities.at(entity.at("id").get<std::string>());
+		if (authored.contains("control_layout"))
+			entity["control_layout"] = authored.at("control_layout");
+	}
 	for (auto &entity : definitions["entities"])
 		if (entity.contains("_equipment_source"))
 		{

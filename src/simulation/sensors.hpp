@@ -5,6 +5,27 @@ const SensorDefinition &sensor_definition(EntityId ship, const std::string &id) 
 {
 	return definition(ship).sensors.at(id);
 }
+SensorDefinition sensor_acquisition_definition(EntityId ship, const std::string &id) const
+{
+	auto result = sensor_definition(ship, id);
+	if (const auto *mode = directed_mode(ship, id); mode && mode->operation == DirectedOperationKind::Scan)
+		result.capabilities = mode->capabilities;
+	return result;
+}
+bool directed_scan_covers(EntityId ship, const std::string &id, const BodyView &body) const
+{
+	const auto *mode = directed_mode(ship, id);
+	if (!mode || mode->operation != DirectedOperationKind::Scan)
+		return false;
+	const auto &d = sensor_definition(ship, id);
+	const auto origin = sensor_origin(ship, d);
+	const auto range = effective_property(entities.at(ship), id, "sensors", mode->range);
+	const auto delta = fixed::Vec{body.x, body.y} - origin;
+	const auto z = body.altitude - altitude(ship);
+	return fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z)) <= range &&
+	       scenario_sensor_visible(regions, {origin.x, origin.y}, {body.x, body.y}, range) &&
+	       (d.arc == 360000 || std::abs(combat_delta(combat_bearing(delta), sensor_heading(ship, d))) <= d.arc / 2);
+}
 std::int64_t sensor_heading(EntityId ship, const SensorDefinition &d) const
 {
 	auto heading = entities.at(ship).get<Pose>().heading + d.bearing;
@@ -76,35 +97,7 @@ bool sensor_powered(EntityId ship, const std::string &id) const
 }
 bool sensor_target(EntityId ship, const std::string &id, std::int64_t value, bool execute)
 {
-	if (value < 0 || static_cast<EntityId>(value) == ship || !definition(ship).sensors.contains(id))
-		return false;
-	auto &state = instance(entities.at(ship), id)->entity.get_mut<SensorRuntime>();
-	if (value)
-	{
-		const auto owner = system_owner(ship, id);
-		const auto detected = capture_sensor_observation(owner);
-		const auto &contacts = detected.contacts;
-		if (!state.tracks.contains(value) &&
-		    !(state.last_bearing && state.last_bearing->id == static_cast<EntityId>(value)) &&
-		    std::none_of(detected.bearing_contacts.begin(), detected.bearing_contacts.end(),
-		                 [&](const auto &b)
-		                 {
-			                 return b.id == static_cast<EntityId>(value);
-		                 }) &&
-		    std::none_of(contacts.begin(), contacts.end(),
-		                 [&](const auto &c)
-		                 {
-			                 return c.id == static_cast<EntityId>(value);
-		                 }))
-			return false;
-	}
-	if (execute)
-	{
-		if (!value || state.target != static_cast<EntityId>(value))
-			state.last_bearing.reset();
-		state.target = value;
-	}
-	return true;
+	return directed_setting(ship, id, "target", value, execute);
 }
 bool finding_available(const SensorFinding &f) const
 {
@@ -194,13 +187,21 @@ struct SensorContactInput
 	BodyView body;
 	bool apparent = false;
 	SensorContact detection = SensorContact::Position;
+	bool focused_only = false;
 };
 template <typename Visitor>
-void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bool include_outer = false) const
+void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bool include_outer = false,
+                         bool focused = false) const
 {
 	const auto &shows = definition(ship).radar_shows.at(id);
 	const auto origin = sensor_origin(ship, sensor_definition(ship, id));
-	const auto range = sensor_range(ship, id, include_outer);
+	auto range = sensor_range(ship, id, include_outer);
+	const auto child = instance(entities.at(ship), id)->entity;
+	const auto *mode = directed_mode(ship, id);
+	const bool acquiring = focused && mode && directed_enabled(entities.at(ship), child, DirectedOperationKind::Scan);
+	const auto focused_range = acquiring ? effective_property(entities.at(ship), id, "sensors", mode->range) : 0;
+	if (acquiring)
+		range = std::max(range, focused_range);
 	if (!range)
 		return;
 	const auto accept = [&](const BodyView &body, const auto &tags, bool apparent)
@@ -213,12 +214,15 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 			return;
 		const auto delta = fixed::Vec{body.x, body.y} - entities.at(ship).get<Pose>().position;
 		const auto z = body.altitude - altitude(ship);
-		const auto detection = sensor_contact(ship, id, {body.x, body.y},
-		                                      fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z)),
-		                                      include_outer, apparent ? 1000 : 1000 - concealment(body.id));
-		if (detection == SensorContact::None)
+		const auto distance = fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z));
+		const auto visibility = apparent ? 1000 : 1000 - concealment(body.id);
+		const auto detection = sensor_contact(ship, id, {body.x, body.y}, distance, include_outer, visibility);
+		const bool focused_only = detection == SensorContact::None && acquiring &&
+		                          body.id == child.get<DirectedRuntime>().target &&
+		                          distance <= focused_range * visibility / 1000 && directed_scan_covers(ship, id, body);
+		if (detection == SensorContact::None && !focused_only)
 			return;
-		visit(SensorContactInput{body, apparent, detection});
+		visit(SensorContactInput{body, apparent, focused_only ? SensorContact::Position : detection, focused_only});
 	};
 	contact_index.each(Bounds::around(origin, range),
 	                   [&](std::size_t row)
@@ -326,10 +330,19 @@ void advance_sensors(bool acquire_timed = true)
 	{
 		const auto ship = child.parent().get<StableId>().id;
 		const auto &id = child.get<Equipment>().id;
-		const auto &d = sensor_definition(ship, id);
+		const auto d = sensor_acquisition_definition(ship, id);
 		auto &state = child.get_mut<SensorRuntime>();
+		if (child.has<DirectedRuntime>() && directed_operation(ship, id, DirectedOperationKind::Scan))
+		{
+			child.get_mut<DirectedRuntime>().ready = false;
+			child.get_mut<DirectedRuntime>().blocker = "Target outside scanner coverage";
+		}
 		if (!sensor_powered(ship, id))
+		{
+			if (child.has<DirectedRuntime>() && directed_operation(ship, id, DirectedOperationKind::Scan))
+				child.get_mut<DirectedRuntime>().blocker = "Scanner unavailable or unpowered";
 			continue;
+		}
 		for_sensor_contacts(
 		    ship, id,
 		    [&](const SensorContactInput &input)
@@ -347,75 +360,102 @@ void advance_sensors(bool acquire_timed = true)
 			    track.heading = body.heading;
 			    track.altitude = body.altitude;
 			    track.seen = tick;
-			    for (const auto &[cap, duration] : d.capabilities)
+			    const auto acquire = [&](bool timed)
 			    {
-				    if ((input.apparent && cap != "basic_identity") || cap == "own_arcs" || cap == "findings" ||
-				        (duration > 0 && (!acquire_timed || state.target != target)))
-					    continue;
-				    auto &sample = track.samples[cap];
-				    sample.required = duration;
-				    sample.exposure = std::min(duration, sample.exposure + 1);
-				    if (sample.exposure < duration)
-					    continue;
-				    const auto data = input.apparent ? Json{{"class", body.definition},
-				                                            {"faction", ""},
-				                                            {"faction_label", body.faction_label},
-				                                            {"disposition", body.disposition}}
-				                                     : sensor_data(ship, target, cap);
-				    const bool changed = sample.data != data;
-				    sample.data = data;
-				    sample.observed = tick;
-				    if (changed || tick % 20 == 0)
-					    publish_sensor(ship, id, target, cap, data, tick);
-			    }
-			    bool finding_changed = false;
-			    if (input.apparent && acquire_timed && state.target == target)
-			    {
-				    auto &g = ghost_receptions.at(target);
-				    const auto duration = ghost_scan_duration(g, d);
-				    if (duration >= 0)
+				    const auto &capabilities =
+				        timed ? d.capabilities : sensor_definition(ship, id).passive_capabilities;
+				    for (const auto &[cap, duration] : capabilities)
 				    {
-					    auto &sample = track.samples["finding:dispelled"];
+					    if ((input.apparent && cap != "basic_identity") || cap == "own_arcs" || cap == "findings")
+						    continue;
+					    auto &sample =
+					        timed ? state.acquisitions[directed_mode(ship, id)->id][target][cap] : track.samples[cap];
 					    sample.required = duration;
 					    sample.exposure = std::min(duration, sample.exposure + 1);
-					    if (sample.exposure >= duration)
-						    dispel_ghost(g);
+					    if (timed && track.samples[cap].data.is_null())
+						    track.samples[cap] = sample;
+					    if (sample.exposure < duration)
+						    continue;
+					    const auto data = input.apparent ? Json{{"class", body.definition},
+					                                            {"faction", ""},
+					                                            {"faction_label", body.faction_label},
+					                                            {"disposition", body.disposition}}
+					                                     : sensor_data(ship, target, cap);
+					    const bool changed = sample.data != data;
+					    sample.data = data;
+					    sample.observed = tick;
+					    if (timed)
+						    track.samples[cap] = sample;
+					    if (changed || tick % 20 == 0)
+						    publish_sensor(ship, id, target, cap, data, tick);
 				    }
-			    }
-			    if (!input.apparent && acquire_timed && state.target == target && d.capabilities.contains("findings"))
-				    for (const auto &f : sensor_findings)
-					    if (f.target == target && finding_available(f) &&
-					        std::all_of(f.capabilities.begin(), f.capabilities.end(),
-					                    [&](const auto &cap)
-					                    {
-						                    return d.capabilities.contains(cap);
-					                    }))
+				    bool finding_changed = false;
+				    if (input.apparent && timed)
+				    {
+					    auto &g = ghost_receptions.at(target);
+					    const auto duration = ghost_scan_duration(g, d);
+					    if (duration >= 0)
 					    {
-						    auto &sample = track.samples["finding:" + f.id];
-						    const auto duration = std::max(f.ticks, d.capabilities.at("findings"));
+						    auto &sample = state.acquisitions[directed_mode(ship, id)->id][target]["finding:dispelled"];
 						    sample.required = duration;
 						    sample.exposure = std::min(duration, sample.exposure + 1);
-						    if (sample.exposure < duration)
-							    continue;
-						    finding_changed |= sample.data.is_null();
-						    sample.data = Json{{"id", f.id}, {"text", f.text}};
-						    if (!f.tag.empty())
-							    sample.data["tag"] = f.tag;
-						    sample.observed = tick;
-						    const bool discovered = sensor_discoveries.emplace(ship, target, f.id).second;
-						    if (discovered || tick % 20 == 0)
-							    route_finding(ship, id, f, tick, discovered);
-						    if (discovered && scenario && !f.event.empty())
-							    scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0},
-							                             f.event,
-							                             {{"ship", static_cast<std::int64_t>(ship)},
-							                              {"amount", static_cast<std::int64_t>(target)},
-							                              {"flag", true},
-							                              {"detail", f.id}});
+						    if (track.samples["finding:dispelled"].data.is_null())
+							    track.samples["finding:dispelled"] = sample;
+						    if (sample.exposure >= duration)
+							    dispel_ghost(g);
 					    }
-			    if (finding_changed || tick % 20 == 0)
-				    publish_track_findings(ship, id, target, track);
-		    });
+				    }
+				    if (!input.apparent && timed && d.capabilities.contains("findings"))
+					    for (const auto &f : sensor_findings)
+						    if (f.target == target && finding_available(f) &&
+						        std::all_of(f.capabilities.begin(), f.capabilities.end(),
+						                    [&](const auto &cap)
+						                    {
+							                    return d.capabilities.contains(cap);
+						                    }))
+						    {
+							    auto &sample =
+							        state.acquisitions[directed_mode(ship, id)->id][target]["finding:" + f.id];
+							    const auto duration = std::max(f.ticks, d.capabilities.at("findings"));
+							    sample.required = duration;
+							    sample.exposure = std::min(duration, sample.exposure + 1);
+							    if (track.samples["finding:" + f.id].data.is_null())
+								    track.samples["finding:" + f.id] = sample;
+							    if (sample.exposure < duration)
+								    continue;
+							    finding_changed |= sample.data.is_null();
+							    sample.data = Json{{"id", f.id}, {"text", f.text}};
+							    if (!f.tag.empty())
+								    sample.data["tag"] = f.tag;
+							    sample.observed = tick;
+							    track.samples["finding:" + f.id] = sample;
+							    const bool discovered = sensor_discoveries.emplace(ship, target, f.id).second;
+							    if (discovered || tick % 20 == 0)
+								    route_finding(ship, id, f, tick, discovered);
+							    if (discovered && scenario && !f.event.empty())
+								    scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0},
+								                             f.event,
+								                             {{"ship", static_cast<std::int64_t>(ship)},
+								                              {"amount", static_cast<std::int64_t>(target)},
+								                              {"flag", true},
+								                              {"detail", f.id}});
+						    }
+				    if (finding_changed || tick % 20 == 0)
+					    publish_track_findings(ship, id, target, track);
+			    };
+			    if (!input.focused_only)
+				    acquire(false);
+			    if (acquire_timed && state.target == target &&
+			        directed_operation(ship, id, DirectedOperationKind::Scan))
+				    execute_directed(entities.at(ship), child, DirectedOperationKind::Scan,
+				                     directed_scan_covers(ship, id, body),
+				                     [&]()
+				                     {
+					                     acquire(true);
+					                     return true;
+				                     });
+		    },
+		    false, acquire_timed);
 	}
 }
 // Sensor mounts use only current permitted returns or their last observation.
@@ -423,23 +463,22 @@ std::optional<std::pair<fixed::Vec, std::int64_t>> sensor_aim(EntityId ship, con
                                                               ConsoleContacts &cache)
 {
 	for (const auto &[id, d] : definition(ship).sensors)
-		if (d.turret == turret)
+		if (d.turret == turret && directed_operation(ship, id, DirectedOperationKind::Scan) &&
+		    directed_targeting(ship, id) != DirectedTargetingKind::Off)
 		{
 			auto &state = instance(entities.at(ship), id)->entity.get_mut<SensorRuntime>();
 			if (!state.target || !sensor_powered(ship, id))
 				return {};
-			const auto &contacts = console_contacts(system_owner(ship, id), cache);
-			for (const auto &contact : contacts)
-				if (contact.id == state.target)
-				{
-					if (!state.tracks.contains(contact.id) && state.tracks.size() >= 256)
-						return {};
-					auto &track = state.tracks[contact.id];
-					track.x = contact.x;
-					track.y = contact.y;
-					state.last_bearing.reset();
-					return std::pair{fixed::Vec{contact.x, contact.y}, d.bearing};
-				}
+			if (const auto aim = directed_contact(ship, id, state.target, cache); aim && !aim->bearing)
+			{
+				if (!state.tracks.contains(aim->body.id) && state.tracks.size() >= 256)
+					return {};
+				auto &track = state.tracks[aim->body.id];
+				track.x = aim->body.x;
+				track.y = aim->body.y;
+				state.last_bearing.reset();
+				return std::pair{fixed::Vec{aim->body.x, aim->body.y}, d.bearing};
+			}
 			for (const auto &b : console_detection(system_owner(ship, id), cache).bearing_contacts)
 				if (b.id == state.target)
 					state.last_bearing = b;
@@ -525,7 +564,7 @@ Json sensor_projection(const ConsoleAddress &address, const std::map<EntityId, J
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
 		if (definition(address.ship).sensors.contains(id))
 		{
-			const auto &d = sensor_definition(address.ship, id);
+			const auto d = sensor_acquisition_definition(address.ship, id);
 			const auto &s = instance(entities.at(address.ship), id)->entity.get<SensorRuntime>();
 			Json scanner{{"id", id},
 			             {"target", s.target},
@@ -540,9 +579,13 @@ Json sensor_projection(const ConsoleAddress &address, const std::map<EntityId, J
 				scanner["blocker"] = "Scanner unavailable or unpowered";
 			else if (s.target && (!s.tracks.contains(s.target) || s.tracks.at(s.target).seen != tick))
 				scanner["blocker"] = "Target outside scanner coverage";
-			for (const auto &[target, track] : s.tracks)
+			const auto *mode = directed_mode(address.ship, id);
+			const std::map<EntityId, std::map<std::string, SensorSample>> empty_progress;
+			const auto &acquisitions =
+			    mode && s.acquisitions.contains(mode->id) ? s.acquisitions.at(mode->id) : empty_progress;
+			for (const auto &[target, samples] : acquisitions)
 			{
-				for (const auto &[cap, sample] : track.samples)
+				for (const auto &[cap, sample] : samples)
 				{
 					if (target == s.target && d.capabilities.contains(cap) && d.capabilities.at(cap) > 0)
 						scanner["progress"].push_back(
@@ -621,14 +664,44 @@ Json save_sensors() const
 					Json tracks = Json::array();
 					for (const auto &[target, t] : s->tracks)
 						tracks.push_back(Json{{"target", target}, {"state", t}});
+					Json acquisitions = Json::array();
+					for (const auto &[mode, targets] : s->acquisitions)
+						for (const auto &[target, samples] : targets)
+							acquisitions.push_back({{"mode", mode}, {"target", target}, {"samples", samples}});
 					out.push_back({{"ship", ship},
 					               {"system", child.get<Equipment>().id},
 					               {"target", s->target},
 					               {"tracks", tracks},
+					               {"acquisitions", acquisitions},
 					               {"last_bearing",
 					                s->last_bearing ? projection::bearing_json(*s->last_bearing) : Json(nullptr)}});
 				}
 	return out;
+}
+bool valid_sensor_sample(EntityId ship, EntityId target, bool apparent, const SensorDefinition &d,
+                         const std::string &key, const SensorSample &sample) const
+{
+	std::int64_t required = -1;
+	if (d.capabilities.contains(key) && key != "own_arcs" && key != "findings")
+		required = d.capabilities.at(key);
+	if (d.capabilities.contains("findings"))
+		for (const auto &finding : sensor_findings)
+			if (key == "finding:" + finding.id && finding.target == target &&
+			    std::all_of(finding.capabilities.begin(), finding.capabilities.end(),
+			                [&](const auto &cap)
+			                {
+				                return d.capabilities.contains(cap);
+			                }))
+				required = std::max(finding.ticks, d.capabilities.at("findings"));
+	if (apparent && key == "finding:dispelled")
+		required = ghost_receptions.contains(target)
+		               ? std::max<std::int64_t>(0, ghost_scan_duration(ghost_receptions.at(target), d))
+		               : sample.required;
+	if (apparent && key != "basic_identity" && key != "finding:dispelled")
+		required = -1;
+	return required >= 0 && required <= 1728000 && sample.required == required && sample.exposure >= 0 &&
+	       sample.exposure <= required && (sample.data.is_null() || sample.exposure == required) &&
+	       sample.observed <= ecs.get<Clock>().tick && sample.data.dump().size() <= 131072;
 }
 void restore_sensors(const Json &rows)
 {
@@ -702,41 +775,47 @@ void restore_sensors(const Json &rows)
 				throw std::runtime_error("Invalid saved sensor track");
 			for (auto &[key, sample] : track.samples)
 			{
-				const auto &d = sensor_definition(ship, id);
-				std::int64_t required = -1;
-				if (d.capabilities.contains(key) && key != "own_arcs" && key != "findings")
-					required = d.capabilities.at(key);
-				if (d.capabilities.contains("findings"))
-					for (const auto &f : sensor_findings)
-						if (key == "finding:" + f.id && f.target == target &&
-						    std::all_of(f.capabilities.begin(), f.capabilities.end(),
-						                [&](const auto &cap)
-						                {
-							                return d.capabilities.contains(cap);
-						                }))
-							required = std::max(f.ticks, d.capabilities.at("findings"));
-				if (track.apparent && key == "finding:dispelled")
-				{
-					required = ghost_receptions.contains(target)
-					               ? std::max<std::int64_t>(0, ghost_scan_duration(ghost_receptions.at(target), d))
-					               : sample.required;
-					if (required < 0 || required > 1728000)
-						throw std::runtime_error("Invalid apparent finding duration");
-				}
-				if (track.apparent && key != "basic_identity" && key != "finding:dispelled")
-					required = -1;
-				if (sample.required != 0 && sample.required != required)
-					throw std::runtime_error("Invalid sensor exposure duration");
-				sample.required = required;
-				if (required < 0 || sample.exposure > required ||
-				    (!sample.data.is_null() && sample.exposure < required))
+				bool valid =
+				    valid_sensor_sample(ship, target, track.apparent, sensor_definition(ship, id), key, sample);
+				if (const auto *directed = directed_definition(ship, id))
+					for (const auto &mode : directed->modes)
+						if (mode.operation == DirectedOperationKind::Scan)
+						{
+							auto d = sensor_definition(ship, id);
+							d.capabilities = mode.capabilities;
+							valid |= valid_sensor_sample(ship, target, track.apparent, d, key, sample);
+						}
+				if (!valid)
 					throw std::runtime_error("Unearned or unknown saved sensor capability");
-
-				if (sample.exposure < 0 || sample.exposure > 1728000 || sample.observed > ecs.get<Clock>().tick ||
-				    sample.data.dump().size() > 131072)
-					throw std::runtime_error("Invalid saved sensor sample");
 			}
 			state.tracks.emplace(target, std::move(track));
+		}
+		const auto &acquisitions = row.at("acquisitions");
+		if (!acquisitions.is_array() || acquisitions.size() > 8192)
+			throw std::runtime_error("Invalid saved directed acquisition");
+		const auto *directed = directed_definition(ship, id);
+		for (const auto &entry : acquisitions)
+		{
+			const std::string mode_id = entry.at("mode");
+			const EntityId target = entry.at("target");
+			if (!directed || !state.tracks.contains(target) || state.acquisitions[mode_id].contains(target))
+				throw std::runtime_error("Invalid saved acquisition owner");
+			const auto mode = std::find_if(directed->modes.begin(), directed->modes.end(),
+			                               [&](const auto &m)
+			                               {
+				                               return m.id == mode_id && m.operation == DirectedOperationKind::Scan;
+			                               });
+			if (mode == directed->modes.end())
+				throw std::runtime_error("Unknown saved acquisition mode");
+			auto samples = entry.at("samples").get<std::map<std::string, SensorSample>>();
+			if (samples.size() > 134)
+				throw std::runtime_error("Too many saved acquisition samples");
+			auto d = sensor_definition(ship, id);
+			d.capabilities = mode->capabilities;
+			for (const auto &[key, sample] : samples)
+				if (!valid_sensor_sample(ship, target, state.tracks.at(target).apparent, d, key, sample))
+					throw std::runtime_error("Invalid saved acquisition sample");
+			state.acquisitions[mode_id].emplace(target, std::move(samples));
 		}
 		instance(entities.at(ship), id)->entity.set<SensorRuntime>(state);
 	}

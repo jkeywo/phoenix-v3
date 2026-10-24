@@ -80,6 +80,11 @@ Json explicit_fixture(Json source)
 	const auto compiled = convert_controller_content(load(source));
 	for (auto &entity : source["entities"])
 		entity = compiled.entities.at(entity.at("id").get<std::string>());
+	// The converted fittings reference the explicit catalogue produced by the
+	// synthetic fixture materialiser; retain those definitions with the fittings.
+	source["effects"] = Json::array();
+	for (const auto &[id, effect] : compiled.effects)
+		source["effects"].push_back(effect);
 	return source;
 }
 BodyView body(const World &world, EntityId id = 1)

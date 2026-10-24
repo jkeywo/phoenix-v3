@@ -39,6 +39,7 @@ void prepare_processors(flecs::entity ship)
 		return;
 	auto &processors = ship.get_mut<ShipProcessors>();
 	processors.energy_rates.clear();
+	processors.work_quotes.clear();
 	for (auto &[id, processor] : processors.values)
 	{
 		const auto &definition = processor.definition();
@@ -57,6 +58,7 @@ void prepare_processors(flecs::entity ship)
 		                                                 property_fault_delta(ship, definition.equipment, property),
 		                                             resource_limit);
 		const auto work = processor.milli_work_budget(milli_rate);
+		processors.work_quotes[id] = work;
 		if (work && processor.prepare(processor_stores(ship, definition), work))
 			processors.energy_rates[id] = processor.operating_rate(work);
 	}
@@ -79,6 +81,34 @@ void request_processor_resources(flecs::entity ship)
 			throw std::runtime_error("Combined processor operating rate exceeds supported bound");
 		request_system_resource(*power, slot, request.duty_permille, request.discrete, request.extra_rate + energy,
 		                        request.discrete_amount);
+	}
+}
+// A rejected launch can release stock needed by a processor. Retry only work
+// that did not prepare, using its original budget so fractional work is not
+// advanced twice and committed batches are never prepared again.
+void retry_blocked_processors(flecs::entity ship)
+{
+	if (!ship.has<ShipProcessors>())
+		return;
+	auto &processors = ship.get_mut<ShipProcessors>();
+	for (const auto &[id, work] : processors.work_quotes)
+	{
+		auto &processor = processors.values.at(id);
+		if (!work || processor.state().prepared_work ||
+		    !processor.prepare(processor_stores(ship, processor.definition()), work))
+			continue;
+		const auto energy = processor.operating_rate(work);
+		processors.energy_rates[id] = energy;
+		if (auto *power = ship.try_get_mut<ShipResources>(); power && energy)
+		{
+			const auto equipment = instance(ship, processor.definition().equipment)->entity;
+			const auto slot = equipment.get<ResourceBinding>().slot;
+			const auto request = power->requests.at(slot);
+			if (energy > resource_limit - request.extra_rate)
+				throw std::runtime_error("Combined processor operating rate exceeds supported bound");
+			request_system_resource(*power, slot, request.duty_permille, request.discrete, request.extra_rate + energy,
+			                        request.discrete_amount);
+		}
 	}
 }
 void actuate_processors(flecs::entity ship)
@@ -108,6 +138,7 @@ void actuate_processors(flecs::entity ship)
 		processor.advance(processor_stores(ship, definition), processor.funded_work(supply));
 	}
 	processors.energy_rates.clear();
+	processors.work_quotes.clear();
 }
 bool select_processor(flecs::entity ship, const std::string &id, const std::string &recipe, bool execute)
 {
@@ -134,6 +165,7 @@ void restore_processors(flecs::entity ship, const Json &saved)
 	for (auto &[id, processor] : processors.values)
 		processor.restore(saved.at(id), processor_stores(ship, processor.definition()));
 	processors.energy_rates.clear();
+	processors.work_quotes.clear();
 }
 Json project_processors(const ConsoleAddress &address) const
 {

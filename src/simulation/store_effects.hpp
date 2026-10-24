@@ -43,7 +43,8 @@ NamedStock named_stock(flecs::entity ship, const std::string &name, ResourceNetw
 }
 
 std::string execute_effect_group(const ShieldReactionDefinition &execution, EntityId protected_ship, EntityId attacker,
-                                 const std::string &source)
+                                 const std::string &source, const PayloadHitContext *hit_context = nullptr,
+                                 const std::string &original_equipment = {})
 {
 	std::map<EntityId, ShieldComponent> shields;
 	std::map<EntityId, PropertyEffects> properties;
@@ -51,18 +52,33 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	// Only native entry funding needs network preparation: it also changes
 	// discharge budgets and heat. Ordinary stock operations stage touched stores.
 	std::optional<ResourceNetwork> payment;
-	std::vector<std::pair<EntityId, std::int64_t>> damages;
-	StockTransaction stocks;
-	const auto owner = [&](EntityId id)
+	struct PreparedDamage
 	{
+		EntityId target;
+		std::int64_t amount;
+		bool outcome;
+	};
+	std::vector<PreparedDamage> damages;
+	auto prepared_periodic = periodic_effects;
+	auto prepared_next_periodic = next_periodic_instance;
+	StockTransaction stocks;
+	const auto owner = [&](EntityId id, bool outcome = true)
+	{
+		if (outcome && hit_context && id == protected_ship && hit_context->ordnance)
+		{
+			auto target = payload_target(*hit_context);
+			if (!target || !payload_context_available(*hit_context))
+				throw std::runtime_error("Required ordnance target unavailable");
+			return target;
+		}
 		const auto at = entities.find(id);
 		if (at == entities.end() || combat_dead(at->second))
 			throw std::runtime_error("Required target unavailable");
 		return at->second;
 	};
-	const auto stock = [&](EntityId id, const std::string &name) -> StockStore &
+	const auto stock = [&](EntityId id, const std::string &name, bool outcome = true) -> StockStore &
 	{
-		auto resolved = named_stock(owner(id), name, id == protected_ship && payment ? &*payment : nullptr);
+		auto resolved = named_stock(owner(id, outcome), name, id == protected_ship && payment ? &*payment : nullptr);
 		if (resolved.physical)
 			changed_inventories.insert(id);
 		return resolved.stock;
@@ -74,6 +90,8 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		if (execution.energy)
 		{
 			auto payer = owner(protected_ship);
+			if (!payer.has<EquipmentIndex>() || !payer.has<ShipResources>())
+				throw std::runtime_error("Payer equipment unavailable");
 			const auto fitted = instance(payer, execution.payer);
 			if (!fitted || !fitted->entity.has<ResourceBinding>() || !fitted->entity.get<Equipment>().enabled ||
 			    structurally_disabled(payer, execution.payer) || fault_effectiveness(payer, execution.payer) == 0)
@@ -87,16 +105,22 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		for (const auto &op : execution.operations)
 		{
 			const auto id = op.target == "attacker" ? attacker : protected_ship;
-			auto ship = owner(id);
+			const bool outcome = hit_context && op.target != "attacker";
+			auto ship = owner(id, outcome);
 			if (op.kind == ShieldReactionKind::Damage)
 			{
-				if (!ship.has<CombatStructure>())
+				if (outcome)
+				{
+					if (!payload_context_available(*hit_context))
+						throw std::runtime_error("Damage outcome unavailable");
+				}
+				else if (!ship.has<CombatStructure>())
 					throw std::runtime_error("Damage target incompatible");
-				damages.emplace_back(id, op.damage);
+				damages.push_back({id, op.damage, outcome});
 			}
 			else if (op.kind >= ShieldReactionKind::StoreAdd)
 			{
-				auto &destination = stock(id, op.store);
+				auto &destination = stock(id, op.store, outcome);
 				bool valid = false;
 				switch (op.kind)
 				{
@@ -113,7 +137,8 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 					valid = stocks.fill(destination, op.resource);
 					break;
 				case ShieldReactionKind::StoreTransfer:
-					valid = stocks.transfer(stock(op.target == "attacker" ? protected_ship : attacker, op.from_store),
+					valid = stocks.transfer(stock(op.target == "attacker" ? protected_ship : attacker, op.from_store,
+					                              op.target == "attacker"),
 					                        destination, op.resource, op.amount);
 					break;
 				default:
@@ -122,10 +147,33 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				if (!valid)
 					throw std::runtime_error("Store operation cannot satisfy exact stock/capacity commitment");
 			}
+			else if (periodic_templates.contains(op.effect) ||
+			         (op.kind == ShieldReactionKind::Remove &&
+			          std::any_of(prepared_periodic.begin(), prepared_periodic.end(),
+			                      [&](const auto &c)
+			                      {
+				                      return c.source == source + "." + op.grant && c.context.target == id;
+			                      })))
+			{
+				PayloadHitContext context = outcome ? *hit_context : PayloadHitContext{id};
+				prepare_periodic_application(prepared_periodic, prepared_next_periodic, op, source + "." + op.grant,
+				                             attacker, context, source, original_equipment);
+			}
 			else
 			{
-				const auto kind =
-				    op.equipment.empty() ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
+				auto equipment = op.equipment;
+				if (equipment == "$hit")
+				{
+					if (!outcome || !payload_context_available(*hit_context))
+						throw std::runtime_error("Required hit equipment unavailable");
+					equipment = hit_context->kind == PayloadOutcomeKind::Shield
+					                ? "effect:" + std::to_string(hit_context->contribution) + ":" +
+					                      hit_context->contribution_name
+					                : hit_context->equipment;
+					if (equipment.empty())
+						throw std::runtime_error("Hit does not identify equipment");
+				}
+				const auto kind = equipment.empty() ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
 				ShieldComponent *shield = nullptr;
 				PropertyEffects *property = nullptr;
 				if (kind == EffectApplicationKind::Shield)
@@ -144,14 +192,14 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				                           {kind,
 				                            op.kind == ShieldReactionKind::Remove ? EffectApplicationOperation::Remove
 				                                                                  : EffectApplicationOperation::Apply,
-				                            source + "." + op.grant, op.equipment, op.effect},
+				                            source + "." + op.grant, equipment, op.effect},
 				                           shield, property, ecs.get<Clock>().tick);
 			}
 		}
 		std::size_t reserve = 0;
-		for (const auto &[id, amount] : damages)
+		for (const auto &[id, amount, outcome] : damages)
 		{
-			const auto *shield = shields.contains(id) ? &shields.at(id) : owner(id).try_get<ShieldComponent>();
+			const auto *shield = shields.contains(id) ? &shields.at(id) : owner(id, outcome).try_get<ShieldComponent>();
 			if (shield)
 				for (const auto &c : shield->contributions)
 					reserve += c.definition.shield.reactions.size();
@@ -166,6 +214,8 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	{
 		return error.what();
 	}
+	periodic_effects = std::move(prepared_periodic);
+	next_periodic_instance = prepared_next_periodic;
 	if (payment)
 		entities.at(protected_ship).get_mut<ShipResources>().network = std::move(*payment);
 	for (auto id : changed_inventories)
@@ -175,9 +225,14 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : properties)
 		entities.at(id).set<PropertyEffects>(std::move(value));
-	for (const auto &[id, amount] : damages)
+	for (const auto &[id, amount, outcome] : damages)
 	{
-		auto ship = entities.at(id);
+		auto ship = outcome ? payload_target(*hit_context) : entities.at(id);
+		if (outcome)
+		{
+			apply_payload_damage(ship, amount, *hit_context);
+			continue;
+		}
 		auto heading = ship.get<Pose>().heading;
 		if (const auto origin = entities.find(protected_ship); origin != entities.end())
 			heading = combat_bearing(ship.get<Pose>().position - origin->second.get<Pose>().position);

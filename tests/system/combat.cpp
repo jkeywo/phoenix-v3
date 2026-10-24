@@ -407,10 +407,19 @@ void ordnance_contracts()
 		        "Off stops standby draw");
 		submit(idle, 101, "pdc", "target", 2);
 		idle.tick();
-		require(state(idle)["systems"]["pdc"]["mode"] == 2, "ship assignment enters Manual");
+		require(state(idle)["systems"]["pdc"]["mode"] == 0,
+		        "target assignment preserves the independently selected Off policy");
+		submit(idle, 101, "pdc", "mode", 2);
+		idle.tick();
+		require(state(idle)["systems"]["pdc"]["mode"] == 2,
+		        "explicit designated policy activates the retained ship target");
 		submit(idle, 101, "pdc", "target", 0);
 		idle.tick();
-		require(state(idle)["systems"]["pdc"]["mode"] == 1, "cancel returns Manual to Auto");
+		require(state(idle)["systems"]["pdc"]["mode"] == 2,
+		        "target cancellation preserves the independently selected designated policy");
+		submit(idle, 101, "pdc", "mode", 1);
+		idle.tick();
+		require(state(idle)["systems"]["pdc"]["mode"] == 1, "automatic interception resumes only when selected");
 	}
 }
 void shield_reaction_contracts(Json *trace = nullptr)
@@ -1516,15 +1525,15 @@ int main(int argc, char **argv)
 			submit(w, 101, "second", "target", 3);
 			w.tick();
 			const auto s = state(w);
-			require(s.at("systems").at("gun").at("target") == 3 && s.at("systems").at("second").at("target") == 3,
-			        "shared turret retargets all active weapons");
+			require(s.at("systems").at("gun").at("target") == 2 && s.at("systems").at("second").at("target") == 3,
+			        "independently mounted directed capabilities retain separate targets");
 			submit(w, 101, "gun", "target", 2);
 			w.tick();
-			require(state(w).at("systems").at("second").at("target") == 2,
-			        "reasserting a weapon's original target retakes the shared turret after sibling retargeting");
+			require(state(w).at("systems").at("second").at("target") == 3,
+			        "reasserting a target cannot retarget another directed capability");
 			submit(w, 101, "gun", "target", 0);
 			w.tick();
-			require(state(w).at("systems").at("second").at("target") == 2,
+			require(state(w).at("systems").at("second").at("target") == 3,
 			        "cancelling one weapon retains its neighbour");
 			const auto observer = w.observe(102);
 			require(observer->gameplay.at("combat").at("compartments").size() == 2,

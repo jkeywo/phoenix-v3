@@ -58,6 +58,9 @@ inline Json combat_fixture()
 	      {"compartment", "fore"}}},
 	    {"team-a", {{"kind", "repair_team"}, {"hp_per_second", 20}, {"compartment", "fore"}}},
 	    {"team-b", {{"kind", "repair_team"}, {"hp_per_second", 20}, {"compartment", "fore"}}}};
+	// Simultaneous directed capabilities have independent targeting mounts.
+	ship["systems"]["mount-second"] = ship["systems"]["mount"];
+	ship["systems"]["second"]["turret"] = "mount-second";
 	ship["combat"] = {{"repair_console", "observer"},
 	                  {"decks", Json::array({{{"id", "deck"},
 	                                          {"weight", 1},

@@ -63,13 +63,28 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 	return at != s->definition.equipment_compartments.end() &&
 	       s->compartments.at(s->definition.compartment_ids.at(at->second)).disabled;
 }
-void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amount)
+void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amount,
+                   const Projectile *payload = nullptr)
 {
 	auto &s = ship.get_mut<CombatStructure>();
-	if (combat_dead(ship) || amount <= 0)
+	if (combat_dead(ship))
+		return;
+	const auto actual = std::min(amount, s.compartments.at(compartment).hp);
+	if (payload)
+		queue_payload_outcome(
+		    *payload,
+		    {ship.get<StableId>().id, PayloadOutcomeKind::Compartment, static_cast<std::int64_t>(compartment)}, actual);
+	if (amount <= 0)
 		return;
 	personnel_casualties(ship, compartment, amount);
-	damage_faults(ship, compartment, amount);
+	std::vector<std::string> affected;
+	damage_faults(ship, compartment, amount, payload ? &affected : nullptr);
+	if (payload)
+		for (const auto &equipment : affected)
+			queue_payload_outcome(*payload,
+			                      {ship.get<StableId>().id, PayloadOutcomeKind::System,
+			                       static_cast<std::int64_t>(compartment), equipment},
+			                      actual);
 	auto &c = s.compartments.at(compartment);
 	c.hp = std::max<std::int64_t>(0, c.hp - amount);
 	if (!c.hp)
@@ -113,6 +128,8 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 				m.get<WeaponState>().unloading = load_duration(ship, m, m.get<WeaponState>().loaded_magazine);
 			m.get<WeaponState>().selected_magazine = output.value;
 			m.get<WeaponState>().loading = 0;
+			if (child.has<DirectedRuntime>())
+				child.get_mut<DirectedRuntime>().loading_mode.clear();
 		}
 		return true;
 	}
@@ -121,13 +138,15 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 	{
 		if (output.value < 0 || output.value > 2)
 			return false;
-		if (execute)
-		{
-			m.get<WeaponState>().mode = output.value;
-			if (m.get<WeaponState>().mode != 2)
-				m.target() = 0;
-		}
-		return true;
+		const auto kind = output.value == 0   ? DirectedTargetingKind::Off
+		                  : output.value == 1 ? DirectedTargetingKind::Intercept
+		                                      : DirectedTargetingKind::Designated;
+		const auto *directed = directed_definition(ship.get<StableId>().id, m.definition.id);
+		if (directed)
+			for (std::size_t i = 0; i < directed->targeting.size(); ++i)
+				if (directed->targeting[i].kind == kind)
+					return directed_setting(ship.get<StableId>().id, m.definition.id, "targeting_mode", i, execute);
+		return false;
 	}
 	if (output.action == OperatingAction::ShieldDischarge && m.definition.kind == OperatingSystem::Shield)
 	{
@@ -164,44 +183,7 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 	}
 	if (output.action == OperatingAction::WeaponTarget && m.definition.kind == OperatingSystem::Weapon)
 	{
-		const auto target = static_cast<EntityId>(output.value);
-		if (output.value < 0 || target == ship.get<StableId>().id)
-			return false;
-		if (target)
-		{
-			const auto owner = system_owner(ship.get<StableId>().id, m.definition.id);
-			const auto observation = capture_console_observation(owner);
-			if (std::none_of(observation.contacts.begin(), observation.contacts.end(),
-			                 [&](const auto &c)
-			                 {
-				                 return c.id == target;
-			                 }) &&
-			    std::none_of(observation.bearing_contacts.begin(), observation.bearing_contacts.end(),
-			                 [&](const auto &b)
-			                 {
-				                 return b.id == target;
-			                 }))
-				return false;
-		}
-		if (execute)
-		{
-			m.target() = target;
-			if (m.definition.get<WeaponDefinition>().point_defence)
-				m.get<WeaponState>().mode = target ? 2 : 1;
-			if (target && !m.definition.get<WeaponDefinition>().turret.empty())
-				for (auto other : ship.get<EquipmentIndex>().values)
-					if (auto *w = other.try_get_mut<CombatMechanism>())
-					{
-						if (w->definition.id == m.definition.get<WeaponDefinition>().turret)
-							w->target() = target;
-						if (w->definition.kind == OperatingSystem::Weapon &&
-						    w->definition.get<WeaponDefinition>().turret ==
-						        m.definition.get<WeaponDefinition>().turret &&
-						    w->target())
-							w->target() = target;
-					}
-		}
-		return true;
+		return directed_setting(ship.get<StableId>().id, m.definition.id, "target", output.value, execute);
 	}
 	if (output.action == OperatingAction::RepairCompartment && m.definition.kind == OperatingSystem::Team &&
 	    m.definition.get<TeamDefinition>().capabilities.contains("repair"))
@@ -349,23 +331,18 @@ void request_combat_resources(flecs::entity ship)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
 			const auto &d = m->definition;
-			const bool enabled = !duel_ended() && child.get<Equipment>().enabled && !structurally_disabled(ship, d.id);
 			const auto index = child.get<ResourceBinding>().slot;
 			if (d.kind == OperatingSystem::Magazine)
 				request_system_resource(*power, index, 0, false, 0);
-			if (d.kind == OperatingSystem::Weapon)
-				request_system_resource(
-				    *power, index, enabled && m->get<WeaponState>().ready ? 1000 : 0,
-				    enabled && m->get<WeaponState>().ready && d.get<WeaponDefinition>().family != "beam",
-				    enabled && d.get<WeaponDefinition>().point_defence && m->get<WeaponState>().mode == 1
-				        ? d.get<WeaponDefinition>().standby_energy
-				        : 0);
 		}
 }
 void actuate_combat(flecs::entity ship)
 {
 	if (!ship.has<CombatStructure>() || duel_ended())
+	{
+		release_directed_operations(ship);
 		return;
+	}
 	actuate_shields(ship);
 	fire_weapons(ship);
 }
@@ -376,11 +353,30 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 	if (combat_dead(ship))
 		return;
 	const auto id = ship.get<StableId>().id;
-	if (p.shield_hits.insert(id).second)
+	const bool first_contact = p.shield_hits.insert(id).second;
+	const auto integrity = [&]()
+	{
+		std::int64_t total = 0;
+		for (const auto &c : s.compartments)
+			total += c.hp;
+		if (const auto *shields = ship.try_get<ShieldComponent>())
+			for (const auto &c : shields->contributions)
+				total += c.state.strength;
+		return total;
+	};
+	const auto before = integrity();
+	if (first_contact)
 		p.damage = absorb_shields(ship, p.heading, p.damage, p.definition.shield_bypass,
-		                          p.continuous ? &p.bypass_remainder : nullptr, p.source);
+		                          p.continuous ? &p.bypass_remainder : nullptr, p.source, &p);
 	if (!p.damage)
+	{
+		if (first_contact)
+			queue_payload_outcome(p, {id}, before - integrity());
+		// Effect-only contact delivers entity bindings without inventing penetration.
+		if (!p.definition.damage)
+			p.life = 0;
 		return;
+	}
 	if (!p.decks.contains(id))
 	{
 		std::map<std::string, std::int64_t> weights;
@@ -426,8 +422,10 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 		auto &c = s.compartments[line.index];
 		const auto distance = length * (line.to - line.from) / 1000000;
 		const auto deposit = deposit_material(p, distance, d.resistance * c.hp / d.maximum);
-		combat_damage(ship, line.index, deposit);
+		combat_damage(ship, line.index, deposit, &p);
 	}
+	if (first_contact)
+		queue_payload_outcome(p, {id}, before - integrity());
 }
 #include "combat_ordnance.hpp"
 std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size_t from, std::size_t to,
@@ -1003,7 +1001,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Weapon:
 			{
 				const auto &w = m->get<WeaponState>();
-				bounded("target", 0, 2000000000);
+				bounded("target", 0, 7999999999999999LL);
 				bounded("cooldown", 0, 1000000000);
 				bounded("shots", 0, 1000000000000LL);
 				bounded(
@@ -1084,10 +1082,20 @@ void restore_combat(flecs::entity ship, const Json &j)
 				const auto &magazine_id = m->definition.get<WeaponDefinition>().magazines.at(weapon.loaded_magazine);
 				const auto &magazine = instance(ship, magazine_id)->entity.get<CombatMechanism>();
 				const auto &stock = physical_stock(ship, magazine.get<MagazineState>().stock);
-				if (weapon.loaded_resource.empty() || weapon.loaded_resource != stock.selected() ||
+				const auto &directed = child.get<DirectedRuntime>();
+				const auto &modes = directed_definition(ship.get<StableId>().id, m->definition.id)->modes;
+				const auto loaded_mode = std::find_if(modes.begin(), modes.end(),
+				                                      [&](const auto &mode)
+				                                      {
+					                                      return mode.id == directed.loaded_mode;
+				                                      });
+				if (loaded_mode == modes.end() || loaded_mode->operation != DirectedOperationKind::Launch ||
+				    weapon.loaded_resource.empty() || weapon.loaded_resource != stock.selected() ||
 				    !magazine.definition.get<MagazineDefinition>().ammunition_profiles.contains(
 				        weapon.loaded_resource) ||
-				    weapon.loaded_quantity != m->definition.get<WeaponDefinition>().ammo_use)
+				    weapon.loaded_quantity != loaded_mode->ammo_use ||
+				    (directed_operation(ship.get<StableId>().id, m->definition.id, DirectedOperationKind::Launch) &&
+				     !weapon.unloading && weapon.loaded_quantity != m->definition.get<WeaponDefinition>().ammo_use))
 					throw std::runtime_error("Invalid loaded resource identity");
 				reserved[magazine_id].emplace("weapon:" + m->definition.id,
 				                              StockClaim{weapon.loaded_resource, weapon.loaded_quantity});
@@ -1128,6 +1136,7 @@ Json save_projectiles() const
 		out.push_back({{"id", p.id},
 		               {"source", p.source},
 		               {"weapon", p.weapon},
+		               {"payloads", p.payloads},
 		               {"position", p.position},
 		               {"velocity", p.velocity},
 		               {"remainder", p.remainder},
@@ -1161,7 +1170,7 @@ Json save_projectiles() const
 }
 void restore_projectiles(const Json &saved)
 {
-	next_projectile = saved.value("next_projectile", std::uint64_t{1});
+	next_projectile = checked_integer(saved.at("next_projectile"), 1, 9007199254740991LL, "next_projectile");
 	const auto list = saved.value("projectiles", Json::array());
 	if (!list.is_array() || list.size() > 8192)
 		throw std::runtime_error("Invalid projectile list");
@@ -1172,6 +1181,16 @@ void restore_projectiles(const Json &saved)
 		p.id = v.at("id");
 		p.source = v.at("source");
 		p.weapon = v.value("weapon", std::string{});
+		if (p.weapon.size() > 256 || !v.at("payloads").is_array() || v.at("payloads").size() > 256)
+			throw std::runtime_error("Invalid captured projectile payloads");
+		p.payloads = v.at("payloads").get<std::vector<PayloadDefinition>>();
+		if (Json(p.payloads) != v.at("payloads"))
+			throw std::runtime_error("Unexpected captured payload fields");
+		std::set<std::string> captured;
+		for (const auto &payload : p.payloads)
+			if (!captured.insert(payload.id).second || !payload_templates.contains(payload.id) ||
+			    Json(payload) != Json(payload_templates.at(payload.id)))
+				throw std::runtime_error("Invalid captured payload definition");
 		p.position = v.at("position").get<fixed::Vec>();
 		p.velocity = v.at("velocity").get<fixed::Vec>();
 		p.remainder = v.at("remainder").get<fixed::Vec>();
@@ -1183,6 +1202,10 @@ void restore_projectiles(const Json &saved)
 		p.resistance_remainder = v.at("resistance_remainder");
 		p.decks = v.at("decks").get<std::map<EntityId, std::string>>();
 		p.definition = v.at("definition").get<ProjectileDefinition>();
+		for (const auto *payloads : {&p.definition.payloads, &p.definition.destruction.payloads})
+			for (const auto &payload : *payloads)
+				if (!payload_templates.contains(payload.id) || Json(payload) != Json(payload_templates.at(payload.id)))
+					throw std::runtime_error("Invalid projectile profile payload");
 		p.target = v.at("target").get<decltype(p.target)>();
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
 		p.launch_altitude =
@@ -1204,9 +1227,12 @@ void restore_projectiles(const Json &saved)
 		p.random = v.at("random").get<decltype(p.random)>();
 		p.shield_hits = v.at("shield_hits").get<decltype(p.shield_hits)>();
 		p.missile_hits = v.at("missile_hits").get<decltype(p.missile_hits)>();
-		if (!seen.insert(p.id).second || p.id >= next_projectile || !entities.contains(p.source) ||
-		    !definitions.contains(p.definition.visual) || p.life < 1 || p.life > p.definition.lifetime ||
-		    p.damage < 1 || p.damage > p.definition.damage || p.penetration < 1 ||
+		checked_integer(v.at("id"), 1, next_projectile - 1, "projectile.id");
+		checked_integer(v.at("source"), 0, 9007199254740991LL, "projectile.source");
+		const bool effect_only = p.definition.damage == 0;
+		if (!seen.insert(p.id).second || p.id >= next_projectile || !definitions.contains(p.definition.visual) ||
+		    p.life < 1 || p.life > p.definition.lifetime || p.damage < (effect_only ? 0 : 1) ||
+		    p.damage > p.definition.damage || p.penetration < (effect_only ? 0 : 1) ||
 		    p.penetration > p.definition.penetration || std::abs(p.position.x) > fixed::unit ||
 		    std::abs(p.position.y) > fixed::unit || std::abs(p.velocity.x) > fixed::unit ||
 		    std::abs(p.velocity.y) > fixed::unit || std::abs(p.remainder.x) >= rate ||

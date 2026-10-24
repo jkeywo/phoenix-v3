@@ -1554,6 +1554,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	bool weapons = false;
 	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
 		weapons |= descriptor.value("action", std::string{}) == "weapon_target" ||
+		           descriptor.value("action", std::string{}) == "directed_target" ||
 		           descriptor.value("shared_combat_target", false);
 	if (weapons)
 		for (const auto &contact : observation_->contacts)
@@ -1770,6 +1771,24 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	}
 	if (!status_system_.empty())
 		result.emplace_back("game.readout/system-details", system_details());
+	for (const auto &directed : observation_->gameplay.value("directed", Json::array()))
+	{
+		std::string text = directed.at("id").get<std::string>();
+		for (const auto *selection : {"operating_mode", "targeting_mode"})
+		{
+			const auto choices = directed.value(std::string(selection) + "s", Json::array());
+			for (const auto &choice : choices)
+				if (choice.at("value") == directed.at(selection))
+					text += "; " +
+					        localise(selection == std::string("operating_mode") ? "Operating mode" : "Targeting mode") +
+					        ": " + localise(choice.at("label"));
+		}
+		text += "; " + localise(directed.value("ready", false) ? "Ready"
+		                                                       : directed.value("blocker", std::string("Not ready")));
+		if (directed.value("target", EntityId{0}))
+			text += "; " + localise("Target") + " " + std::to_string(directed.at("target").get<EntityId>());
+		result.emplace_back("game.directed/" + directed.at("id").get<std::string>(), std::move(text));
+	}
 	const auto sensors = observation_->gameplay.value("sensors", Json::object());
 	for (const auto &b : observation_->bearing_contacts)
 		if (b.id == static_cast<EntityId>(sensor_contact_))

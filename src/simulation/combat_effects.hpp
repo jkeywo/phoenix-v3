@@ -43,14 +43,18 @@ std::int64_t fault_effectiveness(flecs::entity ship, const std::string &equipmen
 		}
 	return result;
 }
-void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t damage)
+void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t damage,
+                   std::vector<std::string> *affected = nullptr, const std::string &only_equipment = {})
 {
 	auto &s = ship.get_mut<CombatStructure>();
 	for (const auto &[equipment, definitions] : s.definition.faults)
 	{
+		if (!only_equipment.empty() && equipment != only_equipment)
+			continue;
 		if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) != compartment)
 			continue;
 		auto &states = s.faults.at(equipment);
+		bool struck = false;
 		for (std::size_t i = 0; i < definitions.size(); ++i)
 		{
 			const auto &d = definitions[i];
@@ -62,7 +66,10 @@ void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t dam
 			states[i].active = true;
 			states[i].diagnosed = false;
 			states[i].work = 0;
+			struck = true;
 		}
+		if (struck && affected)
+			affected->push_back(equipment);
 	}
 }
 const ShieldContributionDefinition &shield_contribution(const ShieldEffectDefinition &definition,
@@ -244,7 +251,7 @@ bool shield_available(flecs::entity ship, const ShieldContribution &c) const
 	return c.operating && (c.equipment.empty() || !structurally_disabled(ship, c.equipment));
 }
 std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64_t damage, std::int64_t bypass,
-                            std::int64_t *carry = nullptr, EntityId source = 0)
+                            std::int64_t *carry = nullptr, EntityId source = 0, const Projectile *payload = nullptr)
 {
 	ensure_shield_reaction_capacity(ship);
 	const auto hit = next_shield_hit++;
@@ -318,6 +325,11 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 			c.state.strength -= stopped;
 			if (assigned)
 				queue_shield_reactions(ship, c, hit, source, assigned, stopped, assigned - stopped, stopped, remaining);
+			if (payload)
+				queue_payload_outcome(
+				    *payload,
+				    {ship.get<StableId>().id, PayloadOutcomeKind::Shield, -1, {}, c.effect_id, c.definition.name},
+				    stopped);
 			if (stopped && blast_visuals.size() < 8192)
 			{
 				DestructionDefinition flash;

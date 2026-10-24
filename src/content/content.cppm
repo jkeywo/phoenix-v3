@@ -551,6 +551,7 @@ struct SensorDefinition
 	std::int64_t arc = 360000, bearing = 0;
 	std::string turret;
 	std::map<std::string, std::int64_t> capabilities;
+	std::map<std::string, std::int64_t> passive_capabilities;
 };
 struct SensorFinding
 {
@@ -843,12 +844,70 @@ struct CompartmentConnection
 	std::size_t from = 0, to = 0;
 	std::int64_t ticks = 1;
 };
+enum class ShieldReactionKind
+{
+	Damage,
+	Apply,
+	Remove,
+	StoreAdd,
+	StoreConsume,
+	StoreSet,
+	StoreFill,
+	StoreTransfer
+};
+struct ShieldReactionOperation
+{
+	ShieldReactionKind kind = ShieldReactionKind::Damage;
+	std::string target = "attacker", effect, grant;
+	std::string equipment;
+	std::int64_t damage = 0;
+	std::string store, resource, from_store;
+	std::int64_t amount = 0;
+	bool all_sources = false;
+};
+struct ShieldReactionDefinition
+{
+	std::string payer;
+	std::int64_t energy = 0;
+	std::vector<ShieldReactionOperation> operations;
+};
+ShieldReactionDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
+ShieldReactionDefinition compile_effect_group(const Catalog &, const std::string &);
+enum class PayloadOutcomeKind
+{
+	Shield,
+	Compartment,
+	System,
+	Entity
+};
+struct PayloadBindingDefinition
+{
+	std::string id;
+	PayloadOutcomeKind outcome = PayloadOutcomeKind::Entity;
+	bool positive_damage = true;
+	ShieldReactionDefinition reaction;
+};
+struct PayloadDefinition
+{
+	std::string id;
+	std::vector<PayloadBindingDefinition> bindings;
+};
+struct PeriodicEffectDefinition
+{
+	std::string id;
+	std::int64_t duration_ticks = 1, period_ticks = 1;
+	ShieldReactionDefinition reaction;
+};
+PayloadDefinition compile_payload(const Catalog &, const std::string &);
+PeriodicEffectDefinition compile_periodic_effect(const Catalog &, const std::string &);
+std::vector<PayloadDefinition> compile_payloads(const Catalog &, const Json &, const std::string &);
 struct DestructionDefinition
 {
 	std::string visual, sound;
 	std::int64_t chance = 1000, damage = 0, radius = 0, shield_bypass = 0;
 	std::int64_t growth_ticks = 1, fade_ticks = 10, size = 10000;
 	bool affects_missiles = true;
+	std::vector<PayloadDefinition> payloads;
 };
 struct ProjectileDefinition
 {
@@ -859,7 +918,9 @@ struct ProjectileDefinition
 	std::int64_t shield_bypass = 0, turn_rate = 0, seeker_range = 0, arc_height = 0, chaos = 0;
 	std::int64_t durability = 0, radius = 100, resistance = 1, blast_radius = 0, fuse_radius = 0;
 	DestructionDefinition destruction;
+	std::vector<PayloadDefinition> payloads;
 };
+ProjectileDefinition compile_projectile_profile(const Catalog &, const Json &, const std::string &);
 struct FaultDefinition
 {
 	std::string id, symptom, diagnosis, effect = "output";
@@ -872,6 +933,45 @@ struct AmmunitionDefinition
 	ProjectileDefinition projectile;
 };
 AmmunitionDefinition compile_ammunition_resource(const Catalog &, const std::string &);
+enum class DirectedOperationKind
+{
+	Launch,
+	Beam,
+	Scan
+};
+enum class DirectedTargetingKind
+{
+	Designated,
+	Intercept,
+	Off
+};
+struct DirectedTargetingDefinition
+{
+	std::string id, label;
+	DirectedTargetingKind kind = DirectedTargetingKind::Designated;
+};
+struct DirectedModeDefinition
+{
+	std::string id, label;
+	DirectedOperationKind operation = DirectedOperationKind::Launch;
+	std::vector<std::string> targeting;
+	std::int64_t range = 0, energy_per_second = 0, discrete_energy = 0, standby_energy = 0;
+	std::int64_t ammo_use = 1, beam_damage = 0;
+	AmmunitionDefinition ammunition;
+	std::map<std::string, std::int64_t> capabilities;
+	std::vector<PayloadDefinition> payloads;
+	bool resource_payloads = true;
+};
+struct DirectedDefinition
+{
+	std::vector<DirectedModeDefinition> modes;
+	std::vector<DirectedTargetingDefinition> targeting;
+	std::size_t initial_mode = 0, initial_targeting = 0;
+};
+bool property_compatible(std::string_view, OperatingSystem, const DirectedDefinition &);
+DirectedModeDefinition compile_directed_mode(const Catalog &, const std::string &);
+DirectedTargetingDefinition compile_targeting_policy(const Catalog &, const std::string &);
+std::map<std::string, DirectedDefinition> compile_directed(const Catalog &, const std::string &);
 struct ReserveDefinition
 {
 	std::int64_t capacity = 0, initial = 0;
@@ -909,34 +1009,6 @@ struct TeamDefinition
 	std::set<std::string> capabilities{"repair"};
 	std::vector<TeamOrderDefinition> orders;
 };
-enum class ShieldReactionKind
-{
-	Damage,
-	Apply,
-	Remove,
-	StoreAdd,
-	StoreConsume,
-	StoreSet,
-	StoreFill,
-	StoreTransfer
-};
-struct ShieldReactionOperation
-{
-	ShieldReactionKind kind = ShieldReactionKind::Damage;
-	std::string target = "attacker", effect, grant;
-	std::string equipment;
-	std::int64_t damage = 0;
-	std::string store, resource, from_store;
-	std::int64_t amount = 0;
-};
-struct ShieldReactionDefinition
-{
-	std::string payer;
-	std::int64_t energy = 0;
-	std::vector<ShieldReactionOperation> operations;
-};
-ShieldReactionDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
-ShieldReactionDefinition compile_effect_group(const Catalog &, const std::string &);
 struct ShieldDefinition
 {
 	std::vector<ShieldReactionDefinition> reactions;

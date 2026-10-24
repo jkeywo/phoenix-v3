@@ -739,6 +739,21 @@ bool commit_controller(const ControllerProposal &proposal)
 		// Navigation can change assistance as a physical side effect. Reasserting
 		// the owned mode setting must still take control back from that guidance.
 		bool same_effect = true;
+		if (spec.action == OperatingAction::DirectedOperatingMode ||
+		    spec.action == OperatingAction::DirectedTargetingMode || spec.action == OperatingAction::DirectedTarget ||
+		    spec.action == OperatingAction::SensorTarget)
+			for (const auto consumer : spec.consumers)
+			{
+				const auto child = entity.get<EquipmentIndex>().values.at(consumer);
+				if (const auto *directed = child.try_get<DirectedRuntime>())
+				{
+					const auto actual = spec.action == OperatingAction::DirectedOperatingMode ? directed->operating_mode
+					                    : spec.action == OperatingAction::DirectedTargetingMode
+					                        ? directed->targeting_mode
+					                        : directed->target;
+					same_effect &= actual == static_cast<std::uint64_t>(proposal.value);
+				}
+			}
 		if (spec.action == OperatingAction::Assisted)
 			for (const auto consumer : spec.consumers)
 			{

@@ -34,7 +34,7 @@ void expand_combat_policies(Catalog &catalog)
 				const auto action = command.at("action").get<std::string>(),
 				           channel = command.at("id").get<std::string>();
 				Json value;
-				if (action == "weapon_target")
+				if (action == "weapon_target" || action == "directed_target")
 					value = observation("tactical.target");
 				else if (action == "heading_mdeg")
 					value = observation("tactical.bearing");

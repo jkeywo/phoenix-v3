@@ -299,7 +299,11 @@
 				"radar": {
 					"range_mm": 500000,
 					"long_range_mm": 1500000,
-					"capabilities": {
+					"directed": {
+						"modes": ["base.courier.radar.scan"],
+						"targeting": ["base.targeting.designated"]
+					},
+					"broad_capabilities": {
 						"basic_identity": 0,
 						"own_arcs": 0
 					}
@@ -5177,10 +5181,13 @@
 								"range_mm": 2500000,
 								"long_range_mm": 7500000,
 								"shows": ["ship", "contact", "missile"],
-								"capabilities": {
+								"directed": {
+									"modes": ["base.cruiser.sensors.scan"],
+									"targeting": ["base.targeting.designated"]
+								},
+								"broad_capabilities": {
 									"basic_identity": 0,
-									"own_arcs": 0,
-									"contact_arcs": 100
+									"own_arcs": 0
 								}
 							}
 						}
@@ -5201,10 +5208,13 @@
 								"observation_console": "tactical",
 								"compartment": "bridge",
 								"shows": ["ship", "contact", "missile"],
-								"capabilities": {
+								"directed": {
+									"modes": ["base.cruiser.tactical.scan"],
+									"targeting": ["base.targeting.designated"]
+								},
+								"broad_capabilities": {
 									"basic_identity": 0,
-									"own_arcs": 0,
-									"contact_arcs": 100
+									"own_arcs": 0
 								}
 							},
 							"cooling": {
@@ -9665,16 +9675,6 @@
 					"turret": "fore-dorsal",
 					"arc_mdeg": 6000,
 					"magazine": "fore-dorsal-mag",
-					"fire_ticks": 50,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 450000,
-						"lifetime_ticks": 100,
-						"penetration": 1600,
-						"damage": 200,
-						"damage_per_m": 6,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -9701,9 +9701,11 @@
 						}
 					],
 					"muzzle_marker": "muzzle",
-					"range_mm": 1800000,
-					"discrete_energy": 200,
-					"power_store": "weapons-cell"
+					"power_store": "weapons-cell",
+					"directed": {
+						"modes": ["base.cruiser.fore-dorsal-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"fore-ventral": {
 					"kind": "turret",
@@ -9742,16 +9744,6 @@
 					"turret": "fore-ventral",
 					"arc_mdeg": 6000,
 					"magazine": "fore-ventral-mag",
-					"fire_ticks": 50,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 450000,
-						"lifetime_ticks": 100,
-						"penetration": 1600,
-						"damage": 200,
-						"damage_per_m": 6,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -9778,9 +9770,11 @@
 						}
 					],
 					"muzzle_marker": "muzzle",
-					"range_mm": 1800000,
-					"discrete_energy": 200,
-					"power_store": "weapons-cell"
+					"power_store": "weapons-cell",
+					"directed": {
+						"modes": ["base.cruiser.fore-dorsal-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"aft-dorsal": {
 					"kind": "turret",
@@ -9819,16 +9813,6 @@
 					"turret": "aft-dorsal",
 					"arc_mdeg": 6000,
 					"magazine": "aft-dorsal-mag",
-					"fire_ticks": 50,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 450000,
-						"lifetime_ticks": 100,
-						"penetration": 1600,
-						"damage": 200,
-						"damage_per_m": 6,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -9855,9 +9839,11 @@
 						}
 					],
 					"muzzle_marker": "muzzle",
-					"range_mm": 1800000,
-					"discrete_energy": 200,
-					"power_store": "weapons-cell"
+					"power_store": "weapons-cell",
+					"directed": {
+						"modes": ["base.cruiser.fore-dorsal-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"aft-ventral": {
 					"kind": "turret",
@@ -9896,16 +9882,6 @@
 					"turret": "aft-ventral",
 					"arc_mdeg": 6000,
 					"magazine": "aft-ventral-mag",
-					"fire_ticks": 50,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 450000,
-						"lifetime_ticks": 100,
-						"penetration": 1600,
-						"damage": 200,
-						"damage_per_m": 6,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -9932,9 +9908,11 @@
 						}
 					],
 					"muzzle_marker": "muzzle",
-					"range_mm": 1800000,
-					"discrete_energy": 200,
-					"power_store": "weapons-cell"
+					"power_store": "weapons-cell",
+					"directed": {
+						"modes": ["base.cruiser.fore-dorsal-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"mid-dorsal": {
 					"kind": "turret",
@@ -9973,16 +9951,6 @@
 					"turret": "mid-dorsal",
 					"arc_mdeg": 6000,
 					"magazine": "mid-dorsal-mag",
-					"fire_ticks": 50,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 450000,
-						"lifetime_ticks": 100,
-						"penetration": 1600,
-						"damage": 200,
-						"damage_per_m": 6,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -10009,9 +9977,11 @@
 						}
 					],
 					"muzzle_marker": "muzzle",
-					"range_mm": 1800000,
-					"discrete_energy": 200,
-					"power_store": "weapons-cell"
+					"power_store": "weapons-cell",
+					"directed": {
+						"modes": ["base.cruiser.fore-dorsal-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-port-homing": {
 					"kind": "magazine",
@@ -10098,12 +10068,8 @@
 				"bow-port-tube-1": {
 					"kind": "weapon",
 					"magazines": ["bow-port-homing", "bow-port-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10133,17 +10099,17 @@
 					"muzzle_marker": "missile_bow_port_1",
 					"x_mm": 140000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-port-tube-2": {
 					"kind": "weapon",
 					"magazines": ["bow-port-homing", "bow-port-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10173,17 +10139,17 @@
 					"muzzle_marker": "missile_bow_port_2",
 					"x_mm": 140000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-port-tube-3": {
 					"kind": "weapon",
 					"magazines": ["bow-port-homing", "bow-port-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10213,17 +10179,17 @@
 					"muzzle_marker": "missile_bow_port_3",
 					"x_mm": 140000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-port-tube-4": {
 					"kind": "weapon",
 					"magazines": ["bow-port-homing", "bow-port-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10253,7 +10219,11 @@
 					"muzzle_marker": "missile_bow_port_4",
 					"x_mm": 140000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-starboard-homing": {
 					"kind": "magazine",
@@ -10340,12 +10310,8 @@
 				"bow-starboard-tube-1": {
 					"kind": "weapon",
 					"magazines": ["bow-starboard-homing", "bow-starboard-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10375,17 +10341,17 @@
 					"muzzle_marker": "missile_bow_starboard_1",
 					"x_mm": 140000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-starboard-tube-2": {
 					"kind": "weapon",
 					"magazines": ["bow-starboard-homing", "bow-starboard-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10415,17 +10381,17 @@
 					"muzzle_marker": "missile_bow_starboard_2",
 					"x_mm": 140000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-starboard-tube-3": {
 					"kind": "weapon",
 					"magazines": ["bow-starboard-homing", "bow-starboard-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10455,17 +10421,17 @@
 					"muzzle_marker": "missile_bow_starboard_3",
 					"x_mm": 140000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bow-starboard-tube-4": {
 					"kind": "weapon",
 					"magazines": ["bow-starboard-homing", "bow-starboard-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 0,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10495,7 +10461,11 @@
 					"muzzle_marker": "missile_bow_starboard_4",
 					"x_mm": 140000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-fore-homing": {
 					"kind": "magazine",
@@ -10582,12 +10552,8 @@
 				"port-fore-tube-1": {
 					"kind": "weapon",
 					"magazines": ["port-fore-homing", "port-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10617,17 +10583,17 @@
 					"muzzle_marker": "missile_port_fore_1",
 					"x_mm": 85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-fore-tube-2": {
 					"kind": "weapon",
 					"magazines": ["port-fore-homing", "port-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10657,17 +10623,17 @@
 					"muzzle_marker": "missile_port_fore_2",
 					"x_mm": 85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-fore-tube-3": {
 					"kind": "weapon",
 					"magazines": ["port-fore-homing", "port-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10697,17 +10663,17 @@
 					"muzzle_marker": "missile_port_fore_3",
 					"x_mm": 85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-fore-tube-4": {
 					"kind": "weapon",
 					"magazines": ["port-fore-homing", "port-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -10737,7 +10703,11 @@
 					"muzzle_marker": "missile_port_fore_4",
 					"x_mm": 85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-aft-homing": {
 					"kind": "magazine",
@@ -10824,12 +10794,8 @@
 				"port-aft-tube-1": {
 					"kind": "weapon",
 					"magazines": ["port-aft-homing", "port-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -10859,17 +10825,17 @@
 					"muzzle_marker": "missile_port_aft_1",
 					"x_mm": -85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-aft-tube-2": {
 					"kind": "weapon",
 					"magazines": ["port-aft-homing", "port-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -10899,17 +10865,17 @@
 					"muzzle_marker": "missile_port_aft_2",
 					"x_mm": -85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-aft-tube-3": {
 					"kind": "weapon",
 					"magazines": ["port-aft-homing", "port-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -10939,17 +10905,17 @@
 					"muzzle_marker": "missile_port_aft_3",
 					"x_mm": -85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"port-aft-tube-4": {
 					"kind": "weapon",
 					"magazines": ["port-aft-homing", "port-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 90000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -10979,7 +10945,11 @@
 					"muzzle_marker": "missile_port_aft_4",
 					"x_mm": -85000,
 					"y_mm": 60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-fore-homing": {
 					"kind": "magazine",
@@ -11066,12 +11036,8 @@
 				"starboard-fore-tube-1": {
 					"kind": "weapon",
 					"magazines": ["starboard-fore-homing", "starboard-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -11101,17 +11067,17 @@
 					"muzzle_marker": "missile_starboard_fore_1",
 					"x_mm": 85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-fore-tube-2": {
 					"kind": "weapon",
 					"magazines": ["starboard-fore-homing", "starboard-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -11141,17 +11107,17 @@
 					"muzzle_marker": "missile_starboard_fore_2",
 					"x_mm": 85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-fore-tube-3": {
 					"kind": "weapon",
 					"magazines": ["starboard-fore-homing", "starboard-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -11181,17 +11147,17 @@
 					"muzzle_marker": "missile_starboard_fore_3",
 					"x_mm": 85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-fore-tube-4": {
 					"kind": "weapon",
 					"magazines": ["starboard-fore-homing", "starboard-fore-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "weapons",
 					"faults": [
@@ -11221,7 +11187,11 @@
 					"muzzle_marker": "missile_starboard_fore_4",
 					"x_mm": 85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-aft-homing": {
 					"kind": "magazine",
@@ -11308,12 +11278,8 @@
 				"starboard-aft-tube-1": {
 					"kind": "weapon",
 					"magazines": ["starboard-aft-homing", "starboard-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11343,17 +11309,17 @@
 					"muzzle_marker": "missile_starboard_aft_1",
 					"x_mm": -85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-aft-tube-2": {
 					"kind": "weapon",
 					"magazines": ["starboard-aft-homing", "starboard-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11383,17 +11349,17 @@
 					"muzzle_marker": "missile_starboard_aft_2",
 					"x_mm": -85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-aft-tube-3": {
 					"kind": "weapon",
 					"magazines": ["starboard-aft-homing", "starboard-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11423,17 +11389,17 @@
 					"muzzle_marker": "missile_starboard_aft_3",
 					"x_mm": -85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"starboard-aft-tube-4": {
 					"kind": "weapon",
 					"magazines": ["starboard-aft-homing", "starboard-aft-havok"],
-					"load_ticks": 1,
 					"arc_mdeg": 30000,
 					"bearing_mdeg": 270000,
-					"range_mm": 2000000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11463,7 +11429,11 @@
 					"muzzle_marker": "missile_starboard_aft_4",
 					"x_mm": -85000,
 					"y_mm": -60000,
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.bow-port-tube-1.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"pdc-port-1-mag": {
 					"kind": "magazine",
@@ -11510,11 +11480,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-port-1-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11545,7 +11510,12 @@
 					"y_mm": 65000,
 					"bearing_mdeg": 90000,
 					"muzzle_marker": "pdc_port_1",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-port-2-mag": {
 					"kind": "magazine",
@@ -11592,11 +11562,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-port-2-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11627,7 +11592,12 @@
 					"y_mm": 65000,
 					"bearing_mdeg": 90000,
 					"muzzle_marker": "pdc_port_2",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-port-3-mag": {
 					"kind": "magazine",
@@ -11674,11 +11644,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-port-3-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11709,7 +11674,12 @@
 					"y_mm": 65000,
 					"bearing_mdeg": 90000,
 					"muzzle_marker": "pdc_port_3",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-port-4-mag": {
 					"kind": "magazine",
@@ -11756,11 +11726,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-port-4-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11791,7 +11756,12 @@
 					"y_mm": 65000,
 					"bearing_mdeg": 90000,
 					"muzzle_marker": "pdc_port_4",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-starboard-1-mag": {
 					"kind": "magazine",
@@ -11838,11 +11808,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-starboard-1-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11873,7 +11838,12 @@
 					"y_mm": -65000,
 					"bearing_mdeg": 270000,
 					"muzzle_marker": "pdc_starboard_1",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-starboard-2-mag": {
 					"kind": "magazine",
@@ -11920,11 +11890,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-starboard-2-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -11955,7 +11920,12 @@
 					"y_mm": -65000,
 					"bearing_mdeg": 270000,
 					"muzzle_marker": "pdc_starboard_2",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-starboard-3-mag": {
 					"kind": "magazine",
@@ -12002,11 +11972,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-starboard-3-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -12037,7 +12002,12 @@
 					"y_mm": -65000,
 					"bearing_mdeg": 270000,
 					"muzzle_marker": "pdc_starboard_3",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"pdc-starboard-4-mag": {
 					"kind": "magazine",
@@ -12084,11 +12054,6 @@
 					"kind": "weapon",
 					"magazines": ["pdc-starboard-4-mag"],
 					"arc_mdeg": 180000,
-					"range_mm": 200000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
 					"power_store": "weapons-cell",
 					"compartment": "magazines",
 					"faults": [
@@ -12119,7 +12084,12 @@
 					"y_mm": -65000,
 					"bearing_mdeg": 270000,
 					"muzzle_marker": "pdc_starboard_4",
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"directed": {
+						"modes": ["base.cruiser.pdc-port-1.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -12254,12 +12224,14 @@
 					"shows": ["ship"],
 					"power_store": "sensors.cell",
 					"energy_per_second": 100,
-					"capabilities": {
-						"shield_sectors": 120,
-						"compartment_condition": 240,
-						"findings": 0
+					"observation_console": "science",
+					"directed": {
+						"modes": ["base.cruiser.scanner-fore.scan"],
+						"targeting": ["base.targeting.designated"]
 					},
-					"observation_console": "science"
+					"broad_capabilities": {
+						"findings": 0
+					}
 				},
 				"scanner-aft": {
 					"kind": "radar",
@@ -12270,12 +12242,14 @@
 					"shows": ["ship"],
 					"power_store": "sensors.cell",
 					"energy_per_second": 100,
-					"capabilities": {
-						"shield_sectors": 120,
-						"compartment_condition": 240,
-						"findings": 0
+					"observation_console": "science",
+					"directed": {
+						"modes": ["base.cruiser.scanner-fore.scan"],
+						"targeting": ["base.targeting.designated"]
 					},
-					"observation_console": "science"
+					"broad_capabilities": {
+						"findings": 0
+					}
 				},
 				"repair-1": {
 					"kind": "repair_team",
@@ -20162,7 +20136,11 @@
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar",
-					"capabilities": {
+					"directed": {
+						"modes": ["base.armed-courier.radar.scan"],
+						"targeting": ["base.targeting.designated"]
+					},
+					"broad_capabilities": {
 						"basic_identity": 0,
 						"own_arcs": 0,
 						"contact_arcs": 0
@@ -20213,16 +20191,6 @@
 					"turret": "top",
 					"arc_mdeg": 6000,
 					"magazine": "top-mag",
-					"fire_ticks": 25,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 100000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 85,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -20248,7 +20216,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bottom": {
 					"kind": "turret",
@@ -20295,16 +20267,6 @@
 					"turret": "bottom",
 					"arc_mdeg": 6000,
 					"magazine": "bottom-mag",
-					"fire_ticks": 25,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 100000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 85,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -20330,7 +20292,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"forward-mag": {
 					"kind": "magazine",
@@ -20384,16 +20350,6 @@
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
 					"magazine": "forward-mag",
-					"fire_ticks": 35,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 180000,
-						"lifetime_ticks": 100,
-						"penetration": 2000,
-						"damage": 60,
-						"damage_per_m": 2,
-						"spread_mdeg": 250
-					},
 					"observation_console": "tactical",
 					"x_mm": 12000,
 					"faults": [
@@ -20420,7 +20376,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.forward-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -20439,13 +20399,8 @@
 				},
 				"beam": {
 					"kind": "weapon",
-					"family": "beam",
-					"turret": "top",
+					"turret": "beam-turret",
 					"arc_mdeg": 12000,
-					"range_mm": 140000,
-					"damage_per_second": 65,
-					"penetration": 1000,
-					"energy_per_second": 360,
 					"power_store": "combat-power.weapons",
 					"compartment": "mid-port",
 					"faults": [
@@ -20472,7 +20427,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.beam.beam"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -20547,7 +20506,8 @@
 					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
-					"template": "base.equipment.combat-pdc"
+					"template": "base.equipment.combat-pdc",
+					"turret": "pdc-turret"
 				},
 				"comms-radio": {
 					"kind": "comms",
@@ -20579,11 +20539,85 @@
 					"energy_per_second": 50,
 					"power_store": "combat-power.main",
 					"observation_console": "tactical",
-					"capabilities": {
-						"shield_sectors": 200,
-						"compartment_condition": 400,
+					"directed": {
+						"modes": ["base.armed-courier.focused-scanner.scan"],
+						"targeting": ["base.targeting.designated"]
+					},
+					"broad_capabilities": {
 						"findings": 0
 					}
+				},
+				"beam-turret": {
+					"kind": "turret",
+					"compartment": "mid-port",
+					"arc_mdeg": 270000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_top",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": false,
+					"x_mm": 4000,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
+				},
+				"pdc-turret": {
+					"kind": "turret",
+					"compartment": "mid-starboard",
+					"arc_mdeg": 300000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_bottom",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": true,
+					"x_mm": 0,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
 				}
 			},
 			"stations": [
@@ -20618,7 +20652,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						},
@@ -20645,7 +20681,9 @@
 								"pdc-mag",
 								"pdc",
 								"focused-scanner",
-								"sensor-turret"
+								"sensor-turret",
+								"beam-turret",
+								"pdc-turret"
 							]
 						}
 					]
@@ -20683,7 +20721,9 @@
 								"pdc-mag",
 								"pdc",
 								"ftl.supply",
-								"ftl.cooling"
+								"ftl.cooling",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						},
@@ -20773,7 +20813,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["top"]
+								"consumers": ["top", "beam-turret"]
 							}
 						],
 						"tree": "base.policy.hold-configuration"
@@ -20818,7 +20858,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["bottom"]
+								"consumers": ["bottom", "pdc-turret"]
 							}
 						],
 						"tree": "base.policy.hold-configuration"
@@ -21619,7 +21659,8 @@
 						"controller": "top",
 						"compartment": "mid-port",
 						"bindings": {
-							"top": ["traverse"]
+							"top": ["traverse"],
+							"beam-turret": ["traverse"]
 						}
 					},
 					{
@@ -21649,7 +21690,8 @@
 						"controller": "bottom",
 						"compartment": "mid-starboard",
 						"bindings": {
-							"bottom": ["traverse"]
+							"bottom": ["traverse"],
+							"pdc-turret": ["traverse"]
 						}
 					},
 					{
@@ -22297,16 +22339,6 @@
 					"turret": "top",
 					"arc_mdeg": 6000,
 					"magazine": "top-mag",
-					"fire_ticks": 35,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 75000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 180,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -22332,7 +22364,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.pirate-raider.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bottom": {
 					"kind": "turret",
@@ -22379,16 +22415,6 @@
 					"turret": "bottom",
 					"arc_mdeg": 6000,
 					"magazine": "bottom-mag",
-					"fire_ticks": 35,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 75000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 180,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -22414,7 +22440,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.pirate-raider.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -22433,13 +22463,8 @@
 				},
 				"beam": {
 					"kind": "weapon",
-					"family": "beam",
-					"turret": "top",
+					"turret": "beam-turret",
 					"arc_mdeg": 12000,
-					"range_mm": 140000,
-					"damage_per_second": 100,
-					"penetration": 1000,
-					"energy_per_second": 360,
 					"power_store": "combat-power.weapons",
 					"compartment": "mid-port",
 					"faults": [
@@ -22466,7 +22491,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.pirate-raider.beam.beam"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -22541,7 +22570,80 @@
 					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
-					"template": "base.equipment.combat-pdc"
+					"template": "base.equipment.combat-pdc",
+					"turret": "pdc-turret"
+				},
+				"beam-turret": {
+					"kind": "turret",
+					"compartment": "mid-port",
+					"arc_mdeg": 270000,
+					"traverse_mdeg_s": 45000,
+					"marker": "turret_forward",
+					"visual": "base.pirate-turret",
+					"scale_permille": 240,
+					"flip_y": false,
+					"x_mm": 6000,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
+				},
+				"pdc-turret": {
+					"kind": "turret",
+					"compartment": "mid-starboard",
+					"arc_mdeg": 180000,
+					"traverse_mdeg_s": 45000,
+					"marker": "turret_aft",
+					"visual": "base.pirate-turret",
+					"scale_permille": 240,
+					"flip_y": false,
+					"x_mm": 0,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
 				}
 			},
 			"stations": [
@@ -22574,7 +22676,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						},
@@ -22597,7 +22701,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"beam-turret",
+								"pdc-turret"
 							]
 						}
 					]
@@ -22631,7 +22737,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						}
@@ -22706,7 +22814,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["top"]
+								"consumers": ["top", "beam-turret"]
 							}
 						],
 						"tree": "base.policy.hold-configuration"
@@ -22751,7 +22859,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["bottom"]
+								"consumers": ["bottom", "pdc-turret"]
 							}
 						],
 						"tree": "base.policy.hold-configuration"
@@ -23335,7 +23443,8 @@
 						"controller": "top",
 						"compartment": "mid-port",
 						"bindings": {
-							"top": ["traverse"]
+							"top": ["traverse"],
+							"beam-turret": ["traverse"]
 						}
 					},
 					{
@@ -23365,7 +23474,8 @@
 						"controller": "bottom",
 						"compartment": "mid-starboard",
 						"bindings": {
-							"bottom": ["traverse"]
+							"bottom": ["traverse"],
+							"pdc-turret": ["traverse"]
 						}
 					},
 					{
@@ -26094,13 +26204,17 @@
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar",
-					"capabilities": {
+					"range_mm": 2500000,
+					"long_range_mm": 5000000,
+					"directed": {
+						"modes": ["base.rescue-courier.radar.scan"],
+						"targeting": ["base.targeting.designated"]
+					},
+					"broad_capabilities": {
 						"basic_identity": 0,
 						"own_arcs": 0,
 						"contact_arcs": 0
-					},
-					"range_mm": 2500000,
-					"long_range_mm": 5000000
+					}
 				},
 				"top": {
 					"kind": "turret",
@@ -26147,16 +26261,6 @@
 					"turret": "top",
 					"arc_mdeg": 6000,
 					"magazine": "top-mag",
-					"fire_ticks": 25,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 100000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 85,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -26182,7 +26286,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bottom": {
 					"kind": "turret",
@@ -26229,16 +26337,6 @@
 					"turret": "bottom",
 					"arc_mdeg": 6000,
 					"magazine": "bottom-mag",
-					"fire_ticks": 25,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 100000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 85,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -26264,7 +26362,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"forward-mag": {
 					"kind": "magazine",
@@ -26318,16 +26420,6 @@
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
 					"magazine": "forward-mag",
-					"fire_ticks": 35,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 180000,
-						"lifetime_ticks": 100,
-						"penetration": 2000,
-						"damage": 60,
-						"damage_per_m": 2,
-						"spread_mdeg": 250
-					},
 					"observation_console": "tactical",
 					"x_mm": 12000,
 					"faults": [
@@ -26354,7 +26446,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.forward-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -26373,13 +26469,8 @@
 				},
 				"beam": {
 					"kind": "weapon",
-					"family": "beam",
-					"turret": "top",
+					"turret": "beam-turret",
 					"arc_mdeg": 12000,
-					"range_mm": 140000,
-					"damage_per_second": 65,
-					"penetration": 1000,
-					"energy_per_second": 360,
 					"power_store": "combat-power.weapons",
 					"compartment": "mid-port",
 					"faults": [
@@ -26406,7 +26497,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.beam.beam"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -26481,7 +26576,8 @@
 					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
-					"template": "base.equipment.combat-pdc"
+					"template": "base.equipment.combat-pdc",
+					"turret": "pdc-turret"
 				},
 				"comms-radio": {
 					"kind": "comms",
@@ -26517,9 +26613,11 @@
 					"energy_per_second": 50,
 					"power_store": "combat-power.main",
 					"observation_console": "tactical",
-					"capabilities": {
-						"shield_sectors": 200,
-						"compartment_condition": 400,
+					"directed": {
+						"modes": ["base.armed-courier.focused-scanner.scan"],
+						"targeting": ["base.targeting.designated"]
+					},
+					"broad_capabilities": {
 						"findings": 0
 					}
 				},
@@ -26586,6 +26684,78 @@
 					"compartment": "mid-port",
 					"cooling_link": "veil-cooling",
 					"observation_console": "support"
+				},
+				"beam-turret": {
+					"kind": "turret",
+					"compartment": "mid-port",
+					"arc_mdeg": 270000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_top",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": false,
+					"x_mm": 4000,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
+				},
+				"pdc-turret": {
+					"kind": "turret",
+					"compartment": "mid-starboard",
+					"arc_mdeg": 300000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_bottom",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": true,
+					"x_mm": 0,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
 				}
 			},
 			"stations": [
@@ -26621,7 +26791,9 @@
 								"missile-launcher",
 								"pdc-mag",
 								"pdc",
-								"dispatch"
+								"dispatch",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true,
 							"knowledge_roles": ["base.crew", "base.helm"]
@@ -26650,7 +26822,9 @@
 								"pdc",
 								"focused-scanner",
 								"sensor-turret",
-								"security-team"
+								"security-team",
+								"beam-turret",
+								"pdc-turret"
 							]
 						}
 					]
@@ -26692,7 +26866,9 @@
 								"medical-team",
 								"veil",
 								"veil-supply",
-								"veil-cooling"
+								"veil-cooling",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						},
@@ -26832,7 +27008,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["top"]
+								"consumers": ["top", "beam-turret"]
 							}
 						],
 						"tree": "base.courier.assist.system-ready"
@@ -26871,7 +27047,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["bottom"]
+								"consumers": ["bottom", "pdc-turret"]
 							}
 						],
 						"tree": "base.courier.assist.system-ready"
@@ -28245,7 +28421,8 @@
 						"controller": "top",
 						"compartment": "mid-port",
 						"bindings": {
-							"top": ["traverse"]
+							"top": ["traverse"],
+							"beam-turret": ["traverse"]
 						}
 					},
 					{
@@ -28275,7 +28452,8 @@
 						"controller": "bottom",
 						"compartment": "mid-starboard",
 						"bindings": {
-							"bottom": ["traverse"]
+							"bottom": ["traverse"],
+							"pdc-turret": ["traverse"]
 						}
 					},
 					{
@@ -29316,16 +29494,6 @@
 					"turret": "top",
 					"arc_mdeg": 6000,
 					"magazine": "top-mag",
-					"fire_ticks": 25,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 100000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 85,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -29351,7 +29519,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"bottom": {
 					"kind": "turret",
@@ -29398,16 +29570,6 @@
 					"turret": "bottom",
 					"arc_mdeg": 6000,
 					"magazine": "bottom-mag",
-					"fire_ticks": 25,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 100000,
-						"lifetime_ticks": 120,
-						"penetration": 180,
-						"damage": 85,
-						"damage_per_m": 15,
-						"spread_mdeg": 800
-					},
 					"observation_console": "tactical",
 					"faults": [
 						{
@@ -29433,7 +29595,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.top-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"forward-mag": {
 					"kind": "magazine",
@@ -29487,16 +29653,6 @@
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
 					"magazine": "forward-mag",
-					"fire_ticks": 35,
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 180000,
-						"lifetime_ticks": 100,
-						"penetration": 2000,
-						"damage": 60,
-						"damage_per_m": 2,
-						"spread_mdeg": 250
-					},
 					"observation_console": "tactical",
 					"x_mm": 12000,
 					"faults": [
@@ -29523,7 +29679,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.forward-gun.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -29542,13 +29702,8 @@
 				},
 				"beam": {
 					"kind": "weapon",
-					"family": "beam",
-					"turret": "top",
+					"turret": "beam-turret",
 					"arc_mdeg": 12000,
-					"range_mm": 140000,
-					"damage_per_second": 65,
-					"penetration": 1000,
-					"energy_per_second": 360,
 					"power_store": "combat-power.weapons",
 					"compartment": "mid-port",
 					"faults": [
@@ -29575,7 +29730,11 @@
 							"repair_work": 100
 						}
 					],
-					"muzzle_marker": "muzzle"
+					"muzzle_marker": "muzzle",
+					"directed": {
+						"modes": ["base.armed-courier.beam.beam"],
+						"targeting": ["base.targeting.designated"]
+					}
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -29650,7 +29809,8 @@
 					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
-					"template": "base.equipment.combat-pdc"
+					"template": "base.equipment.combat-pdc",
+					"turret": "pdc-turret"
 				},
 				"comms-radio": {
 					"kind": "comms",
@@ -29659,6 +29819,78 @@
 					"power_store": "combat-power.main",
 					"observation_console": "comms",
 					"compartment": "bow-port"
+				},
+				"beam-turret": {
+					"kind": "turret",
+					"compartment": "mid-port",
+					"arc_mdeg": 270000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_top",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": false,
+					"x_mm": 4000,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
+				},
+				"pdc-turret": {
+					"kind": "turret",
+					"compartment": "mid-starboard",
+					"arc_mdeg": 300000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_bottom",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": true,
+					"x_mm": 0,
+					"observation_console": "tactical",
+					"faults": [
+						{
+							"id": "damage",
+							"symptom": "Erratic equipment response",
+							"diagnosis": "Traverse actuator damaged",
+							"effect": "output",
+							"effectiveness_permille": 500,
+							"chance_permille": 120,
+							"damage_threshold": 20,
+							"severity": 100,
+							"repair_work": 100
+						},
+						{
+							"id": "ruined",
+							"symptom": "Equipment unresponsive",
+							"diagnosis": "Traverse actuator destroyed",
+							"effect": "disabled",
+							"destroyed": true,
+							"chance_permille": 15,
+							"damage_threshold": 80,
+							"severity": 1000,
+							"repair_work": 100
+						}
+					]
 				}
 			},
 			"stations": [
@@ -29693,7 +29925,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						},
@@ -29718,7 +29952,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"beam-turret",
+								"pdc-turret"
 							]
 						}
 					]
@@ -29756,7 +29992,9 @@
 								"pdc-mag",
 								"pdc",
 								"ftl.supply",
-								"ftl.cooling"
+								"ftl.cooling",
+								"beam-turret",
+								"pdc-turret"
 							],
 							"shield_feed": true
 						},
@@ -29847,7 +30085,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["top"]
+								"consumers": ["top", "beam-turret"]
 							}
 						]
 					},
@@ -29892,7 +30130,7 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["bottom"]
+								"consumers": ["bottom", "pdc-turret"]
 							}
 						]
 					},
@@ -30675,7 +30913,8 @@
 						"controller": "top",
 						"compartment": "mid-port",
 						"bindings": {
-							"top": ["traverse"]
+							"top": ["traverse"],
+							"beam-turret": ["traverse"]
 						}
 					},
 					{
@@ -30705,7 +30944,8 @@
 						"controller": "bottom",
 						"compartment": "mid-starboard",
 						"bindings": {
-							"bottom": ["traverse"]
+							"bottom": ["traverse"],
+							"pdc-turret": ["traverse"]
 						}
 					},
 					{
@@ -31087,12 +31327,16 @@
 					"kind": "radar",
 					"range_mm": 300000,
 					"shows": ["ship"],
-					"capabilities": {
-						"basic_identity": 0
-					},
 					"compartment": "cabin",
 					"energy_per_second": 20,
-					"power_store": "cell"
+					"power_store": "cell",
+					"directed": {
+						"modes": ["base.boarding-shuttle.radar.scan"],
+						"targeting": ["base.targeting.designated"]
+					},
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				}
 			},
 			"resources": {
@@ -31498,10 +31742,14 @@
 					"kind": "radar",
 					"range_mm": 2500000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["base.shuttle.radar.scan"],
+						"targeting": ["base.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -31872,10 +32120,14 @@
 					"kind": "radar",
 					"range_mm": 2500000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["base.shuttle.radar.scan"],
+						"targeting": ["base.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -31927,14 +32179,14 @@
 				"weapon": {
 					"kind": "weapon",
 					"magazine": "intercept-mag",
-					"range_mm": 200000,
-					"fire_ticks": 4,
 					"compartment": "hull",
-					"point_defence": true,
 					"power_store": "cell",
-					"auto_energy_per_second": 10,
 					"muzzle_marker": "muzzle",
-					"discrete_energy": 2
+					"directed": {
+						"modes": ["base.interceptor.weapon.launch"],
+						"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+						"initial_targeting": "base.targeting.intercept"
+					}
 				}
 			},
 			"resources": {
@@ -32290,10 +32542,14 @@
 					"kind": "radar",
 					"range_mm": 2500000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["base.shuttle.radar.scan"],
+						"targeting": ["base.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -32345,12 +32601,13 @@
 				"weapon": {
 					"kind": "weapon",
 					"magazine": "bomb-mag",
-					"range_mm": 800000,
-					"fire_ticks": 15,
 					"compartment": "hull",
 					"muzzle_marker": "muzzle",
-					"discrete_energy": 2,
-					"power_store": "cell"
+					"power_store": "cell",
+					"directed": {
+						"modes": ["base.bomber.weapon.launch"],
+						"targeting": ["base.targeting.designated"]
+					}
 				}
 			},
 			"resources": {
@@ -33859,10 +34116,14 @@
 					"kind": "radar",
 					"range_mm": 2500000,
 					"shows": ["ship", "contact", "missile"],
-					"capabilities": {
-						"basic_identity": 0
+					"compartment": "hull",
+					"directed": {
+						"modes": ["base.shuttle.radar.scan"],
+						"targeting": ["base.targeting.designated"]
 					},
-					"compartment": "hull"
+					"broad_capabilities": {
+						"basic_identity": 0
+					}
 				},
 				"radio": {
 					"kind": "comms",
@@ -61160,7 +61421,15 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"directed": {
+				"modes": ["base.equipment.radar.scan"],
+				"targeting": ["base.targeting.designated"]
+			},
+			"broad_capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
 		},
 		{
 			"id": "base.equipment.generator",
@@ -61231,10 +61500,6 @@
 			"kind": "radar",
 			"range_mm": 350000,
 			"long_range_mm": 1050000,
-			"capabilities": {
-				"basic_identity": 0,
-				"own_arcs": 0
-			},
 			"shows": ["ship", "asteroid", "missile"],
 			"compartment": "bow-starboard",
 			"observation_console": "support",
@@ -61261,7 +61526,15 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"directed": {
+				"modes": ["base.equipment.combat-radar.scan"],
+				"targeting": ["base.targeting.designated"]
+			},
+			"broad_capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
 		},
 		{
 			"id": "base.equipment.combat-top-mag",
@@ -61556,12 +61829,8 @@
 			"id": "base.equipment.combat-missile-launcher",
 			"kind": "weapon",
 			"magazines": ["homing-mag", "havok-mag"],
-			"load_ticks": 1,
 			"arc_mdeg": 30000,
 			"bearing_mdeg": 0,
-			"range_mm": 900000,
-			"fire_ticks": 1,
-			"discrete_energy": 10,
 			"power_store": "combat-power.weapons",
 			"compartment": "mid-port",
 			"faults": [
@@ -61587,7 +61856,11 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"directed": {
+				"modes": ["base.equipment.combat-missile-launcher.launch"],
+				"targeting": ["base.targeting.designated"]
+			}
 		},
 		{
 			"id": "base.equipment.combat-pdc-mag",
@@ -61642,11 +61915,6 @@
 			"magazines": ["pdc-mag"],
 			"turret": "bottom",
 			"arc_mdeg": 18000,
-			"range_mm": 85000,
-			"fire_ticks": 1,
-			"point_defence": true,
-			"auto_energy_per_second": 180,
-			"discrete_energy": 2,
 			"power_store": "combat-power.weapons",
 			"compartment": "mid-port",
 			"faults": [
@@ -61672,7 +61940,12 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"directed": {
+				"modes": ["base.equipment.combat-pdc.launch"],
+				"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+				"initial_targeting": "base.targeting.intercept"
+			}
 		},
 		{
 			"id": "base.equipment.ftl",
@@ -63308,6 +63581,324 @@
 					"delta_permille": 200
 				}
 			}
+		},
+		{
+			"id": "base.targeting.off",
+			"kind": "targeting_policy",
+			"label": "Off",
+			"policy": "off"
+		},
+		{
+			"id": "base.targeting.intercept",
+			"kind": "targeting_policy",
+			"label": "Automatic interception",
+			"policy": "intercept"
+		},
+		{
+			"id": "base.targeting.designated",
+			"kind": "targeting_policy",
+			"label": "Designated contact",
+			"policy": "designated"
+		},
+		{
+			"id": "base.equipment.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 650000,
+			"energy_per_second": 0,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			}
+		},
+		{
+			"id": "base.equipment.combat-radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 350000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "base.equipment.combat-missile-launcher.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 1,
+			"load_ticks": 1,
+			"range_mm": 900000,
+			"discrete_energy": 10
+		},
+		{
+			"id": "base.equipment.combat-pdc.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+			"fire_ticks": 1,
+			"range_mm": 85000,
+			"auto_energy_per_second": 180,
+			"discrete_energy": 2
+		},
+		{
+			"id": "base.courier.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 500000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "base.cruiser.fore-dorsal-gun.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 50,
+			"range_mm": 1800000,
+			"discrete_energy": 200,
+			"projectile": {
+				"visual": "base.combat-projectile",
+				"speed_mm_s": 450000,
+				"lifetime_ticks": 100,
+				"penetration": 1600,
+				"damage": 200,
+				"damage_per_m": 6,
+				"spread_mdeg": 800
+			}
+		},
+		{
+			"id": "base.cruiser.bow-port-tube-1.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 1,
+			"load_ticks": 1,
+			"range_mm": 2000000,
+			"discrete_energy": 10
+		},
+		{
+			"id": "base.cruiser.pdc-port-1.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+			"fire_ticks": 1,
+			"range_mm": 200000,
+			"auto_energy_per_second": 180,
+			"discrete_energy": 2
+		},
+		{
+			"id": "base.cruiser.scanner-fore.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 2200000,
+			"energy_per_second": 0,
+			"capabilities": {
+				"shield_sectors": 120,
+				"compartment_condition": 240,
+				"findings": 0
+			}
+		},
+		{
+			"id": "base.armed-courier.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 350000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0,
+				"contact_arcs": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "base.armed-courier.top-gun.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 25,
+			"projectile": {
+				"visual": "base.combat-projectile",
+				"speed_mm_s": 100000,
+				"lifetime_ticks": 120,
+				"penetration": 180,
+				"damage": 85,
+				"damage_per_m": 15,
+				"spread_mdeg": 800
+			}
+		},
+		{
+			"id": "base.armed-courier.forward-gun.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 35,
+			"projectile": {
+				"visual": "base.combat-projectile",
+				"speed_mm_s": 180000,
+				"lifetime_ticks": 100,
+				"penetration": 2000,
+				"damage": 60,
+				"damage_per_m": 2,
+				"spread_mdeg": 250
+			}
+		},
+		{
+			"id": "base.armed-courier.beam.beam",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "beam",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 140000,
+			"damage_per_second": 65,
+			"energy_per_second": 360,
+			"penetration": 1000
+		},
+		{
+			"id": "base.armed-courier.focused-scanner.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 350000,
+			"energy_per_second": 0,
+			"capabilities": {
+				"shield_sectors": 200,
+				"compartment_condition": 400,
+				"findings": 0
+			}
+		},
+		{
+			"id": "base.pirate-raider.top-gun.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 35,
+			"projectile": {
+				"visual": "base.combat-projectile",
+				"speed_mm_s": 75000,
+				"lifetime_ticks": 120,
+				"penetration": 180,
+				"damage": 180,
+				"damage_per_m": 15,
+				"spread_mdeg": 800
+			}
+		},
+		{
+			"id": "base.pirate-raider.beam.beam",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "beam",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 140000,
+			"damage_per_second": 100,
+			"energy_per_second": 360,
+			"penetration": 1000
+		},
+		{
+			"id": "base.rescue-courier.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 2500000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0,
+				"contact_arcs": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "base.boarding-shuttle.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 300000,
+			"energy_per_second": 0,
+			"capabilities": {
+				"basic_identity": 0
+			}
+		},
+		{
+			"id": "base.shuttle.radar.scan",
+			"kind": "directed_mode",
+			"label": "Scan",
+			"operation": "scan",
+			"targeting": ["base.targeting.designated"],
+			"range_mm": 2500000,
+			"capabilities": {
+				"basic_identity": 0
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "base.interceptor.weapon.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
+			"fire_ticks": 4,
+			"range_mm": 200000,
+			"auto_energy_per_second": 10,
+			"discrete_energy": 2
+		},
+		{
+			"id": "base.bomber.weapon.launch",
+			"kind": "directed_mode",
+			"label": "Fire",
+			"operation": "launch",
+			"targeting": ["base.targeting.designated"],
+			"fire_ticks": 15,
+			"range_mm": 800000,
+			"discrete_energy": 2
+		},
+		{
+			"id": "base.cruiser.sensors.scan",
+			"extends": "base.equipment.radar.scan",
+			"kind": "directed_mode",
+			"range_mm": 2500000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0,
+				"contact_arcs": 100
+			},
+			"energy_per_second": 0
+		},
+		{
+			"id": "base.cruiser.tactical.scan",
+			"extends": "base.equipment.radar.scan",
+			"kind": "directed_mode",
+			"range_mm": 2500000,
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0,
+				"contact_arcs": 100
+			},
+			"energy_per_second": 0
 		}
 	],
 	"resources": [

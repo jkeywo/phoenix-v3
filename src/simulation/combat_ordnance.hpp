@@ -81,7 +81,8 @@ BlastExposure blast_exposure(fixed::Vec origin, std::int64_t altitude, flecs::en
 	return {point, z,
 	        static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + dz * dz)))};
 }
-void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefinition &d, EntityId source = 0)
+void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefinition &d, EntityId source = 0,
+                const std::string &weapon = {})
 {
 	if (!d.visual.empty() || !d.sound.empty())
 	{
@@ -89,7 +90,7 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 			blast_visuals.erase(blast_visuals.begin());
 		blast_visuals.push_back({next_blast++, origin, altitude, static_cast<std::int64_t>(ecs.get<Clock>().tick), d});
 	}
-	if (!d.damage || !d.radius)
+	if ((!d.damage && d.payloads.empty()) || !d.radius)
 		return;
 	for (const auto &[id, ship] : combat_rows())
 	{
@@ -102,6 +103,8 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 			continue;
 		Projectile effect;
 		effect.source = source;
+		effect.weapon = weapon;
+		effect.payloads = d.payloads;
 		effect.heading = combat_bearing(centre - origin);
 		effect.damage = d.damage * (d.radius - distance) / d.radius;
 		effect.penetration = 1000000;
@@ -122,8 +125,16 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 			const auto distance =
 			    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(planar * planar + dz * dz)));
 			if (distance < d.radius && !blast_occluded(origin, altitude, p.position, p.altitude, 0))
-				row.get_mut<Destructible>().durability = std::max<std::int64_t>(
-				    0, row.get_mut<Destructible>().durability - d.damage * (d.radius - distance) / d.radius);
+			{
+				auto &durability = row.get_mut<Destructible>().durability;
+				const auto amount = std::min(durability, d.damage * (d.radius - distance) / d.radius);
+				durability -= amount;
+				Projectile payload;
+				payload.source = source;
+				payload.weapon = weapon;
+				payload.payloads = d.payloads;
+				queue_payload_outcome(payload, {p.id, PayloadOutcomeKind::Entity, -1, {}, 0, {}, true}, amount);
+			}
 		}
 	bodies.each(
 	    [&](flecs::entity e, const StableId &id, const Definition &, const Pose &pose, const Motion &)
@@ -135,7 +146,13 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 		    const auto distance = exposure.distance;
 		    if (distance < d.radius && !blast_occluded(origin, altitude, exposure.point, exposure.altitude, id.id))
 		    {
-			    v->durability = std::max<std::int64_t>(0, v->durability - d.damage * (d.radius - distance) / d.radius);
+			    const auto amount = std::min(v->durability, d.damage * (d.radius - distance) / d.radius);
+			    v->durability -= amount;
+			    Projectile payload;
+			    payload.source = source;
+			    payload.weapon = weapon;
+			    payload.payloads = d.payloads;
+			    queue_payload_outcome(payload, {id.id}, amount);
 			    if (!v->durability)
 				    v->destroyed_tick = ecs.get<Clock>().tick;
 		    }
@@ -162,9 +179,10 @@ void destroy_missile(flecs::entity row, bool warhead)
 		effect.radius = p.definition.blast_radius;
 		effect.shield_bypass = p.definition.shield_bypass;
 		effect.affects_missiles = true;
+		effect.payloads = p.payloads;
 	}
 	if ((p.random >> 16) % 1000 < static_cast<std::uint64_t>(effect.chance))
-		emit_blast(p.position, p.altitude, effect, p.source);
+		emit_blast(p.position, p.altitude, effect, p.source, p.weapon);
 }
 void resolve_destructions()
 {
@@ -199,7 +217,9 @@ void resolve_destructions()
 		}
 	}
 	for (auto e : projectile_rows())
-		if (e.get<Projectile>().life <= 0 || e.get<Projectile>().damage <= 0 || e.get<Projectile>().penetration <= 0)
+		if (e.get<Projectile>().life <= 0 ||
+		    ((e.get<Projectile>().damage <= 0 || e.get<Projectile>().penetration <= 0) &&
+		     e.get<Projectile>().definition.damage > 0))
 			e.destruct();
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	std::erase_if(blast_visuals,
@@ -215,7 +235,9 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	m.get<WeaponState>().beam_tick = ecs.get<Clock>().tick;
 	m.get<WeaponState>().beam_end = origin + fixed::scale(fixed::direction(bearing), d.get<WeaponDefinition>().range);
 	ConsoleContacts permitted;
-	const auto aim = weapon_contact(ship, m, permitted);
+	const auto prepared = directed_operations.find({ship.get<StableId>().id, d.id});
+	const auto aim = prepared == directed_operations.end() ? weapon_contact(ship, m, permitted)
+	                                                       : std::optional<DirectedAim>{prepared->second.aim};
 	const auto from_z = ship.get<Pose>().altitude;
 	const auto planar_distance =
 	    aim ? std::max<std::int64_t>(1, fixed::length(fixed::Vec{aim->body.x, aim->body.y} - origin)) : 1;
@@ -244,7 +266,13 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	if (victim)
 		m.get<WeaponState>().beam_end = origin + fixed::Vec{(full_end.x - origin.x) * nearest / fixed::unit,
 		                                                    (full_end.y - origin.y) * nearest / fixed::unit};
-	m.get<WeaponState>().beam_remainder += d.get<WeaponDefinition>().beam_damage * fault_effectiveness(ship, d.id);
+	const auto &grant = ship.get<ShipResources>().grants.at(child.get<ResourceBinding>().slot);
+	auto &directed = child.get_mut<DirectedRuntime>();
+	const auto funded =
+	    d.get<WeaponDefinition>().beam_damage * fault_effectiveness(ship, d.id) * grant.supply_permille +
+	    directed.beam_funding_remainder;
+	directed.beam_funding_remainder = funded % 1000;
+	m.get<WeaponState>().beam_remainder += funded / 1000;
 	const auto damage = m.get<WeaponState>().beam_remainder / (rate * 1000);
 	m.get<WeaponState>().beam_remainder %= rate * 1000;
 	++m.get<WeaponState>().shots;
@@ -252,13 +280,16 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	if (damage)
 		ghost_damage(ship.get<StableId>().id, origin, m.get<WeaponState>().beam_end, from_z,
 		             from_z + (end_z - from_z) * std::min(nearest, fixed::unit) / fixed::unit);
-	if (!victim || !damage)
+	const auto payloads = capture_directed_payloads(ship, m, {});
+	if (!victim || (!damage && payloads.empty()))
 		return;
 	auto target = entities.at(victim);
 	if (target.has<CombatStructure>())
 	{
 		Projectile p;
 		p.source = ship.get<StableId>().id;
+		p.weapon = d.id;
+		p.payloads = payloads;
 		p.damage = damage;
 		p.continuous = true;
 		p.bypass_remainder = m.get<WeaponState>().bypass_remainder;
@@ -270,6 +301,11 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	}
 	else if (auto *v = target.try_get_mut<Destructible>(); v && v->durability > 0)
 	{
+		Projectile payload;
+		payload.source = ship.get<StableId>().id;
+		payload.weapon = d.id;
+		payload.payloads = payloads;
+		queue_payload_outcome(payload, {victim}, std::min(v->durability, damage));
 		v->durability = std::max<std::int64_t>(0, v->durability - damage);
 		if (!v->durability)
 			v->destroyed_tick = ecs.get<Clock>().tick;
@@ -448,7 +484,7 @@ void step_ordnance()
 		          });
 		for (const auto &hit : hits)
 		{
-			if (p.life <= 0 || !p.damage || !p.penetration)
+			if (p.life <= 0 || ((!p.damage || !p.penetration) && p.definition.damage > 0))
 				break;
 			const auto impact = from.position + fixed::Vec{(p.position.x - from.position.x) * hit.time / fixed::unit,
 			                                               (p.position.y - from.position.y) * hit.time / fixed::unit};
@@ -484,8 +520,12 @@ void step_ordnance()
 				    fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(relative, relative) + dz * dz)));
 				const auto distance = path * std::max<std::int64_t>(0, exit - hit.time) / fixed::unit;
 				const auto deposited = deposit_material(p, distance, m.definition.resistance);
+				queue_payload_outcome(p, {m.id, PayloadOutcomeKind::Entity, -1, {}, 0, {}, true},
+				                      std::min(deposited, hit.entity.get<Destructible>().durability));
 				hit.entity.get_mut<Destructible>().durability =
 				    std::max<std::int64_t>(0, hit.entity.get_mut<Destructible>().durability - deposited);
+				if (!p.definition.damage)
+					p.life = 0;
 			}
 			else if (hit.entity.has<CombatStructure>())
 			{
@@ -497,12 +537,14 @@ void step_ordnance()
 			{
 				if (auto *d = hit.entity.try_get_mut<Destructible>(); d && d->durability > 0)
 				{
+					queue_payload_outcome(p, {hit.id}, std::min(d->durability, p.damage));
 					d->durability = std::max<std::int64_t>(0, d->durability - p.damage);
 					if (!d->durability)
 						d->destroyed_tick = ecs.get<Clock>().tick;
 				}
 				p.damage = 0;
 				p.penetration = 0;
+				p.life = 0;
 			}
 		}
 		if (p.damage > 0)
