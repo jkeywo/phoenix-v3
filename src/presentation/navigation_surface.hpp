@@ -118,7 +118,8 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	    model_.observation() ? model_.observation()->gameplay.value("mission_report", Json(nullptr)) : Json(nullptr);
 	const auto ftl =
 	    model_.observation() && !pregame ? model_.observation()->gameplay.value("ftl", Json::array()) : Json::array();
-	const bool navigator_panel = !ftl.empty() && model_.layout() && model_.layout()->at("widgets").empty();
+	const bool navigator_panel = !ftl.empty() && model_.layout() && model_.layout()->at("widgets").empty() &&
+	                             !model_.layout()->contains("layout");
 	if (const auto *layout = model_.layout(); layout && !pregame)
 		for (const auto &widget : layout->at("widgets"))
 			if (widget.at("kind") == "objectives")
@@ -146,8 +147,9 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	if (!mission_outcome_.empty())
 		navigation_visible_ = false;
 	document_->SetClass("navigation-console", navigation_visible_);
-	if (navigation_visible_ || navigator_panel || !mission_outcome_.empty())
-		document_->GetElementById("gameplay")->SetProperty("display", "none");
+	if ((navigation_visible_ || navigator_panel || !mission_outcome_.empty()) &&
+	    (!(model_.layout() && model_.layout()->contains("layout")) || !mission_outcome_.empty()))
+		property(document_->GetElementById("gameplay"), "display", "none");
 	navigation_area_ = {0, 110, region.width, std::max(50.f, region.height - 250)};
 	if (navigation_visible_ && model_.observation())
 	{
@@ -297,7 +299,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 			if (key.starts_with("game.readout/ftl"))
 				markup += "<p>" + Rml::StringUtilities::EncodeRml(text) + "</p>";
 		for (const auto &[key, label] : model_.gameplay_controls())
-			if (key.starts_with("game.console/") || key.starts_with("game.control/"))
+			if (key.starts_with("game.control/"))
 			{
 				actions.emplace_back(key, label);
 				markup += "<button id=\"" + id(key) + "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
@@ -328,9 +330,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 					markup += button("on-screen/" + key, "On screen");
 					actions.back().second = localise("On screen") + ": " + localise(active ? "On" : "Off");
 				}
-		for (const auto &[key, label] : model_.gameplay_controls())
-			if (key.starts_with("game.console/"))
-				markup += button(key, label);
+
 		markup += "<br/>X (mm) <input id=\"" + id("nav.x") + "\" value=\"" +
 		          std::to_string(static_cast<std::int64_t>(navigation_x_)) + "\"/> Y (mm) <input id=\"" + id("nav.y") +
 		          "\" value=\"" + std::to_string(static_cast<std::int64_t>(navigation_y_)) + "\"/>" +

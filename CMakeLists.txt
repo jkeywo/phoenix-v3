@@ -893,6 +893,17 @@ endif()
 include(cmake/Networking.cmake)
 add_executable(phoenix_comic_probe EXCLUDE_FROM_ALL tests/manual/comic.cpp)
 target_link_libraries(phoenix_comic_probe PRIVATE phoenix_presentation)
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_layout_probe EXCLUDE_FROM_ALL tests/manual/layout_workshop.cpp)
+	target_link_libraries(phoenix_layout_probe PRIVATE phoenix_tools)
+	add_custom_command(
+		TARGET phoenix_layout_probe
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:phoenix_layout_probe>/assets"
+	)
+endif()
 if(EMSCRIPTEN)
 	set_target_properties(phoenix_comic_probe PROPERTIES SUFFIX ".html")
 	target_link_options(phoenix_comic_probe PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sASSERTIONS=1" "-sSTACK_SIZE=1048576")

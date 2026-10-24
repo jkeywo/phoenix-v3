@@ -1,4 +1,6 @@
 module;
+#include <RmlUi/Core/StyleSheetContainer.h>
+#include <RmlUi/Core/StreamMemory.h>
 #include <raylib.h>
 #include "../core/pad_navigation.hpp"
 #include <RmlUi/Core.h>
@@ -38,6 +40,7 @@ import phoenix.navigation;
 import phoenix.console;
 import phoenix.devices;
 #include "menu_images.hpp"
+#include "ui_theme.hpp"
 #include "complexity_stars.hpp"
 #include "rml_backend.hpp"
 #include "game.hpp"
@@ -53,13 +56,32 @@ namespace phoenix
 {
 namespace
 {
-std::map<std::string, Bytes> menu_images;
+std::map<std::string, Bytes> menu_images, theme_fonts;
 }
 std::string register_menu_image(const Bytes &png)
 {
 	const auto source = "phoenix-menu://image/" + sha256(png) + ".png";
 	menu_images.try_emplace(source, png);
 	return source;
+}
+std::string register_theme_image(const Bytes &image)
+{
+	const auto source = "phoenix-theme://image/" + sha256(image) + ".png";
+	menu_images.try_emplace(source, image);
+	return source;
+}
+void register_theme_font(const Bytes &font, const std::string &family, bool fallback)
+{
+	const auto key = sha256(font) + family + (fallback ? "fallback" : "primary");
+	if (theme_fonts.contains(key))
+		return;
+	auto &owned = theme_fonts[key] = font;
+	if (!Rml::LoadFontFace(Rml::Span<const Rml::byte>(owned.data(), owned.size()), family,
+	                       Rml::Style::FontStyle::Normal, Rml::Style::FontWeight::Auto, fallback))
+	{
+		theme_fonts.erase(key);
+		throw std::runtime_error("Unable to load theme font " + family);
+	}
 }
 const Bytes *menu_image_data(const std::string &source)
 {
@@ -69,7 +91,7 @@ const Bytes *menu_image_data(const std::string &source)
 void retain_menu_images(const std::set<std::string> &sources)
 {
 	for (auto it = menu_images.begin(); it != menu_images.end();)
-		if (!sources.contains(it->first))
+		if (!sources.contains(it->first) && !it->first.starts_with("phoenix-theme:"))
 		{
 			Rml::ReleaseTexture(it->first);
 			it = menu_images.erase(it);
@@ -248,6 +270,8 @@ class PreviewSession final : public SessionPort
 {
 	Catalog catalog_;
 	Observation view_;
+	std::string preview_state_;
+	const Catalog *authoring_identity_ = nullptr;
 	std::uint64_t generation_ = 1;
 
 public:
@@ -271,8 +295,84 @@ public:
 			                          static_cast<std::int64_t>(i / 4) * 19000 - 25000, 0, 0,
 			                          static_cast<std::int64_t>(i) * 23000, static_cast<RadarIcon>(1 + i % 3)});
 	}
-	void layout(Json value)
+	void layout(Json value, const Catalog *authoring = nullptr)
 	{
+		if (!authoring && authoring_identity_)
+		{
+			catalog_.layouts.clear();
+			catalog_.ui_groups.clear();
+			catalog_.themes.clear();
+			catalog_.assets.clear();
+			catalog_.ui_theme.clear();
+			authoring_identity_ = nullptr;
+			++generation_;
+		}
+		if (authoring && authoring_identity_ != authoring)
+		{
+			authoring_identity_ = authoring;
+			catalog_.layouts = authoring->layouts;
+			catalog_.ui_groups = authoring->ui_groups;
+			catalog_.themes = authoring->themes;
+			catalog_.ui_theme = authoring->ui_theme;
+			catalog_.assets = authoring->assets;
+			++generation_;
+		}
+		const auto sample_state = value.value("_preview_state", std::string("normal"));
+		value.erase("_preview_state");
+		if (sample_state != preview_state_)
+		{
+			preview_state_ = sample_state;
+			++generation_;
+		}
+		if (sample_state == "empty")
+			view_.contacts.clear();
+		else if (view_.contacts.empty())
+			for (unsigned i = 2; i < 16; ++i)
+				view_.contacts.push_back({i, "preview.ship", static_cast<std::int64_t>(i % 4) * 17000 - 25000,
+				                          static_cast<std::int64_t>(i / 4) * 19000 - 25000, 0, 0,
+				                          static_cast<std::int64_t>(i) * 23000, static_cast<RadarIcon>(1 + i % 3)});
+		if (view_.systems.size() > 3)
+			view_.systems.resize(3);
+		if (sample_state == "engineering" || sample_state == "faults")
+		{
+			SystemView generator{"reactor", OperatingSystem::Generator, 0, 100, true, true};
+			generator.telemetry = {
+			    {"heat", sample_state == "faults" ? 90 : 30}, {"heat_capacity", 100}, {"actual_output", 70}};
+			view_.systems.push_back(generator);
+		}
+		bool conversations = sample_state == "conversations";
+		for (const auto &widget : value.at("widgets"))
+			conversations |= widget.at("kind") == "conversations";
+		view_.gameplay["conversations"] = Json::object();
+		if (conversations && sample_state != "empty")
+		{
+			std::string text = "We have received your signal. Please confirm your approach.";
+			if (sample_state == "long text")
+				text += " This isolated example deliberately includes a longer report, additional operational detail "
+				        "and a request for clarification to preview wrapping and scrolling at enlarged text sizes.";
+			view_.gameplay["conversations"] = {
+			    {"selected", 1},
+			    {"directory", Json::array()},
+			    {"threads",
+			     Json::array({{{"id", 1},
+			                   {"title", "Approach clearance"},
+			                   {"unread", true},
+			                   {"text_allowed", true},
+			                   {"members", Json::array({{{"name", "Harbour control"}, {"connected", true}}})},
+			                   {"messages", Json::array({{{"id", 1},
+			                                              {"name", "Harbour control"},
+			                                              {"text", text},
+			                                              {"own", false},
+			                                              {"literal", true}}})},
+			                   {"incoming", Json::array()},
+			                   {"choices", Json::array({{{"id", "confirm"}, {"text", "Confirm approach"}},
+			                                            {{"id", "wait"},
+			                                             {"text", "Request holding position"},
+			                                             {"enabled", false},
+			                                             {"reason", "Waiting for clearance"}}})}}})}};
+		}
+		if (!value.contains("name"))
+			value["name"] = value.at("id");
 		value["id"] = "preview.console";
 		if (catalog_.consoles["preview.console"] != value)
 		{
@@ -1817,13 +1917,14 @@ void close_window()
 	close_devices(GetWindowHandle());
 	remove_native_accessibility(GetWindowHandle());
 	Rml::Shutdown();
+	theme_fonts.clear();
 	current_app = nullptr;
 	context = nullptr;
 	document = nullptr;
 	CloseWindow();
 }
 Texture2D draw_console_preview(const Json &layout, int width, int height, Vector2 pointer, bool pressed, bool released,
-                               float wheel, bool pseudo)
+                               float wheel, bool pseudo, const Catalog *authoring, int text_scale)
 {
 	width = std::clamp(width, 100, 1920);
 	height = std::clamp(height, 100, 1920);
@@ -1834,7 +1935,8 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 		preview_app.screen = Screen::console;
 		preview_surface = std::make_unique<ConsoleSurface>(1, "preview-", false);
 	}
-	preview_session->layout(layout);
+	preview_session->layout(layout, authoring);
+	preview_surface->preview_text_scale(text_scale);
 	preview_app.pseudo_locale = pseudo;
 	preview_app.screen_controls.clear();
 	preview_app.screen_toggles.clear();

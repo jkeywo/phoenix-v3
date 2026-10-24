@@ -133,6 +133,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::vector<std::pair<std::string, std::string>> controls_;
 	std::string gameplay_signature_, sensor_controls_signature_;
 	std::string placement_signature_;
+#include "authored_layout.hpp"
 	std::string gameplay_readout_signature_, fault_dialog_signature_, fault_dialog_system_;
 	std::string engineering_signature_;
 	std::set<std::string> held_clicks_;
@@ -355,6 +356,11 @@ class ConsoleSurface final : public Rml::EventListener
 	}
 	Texture2D hud(const std::string &name)
 	{
+		if (app_ && app_->session && active_theme_.contains("assets") && active_theme_.at("assets").contains(name))
+		{
+			const auto ref = active_theme_.at("assets").at(name).get<std::string>();
+			return hud_cache_.load(ref, app_->session->catalog().assets.at(ref));
+		}
 		if (!hud_.contains(name))
 		{
 			const auto texture = hud_cache_.load_file(asset_path(name + ".png"));
@@ -662,7 +668,21 @@ button.on-screen-active .share-live {display:block;}
 #comms-choices {max-height:18%;overflow:auto;}
 #comms-choices button {min-height:44px;margin:4px;}
 #comms-compose input {width:75%;height:40px;}
-</style></head><body><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
+#authored-body {display:none;position:absolute;left:0;right:0;top:160dp;bottom:0;overflow:auto;}
+#layout-tabs,#console-tabs {position:absolute;left:1%;right:1%;top:64dp;height:44dp;overflow-x:auto;white-space:nowrap;z-index:8;}
+#layout-tabs {display:none;top:110dp;}
+#layout-tabs button,#console-tabs button {min-height:44dp;display:inline-block;margin:0 4dp;}
+#layout-tabs .selected,#console-tabs .selected {border:2dp #ffe4b0;}
+.authored #authored-body,.authored #layout-tabs {display:block;}
+.authored #authored-body .widget {display:block;box-sizing:border-box;}
+.authored #toolbar h1 {display:block;font-size:1em;white-space:normal;word-break:break-all;max-width:100%;}
+.authored .radar-widget button.on-screen {left:8dp;top:auto;right:auto;bottom:8dp;width:auto;height:auto;min-width:140dp;min-height:44dp;padding:6dp;background:#102027;border:1dp #988b71;pointer-events:auto;}
+.authored .radar-widget button.on-screen .share-label {position:static;display:inline;left:auto;right:auto;top:auto;bottom:auto;font-size:1em;height:auto;line-height:1.2em;}
+.authored .radar-widget button.on-screen .share-caption,.authored .radar-widget button.on-screen .share-monitor,.authored .radar-widget button.on-screen .share-screw,.authored .radar-widget button.on-screen .share-lamp-housing {display:none;}
+.authored .radar-widget button.on-screen-active .share-live {position:static;display:inline;font-size:0.8em;}
+
+.authored #authored-body #navigation-layer {pointer-events:auto;}
+</style></head><body><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -684,6 +704,10 @@ button.on-screen-active .share-live {display:block;}
 	{
 		Rml::RemoveContext(context_name_);
 	}
+	void preview_text_scale(int scale)
+	{
+		text_scale_ = std::clamp(scale, 50, 200);
+	}
 	Rml::Context &context()
 	{
 		return *context_;
@@ -694,6 +718,8 @@ button.on-screen-active .share-live {display:block;}
 		if (!app_ || !name.starts_with(prefix))
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (action.starts_with("layout-page/") || action.starts_with("game.console/"))
+			return authored_action(action);
 		if (app_ && app_->session && away_action(action))
 			return true;
 		if (app_ && app_->session && supply_action(action))
@@ -1221,7 +1247,8 @@ button.on-screen-active .share-live {display:block;}
 	{
 		auto *panel = document_->GetElementById("manual-flight");
 		const bool available = !pregame && model_.manual_available();
-		property(panel, "display", available ? "block" : "none");
+		if (!(model_.layout() && model_.layout()->contains("layout")))
+			property(panel, "display", available ? "block" : "none");
 		const bool active = available && model_.manual_active();
 		document_->SetClass("manual-flight", active);
 		if (!available)
@@ -1803,6 +1830,7 @@ button.on-screen-active .share-live {display:block;}
 		const auto preparation_started = GetTime();
 		const auto previous_announcement = model_.announcement();
 		model_.refresh(app.session, route_);
+		sync_console_browsing();
 		app.frame_metrics["console/" + std::to_string(route_) + "/projection"] = GetTime() - preparation_started;
 		const auto layout_started = GetTime();
 		if (app.screen == Screen::settings)
@@ -1815,6 +1843,8 @@ button.on-screen-active .share-live {display:block;}
 		if (owner_.lock() != app.session || (app.session && (generation_ != app.session->generation() ||
 		                                                     content_packs_ != app.session->catalog().ordered_packs)))
 		{
+			surface_browsing_.clear();
+			browsing_console_.clear();
 			owner_ = app.session;
 			content_packs_ =
 			    app.session ? app.session->catalog().ordered_packs : std::vector<std::pair<std::string, std::string>>{};
@@ -1858,7 +1888,12 @@ button.on-screen-active .share-live {display:block;}
 				select_language(app.language, app.pseudo_locale);
 			}
 		} restore_language{app};
-		property(document_, "font-size", std::to_string(text_scale_ * .2f) + "dp");
+		property(document_, "font-size",
+		         std::to_string(
+		             text_scale_ *
+		             (active_theme_.contains("tokens") ? active_theme_.at("tokens").value("font_size", 20.f) : 20.f) /
+		             100.f) +
+		             "dp");
 		if (settings_open_)
 		{
 			prepare_local_settings(app, region);
@@ -1892,8 +1927,9 @@ button.on-screen-active .share-live {display:block;}
 			                                                     widget.at("kind") == "camera_direction";
 		                                              });
 		document_->SetClass("helm", helm && !pregame);
-		const auto cards = !pregame && !helm && model_.observation() ? engineering_cards(*model_.observation())
-		                                                             : std::vector<EngineeringCard>{};
+		const auto cards = !pregame && (!helm || (layout && layout->contains("layout"))) && model_.observation()
+		                       ? engineering_cards(*model_.observation())
+		                       : std::vector<EngineeringCard>{};
 		const bool engineering = !cards.empty();
 		document_->SetClass("engineering", engineering);
 		std::string title = "Console", description, briefing;
@@ -1963,6 +1999,7 @@ button.on-screen-active .share-live {display:block;}
 			signature += "/pad/" + pad;
 		if (signature != signature_)
 		{
+			restore_authored_components();
 			signature_ = std::move(signature);
 			placement_signature_.clear();
 			properties_.clear();
@@ -2174,6 +2211,11 @@ button.on-screen-active .share-live {display:block;}
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
+		std::erase_if(gameplay_controls,
+		              [](const auto &control)
+		              {
+			              return control.first.starts_with("game.console/");
+		              });
 		std::map<std::string, ConsoleSystemStatus> status_controls;
 		if (!pregame)
 			for (const auto &status : model_.system_statuses())
@@ -2294,16 +2336,17 @@ button.on-screen-active .share-live {display:block;}
 			document_->GetElementById("sensor-controls")->SetInnerRML(sensor_markup);
 			sensor_controls_signature_ = sensor_markup;
 		}
-		document_->GetElementById("sensor-panel")
-		    ->SetProperty("display", model_.sensor_contact() && !pregame &&
-		                                     (!sensor_controls.empty() ||
-		                                      std::any_of(readout_values_.begin(), readout_values_.end(),
-		                                                  [](const auto &r)
-		                                                  {
-			                                                  return r.first.starts_with("game.scan-finding/");
-		                                                  }))
-		                                 ? "block"
-		                                 : "none");
+		if (!(layout && layout->contains("layout")))
+			property(document_->GetElementById("sensor-panel"), "display",
+			         model_.sensor_contact() && !pregame &&
+			                 (!sensor_controls.empty() || std::any_of(readout_values_.begin(), readout_values_.end(),
+			                                                          [](const auto &r)
+			                                                          {
+				                                                          return r.first.starts_with(
+				                                                              "game.scan-finding/");
+			                                                          }))
+			             ? "block"
+			             : "none");
 		std::set<std::string> engineering_controls;
 		property(document_->GetElementById("engineering-cards"), "width",
 		         std::to_string(region.width * .92f - 24) + "dp");
@@ -2362,7 +2405,7 @@ button.on-screen-active .share-live {display:block;}
 		const auto placement = signature_ + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) +
 		                       "/" + std::to_string(text_scale_) + (has_gameplay ? "/gameplay" : "/empty");
 		const bool placement_changed = placement_signature_ != placement;
-		if (placement_changed)
+		if (placement_changed && !(layout && layout->contains("layout")))
 		{
 			placement_signature_ = placement;
 			gameplay->SetProperty("display", has_gameplay ? "block" : "none");
@@ -2498,6 +2541,9 @@ button.on-screen-active .share-live {display:block;}
 				gameplay->RemoveProperty("bottom");
 			}
 		}
+		if (layout && layout->contains("layout"))
+			placement_signature_ = placement;
+
 		Json gameplay_identity = Json::array();
 		for (const auto &[name, label] : gameplay_controls)
 			if (!engineering_controls.contains(name))
@@ -2686,6 +2732,11 @@ button.on-screen-active .share-live {display:block;}
 
 			app.screen_readouts.emplace_back(id(name), text);
 		}
+		prepare_navigation(app, region, pregame);
+		prepare_manual(app, region, pregame);
+		if (!pregame)
+			prepare_authored_layout(layout, region);
+		restore_console_browsing();
 		{
 			const auto update_started = GetTime();
 			context_->Update();
@@ -2708,6 +2759,8 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &widget : layout->at("widgets"))
 			{
 				const auto key = widget.at("id").get<std::string>(), kind = widget.at("kind").get<std::string>();
+				if (auto *element = document_->GetElementById("widget/" + key); !element || !element->IsVisible(true))
+					continue;
 				if (kind == "radar" || kind == "heading")
 					if (auto *dial = document_->GetElementById("dial/" + key))
 					{
@@ -2840,7 +2893,7 @@ button.on-screen-active .share-live {display:block;}
 				}
 			}
 		sharing_pods_.clear();
-		if (helm && !pregame && layout)
+		if (helm && !pregame && layout && !layout->contains("layout"))
 			for (const auto &w : layout->at("widgets"))
 				if (w.at("kind") == "radar")
 				{
@@ -2937,8 +2990,6 @@ button.on-screen-active .share-live {display:block;}
 				place(app, region, field.id);
 		if (pregame)
 			place(app, region, id("lobby-title"));
-		prepare_navigation(app, region, pregame);
-		prepare_manual(app, region, pregame);
 		if (!pregame && model_.observation())
 		{
 			const auto publication = app.session->public_board().value("display", Json(nullptr));
@@ -2961,6 +3012,43 @@ button.on-screen-active .share-live {display:block;}
 					display_update_tick_ = app.session->ticks();
 				}
 			}
+		}
+		if (layout && layout->contains("layout") && !pregame)
+		{
+			auto hidden = [&](const std::string &name)
+			{
+				const auto *e = document_->GetElementById(name);
+				return name.starts_with(id("")) && (!e || !e->IsVisible(true));
+			};
+			std::erase_if(app.screen_controls,
+			              [&](const auto &entry)
+			              {
+				              return hidden(entry.first);
+			              });
+			std::erase_if(app.screen_readouts,
+			              [&](const auto &entry)
+			              {
+				              return hidden(entry.first);
+			              });
+			std::erase_if(app.screen_inputs,
+			              [&](const auto &entry)
+			              {
+				              return hidden(entry.id);
+			              });
+			if (auto *canvas = document_->GetElementById("navigation-canvas"); canvas && canvas->IsVisible(true))
+			{
+				const auto at = canvas->GetAbsoluteOffset(Rml::BoxArea::Border);
+				navigation_area_ = {at.x, at.y, canvas->GetOffsetWidth(), canvas->GetOffsetHeight()};
+			}
+			else
+				navigation_visible_ = false;
+			if (auto *stick = document_->GetElementById("manual-stick"); stick && stick->IsVisible(true))
+			{
+				const auto at = stick->GetAbsoluteOffset(Rml::BoxArea::Border);
+				joystick_area_ = {at.x, at.y, stick->GetOffsetWidth(), stick->GetOffsetHeight()};
+			}
+			else
+				joystick_area_ = {};
 		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 	}
@@ -2992,160 +3080,174 @@ button.on-screen-active .share-live {display:block;}
 		const Rectangle entire{region.x, region.y, region.width, region.height};
 		BeginScissorMode(static_cast<int>(region.x), static_cast<int>(region.y), static_cast<int>(region.width),
 		                 static_cast<int>(region.height));
-		DrawRectangleRec(entire, {8, 13, 15, 255});
-		const bool command = model_.layout() && model_.layout()->value("command", false);
-		if (command || route_ == 31)
+		const auto background = active_theme_.contains("tokens")
+		                            ? active_theme_.at("tokens").value("background", std::string("#080d0f"))
+		                            : std::string("#080d0f");
+		DrawRectangleRec(entire, GetColor(static_cast<unsigned>(std::stoul(
+		                             background.substr(1) + (background.size() == 7 ? "ff" : ""), nullptr, 16))));
+		if (active_theme_.contains("assets") && active_theme_.at("assets").contains("background"))
 		{
-			const auto frame = hud("viewscreen-frame");
-			// The embedded console shares the viewscreen's left bulkhead. Its top and
-			// bottom rails continue behind that joint instead of adding a second border.
-			const float overlap = route_ == 31 ? 112.f : 0.f;
-			DrawTextureNPatch(frame,
-			                  {{0, 0, static_cast<float>(frame.width), static_cast<float>(frame.height)},
-			                   112,
-			                   112,
-			                   112,
-			                   112,
-			                   NPATCH_NINE_PATCH},
-			                  {entire.x - overlap, entire.y, entire.width + overlap, entire.height}, {0, 0}, 0, WHITE);
+			const auto ref = active_theme_.at("assets").at("background").get<std::string>();
+			image(hud_cache_.load(ref, app_->session->catalog().assets.at(ref)), entire);
 		}
-		else
+		if (!(model_.layout() && model_.layout()->contains("layout")))
 		{
-			const auto background = hud("helm-background-9slice");
-			const auto &slices = hud_metadata_.at("helm-background-9slice").at("nine_slice");
-			DrawTextureNPatch(background,
-			                  {{0, 0, static_cast<float>(background.width), static_cast<float>(background.height)},
-			                   slices.at("left").get<int>(),
-			                   slices.at("top").get<int>(),
-			                   slices.at("right").get<int>(),
-			                   slices.at("bottom").get<int>(),
-			                   NPATCH_NINE_PATCH},
-			                  entire, {0, 0}, 0, WHITE);
+			const bool command = model_.layout() && model_.layout()->value("command", false);
+			if (command || route_ == 31)
+			{
+				const auto frame = hud("viewscreen-frame");
+				// The embedded console shares the viewscreen's left bulkhead. Its top and
+				// bottom rails continue behind that joint instead of adding a second border.
+				const float overlap = route_ == 31 ? 112.f : 0.f;
+				DrawTextureNPatch(frame,
+				                  {{0, 0, static_cast<float>(frame.width), static_cast<float>(frame.height)},
+				                   112,
+				                   112,
+				                   112,
+				                   112,
+				                   NPATCH_NINE_PATCH},
+				                  {entire.x - overlap, entire.y, entire.width + overlap, entire.height}, {0, 0}, 0,
+				                  WHITE);
+			}
+			else
+			{
+				const auto background = hud("helm-background-9slice");
+				const auto &slices = hud_metadata_.at("helm-background-9slice").at("nine_slice");
+				DrawTextureNPatch(background,
+				                  {{0, 0, static_cast<float>(background.width), static_cast<float>(background.height)},
+				                   slices.at("left").get<int>(),
+				                   slices.at("top").get<int>(),
+				                   slices.at("right").get<int>(),
+				                   slices.at("bottom").get<int>(),
+				                   NPATCH_NINE_PATCH},
+				                  entire, {0, 0}, 0, WHITE);
+			}
 		}
 
 		const auto &view = model_.observation();
 		const float ox = region.x, oy = region.y;
-		if (auto *widgets = document_->GetElementById("widgets"))
-			for (int i = 0; i < widgets->GetNumChildren(); ++i)
+		std::vector<Rml::Element *> drawn_widgets;
+		if (const auto *layout = model_.layout())
+			for (const auto &definition : layout->at("widgets"))
+				if (auto *widget = document_->GetElementById("widget/" + definition.at("id").get<std::string>());
+				    widget && widget->IsVisible(true))
+					drawn_widgets.push_back(widget);
+		for (auto *widget : drawn_widgets)
+		{
+			const auto key = widget->GetId().substr(7);
+			if (auto *dial = document_->GetElementById("dial/" + key))
 			{
-				auto *widget = widgets->GetChild(i);
-				const auto key = widget->GetId().substr(7);
-				if (auto *dial = document_->GetElementById("dial/" + key))
+				const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
+				const float radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
+				const Vector2 centre{ox + at.x + dial->GetOffsetWidth() / 2, oy + at.y + dial->GetOffsetHeight() / 2};
+				if (view && view->feeds & system_bit(OperatingSystem::Radar))
 				{
-					const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
-					const float radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
-					const Vector2 centre{ox + at.x + dial->GetOffsetWidth() / 2,
-					                     oy + at.y + dial->GetOffsetHeight() / 2};
-					if (view && view->feeds & system_bit(OperatingSystem::Radar))
-					{
-						const auto radar =
-						    select_system(view->systems, OperatingSystem::Radar, model_.widget_system(key), false);
-						for (const auto &sensor : view->systems)
-							if (radar && sensor.id == *radar)
-							{
-								Json settings = Json::object();
-								if (const auto *layout = model_.layout())
-									for (const auto &w : layout->at("widgets"))
-										if (w.at("id") == key)
-										{
-											settings = w.value("sweep", Json::object());
-											settings["fire_arcs"] =
-											    w.value("fire_arcs", false) && model_.fire_arcs_visible();
-										}
-								settings["contact_arcs"] = model_.contact_arcs_visible();
-								settings["sensor_contact"] = model_.sensor_contact();
-								auto &sweep = radar_sweeps_[key];
-								if (!sweep)
-									sweep = std::make_unique<RadarSweep>();
-								draw_radar_plot(radar_textures_, app_->session->catalog(), *view, sensor,
-								                model_.waypoint(), *sweep, settings, centre, radius * .66f, GetTime(),
-								                app_->reduced_motion);
-							}
-					}
-					if (sharing_pods_.contains(key))
-					{
-						auto pod = sharing_pods_.at(key);
-						pod.x += ox;
-						pod.y += oy;
-						// Two mounting arms join the external pod to the casing, with their roots tucked behind its outer rim.
-						for (const auto &[angle, end_x] : std::array<std::pair<float, float>, 2>{
-						         {{65.f, pod.x + 25}, {48.f, pod.x + pod.width - 25}}})
+					const auto radar =
+					    select_system(view->systems, OperatingSystem::Radar, model_.widget_system(key), false);
+					for (const auto &sensor : view->systems)
+						if (radar && sensor.id == *radar)
 						{
-							const float radians = angle * 3.141592653589793f / 180;
-							const Vector2 start{centre.x + std::cos(radians) * radius * .90f,
-							                    centre.y + std::sin(radians) * radius * .90f};
-							const Vector2 end{end_x, pod.y + 9};
-							const float length = std::hypot(end.x - start.x, end.y - start.y);
-							const float rotation =
-							    std::atan2(end.y - start.y, end.x - start.x) * 180 / 3.141592653589793f;
-							// Reuse the readout's inked ivory rail, including its chipped paint and halftone.
-							DrawTexturePro(hud("readout-panel"), {500, 119, 220, 52}, {start.x, start.y, length, 16},
-							               {0, 8}, rotation, WHITE);
+							Json settings = Json::object();
+							if (const auto *layout = model_.layout())
+								for (const auto &w : layout->at("widgets"))
+									if (w.at("id") == key)
+									{
+										settings = w.value("sweep", Json::object());
+										settings["fire_arcs"] =
+										    w.value("fire_arcs", false) && model_.fire_arcs_visible();
+									}
+							settings["contact_arcs"] = model_.contact_arcs_visible();
+							settings["sensor_contact"] = model_.sensor_contact();
+							auto &sweep = radar_sweeps_[key];
+							if (!sweep)
+								sweep = std::make_unique<RadarSweep>();
+							draw_radar_plot(radar_textures_, app_->session->catalog(), *view, sensor, model_.waypoint(),
+							                *sweep, settings, centre, radius * .66f, GetTime(), app_->reduced_motion);
 						}
-					}
-					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
-					if (sharing_pods_.contains(key))
+				}
+				if (sharing_pods_.contains(key))
+				{
+					auto pod = sharing_pods_.at(key);
+					pod.x += ox;
+					pod.y += oy;
+					// Two mounting arms join the external pod to the casing, with their roots tucked behind its outer rim.
+					for (const auto &[angle, end_x] :
+					     std::array<std::pair<float, float>, 2>{{{65.f, pod.x + 25}, {48.f, pod.x + pod.width - 25}}})
 					{
-						const bool active = model_.is_on_screen(key);
-						auto pod = sharing_pods_.at(key);
-						pod.x += ox;
-						pod.y += oy;
-						// Use the same illustrated casing as the other live instrument readouts.
-						DrawTexturePro(hud("readout-panel"), {24, 80, 2124, 555}, pod, {0, 0}, 0, WHITE);
-						const Vector2 lamp{pod.x + pod.width - 31, pod.y + pod.height / 2};
-						DrawCircleV(lamp, 12, {7, 12, 10, 255});
-						DrawCircleLinesV(lamp, 12, {133, 131, 109, 255});
-						DrawCircleV(lamp, 8, active ? Color{107, 252, 130, 255} : Color{42, 65, 43, 255});
-						if (active)
-							DrawCircleV({lamp.x - 2, lamp.y - 2}, 2, {220, 255, 221, 255});
-					}
-					if (!model_.manual_active() && dial_systems_.contains(key))
-					{
-						const auto heading = model_.system_request(dial_systems_.at(key), "heading_mdeg");
-						const float angle = heading * 3.141592653589793f / 180000;
-						const Vector2 marker{centre.x + std::cos(angle) * radius * .87f,
-						                     centre.y - std::sin(angle) * radius * .87f};
-						const auto pointer = hud("heading-pointer");
-						const float size = std::max(28.f, radius * .2f);
-						DrawTexturePro(
-						    pointer, {0, 0, static_cast<float>(pointer.width), static_cast<float>(pointer.height)},
-						    {marker.x, marker.y, size, size}, {size / 2, size / 2}, 90 - heading / 1000.f, WHITE);
+						const float radians = angle * 3.141592653589793f / 180;
+						const Vector2 start{centre.x + std::cos(radians) * radius * .90f,
+						                    centre.y + std::sin(radians) * radius * .90f};
+						const Vector2 end{end_x, pod.y + 9};
+						const float length = std::hypot(end.x - start.x, end.y - start.y);
+						const float rotation = std::atan2(end.y - start.y, end.x - start.x) * 180 / 3.141592653589793f;
+						// Reuse the readout's inked ivory rail, including its chipped paint and halftone.
+						DrawTexturePro(hud("readout-panel"), {500, 119, 220, 52}, {start.x, start.y, length, 16},
+						               {0, 8}, rotation, WHITE);
 					}
 				}
-				if (!model_.manual_active() && document_->GetElementById(id("speed/" + key)))
+				image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
+				if (sharing_pods_.contains(key))
 				{
-					auto track = throttle_rect(key);
-					track.x += ox;
-					track.y += oy;
-					image(hud("helm-throttle-track"), track);
-					const auto system = model_.widget_system(key);
-					const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
-					const float fraction =
-					    maximum > minimum ? std::clamp(static_cast<float>(model_.system_request(system) - minimum) /
-					                                       (maximum - minimum),
-					                                   0.f, 1.f)
-					                      : 0;
-					const auto &marks = hud_metadata_.at("helm-throttle-track").at("markers");
-					const float top = marks.at("travel_max")[1].get<float>() /
-					                  hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>(),
-					            bottom = marks.at("travel_min")[1].get<float>() /
-					                     hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>();
-					const float y = track.y + track.height * (bottom - fraction * (bottom - top));
-					image(hud("helm-throttle-handle"),
-					      {track.x - track.width * .1f, y - track.width * .2f, track.width * 1.2f, track.width * .4f});
-					if (context_->GetFocusElement() == document_->GetElementById(id("speed/" + key)))
-						DrawRectangleLinesEx(
-						    {track.x - track.width * .1f, y - track.width * .2f, track.width * 1.2f, track.width * .4f},
-						    2, {255, 190, 94, 255});
+					const bool active = model_.is_on_screen(key);
+					auto pod = sharing_pods_.at(key);
+					pod.x += ox;
+					pod.y += oy;
+					// Use the same illustrated casing as the other live instrument readouts.
+					DrawTexturePro(hud("readout-panel"), {24, 80, 2124, 555}, pod, {0, 0}, 0, WHITE);
+					const Vector2 lamp{pod.x + pod.width - 31, pod.y + pod.height / 2};
+					DrawCircleV(lamp, 12, {7, 12, 10, 255});
+					DrawCircleLinesV(lamp, 12, {133, 131, 109, 255});
+					DrawCircleV(lamp, 8, active ? Color{107, 252, 130, 255} : Color{42, 65, 43, 255});
+					if (active)
+						DrawCircleV({lamp.x - 2, lamp.y - 2}, 2, {220, 255, 221, 255});
 				}
-				if (auto *readout = document_->GetElementById("value/" + key);
-				    readout && readout->GetClassNames() == "readout" && !readout->GetInnerRML().empty())
+				if (!model_.manual_active() && dial_systems_.contains(key))
 				{
-					const auto at = readout->GetAbsoluteOffset(Rml::BoxArea::Border);
-					image(hud("readout-panel"), {ox + at.x - 8, oy + at.y - 8, readout->GetOffsetWidth() + 16,
-					                             readout->GetOffsetHeight() + 16});
+					const auto heading = model_.system_request(dial_systems_.at(key), "heading_mdeg");
+					const float angle = heading * 3.141592653589793f / 180000;
+					const Vector2 marker{centre.x + std::cos(angle) * radius * .87f,
+					                     centre.y - std::sin(angle) * radius * .87f};
+					const auto pointer = hud("heading-pointer");
+					const float size = std::max(28.f, radius * .2f);
+					DrawTexturePro(
+					    pointer, {0, 0, static_cast<float>(pointer.width), static_cast<float>(pointer.height)},
+					    {marker.x, marker.y, size, size}, {size / 2, size / 2}, 90 - heading / 1000.f, WHITE);
 				}
 			}
+			if (!model_.manual_active() && document_->GetElementById(id("speed/" + key)))
+			{
+				auto track = throttle_rect(key);
+				track.x += ox;
+				track.y += oy;
+				image(hud("helm-throttle-track"), track);
+				const auto system = model_.widget_system(key);
+				const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
+				const float fraction =
+				    maximum > minimum
+				        ? std::clamp(static_cast<float>(model_.system_request(system) - minimum) / (maximum - minimum),
+				                     0.f, 1.f)
+				        : 0;
+				const auto &marks = hud_metadata_.at("helm-throttle-track").at("markers");
+				const float top = marks.at("travel_max")[1].get<float>() /
+				                  hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>(),
+				            bottom = marks.at("travel_min")[1].get<float>() /
+				                     hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>();
+				const float y = track.y + track.height * (bottom - fraction * (bottom - top));
+				image(hud("helm-throttle-handle"),
+				      {track.x - track.width * .1f, y - track.width * .2f, track.width * 1.2f, track.width * .4f});
+				if (context_->GetFocusElement() == document_->GetElementById(id("speed/" + key)))
+					DrawRectangleLinesEx(
+					    {track.x - track.width * .1f, y - track.width * .2f, track.width * 1.2f, track.width * .4f}, 2,
+					    {255, 190, 94, 255});
+			}
+			if (auto *readout = document_->GetElementById("value/" + key);
+			    readout && readout->GetClassNames() == "readout" && !readout->GetInnerRML().empty())
+			{
+				const auto at = readout->GetAbsoluteOffset(Rml::BoxArea::Border);
+				image(hud("readout-panel"),
+				      {ox + at.x - 8, oy + at.y - 8, readout->GetOffsetWidth() + 16, readout->GetOffsetHeight() + 16});
+			}
+		}
 		draw_navigation(ox, oy);
 		EndScissorMode();
 	}

@@ -65,7 +65,7 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
     }
     const input = document.createElement('input'); input.type = 'file';
     input.hidden = true; document.body.appendChild(input);
-    input.accept = purpose === 10 ? '.glb' : purpose === 9 ? '.png,.jpg,.jpeg' : purpose === 5 ? '.png' : (purpose === 4 || purpose === 6) ? '.json' : '.zip,.dat';
+    input.accept = purpose === 11 ? '.ttf,.otf' : purpose === 10 ? '.glb' : purpose === 9 ? '.png,.jpg,.jpeg' : purpose === 5 ? '.png' : (purpose === 4 || purpose === 6) ? '.json' : '.zip,.dat';
     let finished = false;
     const failure = (error, cancelled = false) => {
         if (finished) return;

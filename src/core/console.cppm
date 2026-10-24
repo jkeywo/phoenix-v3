@@ -128,6 +128,14 @@ public:
 	{
 		return announcement_;
 	}
+	const std::vector<std::pair<std::string, std::string>> &available_consoles() const
+	{
+		return available_consoles_;
+	}
+	const std::vector<UiTab> &available_tabs() const
+	{
+		return granted_tabs_.items();
+	}
 	std::string contacts_text() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_controls() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
@@ -149,6 +157,13 @@ private:
 	bool contact_arcs_ = true;
 	std::int64_t sensor_contact_ = 0;
 	std::vector<std::pair<std::string, std::string>> available_consoles_;
+	UiTabs granted_tabs_;
+	struct Browsing
+	{
+		std::int64_t target = 0, compartment = 0, sensor = 0;
+		std::string team, order, patient, status;
+	};
+	std::map<std::string, Browsing> browsing_;
 	const Json *controller_section(const std::string &binding) const;
 	const Json *controller_channel(const std::string &binding) const;
 	std::string manual_binding(const std::string &action, const std::string &widget_action) const;

@@ -60,6 +60,14 @@ int main()
 			definitions["themes"] =
 			    Json::array({{{"id", "test.theme"}, {"schema", 1}, {"tokens", {{"accent", "#123456"}}}}});
 			console["theme"] = "test.theme";
+			definitions["themes"][0]["assets"] = {{"panel", "test-core:assets/pixel.png"}};
+			definitions["themes"][0]["slices"] = {{"panel", Json::array({0, 0, 0, 0})}};
+			definitions["themes"].push_back(
+			    {{"id", "test.theme.child"}, {"extends", "test.theme"}, {"tokens", {{"text", "#eeeeee"}}}});
+			source.manifest["theme"] = "test.theme";
+			definitions["ui_groups"] = Json::array(
+			    {{{"id", "test.group"}, {"schema", 1}, {"root", definitions["layouts"][0]["root"]["children"][0]}}});
+			definitions["layouts"][0]["root"]["children"][0] = {{"id", "first"}, {"group", "test.group"}};
 			source.files["definitions.json"] = json_bytes(definitions);
 			const auto ui_catalog = resolve_packs({read_pack(write_pack(source))});
 			const auto program =
@@ -85,6 +93,31 @@ int main()
 			const auto client = resolve_packs({console_assets(ui_catalog, ship)});
 			require(client.layouts.contains("test.layout") && client.themes.contains("test.theme"),
 			        "client bundle retains reachable presentation definitions");
+			require(client.ui_groups.contains("test.group") &&
+			            !client.themes.at("test.theme").at("assets").at("panel").get<std::string>().empty(),
+			        "client retains reachable reusable group and rewritten image reference");
+			require(public_ui_theme(ui_catalog)
+			            .at("asset_data")
+			            .at("panel")
+			            .get<std::string>()
+			            .starts_with("data:image/png;base64,"),
+			        "launcher receives public browser-readable theme artwork");
+			WorkshopDocument ui_draft;
+			ui_draft.load_pack(write_pack(source));
+			require(ui_draft.definitions().at("themes")[1].at("extends") == "test.theme",
+			        "Workshop reopen preserves authored theme inheritance");
+			WorkshopHistory ui_history;
+			ui_history.reset(ui_draft);
+			ui_draft.rename_ui_definition(WorkshopDefinitionKind::Layout, "test.layout", "test.layout.renamed");
+			ui_history.checkpoint(ui_draft);
+			require(ui_draft.verify().consoles.at(console.at("id").get<std::string>()).at("layout") ==
+			            "test.layout.renamed",
+			        "renaming reusable layout repairs Console reference");
+			require(ui_history.undo(ui_draft) && ui_history.redo(ui_draft),
+			        "layout definitions participate in ordinary Workshop history");
+			const auto reopened_ui = resolve_packs({read_pack(ui_draft.export_pack())});
+			require(reopened_ui.layouts.contains("test.layout.renamed"), "Workshop saves and reopens reusable layouts");
+
 			definitions["layouts"][0]["compact"] = {
 			    {"id", "compact"}, {"kind", "component"}, {"component", "messages"}};
 			source.files["definitions.json"] = json_bytes(definitions);

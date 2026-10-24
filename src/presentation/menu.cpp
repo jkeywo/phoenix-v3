@@ -1,4 +1,6 @@
 module;
+#include <RmlUi/Core/StyleSheetContainer.h>
+#include <RmlUi/Core/StreamMemory.h>
 #include <raylib.h>
 #include <qrcodegen.hpp>
 #include <RmlUi/Core.h>
@@ -23,12 +25,16 @@ module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
 #include "menu_images.hpp"
+#include "ui_theme.hpp"
 #include "complexity_stars.hpp"
 #include "settings.hpp"
 namespace phoenix
 {
 struct NativeMenuScreen::State
 {
+	UiThemeRenderer theme_renderer;
+	Catalog theme_catalog;
+	std::string theme_packs;
 	FileImportInbox imports;
 	std::vector<LibraryPack> draft;
 	std::string previous, notice, focus_next, action_error;
@@ -1276,6 +1282,33 @@ bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 {
 	const bool prepared = state_->prepare(app, document);
 	state_->update_images(app, document);
+	try
+	{
+		if (app.session && !app.session->catalog().ordered_packs.empty())
+			state_->theme_renderer.apply(document, app.session->catalog());
+		else if (app.library)
+		{
+			std::string packs;
+			for (const auto &pack : app.library->packs)
+				if (pack.enabled)
+					packs += pack.hash;
+			if (packs != state_->theme_packs)
+			{
+				std::vector<Pack> sources;
+				for (const auto &bytes : app.library->archives(app.library->packs))
+					sources.push_back(read_pack(bytes));
+				state_->theme_catalog = resolve_packs(sources);
+				state_->theme_packs = packs;
+			}
+			state_->theme_renderer.apply(document, state_->theme_catalog);
+		}
+	}
+	catch (const std::exception &error)
+	{
+		state_->notice = error.what();
+		state_->theme_renderer.apply(document, Catalog{});
+	}
+
 	return prepared;
 }
 void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocument &document)

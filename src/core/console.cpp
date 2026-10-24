@@ -420,6 +420,8 @@ void ConsoleModel::reset()
 	selected_team_.clear();
 	selected_team_order_.clear();
 	selected_patient_.clear();
+	granted_tabs_ = UiTabs{};
+	browsing_.clear();
 	fire_arcs_ = true;
 	owner_.reset();
 	packs_.clear();
@@ -459,6 +461,31 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		available_consoles_.emplace_back(next->console, next->console);
 		for (const auto &extra : next->additional_consoles)
 			available_consoles_.emplace_back(extra.console, extra.console);
+		for (const auto &seat : resolve_consoles(catalog, next->own.definition))
+			for (auto &[key, label] : available_consoles_)
+				if (key == seat.id)
+					label = catalog.consoles.at(seat.definition).value("name", key);
+		std::vector<UiTab> tabs;
+		auto attention = [](const Observation &view)
+		{
+			const auto board = view.gameplay.value("conversations", Json::object());
+			for (const auto &thread : board.value("threads", Json::array()))
+				if (thread.value("unread", false))
+					return true;
+			return false;
+		};
+		for (const auto &[key, label] : available_consoles_)
+		{
+			bool unread = key == next->console && attention(*next);
+			for (const auto &extra : next->additional_consoles)
+				if (extra.console == key)
+					unread = attention(extra);
+			tabs.push_back({key, label, true, unread});
+		}
+		granted_tabs_.update(std::move(tabs));
+		if (!selected_console_.empty())
+			granted_tabs_.select(selected_console_);
+		selected_console_ = granted_tabs_.selected();
 		if (!selected_console_.empty() && selected_console_ != next->console)
 		{
 			const auto extra = std::find_if(next->additional_consoles.begin(), next->additional_consoles.end(),
@@ -481,6 +508,21 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 	                       next->controls != observation_->controls || next->feeds != observation_->feeds));
 	if (changed)
 	{
+		if (observation_)
+			release_controls();
+		if (observation_)
+			browsing_[std::to_string(observation_->own.id) + "/" + observation_->console] = {
+			    combat_target_,       selected_compartment_, sensor_contact_, selected_team_,
+			    selected_team_order_, selected_patient_,     status_system_};
+		const auto key = next ? std::to_string(next->own.id) + "/" + next->console : std::string{};
+		const auto saved = browsing_.contains(key) ? browsing_.at(key) : Browsing{};
+		combat_target_ = saved.target;
+		selected_compartment_ = saved.compartment;
+		sensor_contact_ = saved.sensor;
+		selected_team_ = saved.team;
+		selected_team_order_ = saved.order;
+		selected_patient_ = saved.patient;
+		status_system_ = saved.status;
 		++layout_revision_;
 		pending_at_.reset();
 		pending_requests_.clear();
@@ -499,7 +541,14 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 					{
 						layout_ = catalog.consoles.at(seat.definition);
 						if (route == 31 && layout_.contains("compact"))
+						{
 							layout_["widgets"] = layout_.at("compact").at("widgets");
+							if (layout_.contains("hud_layout"))
+								layout_["layout"] = layout_.at("hud_layout");
+							layout_.erase("layout_overrides");
+							if (layout_.contains("hud_layout_overrides"))
+								layout_["layout_overrides"] = layout_.at("hud_layout_overrides");
+						}
 					}
 					break;
 				}
@@ -670,7 +719,15 @@ bool ConsoleModel::act(const std::string &id)
 	}
 	if (id.starts_with("game.console/"))
 	{
-		selected_console_ = id.substr(13);
+		const auto requested = id.substr(13);
+		if (std::none_of(available_consoles_.begin(), available_consoles_.end(),
+		                 [&](const auto &seat)
+		                 {
+			                 return seat.first == requested;
+		                 }))
+			return false;
+		release_controls();
+		selected_console_ = requested;
 		return true;
 	}
 	auto session = owner_.lock();

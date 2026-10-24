@@ -127,9 +127,25 @@ WorkshopDocument::WorkshopDocument()
 {
 	reset();
 }
-Catalog WorkshopDocument::preview_ui() const
+std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 {
-	Catalog preview = library_catalog_;
+	Json source = Json::object();
+	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles"})
+		source[kind] = draft_rows(definitions_, kind);
+	std::string signature = source.dump() + pack_.manifest.dump();
+	for (const auto &[id, hash] : library_catalog_.ordered_packs)
+		signature += id + hash;
+	for (const auto &[path, bytes] : pack_.files)
+		if (path.starts_with("assets/"))
+			signature += path;
+	if (ui_preview_ && ui_preview_signature_ == signature)
+		return ui_preview_;
+	Catalog preview;
+	preview.ui_theme = library_catalog_.ui_theme;
+	preview.ordered_packs = library_catalog_.ordered_packs;
+	for (const auto &[id, bytes] : library_catalog_.assets)
+		if (id.ends_with(".png") || id.ends_with(".ttf") || id.ends_with(".otf"))
+			preview.assets[id] = bytes;
 	preview.ui_theme = pack_.manifest.value("theme", preview.ui_theme);
 	preview.layouts = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Layout));
 	preview.ui_groups = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::UiGroup));
@@ -141,9 +157,11 @@ Catalog WorkshopDocument::preview_ui() const
 	inherit_definitions(preview.consoles, "consoles");
 	const auto prefix = pack_.manifest.at("id").get<std::string>() + ":";
 	for (const auto &[path, bytes] : pack_.files)
-		if (path.starts_with("assets/"))
+		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))
 			preview.assets[prefix + path] = bytes;
-	return preview;
+	ui_preview_ = std::make_shared<const Catalog>(std::move(preview));
+	ui_preview_signature_ = signature;
+	return ui_preview_;
 }
 Catalog WorkshopDocument::preview_equipment() const
 {
@@ -295,6 +313,7 @@ std::vector<Bytes> WorkshopDocument::dependency_archives() const
 }
 void WorkshopDocument::reset()
 {
+	ui_preview_.reset();
 	pack_ = PackDraft{};
 	pack_.manifest = {{"schema", 1}, {"id", "workshop"}};
 	libraries_.clear();
@@ -322,6 +341,7 @@ void WorkshopDocument::select_map(std::size_t index)
 }
 void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 {
+	ui_preview_.reset();
 	auto loaded = read_pack(archive);
 	// A standalone pack opens independently of the current draft's dependencies.
 	// A mod retains the explicitly loaded dependency closure it declares.
@@ -383,9 +403,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 		}
 	flatten("maps", resolved.maps);
 	flatten("consoles", resolved.consoles);
-	flatten("layouts", resolved.layouts);
-	flatten("ui_groups", resolved.ui_groups);
-	flatten("themes", resolved.themes);
+	// Presentation definitions keep authored inheritance and local overrides on reopen.
 	flatten("trees", resolved.trees);
 	if (definitions["maps"].empty())
 		definitions["maps"].push_back(
@@ -398,6 +416,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 }
 void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 {
+	ui_preview_.reset();
 	if (pack_.manifest.contains("base"))
 		throw std::runtime_error("A base pack cannot be reparented by loading dependencies");
 	auto library = read_pack(archive);
@@ -720,6 +739,66 @@ void WorkshopDocument::rename_console(const std::string &from, const std::string
 		overrides.erase(std::remove(overrides.begin(), overrides.end(), Json(from)), overrides.end());
 	}
 }
+void WorkshopDocument::rename_ui_definition(WorkshopDefinitionKind kind, const std::string &from, const std::string &to)
+{
+	if (kind != WorkshopDefinitionKind::Layout && kind != WorkshopDefinitionKind::UiGroup &&
+	    kind != WorkshopDefinitionKind::Theme)
+		throw std::runtime_error("Expected layout, group or theme definition");
+	if (from == to)
+		return;
+	if (to.empty() || to.size() > 128 ||
+	    to.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos)
+		throw std::runtime_error("UI definition ID uses letters, numbers, dots, underscores and hyphens");
+	const auto table = draft_table(library_catalog_, kind);
+	for (const auto &[name, values] : definitions_.items())
+		if (values.is_array())
+			for (const auto &value : values)
+				if (value.is_object() && value.value("id", std::string{}) == to)
+					throw std::runtime_error("Definition ID already exists: " + to);
+	if (library_catalog_.layouts.contains(to) || library_catalog_.ui_groups.contains(to) ||
+	    library_catalog_.themes.contains(to))
+		throw std::runtime_error("UI definition ID belongs to a dependency: " + to);
+	auto &rows = definitions_[table.name];
+	auto found = std::find_if(rows.begin(), rows.end(),
+	                          [&](const auto &value)
+	                          {
+		                          return value.at("id") == from;
+	                          });
+	if (found == rows.end())
+		throw std::runtime_error("Select a local UI definition to rename");
+	(*found)["id"] = to;
+	const std::string field = kind == WorkshopDefinitionKind::Layout    ? "layout"
+	                          : kind == WorkshopDefinitionKind::UiGroup ? "group"
+	                                                                    : "theme";
+	std::function<void(Json &)> repair = [&](Json &value)
+	{
+		if (value.is_object())
+		{
+			if (kind == WorkshopDefinitionKind::Layout && value.value("hud_layout", Json()) == from)
+				value["hud_layout"] = to;
+			if (value.value(field, Json()) == from)
+				value[field] = to;
+			for (auto &item : value.items())
+				repair(item.value());
+		}
+		else if (value.is_array())
+			for (auto &item : value)
+				repair(item);
+	};
+	for (const char *name : {"layouts", "ui_groups", "consoles"})
+		if (definitions_.contains(name))
+			repair(definitions_[name]);
+	for (auto &value : rows)
+		if (value.value("extends", Json()) == from)
+			value["extends"] = to;
+	if (kind == WorkshopDefinitionKind::Theme && pack_.manifest.value("theme", std::string{}) == from)
+		pack_.manifest["theme"] = to;
+	if (pack_.manifest.contains("overrides"))
+	{
+		auto &overrides = pack_.manifest["overrides"];
+		overrides.erase(std::remove(overrides.begin(), overrides.end(), Json(from)), overrides.end());
+	}
+}
 std::uint64_t WorkshopDocument::place(const std::string &definition, std::int64_t x, std::int64_t y)
 {
 	bool exists = std::any_of(definitions_["entities"].begin(), definitions_["entities"].end(),
@@ -846,6 +925,7 @@ WorkshopHistory::Snapshot WorkshopHistory::snapshot(const WorkshopDocument &docu
 	{
 		auto resources = std::make_shared<WorkshopDocument>(document);
 		resources->definitions_ = Json();
+		resources->ui_preview_.reset();
 		for (const auto &[name, data] : document.pack_.files)
 			result.resource_bytes += name.size() + data.size();
 		for (const auto &pack : document.libraries_)
@@ -858,6 +938,7 @@ void WorkshopHistory::restore(WorkshopDocument &document, const Snapshot &snapsh
 {
 	document = *snapshot.resources;
 	document.definitions_ = snapshot.definitions;
+	document.ui_preview_.reset();
 	document.pack_.manifest = snapshot.manifest;
 	document.map_index_ = snapshot.map_index;
 }

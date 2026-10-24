@@ -17,6 +17,7 @@ module;
 #include <set>
 #include <string>
 #include <utility>
+#include <tuple>
 #include <vector>
 
 module phoenix.tools;
@@ -1085,6 +1086,7 @@ void entity_properties(Json &entity)
 		ImGui::EndCombo();
 	}
 }
+#include "layout_workspace.hpp"
 void console_editor(Application &app, bool inspector)
 {
 	auto &consoles = editor.document.definitions()["consoles"];
@@ -1105,6 +1107,8 @@ void console_editor(Application &app, bool inspector)
 			                     }) ||
 			         editor.document.libraries().consoles.contains(id));
 			consoles.push_back({{"id", id}, {"widgets", Json::array()}});
+			consoles.back()["layout"] = convert_console_layout(consoles.back());
+			layout_workspace.focus_canvas = true;
 			editor.console = static_cast<int>(consoles.size() - 1);
 			editor.selection = "Console";
 		}
@@ -1115,6 +1119,7 @@ void console_editor(Application &app, bool inspector)
 			const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
 			if (ImGui::Selectable(label.c_str(), editor.selection == "Console" && editor.console == i))
 			{
+				layout_workspace.focus_canvas = true;
 				editor.console = static_cast<int>(i);
 				editor.selection = "Console";
 			}
@@ -1207,6 +1212,11 @@ void console_editor(Application &app, bool inspector)
 	           });
 	if (ImGui::CollapsingHeader(tool_label("Bindings and knowledge").c_str()))
 		draw_console_gameplay_properties(editor.document, app, selected);
+	if (selected.contains("layout"))
+	{
+		ImGui::TextWrapped("%s", localise("Use Layout canvas to arrange and preview this Console.").c_str());
+		return;
+	}
 	ImGui::SeparatorText(tool_label("Live Console preview").c_str());
 	ImGui::TextWrapped("%s", localise("Sample data; controls affect only this preview.").c_str());
 	static int preview_resolution = 0;
@@ -1562,6 +1572,123 @@ void open_workshop_pack(const std::string &path)
 	    editor.document.map()["entities"].empty() ? 0 : editor.document.map()["entities"][0]["id"].get<std::uint64_t>();
 	editor.status = ToolMessage("Loaded and verified {path}", {{"path", path}});
 }
+bool probe_workshop_layout(unsigned stage)
+{
+	auto &consoles = editor.document.definitions()["consoles"];
+	if (consoles.empty())
+		return false;
+	editor.console = 0;
+	editor.selection = "Console";
+	if (stage == 0)
+	{
+		consoles[0]["layout"] = convert_console_layout(consoles[0]);
+		layout_workspace.width = 1280;
+		layout_workspace.height = 720;
+		layout_workspace.focus_canvas = true;
+	}
+	if (stage == 1)
+	{
+		auto &layout = consoles[0]["layout"];
+		layout["root"]["gap"] = 20;
+		editor.document.verify();
+		const auto bytes = editor.document.export_pack();
+		editor.document.load_pack(bytes);
+		editor.console = 0;
+		editor.selection = "Console";
+		if (editor.document.definitions().at("consoles").at(0).at("layout").at("root").at("gap") != 20)
+			return false;
+	}
+	if (stage == 2)
+	{
+		layout_workspace.width = 390;
+		layout_workspace.height = 844;
+	}
+	if (stage == 3)
+	{
+		layout_workspace.text_scale = 150;
+		auto &console = editor.document.definitions()["consoles"][0];
+		console["theme_overrides"] = {{"tokens", {{"panel", "#16303b"}, {"text", "#ffffff"}}}};
+	}
+	if (stage >= 4)
+	{
+		if (!layout_workspace.last_error.empty())
+			throw std::runtime_error(layout_workspace.last_error);
+		editor.document.verify();
+		layout_workspace.text_scale = 100;
+		auto &console = editor.document.definitions()["consoles"][0];
+		if (stage == 4)
+		{
+			console["widgets"] = Json::array({{{"id", "conversations"},
+			                                   {"kind", "conversations"},
+			                                   {"label", "Conversations"},
+			                                   {"binding", "ship.conversations"},
+			                                   {"x", 0},
+			                                   {"y", 0},
+			                                   {"width", 1000},
+			                                   {"height", 1000}}});
+			console["layout"] = {
+			    {"schema", 1},
+			    {"root",
+			     {{"id", "conversation"},
+			      {"kind", "row"},
+			      {"children",
+			       Json::array(
+			           {{{"id", "directory"},
+			             {"kind", "component"},
+			             {"component", "conversation-list"},
+			             {"min_width", 200}},
+			            {{"id", "detail"},
+			             {"kind", "column"},
+			             {"children",
+			              Json::array(
+			                  {{{"id", "header"}, {"kind", "component"}, {"component", "conversation-header"}},
+			                   {{"id", "history"},
+			                    {"kind", "component"},
+			                    {"component", "conversation-history"},
+			                    {"min_height", 180}},
+			                   {{"id", "replies"}, {"kind", "component"}, {"component", "conversation-replies"}},
+			                   {{"id", "compose"},
+			                    {"kind", "component"},
+			                    {"component", "conversation-compose"}}})}}})}}}};
+			layout_workspace.sample_state = 2;
+			layout_workspace.width = 1280;
+			layout_workspace.height = 720;
+		}
+		if (stage == 5)
+		{
+			console["widgets"] = Json::array();
+			console["layout"] = {
+			    {"schema", 1},
+			    {"root",
+			     {{"id", "engineering"},
+			      {"kind", "row"},
+			      {"children",
+			       Json::array(
+			           {{{"id", "cards"}, {"kind", "component"}, {"component", "engineering"}, {"min_width", 300}},
+			            {{"id", "readouts"},
+			             {"kind", "component"},
+			             {"component", "readouts"},
+			             {"min_width", 300}}})}}}};
+			layout_workspace.sample_state = 1;
+		}
+		if (stage == 6)
+		{
+			console["widgets"] = Json::array({{{"id", "map"},
+			                                   {"kind", "navigation"},
+			                                   {"label", "Navigation"},
+			                                   {"binding", "ship.navigation"},
+			                                   {"x", 0},
+			                                   {"y", 0},
+			                                   {"width", 1000},
+			                                   {"height", 1000}}});
+			console["layout"] = {{"schema", 1},
+			                     {"root", {{"id", "navigation"}, {"kind", "component"}, {"component", "navigation"}}}};
+			layout_workspace.sample_state = 0;
+		}
+	}
+
+	return true;
+}
 bool probe_workshop_controllers(unsigned stage)
 {
 	if (stage == 0)
@@ -1708,6 +1835,10 @@ void render_editor(Application &app)
 		for (const char *area : {"State trees", "Scenario", "Test"})
 			ImGui::DockBuilderDockWindow(tool_label(area).c_str(), centre);
 		ImGui::DockBuilderDockWindow(tool_label("Properties").c_str(), right);
+		ImGui::DockBuilderDockWindow(tool_label("Layout canvas").c_str(), centre);
+		ImGui::DockBuilderDockWindow(tool_label("Layout properties").c_str(), right);
+		ImGui::DockBuilderDockWindow(tool_label("Layout hierarchy").c_str(), left);
+		ImGui::DockBuilderDockWindow(tool_label("Layout palette").c_str(), left);
 		ImGui::DockBuilderDockWindow(tool_label("Consoles").c_str(), left);
 		ImGui::DockBuilderDockWindow(tool_label("Lighting and sprite preview").c_str(), centre);
 		ImGui::DockBuilderFinish(dock);
@@ -1835,6 +1966,10 @@ void render_editor(Application &app)
 					    if (editor.definition >= 0 && editor.definition < static_cast<int>(entities.size()))
 						    entities[editor.definition]["render"]["model"]["asset"] = ref;
 					    editor.clear_textures();
+				    }
+				    if (imported->purpose == FilePurpose::WorkshopFont)
+				    {
+					    editor.document.import_font(imported->filename, std::move(imported->bytes));
 				    }
 				    if (imported->purpose == FilePurpose::WorkshopImage)
 				    {
@@ -2284,6 +2419,9 @@ void render_editor(Application &app)
 		overrides("maps", editor.document.libraries().maps);
 		overrides("consoles", editor.document.libraries().consoles);
 		overrides("trees", editor.document.libraries().trees);
+		overrides("layouts", editor.document.libraries().layouts);
+		overrides("ui_groups", editor.document.libraries().ui_groups);
+		overrides("themes", editor.document.libraries().themes);
 	}
 	ImGui::Separator();
 	ImGui::TextWrapped("%s", editor.status.c_str());
@@ -2328,6 +2466,7 @@ void render_editor(Application &app)
 		draw_gameplay_properties(editor.document, app, editor.status, editor.selection, "");
 	ImGui::End();
 
+	console_layout_workspace(app);
 	lighting_preview();
 	if (!ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
 		editor.history.checkpoint(editor.document);

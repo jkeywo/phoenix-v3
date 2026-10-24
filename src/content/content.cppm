@@ -353,6 +353,7 @@ struct UiPlacement
 };
 struct UiResolved
 {
+	UiRect body;
 	std::vector<UiPlacement> placements;
 	std::vector<UiTab> pages;
 	std::map<std::string, std::string> page_groups;
@@ -364,6 +365,9 @@ UiLayout compile_ui_layout(const Catalog &, const Json &console);
 UiLayout compile_ui_tree(const Catalog &, const Json &definition);
 UiResolved resolve_ui_layout(const UiLayout &, UiRect available, float text_scale,
                              const std::map<std::string, std::string> &selected_pages = {});
+UiResolved resolve_console_ui(const UiLayout &, float width, float height, float text_scale,
+                              const std::map<std::string, std::string> &selected_pages = {},
+                              bool multiple_consoles = false);
 Json convert_console_layout(const Json &console);
 Json resolved_ui_theme(const Catalog &, const std::string &id = {}, const Json &overrides = Json::object());
 Json public_ui_theme(const Catalog &);
@@ -1267,6 +1271,7 @@ public:
 	std::string create_entity(const std::string &parent = {});
 	void rename_entity(const std::string &from, const std::string &to);
 	void rename_console(const std::string &from, const std::string &to);
+	void rename_ui_definition(WorkshopDefinitionKind, const std::string &from, const std::string &to);
 	std::uint64_t place(const std::string &definition, std::int64_t x, std::int64_t y);
 	void erase(std::uint64_t instance);
 	void duplicate(std::uint64_t instance);
@@ -1276,7 +1281,7 @@ public:
 	Catalog verify() const;
 	// Resolves reusable equipment and controller namespaces without requiring finished ownership/presets.
 	Catalog preview_equipment() const;
-	Catalog preview_ui() const;
+	std::shared_ptr<const Catalog> preview_ui() const;
 	Json preview_tree(const Json &tree) const;
 	Json preview_tree(const std::string &id) const;
 	std::vector<std::string> definition_choices(WorkshopDefinitionKind kind) const;
@@ -1314,6 +1319,8 @@ public:
 	std::vector<Bytes> dependency_archives() const;
 
 private:
+	mutable std::shared_ptr<const Catalog> ui_preview_;
+	mutable std::string ui_preview_signature_;
 	PackDraft pack_;
 	Json definitions_;
 	std::size_t map_index_ = 0;

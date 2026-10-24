@@ -254,6 +254,12 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 			control.toggle = true;
 			control.pressed = found->second;
 		}
+		if (control.id.find("/layout-page/") != std::string::npos ||
+		    control.id.find("/game.console/") != std::string::npos)
+		{
+			control.tab = true;
+			control.selected = app.screen_toggles.contains(control.id) && app.screen_toggles.at(control.id);
+		}
 		if (control.id.starts_with("settings.tab/"))
 		{
 			control.tab = true;

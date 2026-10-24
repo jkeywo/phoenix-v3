@@ -22,6 +22,7 @@ namespace
 
 import phoenix.input;
 import phoenix.navigation;
+import phoenix.console;
 
 using namespace phoenix;
 using phoenix::test::require;
@@ -29,6 +30,8 @@ struct InferenceView final : SessionPort
 {
 	Json state = Json::object();
 	Catalog content;
+	std::optional<Observation> projection;
+	std::vector<OperatingCommand> submitted;
 	void add_pack(const Bytes &) override
 	{
 	}
@@ -67,13 +70,16 @@ struct InferenceView final : SessionPort
 	{
 		return 0;
 	}
-	bool command(const OperatingCommand &) override
+	bool command(const OperatingCommand &value) override
 	{
-		return false;
+		if (!projection)
+			return false;
+		submitted.push_back(value);
+		return true;
 	}
 	std::optional<Observation> observation() const override
 	{
-		return {};
+		return projection;
 	}
 	std::vector<BodyView> viewscreen() const override
 	{
@@ -88,6 +94,71 @@ int main()
 {
 	try
 	{
+		{
+			auto session = std::make_shared<InferenceView>();
+			PackDraft pack;
+			pack.manifest = {{"schema", 1}, {"id", "ui-routing"}};
+			pack.files["assets/pixel.png"] = source_asset_image(AssetImage{1, 1, {255, 255, 255, 255}});
+			Json definitions{
+			    {"schema", 1},
+			    {"consoles", Json::array({{{"id", "ui.first"}, {"widgets", Json::array()}},
+			                              {{"id", "ui.second"}, {"widgets", Json::array()}}})},
+			    {"entities",
+			     Json::array(
+			         {{{"id", "ui.ship"},
+			           {"render", {{"mode", "camera"}, {"scale", 1}, {"images", {"ui-routing:assets/pixel.png"}}}},
+			           {"systems", {{"engine", {{"max_speed_mm_s", 17000}, {"acceleration_mm_s2", 2000}}}}},
+			           {"collision", {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 10000}}},
+			           {"stations",
+			            Json::array(
+			                {{{"id", "watch"},
+			                  {"consoles",
+			                   Json::array(
+			                       {{{"id", "a"}, {"definition", "ui.first"}, {"systems", {"engine"}}},
+			                        {{"id", "b"}, {"definition", "ui.second"}, {"systems", Json::array()}}})}}})}}})}};
+			pack.files["definitions.json"] = json_bytes(definitions);
+			session->content = resolve_packs({read_pack(write_pack(pack))});
+			Observation first;
+			first.own = {1, "ui.ship", 0, 0, 0, 0, 0, RadarIcon::ship};
+			first.console = "a";
+			first.controls = first.feeds = system_bit(OperatingSystem::Engine);
+			first.systems = {{"engine", OperatingSystem::Engine, 0, 17000, true, true}};
+			first.gameplay["controls"] = Json::array({{{"id", "axis"},
+			                                           {"label", "Forward thrust"},
+			                                           {"action", "longitudinal_thrust"},
+			                                           {"system", "engine"},
+			                                           {"value", 1000}}});
+			auto second = first;
+			second.console = "b";
+			second.controls = 0;
+			second.systems[0].controlled = false;
+			second.gameplay["controls"] = Json::array();
+			second.gameplay["conversations"] = {{"threads", Json::array({{{"unread", true}}})}};
+			first.additional_consoles = {second};
+			session->projection = first;
+			ConsoleModel model;
+			model.refresh(session);
+			ConsoleModel independent_surface;
+			independent_surface.refresh(session);
+			require(model.available_consoles().size() == 2 && !model.act("game.console/foreign"),
+			        "Console tabs use only granted authored Consoles");
+			require(model.available_tabs()[1].attention, "inactive tab attention comes from its permitted observation");
+			require(model.hold_control("game.control/61786973"),
+			        "synthetic permitted Console accepts a held descriptor");
+			require(model.act("game.console/b") && session->submitted.back().console == "a" &&
+			            session->submitted.back().value == 0,
+			        "switching releases the original Console held input");
+			model.refresh(session);
+			require(model.observation()->console == "b" && !model.command("longitudinal_thrust", 1000, "engine"),
+			        "read-only Console tab cannot inherit another Console authority");
+			independent_surface.refresh(session);
+			require(independent_surface.observation()->console == "a",
+			        "switching one player surface preserves another surface Console");
+			session->projection->additional_consoles.clear();
+			model.refresh(session);
+			require(model.available_consoles().size() == 1 && model.observation()->console == "a",
+			        "revoked tab disappears and returns to the remaining Console");
+		}
 		{
 			Application app;
 			app.can_host = true;

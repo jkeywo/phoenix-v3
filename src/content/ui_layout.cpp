@@ -54,6 +54,10 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 		auto root = definition.at("root");
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
+		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
+		                          "stretch", "aspect", "align", "region", "circle", "style"})
+			if (source.contains(field))
+				root[field] = source.at(field);
 		// The instance owns identity; reusable group children are namespaced.
 		root["id"] = local;
 		ids.erase(node.id);
@@ -121,6 +125,12 @@ std::pair<float, float> minimum_size(const UiNode &node, float scale)
 	for (const auto &child : node.children)
 	{
 		const auto [cw, ch] = minimum_size(child, scale);
+		if (node.kind == "instruments")
+		{
+			w = std::max(w, cw * 1000 / child.rect.width);
+			h = std::max(h, ch * 1000 / child.rect.height);
+			continue;
+		}
 		w = node.kind == "row" ? w + cw : std::max(w, cw);
 		h = node.kind == "column" ? h + ch : std::max(h, ch);
 	}
@@ -129,8 +139,6 @@ std::pair<float, float> minimum_size(const UiNode &node, float scale)
 		w += gaps;
 	if (node.kind == "column")
 		h += gaps;
-	if (node.kind == "tabs")
-		h += 48 * scale;
 	return {std::max(width, w + node.padding * 2 * scale), std::max(height, h + node.padding * 2 * scale)};
 }
 void targets(const UiNode &node, std::set<std::string> &result)
@@ -247,6 +255,7 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 	               std::isfinite(available.height) && available.width > 0 && available.height > 0,
 	           "layout.viewport", "expected positive finite bounds and scale");
 	UiResolved result;
+	result.body = available;
 	const auto [mw, mh] = minimum_size(layout.root, text_scale);
 	result.compact = available.width < mw || available.height < mh;
 	UiNode automatic;
@@ -283,7 +292,8 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 			area.height = std::max(area.height, h);
 			if (node.aspect > 0)
 			{
-				const float width = std::min(area.width, area.height * node.aspect), height = width / node.aspect;
+				const float width = std::max({w, h * node.aspect, std::min(area.width, area.height * node.aspect)}),
+				            height = width / node.aspect;
 				area.x += (area.width - width) / 2;
 				area.y += (area.height - height) / 2;
 				area.width = width;
@@ -308,9 +318,8 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 					result.pages.push_back({child.id, child.label});
 					result.page_groups[child.id] = node.id;
 				}
-				place(child,
-				      {area.x, area.y + 48 * text_scale, area.width, std::max(1.f, area.height - 48 * text_scale)},
-				      visible && child.id == chosen, node.id);
+				// Page navigation is reserved once by resolve_console_ui and displayed by the shared tab strip.
+				place(child, area, visible && child.id == chosen, node.id);
 			}
 			return;
 		}
@@ -321,16 +330,21 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 				auto r = child.rect;
 				if (node.kind == "cutout" && !child.region.empty())
 				{
-					const auto x = node.circle_x * 1000, y = node.circle_y * 1000, radius = node.circle_radius * 1000;
-					const auto corner = radius / std::sqrt(2.f);
+					const float x = area.width * node.circle_x, y = area.height * node.circle_y;
+					const float radius = std::min(area.width, area.height) * node.circle_radius,
+					            corner = radius / std::sqrt(2.f);
+					UiRect bounds;
 					if (child.region == "centre")
-						r = {x - radius, y - radius, radius * 2, radius * 2};
+						bounds = {area.x + x - radius, area.y + y - radius, radius * 2, radius * 2};
 					else
 					{
 						const bool right = child.region.ends_with("right"), bottom = child.region.starts_with("bottom");
-						r = {right ? x + corner : 0, bottom ? y + corner : 0, right ? 1000 - x - corner : x - corner,
-						     bottom ? 1000 - y - corner : y - corner};
+						bounds = {area.x + (right ? x + corner : 0), area.y + (bottom ? y + corner : 0),
+						          right ? area.width - x - corner : x - corner,
+						          bottom ? area.height - y - corner : y - corner};
 					}
+					place(child, bounds, visible, page);
+					continue;
 				}
 				place(child,
 				      {area.x + area.width * r.x / 1000, area.y + area.height * r.y / 1000, area.width * r.width / 1000,
@@ -406,20 +420,73 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 	place(*root, available, true, {});
 	return result;
 }
+UiResolved resolve_console_ui(const UiLayout &layout, float width, float height, float text_scale,
+                              const std::map<std::string, std::string> &pages, bool multiple_consoles)
+{
+	float header = (multiple_consoles ? 112.f : 64.f) * text_scale;
+	auto result = resolve_ui_layout(layout, {0, 0, width, std::max(100.f, height - header)}, text_scale, pages);
+	if (!result.pages.empty())
+	{
+		header += 48 * text_scale;
+		result = resolve_ui_layout(layout, {0, 0, width, std::max(100.f, height - header)}, text_scale, pages);
+	}
+	result.body.y = header;
+	return result;
+}
 Json convert_console_layout(const Json &console)
 {
 	Json instruments = {{"id", "instruments"}, {"label", "Instruments"}, {"kind", "instruments"},
 	                    {"min_width", 640},    {"min_height", 480},      {"children", Json::array()}};
+	const bool helm = std::any_of(console.at("widgets").begin(), console.at("widgets").end(),
+	                              [](const auto &w)
+	                              {
+		                              return w.at("kind") == "throttle";
+	                              });
 	for (const auto &widget : console.at("widgets"))
-		instruments["children"].push_back({{"id", widget.at("id")},
-		                                   {"label", widget.at("label")},
+	{
+		const auto kind = widget.at("kind").get<std::string>();
+		Json rect{{"x", widget.at("x")},
+		          {"y", widget.at("y")},
+		          {"width", widget.at("width")},
+		          {"height", widget.at("height")}};
+		if (helm && std::count_if(console.at("widgets").begin(), console.at("widgets").end(),
+		                          [](const auto &w)
+		                          {
+			                          return w.at("kind") == "throttle";
+		                          }) == 1)
+		{
+			if (kind == "radar")
+				rect = {{"x", 240}, {"y", 0}, {"width", 600}, {"height", 1000}};
+			if (kind == "throttle")
+				rect = {{"x", 850}, {"y", 100}, {"width", 150}, {"height", 800}};
+			if (kind == "heading")
+				rect = {{"x", 0}, {"y", 850}, {"width", 220}, {"height", 150}};
+			if (kind == "camera_mode")
+				rect = {{"x", 0}, {"y", 80}, {"width", 220}, {"height", 220}};
+			if (kind == "camera_direction")
+				rect = {{"x", 0}, {"y", 300}, {"width", 220}, {"height", 450}};
+		}
+		Json node{{"id", widget.at("id")},
+		          {"label", widget.at("label")},
+		          {"kind", "component"},
+		          {"component", kind == "navigation" ? Json("navigation") : widget.at("id")},
+		          {"rect", rect},
+		          {"min_width", kind == "radar"      ? 280
+		                        : kind == "throttle" ? 72
+		                                             : 160},
+		          {"min_height", kind == "radar"      ? 280
+		                         : kind == "throttle" ? 240
+		                                              : 72}};
+		if (kind == "radar")
+			node["aspect"] = 1;
+		instruments["children"].push_back(node);
+	}
+	if (helm)
+		instruments["children"].push_back({{"id", "manual"},
+		                                   {"label", "Manual flight"},
 		                                   {"kind", "component"},
-		                                   {"component", widget.at("id")},
-		                                   {"rect",
-		                                    {{"x", widget.at("x")},
-		                                     {"y", widget.at("y")},
-		                                     {"width", widget.at("width")},
-		                                     {"height", widget.at("height")}}}});
+		                                   {"component", "manual-flight"},
+		                                   {"rect", {{"x", 0}, {"y", 0}, {"width", 1000}, {"height", 1000}}}});
 	Json children = Json::array();
 	if (!instruments.at("children").empty())
 		children.push_back(instruments);
@@ -465,6 +532,10 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 	           "theme", "expected schema 1 with tokens and assets");
 	for (const auto &[key, value] : theme.at("tokens").items())
 	{
+		static const std::set<std::string> supported = {
+		    "background", "panel",  "text",        "muted",     "accent", "focus",        "disabled",
+		    "error",      "border", "font_family", "font_size", "radius", "border_width", "gap"};
+		ui_require(supported.contains(key), "theme.tokens." + key, "unsupported visual property");
 		if (key == "font_family")
 		{
 			const auto family = value.get<std::string>();
@@ -555,8 +626,19 @@ void verify_ui_definitions(const Catalog &catalog)
 	{
 		if (console.contains("layout"))
 			(void)compile_ui_layout(catalog, console);
-		if (console.contains("theme"))
-			(void)resolved_ui_theme(catalog, console.at("theme").get<std::string>(),
+		if (console.contains("hud_layout"))
+		{
+			auto hud = console;
+			hud["layout"] = console.at("hud_layout");
+			hud.erase("layout_overrides");
+			if (console.contains("hud_layout_overrides"))
+				hud["layout_overrides"] = console.at("hud_layout_overrides");
+			if (console.contains("compact"))
+				hud["widgets"] = console.at("compact").at("widgets");
+			(void)compile_ui_layout(catalog, hud);
+		}
+		if (console.contains("theme") || console.contains("theme_overrides"))
+			(void)resolved_ui_theme(catalog, console.value("theme", std::string{}),
 			                        console.value("theme_overrides", Json::object()));
 	}
 }

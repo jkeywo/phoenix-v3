@@ -679,6 +679,9 @@ namespace
 void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog)
 {
 	verify_ui_definitions(catalog);
+	if (catalog.selection && (!catalog.layouts.empty() || !catalog.ui_groups.empty() || !catalog.themes.empty() ||
+	                          !catalog.ui_theme.empty()))
+		invalid("presentation", "selection bundle cannot contain Console UI definitions");
 	(void)compile_resource_catalog(catalog);
 	(void)compile_recipe_catalog(catalog);
 	for (const auto &[id, effect] : catalog.effects)

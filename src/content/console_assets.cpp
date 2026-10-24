@@ -18,6 +18,29 @@ namespace phoenix
 {
 namespace
 {
+Json public_ui_definition(const Json &source)
+{
+	if (source.is_array())
+	{
+		Json result = Json::array();
+		for (const auto &value : source)
+			result.push_back(public_ui_definition(value));
+		return result;
+	}
+	if (!source.is_object())
+		return source;
+	Json result = Json::object();
+	static const std::set<std::string> fields = {
+	    "id",   "schema",  "root",   "compact", "kind",   "label", "component", "group",     "overrides",  "children",
+	    "rect", "circle",  "x",      "y",       "radius", "width", "height",    "min_width", "min_height", "stretch",
+	    "gap",  "padding", "aspect", "align",   "region", "style", "tokens",    "assets",    "slices"};
+	for (const auto &[key, value] : source.items())
+		if (fields.contains(key))
+			result[key] = key == "tokens" || key == "assets" || key == "slices" || key == "style"
+			                  ? value
+			                  : public_ui_definition(value);
+	return result;
+}
 PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
                                const std::vector<std::string> &console_ids, const std::string &background)
 {
@@ -183,9 +206,9 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		if (included.insert(seat.definition).second)
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
-			for (const char *field :
-			     {"name", "description", "human_seeking", "stances", "default_stance", "command", "hide_without_ai",
-			      "viewscreen", "compact", "layout", "layout_overrides", "theme", "theme_overrides", "gameplay_panel"})
+			for (const char *field : {"name", "description", "human_seeking", "stances", "default_stance", "command",
+			                          "hide_without_ai", "viewscreen", "compact", "hud_layout", "hud_layout_overrides",
+			                          "layout", "layout_overrides", "theme", "theme_overrides", "gameplay_panel"})
 				if (catalog.consoles.at(seat.definition).contains(field))
 					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
@@ -274,8 +297,9 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 				if (groups.insert(id).second)
 					collect(catalog.ui_groups.at(id));
 			}
-			for (const auto &value : node.items())
-				collect(value.value());
+			for (const char *key : {"root", "compact", "children", "overrides"})
+				if (node.contains(key))
+					collect(node.at(key));
 		}
 		else if (node.is_array())
 			for (const auto &value : node)
@@ -294,8 +318,24 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 			else
 				collect(console.at("layout"));
 		}
+		if (console.contains("hud_layout"))
+		{
+			const auto &hud = console.at("hud_layout");
+			if (hud.is_string())
+			{
+				const auto id = hud.get<std::string>();
+				layouts.insert(id);
+				collect(catalog.layouts.at(id));
+			}
+			else
+				collect(hud);
+		}
 		if (console.contains("theme"))
 			themes.insert(console.at("theme").get<std::string>());
+		if (console.contains("layout_overrides"))
+			collect(public_ui_definition(console.at("layout_overrides")));
+		if (console.contains("hud_layout_overrides"))
+			collect(public_ui_definition(console.at("hud_layout_overrides")));
 	}
 	for (const auto &[ids, table, name] :
 	     {std::tuple{layouts, catalog.layouts, "layouts"}, std::tuple{groups, catalog.ui_groups, "ui_groups"},
@@ -304,7 +344,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		definitions[name] = Json::array();
 		for (const auto &id : ids)
 		{
-			auto definition = table.at(id);
+			auto definition = public_ui_definition(table.at(id));
 			definition.erase("extends");
 			if (std::string(name) == "themes" && definition.contains("assets"))
 				for (auto &asset : definition["assets"].items())
@@ -318,6 +358,22 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 				}
 			definitions[name].push_back(std::move(definition));
 		}
+	}
+	for (auto &console : definitions["consoles"])
+	{
+		for (const char *field : {"layout", "hud_layout", "layout_overrides", "hud_layout_overrides"})
+			if (console.contains(field))
+				console[field] = public_ui_definition(console.at(field));
+		if (console.contains("theme_overrides") && console.at("theme_overrides").contains("assets"))
+			for (auto &asset : console["theme_overrides"]["assets"].items())
+			{
+				const auto ref = asset.value().get<std::string>();
+				const auto dot = ref.find_last_of('.');
+				const auto path = "assets/theme/" + sha256(catalog.assets.at(ref)) +
+				                  (dot == std::string::npos ? "" : ref.substr(dot));
+				draft.files[path] = catalog.assets.at(ref);
+				asset.value() = pack_id + ":" + path;
+			}
 	}
 	draft.files["definitions.json"] = json_bytes(definitions);
 	return draft;

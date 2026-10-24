@@ -1,4 +1,5 @@
 std::string comms_widget_, comms_list_signature_, comms_choice_signature_, comms_header_signature_;
+std::string comms_board_signature_;
 std::uint64_t comms_visible_thread_ = 0, comms_read_thread_ = 0, comms_read_message_ = 0;
 bool comms_list_only_ = false;
 std::vector<std::pair<std::string, std::string>> comms_controls_;
@@ -46,14 +47,25 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 			if (w.at("kind") == "conversations")
 				comms_widget_ = w.at("id");
 	const auto board = model_.conversations();
-	const bool active = !comms_widget_.empty() && !board.empty() && app.screen != Screen::server_lobby;
-	root->SetProperty("display", active ? "block" : "none");
+	const bool active = (!comms_widget_.empty() || (model_.layout() && model_.layout()->contains("layout"))) &&
+	                    !board.empty() && app.screen != Screen::server_lobby;
+	const bool authored = model_.layout() && model_.layout()->contains("layout");
+	if (!authored)
+		property(root, "display", active ? "block" : "none");
 	if (!active)
 		return;
-	elements_.clear();
-	properties_.clear();
-	document_->GetElementById("gameplay")->SetProperty("display", "none");
-	document_->GetElementById("widgets")->SetProperty("display", "none");
+	const auto board_signature = board.dump();
+	if (board_signature != comms_board_signature_)
+	{
+		elements_.clear();
+		properties_.clear();
+		comms_board_signature_ = board_signature;
+	}
+	if (!authored)
+	{
+		property(document_->GetElementById("gameplay"), "display", "none");
+		property(document_->GetElementById("widgets"), "display", "none");
+	}
 	const auto escape = [](const std::string &s)
 	{
 		return Rml::StringUtilities::EncodeRml(s);
@@ -85,6 +97,8 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 			                      std::to_string(p.at("host").get<EntityId>()) + ")");
 	if (listing != comms_list_signature_)
 	{
+		elements_.clear();
+		properties_.clear();
 		const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
 		document_->GetElementById("comms-list")->SetInnerRML(listing);
 		comms_list_signature_ = listing;
@@ -97,17 +111,33 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	for (const auto &v : board.at("threads"))
 		if (v.at("id") == selected)
 			thread = &v;
-	const bool narrow = region.width < 700;
-	const bool detail_visible = !narrow || (thread && !comms_list_only_);
-	document_->GetElementById("comms-list")->SetProperty("width", narrow ? "100%" : "30%");
-	document_->GetElementById("comms-list")
-	    ->SetProperty("display", narrow && thread && !comms_list_only_ ? "none" : "block");
-	auto *conversation = document_->GetElementById("comms-conversation");
-	conversation->SetProperty("left", narrow ? "0%" : "32%");
-	conversation->SetProperty("width", narrow ? "100%" : "68%");
-	conversation->SetProperty("display", narrow && (!thread || comms_list_only_) ? "none" : "block");
-
-	const auto conversation_width = region.width * .98f * (narrow ? 1.f : .68f) - 24.f;
+	const bool split =
+	    authored && std::any_of(authored_resolved_.placements.begin(), authored_resolved_.placements.end(),
+	                            [](const auto &p)
+	                            {
+		                            return p.component.starts_with("conversation-");
+	                            });
+	const auto panel_width =
+	    authored ? std::max(100.f, root->GetClientWidth() / context_->GetDensityIndependentPixelRatio()) : region.width;
+	const bool narrow = panel_width < 700;
+	const bool detail_visible = split ? authored_component_visible("conversation-history")
+	                                  : (!authored || authored_component_visible("conversations")) &&
+	                                        (!narrow || (thread && !comms_list_only_));
+	if (!split)
+	{
+		property(document_->GetElementById("comms-list"), "width", narrow ? "100%" : "30%");
+		property(document_->GetElementById("comms-list"), "display",
+		         narrow && thread && !comms_list_only_ ? "none" : "block");
+		auto *conversation = document_->GetElementById("comms-conversation");
+		property(conversation, "left", narrow ? "0%" : "32%");
+		property(conversation, "width", narrow ? "100%" : "68%");
+		property(conversation, "display", narrow && (!thread || comms_list_only_) ? "none" : "block");
+	}
+	const auto conversation_width = authored
+	                                    ? std::max(100.f, document_->GetElementById("comms-history")->GetClientWidth() /
+	                                                              context_->GetDensityIndependentPixelRatio() -
+	                                                          16.f)
+	                                    : panel_width * .98f * (narrow ? 1.f : .68f) - 24.f;
 	const auto width = std::to_string(conversation_width) + "dp";
 	std::string header = "<div style=\"display:block;width:" + width + ";height:56dp;\">" +
 	                     button("comms/back", localise("Conversations")) +
@@ -124,9 +154,12 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 			          escape(localise(p.at("connected").get<bool>() ? "Connected" : "Out of contact")) + "</div>";
 	}
 	auto *head = document_->GetElementById("comms-header");
-	head->SetProperty("width", width);
+	if (!authored)
+		property(head, "width", width);
 	if (comms_header_signature_ != header)
 	{
+		elements_.clear();
+		properties_.clear();
 		head->SetInnerRML(header);
 		comms_header_signature_ = header;
 	}
@@ -148,11 +181,10 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 			if (auto *row = document_->GetElementById(id("comms/message/" + std::to_string(selected) + "/" +
 			                                             std::to_string(message.at("id").get<std::uint64_t>()))))
 			{
-				row->SetProperty("width", std::to_string(conversation_width * .88f) + "dp");
-				row->SetProperty("margin-left", message.at("own").get<bool>()
-				                                    ? std::to_string(conversation_width * .12f) + "dp"
-				                                    : "0dp");
-				row->SetProperty("margin-right", "0dp");
+				property(row, "width", std::to_string(conversation_width * .88f) + "dp");
+				property(row, "margin-left",
+				         message.at("own").get<bool>() ? std::to_string(conversation_width * .12f) + "dp" : "0dp");
+				property(row, "margin-right", "0dp");
 			}
 
 	if (!detail_visible)
@@ -177,7 +209,11 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 		for (const auto &p : thread->at("incoming"))
 			incoming += localise(p.at("name").get<std::string>()) + ": " + localise("Incoming message") +
 			            (app.reduced_motion ? "..." : std::string(1 + static_cast<int>(GetTime() * 2) % 3, '.')) + " ";
-	document_->GetElementById("comms-incoming")->SetInnerRML(escape(incoming));
+	if (displayed_values_["comms-incoming"] != incoming)
+	{
+		document_->GetElementById("comms-incoming")->SetInnerRML(escape(incoming));
+		displayed_values_["comms-incoming"] = incoming;
+	}
 	std::string choices;
 	if (thread)
 		for (const auto &c : thread->at("choices"))
@@ -189,11 +225,15 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 				           "</p>";
 	if (choices != comms_choice_signature_)
 	{
+		elements_.clear();
+		properties_.clear();
 		document_->GetElementById("comms-choices")->SetInnerRML(choices);
 		comms_choice_signature_ = choices;
 	}
-	const bool text = detail_visible && thread && thread->value("text_allowed", false);
-	document_->GetElementById("comms-compose")->SetProperty("display", text ? "block" : "none");
+	const bool text = (split ? authored_component_visible("conversation-compose") : detail_visible) && thread &&
+	                  thread->value("text_allowed", false);
+	if (!authored)
+		property(document_->GetElementById("comms-compose"), "display", text ? "block" : "none");
 	if (text)
 	{
 		comms_controls_.emplace_back("comms/send", localise("Send"));
