@@ -8445,10 +8445,6 @@
 					}
 				},
 				"weapon": {
-					"firing_audio": {
-						"asset": "test:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"magazine": "bomb-mag",
 					"compartment": "hull",
@@ -20784,6 +20780,10 @@
 			"range_mm": 150000
 		},
 		{
+			"firing_audio": {
+				"asset": "test:assets/audio/cannon.wav",
+				"gain": 0.9
+			},
 			"id": "test.carrier.raider.weapon.launch",
 			"kind": "directed_mode",
 			"label": "Fire",

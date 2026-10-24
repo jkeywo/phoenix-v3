@@ -442,7 +442,7 @@ void fire_weapons(flecs::entity ship)
 				            target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
 				           payload.speed / p.initial_distance;
 				    ecs.entity().set<Projectile>(p).set<Destructible>({payload.destruction, payload.durability});
-				    emit_audio(ship, {SceneAudioKind::Shot, "weapon:" + d.id, d.get<WeaponDefinition>().firing_audio});
+				    emit_audio(ship, {SceneAudioKind::Shot, "weapon:" + d.id, directed_mode(id, d.id)->firing_audio});
 				    return true;
 			    });
 		}

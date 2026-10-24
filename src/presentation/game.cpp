@@ -121,6 +121,10 @@ struct GameScreen::State
 	TextureCache textures;
 	std::map<std::string, std::unique_ptr<RadarSweep>> sweeps;
 	SceneRenderer scene;
+	SceneFrame frame;
+	Camera3D frame_camera{};
+	Json frame_lighting;
+	double frame_time = 0;
 	Texture2D invitation{};
 	Texture2D viewscreen_frame{};
 	std::string invitation_url;
@@ -171,6 +175,7 @@ struct GameScreen::State
 		shake_acceleration = {};
 		shake_energy = 0;
 		environment = {};
+		frame = {};
 		presentation_identity = nullptr;
 		grid_definition.clear();
 		markup_ready = false;
@@ -697,6 +702,124 @@ struct GameScreen::State
 		previous_description = displayed;
 		markup_ready = true;
 	}
+	const SceneFrame &prepare_scene(const Application &app)
+	{
+		bind_session(app);
+		frame = {};
+		if (!app.session || !app.session->running() || app.screen == Screen::workshop ||
+		    (!app.can_host && app.screen != Screen::viewscreen && !app.viewscreen_region))
+			return frame;
+		environment.own = app.session->focus_body();
+		environment.dust_enabled = app.dust_motes;
+		environment.grid_enabled = app.reference_grid;
+		environment.reduced_motion = app.reduced_motion;
+		const auto presentation = app.session->scene_presentation();
+		const auto definition = environment.own ? environment.own->definition : std::string{};
+		if (!environment_ready || presentation_identity != presentation || grid_definition != definition)
+		{
+			environment.skybox = presentation.value("skybox", std::string{});
+#ifdef __EMSCRIPTEN__
+			constexpr bool web = true;
+#else
+			constexpr bool web = false;
+#endif
+			environment.dust = compile_dust(presentation.value("dust", Json::object()), app.session->catalog(), web,
+			                                "presentation.dust");
+			environment.grid.reset();
+			if (!definition.empty())
+			{
+				const auto &render = app.session->catalog().entities.at(definition).at("render");
+				camera_aspect = 1;
+				if (render.contains("sprite"))
+				{
+					const auto sprite = scene.prepared_sprite(app.session->catalog(), definition);
+					const auto frames = [&](const auto &values)
+					{
+						for (const auto &frame : values)
+							camera_aspect = std::max(camera_aspect, static_cast<float>(frame.rect[2]) / frame.rect[3]);
+					};
+					frames(sprite.frames);
+					for (const auto &entry : sprite.entries)
+						frames(entry.frames);
+				}
+				else if (render.contains("images"))
+					for (const auto &reference : render.at("images"))
+					{
+						const auto &png = app.session->catalog().assets.at(reference.get<std::string>());
+						auto image = LoadImageFromMemory(".png", png.data(), static_cast<int>(png.size()));
+						if (image.height > 0)
+							camera_aspect = std::max(camera_aspect, static_cast<float>(image.width) / image.height);
+						UnloadImage(image);
+					}
+				if (render.contains("reference_grid"))
+					environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
+			}
+			presentation_identity = presentation;
+			grid_definition = definition;
+			environment_ready = true;
+		}
+		if (!environment.own)
+			return frame;
+		const auto &own = *environment.own;
+		const auto settings = ship_camera_state(app.session->public_board());
+		const auto scale = app.session->catalog().entities.at(own.definition).at("render").at("scale").get<float>();
+		const auto pose =
+		    ship_camera_pose(own.x, own.y, own.heading, scale, camera_aspect, settings.mode, settings.direction);
+		const float heading = static_cast<float>(pose.bearing);
+		const float ahead = std::max(2.f, scale * .2f) * 8.f;
+		Camera3D camera{{static_cast<float>(pose.position[0]), static_cast<float>(pose.position[1]),
+		                 static_cast<float>(pose.position[2])},
+		                {static_cast<float>(pose.target[0]), static_cast<float>(pose.target[1]),
+		                 static_cast<float>(pose.target[2])},
+		                {0, 1, 0},
+		                50,
+		                CAMERA_PERSPECTIVE};
+		const auto tick = app.session->ticks();
+		if (!shake_previous || shake_previous->id != own.id || tick < shake_tick)
+		{
+			shake_previous = own;
+			shake_tick = tick;
+			shake_acceleration = {};
+			shake_energy = 0;
+		}
+		else if (tick > shake_tick)
+		{
+			const float seconds = static_cast<float>(tick - shake_tick) / 20.f;
+			const Vector2 acceleration{(own.vx - shake_previous->vx) / (1000.f * seconds),
+			                           (own.vy - shake_previous->vy) / (1000.f * seconds)};
+			const float change =
+			    std::hypot(acceleration.x - shake_acceleration.x, acceleration.y - shake_acceleration.y);
+			shake_energy = std::min(1.f, shake_energy + change * .025f);
+			shake_previous = own;
+			shake_tick = tick;
+			shake_acceleration = acceleration;
+		}
+		shake_energy *= std::exp(-8.f * GetFrameTime());
+		if (app.reduced_motion)
+			shake_energy = 0;
+		const float shake = shake_energy * ahead * .006f;
+		camera.target.x += std::sin(heading) * shake * std::sin(GetTime() * 71);
+		camera.target.z += std::cos(heading) * shake * std::sin(GetTime() * 71);
+		camera.target.y += shake * std::sin(GetTime() * 53);
+		frame_camera = camera;
+		frame_lighting = app.session->scene_lighting();
+		frame_time = GetTime();
+		frame.bodies = app.session->scene();
+		for (auto &body : frame.bodies)
+			if (!body.sound.empty())
+				body.audio.push_back({SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
+		const auto r = app.viewscreen_region;
+		const Rectangle region =
+		    r ? Rectangle{r->x, r->y, r->width, r->height}
+		      : Rectangle{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
+		frame.visible =
+		    scene.prepare(app.session->catalog(), frame.bodies, camera, region, settings.mode == 0 ? own.id : 0,
+		                  frame_lighting.value("environment", Json::object()).value("simulation_time", frame_time),
+		                  environment.reduced_motion);
+		// Cockpit feedback remains audible when the camera hides the host hull.
+		frame.visible.insert(own.id);
+		return frame;
+	}
 	void draw(const Application &app)
 	{
 		if (!app.session)
@@ -713,108 +836,11 @@ struct GameScreen::State
 			return;
 		if (app.screen == Screen::viewscreen || display_region)
 		{
-			environment.own = app.session->focus_body();
-			environment.dust_enabled = app.dust_motes;
-			environment.grid_enabled = app.reference_grid;
-			environment.reduced_motion = app.reduced_motion;
-			const auto presentation = app.session->scene_presentation();
-			const auto definition = environment.own ? environment.own->definition : std::string{};
-			if (!environment_ready || presentation_identity != presentation || grid_definition != definition)
-			{
-				environment.skybox = presentation.value("skybox", std::string{});
-#ifdef __EMSCRIPTEN__
-				constexpr bool web = true;
-#else
-				constexpr bool web = false;
-#endif
-				environment.dust = compile_dust(presentation.value("dust", Json::object()), app.session->catalog(), web,
-				                                "presentation.dust");
-				environment.grid.reset();
-				if (!definition.empty())
-				{
-					const auto &render = app.session->catalog().entities.at(definition).at("render");
-					camera_aspect = 1;
-					if (render.contains("sprite"))
-					{
-						const auto sprite = scene.prepared_sprite(app.session->catalog(), definition);
-						const auto frames = [&](const auto &values)
-						{
-							for (const auto &frame : values)
-								camera_aspect =
-								    std::max(camera_aspect, static_cast<float>(frame.rect[2]) / frame.rect[3]);
-						};
-						frames(sprite.frames);
-						for (const auto &entry : sprite.entries)
-							frames(entry.frames);
-					}
-					else if (render.contains("images"))
-						for (const auto &reference : render.at("images"))
-						{
-							const auto &png = app.session->catalog().assets.at(reference.get<std::string>());
-							auto image = LoadImageFromMemory(".png", png.data(), static_cast<int>(png.size()));
-							if (image.height > 0)
-								camera_aspect = std::max(camera_aspect, static_cast<float>(image.width) / image.height);
-							UnloadImage(image);
-						}
-					if (render.contains("reference_grid"))
-						environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
-				}
-				presentation_identity = presentation;
-				grid_definition = definition;
-				environment_ready = true;
-			}
 			if (!environment.own)
 				return;
-			const auto &own = *environment.own;
-			const auto settings = ship_camera_state(app.session->public_board());
-			const auto scale = app.session->catalog().entities.at(own.definition).at("render").at("scale").get<float>();
-			const auto pose =
-			    ship_camera_pose(own.x, own.y, own.heading, scale, camera_aspect, settings.mode, settings.direction);
-			const float heading = static_cast<float>(pose.bearing);
-			const float ahead = std::max(2.f, scale * .2f) * 8.f;
-			Camera3D camera{{static_cast<float>(pose.position[0]), static_cast<float>(pose.position[1]),
-			                 static_cast<float>(pose.position[2])},
-			                {static_cast<float>(pose.target[0]), static_cast<float>(pose.target[1]),
-			                 static_cast<float>(pose.target[2])},
-			                {0, 1, 0},
-			                50,
-			                CAMERA_PERSPECTIVE};
-			const auto tick = app.session->ticks();
-			if (!shake_previous || shake_previous->id != own.id || tick < shake_tick)
-			{
-				shake_previous = own;
-				shake_tick = tick;
-				shake_acceleration = {};
-				shake_energy = 0;
-			}
-			else if (tick > shake_tick)
-			{
-				const float seconds = static_cast<float>(tick - shake_tick) / 20.f;
-				const Vector2 acceleration{(own.vx - shake_previous->vx) / (1000.f * seconds),
-				                           (own.vy - shake_previous->vy) / (1000.f * seconds)};
-				const float change =
-				    std::hypot(acceleration.x - shake_acceleration.x, acceleration.y - shake_acceleration.y);
-				shake_energy = std::min(1.f, shake_energy + change * .025f);
-				shake_previous = own;
-				shake_tick = tick;
-				shake_acceleration = acceleration;
-			}
-			shake_energy *= std::exp(-8.f * GetFrameTime());
-			if (app.reduced_motion)
-				shake_energy = 0;
-			const float shake = shake_energy * ahead * .006f;
-			camera.target.x += std::sin(heading) * shake * std::sin(GetTime() * 71);
-			camera.target.z += std::cos(heading) * shake * std::sin(GetTime() * 71);
-			camera.target.y += shake * std::sin(GetTime() * 53);
 			const auto stage = GetTime();
-			auto bodies = app.session->scene();
-			std::erase_if(bodies,
-			              [&](const auto &body)
-			              {
-				              return settings.mode == 0 && body.id == own.id;
-			              });
-			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime(),
-			           SceneDiagnostic::comic, {}, environment);
+			scene.draw_prepared(app.session->catalog(), frame.bodies, frame_camera, area(), frame_lighting, frame_time,
+			                    SceneDiagnostic::comic, {}, environment);
 			scene_metrics["scene_render"] = GetTime() - stage;
 			const auto shared = app.session->public_board().value("display", Json(nullptr));
 			if (shared.is_object())
@@ -1117,6 +1143,10 @@ void GameScreen::refresh_status(Application &app)
 void GameScreen::prepare(Application &app, Rml::ElementDocument &document)
 {
 	state_->prepare(app, document);
+}
+const SceneFrame &GameScreen::prepare_scene(const Application &app)
+{
+	return state_->prepare_scene(app);
 }
 void GameScreen::draw(const Application &app)
 {

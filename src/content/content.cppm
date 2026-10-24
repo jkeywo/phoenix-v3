@@ -984,6 +984,7 @@ struct DirectedTargetingDefinition
 };
 struct DirectedModeDefinition
 {
+	AudioClip firing_audio;
 	std::string id, label;
 	DirectedOperationKind operation = DirectedOperationKind::Launch;
 	std::vector<std::string> targeting;
@@ -1011,7 +1012,6 @@ struct ReserveDefinition
 };
 struct WeaponDefinition
 {
-	AudioClip firing_audio;
 	AmmunitionDefinition ammunition;
 	std::string turret, muzzle_marker, family = "projectile";
 	std::int64_t ammo_use = 1, range = 0, beam_damage = 0, standby_energy = 0;

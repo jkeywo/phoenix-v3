@@ -197,37 +197,6 @@ void prepare_instances(const Catalog &catalog, std::span<const SceneBody> bodies
 		++it;
 	}
 }
-bool bounds_visible(Vector3 minimum, Vector3 maximum, Matrix vp) const
-{
-	bool outside[6] = {true, true, true, true, true, true};
-	for (int i = 0; i < 8; ++i)
-	{
-		const Vector3 p{i & 1 ? maximum.x : minimum.x, i & 2 ? maximum.y : minimum.y, i & 4 ? maximum.z : minimum.z};
-		const float x = p.x * vp.m0 + p.y * vp.m4 + p.z * vp.m8 + vp.m12,
-		            y = p.x * vp.m1 + p.y * vp.m5 + p.z * vp.m9 + vp.m13,
-		            z = p.x * vp.m2 + p.y * vp.m6 + p.z * vp.m10 + vp.m14,
-		            w = p.x * vp.m3 + p.y * vp.m7 + p.z * vp.m11 + vp.m15;
-		outside[0] &= x < -w;
-		outside[1] &= x > w;
-		outside[2] &= y < -w;
-		outside[3] &= y > w;
-		outside[4] &= z < -w;
-		outside[5] &= z > w;
-	}
-	return std::none_of(std::begin(outside), std::end(outside),
-	                    [](bool v)
-	                    {
-		                    return v;
-	                    });
-}
-Matrix camera_projection(Camera3D camera, Rectangle region) const
-{
-	const float aspect = region.width / std::max(1.f, region.height);
-	return camera.projection == CAMERA_PERSPECTIVE
-	           ? MatrixPerspective(camera.fovy * pi / 180, aspect, rlGetCullDistanceNear(), rlGetCullDistanceFar())
-	           : MatrixOrtho(-camera.fovy * aspect * .5, camera.fovy * aspect * .5, -camera.fovy * .5, camera.fovy * .5,
-	                         rlGetCullDistanceNear(), rlGetCullDistanceFar());
-}
 float item_extent(const Item &item) const
 {
 	const auto &f = *item.frame;
@@ -236,22 +205,23 @@ float item_extent(const Item &item) const
 	return item.height *
 	       (std::sqrt(x * x + y * y) / f.rect[3] + std::abs(f.depth_offset) + std::abs(f.depth_scale) * .5f);
 }
-void cull_instances(Camera3D camera, Rectangle region)
+Matrix cull_instances(Camera3D camera, Rectangle region)
 {
 	const auto vp = MatrixMultiply(
 	    MatrixLookAt(Vector3Subtract(camera.position, rebase), Vector3Subtract(camera.target, rebase), camera.up),
-	    camera_projection(camera, region));
+	    scene_camera_projection(camera, region));
 	for (auto &[key, b] : instance_batches)
 	{
 		const auto origin = Vector3Subtract(b.origin, rebase);
-		b.colour_visible = bounds_visible(Vector3Add(origin, b.minimum), Vector3Add(origin, b.maximum), vp);
+		b.colour_visible = scene_bounds_visible(Vector3Add(origin, b.minimum), Vector3Add(origin, b.maximum), vp);
 	}
 	for (auto &item : items)
 	{
 		const float radius = item_extent(item);
-		item.colour_visible = bounds_visible(Vector3Subtract(item.anchor, {radius, radius, radius}),
-		                                     Vector3Add(item.anchor, {radius, radius, radius}), vp);
+		item.colour_visible = scene_bounds_visible(Vector3Subtract(item.anchor, {radius, radius, radius}),
+		                                           Vector3Add(item.anchor, {radius, radius, radius}), vp);
 	}
+	return vp;
 }
 
 void draw_instances(bool shadow_pass)

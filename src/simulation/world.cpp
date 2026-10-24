@@ -2975,17 +2975,6 @@ std::vector<SceneBody> World::scene() const
 						item.audio.push_back(std::move(cue));
 					}
 				}
-			if (entity.has<CombatStructure>())
-				for (auto child : entity.get<EquipmentIndex>().values)
-					if (const auto *m = child.try_get<CombatMechanism>();
-					    m && m->definition.kind == OperatingSystem::Weapon)
-					{
-						const auto &w = m->definition.get<WeaponDefinition>();
-						if (!w.firing_audio.asset.empty() && w.family == "beam" &&
-						    m->get<WeaponState>().beam_tick >= 0 &&
-						    m->get<WeaponState>().beam_tick + 1 == static_cast<std::int64_t>(ticks()))
-							item.audio.push_back({SceneAudioKind::Loop, "weapon:" + m->definition.id, w.firing_audio});
-					}
 		}
 		if (impl_->combat_dead(entity) && !entity.has<CombatStructure>())
 			continue;
@@ -3021,6 +3010,7 @@ std::vector<SceneBody> World::scene() const
 				}
 		result.push_back(std::move(item));
 	}
+	const auto source_count = result.size();
 	for (const auto particle : impl_->projectile_rows())
 	{
 		const auto &p = particle.get<Projectile>();
@@ -3056,6 +3046,15 @@ std::vector<SceneBody> World::scene() const
 			    m->definition.get<WeaponDefinition>().family == "beam" && m->get<WeaponState>().beam_tick >= 0 &&
 			    m->get<WeaponState>().beam_tick + 1 == static_cast<std::int64_t>(ticks()))
 			{
+				const auto &clip = impl_->directed_mode(id, m->definition.id)->firing_audio;
+				const auto end = result.begin() + source_count;
+				const auto source = std::lower_bound(result.begin(), end, id,
+				                                     [](const auto &body, EntityId value)
+				                                     {
+					                                     return body.id < value;
+				                                     });
+				if (!clip.asset.empty() && source != end && source->id == id && source->audio_alive)
+					source->audio.push_back({SceneAudioKind::Loop, "weapon:" + m->definition.id, clip});
 				const auto [origin, heading] = impl_->weapon_mount(ship, *m);
 				SceneBody beam;
 				beam.id = 6000000000000000ULL + id * 256 + child.get<Equipment>().ordinal;

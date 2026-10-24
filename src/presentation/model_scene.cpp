@@ -2,12 +2,14 @@ module;
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+#include "scene_visibility.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
 #include <map>
 #include <memory>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -60,6 +62,7 @@ void main(){
 struct GpuPart
 {
 	Mesh mesh{};
+	BoundingBox bounds{};
 	Texture2D albedo{}, emissive{};
 	std::array<float, 4> tint{1, 1, 1, 1};
 	std::array<float, 3> emission{};
@@ -70,6 +73,7 @@ struct DrawModel
 	Matrix matrix;
 	const Json *render;
 	const SceneBody *body;
+	bool colour_visible = true;
 };
 Matrix local_matrix(const Json &render)
 {
@@ -102,6 +106,10 @@ struct ModelScene::State
 	Mesh sphere{}, quad{}, cone{};
 	std::map<std::string, std::vector<GpuPart>> cache;
 	NavigationEffects navigation;
+	std::vector<DrawModel> items;
+	std::array<Vector4, 16> lights{}, cones{};
+	int lightCount = 0;
+	float radius = 20;
 	~State()
 	{
 		clear();
@@ -210,6 +218,7 @@ struct ModelScene::State
 			p.mesh.vertices = alloc(cpu.positions);
 			p.mesh.normals = alloc(cpu.normals);
 			p.mesh.texcoords = alloc(cpu.texcoords);
+			p.bounds = GetMeshBoundingBox(p.mesh);
 			UploadMesh(&p.mesh, false);
 			p.albedo = texture(cpu.albedo);
 			p.emissive = texture(cpu.emissive);
@@ -302,20 +311,41 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
                       const Json &lighting, double time, Vector2 size, const SceneEnvironment &environment,
                       bool background)
 {
+	prepare(catalog, bodies, camera, region);
+	draw_prepared(catalog, bodies, camera, region, lighting, time, size, environment, background);
+}
+std::set<EntityId> ModelScene::prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera,
+                                       Rectangle region, EntityId hidden, double, bool)
+{
 	auto &s = *state_;
 	s.init();
-	const auto framebuffer = rlGetActiveFramebuffer();
 	const auto rebase = camera.target;
 	camera.position = Vector3Subtract(camera.position, rebase);
 	camera.target = {};
-	std::vector<DrawModel> items;
-	std::array<Vector4, 16> lights{}, cones{};
-	int lightCount = 0;
-	float radius = 20;
+	auto &items = s.items;
+	auto &lights = s.lights, &cones = s.cones;
+	auto &lightCount = s.lightCount;
+	auto &radius = s.radius;
+	items.clear();
+	lights = {};
+	cones = {};
+	lightCount = 0;
+	radius = 20;
+	std::set<EntityId> visible;
+	const auto vp = MatrixMultiply(MatrixLookAt(camera.position, camera.target, camera.up),
+	                               scene_camera_projection(camera, region));
 	for (const auto &body : bodies)
 	{
-		if (body.definition.empty() && !body.sound.empty())
+		if (body.id == hidden)
 			continue;
+		if (body.definition.empty() && !body.sound.empty())
+		{
+			const Vector3 p{body.x / 1000.f - rebase.x, body.visual_height_mm / 1000.f - rebase.y,
+			                -body.y / 1000.f - rebase.z};
+			if (scene_bounds_visible(p, p, vp))
+				visible.insert(body.id);
+			continue;
+		}
 		const auto &r = catalog.entities.at(body.definition).at("render");
 		s.load(catalog, r);
 		const Vector3 pos{body.x / 1000.f - rebase.x, -rebase.y, -body.y / 1000.f - rebase.z};
@@ -326,7 +356,18 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 		const float scale = r.at("scale");
 		auto local = local_matrix(r);
 		auto transform = MatrixMultiply(local, world);
-		items.push_back({body.definition, transform, &r, &body});
+		bool colour_visible = false;
+		const auto projected = MatrixMultiply(transform, vp);
+		if (r.contains("star"))
+			colour_visible = scene_bounds_visible({-1, -1, -1}, {1, 1, 1}, projected);
+		else
+			for (const auto &part : s.cache.at(sha256(catalog.assets.at(r.at("model").at("asset").get<std::string>()))))
+			{
+				colour_visible |= scene_bounds_visible(part.bounds.min, part.bounds.max, projected);
+			}
+		items.push_back({body.definition, transform, &r, &body, colour_visible});
+		if (colour_visible)
+			visible.insert(body.id);
 		radius = std::max(radius, Vector3Length(pos) + scale * 2);
 		const auto attachments = r.value("attachments", Json::object());
 		if (body.forward_thrust > 0)
@@ -345,6 +386,21 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 					++lightCount;
 				}
 	}
+	return visible;
+}
+void ModelScene::draw_prepared(const Catalog &catalog, std::span<const SceneBody>, Camera3D camera, Rectangle region,
+                               const Json &lighting, double time, Vector2 size, const SceneEnvironment &environment,
+                               bool background)
+{
+	auto &s = *state_;
+	const auto framebuffer = rlGetActiveFramebuffer();
+	const auto rebase = camera.target;
+	camera.position = Vector3Subtract(camera.position, rebase);
+	camera.target = {};
+	const auto &items = s.items;
+	const auto &lights = s.lights, &cones = s.cones;
+	const auto lightCount = s.lightCount;
+	auto radius = s.radius;
 	auto vector = [&](const char *key, Vector3 fallback)
 	{
 		if (!lighting.contains(key))
@@ -391,12 +447,7 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 	rlViewport(static_cast<int>(physical.x), static_cast<int>(physical.y), static_cast<int>(physical.width),
 	           static_cast<int>(physical.height));
 	BeginMode3D(camera);
-	const float aspect = region.width / region.height;
-	rlSetMatrixProjection(
-	    camera.projection == CAMERA_PERSPECTIVE
-	        ? MatrixPerspective(camera.fovy * DEG2RAD, aspect, rlGetCullDistanceNear(), rlGetCullDistanceFar())
-	        : MatrixOrtho(-camera.fovy * aspect * .5, camera.fovy * aspect * .5, -camera.fovy * .5, camera.fovy * .5,
-	                      rlGetCullDistanceNear(), rlGetCullDistanceFar()));
+	rlSetMatrixProjection(scene_camera_projection(camera, region));
 	const auto fog = lighting.value("environment", Json::object());
 	if (background)
 		s.navigation.background(catalog, environment, camera, fog, rebase);
@@ -415,7 +466,8 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 	SetShaderValueV(s.shader, s.loc("cones[0]"), cones.data(), SHADER_UNIFORM_VEC4, 16);
 	rlDisableBackfaceCulling();
 	for (const auto &item : items)
-		s.body(catalog, item, false, time);
+		if (item.colour_visible)
+			s.body(catalog, item, false, time);
 	// Transparent procedural corona and exhaust follow opaque depth testing.
 	rlDisableDepthMask();
 	for (const auto &item : items)

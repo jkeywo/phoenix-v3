@@ -23,10 +23,48 @@ void capture_mix(void *buffer, unsigned frames)
 		capture.nonzero += value > .00001f;
 	}
 }
+// Synthetic renderer inputs exercise the same preparation used by host audio.
+void check_audio_visibility()
+{
+	Catalog catalog;
+	catalog.base.render_mode = "sprites";
+	auto image = GenImageColor(4, 4, WHITE);
+	int size = 0;
+	auto *png = ExportImageToMemory(image, ".png", &size);
+	catalog.assets["test:pixel.png"] = Bytes(png, png + size);
+	MemFree(png);
+	UnloadImage(image);
+	catalog.entities["test.sprite"] = {{"render", {{"scale", 2}, {"images", {"test:pixel.png"}}}}};
+	std::vector<SceneBody> bodies(3);
+	for (unsigned i = 0; i < bodies.size(); ++i)
+	{
+		bodies[i].id = i + 1;
+		bodies[i].definition = "test.sprite";
+	}
+	bodies[1].y = -20000; // Behind the camera.
+	bodies[2].x = 20000;  // Outside the first camera's viewport.
+	SceneBody sound{};
+	sound.id = 4;
+	sound.sound = "test:explosion.wav";
+	bodies.push_back(sound);
+	SceneRenderer renderer;
+	Camera3D camera{{0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 10, CAMERA_ORTHOGRAPHIC};
+	const Rectangle region{0, 0, 100, 100};
+	const auto front = renderer.prepare(catalog, bodies, camera, region);
+	const auto hidden = renderer.prepare(catalog, bodies, camera, region, 1);
+	if (front != std::set<EntityId>{1, 4} || hidden != std::set<EntityId>{4})
+		throw std::runtime_error("Renderer visibility mismatch: front=" + Json(front).dump() +
+		                         " hidden=" + Json(hidden).dump());
+	camera.position.x = camera.target.x = 20;
+	if (renderer.prepare(catalog, bodies, camera, region) != std::set<EntityId>{3})
+		throw std::runtime_error("Renderer source visibility did not follow the prepared camera");
+	std::cout << "Shared renderer/audio visibility: passed\n";
+}
 void run_host_audio_smoke(Application &app, const std::function<void()> &frame)
 {
 	if (!IsAudioDeviceReady())
 		throw std::runtime_error("Audio device unavailable for explicit smoke");
+	check_audio_visibility();
 	std::vector<std::uint64_t> routes{1};
 	const auto own = app.session->focus_body();
 	unsigned next_route = 2;

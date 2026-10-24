@@ -542,10 +542,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			weapon.standby_energy = mode->standby_energy;
 			for (const auto &policy : capability.targeting)
 				weapon.point_defence |= policy.kind == DirectedTargetingKind::Intercept;
-			if (v.contains("firing_audio"))
-				weapon.firing_audio =
-				    compile_audio_clip(catalog, v.at("firing_audio"), path + ".systems." + fit.id + ".firing_audio",
-				                       weapon.family == "beam");
+
 			weapon.intercept_classes = v.value("intercept_classes", std::vector<std::string>{"missile"});
 			for (const auto &tag : weapon.intercept_classes)
 				if (tag != "missile")

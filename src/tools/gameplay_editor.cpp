@@ -663,7 +663,6 @@ struct GameplayEditor
 		        });
 		if (kind == "weapon")
 		{
-			audio_fields(spec, "firing_audio");
 			optional_string(spec, "magazine");
 			strings(spec, "magazines");
 			optional_string(spec, "turret");
@@ -2868,6 +2867,8 @@ struct GameplayEditor
 			    {
 				    string(effect, "label");
 				    choice(effect, "operation", {"launch", "beam", "scan"});
+				    if (effect.value("operation", std::string{}) != "scan" || effect.contains("firing_audio"))
+					    audio_fields(effect, "firing_audio");
 				    names(effect, "targeting", document.definition_choices(WorkshopDefinitionKind::Effect));
 				    names(effect, "payloads", document.definition_choices(WorkshopDefinitionKind::Effect));
 				    boolean(effect, "resource_payloads", true);

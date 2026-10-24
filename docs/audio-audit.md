@@ -4,7 +4,7 @@
 
 ## Implementation follow-up
 
-The requested reuse increment adds `the_final_battle` for red alert; host-ship engine/interior ambience; committed main-cannon fire; the Courier cutting beam; and effect-owned shield beds/hit spikes. PDCs, missiles and other beam families retain their previous sound coverage. See [host audio behavior and authoring](audio.md) for the current contract and [host audio verification](smoke/host-audio.md) for evidence. The inventory and gap analysis below describe the repository at the start of this audit.
+The requested reuse increment adds `the_final_battle` for red alert; host-ship engine/interior ambience; committed main-cannon fire; the Courier cutting beam; and effect-owned shield beds/hit spikes. PDCs, missiles and other beam families retain their previous sound coverage. See [host audio behavior and authoring](audio.md) for the current contract and [host audio verification](smoke/host-audio.md) for evidence. The inventory and gap analysis below describe the repository at the start of this audit. The follow-up simplification uses the renderer’s shared scene/culling result, directed-mode audio metadata, the existing sustained execution predicate, and a shared stream owner/session reset. See the [follow-up verification](smoke/host-audio-simplification.md).
 
 ## What V3 had at audit start
 

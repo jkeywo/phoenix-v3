@@ -4,6 +4,7 @@ module;
 #include <map>
 #include <nlohmann/json.hpp>
 #include <span>
+#include <set>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -50,6 +51,11 @@ struct ExplosionEffect
 	float intensity = 1.5f, range = 30.f, duration = 4.f;
 	double started = 0;
 };
+struct SceneFrame
+{
+	std::vector<SceneBody> bodies;
+	std::set<EntityId> visible;
+};
 struct SceneEnvironment
 {
 	std::string skybox;
@@ -82,6 +88,12 @@ public:
 	          const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
 	          Vector2 surface_size = {}, const SceneEnvironment &environment = {});
 
+	std::set<EntityId> prepare(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, EntityId hidden = 0,
+	                           double simulation_time = 0, bool reduced_motion = false);
+	void draw_prepared(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
+	                   const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
+	                   Vector2 surface_size = {}, const SceneEnvironment &environment = {});
+
 private:
 	struct State;
 	std::unique_ptr<State> state_;
@@ -96,6 +108,11 @@ public:
 	std::optional<AttachmentPose> attachment(const Catalog &, const SceneBody &, const std::string &, Camera3D);
 	void draw(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, const Json &, double, Vector2,
 	          const SceneEnvironment &, bool background = true);
+
+	std::set<EntityId> prepare(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, EntityId hidden = 0,
+	                           double simulation_time = 0, bool reduced_motion = false);
+	void draw_prepared(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, const Json &, double, Vector2,
+	                   const SceneEnvironment &, bool background = true);
 
 private:
 	struct State;
@@ -118,6 +135,14 @@ public:
 	void draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
 	          const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
 	          Vector2 surface_size = {}, const SceneEnvironment &environment = {});
+
+	// Prepare once for rendering and audio. Keep the catalog/bodies alive and use
+	// the same camera/region for draw_prepared until the next prepare or clear.
+	std::set<EntityId> prepare(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, EntityId hidden = 0,
+	                           double simulation_time = 0, bool reduced_motion = false);
+	void draw_prepared(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
+	                   const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
+	                   Vector2 surface_size = {}, const SceneEnvironment &environment = {});
 
 private:
 	struct State;

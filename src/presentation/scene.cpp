@@ -1,5 +1,6 @@
 module;
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <raylib.h>
 #include <nlohmann/json.hpp>
@@ -62,6 +63,23 @@ void SceneRenderer::explosion(const ExplosionEffect &e)
 Json SceneRenderer::instance_statistics() const
 {
 	return state_->sprites.instance_statistics();
+}
+std::set<EntityId> SceneRenderer::prepare(const Catalog &c, std::span<const SceneBody> bodies, Camera3D camera,
+                                          Rectangle region, EntityId hidden, double simulation_time,
+                                          bool reduced_motion)
+{
+	return state_->select(c)
+	           ? state_->models.prepare(c, bodies, camera, region, hidden, simulation_time, reduced_motion)
+	           : state_->sprites.prepare(c, bodies, camera, region, hidden, simulation_time, reduced_motion);
+}
+void SceneRenderer::draw_prepared(const Catalog &c, std::span<const SceneBody> bodies, Camera3D camera,
+                                  Rectangle region, const Json &lighting, double time, SceneDiagnostic diagnostic,
+                                  Vector2 size, const SceneEnvironment &environment)
+{
+	if (state_->select(c))
+		state_->models.draw_prepared(c, bodies, camera, region, lighting, time, size, environment);
+	else
+		state_->sprites.draw_prepared(c, bodies, camera, region, lighting, time, diagnostic, size, environment);
 }
 void SceneRenderer::draw(const Catalog &c, std::span<const SceneBody> b, Camera3D cam, Rectangle r, const Json &l,
                          double t, SceneDiagnostic d, Vector2 size, const SceneEnvironment &e)

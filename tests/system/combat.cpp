@@ -12,7 +12,6 @@ import phoenix.simulation;
 using namespace phoenix;
 using namespace phoenix::test;
 #include "../../src/presentation/host_audio.hpp"
-#include "../../src/presentation/ship_camera.hpp"
 namespace
 {
 Json fixture()

@@ -28,9 +28,10 @@ inline void materialise_fixture_directed(Json &authored)
 				{
 					mode["operation"] = value.value("family", std::string("projectile")) == "beam" ? "beam" : "launch";
 					value.erase("family");
-					for (const char *key : {"fire_ticks", "ammo_use", "load_ticks", "range_mm", "damage_per_second",
-					                        "auto_energy_per_second", "energy_per_second", "discrete_energy",
-					                        "projectile", "penetration", "damage_per_m", "shield_bypass_permille"})
+					for (const char *key :
+					     {"fire_ticks", "ammo_use", "load_ticks", "range_mm", "damage_per_second",
+					      "auto_energy_per_second", "energy_per_second", "discrete_energy", "projectile", "penetration",
+					      "damage_per_m", "shield_bypass_permille", "firing_audio"})
 						if (value.contains(key))
 						{
 							mode[key] = value.at(key);

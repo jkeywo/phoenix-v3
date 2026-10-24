@@ -1478,7 +1478,7 @@ void draw_screen(Application &app)
 		};
 	}
 	app.frame_metrics["preparation"] = GetTime() - preparation_started;
-	server_music->update(app);
+	server_music->update(app, game_screen->prepare_scene(app));
 	const auto semantics_started = GetTime();
 	publish_semantics(app);
 	drain_semantic_actions(app);

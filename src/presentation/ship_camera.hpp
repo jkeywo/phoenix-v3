@@ -11,38 +11,6 @@ struct ShipCameraPose
 	std::array<double, 3> position{}, target{};
 	double bearing = 0;
 };
-inline bool ship_camera_visible(const ShipCameraPose &camera, double x, double y, double height, double radius,
-                                double aspect, double far_distance)
-{
-	std::array<double, 3> forward, right, up,
-	    delta{x / 1000 - camera.position[0], height / 1000 - camera.position[1], -y / 1000 - camera.position[2]};
-	double length = 0;
-	for (int i = 0; i < 3; ++i)
-	{
-		forward[i] = camera.target[i] - camera.position[i];
-		length += forward[i] * forward[i];
-	}
-	length = std::sqrt(length);
-	if (length == 0)
-		return false;
-	for (auto &v : forward)
-		v /= length;
-	const double horizontal = std::hypot(forward[0], forward[2]);
-	if (horizontal == 0)
-		return false;
-	right = {-forward[2] / horizontal, 0, forward[0] / horizontal};
-	up = {right[1] * forward[2] - right[2] * forward[1], right[2] * forward[0] - right[0] * forward[2],
-	      right[0] * forward[1] - right[1] * forward[0]};
-	auto dot = [&](const auto &v)
-	{
-		return delta[0] * v[0] + delta[1] * v[1] + delta[2] * v[2];
-	};
-	const double depth = dot(forward), tangent = std::tan(25.0 * 3.14159265358979323846 / 180);
-	return depth + radius > 0 && depth - radius < far_distance &&
-	       std::abs(dot(right)) <=
-	           depth * tangent * aspect + radius * std::sqrt(1 + tangent * tangent * aspect * aspect) &&
-	       std::abs(dot(up)) <= depth * tangent + radius * std::sqrt(1 + tangent * tangent);
-}
 // World millimetres/heading become renderer metres; directions are clockwise
 // from the ship's forward bearing. No graphics or simulation ownership here.
 inline ShipCameraPose ship_camera_pose(double x, double y, double heading, double scale, double aspect, int mode,

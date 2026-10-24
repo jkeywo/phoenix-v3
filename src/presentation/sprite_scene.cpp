@@ -2,6 +2,7 @@ module;
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
+#include "scene_visibility.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -224,6 +225,7 @@ struct Item
 	bool effect = false;
 	bool flip_y = false;
 	float alpha = 1, rotation = 0;
+	std::uint64_t source = 0;
 };
 struct LocalLight
 {
@@ -485,7 +487,7 @@ struct SpriteScene::State
 		const float denominator = std::copysign(std::max(.01f, std::abs(distance)), distance);
 		return Vector3Add(p, Vector3Scale(Vector3Subtract(cameraPosition, p), z / denominator));
 	}
-	void prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera)
+	void prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, EntityId hidden)
 	{
 		std::erase_if(directions,
 		              [&](const auto &entry)
@@ -520,7 +522,7 @@ struct SpriteScene::State
 		prepare_instances(catalog, bodies);
 		for (const auto &body : bodies)
 		{
-			if (body.field_instance || (body.definition.empty() && !body.sound.empty()))
+			if (body.id == hidden || body.field_instance || (body.definition.empty() && !body.sound.empty()))
 				continue;
 			if (body.line_style)
 			{
@@ -528,6 +530,7 @@ struct SpriteScene::State
 				if (body.line_style != 2)
 					continue;
 			}
+			const auto first_item = items.size();
 			const auto &render = catalog.entities.at(body.definition).at("render");
 			if (render.contains("star"))
 				continue;
@@ -570,6 +573,7 @@ struct SpriteScene::State
 				auto &d = materials.at(body.definition + ":legacy:" + std::to_string(index));
 				items.push_back({&d, &d.sprite.frames.front(), p, render.at("scale").get<float>() * body.visual_scale});
 				items.back().alpha = body.alpha;
+				items.back().source = body.id;
 				continue;
 			}
 			auto &data = load(body.definition, render.at("sprite"), catalog);
@@ -684,6 +688,8 @@ struct SpriteScene::State
 			items.insert(items.end(), behind.begin(), behind.end());
 			items.push_back(hull);
 			items.insert(items.end(), front.begin(), front.end());
+			for (auto i = first_item; i < items.size(); ++i)
+				items[i].source = body.id;
 		}
 		std::stable_partition(items.begin(), items.end(),
 		                      [](const auto &item)
@@ -844,16 +850,41 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
                        const Json &lighting, double time, SceneDiagnostic diagnostic, Vector2 surface_size,
                        const SceneEnvironment &environment)
 {
+	prepare(catalog, bodies, camera, region, 0,
+	        lighting.value("environment", Json::object()).value("simulation_time", time), environment.reduced_motion);
+	draw_prepared(catalog, bodies, camera, region, lighting, time, diagnostic, surface_size, environment);
+}
+std::set<EntityId> SpriteScene::prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera,
+                                        Rectangle region, EntityId hidden, double simulation_time, bool reduced_motion)
+{
 	auto &s = *state_;
 	const auto destination = rlGetActiveFramebuffer();
 	s.init();
-	// Resource creation binds the default framebuffer internally. Preserve the
-	// caller's preview target on the first draw as well as subsequent draws.
 	rlEnableFramebuffer(destination);
-	s.update_smoke(bodies, lighting.value("environment", Json::object()).value("simulation_time", time),
-	               environment.reduced_motion);
-	s.prepare(catalog, bodies, camera);
-	s.cull_instances(camera, region);
+	s.update_smoke(bodies, simulation_time, reduced_motion);
+	s.prepare(catalog, bodies, camera, hidden);
+	const auto vp = s.cull_instances(camera, region);
+	std::set<EntityId> visible;
+	for (const auto &item : s.items)
+		if (item.colour_visible && item.source)
+			visible.insert(item.source);
+	// Effects may deliberately provide sound without a visible sprite.
+	for (const auto &body : bodies)
+		if (body.definition.empty() && !body.sound.empty())
+		{
+			const auto p =
+			    Vector3Subtract({body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f}, s.rebase);
+			if (scene_bounds_visible(p, p, vp))
+				visible.insert(body.id);
+		}
+	return visible;
+}
+void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera,
+                                Rectangle region, const Json &lighting, double time, SceneDiagnostic diagnostic,
+                                Vector2 surface_size, const SceneEnvironment &environment)
+{
+	auto &s = *state_;
+	const auto destination = rlGetActiveFramebuffer();
 	const auto get = [&](const char *key, float fallback)
 	{
 		return lighting.value(key, fallback);
@@ -974,12 +1005,7 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
 	camera.position = Vector3Subtract(camera.position, s.rebase);
 	camera.target = Vector3Subtract(camera.target, s.rebase);
 	BeginMode3D(camera);
-	const float aspect = region.width / std::max(1.f, region.height);
-	const auto projection =
-	    camera.projection == CAMERA_PERSPECTIVE
-	        ? MatrixPerspective(camera.fovy * pi / 180, aspect, rlGetCullDistanceNear(), rlGetCullDistanceFar())
-	        : MatrixOrtho(-camera.fovy * aspect * .5, camera.fovy * aspect * .5, -camera.fovy * .5, camera.fovy * .5,
-	                      rlGetCullDistanceNear(), rlGetCullDistanceFar());
+	const auto projection = scene_camera_projection(camera, region);
 	rlSetMatrixProjection(projection);
 	const auto vp = MatrixMultiply(MatrixLookAt(camera.position, camera.target, camera.up), projection);
 	s.navigation.background(catalog, environment, camera);

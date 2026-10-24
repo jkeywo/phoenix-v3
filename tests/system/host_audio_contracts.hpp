@@ -48,6 +48,14 @@ void host_audio_contracts()
 	    source, "shield",
 	    {{"kind", "shield"}, {"compartment", "fore"}, {"shield_effect", "test.audio-shield"}, {"power_store", "cell"}},
 	    {});
+	materialise_fixture_directed(source);
+	const auto launch_mode = source["entities"][0]["systems"]["gun"]["directed"]["initial_mode"].get<std::string>();
+	const auto beam_mode = source["entities"][0]["systems"]["beam"]["directed"]["initial_mode"].get<std::string>();
+	source["entities"][0]["systems"]["gun"]["directed"]["modes"].push_back(beam_mode);
+	for (auto &controller : source["entities"][0]["control_layout"]["controllers"])
+		if (controller.at("id") == "gun")
+			controller["commands"].push_back(
+			    {{"id", "operation"}, {"action", "directed_operating_mode"}, {"consumers", {"gun"}}});
 	auto pack = fixture_pack(json_bytes(source), "test-core");
 	for (const auto *name : {"audio-tone.ogg", "audio-tone.wav"})
 		pack.files[std::string("assets/") + name] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/" + name);
@@ -59,16 +67,14 @@ void host_audio_contracts()
 	visual["audio"] = source["entities"][0]["audio"];
 	authoring["entities"] = Json::array({visual});
 	authoring["maps"] = Json::array();
-	authoring["equipment"] = Json::array({{{"id", "test.audio-weapon"},
-	                                       {"kind", "weapon"},
-	                                       {"firing_audio", source["entities"][0]["systems"]["gun"]["firing_audio"]}}});
+	authoring["equipment"] = Json::array();
 	authoring_pack.files["definitions.json"] = json_bytes(authoring);
 	WorkshopDocument document;
 	document.load_pack(write_pack(authoring_pack));
 	const auto exported = resolve_packs({read_pack(document.export_pack())});
 	require(compile_ship_audio(exported, "test.visual").ambient.asset == "test-core:assets/audio-tone.ogg" &&
-	            exported.equipment.at("test.audio-weapon").at("firing_audio").at("asset") ==
-	                "test-core:assets/audio-tone.wav" &&
+	            compile_directed_mode(exported, launch_mode).firing_audio.asset == "test-core:assets/audio-tone.wav" &&
+	            compile_directed_mode(exported, beam_mode).firing_audio.asset == "test-core:assets/audio-tone.ogg" &&
 	            !compile_shield_effect(exported, "test.audio-shield").contributions[0].shield.audio.asset.empty(),
 	        "Workshop round-trip retains audio authoring and assets");
 	const auto client = ship_client_assets(catalog, "test.combat", {});
@@ -123,6 +129,16 @@ void host_audio_contracts()
 	frame = mixer.frame(world.scene(), 1, config, visible, world.ticks(), true, .05f);
 	require(!frame.loops.contains("1:weapon:beam:test-core:assets/audio-tone.ogg"),
 	        "disabled beam immediately loses its loop");
+	submit(world, 101, "gun", "operation", 1);
+	advance(world, 10); // The already committed launch cycle must finish.
+	frame = mixer.frame(world.scene(), 1, config, visible, world.ticks(), true, .05f);
+	require(frame.loops.contains("1:weapon:gun:test-core:assets/audio-tone.ogg") && frame.shots.empty(),
+	        "one fitting can switch from its launch recording to its beam recording");
+	submit(world, 101, "gun", "operation", 0);
+	world.tick();
+	frame = mixer.frame(world.scene(), 1, config, visible, world.ticks(), true, .05f);
+	require(!frame.loops.contains("1:weapon:gun:test-core:assets/audio-tone.ogg"),
+	        "switching away from beam removes that fitting's sustained audio");
 	// Exhaust a small real store while the requested beam remains enabled.
 	auto scarce = source;
 	scarce["entities"][0]["resources"]["stores"][0]["initial"] = 4;
@@ -195,10 +211,6 @@ void host_audio_contracts()
 	require(!frame.loops.contains("1:ambient") && !frame.loops.contains("1:engine"),
 	        "departed or destroyed ship loses its interior loops");
 
-	const auto pose = ship_camera_pose(0, 0, 0, 8, 1, 0, 0);
-	require(ship_camera_visible(pose, 100000, 0, 0, 1, 1.7, 10000) &&
-	            !ship_camera_visible(pose, -100000, 0, 0, 1, 1.7, 10000),
-	        "audio visibility follows the Viewscreen camera frustum");
 	HostAudioMixer envelope;
 	SceneBody shield_body;
 	shield_body.id = 1;

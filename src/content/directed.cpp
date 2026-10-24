@@ -162,7 +162,7 @@ DirectedModeDefinition compile_directed_mode(const Catalog &catalog, const std::
 	                {"operation", "targeting", "range_mm", "energy_per_second", "discrete_energy",
 	                 "auto_energy_per_second", "ammo_use", "fire_ticks", "load_ticks", "projectile",
 	                 "damage_per_second", "penetration", "damage_per_m", "shield_bypass_permille", "capabilities",
-	                 "payloads", "resource_payloads"},
+	                 "payloads", "resource_payloads", "firing_audio"},
 	                id);
 	DirectedModeDefinition result;
 	result.id = id;
@@ -177,6 +177,12 @@ DirectedModeDefinition compile_directed_mode(const Catalog &catalog, const std::
 		result.operation = DirectedOperationKind::Scan;
 	else
 		directed_require(false, id, "unsupported directed operation");
+	if (j.contains("firing_audio"))
+	{
+		directed_require(result.operation != DirectedOperationKind::Scan, id, "scan has no firing audio");
+		result.firing_audio = compile_audio_clip(catalog, j.at("firing_audio"), id + ".firing_audio",
+		                                         result.operation == DirectedOperationKind::Beam);
+	}
 	result.targeting = directed_names(j.value("targeting", Json::array()), id, true);
 	for (const auto &target : result.targeting)
 	{

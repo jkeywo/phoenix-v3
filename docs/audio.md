@@ -1,6 +1,6 @@
 # Host music and sound
 
-The native and browser ship host plays one mix for all local display regions. Remote Console/GM clients and Workshop editing do not play the mission recordings. Local Console navigation does not interrupt the host mix. Remote Console asset bundles exclude these recordings.
+The native and browser ship host plays one mix for all local display regions. The [simplification verification receipt](smoke/host-audio-simplification.md) records the shared presentation and stream paths. Remote Console/GM clients and Workshop editing do not play the mission recordings. Local Console navigation does not interrupt the host mix. Remote Console asset bundles exclude these recordings.
 
 | Recording              | Authored use                                                                           | Initial gain        |
 | ---------------------- | -------------------------------------------------------------------------------------- | ------------------- |
@@ -19,7 +19,7 @@ Loops stop on pause/recovery, departure, destruction, leaving the mission or rep
 
 ## Authoring
 
-An entity's optional `audio.ambient` and `audio.engine` each contain an `asset` reference and a numeric `gain` from 0 to 1. Weapon definitions may supply `firing_audio` with the same fields: launch modes require WAV; sustained beam modes require OGG. A shared recording must be compatible with every bound operating mode. These are explicit metadata bindings, not hardcoded weapon-name rules.
+An entity's optional `audio.ambient` and `audio.engine` each contain an `asset` reference and a numeric `gain` from 0 to 1. Directed operating modes may supply `firing_audio` with the same fields: launch modes require WAV; sustained beam modes require OGG. Scan modes have no firing audio. A fitting can bind launch and beam modes with separate recordings. These are explicit metadata bindings, not hardcoded weapon-name rules.
 
 A shared shield contribution's optional `audio` object contains `asset`, `gain`, `peak_gain`, `decay_per_second`, `damage_threshold` and `damage_full_spike`. Conditions may additionally set `music_gain` (default 1). Workshop exposes these fields alongside ship fittings, weapon templates, shield contributions and condition music. Asset dependencies use the ordinary scenario/export reference closure.
 
@@ -39,6 +39,6 @@ Open **Settings** from the server navigation, or press **Escape** from a server 
 
 The menu and ordinary mission recordings loop and switch when the mission starts. Their original downloaded bytes are copied from ignored `raw/audio/` into tracked `content/audio/`; builds do not depend on the raw directory. [Credits and source licences](../content/audio/CREDITS.txt) accompany them in the runtime bundle.
 
-Playback uses raylib streaming in presentation code, with no replicated audio state. An unavailable audio device or failed recording load leaves the game usable without music.
+Playback uses one stream owner for music and SFX loops, with one session/generation reset boundary and no replicated audio state. The host prepares its scene once per frame: drawing and audio share the shaken Viewscreen camera, renderer bounds and visible source identities. The same preparation continues on local Consoles. An unavailable audio device or failed recording load leaves the game usable without music.
 
 Verification, 18 October 2026: native and all three WASM applications build; all eleven native system checks and the WASM input/semantics check pass. The settings checks cover server-only access, numeric bounds, mute, full volume and return-screen/value retention. Repository formatting checks pass. Manually invoked native home/mission smoke runs initialise WASAPI and load the respective recordings successfully. In Chromium, the slider starts at 50%, accepts 0/100 and arrow-key edits, retains its value on return, and supports mouse Back and Escape. A training-session start unloads the menu stream and loads `/assets/audio/ambient.ogg`; only `server.js` declares the audio files in its preload manifest. These checks establish loading and interaction, rather than a human listening judgement or actual screen-reader usability.

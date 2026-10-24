@@ -1,7 +1,6 @@
 module;
 #include <raylib.h>
 #include <rlgl.h>
-#include "ship_camera.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <vector>
@@ -29,6 +28,48 @@ std::string audio_directory()
 #endif
 }
 } // namespace
+AudioStream::~AudioStream()
+{
+	reset();
+}
+void AudioStream::reset()
+{
+	if (IsMusicValid(stream))
+		UnloadMusicStream(stream);
+	stream = {};
+	bytes.clear();
+	asset.clear();
+}
+bool AudioStream::load(const std::string &id, float gain, const Bytes *source, bool file)
+{
+	reset();
+	asset = id; // Cache failures too; do not retry every frame.
+	if (file)
+		stream = LoadMusicStream(id.c_str());
+	else if (source)
+	{
+		bytes = *source;
+		stream = LoadMusicStreamFromMemory(".ogg", bytes.data(), static_cast<int>(bytes.size()));
+	}
+	if (!IsMusicValid(stream))
+	{
+		TraceLog(LOG_WARNING, "HOST AUDIO: cannot load stream %s", id.c_str());
+		return false;
+	}
+	TraceLog(LOG_INFO, "HOST AUDIO: stream %s", id.c_str());
+	stream.looping = true;
+	SetMusicVolume(stream, gain);
+	PlayMusicStream(stream);
+	return true;
+}
+void AudioStream::update(float gain)
+{
+	if (IsMusicValid(stream))
+	{
+		SetMusicVolume(stream, gain);
+		UpdateMusicStream(stream);
+	}
+}
 bool ServerMusic::device()
 {
 	if (!attempted_device_)
@@ -69,21 +110,12 @@ void ServerMusic::click(const Application &app)
 }
 void ServerMusic::stop()
 {
-	if (IsMusicValid(stream_))
-	{
-		StopMusicStream(stream_);
-		UnloadMusicStream(stream_);
-	}
-	stream_ = {};
+	stream_.reset();
 	track_ = 0;
 	track_asset_.clear();
-	track_bytes_.clear();
 }
 void ServerMusic::clear_host_audio()
 {
-	for (auto &[key, loop] : loops_)
-		if (IsMusicValid(loop.stream))
-			UnloadMusicStream(loop.stream);
 	loops_.clear();
 	for (auto &voice : shot_voices_)
 	{
@@ -97,10 +129,10 @@ void ServerMusic::clear_host_audio()
 	shot_assets_.clear();
 	mixer_.reset();
 }
-bool ServerMusic::host_audio(const Application &app, bool active)
+bool ServerMusic::host_audio(const Application &app, const SceneFrame &scene, bool active)
 {
 	const auto own = active ? app.session->focus_body() : std::nullopt;
-	auto bodies = active ? app.session->scene() : std::vector<SceneBody>{};
+	const auto &bodies = scene.bodies;
 	const auto own_body = own ? std::find_if(bodies.begin(), bodies.end(),
 	                                         [&](const auto &b)
 	                                         {
@@ -117,93 +149,24 @@ bool ServerMusic::host_audio(const Application &app, bool active)
 	const auto &catalog = app.session->catalog();
 	if (!ship_audio_.contains(own->definition))
 		ship_audio_[own->definition] = compile_ship_audio(catalog, own->definition);
-	const auto &render = catalog.entities.at(own->definition).at("render");
-	if (!ship_aspects_.contains(own->definition))
-	{
-		float value = 1;
-		if (render.contains("sprite"))
-		{
-			const auto sprite = compile_sprite(render.at("sprite"), catalog, own->definition);
-			auto frames = [&](const auto &items)
-			{
-				for (const auto &f : items)
-					value = std::max(value, static_cast<float>(f.rect[2]) / f.rect[3]);
-			};
-			frames(sprite.frames);
-			for (const auto &entry : sprite.entries)
-				frames(entry.frames);
-		}
-		else if (render.contains("images"))
-			for (const auto &asset : render.at("images"))
-			{
-				const auto dimensions = verified_image_dimensions(catalog.assets.at(asset.get<std::string>()));
-				value = std::max(value, static_cast<float>(dimensions[0]) / dimensions[1]);
-			}
-		ship_aspects_[own->definition] = value;
-	}
-	const auto settings = ship_camera_state(app.session->public_board());
-	const auto pose = ship_camera_pose(own->x, own->y, own->heading, render.at("scale").get<float>(),
-	                                   ship_aspects_.at(own->definition), settings.mode, settings.direction);
-	const float aspect = app.viewscreen_region ? app.viewscreen_region->width / app.viewscreen_region->height
-	                                           : static_cast<float>(GetScreenWidth()) / std::max(1, GetScreenHeight());
-	std::set<EntityId> visible;
-	for (auto &body : bodies)
-	{
-		const float radius = catalog.entities.contains(body.definition)
-		                         ? catalog.entities.at(body.definition).at("render").value("scale", 1.f) * 2
-		                         : 1;
-		// Own-ship actions are audible even when its hull is hidden by the cockpit camera.
-		if (body.id == own->id ||
-		    ship_camera_visible(pose, body.x, body.y, body.visual_height_mm, radius, aspect, rlGetCullDistanceFar()))
-			visible.insert(body.id);
-		if (!body.sound.empty())
-			body.audio.push_back({SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
-	}
-	auto frame = mixer_.frame(bodies, own->id, ship_audio_.at(own->definition), visible, app.session->ticks(), active,
-	                          GetFrameTime());
+	auto frame = mixer_.frame(bodies, own->id, ship_audio_.at(own->definition), scene.visible, app.session->ticks(),
+	                          active, GetFrameTime());
 	// Let a final destruction one-shot finish, while all mission loops stop.
 	if (!own_alive)
 		frame.loops.clear();
 	const float volume = std::clamp(app.sfx_volume, 0, 100) / 100.f;
 	std::erase_if(loops_,
-	              [&](auto &entry)
+	              [&](const auto &entry)
 	              {
-		              if (frame.loops.contains(entry.first))
-			              return false;
-		              if (IsMusicValid(entry.second.stream))
-			              UnloadMusicStream(entry.second.stream);
-		              return true;
+		              return !frame.loops.contains(entry.first);
 	              });
 	for (const auto &[key, clip] : frame.loops)
 	{
-		auto [at, added] = loops_.try_emplace(key);
-		auto &loop = at->second;
-		if (added || loop.asset != clip.asset)
-		{
-			if (IsMusicValid(loop.stream))
-				UnloadMusicStream(loop.stream);
-			loop.stream = {};
-			loop.asset = clip.asset;
-			if (catalog.assets.contains(clip.asset))
-			{
-				loop.bytes = catalog.assets.at(clip.asset);
-				loop.stream = LoadMusicStreamFromMemory(".ogg", loop.bytes.data(), static_cast<int>(loop.bytes.size()));
-			}
-			if (IsMusicValid(loop.stream))
-			{
-				TraceLog(LOG_INFO, "HOST AUDIO: loop %s", clip.asset.c_str());
-				loop.stream.looping = true;
-				SetMusicVolume(loop.stream, clip.gain * volume);
-				PlayMusicStream(loop.stream);
-			}
-			else
-				TraceLog(LOG_WARNING, "HOST AUDIO: cannot load loop %s", clip.asset.c_str());
-		}
-		if (IsMusicValid(loop.stream))
-		{
-			SetMusicVolume(loop.stream, clip.gain * volume);
-			UpdateMusicStream(loop.stream);
-		}
+		auto &loop = loops_[key];
+		if (loop.asset != clip.asset)
+			loop.load(clip.asset, clip.gain * volume,
+			          catalog.assets.contains(clip.asset) ? &catalog.assets.at(clip.asset) : nullptr);
+		loop.update(clip.gain * volume);
 	}
 	for (auto &voice : shot_voices_)
 		if (IsSoundValid(voice.sound))
@@ -272,7 +235,7 @@ ServerMusic::~ServerMusic()
 	if (owns_device_)
 		CloseAudioDevice();
 }
-void ServerMusic::update(const Application &app)
+void ServerMusic::update(const Application &app, const SceneFrame &frame)
 {
 	if (device())
 	{
@@ -282,36 +245,27 @@ void ServerMusic::update(const Application &app)
 				SetSoundVolume(voice, std::clamp(app.sfx_volume, 0, 100) / 100.f);
 	}
 	const bool playing = app.session && app.session->running();
-	if (combat_session_ != app.session.get() || combat_generation_ != (app.session ? app.session->generation() : 0))
+	if (session_ != app.session.get() || generation_ != (app.session ? app.session->generation() : 0))
 	{
-		combat_session_ = app.session.get();
-		combat_generation_ = app.session ? app.session->generation() : 0;
+		session_ = app.session.get();
+		generation_ = app.session ? app.session->generation() : 0;
 		clear_host_audio();
 		ship_audio_.clear();
-		ship_aspects_.clear();
+		stop();
+		if (IsSoundValid(siren_))
+			UnloadSound(siren_);
+		siren_ = {};
+		siren_asset_.clear();
 	}
-	const bool mission_audio =
-	    host_audio(app, playing && app.can_host && app.screen != Screen::workshop && !app.session->recovery_pending());
+	const bool mission_audio = host_audio(
+	    app, frame, playing && app.can_host && app.screen != Screen::workshop && !app.session->recovery_pending());
 
 	const auto alert = playing ? app.session->public_board().value("alert", Json::object()) : Json::object();
 	const bool live_alert = mission_audio && !alert.empty();
 	const auto generation = app.session ? app.session->generation() : 0;
 	const bool entry = alert_transition_.observe(app.session.get(), generation, alert, live_alert);
-	if (!live_alert || alert_session_ != app.session.get() || alert_generation_ != generation)
-	{
-		if (alert_session_ != app.session.get() || alert_generation_ != generation)
-		{
-			stop();
-			if (IsSoundValid(siren_))
-				UnloadSound(siren_);
-			siren_ = {};
-			siren_asset_.clear();
-		}
-		alert_session_ = app.session.get();
-		alert_generation_ = generation;
-		if (IsSoundValid(siren_))
-			StopSound(siren_);
-	}
+	if (!live_alert && IsSoundValid(siren_))
+		StopSound(siren_);
 	if (live_alert)
 	{
 		const auto asset = alert.value("siren", std::string{});
@@ -358,31 +312,14 @@ void ServerMusic::update(const Application &app)
 		stop();
 		track_ = wanted;
 		track_asset_ = asset;
-		if (!asset.empty() && app.session->catalog().assets.contains(asset))
-		{
-			track_bytes_ = app.session->catalog().assets.at(asset);
-			stream_ = LoadMusicStreamFromMemory(".ogg", track_bytes_.data(), static_cast<int>(track_bytes_.size()));
-		}
-		else
-			stream_ = LoadMusicStream((audio_directory() + (wanted == 1 ? "menu.ogg" : "ambient.ogg")).c_str());
-		if (!IsMusicValid(stream_) && !asset.empty())
-		{
-			TraceLog(LOG_WARNING, "HOST AUDIO: cannot load music %s; using ordinary mission music", asset.c_str());
-			stream_ = LoadMusicStream((audio_directory() + "ambient.ogg").c_str());
-		}
-		if (IsMusicValid(stream_))
-		{
-			TraceLog(LOG_INFO, "HOST AUDIO: music %s",
-			         asset.empty() ? (wanted == 1 ? "menu.ogg" : "ambient.ogg") : asset.c_str());
-			stream_.looping = true;
-			SetMusicVolume(stream_, music_gain * std::clamp(app.music_volume, 0, 100) / 100.f);
-			PlayMusicStream(stream_);
-		}
+		const float gain = music_gain * std::clamp(app.music_volume, 0, 100) / 100.f;
+		if (asset.empty())
+			stream_.load(audio_directory() + (wanted == 1 ? "menu.ogg" : "ambient.ogg"), gain, nullptr, true);
+		else if (!stream_.load(asset, gain,
+		                       app.session->catalog().assets.contains(asset) ? &app.session->catalog().assets.at(asset)
+		                                                                     : nullptr))
+			stream_.load(audio_directory() + "ambient.ogg", gain, nullptr, true);
 	}
-	if (IsMusicValid(stream_))
-	{
-		SetMusicVolume(stream_, music_gain * std::clamp(app.music_volume, 0, 100) / 100.f);
-		UpdateMusicStream(stream_);
-	}
+	stream_.update(music_gain * std::clamp(app.music_volume, 0, 100) / 100.f);
 }
 } // namespace phoenix

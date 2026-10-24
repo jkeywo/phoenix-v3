@@ -9694,10 +9694,6 @@
 					}
 				},
 				"fore-dorsal-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "weapons",
 					"turret": "fore-dorsal",
@@ -9767,10 +9763,6 @@
 					}
 				},
 				"fore-ventral-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "weapons",
 					"turret": "fore-ventral",
@@ -9840,10 +9832,6 @@
 					}
 				},
 				"aft-dorsal-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "engineering",
 					"turret": "aft-dorsal",
@@ -9913,10 +9901,6 @@
 					}
 				},
 				"aft-ventral-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "engineering",
 					"turret": "aft-ventral",
@@ -9986,10 +9970,6 @@
 					}
 				},
 				"mid-dorsal-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "magazines",
 					"turret": "mid-dorsal",
@@ -20281,10 +20261,6 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -20361,10 +20337,6 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -20449,10 +20421,6 @@
 					}
 				},
 				"forward-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
@@ -20505,10 +20473,6 @@
 					"template": "base.equipment.combat-shield-cell"
 				},
 				"beam": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cutting_beam.ogg",
-						"gain": 0.5
-					},
 					"kind": "weapon",
 					"turret": "beam-turret",
 					"arc_mdeg": 12000,
@@ -22455,10 +22419,6 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -22535,10 +22495,6 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -26436,10 +26392,6 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -26516,10 +26468,6 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -26604,10 +26552,6 @@
 					}
 				},
 				"forward-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
@@ -26660,10 +26604,6 @@
 					"template": "base.equipment.combat-shield-cell"
 				},
 				"beam": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cutting_beam.ogg",
-						"gain": 0.5
-					},
 					"kind": "weapon",
 					"turret": "beam-turret",
 					"arc_mdeg": 12000,
@@ -29695,10 +29635,6 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -29775,10 +29711,6 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -29863,10 +29795,6 @@
 					}
 				},
 				"forward-gun": {
-					"firing_audio": {
-						"asset": "phoenix-base:assets/audio/cannon.wav",
-						"gain": 0.9
-					},
 					"kind": "weapon",
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
@@ -64004,6 +63932,10 @@
 			"energy_per_second": 0
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/cannon.wav",
+				"gain": 0.9
+			},
 			"id": "base.cruiser.fore-dorsal-gun.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -64073,6 +64005,10 @@
 			"energy_per_second": 0
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/cannon.wav",
+				"gain": 0.9
+			},
 			"id": "base.armed-courier.top-gun.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -64090,6 +64026,10 @@
 			}
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/cannon.wav",
+				"gain": 0.9
+			},
 			"id": "base.armed-courier.forward-gun.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -64107,6 +64047,10 @@
 			}
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/cutting_beam.ogg",
+				"gain": 0.5
+			},
 			"id": "base.armed-courier.beam.beam",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -64132,6 +64076,10 @@
 			}
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/cannon.wav",
+				"gain": 0.9
+			},
 			"id": "base.pirate-raider.top-gun.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
