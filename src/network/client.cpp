@@ -54,7 +54,7 @@ class NetworkClient final : public SessionPort
 	                                        lease_, station_;
 	Json offer_, inspection_, public_board_ = Json::object();
 	Catalog empty_;
-	std::optional<Observation> observation_;
+	std::shared_ptr<const Observation> observation_;
 	std::vector<ConsoleSeat> seats_;
 	ConsoleAddress selected_seat_;
 	bool blobs_ready_ = false, profile_durable_ = false, welcomed_ = false, ready_sent_ = false, started_ = false,
@@ -389,7 +389,7 @@ class NetworkClient final : public SessionPort
 					lease_ = lease;
 					sequence_ = 0;
 				}
-				observation_ = std::move(view);
+				observation_ = std::make_shared<const Observation>(std::move(view));
 				confirm_ = false;
 				recovering_ = false;
 			}
@@ -462,7 +462,7 @@ public:
 	}
 	bool running() const override
 	{
-		return !fatal_ && (options_.inspector ? !inspection_.is_null() : observation_.has_value());
+		return !fatal_ && (options_.inspector ? !inspection_.is_null() : bool(observation_));
 	}
 	bool recovery_pending() const override
 	{
@@ -536,7 +536,11 @@ public:
 	}
 	std::optional<Observation> observation() const override
 	{
-		return options_.inspector ? std::nullopt : observation_;
+		return !options_.inspector && observation_ ? std::optional<Observation>{*observation_} : std::nullopt;
+	}
+	std::shared_ptr<const Observation> console_snapshot(std::uint64_t route) const override
+	{
+		return !options_.inspector && route == 1 ? observation_ : nullptr;
 	}
 	std::vector<ConsoleSeat> console_seats() const override
 	{

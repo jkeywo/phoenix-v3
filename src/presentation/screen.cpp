@@ -1190,7 +1190,7 @@ void draw_screen(Application &app)
 				visible = choice.at("visible");
 				available = choice.at("available");
 			}
-		auto owned = app.session->console_observation(31);
+		auto owned = app.session->console_snapshot(31);
 		if (owned && (owned->console != sidebar_selection || !visible))
 		{
 			app.session->release_console(31);
@@ -1198,7 +1198,7 @@ void draw_screen(Application &app)
 		}
 		if (!owned && visible && available)
 			app.session->claim_console(31, {app.session->focus_body()->id, sidebar_selection});
-		owned = app.session->console_observation(31);
+		owned = app.session->console_snapshot(31);
 		if (visible && owned && owned->console == sidebar_selection && app.console_regions.size() < 6)
 		{
 			auto area = original_viewscreen.value_or(
@@ -1729,7 +1729,7 @@ void draw_screen(Application &app)
 			surface.context().Render();
 			renderer.finish();
 			surface.draw_profile(region);
-			if (const auto view = app.session->console_observation(region.console))
+			if (const auto view = app.session->console_snapshot(region.console))
 				draw_alert_glow(view->gameplay.value("alert", Json::object()),
 				                {region.x, region.y, region.width, region.height});
 		}

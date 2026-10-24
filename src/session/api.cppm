@@ -244,6 +244,11 @@ public:
 	{
 		return route == 1 ? observation() : std::nullopt;
 	}
+	virtual std::shared_ptr<const Observation> console_snapshot(std::uint64_t route) const
+	{
+		auto value = console_observation(route);
+		return value ? std::make_shared<const Observation>(std::move(*value)) : nullptr;
+	}
 	virtual void set_inference_connection(std::shared_ptr<InferenceConnection>)
 	{
 	}

@@ -891,6 +891,10 @@ public:
 	{
 		return running() && game_ ? game_->observe(member_, local, route) : std::nullopt;
 	}
+	std::shared_ptr<const Observation> console_snapshot(std::uint64_t route) const override
+	{
+		return running() && game_ ? game_->observe_shared(member_, local, route) : nullptr;
+	}
 	bool networked() const override
 	{
 		return true;

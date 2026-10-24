@@ -454,7 +454,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		route_ = route;
 		packs_ = catalog.ordered_packs;
 	}
-	auto next = session->console_observation(route);
+	auto next = session->console_snapshot(route);
 	available_consoles_.clear();
 	if (next)
 	{
@@ -493,12 +493,11 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 			                                });
 			if (extra != next->additional_consoles.end())
 			{
-				auto view = *extra;
-				next = std::move(view);
+				next = std::shared_ptr<const Observation>(next, &*extra);
 			}
 		}
 	}
-	const bool changed = observation_.has_value() != next.has_value() ||
+	const bool changed = bool(observation_) != bool(next) ||
 	                     (next && observation_ &&
 	                      (next->own.id != observation_->own.id || next->console != observation_->console ||
 	                       next->controls != observation_->controls || next->feeds != observation_->feeds));

@@ -89,6 +89,10 @@ int main(int argc, char **)
 			radar_symbols.load(load(symbols), "test.map");
 			require(radar_symbols.claim(101, 1), "symbol fixture claims the normal radar Console");
 			const auto view = radar_symbols.observe(101);
+			const auto shared = radar_symbols.observe_shared(101);
+			const auto unchanged = radar_symbols.save();
+			require(shared && shared == radar_symbols.observe_shared(101) && radar_symbols.save() == unchanged,
+			        "Repeated permitted snapshots share immutable data without mutating authoritative state");
 			require(view->own.radar_icon == RadarIcon::ship && view->contacts.size() == 1 &&
 			            view->contacts[0].radar_icon == RadarIcon::asteroid,
 			        "radar projection supplies only visible contacts and their authored public symbols");
@@ -97,6 +101,13 @@ int main(int argc, char **)
 			radar_symbols.submit(101, {1, "radar_enabled", 0});
 			radar_symbols.tick();
 			require(radar_symbols.observe(101)->contacts.empty(), "symbol metadata must not bypass radar disable");
+			require(radar_symbols.observe_shared(101) != shared && shared->contacts.size() == 1 &&
+			            radar_symbols.observe_shared(101)->contacts.empty(),
+			        "A new tick replaces the snapshot while retained old evidence stays immutable");
+			require(radar_symbols.release(101) && !radar_symbols.observe_shared(101),
+			        "Releasing a claim immediately removes access to the cached projection");
+			require(radar_symbols.claim(101, 2) && radar_symbols.observe_shared(101)->own.id == 2,
+			        "Reusing a route never reuses another ship's private cached projection");
 		}
 		{
 			World propulsion;

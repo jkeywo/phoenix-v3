@@ -96,13 +96,13 @@ inline bool session_action(Application &app, const std::string &id)
 		return false;
 	if (id == "settings.away" || id == "settings.resume")
 	{
-		const auto view = app.session->console_observation(app.settings_console);
+		const auto view = app.session->console_snapshot(app.settings_console);
 		return view && app.session->console_command(app.settings_console,
 		                                            {view->own.id, "away", id == "settings.away" ? 1 : 0, {}});
 	}
 	if (id.starts_with("settings.profile/"))
 	{
-		const auto view = app.session->console_observation(app.settings_console);
+		const auto view = app.session->console_snapshot(app.settings_console);
 		if (!view)
 			return false;
 		for (const auto &control : view->gameplay.value("controls", Json::array()))
@@ -121,8 +121,7 @@ inline auto approvals(const Application &app)
 			if (approval(id))
 				result.emplace_back(id, text);
 	if (game_active(app) && app.settings_tab == "session")
-		if (const auto view = app.session->console_observation(app.settings_console);
-		    view && view->gameplay.is_object())
+		if (const auto view = app.session->console_snapshot(app.settings_console); view && view->gameplay.is_object())
 			for (const auto &control : view->gameplay.value("controls", Json::array()))
 				if (control.value("action", "") == "away")
 					result.emplace_back(control.value("value", 0) ? "settings.away" : "settings.resume",

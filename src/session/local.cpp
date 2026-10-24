@@ -401,6 +401,10 @@ public:
 	{
 		return running() ? world_->observe(route) : std::nullopt;
 	}
+	std::shared_ptr<const Observation> console_snapshot(std::uint64_t route) const override
+	{
+		return running() ? world_->observe_shared(route) : nullptr;
+	}
 };
 } // namespace
 std::shared_ptr<HostAccess> make_host_world()

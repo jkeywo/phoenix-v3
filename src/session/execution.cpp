@@ -209,6 +209,12 @@ std::optional<Observation> GameExecution::observe(const std::string &server, con
 	auto seat = owned(server, owner, route);
 	return seat ? world_->authoritative_world().observe(seat->claimant) : std::nullopt;
 }
+std::shared_ptr<const Observation> GameExecution::observe_shared(const std::string &server, const std::string &owner,
+                                                                 std::uint64_t route) const
+{
+	const auto seat = owned(server, owner, route);
+	return seat ? world_->authoritative_world().observe_shared(seat->claimant) : nullptr;
+}
 Json GameExecution::snapshot() const
 {
 	Json seats = Json::array();

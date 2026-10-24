@@ -35,6 +35,8 @@ public:
 	void absent(const std::string &server);
 	std::optional<Observation> observe(const std::string &server, const std::string &owner,
 	                                   std::uint64_t route = 1) const;
+	std::shared_ptr<const Observation> observe_shared(const std::string &server, const std::string &owner,
+	                                                  std::uint64_t route = 1) const;
 	Json snapshot() const;
 	bool checkpoint_ready() const
 	{

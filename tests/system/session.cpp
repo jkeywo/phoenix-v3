@@ -183,6 +183,9 @@ int main()
 			session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 			ConsoleModel model;
 			model.refresh(session);
+			const auto snapshot = session->console_snapshot(1);
+			require(snapshot && snapshot == session->console_snapshot(1) && model.observation() == snapshot,
+			        "The Console model and other presentation consumers share one permitted snapshot");
 			require(model.widget_system("engine") == "port" && model.widget_system("starboard-slider") == "starboard" &&
 			            model.widget_system("radar") == "search" && model.system_maximum("starboard") == 20000,
 			        "widget identity resolves exact fitted capability and public bounds");
@@ -191,6 +194,8 @@ int main()
 			        "explicit widget commands admit independently while ambiguous implicit control refuses");
 			require(model.system_request("port") == 2000 && model.system_request("starboard") == 14000,
 			        "same-tick pending feedback is independent per fitted instance");
+			require(session->console_snapshot(1) != snapshot,
+			        "Admitted same-tick commands invalidate presentation snapshots immediately");
 			session->tick();
 			model.refresh(session);
 			require(model.act("game.faster/engine"), "semantic action resolves its widget's System");

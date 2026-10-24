@@ -104,7 +104,7 @@ public:
 	{
 		return maximum_;
 	}
-	const std::optional<Observation> &observation() const
+	const std::shared_ptr<const Observation> &observation() const
 	{
 		return observation_;
 	}
@@ -172,7 +172,7 @@ private:
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0, route_ = 1;
 	std::vector<std::pair<std::string, std::string>> packs_;
-	std::optional<Observation> observation_;
+	std::shared_ptr<const Observation> observation_;
 	std::optional<std::uint64_t> pending_at_;
 	std::int64_t speed_ = 0, heading_ = 0, maximum_ = 0;
 	Json layout_;

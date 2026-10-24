@@ -44,6 +44,8 @@ public:
 	bool submit(std::uint64_t console, const OperatingCommand &command);
 	bool can_submit(std::uint64_t console, const OperatingCommand &command) const;
 	std::optional<Observation> observe(std::uint64_t console) const;
+	// Immutable permitted presentation snapshot, reused until the next mutation.
+	std::shared_ptr<const Observation> observe_shared(std::uint64_t console) const;
 	Json controller_ai(EntityId entity) const;
 	Json controller_decision_snapshot(const ControllerAddress &);
 	bool configure_controller_provider(const ControllerAddress &, const std::string &provider);

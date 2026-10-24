@@ -145,7 +145,7 @@ struct GameScreen::State
 	std::weak_ptr<SessionPort> owner;
 	std::uint64_t generation = 0;
 	std::vector<std::pair<std::string, std::string>> content_identity;
-	std::optional<Observation> observation;
+	std::shared_ptr<const Observation> observation;
 	bool was_running = false;
 	std::string previous_markup, previous_description, previous_network;
 	bool markup_ready = false;

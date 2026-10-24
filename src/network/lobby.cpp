@@ -1354,6 +1354,10 @@ public:
 	{
 		return backend_ ? backend_->console_observation(route) : std::nullopt;
 	}
+	std::shared_ptr<const Observation> console_snapshot(std::uint64_t route) const override
+	{
+		return backend_ ? backend_->console_snapshot(route) : nullptr;
+	}
 	Json inspection() const override
 	{
 		return backend_ ? backend_->inspection() : Json{};
