@@ -473,7 +473,8 @@ bool material_authority(const ConsoleAddress &a, const OperatingCommand &c, cons
 bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
 {
 	const auto e = entities.at(a.ship);
-	if (!ai && !manual_workload(a, "logistics"))
+	if (!ai && !manual_workload(a, "logistics") &&
+	    !(c.action == "logistics.craft_allow" && cargo_authorisation_console(a)))
 		return false;
 	if (c.channel != "" || c.request_id || !c.arguments.empty() || c.text.size() > 512 || !c.speaker_name.empty() ||
 	    !c.speaker_avatar.empty())
@@ -615,6 +616,7 @@ Json logistics_board(const ConsoleAddress &a) const
 	         {"batches", Json::array()},
 	         {"cargo", Json::array()},
 	         {"cargo_craft", Json::array()},
+	         {"cargo_authorisation_controller", ""},
 	         {"offers", Json::array()},
 	         {"routes", Json::array()},
 	         {"controller", ""},
@@ -643,6 +645,7 @@ Json logistics_board(const ConsoleAddress &a) const
 	if (!e.has<MaterialInventory>())
 		return out;
 	const auto &d = definition(a.ship).logistics;
+	out["cargo_authorisation_controller"] = d.cargo_authorisation_controller;
 	const auto &state = e.get<MaterialInventory>();
 	const bool main = visible(d.controller);
 	out["controller"] = d.controller;
@@ -680,7 +683,7 @@ Json logistics_board(const ConsoleAddress &a) const
 		if (craft.get<CraftState>().home == a.ship && definition(id).craft->role == "shuttle")
 		{
 			const auto &bay = craft.get<CraftState>().bay;
-			if (main || enabled_system_owner(a.ship, bay) == a)
+			if (main || enabled_system_owner(a.ship, bay) == a || cargo_authorisation_console(a))
 			{
 				Json stores = Json::array();
 				for (const auto &store : definition(id).logistics.stores)
@@ -688,7 +691,9 @@ Json logistics_board(const ConsoleAddress &a) const
 				out["cargo_craft"].push_back(
 				    {{"id", id},
 				     {"authorised", state.authorised_craft.contains(id)},
-				     {"controllable", manual_workload(a, "logistics") && enabled_system_owner(a.ship, bay) == a},
+				     {"controllable", d.cargo_authorisation_controller.empty()
+				                          ? manual_workload(a, "logistics") && enabled_system_owner(a.ship, bay) == a
+				                          : cargo_authorisation_console(a, true)},
 				     {"available", craft_available(id)},
 				     {"stores", stores}});
 			}

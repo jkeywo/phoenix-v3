@@ -33594,7 +33594,8 @@
 							}
 						}
 					}
-				]
+				],
+				"cargo_authorisation_controller": "dispatch"
 			},
 			"systems": {
 				"utility-bay": {
@@ -37525,71 +37526,16 @@
 							{
 								"result": "rescued",
 								"title_key": "Rescue successful",
-								"explanation_key": "The casualty escaped and the repair party was recovered. See the crew assessment and mission log for injuries and deaths.",
+								"explanation_key": "Morrow escaped the system. See the crew assessment and mission log for the actual injuries, deaths and recovery outcomes.",
 								"when": {
 									"all": [
 										{
 											"fact": "casualty-state",
-											"op": "eq",
 											"value": "departed"
 										},
 										{
-											"fact": "propulsion-objective",
-											"op": "eq",
-											"value": "completed"
-										},
-										{
-											"fact": "repair-outcome",
-											"op": "eq",
-											"value": "complete:repairs"
-										},
-										{
-											"fact": "party-recovered",
-											"op": "eq",
-											"value": true
-										},
-										{
-											"fact": "personnel-away",
-											"op": "eq",
-											"value": 0
-										},
-										{
-											"fact": "personnel-lost",
-											"op": "eq",
-											"value": 0
-										}
-									]
-								}
-							},
-							{
-								"result": "partial",
-								"title_key": "Partial rescue",
-								"explanation_key": "Useful repairs were completed, but the casualty had not escaped when you departed.",
-								"when": {
-									"all": [
-										{
-											"fact": "casualty-state",
-											"op": "ne",
-											"value": "destroyed"
-										},
-										{
-											"fact": "personnel-lost",
-											"op": "eq",
-											"value": 0
-										},
-										{
-											"any": [
-												{
-													"fact": "propulsion-objective",
-													"op": "eq",
-													"value": "completed"
-												},
-												{
-													"fact": "services-objective",
-													"op": "eq",
-													"value": "completed"
-												}
-											]
+											"fact": "morrow-faction",
+											"value": "crew"
 										}
 									]
 								}
@@ -56065,6 +56011,30 @@
 									},
 									"op": "eq",
 									"right": "rescue.reactor-secured"
+								}
+							]
+						},
+						{
+							"target": "safe",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.casualty-lost"
+								}
+							]
+						},
+						{
+							"target": "safe",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "rescue.taken"
 								}
 							]
 						},

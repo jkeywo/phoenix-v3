@@ -18,6 +18,8 @@ inline Json board(const Json &source)
 	Json out{{"revision", projection::number(source.at("revision"), 1, 9007199254740991LL)}};
 	out["manual"] = source.value("manual", true);
 	out["controller"] = projection::text(source.value("controller", Json("")), 64);
+	out["cargo_authorisation_controller"] =
+	    projection::text(source.value("cargo_authorisation_controller", Json("")), 64);
 	out["route_controller"] = projection::text(source.value("route_controller", Json("")), 64);
 	out["routes"] = Json::array();
 	const auto routes = source.value("routes", Json::array());

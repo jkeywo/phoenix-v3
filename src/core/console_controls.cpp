@@ -299,12 +299,21 @@ bool logistics_allowed(const Observation &view, const OperatingCommand &c)
 {
 	const auto *owner = section(view, c.controller);
 	const auto board = view.gameplay.value("logistics", Json::object());
-	if (!owner || !owner->value("human", false) || board.empty() || !board.value("manual", true) ||
+	const bool delegate = c.action == "logistics.craft_allow" &&
+	                      board.value("cargo_authorisation_controller", std::string{}) == c.controller;
+	if (!owner || !owner->value("human", false) || board.empty() || (!board.value("manual", true) && !delegate) ||
 	    owner->at("generation") != c.generation || board.at("revision") != c.value || !c.channel.empty() ||
 	    c.request_id || !c.arguments.empty())
 		return false;
 	if (c.action == "logistics.route")
 		return board.at("route_controller") == c.controller;
+	if (c.action == "logistics.craft_allow" && delegate)
+	{
+		for (const auto &craft : board.value("cargo_craft", Json::array()))
+			if (craft.at("id").dump() == c.system && craft.value("controllable", false))
+				return c.text == "0" || c.text == "1";
+		return false;
+	}
 	if (c.action == "logistics.craft_allow")
 		for (const auto &craft : view.gameplay.value("craft", Json::array()))
 			if (craft.at("id") == c.system && consumes(*owner, craft.at("bay")))

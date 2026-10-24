@@ -1578,7 +1578,8 @@
 			"UI navigation | Select: mode | A: activate | B: back | LB/RB: previous/next": "UI navigation | Select: mode | A: activate | B: back | LB/RB: previous/next",
 			"Flight | Select: UI navigation": "Flight | Select: UI navigation",
 			"Save archive exceeds 128 MiB.": "Save archive exceeds 128 MiB.",
-			"File exceeds 128 MiB": "File exceeds 128 MiB"
+			"File exceeds 128 MiB": "File exceeds 128 MiB",
+			"Morrow escaped the system. See the crew assessment and mission log for the actual injuries, deaths and recovery outcomes.": "Morrow escaped the system. See the crew assessment and mission log for the actual injuries, deaths and recovery outcomes."
 		}
 	}
 }

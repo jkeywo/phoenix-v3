@@ -4,6 +4,7 @@
 #include <iostream>
 #include <set>
 import phoenix.simulation;
+import phoenix.console_controls;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
@@ -70,6 +71,66 @@ int main(int argc, char **argv)
 	try
 	{
 		supply_cases();
+		{
+			auto delegated = fixture();
+			auto &ship = delegated["entities"][0];
+			ship["logistics"]["cargo_authorisation_controller"] = "engine";
+			for (auto &controller : ship["control_layout"]["controllers"])
+				if (controller["id"] == "bay")
+					controller["console"] = "observer";
+			for (auto &duty : ship["personnel"]["duties"])
+				if (duty.value("controller", std::string{}) == "bay")
+				{
+					duty["console"] = "observer";
+					duty["department"] = "engineering";
+				}
+			for (auto &profile : ship["control_layout"]["profiles"])
+				for (const auto *allocation : {"human", "ai"})
+				{
+					if (!profile["consoles"]["drive"].contains(allocation))
+						continue;
+					auto &from = profile["consoles"]["drive"].at(allocation);
+					if (!from.is_array())
+						continue;
+					bool found = false;
+					for (auto i = from.begin(); i != from.end();)
+						if (*i == "bay")
+						{
+							i = from.erase(i);
+							found = true;
+						}
+						else
+							++i;
+					if (found)
+						profile["consoles"]["observer"][allocation].push_back("bay");
+				}
+			ship["stations"][1]["consoles"][0]["feeds"].push_back("bay");
+			World permission;
+			permission.load(load(delegated), "test.map", {{"crew", "test.away"}});
+			require(permission.claim(101, 2, "drive") && permission.claim(102, 2, "observer"),
+			        "Claim separated cargo departments");
+			ticks(permission, 5);
+			const auto craft =
+			    permission.observe(101)->gameplay.at("logistics").at("cargo_craft")[0].at("id").get<EntityId>();
+			const auto authorise = command(permission, 101, "craft_allow", std::to_string(craft), "1", "engine");
+			auto remote = *permission.observe(101);
+			remote.gameplay = network::bounded_gameplay(remote.gameplay);
+			require(remote.gameplay.at("logistics").at("cargo_authorisation_controller") == "engine",
+			        "Remote cargo projection preserves the consent Controller");
+			require(eligible_console_command(remote, Json::object(), Json::object(), authorise).has_value(),
+			        "Scoped semantic controls expose the delegated permission action");
+			require(!permission.submit(102, command(permission, 102, "craft_allow", std::to_string(craft), "1", "bay")),
+			        "Owning the utility bay does not substitute for delegated Tactical consent");
+			require(permission.submit(101, authorise), "The delegated Controller may grant cargo consent");
+			ticks(permission, 1);
+			require(permission.observe(102)->gameplay.at("logistics").at("cargo").empty(),
+			        "Standing consent does not launch a shuttle");
+			const auto text = std::to_string(craft) + "/hold/1/hold/parts/3";
+			require(!permission.submit(101, command(permission, 101, "deliver", "hold", text, "engine")),
+			        "Cargo permission does not delegate Engineering's delivery authority");
+			require(permission.submit(102, command(permission, 102, "deliver", "hold", text, "team")),
+			        "Engineering orders the authorised utility craft through the existing cargo path");
+		}
 		const auto source = fixture();
 		const auto catalog = load(source);
 		World w;

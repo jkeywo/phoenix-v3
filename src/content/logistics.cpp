@@ -42,6 +42,9 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 	for (const auto &c : e.at("control_layout").at("controllers"))
 		controllers.insert(c.at("id"));
 	material_require(controllers.contains(d.controller), id + ": unknown logistics controller");
+	d.cargo_authorisation_controller = j.value("cargo_authorisation_controller", std::string{});
+	material_require(d.cargo_authorisation_controller.empty() || controllers.contains(d.cargo_authorisation_controller),
+	                 id + ": unknown cargo authorisation controller");
 	d.throughput = material_number(j, "units_per_second", 20, 1);
 	d.concurrency = material_number(j, "concurrency", 4, 1);
 	d.batch_size = material_number(j, "batch_size", 10, 1);

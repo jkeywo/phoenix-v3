@@ -132,10 +132,26 @@ bool stage_material_dispatch(StockTransaction &transaction, const MaterialReques
 	}
 	return true;
 }
+bool cargo_authorisation_console(const ConsoleAddress &a, bool human = false) const
+{
+	const auto &owner = definition(a.ship).logistics.cargo_authorisation_controller;
+	if (owner.empty())
+		return false;
+	for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
+		if (controller.definition.id == owner && controller.definition.console == a.console &&
+		    (!human || controller.human))
+			return true;
+	return false;
+}
 bool cargo_authority(const ConsoleAddress &a, const OperatingCommand &c, EntityId craft, bool ai) const
 {
 	const auto &state = entities.at(craft).get<CraftState>();
-	if (state.home != a.ship || enabled_system_owner(a.ship, state.bay) != a)
+	if (state.home != a.ship)
+		return false;
+	const auto &delegate = definition(a.ship).logistics.cargo_authorisation_controller;
+	if (!delegate.empty())
+		return material_authority(a, c, delegate, ai);
+	if (enabled_system_owner(a.ship, state.bay) != a)
 		return false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (material_authority(a, c, ctrl.definition.id, ai))

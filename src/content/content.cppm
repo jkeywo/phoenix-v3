@@ -586,7 +586,7 @@ struct MaterialConsumerDefinition
 };
 struct LogisticsDefinition
 {
-	std::string controller;
+	std::string controller, cargo_authorisation_controller;
 	std::int64_t throughput = 20, concurrency = 4, batch_size = 10;
 	std::map<std::string, MaterialDefinition> materials;
 	std::vector<MaterialStoreDefinition> stores;
