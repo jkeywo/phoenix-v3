@@ -522,8 +522,8 @@ struct NativeMenuScreen::State
 		std::string markup = "<div id=\"menu-intro\" aria-hidden=\"true\"><div id=\"menu-intro-plane\">"
 		                     "<div id=\"menu-intro-prose\">" +
 		                     prose +
-		                     "</div></div></div>"
-		                     "<h1 id=\"menu-title\">Against the Stars</h1><div id=\"menu-frame\"></div>";
+		                     "<h1 id=\"menu-title\">Against the Stars</h1></div></div></div>"
+		                     "<div id=\"menu-frame\"></div>";
 		if (app.screen == Screen::home && !modal)
 		{
 			markup += "<div id=\"menu-intro-actions\">";
@@ -1156,10 +1156,10 @@ struct NativeMenuScreen::State
 				focus_next = "menu.read-intro";
 		}
 		auto *intro = document.GetElementById("menu-intro");
-		intro->SetProperty("visibility", !intro_complete && intro_elapsed < prose_seconds ? "visible" : "hidden");
 		intro->SetProperty("perspective", std::to_string(region.height) + "dp");
-		const float prose_y =
-		    region.height - (region.height + prose_height) * std::min(1., intro_elapsed / prose_seconds);
+		const float prose_y = intro_complete ? -prose_height
+		                                     : region.height - (region.height + prose_height) *
+		                                                           std::min(1., intro_elapsed / prose_seconds);
 		prose_element->SetProperty("top", std::to_string(prose_y) + "dp");
 		for (std::size_t i = 0; i < intro_paragraphs.size(); ++i)
 			if (auto *line = document.GetElementById("intro-line-" + std::to_string(i)))
@@ -1171,13 +1171,12 @@ struct NativeMenuScreen::State
 		{
 			const float logo_width = std::min(300.f, std::max(180.f, region.width - 740.f));
 			const double eased = 1 - (1 - arrival) * (1 - arrival);
-			title->SetProperty("visibility", arrival > 0 ? "visible" : "hidden");
-			title->SetProperty("top", std::to_string(region.height * (1 - eased)) + "dp");
-			title->SetProperty("left", std::to_string((region.width - logo_width) / 2) + "dp");
+			title->SetProperty("top", std::to_string(prose_height) + "dp");
+			title->SetProperty("left", std::to_string((prose_width - logo_width) / 2) + "dp");
 			title->SetProperty("width", std::to_string(logo_width) + "dp");
 			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "dp");
-			title->SetProperty("transform", "perspective(" + std::to_string(region.height) + "dp) rotateX(" +
-			                                    std::to_string(35 * (1 - eased)) + "deg)");
+			document.GetElementById("menu-intro-plane")
+			    ->SetProperty("transform", "rotateX(" + std::to_string(35 * (1 - eased)) + "deg)");
 		}
 		// Keep every menu column outside the profile CRT, including the ship picker.
 		const float reserved_right = profile_width + 40.f;
@@ -1541,7 +1540,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	styles += "#native-menu #menu-frame { z-index:0; position:absolute; left:0; top:0; width:100%; height:100%; "
 	          "pointer-events:none; background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
-	styles += "#native-menu #menu-title { z-index:-1; margin:0; color:transparent; font-size:1px; pointer-events:none; "
+	styles += "#native-menu #menu-title { position:absolute; margin:0; color:transparent; font-size:1px; "
+	          "pointer-events:none; "
 	          "decorator:image(menu/" +
 	          scene.at("logotype").at("file").get<std::string>() + " contain); }\n";
 	styles += "#native-menu .lobby-card { decorator:" + lobby_panel.decorator("lobby-card") + "; }\n";

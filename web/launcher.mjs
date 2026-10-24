@@ -199,7 +199,7 @@ export function introPlayback(config) {
 				elapsed,
 				complete,
 				proseVisible: !complete && elapsed < proseSeconds,
-				proseY: height - (height + textHeight) * Math.min(1, elapsed / proseSeconds),
+				proseY: complete ? -textHeight : height - (height + textHeight) * Math.min(1, elapsed / proseSeconds),
 				arrival: complete ? 1 : arrival,
 			};
 		},
@@ -1384,6 +1384,8 @@ async function boot() {
 			if (key !== textKey) {
 				prose.replaceChildren();
 				for (const text of paragraphs) element("p", undefined, prose).textContent = text;
+				// The absolute title follows the prose without contributing to its measured height.
+				prose.append(title);
 				textKey = key;
 			}
 			read.textContent = t("Read introduction");
@@ -1403,16 +1405,15 @@ async function boot() {
 				hidden: document.hidden,
 				reduced: library.reduced_motion || preference.matches,
 			});
-			$("intro-viewport").style.visibility = frame.proseVisible ? "visible" : "hidden";
 			prose.style.top = `${frame.proseY}px`;
 			for (const paragraph of prose.children) {
+				if (paragraph === title) continue;
 				const y = frame.proseY + paragraph.offsetTop;
 				paragraph.style.opacity = Math.max(0, Math.min(1, (y + paragraph.offsetHeight) / (height * 0.25)));
 			}
 			const eased = 1 - (1 - frame.arrival) ** 2;
-			title.style.visibility = frame.arrival > 0 ? "visible" : "hidden";
-			title.style.top = `${height * (1 - eased)}px`;
-			title.style.transform = `translateX(-50%) perspective(${height}px) rotateX(${35 * (1 - eased)}deg)`;
+			title.style.visibility = "visible";
+			$("intro-plane").style.transform = `rotateX(${35 * (1 - eased)}deg)`;
 			const skipFocused = document.activeElement === skip;
 			skip.hidden = frame.complete;
 			if (frame.complete && skipFocused) read.focus();

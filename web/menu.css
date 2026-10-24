@@ -673,7 +673,9 @@ body.compact .avatar-choices {
 	opacity: 1;
 }
 #title {
-	top: 0;
+	position: absolute;
+	margin: 0;
+	top: 100%;
 	left: 50%;
 	width: var(--logo-width);
 	height: calc(var(--logo-width) * 2 / 3);

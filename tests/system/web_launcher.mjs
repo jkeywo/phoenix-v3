@@ -364,7 +364,9 @@ test("skip and reduced motion settle immediately without replay", () => {
 		assert.equal(frame.complete, true);
 		assert.equal(frame.proseVisible, false);
 		assert.equal(frame.arrival, 1);
+		assert.equal(frame.proseY, -100); // The attached logo settles at the top, including early skips.
 		assert.equal(playback.frame(1, { height: 200, textHeight: 200 }).complete, true);
+		assert.equal(playback.frame(0, { height: 200, textHeight: 200 }).proseY, -200);
 	}
 });
 
