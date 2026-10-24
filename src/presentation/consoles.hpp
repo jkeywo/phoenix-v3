@@ -1944,9 +1944,11 @@ button.on-screen-active .share-live {display:block;}
 			                                                     widget.at("kind") == "camera_direction";
 		                                              });
 		document_->SetClass("helm", helm && !pregame);
+		const auto cards_started = GetTime();
 		const auto cards = !pregame && (!helm || (layout && layout->contains("layout"))) && model_.observation()
 		                       ? engineering_cards(*model_.observation())
 		                       : std::vector<EngineeringCard>{};
+		app.frame_metrics["console/" + std::to_string(route_) + "/card-model"] = GetTime() - cards_started;
 		const bool engineering = !cards.empty();
 		document_->SetClass("engineering", engineering);
 		std::string title = "Console", description, briefing;
@@ -2752,7 +2754,11 @@ button.on-screen-active .share-live {display:block;}
 		prepare_navigation(app, region, pregame);
 		prepare_manual(app, region, pregame);
 		if (!pregame)
+		{
+			const auto authored_started = GetTime();
 			prepare_authored_layout(layout, region);
+			app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
+		}
 		restore_console_browsing();
 		{
 			const auto update_started = GetTime();

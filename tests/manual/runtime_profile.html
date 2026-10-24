@@ -27,6 +27,10 @@
 					q.get("frames") || "600",
 					String(width),
 					String(height),
+					"",
+					q.get("seconds") || "45",
+					q.get("seat") || "helm",
+					q.get("warmup") || "20",
 				],
 				print: (line) => {
 					console.log(line);

@@ -18,7 +18,10 @@ import phoenix.session.execution;
 using namespace phoenix;
 Application app;
 unsigned frames = 0, target = 600, warmup = 20;
-double previous = 0, accumulated = 0, capture_started = 0;
+double previous = 0, accumulated = 0, capture_started = 0, capture_seconds = 45;
+double graphics_started = 0;
+std::uint64_t capture_tick = 0;
+unsigned focused_frames = 0;
 std::map<std::string, std::vector<double>> samples;
 std::string output;
 bool graphics_ready = false;
@@ -51,7 +54,10 @@ void profile_frame()
 	{
 		graphics_ready = app.frame_metrics.contains("preparation");
 		if (graphics_ready)
+		{
+			graphics_started = ended;
 			std::cout << "PHOENIX_READY {}" << std::endl;
+		}
 		return;
 	}
 	if (warmup)
@@ -60,20 +66,29 @@ void profile_frame()
 		return;
 	}
 	if (!capture_started)
+	{
 		capture_started = started;
+		capture_tick = app.session->ticks() - ticks;
+	}
+	if (IsWindowFocused())
+		++focused_frames;
 	samples["interval"].push_back(interval * 1000);
 	samples["poll_tick"].push_back((polled - started) * 1000);
 	samples["draw"].push_back((drawn - polled) * 1000);
 	samples["end"].push_back((ended - drawn) * 1000);
 	for (const auto &[name, value] : app.frame_metrics)
 		samples[name].push_back(value * 1000);
-	if (++frames < target && started - capture_started < 45)
+	if (++frames < target && started - capture_started < capture_seconds)
 		return;
 	nlohmann::json report{{"frames", frames},
 	                      {"ticks", app.session->ticks()},
 	                      {"framebuffer", {GetRenderWidth(), GetRenderHeight()}},
 	                      {"consoles", app.console_regions.size()},
 	                      {"viewscreen", app.viewscreen_region.has_value()},
+	                      {"capture_seconds", ended - capture_started},
+	                      {"captured_ticks", app.session->ticks() - capture_tick},
+	                      {"focused_frames", focused_frames},
+	                      {"warmup_seconds", capture_started - graphics_started},
 	                      {"units", "milliseconds"}};
 	for (auto &[name, values] : samples)
 	{
@@ -117,10 +132,13 @@ int main(int argc, char **argv)
 		target = argc > 4 ? std::stoul(argv[4]) : 600;
 		const int width = argc > 5 ? std::stoi(argv[5]) : 1920, height = argc > 6 ? std::stoi(argv[6]) : 1080;
 		output = argc > 7 ? argv[7] : "";
+		capture_seconds = argc > 8 ? std::stod(argv[8]) : 45;
+		const std::string seat = argc > 9 ? argv[9] : "helm";
+		warmup = argc > 10 ? std::stoul(argv[10]) : 20;
 		app.can_host = true;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(directory + "/base.zip"));
-		app.session->start({"base.rescue-under-threat", {{"courier", ship}}, "courier", "helm"});
+		app.session->start({"base.rescue-under-threat", {{"courier", ship}}, "courier", seat});
 		const auto own = app.session->observation()->own.id;
 		const bool cruiser = ship.find("cruiser") != std::string::npos;
 		const std::vector<std::string> seats =

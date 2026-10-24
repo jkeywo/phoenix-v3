@@ -6,6 +6,7 @@ add_executable(phoenix_runtime_profile EXCLUDE_FROM_ALL tests/manual/runtime_pro
 set_property(TARGET phoenix_runtime_profile PROPERTY CXX_SCAN_FOR_MODULES ON)
 target_link_libraries(phoenix_runtime_profile PRIVATE phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)
+	set(PHOENIX_PROFILE_PACK "${CMAKE_CURRENT_BINARY_DIR}/base.zip" CACHE FILEPATH "Pack embedded by the manual performance host")
 	set_target_properties(phoenix_runtime_profile PROPERTIES SUFFIX ".html")
 	target_link_options(
 		phoenix_runtime_profile
@@ -16,7 +17,7 @@ if(EMSCRIPTEN)
 			"-sSTACK_SIZE=1048576"
 			"--preload-file"
 			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
-			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"SHELL:--preload-file \"${PHOENIX_PROFILE_PACK}@/assets/base.zip\""
 			"--shell-file"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/runtime_profile.html"
 	)
@@ -24,7 +25,7 @@ if(EMSCRIPTEN)
 		TARGET phoenix_runtime_profile
 		APPEND
 		PROPERTY
-			LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/runtime_profile.html"
+			LINK_DEPENDS "${PHOENIX_PROFILE_PACK}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/runtime_profile.html"
 	)
 else()
 	add_dependencies(phoenix_runtime_profile base_pack)

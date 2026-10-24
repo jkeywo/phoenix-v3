@@ -458,11 +458,23 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		build_authored_tree(resolved.root);
 		authored_dom_ = dom;
 	}
+	auto stage_started = GetTime();
+	auto stage = [&](const char *name)
+	{
+		const auto now = GetTime();
+		app_->frame_metrics["console/" + std::to_string(route_) + "/" + name] = now - stage_started;
+		stage_started = now;
+	};
 	style_authored_tree(resolved.root);
+	stage("authored-style");
 	context_->Update();
+	stage("authored-update-style");
 	place_authored_instruments(resolved.root);
+	stage("authored-instruments");
 	context_->Update();
+	stage("authored-update-instruments");
 	fit_authored_aspects(resolved.root);
+	stage("authored-aspects");
 	std::string markup;
 	for (const auto &tab : resolved.pages)
 	{
@@ -484,8 +496,11 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		document_->GetElementById("layout-tabs")->SetInnerRML(markup);
 		authored_tabs_markup_ = markup;
 	}
+	stage("authored-tabs");
 	context_->Update();
+	stage("authored-update-aspects");
 	measure_authored_geometry();
+	stage("authored-geometry");
 	if (auto *focus = context_->GetFocusElement(); focus && !focus->IsVisible(true))
 		for (const auto &placement : resolved.placements)
 		{

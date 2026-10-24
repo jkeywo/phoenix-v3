@@ -56,6 +56,28 @@ try
 	}
 	if (!$ConfigureOnly)
 	{
+		# Stage verified native packs before linking WASM preload bundles. Copying
+		# them only after the build left manual hosts embedding the previous pack.
+		if ($Target -eq 'web')
+		{
+			foreach ($file in @('base.zip', 'base.zip.menu.json', 'test-missions.zip', 'test-missions.zip.menu.json', 'base.zip.clients', 'test-missions.zip.clients'))
+			{
+				if (Test-Path "build/native/$file")
+				{
+					$isFile = Test-Path "build/native/$file" -PathType Leaf
+					if ($isFile -and (Test-Path "build/web/$file" -PathType Leaf) -and
+						(Get-FileHash "build/native/$file").Hash -eq (Get-FileHash "build/web/$file").Hash)
+					{
+						continue
+					}
+					Copy-Item -LiteralPath "build/native/$file" -Destination "build/web" -Recurse -Force
+					if ($isFile)
+					{
+						(Get-Item "build/web/$file").LastWriteTimeUtc = [DateTime]::UtcNow
+					}
+				}
+			}
+		}
 		$buildArguments = @('--build', $buildDirectory, '--config', 'Release', '--parallel', $Jobs)
 		if ($BuildTarget)
 		{
@@ -65,16 +87,6 @@ try
 		if ($LASTEXITCODE)
 		{
 			throw 'Build failed'
-		}
-		if ($Target -eq 'web')
-		{
-			foreach ($file in @('base.zip', 'base.zip.menu.json', 'test-missions.zip', 'test-missions.zip.menu.json', 'base.zip.clients', 'test-missions.zip.clients'))
-			{
-				if (Test-Path "build/native/$file")
-				{
-					Copy-Item -LiteralPath "build/native/$file" -Destination "build/web" -Recurse -Force
-				}
-			}
 		}
 	}
 }

@@ -28,7 +28,10 @@ inline std::string descriptor_action(const std::string &id)
 }
 inline std::vector<std::string> command_consumers(const Observation &view, const Json &descriptor)
 {
-	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	const auto controllers = view.gameplay.find("controllers");
+	if (controllers == view.gameplay.end())
+		return {};
+	for (const auto &controller : *controllers)
 		if (controller.value("id", "") == descriptor.value("controller", ""))
 		{
 			const auto &commands = controller.at("commands");
@@ -41,8 +44,15 @@ inline std::vector<std::string> command_consumers(const Observation &view, const
 inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 {
 	std::vector<EngineeringCard> result;
-	const bool assisted_stock = !view.gameplay.value("logistics", Json::object()).value("manual", true);
+	const auto logistics = view.gameplay.find("logistics");
+	const bool assisted_stock = logistics != view.gameplay.end() && !logistics->value("manual", true);
 	std::set<std::string> placed_controls;
+	// Resolve immutable Controller bindings once, rather than copying and searching
+	// the entire Controller board for every control on every resource card.
+	std::vector<std::pair<const Json *, std::vector<std::string>>> commands;
+	if (const auto controls = view.gameplay.find("controls"); controls != view.gameplay.end())
+		for (const auto &descriptor : *controls)
+			commands.emplace_back(&descriptor, command_consumers(view, descriptor));
 	for (const auto &system : view.systems)
 	{
 		if (system.kind != OperatingSystem::Generator && system.kind != OperatingSystem::Storage &&
@@ -81,9 +91,9 @@ inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 			card.summary += " | " + localise("Supply limited");
 		if (card.summary.empty())
 			card.summary = localise("Awaiting telemetry");
-		for (const auto &d : view.gameplay.value("controls", Json::array()))
+		for (const auto &[descriptor, consumers] : commands)
 		{
-			const auto consumers = command_consumers(view, d);
+			const auto &d = *descriptor;
 			if (std::find(consumers.begin(), consumers.end(), system.id) == consumers.end())
 				continue;
 			const auto action = d.value("action", "");
