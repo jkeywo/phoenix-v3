@@ -31,6 +31,8 @@ Rml::Element *pad_element(ConsoleId route, const std::string &id)
 void release_pad(ConsoleId route)
 {
 	auto &selection = pad_selections[route];
+	if (auto *element = pad_element(route, selection.selected))
+		element->SetClass("pad-selected", false);
 	if (console_surfaces.contains(route))
 	{
 		if (!selection.held.empty())
