@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <iterator>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>
