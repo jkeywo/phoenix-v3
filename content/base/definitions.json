@@ -37345,7 +37345,9 @@
 					"rescue.taken",
 					"rescue.player-captured",
 					"rescue.player-freed",
-					"rescue.prize-assigned"
+					"rescue.prize-assigned",
+					"rescue.player-claimed",
+					"rescue.visitors-recovered"
 				],
 				"event_bindings": [
 					{
@@ -37430,6 +37432,20 @@
 						"subject": {
 							"entity": 1
 						}
+					},
+					{
+						"kind": "ship.claimed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.player-claimed"
+					},
+					{
+						"kind": "away.recovered",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.visitors-recovered"
 					}
 				],
 				"fact_bindings": [
@@ -37847,8 +37863,16 @@
 							]
 						},
 						"fail_when": {
-							"fact": "wounded-lost",
-							"value": true
+							"any": [
+								{
+									"fact": "wounded-lost",
+									"value": true
+								},
+								{
+									"fact": "pirate-takeover",
+									"value": true
+								}
+							]
 						}
 					}
 				],
@@ -37956,7 +37980,7 @@
 							{
 								"result": "taken",
 								"title_key": "Morrow taken by pirates",
-								"explanation_key": "The pirates killed Morrow’s original crew and took the ship. Player personnel still aboard were captured.",
+								"explanation_key": "The pirates killed Morrow\u2019s original crew and took the ship. Player personnel still aboard were captured.",
 								"when": {
 									"all": [
 										{
@@ -38070,7 +38094,7 @@
 									{
 										"result": "killed",
 										"title_key": "Original crew killed",
-										"explanation_key": "The pirates killed Morrow’s original crew during their takeover. Retaking the ship does not undo those deaths.",
+										"explanation_key": "The pirates killed Morrow\u2019s original crew during their takeover. Retaking the ship does not undo those deaths.",
 										"when": {
 											"fact": "pirate-takeover",
 											"value": true
@@ -38121,10 +38145,6 @@
 								"text_key": "Morrow escalated its reactor emergency."
 							},
 							{
-								"event": "rescue.party-recovered",
-								"text_key": "Away team recovered."
-							},
-							{
 								"event": "rescue.casualty-escaped",
 								"text_key": "Morrow escaped the system."
 							},
@@ -38151,6 +38171,14 @@
 							{
 								"event": "rescue.prize-assigned",
 								"text_key": "Security was assigned to remain aboard as prize crew."
+							},
+							{
+								"event": "rescue.player-claimed",
+								"text_key": "Morrow was claimed by the player crew."
+							},
+							{
+								"event": "rescue.visitors-recovered",
+								"text_key": "Away team recovered."
 							}
 						]
 					}
