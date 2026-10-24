@@ -225,6 +225,7 @@ private:
 	std::map<KnowledgeId, bool> system_human_;
 	std::map<KnowledgeId, KnowledgePrivateMemory> memory_;
 	std::vector<KnowledgeRecord> records_;
+	std::map<std::pair<unsigned, KnowledgeId>, std::set<KnowledgeId>> historical_records_;
 	mutable std::map<KnowledgeId, std::map<KnowledgeKey, std::pair<std::string, std::shared_ptr<const Json>>>>
 	    decoded_fields_;
 	std::vector<KnowledgePublication> publications_;
@@ -240,6 +241,8 @@ private:
 	std::vector<KnowledgeId> resolve_recipients(KnowledgeId ship, const MessageDestination &destination,
 	                                            KnowledgeKey schema) const;
 	void trim();
+	void trim_record_history(KnowledgeId superseded);
+	void rebuild_record_history();
 	bool public_message_candidate(const CoordinationInput &input) const;
 };
 namespace knowledge_detail

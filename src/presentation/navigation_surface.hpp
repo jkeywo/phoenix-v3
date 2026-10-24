@@ -134,7 +134,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 						                                                     : objective.value("outcome", "")) +
 						                                        ". " + localise(objective.value("description", ""))) +
 						        "</p>";
-					target->SetInnerRML(text);
+					leaf_markup(target, text);
 				}
 	mission_outcome_.clear();
 	for (const auto &objective : objectives)

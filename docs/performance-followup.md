@@ -39,3 +39,13 @@ Action availability now reuses one observation per Controller and one physical/k
 These captures do not pass 60 FPS or sustained 20 Hz graphical simulation. The profiler currently clamps elapsed simulation time at 250 ms per frame, so `captured_ticks / capture_seconds` must also be inspected; slow frames can discard wall time. The final acceptance harness must report discarded time and backlog explicitly.
 
 The next browser build exposed missing local Emscripten compiler/linker binaries after the previous successful runs. Repair of the pinned 6.0.12 SDK is in progress. Subsequent evidence changes still require WebAssembly validation. The browser semantic DOM update now indexes existing controls once per pass and reads canvas placement once, preserving action order and focus handlers.
+
+## Incremental history and avoidable layout work
+
+Knowledge history eviction now maintains a set of superseded identities per board instead of rebuilding all record keys on every write. It keeps the same latest-per-key protection, historical limit and chronological order; restoration rebuilds this derived index. Synthetic tests with a deliberately small history limit cover interleaved keys, eviction, refusal of delayed evidence and exact save/resume continuation. Gameplay, sensors and Controller integration checks pass on native and WebAssembly.
+
+Console visibility filtering now rejects other routes before querying the document, then uses the existing element lookup cache. The native bridge capture falls from 332.36 ms to 292.74 ms mean frame; preparation falls from 130.98 ms to 90.12 ms. Additional preparation timers identify RmlUi updates as a remaining cost. Unchanged sensor titles, objective labels and instrument text now avoid reparsing identical leaf markup. Observer pointers prevent cached markup from being reused after an element is destroyed.
+
+The profiler now reports discarded simulation seconds, maximum backlog and remaining backlog. The browser runner supports headed captures and disabling CPU sampling, derives its timeout from the capture duration, retains completed measurements on capture timeout and closes its own browser in a finally block.
+
+The pinned SDK was repaired using CRC-checked entries from its 6.0.12 release archive, reusing the already installed identical Clang binary and local Node runtime. Full WebAssembly integration execution resumed successfully. Performance acceptance remains pending.

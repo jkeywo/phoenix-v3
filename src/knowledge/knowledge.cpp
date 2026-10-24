@@ -272,6 +272,7 @@ bool KnowledgeRuntime::write(KnowledgeScope scope, KnowledgeId owner, KnowledgeR
 	require(tick >= current_tick_, "cannot write evidence in the past");
 	require(input.provenance.observed_tick <= tick, "observation is from the future");
 	current_tick_ = tick;
+	KnowledgeId superseded = 0;
 	for (auto it = records_.rbegin(); it != records_.rend(); ++it)
 		if (it->scope == scope && it->owner == owner && it->value.schema == input.schema &&
 		    it->value.subject == input.subject && it->value.provenance.source == input.provenance.source &&
@@ -295,11 +296,12 @@ bool KnowledgeRuntime::write(KnowledgeScope scope, KnowledgeId owner, KnowledgeR
 			if (std::pair{input.provenance.observed_tick, input.provenance.revision} <=
 			    std::pair{old.observed_tick, old.revision})
 				return false;
+			superseded = it->id;
 			break;
 		}
 	require(next_id_ < std::numeric_limits<KnowledgeId>::max(), "record identity exhausted");
 	records_.push_back({next_id_++, owner, scope, std::move(input), tick, publication});
-	trim();
+	trim_record_history(superseded);
 	return true;
 }
 bool KnowledgeRuntime::write_console(KnowledgeId console, KnowledgeRecordInput input, KnowledgeTick tick)
@@ -740,8 +742,27 @@ bool KnowledgeRuntime::status_change(KnowledgeId producer, KnowledgeKey status, 
 	latch.reported_once = true;
 	return true;
 }
-void KnowledgeRuntime::trim()
+void KnowledgeRuntime::trim_record_history(KnowledgeId superseded)
 {
+	if (!superseded)
+		return;
+	const auto &latest = records_.back();
+	auto &history = historical_records_[{static_cast<unsigned>(latest.scope), latest.owner}];
+	history.insert(superseded);
+	if (history.size() <= schema_.history_limit)
+		return;
+	const auto evicted = *history.begin();
+	history.erase(history.begin());
+	decoded_fields_.erase(evicted);
+	std::erase_if(records_,
+	              [evicted](const auto &record)
+	              {
+		              return record.id == evicted;
+	              });
+}
+void KnowledgeRuntime::rebuild_record_history()
+{
+	historical_records_.clear();
 	// Retain a bounded history per board and Console; this is storage policy, never send bandwidth.
 	std::map<std::pair<unsigned, KnowledgeId>, std::size_t> counts;
 	using RecordKey = std::tuple<unsigned, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId>;
@@ -762,7 +783,12 @@ void KnowledgeRuntime::trim()
 			decoded_fields_.erase(record.id);
 			records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(i - 1));
 		}
+		else
+			historical_records_[{scope, record.owner}].insert(record.id);
 	}
+}
+void KnowledgeRuntime::trim()
+{
 	std::map<KnowledgeId, std::size_t> messages;
 	for (std::size_t i = deliveries_.size(); i > 0; --i)
 		if (++messages[deliveries_[i - 1].console] > schema_.history_limit)
@@ -1090,6 +1116,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		            restored.status_.emplace(key, latch).second,
 		        "invalid or duplicate saved status latch");
 	}
+	restored.rebuild_record_history();
 	restored.trim();
 	*this = std::move(restored);
 }

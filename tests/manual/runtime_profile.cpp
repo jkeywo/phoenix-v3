@@ -20,6 +20,7 @@ Application app;
 unsigned frames = 0, target = 600, warmup = 20;
 double previous = 0, accumulated = 0, capture_started = 0, capture_seconds = 45;
 double graphics_started = 0;
+double discarded_seconds = 0, maximum_backlog = 0;
 std::uint64_t capture_tick = 0;
 unsigned focused_frames = 0;
 std::map<std::string, std::vector<double>> samples;
@@ -31,7 +32,14 @@ void profile_frame()
 	const auto interval = previous ? started - previous : 0;
 	previous = started;
 	if (graphics_ready)
+	{
 		accumulated += std::min(interval, .25);
+		if (!warmup)
+		{
+			discarded_seconds += std::max(0.0, interval - .25);
+			maximum_backlog = std::max(maximum_backlog, accumulated);
+		}
+	}
 	app.session->poll();
 	unsigned ticks = 0;
 	while (accumulated >= .05)
@@ -87,6 +95,9 @@ void profile_frame()
 	                      {"viewscreen", app.viewscreen_region.has_value()},
 	                      {"capture_seconds", ended - capture_started},
 	                      {"captured_ticks", app.session->ticks() - capture_tick},
+	                      {"discarded_seconds", discarded_seconds},
+	                      {"maximum_backlog_seconds", maximum_backlog},
+	                      {"remaining_backlog_seconds", accumulated},
 	                      {"focused_frames", focused_frames},
 	                      {"warmup_seconds", capture_started - graphics_started},
 	                      {"units", "milliseconds"}};

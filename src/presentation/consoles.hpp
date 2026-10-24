@@ -110,6 +110,20 @@ class ConsoleSurface final : public Rml::EventListener
 		return true;
 	}
 
+	struct MarkupValue
+	{
+		Rml::ObserverPtr<Rml::Element> element;
+		std::string text;
+	};
+	std::map<Rml::Element *, MarkupValue> leaf_markup_;
+	void leaf_markup(Rml::Element *target, const std::string &text)
+	{
+		auto &previous = leaf_markup_[target];
+		if (previous.element.get() == target && previous.text == text)
+			return;
+		target->SetInnerRML(text);
+		previous = {target->GetObserverPtr(), text};
+	}
 	std::map<std::string, Rml::Element *> elements_;
 	std::map<std::pair<Rml::Element *, std::string>, std::string> properties_;
 	void property(Rml::Element *target, const std::string &name, const std::string &value)
@@ -1325,7 +1339,7 @@ button.on-screen-active .share-live {display:block;}
 			property(knob, "top", std::to_string(50 - axes.thrust * .04f) + "%");
 			const auto text = localise("Yaw") + " " + std::to_string(axes.yaw / 10) + "%; " + localise("Thrust") + " " +
 			                  std::to_string(axes.thrust / 10) + "%";
-			document_->GetElementById("manual-values")->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
+			leaf_markup(document_->GetElementById("manual-values"), Rml::StringUtilities::EncodeRml(text));
 			app.screen_readouts.emplace_back(id("manual-values"), text);
 		}
 	}
@@ -1845,6 +1859,11 @@ button.on-screen-active .share-live {display:block;}
 		                           physical_region.width / display_scale, physical_region.height / display_scale};
 		app_ = &app;
 		const auto preparation_started = GetTime();
+		std::erase_if(leaf_markup_,
+		              [](const auto &entry)
+		              {
+			              return !entry.second.element;
+		              });
 		const auto previous_announcement = model_.announcement();
 		model_.refresh(app.session, route_);
 		sync_console_browsing();
@@ -2227,6 +2246,7 @@ button.on-screen-active .share-live {display:block;}
 				focus->Focus();
 			fault_dialog_system_ = selected_system;
 		}
+		app.frame_metrics["console/" + std::to_string(route_) + "/chrome"] = GetTime() - layout_started;
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
@@ -2336,8 +2356,8 @@ button.on-screen-active .share-live {display:block;}
 				              return readout.first.starts_with("game.readout/system-");
 			              });
 		const auto &gameplay_readouts = readout_values_;
-		document_->GetElementById("sensor-title")
-		    ->SetInnerRML(Rml::StringUtilities::EncodeRml(localise("Contact scan")));
+		leaf_markup(document_->GetElementById("sensor-title"),
+		            Rml::StringUtilities::EncodeRml(localise("Contact scan")));
 		std::set<std::string> sensor_controls;
 		for (const auto *section : {"sensor-controls", "sensor-readouts", "sensor-title"})
 			property(document_->GetElementById(section), "width", std::to_string(region.width * .30f - 18) + "dp");
@@ -2417,6 +2437,7 @@ button.on-screen-active .share-live {display:block;}
 					property(element(id("gauge/" + card.id + "/" + metric)), "width", std::to_string(*value) + "%");
 		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
+		const auto markup_started = GetTime();
 		auto *gameplay = document_->GetElementById("gameplay");
 		auto *widgets = document_->GetElementById("widgets");
 		const auto messages = pregame ? std::vector<ConsoleMessageView>{} : model_.messages();
@@ -2751,8 +2772,11 @@ button.on-screen-active .share-live {display:block;}
 
 			app.screen_readouts.emplace_back(id(name), text);
 		}
+		app.frame_metrics["console/" + std::to_string(route_) + "/markup"] = GetTime() - markup_started;
+		const auto navigation_started = GetTime();
 		prepare_navigation(app, region, pregame);
 		prepare_manual(app, region, pregame);
+		app.frame_metrics["console/" + std::to_string(route_) + "/navigation"] = GetTime() - navigation_started;
 		if (!pregame)
 		{
 			const auto authored_started = GetTime();
@@ -2911,7 +2935,7 @@ button.on-screen-active .share-live {display:block;}
 				if (auto *readout = document_->GetElementById("value/" + key);
 				    readout && displayed_values_["value/" + key] != value)
 				{
-					readout->SetInnerRML(Rml::StringUtilities::EncodeRml(value));
+					leaf_markup(readout, Rml::StringUtilities::EncodeRml(value));
 					displayed_values_["value/" + key] = value;
 				}
 			}
@@ -2947,6 +2971,7 @@ button.on-screen-active .share-live {display:block;}
 			context_->Update();
 			app.frame_metrics["console/" + std::to_string(route_) + "/after-widgets"] = GetTime() - update_started;
 		}
+		const auto semantics_started = GetTime();
 		for (const auto &[name, label] : controls_)
 		{
 			if (name == id("manual"))
@@ -3040,8 +3065,10 @@ button.on-screen-active .share-live {display:block;}
 		{
 			auto hidden = [&](const std::string &name)
 			{
-				const auto *e = document_->GetElementById(name);
-				return name.starts_with(id("")) && (!e || !e->IsVisible(true));
+				if (!name.starts_with(id("")))
+					return false;
+				const auto *e = element(name);
+				return !e || !e->IsVisible(true);
 			};
 			std::erase_if(app.screen_controls,
 			              [&](const auto &entry)
@@ -3073,6 +3100,7 @@ button.on-screen-active .share-live {display:block;}
 			else
 				joystick_area_ = {};
 		}
+		app.frame_metrics["console/" + std::to_string(route_) + "/placements"] = GetTime() - semantics_started;
 		app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 	}
 	void draw_profile(const ConsoleRegion &region)

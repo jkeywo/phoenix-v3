@@ -818,6 +818,35 @@ void knowledge()
 		    runtime.send(message, 6);
 	    },
 	    "invalid cross-ship destinations must fail instead of widening into broadcasts");
+	auto bounded_definition = definition;
+	bounded_definition.history_limit = 2;
+	KnowledgeRuntime bounded(bounded_definition), restored_history(bounded_definition);
+	bounded.register_console({11, 1, 10, {role}, false});
+	for (std::uint64_t tick = 0; tick < 8; ++tick)
+	{
+		auto update = input;
+		update.subject = 1 + tick % 2;
+		update.provenance.observed_tick = tick;
+		update.provenance.revision = tick + 1;
+		bounded.write_console(11, update, tick);
+		if (tick)
+		{
+			restored_history.write_console(11, update, tick);
+			require(bounded.save() == restored_history.save(),
+			        "history eviction and subsequent writes preserve exact resumed knowledge");
+		}
+		restored_history.restore(bounded.save());
+	}
+	const auto retained = bounded.read_console(11);
+	require(retained.size() == 4 && retained.front().value.provenance.observed_tick == 4 &&
+	            retained.back().value.provenance.observed_tick == 7,
+	        "bounded history retains two historical records plus every key's latest observation in order");
+	auto delayed = input;
+	delayed.subject = 1;
+	delayed.provenance.observed_tick = 0;
+	delayed.provenance.revision = 1;
+	require(!bounded.write_console(11, delayed, 7),
+	        "eviction cannot make delayed evidence supersede a retained current record");
 	require(runtime.stale(runtime.read_ship(12).back(), 5),
 	        "retained shared records must become stale using their observation time");
 }
