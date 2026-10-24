@@ -532,7 +532,7 @@ test("launch preflight resolves production previews and always releases its work
 		postMessage(value) {
 			assert.equal(value, bytes);
 			queueMicrotask(() => {
-				this.onmessage({ data: { phase: "Loading the mod checkerâ€¦", received: 12, total: 24 } });
+				this.onmessage({ data: { phase: "Loading the mod checker…", received: 12, total: 24 } });
 				assert.equal(terminated, 0);
 				this.onmessage({ data: { ok: true, preview: { id: "verified" } } });
 			});
@@ -549,7 +549,7 @@ test("launch preflight resolves production previews and always releases its work
 		),
 		{ id: "verified" },
 	);
-	assert.deepEqual(progress, [{ phase: "Loading the mod checkerâ€¦", received: 12, total: 24 }]);
+	assert.deepEqual(progress, [{ phase: "Loading the mod checker…", received: 12, total: 24 }]);
 	assert.equal(terminated, 1);
 	assert.deepEqual([...bytes], [1, 2, 3]);
 	const rejectedWorker = {
@@ -644,7 +644,7 @@ test("mobile menu is drawn before asynchronous startup and remains visible on fa
 	assert.ok(buttons().every((button) => button.disabled));
 	assert.equal(get("profile-crt").disabled, true);
 	assert.equal(get("startup-loading").hidden, false);
-	assert.equal(get("startup-phase").textContent, "Reading saved settings and mod packsâ€¦");
+	assert.equal(get("startup-phase").textContent, "Reading saved settings and mod packs…");
 	opening.error = Error("Storage unavailable");
 	opening.onerror();
 	await new Promise((resolve) => setImmediate(resolve));

@@ -851,7 +851,7 @@ async function boot() {
 		$("startup-time").textContent = `${t("Elapsed")}: ${elapsed}s`;
 		if (received !== undefined) {
 			const mb = (value) => (value / (1024 * 1024)).toFixed(1);
-			$("startup-time").textContent += ` Â· ${mb(received)} MB` + (total > 0 ? ` / ${mb(total)} MB` : "");
+			$("startup-time").textContent += ` · ${mb(received)} MB` + (total > 0 ? ` / ${mb(total)} MB` : "");
 		}
 		$("startup-wait").textContent =
 			idle >= 20
@@ -1326,7 +1326,7 @@ async function boot() {
 					if (!scenarios().length)
 						element(
 							"p",
-							loading ? "Loading mods and levelsâ€¦" : "Enable mod packs to choose a scenario.",
+							loading ? "Loading mods and levels…" : "Enable mod packs to choose a scenario.",
 							maps,
 						);
 					for (const scene of scenarios())
@@ -1556,7 +1556,7 @@ async function boot() {
 	function packs() {
 		const popup = dialog("Mod Packs");
 		if (loading) {
-			element("p", "Reading installed mod packsâ€¦", popup);
+			element("p", "Reading installed mod packs…", popup);
 			return;
 		}
 		element(
@@ -1593,8 +1593,8 @@ async function boot() {
 				packs();
 			});
 			for (const [symbol, title, shift] of [
-				["â†‘", "Move Up", -1],
-				["â†“", "Move Down", 1],
+				["↑", "Move Up", -1],
+				["↓", "Move Down", 1],
 			]) {
 				const move = button(row, symbol, async () => {
 					library.packs = movePack(library.packs, pack.hash, shift, previews);
@@ -1605,7 +1605,7 @@ async function boot() {
 				move.setAttribute("aria-label", t(title) + ": " + name);
 				move.disabled = !!pack.locked || index + shift <= 0 || index + shift >= library.packs.length;
 			}
-			const remove = button(row, "ðŸ—‘", async () => {
+			const remove = button(row, "🗑", async () => {
 				library.packs = removePack(library.packs, pack.hash, previews);
 				await remember();
 				void prepareSelection();
@@ -1733,7 +1733,7 @@ async function boot() {
 		busy = true;
 		render();
 		$("startup-title").textContent = t(o.action === "workshop" ? "Opening Workshop" : "Loading your game");
-		loadingStage("Preparing selected mod packsâ€¦");
+		loadingStage("Preparing selected mod packs…");
 		$("settings").disabled = $("packs").disabled = true;
 		try {
 			if (o.type !== "client") {
@@ -1746,13 +1746,13 @@ async function boot() {
 					}
 				}
 			}
-			loadingStage("Saving your setupâ€¦");
+			loadingStage("Saving your setup…");
 			await remember();
 			let tabStorage;
 			try {
 				tabStorage = window.sessionStorage;
 			} catch {}
-			loadingStage("Preparing your player profileâ€¦");
+			loadingStage("Preparing your player profile…");
 			profileLease = await acquireSessionProfile(o.profile, {
 				locks: navigator.locks,
 				storage: tabStorage,
@@ -1777,7 +1777,7 @@ async function boot() {
 			window.dispatchEvent(new Event("resize"));
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
-			loadingStage("Downloading game filesâ€¦");
+			loadingStage("Downloading game files…");
 			window.Module = {
 				canvas: $("canvas"),
 				phoenixConsoleOnly: o.type === "client",
@@ -1805,7 +1805,7 @@ async function boot() {
 
 				preRun: [
 					() => {
-						loadingStage("Preparing game content and saved gamesâ€¦");
+						loadingStage("Preparing game content and saved games…");
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
@@ -1825,7 +1825,7 @@ async function boot() {
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
 				],
-				onRuntimeInitialized: () => loadingStage("Starting the game and loading levelsâ€¦"),
+				onRuntimeInitialized: () => loadingStage("Starting the game and loading levels…"),
 				phoenixStartupStage: (message) => {
 					if (!failed && loadingActive) loadingStage(message);
 				},
@@ -1841,12 +1841,12 @@ async function boot() {
 					if (!failed && loadingActive) {
 						const match = /\((\d+(?:\.\d+)?)\/(\d+)\)/.exec(message);
 						if (match && Number(match[2]) > 0)
-							loadingStage("Downloading game filesâ€¦", Number(match[1]), Number(match[2]));
+							loadingStage("Downloading game files…", Number(match[1]), Number(match[2]));
 						else
 							loadingStage(
 								/download/i.test(message)
-									? "Downloading game filesâ€¦"
-									: "Starting the game and loading levelsâ€¦",
+									? "Downloading game files…"
+									: "Starting the game and loading levels…",
 							);
 					}
 				},
@@ -2134,7 +2134,7 @@ async function boot() {
 	try {
 		render();
 		$("startup-title").textContent = t("Preparing main menu");
-		loadingStage("Reading saved settings and mod packsâ€¦");
+		loadingStage("Reading saved settings and mod packs…");
 		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu", 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
@@ -2161,7 +2161,7 @@ async function boot() {
 			report(error);
 		}
 		if (routes) $("menu").hidden = true;
-		loadingStage("Loading menu artwork and languageâ€¦");
+		loadingStage("Loading menu artwork and language…");
 		const data = await Promise.all([
 			fetch("assets/locales.json").then((r) => r.json()),
 			...["button-generic-9slice", "helm-background-9slice"].map((name) =>
@@ -2207,7 +2207,7 @@ async function boot() {
 			style = launchBase.base?.interface_style || "current";
 		if (!["sprites", "models"].includes(mode) || style !== "current") throw Error("Unsupported base presentation.");
 		const localProfile = routes?.profile || new URLSearchParams(location.search).get("profile") || "default";
-		loadingStage("Restoring your mod selection and profileâ€¦");
+		loadingStage("Restoring your mod selection and profile…");
 		if (!/^[\w.-]{1,64}$/.test(localProfile))
 			throw Error("Use letters, numbers, dots, underscores or hyphens in the local profile.");
 		scopeKey = localProfile + "/" + launchBase.id;
@@ -2236,7 +2236,7 @@ async function boot() {
 			...(launchBaseBytes ? [[`packs/${hash}.zip`, launchBaseBytes]] : []),
 			[`preview/${hash}.json`, encoder.encode(JSON.stringify(launchBase))],
 		]);
-		loadingStage("Reading installed mods and savesâ€¦");
+		loadingStage("Reading installed mods and saves…");
 		const stored = db.transaction("files").objectStore("files");
 		const needed = new Set([...library.packs.map((pack) => `preview/${pack.hash}.json`)]);
 		await Promise.all(
@@ -2370,7 +2370,7 @@ async function boot() {
 		finishLoading();
 		menuIntro = openingCrawl(data[3].intro);
 		void prepareSelection();
-		if (!$("status").textContent || $("status").textContent === "Loading menuâ€¦") status("");
+		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
 		finishLoading();
 		document.documentElement.classList.remove("direct-launch");
