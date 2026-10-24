@@ -559,26 +559,25 @@ std::map<EntityId, Json> sensor_evidence(const ConsoleAddress &address) const
 			}
 	if (knowledge.contains_ship(address.ship))
 	{
-		const auto projection = knowledge.project(address);
 		const auto &kd = knowledge.definition();
-		for (const auto *records : {&projection.records, &projection.shared})
-			for (const auto &record : *records)
-			{
-				const auto &name = kd.schemas.at(record.value.schema - 1).name;
-				if (!name.starts_with("phoenix.sensor."))
-					continue;
-				const auto field = kd.field(record.value.schema, "payload");
-				if (!record.value.fields.contains(field))
-					continue;
-				const auto cap = name.substr(15);
-				const auto payload = Json::parse(std::get<std::string>(record.value.fields.at(field)));
-				if (cap == "findings")
-					for (const auto &entry : payload)
-						finding(record.value.subject, "finding:" + entry.at("id").get<std::string>(),
-						        Json{{"id", entry.at("id")}, {"text", entry.at("text")}}, entry.at("observed"), false);
-				else
-					finding(record.value.subject, cap, payload, record.value.provenance.observed_tick, false);
-			}
+		for (const auto *view : knowledge.sensor_records(address))
+		{
+			const auto &record = *view;
+			const auto &name = kd.schemas.at(record.value.schema - 1).name;
+			if (!name.starts_with("phoenix.sensor."))
+				continue;
+			const auto field = kd.field(record.value.schema, "payload");
+			if (!record.value.fields.contains(field))
+				continue;
+			const auto cap = name.substr(15);
+			const auto payload = knowledge.decoded_field(record, field);
+			if (cap == "findings")
+				for (const auto &entry : *payload)
+					finding(record.value.subject, "finding:" + entry.at("id").get<std::string>(),
+					        Json{{"id", entry.at("id")}, {"text", entry.at("text")}}, entry.at("observed"), false);
+			else
+				finding(record.value.subject, cap, *payload, record.value.provenance.observed_tick, false);
+		}
 	}
 	return contacts;
 }

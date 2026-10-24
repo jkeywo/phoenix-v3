@@ -84,7 +84,9 @@ const Json &combat_observation(const Observation &observation) const
 	return found == observation.gameplay.end() ? empty : *found;
 }
 // World::Impl methods. Physical mutation is confined to command consumption below.
-std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller)
+std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller,
+                                                       const Observation *projected = nullptr,
+                                                       const GameplayKnowledgeProjection *projected_board = nullptr)
 {
 	using state_tree::Type;
 	using state_tree::Value;
@@ -122,9 +124,9 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	if (bridge.stances.contains(address.console))
 		values[brain.own[ControllerOwnField::Stance]] = Value::string(
 		    bridge_spec.console_bridge.at(address.console).stances.at(bridge.stances.at(address.console)).id);
-	const auto fallback =
-	    observation_snapshots.contains(address) ? std::optional<Observation>{} : capture_console_observation(address);
-	const auto &observation = fallback ? *fallback : observation_snapshots.at(address);
+	const auto fallback = projected || observation_snapshots.contains(address) ? std::optional<Observation>{}
+	                                                                           : capture_decision_observation(address);
+	const auto &observation = projected ? *projected : fallback ? *fallback : observation_snapshots.at(address);
 	if (brain.logistics_revision)
 		values.at(*brain.logistics_revision) = Value::integer(observation.gameplay.at("logistics").at("revision"));
 	if (brain.docking_revision)
@@ -209,9 +211,12 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		                                            ? Value::boolean(amount != 0)
 		                                            : Value::integer(amount);
 	}
-	const auto fallback_board =
-	    brain_snapshots.contains(address) ? std::optional<GameplayKnowledgeProjection>{} : knowledge.project(address);
-	const auto &board = fallback_board ? *fallback_board : brain_snapshots.at(address);
+	const auto fallback_board = projected_board || brain_snapshots.contains(address)
+	                                ? std::optional<GameplayKnowledgeProjection>{}
+	                                : knowledge.project(address);
+	const auto &board = projected_board  ? *projected_board
+	                    : fallback_board ? *fallback_board
+	                                     : brain_snapshots.at(address);
 	std::vector<const KnowledgeRecord *> evidence(brain.reads.size(), nullptr);
 	for (std::size_t i = 0; i < brain.reads.size(); ++i)
 	{
@@ -1146,10 +1151,13 @@ void consume_controller_commands(flecs::entity entity)
 					}
 			}
 }
-Json project_controllers(const ConsoleAddress &address)
+Json project_controllers(const ConsoleAddress &address, const Observation &projected)
 {
 	const auto &controls = entities.at(address.ship).get<EntityControls>();
 	Json result = Json::array();
+	// Availability is a read-only pass: all Controllers on this Console read
+	// the same permitted physical and knowledge projections.
+	const auto board = knowledge.project(address);
 	for (const auto &controller : controls.controllers)
 	{
 		if (controller.definition.console != address.console)
@@ -1196,6 +1204,9 @@ Json project_controllers(const ConsoleAddress &address)
 		result.back()["action"] = {
 		    {"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
 		auto &available = result.back()["actions"] = Json::array();
+		const auto action_observations = controller.brain && !controller.human && !controller.actions.empty()
+		                                     ? controller_observations(address.ship, controller, &projected, &board)
+		                                     : std::vector<state_tree::Value>{};
 		if (controller.brain)
 			for (const auto &action : controller.actions)
 			{
@@ -1211,9 +1222,8 @@ Json project_controllers(const ConsoleAddress &address)
 				bool usable = false;
 				if (!controller.human)
 				{
-					const auto observed = controller_observations(address.ship, controller);
 					state_tree::Instance probe;
-					const auto check = state_tree::step(action.availability, probe, observed);
+					const auto check = state_tree::step(action.availability, probe, action_observations);
 					usable = !check.debug.active.empty() && check.debug.active.back() == "available";
 				}
 				available.push_back({{"id", action.id},

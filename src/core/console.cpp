@@ -22,6 +22,12 @@ namespace phoenix
 {
 namespace
 {
+const Json &controller_rows(const Json &gameplay)
+{
+	static const Json empty = Json::array();
+	const auto rows = gameplay.find("controllers");
+	return rows == gameplay.end() ? empty : *rows;
+}
 std::string bearing_readout(std::int64_t bearing)
 {
 	std::ostringstream text;
@@ -1266,7 +1272,7 @@ bool ConsoleModel::selection_action(const std::string &kind, const std::string &
 	                      : observation_->gameplay.value("processors", Json::array());
 	for (const auto &row : rows)
 		if (row.at("id") == system)
-			for (const auto &controller : observation_->gameplay.value("controllers", Json::array()))
+			for (const auto &controller : controller_rows(observation_->gameplay))
 				if (controller.value("human", false))
 				{
 					OperatingCommand command{
@@ -1289,7 +1295,7 @@ bool ConsoleModel::logistics_action(const std::string &action, const std::string
 	const auto board = logistics();
 	if (!board.contains("revision"))
 		return false;
-	for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+	for (const auto &ctrl : controller_rows(observation_->gameplay))
 		if (ctrl.value("human", false))
 		{
 			OperatingCommand c{observation_->own.id, "logistics." + action, board.at("revision").get<std::int64_t>(),
@@ -1310,7 +1316,7 @@ bool ConsoleModel::docking_action(const std::string &action, const std::string &
 	const auto board = docking();
 	if (!board.contains("revision"))
 		return false;
-	for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+	for (const auto &ctrl : controller_rows(observation_->gameplay))
 		if (ctrl.value("human", false))
 		{
 			OperatingCommand c{observation_->own.id, "dock." + action, board.at("revision").get<std::int64_t>(),
@@ -1334,7 +1340,7 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 		return false;
 	for (const auto &c : craft())
 		if (c.at("id") == craft_id && c.value("manual", true))
-			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+			for (const auto &ctrl : controller_rows(observation_->gameplay))
 				if (ctrl.value("human", false) || ctrl.value("craft_authority", false))
 				{
 					OperatingCommand command{observation_->own.id, "craft." + action,
@@ -1355,7 +1361,7 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 		return false;
 	for (const auto &m : away_missions())
 		if (m.at("id") == mission)
-			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+			for (const auto &ctrl : controller_rows(observation_->gameplay))
 				if (ctrl.value("human", false) ||
 				    ((action == "transport" || action == "escort") && ctrl.value("transport_authority", false)) ||
 				    ((action == "assign" || action == "withdraw" || action == "contribute") &&
@@ -1379,7 +1385,7 @@ bool ConsoleModel::team_action(const std::string &action, const std::string &tea
 		return false;
 	for (const auto &t : observation_->gameplay.value("teams", Json::array()))
 		if (t.at("id") == team && !t.at("reserved").get<bool>())
-			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+			for (const auto &ctrl : controller_rows(observation_->gameplay))
 				if (ctrl.value("human", false))
 				{
 					OperatingCommand command{observation_->own.id, "team." + action, t.at("revision"), team};
@@ -1457,7 +1463,7 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 {
 	if (!observation_)
 		return false;
-	for (const auto &section : observation_->gameplay.value("controllers", Json::array()))
+	for (const auto &section : controller_rows(observation_->gameplay))
 	{
 		if (!section.value("human", false) && !section.value("conversation_authority", false))
 			continue;
@@ -1692,7 +1698,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		    descriptor.value("action", std::string{}) == "repair_system")
 		{
 			bool authored = false;
-			for (const auto &controller : observation_->gameplay.value("controllers", Json::array()))
+			for (const auto &controller : controller_rows(observation_->gameplay))
 				if (controller.at("id") == descriptor.value("controller", std::string{}))
 					for (const auto &[key, channel] : controller.at("commands").items())
 						if (key == descriptor.value("channel", std::string{}))

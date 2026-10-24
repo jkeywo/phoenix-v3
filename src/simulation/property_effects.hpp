@@ -36,7 +36,7 @@ std::int64_t property_delta(flecs::entity ship, const std::string &equipment, co
 		for (const auto &c : effects->contributions)
 			include(c);
 	// Maintained applications are derived from current authoritative eligibility, never restored twice.
-	for (const auto &c : collect_personnel_properties(ship))
+	for (const auto &c : collect_personnel_properties(ship, equipment, contribution))
 		include(c);
 	return delta;
 }

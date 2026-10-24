@@ -267,7 +267,7 @@ std::vector<state_tree::Value> action_observations(const ConsoleControllerRuntim
 		const ConsoleAddress address{static_cast<EntityId>(source[brain.own[ControllerOwnField::Entity]].number),
 		                             controller.definition.console};
 		const auto fallback = observation_snapshots.contains(address) ? std::optional<Observation>{}
-		                                                              : capture_console_observation(address);
+		                                                              : capture_decision_observation(address);
 		const auto &observed = fallback ? *fallback : observation_snapshots.at(address);
 		visible = std::any_of(observed.contacts.begin(), observed.contacts.end(),
 		                      [&](const auto &body)

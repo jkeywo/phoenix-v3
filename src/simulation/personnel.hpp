@@ -130,7 +130,8 @@ void advance_personnel(EntityId id)
 // Maintained applications are derived from current facts, never saved or accumulated.
 // Deployed accompaniment binds only to its actual team; standalone specialists bind to
 // the deployed repair teams or their own logical work participant.
-std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship) const
+std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship, const std::string &equipment,
+                                                               const std::string &contribution) const
 {
 	std::vector<PropertyContribution> out;
 	const auto *state = ship.try_get<PersonnelState>();
@@ -142,6 +143,10 @@ std::vector<PropertyContribution> collect_personnel_properties(flecs::entity shi
 	auto add = [&](std::size_t i, const std::string &target, const std::string &role,
 	               const std::string &property = std::string{})
 	{
+		// A property query only needs contributions to its actual target(s).
+		// Eligibility and per-target deduplication retain their original ordering.
+		if (target != equipment && (contribution.empty() || target != contribution))
+			return;
 		for (const auto &trait : d.officers[i].traits)
 			for (const auto &effect : d.traits.at(trait).effects)
 				for (const auto &c : effect.contributions)

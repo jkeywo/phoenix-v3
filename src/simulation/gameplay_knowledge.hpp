@@ -82,6 +82,8 @@ public:
 	                   bool report_initial = true);
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	GameplayKnowledgeProjection project(const ConsoleAddress &address, bool public_only = false) const;
+	std::vector<const KnowledgeRecord *> sensor_records(const ConsoleAddress &address) const;
+	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;
 	Json project_json(const ConsoleAddress &address, bool public_only = false) const;
 	Json public_board(EntityId entity) const;
 	Json save() const;

@@ -35,14 +35,20 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_value(const char *id, cons
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
-    for (const child of root.querySelectorAll('[data-action]')) child.dataset.stale = 'true';
+    root.phoenixControls = new Map();
+    for (const child of root.querySelectorAll('[data-action]')) {
+        root.phoenixControls.set(child.dataset.action, child);
+        child.dataset.stale = 'true';
+    }
+    const canvas = Module.canvas;
+    root.phoenixPlacement = {x:canvas.offsetLeft,y:canvas.offsetTop,sx:canvas.clientWidth/canvas.width,sy:canvas.clientHeight/canvas.height};
 });
 EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value, bool percentage, bool read_only, bool tab, bool selected, bool toggle, bool pressed), {
     const action = UTF8ToString(id);
     const root = document.getElementById('semantics');
-    let button = Array.from(root.querySelectorAll('[data-action]')).find(child => child.dataset.action === action);
+    let button = root.phoenixControls.get(action);
     if (!button) {
-        button = document.createElement(editable ? 'input' : read_only ? 'div' : 'button'); button.dataset.action = action;
+        button = document.createElement(editable ? 'input' : read_only ? 'div' : 'button'); button.dataset.action = action; root.phoenixControls.set(action, button);
         if(editable) {
             button.type=percentage ? 'range' : 'text'; button.maxLength=4096;
             if(percentage) { button.min='0'; button.max='100'; button.step='1'; }
@@ -68,10 +74,10 @@ EM_JS(void, append_semantic_button, (const char* id, const char* label, float x,
     if(toggle) button.setAttribute('aria-pressed',String(!!pressed)); else button.removeAttribute('aria-pressed');
     delete button.dataset.stale;
     button.disabled = !enabled;
-    const canvas = Module.canvas, sx=canvas.clientWidth/canvas.width, sy=canvas.clientHeight/canvas.height;
+    const {x:cx,y:cy,sx,sy} = root.phoenixPlacement;
     if(width>0 && height>0) {
         button.className='placed';
-        Object.assign(button.style,{left:`${canvas.offsetLeft+x*sx}px`,top:`${canvas.offsetTop+y*sy}px`,width:`${width*sx}px`,height:`${height*sy}px`});
+        Object.assign(button.style,{left:`${cx+x*sx}px`,top:`${cy+y*sy}px`,width:`${width*sx}px`,height:`${height*sy}px`});
     } else { button.className='fallback'; button.removeAttribute('style'); }
     // DOM focus drives RmlUi through the queue. Re-focusing from the preceding
     // frame here would undo the user's Tab key before that queue is drained.

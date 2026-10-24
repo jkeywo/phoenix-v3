@@ -8,6 +8,7 @@ module;
 #include <algorithm>
 #include <limits>
 #include <map>
+#include <memory>
 #include <set>
 #include <stdexcept>
 #include <tuple>
@@ -450,6 +451,25 @@ std::vector<KnowledgeRecord> KnowledgeRuntime::read_ship(KnowledgeId console) co
 			result.push_back(record);
 	return result;
 }
+std::vector<const KnowledgeRecord *> KnowledgeRuntime::record_views(KnowledgeId console, bool shared) const
+{
+	require(consoles_.contains(console), "unknown Console");
+	std::vector<const KnowledgeRecord *> result;
+	const auto owner = shared ? consoles_.at(console).ship : console;
+	const auto scope = shared ? KnowledgeScope::Ship : KnowledgeScope::Console;
+	for (const auto &record : records_)
+		if (record.scope == scope && record.owner == owner && (shared || readable(console, record.value.schema)))
+			result.push_back(&record);
+	return result;
+}
+std::shared_ptr<const Json> KnowledgeRuntime::decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const
+{
+	const auto &text = std::get<std::string>(record.value.fields.at(field));
+	auto &entry = decoded_fields_[record.id][field];
+	if (!entry.second || entry.first != text)
+		entry = {text, std::make_shared<const Json>(Json::parse(text))};
+	return entry.second;
+}
 bool KnowledgeRuntime::stale(const KnowledgeRecord &record, KnowledgeTick now) const
 {
 	const auto duration = schema(record.value.schema).stale_after;
@@ -738,7 +758,10 @@ void KnowledgeRuntime::trim()
 		        .second)
 			continue;
 		if (++counts[{scope, record.owner}] > schema_.history_limit)
+		{
+			decoded_fields_.erase(record.id);
 			records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(i - 1));
+		}
 	}
 	std::map<KnowledgeId, std::size_t> messages;
 	for (std::size_t i = deliveries_.size(); i > 0; --i)

@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -194,6 +195,9 @@ public:
 	void stop_publication(KnowledgeId publication);
 	std::vector<KnowledgeRecord> read_console(KnowledgeId console) const;
 	std::vector<KnowledgeRecord> read_ship(KnowledgeId console) const;
+	// Borrowed records remain valid until the next mutation of this runtime.
+	std::vector<const KnowledgeRecord *> record_views(KnowledgeId console, bool shared = false) const;
+	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	KnowledgePrivateMemory &private_memory(KnowledgeId ai);
 	// execute=false validates availability without mutation and returns zero.
@@ -221,6 +225,8 @@ private:
 	std::map<KnowledgeId, bool> system_human_;
 	std::map<KnowledgeId, KnowledgePrivateMemory> memory_;
 	std::vector<KnowledgeRecord> records_;
+	mutable std::map<KnowledgeId, std::map<KnowledgeKey, std::pair<std::string, std::shared_ptr<const Json>>>>
+	    decoded_fields_;
 	std::vector<KnowledgePublication> publications_;
 	std::vector<CoordinationMessage> pending_;
 	std::vector<CoordinationDelivery> deliveries_;

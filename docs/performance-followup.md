@@ -22,3 +22,20 @@ The Engineering change borrows the immutable Controller JSON and resolves each c
 The baseline browser attempt exposed a build-staging defect: matching standalone ZIPs did not mean that WASM's `.data` embedded the same archive. The corrected baseline was relinked from unchanged compiled objects and its embedded pack independently hashed against native. The web build wrapper now stages changed verified archives before linking and updates their timestamps; unchanged archives are left alone. A manual profile pack override supports frozen-content comparisons without changing production content.
 
 Captures run sequentially after compilation, with 20 warm-up frames and bounded samples. The first native multi-target build wrapper reported failure during reconfiguration; a focused profiling-target retry passed. Native and browser graphical profiling completed successfully. Further simulation, cache, interaction and full-gate validation follows with the remaining changes. Machine timings stay out of CI assertions.
+
+## Shared snapshots and derived evidence
+
+Immutable permitted observations are now shared among presentation consumers, with invalidation at simulation ticks, commands, claims, releases and provider changes. Synthetic tests cover sharing, same-tick command invalidation, retained-reader immutability and route reuse without information leakage. Native and WebAssembly snapshot checks passed before the subsequent evidence changes.
+
+Action availability now reuses one observation per Controller and one physical/knowledge projection per Console. Sensor evidence borrows permitted knowledge records and caches decoding by record identity and exact payload; personnel property queries collect only the requested targets. Readout Controller lookups borrow arrays. Native knowledge, sensors, personnel, Controller and session checks pass. A 600-tick frozen-pack continuation is byte-for-byte equivalent as parsed JSON to the fresh baseline.
+
+| Intermediate capture | Result |
+| --- | --- |
+| Shared-snapshot native bridge | 676.30 ms mean frame; Console rendering stage 23.08 ms |
+| Evidence/target filtering native bridge | 402.79 ms mean frame; 34.33 ms mean tick |
+| Shared availability projection native bridge | 332.36 ms mean frame; 33.43 ms mean tick; Engineering projection 9.26 ms |
+| Current autonomous Cruiser, 600 ticks | 34.96 ms mean; p95 53.18 ms; p99 109.74 ms |
+
+These captures do not pass 60 FPS or sustained 20 Hz graphical simulation. The profiler currently clamps elapsed simulation time at 250 ms per frame, so `captured_ticks / capture_seconds` must also be inspected; slow frames can discard wall time. The final acceptance harness must report discarded time and backlog explicitly.
+
+The next browser build exposed missing local Emscripten compiler/linker binaries after the previous successful runs. Repair of the pinned 6.0.12 SDK is in progress. Subsequent evidence changes still require WebAssembly validation. The browser semantic DOM update now indexes existing controls once per pass and reads canvas placement once, preserving action order and focus handlers.

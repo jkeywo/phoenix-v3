@@ -13,6 +13,12 @@ namespace phoenix
 {
 namespace
 {
+const Json &controller_rows(const Json &gameplay)
+{
+	static const Json empty = Json::array();
+	const auto rows = gameplay.find("controllers");
+	return rows == gameplay.end() ? empty : *rows;
+}
 const Json *section(const Observation &view, const std::string &id)
 {
 	const Json *found = nullptr;
@@ -388,7 +394,7 @@ std::string manual_binding(const Observation &view, const Json &layout, const st
 	if (!anchor)
 		return {};
 	std::string result;
-	for (const auto &candidate : view.gameplay.value("controllers", Json::array()))
+	for (const auto &candidate : controller_rows(view.gameplay))
 	{
 		if (!candidate.value("human", false))
 			continue;

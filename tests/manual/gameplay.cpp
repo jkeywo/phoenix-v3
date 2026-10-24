@@ -724,6 +724,22 @@ void knowledge()
 	input.provenance = {101, 0, 1, 4, EvidenceKind::Fact};
 	input.fields = {{amount, std::int64_t{7}}, {note, std::string{"private machinery detail"}}};
 	require(runtime.write_console(11, input, 0), "permitted machinery producer must write its Console evidence");
+	const auto before_decode = runtime.save();
+	const auto views = runtime.record_views(11);
+	require(views.size() == runtime.read_console(11).size() && runtime.record_views(13).empty() &&
+	            runtime.record_views(21, true).empty(),
+	        "borrowed knowledge records preserve Console and entity visibility");
+	// Use an isolated synthetic text payload to exercise the derived parser cache.
+	auto encoded = *views.front();
+	encoded.value.fields[note] = std::string{"{\"value\":1}"};
+	const auto first_decode = runtime.decoded_field(encoded, note);
+	require(first_decode == runtime.decoded_field(encoded, note) && first_decode->at("value") == 1 &&
+	            runtime.save() == before_decode,
+	        "repeated decoding shares immutable derived data without changing saved knowledge");
+	encoded.value.fields[note] = std::string{"{\"value\":2}"};
+	const auto changed_decode = runtime.decoded_field(encoded, note);
+	require(changed_decode != first_decode && changed_decode->at("value") == 2 && first_decode->at("value") == 1,
+	        "changed payloads invalidate decoded data while retained readers remain immutable");
 	require(runtime.read_ship(12).empty(), "Console observations must not become automatically shipwide");
 	rejects(
 	    [&]

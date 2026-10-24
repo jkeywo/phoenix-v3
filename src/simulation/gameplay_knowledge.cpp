@@ -1,4 +1,5 @@
 module;
+#include <memory>
 #include <algorithm>
 #include <cstdint>
 #include <limits>
@@ -730,6 +731,20 @@ GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &add
 	return {id, public_only ? std::vector<KnowledgeRecord>{} : runtime_.read_console(id), std::move(shared),
 	        runtime_.message_history(id),
 	        !public_only && notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
+}
+std::vector<const KnowledgeRecord *> GameplayKnowledge::sensor_records(const ConsoleAddress &address) const
+{
+	const auto id = console_id(address);
+	std::vector<const KnowledgeRecord *> result;
+	for (const bool shared : {false, true})
+		for (const auto *record : runtime_.record_views(id, shared))
+			if (compiled_.schemas.at(record->value.schema - 1).name.starts_with("phoenix.sensor."))
+				result.push_back(record);
+	return result;
+}
+std::shared_ptr<const Json> GameplayKnowledge::decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const
+{
+	return runtime_.decoded_field(record, field);
 }
 Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_only) const
 {

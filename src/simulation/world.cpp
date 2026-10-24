@@ -3310,7 +3310,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	if (impl_->comms_owner(address.ship) == address)
 		result.gameplay["conversations"] = impl_->conversations.project(address.ship);
 	if (entity.has<EntityControls>())
-		result.gameplay["controllers"] = impl_->project_controllers(address);
+		result.gameplay["controllers"] = impl_->project_controllers(address, result);
 
 	auto &buttons = result.gameplay["controls"] = Json::array();
 	if (impl_->departed(address.ship))

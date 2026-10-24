@@ -414,7 +414,7 @@ bool controller_coordination_action(EntityId id, std::size_t index, const std::s
 		{
 			const ConsoleAddress address{id, controller.definition.console};
 			const auto fallback = observation_snapshots.contains(address) ? std::optional<Observation>{}
-			                                                              : capture_console_observation(address);
+			                                                              : capture_decision_observation(address);
 			const auto &observed = fallback ? *fallback : observation_snapshots.at(address);
 			bool permitted = false;
 			if (r.operation == OfficerOperation::Manoeuvre)
