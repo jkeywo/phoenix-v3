@@ -584,6 +584,65 @@ export function togglePack(selection, hash, metadata) {
 	candidate.forEach(append);
 	return ordered;
 }
+export function themeStyles(theme) {
+	if (!theme) return "";
+	if (theme.schema !== 1 || !theme.tokens || typeof theme.tokens !== "object") throw Error("Invalid UI theme");
+	const t = theme.tokens;
+	const colour = (key, fallback) => {
+		const value = t[key] ?? fallback;
+		if (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value)) throw Error("Invalid theme colour");
+		return value;
+	};
+	const family = t.font_family ?? "LatoLatin";
+	if (typeof family !== "string" || !family.length || family.length > 256 || /[;{}<>"\\:()\[\]@\r\n]/.test(family))
+		throw Error("Invalid theme font");
+	const size = t.font_size ?? 22;
+	if (!Number.isFinite(size) || size < 12 || size > 128) throw Error("Invalid theme font size");
+	const numeric = (key, fallback, maximum) => {
+		const value = t[key] ?? fallback;
+		if (!Number.isFinite(value) || value < 0 || value > maximum) throw Error("Invalid theme dimension");
+		return value;
+	};
+	const fallbacks = [];
+	let css = `body {color:${colour("text", "#fff0d4")};background-color:${colour("background", "#08131b")};font-family:${family};font-size:${size}px;}
+	button,input,select,.skin {color:${colour("text", "#fff0d4")};background-color:${colour("panel", "#102027")};border-color:${colour("border", "#988b71")};}
+	button,input,select {border-radius:${numeric("radius", 4, 128)}px;border-width:${numeric("border_width", 1, 32)}px;padding:${numeric("gap", 12, 128) / 2}px;}
+	.selected {border-color:${colour("accent", "#d6ac64")};}.muted {color:${colour("muted", "#b6c2c8")};}
+	button:focus-visible,input:focus-visible,.selected {outline:2px solid ${colour("focus", "#ffe4b0")};}
+	button:disabled,input:disabled {color:${colour("disabled", "#64717b")};}
+	.error {color:${colour("error", "#f08070")};}`;
+	for (const [slot, source] of Object.entries(theme.asset_data || {})) {
+		if (
+			typeof source !== "string" ||
+			source.length > 24 * 1024 * 1024 ||
+			!/^data:(image\/png|font\/ttf);base64,[a-z0-9+/]*={0,2}$/i.test(source)
+		)
+			throw Error("Invalid theme asset");
+		if (slot === "font" || /^fallback-[1-9][0-9]*$/.test(slot)) {
+			if (!source.startsWith("data:font/ttf;")) throw Error("Invalid theme font asset");
+			const name = slot === "font" ? family : `PhoenixThemeFallback${fallbacks.length}`;
+			if (slot !== "font") fallbacks.push(name);
+			css += `@font-face {font-family:"${name}";src:url("${source}");font-display:swap;}`;
+			continue;
+		}
+		if (!["background", "panel", "button"].includes(slot)) continue;
+		const selector =
+			slot === "background" ? "body" : slot === "button" ? "button,.skin" : ".column,.menu-column,.panel";
+		const slices = theme.slices?.[slot];
+		if (slices) {
+			if (
+				!Array.isArray(slices) ||
+				slices.length !== 4 ||
+				slices.some((v) => !Number.isInteger(v) || v < 0 || v > 16384)
+			)
+				throw Error("Invalid nine-slice");
+			css += `${selector} {border-image-source:url("${source}");border-image-slice:${slices.join(" ")} fill;border-image-width:${slices.map((v) => `${v}px`).join(" ")};}`;
+		} else css += `${selector} {background-image:url("${source}");background-size:cover;}`;
+	}
+	if (fallbacks.length) css += `body {font-family:${family},${fallbacks.join(",")},sans-serif;}`;
+	return css;
+}
+
 export function menuPreview(source) {
 	const text = (value, limit = 256) => {
 		if (typeof value !== "string" || !value.length || value.length > limit)
@@ -608,6 +667,7 @@ export function menuPreview(source) {
 		dependencies: list(source.parent ? [source.parent] : source.dependencies || [], 32).map((value) => text(value)),
 		parent: source.parent,
 		base: source.base,
+		theme: source.theme,
 		scenarios: list(source.scenarios, 1024).map((scene) => ({
 			id: text(scene.id),
 			name: text(scene.name || scene.id),
@@ -791,7 +851,7 @@ async function boot() {
 		$("startup-time").textContent = `${t("Elapsed")}: ${elapsed}s`;
 		if (received !== undefined) {
 			const mb = (value) => (value / (1024 * 1024)).toFixed(1);
-			$("startup-time").textContent += ` · ${mb(received)} MB` + (total > 0 ? ` / ${mb(total)} MB` : "");
+			$("startup-time").textContent += ` Â· ${mb(received)} MB` + (total > 0 ? ` / ${mb(total)} MB` : "");
 		}
 		$("startup-wait").textContent =
 			idle >= 20
@@ -1162,7 +1222,37 @@ async function boot() {
 		});
 		return launchOptions(p, location.origin);
 	}
+	let appliedTheme = "";
 	function render() {
+		const selectedTheme = [...library.packs]
+			.reverse()
+			.filter((p) => p.enabled)
+			.map((p) => previews.get(p.hash)?.theme)
+			.find(Boolean);
+		const themeIdentity = JSON.stringify(selectedTheme);
+		if (themeIdentity !== appliedTheme) {
+			let style = document.getElementById("pack-theme");
+			if (!style) {
+				style = document.createElement("style");
+				style.id = "pack-theme";
+				document.head.append(style);
+			}
+			try {
+				style.textContent = themeStyles(selectedTheme);
+				if (selectedTheme?.asset_data?.font) {
+					const font = new FontFace(
+						selectedTheme.tokens.font_family,
+						`url("${selectedTheme.asset_data.font}")`,
+					);
+					font.load()
+						.then((face) => document.fonts.add(face))
+						.catch(() => {});
+				}
+			} catch {
+				style.textContent = "";
+			}
+			appliedTheme = themeIdentity;
+		}
 		updateProfile();
 		$("columns").setAttribute("aria-busy", String(loading));
 		for (const id of ["settings", "packs", "profile-crt"]) $(id).disabled = busy || loading;
@@ -1236,7 +1326,7 @@ async function boot() {
 					if (!scenarios().length)
 						element(
 							"p",
-							loading ? "Loading mods and levels…" : "Enable mod packs to choose a scenario.",
+							loading ? "Loading mods and levelsâ€¦" : "Enable mod packs to choose a scenario.",
 							maps,
 						);
 					for (const scene of scenarios())
@@ -1466,7 +1556,7 @@ async function boot() {
 	function packs() {
 		const popup = dialog("Mod Packs");
 		if (loading) {
-			element("p", "Reading installed mod packs…", popup);
+			element("p", "Reading installed mod packsâ€¦", popup);
 			return;
 		}
 		element(
@@ -1503,8 +1593,8 @@ async function boot() {
 				packs();
 			});
 			for (const [symbol, title, shift] of [
-				["↑", "Move Up", -1],
-				["↓", "Move Down", 1],
+				["â†‘", "Move Up", -1],
+				["â†“", "Move Down", 1],
 			]) {
 				const move = button(row, symbol, async () => {
 					library.packs = movePack(library.packs, pack.hash, shift, previews);
@@ -1515,7 +1605,7 @@ async function boot() {
 				move.setAttribute("aria-label", t(title) + ": " + name);
 				move.disabled = !!pack.locked || index + shift <= 0 || index + shift >= library.packs.length;
 			}
-			const remove = button(row, "🗑", async () => {
+			const remove = button(row, "ðŸ—‘", async () => {
 				library.packs = removePack(library.packs, pack.hash, previews);
 				await remember();
 				void prepareSelection();
@@ -1643,7 +1733,7 @@ async function boot() {
 		busy = true;
 		render();
 		$("startup-title").textContent = t(o.action === "workshop" ? "Opening Workshop" : "Loading your game");
-		loadingStage("Preparing selected mod packs…");
+		loadingStage("Preparing selected mod packsâ€¦");
 		$("settings").disabled = $("packs").disabled = true;
 		try {
 			if (o.type !== "client") {
@@ -1656,13 +1746,13 @@ async function boot() {
 					}
 				}
 			}
-			loadingStage("Saving your setup…");
+			loadingStage("Saving your setupâ€¦");
 			await remember();
 			let tabStorage;
 			try {
 				tabStorage = window.sessionStorage;
 			} catch {}
-			loadingStage("Preparing your player profile…");
+			loadingStage("Preparing your player profileâ€¦");
 			profileLease = await acquireSessionProfile(o.profile, {
 				locks: navigator.locks,
 				storage: tabStorage,
@@ -1687,7 +1777,7 @@ async function boot() {
 			window.dispatchEvent(new Event("resize"));
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
-			loadingStage("Downloading game files…");
+			loadingStage("Downloading game filesâ€¦");
 			window.Module = {
 				canvas: $("canvas"),
 				phoenixConsoleOnly: o.type === "client",
@@ -1715,7 +1805,7 @@ async function boot() {
 
 				preRun: [
 					() => {
-						loadingStage("Preparing game content and saved games…");
+						loadingStage("Preparing game content and saved gamesâ€¦");
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
@@ -1735,7 +1825,7 @@ async function boot() {
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
 				],
-				onRuntimeInitialized: () => loadingStage("Starting the game and loading levels…"),
+				onRuntimeInitialized: () => loadingStage("Starting the game and loading levelsâ€¦"),
 				phoenixStartupStage: (message) => {
 					if (!failed && loadingActive) loadingStage(message);
 				},
@@ -1751,12 +1841,12 @@ async function boot() {
 					if (!failed && loadingActive) {
 						const match = /\((\d+(?:\.\d+)?)\/(\d+)\)/.exec(message);
 						if (match && Number(match[2]) > 0)
-							loadingStage("Downloading game files…", Number(match[1]), Number(match[2]));
+							loadingStage("Downloading game filesâ€¦", Number(match[1]), Number(match[2]));
 						else
 							loadingStage(
 								/download/i.test(message)
-									? "Downloading game files…"
-									: "Starting the game and loading levels…",
+									? "Downloading game filesâ€¦"
+									: "Starting the game and loading levelsâ€¦",
 							);
 					}
 				},
@@ -2044,7 +2134,7 @@ async function boot() {
 	try {
 		render();
 		$("startup-title").textContent = t("Preparing main menu");
-		loadingStage("Reading saved settings and mod packs…");
+		loadingStage("Reading saved settings and mod packsâ€¦");
 		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu", 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
@@ -2071,7 +2161,7 @@ async function boot() {
 			report(error);
 		}
 		if (routes) $("menu").hidden = true;
-		loadingStage("Loading menu artwork and language…");
+		loadingStage("Loading menu artwork and languageâ€¦");
 		const data = await Promise.all([
 			fetch("assets/locales.json").then((r) => r.json()),
 			...["button-generic-9slice", "helm-background-9slice"].map((name) =>
@@ -2117,7 +2207,7 @@ async function boot() {
 			style = launchBase.base?.interface_style || "current";
 		if (!["sprites", "models"].includes(mode) || style !== "current") throw Error("Unsupported base presentation.");
 		const localProfile = routes?.profile || new URLSearchParams(location.search).get("profile") || "default";
-		loadingStage("Restoring your mod selection and profile…");
+		loadingStage("Restoring your mod selection and profileâ€¦");
 		if (!/^[\w.-]{1,64}$/.test(localProfile))
 			throw Error("Use letters, numbers, dots, underscores or hyphens in the local profile.");
 		scopeKey = localProfile + "/" + launchBase.id;
@@ -2146,7 +2236,7 @@ async function boot() {
 			...(launchBaseBytes ? [[`packs/${hash}.zip`, launchBaseBytes]] : []),
 			[`preview/${hash}.json`, encoder.encode(JSON.stringify(launchBase))],
 		]);
-		loadingStage("Reading installed mods and saves…");
+		loadingStage("Reading installed mods and savesâ€¦");
 		const stored = db.transaction("files").objectStore("files");
 		const needed = new Set([...library.packs.map((pack) => `preview/${pack.hash}.json`)]);
 		await Promise.all(
@@ -2280,7 +2370,7 @@ async function boot() {
 		finishLoading();
 		menuIntro = openingCrawl(data[3].intro);
 		void prepareSelection();
-		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
+		if (!$("status").textContent || $("status").textContent === "Loading menuâ€¦") status("");
 	} catch (error) {
 		finishLoading();
 		document.documentElement.classList.remove("direct-launch");

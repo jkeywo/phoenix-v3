@@ -16,6 +16,7 @@ import {
 	launchOptions,
 	launchArguments,
 	skinProperties,
+	themeStyles,
 	menuPreview,
 	zipEntry,
 	mergeRuntimeLibrary,
@@ -531,7 +532,7 @@ test("launch preflight resolves production previews and always releases its work
 		postMessage(value) {
 			assert.equal(value, bytes);
 			queueMicrotask(() => {
-				this.onmessage({ data: { phase: "Loading the mod checker…", received: 12, total: 24 } });
+				this.onmessage({ data: { phase: "Loading the mod checkerâ€¦", received: 12, total: 24 } });
 				assert.equal(terminated, 0);
 				this.onmessage({ data: { ok: true, preview: { id: "verified" } } });
 			});
@@ -548,7 +549,7 @@ test("launch preflight resolves production previews and always releases its work
 		),
 		{ id: "verified" },
 	);
-	assert.deepEqual(progress, [{ phase: "Loading the mod checker…", received: 12, total: 24 }]);
+	assert.deepEqual(progress, [{ phase: "Loading the mod checkerâ€¦", received: 12, total: 24 }]);
 	assert.equal(terminated, 1);
 	assert.deepEqual([...bytes], [1, 2, 3]);
 	const rejectedWorker = {
@@ -643,7 +644,7 @@ test("mobile menu is drawn before asynchronous startup and remains visible on fa
 	assert.ok(buttons().every((button) => button.disabled));
 	assert.equal(get("profile-crt").disabled, true);
 	assert.equal(get("startup-loading").hidden, false);
-	assert.equal(get("startup-phase").textContent, "Reading saved settings and mod packs…");
+	assert.equal(get("startup-phase").textContent, "Reading saved settings and mod packsâ€¦");
 	opening.error = Error("Storage unavailable");
 	opening.onerror();
 	await new Promise((resolve) => setImmediate(resolve));
@@ -775,4 +776,18 @@ test("pre-launch controller navigation rejects drift, bounds repeat and requires
 	assert.deepEqual(menuPadInput(state, pad, 430), ["activate"]);
 	assert.deepEqual(menuPadInput(state, pad, 1000), []);
 	assert.deepEqual(menuPadInput({}, pad, 1000), []);
+});
+
+test("pack themes share visual tokens without executable styles", () => {
+	const theme = {
+		schema: 1,
+		tokens: { text: "#fefefe", background: "#123456", font_family: "Comic Neue", font_size: 24 },
+	};
+	assert.match(themeStyles(theme), /background-color:#123456/);
+	assert.match(themeStyles(theme), /font-family:Comic Neue/);
+	assert.match(themeStyles({ ...theme, asset_data: { "fallback-1": "data:font/ttf;base64,AAAA" } }), /@font-face/);
+	assert.throws(() => themeStyles({ ...theme, tokens: { ...theme.tokens, gap: -1 } }));
+	assert.throws(() => themeStyles({ ...theme, tokens: { ...theme.tokens, font_family: "X;display:none" } }));
+	assert.throws(() => themeStyles({ ...theme, asset_data: { panel: "https://example.invalid/asset.png" } }));
+	assert.equal(themeStyles(undefined), "");
 });
