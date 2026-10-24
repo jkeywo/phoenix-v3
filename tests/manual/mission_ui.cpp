@@ -23,14 +23,19 @@ int main(int argc, char **argv)
 		if (argc < 2)
 			throw std::runtime_error(
 			    "Usage: phoenix_mission_smoke pack-directory "
-			    "[delivery-courier|delivery-cruiser|preview-cruiser|checkpoint-cruiser] [checkpoint]");
+			    "[delivery-courier|delivery-cruiser|preview-cruiser|checkpoint-courier|checkpoint-cruiser|seize-"
+			    "courier|seize-cruiser|checkpoint-seize-courier|checkpoint-seize-cruiser|checkpoint-takeover-courier|"
+			    "checkpoint-takeover-cruiser] [checkpoint]");
 		const std::string mode = argc > 2 ? argv[2] : "delivery-courier";
 		if (mode != "delivery-courier" && mode != "delivery-cruiser" && mode != "preview-cruiser" &&
-		    mode != "checkpoint-cruiser")
-			throw std::runtime_error(
-			    "Choose delivery-courier, delivery-cruiser, preview-cruiser or checkpoint-cruiser.");
-		return rescue_opening_smoke(argv[1], mode != "delivery-courier", opened, argc > 3 ? argv[3] : "",
-		                            mode == "preview-cruiser", mode != "checkpoint-cruiser");
+		    mode != "checkpoint-cruiser" && mode != "checkpoint-courier" && mode != "seize-courier" &&
+		    mode != "seize-cruiser" && mode != "checkpoint-seize-courier" && mode != "checkpoint-seize-cruiser" &&
+		    mode != "checkpoint-takeover-cruiser" && mode != "checkpoint-takeover-courier")
+			throw std::runtime_error("Choose a delivery, checkpoint, preview or seizure walkthrough mode.");
+		return rescue_opening_smoke(argv[1], mode.find("cruiser") != std::string::npos, opened, argc > 3 ? argv[3] : "",
+		                            mode == "preview-cruiser", !mode.starts_with("checkpoint-"),
+		                            mode.find("seize-") != std::string::npos,
+		                            mode.find("takeover-") != std::string::npos);
 	}
 	catch (const std::exception &e)
 	{
