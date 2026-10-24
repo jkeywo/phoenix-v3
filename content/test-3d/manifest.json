@@ -5,5 +5,6 @@
 	"base": {
 		"render_mode": "models",
 		"interface_style": "current"
-	}
+	},
+	"theme": "test-3d.theme.current"
 }

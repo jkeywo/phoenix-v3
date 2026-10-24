@@ -10351,7 +10351,8 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"layout": "test.console.bridge.layout"
 		},
 		{
 			"id": "test.console.helm",
@@ -10427,7 +10428,8 @@
 					"description": "Automated propulsion stops and cancels destination guidance."
 				}
 			],
-			"default_stance": "routine"
+			"default_stance": "routine",
+			"layout": "test.console.helm.layout"
 		},
 		{
 			"id": "test.console.engineering",
@@ -10463,7 +10465,8 @@
 					"description": "Maximum safe generation and full operating power allocations."
 				}
 			],
-			"default_stance": "routine"
+			"default_stance": "routine",
+			"layout": "test.console.engineering.layout"
 		},
 		{
 			"id": "test.console.science",
@@ -10482,7 +10485,8 @@
 					"height": 1000,
 					"system": "sensors.radar"
 				}
-			]
+			],
+			"layout": "test.console.science.layout"
 		},
 		{
 			"id": "test.console.tactical",
@@ -10501,7 +10505,8 @@
 					"height": 1000,
 					"system": "tactical.radar"
 				}
-			]
+			],
+			"layout": "test.console.tactical.layout"
 		},
 		{
 			"id": "test.console.comms",
@@ -10519,7 +10524,8 @@
 					"width": 1000,
 					"height": 1000
 				}
-			]
+			],
+			"layout": "test.console.comms.layout"
 		},
 		{
 			"id": "test.console.captain",
@@ -10537,7 +10543,8 @@
 					"width": 1000,
 					"height": 1000
 				}
-			]
+			],
+			"layout": "test.console.captain.layout"
 		},
 		{
 			"id": "test.console.navigation",
@@ -10594,7 +10601,9 @@
 						"height": 220
 					}
 				]
-			}
+			},
+			"layout": "test.console.navigation.layout",
+			"hud_layout": "test.console.navigation.hud"
 		},
 		{
 			"id": "test.console.command",
@@ -10618,7 +10627,9 @@
 			],
 			"compact": {
 				"widgets": []
-			}
+			},
+			"layout": "test.console.command.layout",
+			"hud_layout": "test.console.command.hud"
 		},
 		{
 			"id": "test.carrier.console",
@@ -10665,7 +10676,8 @@
 				"y": 0,
 				"width": 0.27,
 				"height": 0.95
-			}
+			},
+			"layout": "test.carrier.console.layout"
 		},
 		{
 			"id": "test.carrier.support",
@@ -10676,12 +10688,14 @@
 				"y": 0,
 				"width": 1,
 				"height": 1
-			}
+			},
+			"layout": "test.carrier.support.layout"
 		},
 		{
 			"id": "test.carrier.automation",
 			"name": "Craft automation",
-			"widgets": []
+			"widgets": [],
+			"layout": "test.carrier.automation.layout"
 		}
 	],
 	"trees": [
@@ -20872,5 +20886,1090 @@
 			}
 		}
 	],
-	"recipes": []
+	"recipes": [],
+	"layouts": [
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Local space / north up",
+								"rect": {
+									"x": 240,
+									"y": 0,
+									"width": 600,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							},
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Engine",
+								"rect": {
+									"x": 850,
+									"y": 100,
+									"width": 150,
+									"height": 800
+								},
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "steering",
+								"kind": "component",
+								"component": "steering",
+								"label": "Steering / 0 east, 90 north",
+								"rect": {
+									"x": 0,
+									"y": 850,
+									"width": 220,
+									"height": 150
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"rect": {
+									"x": 0,
+									"y": 80,
+									"width": 220,
+									"height": 220
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"rect": {
+									"x": 0,
+									"y": 300,
+									"width": 220,
+									"height": 450
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								}
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Local space / north up",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "flight",
+						"kind": "column",
+						"label": "Flight controls",
+						"children": [
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Engine",
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "steering",
+								"kind": "component",
+								"component": "steering",
+								"label": "Steering / 0 east, 90 north",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight"
+							}
+						]
+					},
+					{
+						"id": "camera",
+						"kind": "column",
+						"label": "Camera",
+						"children": [
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"min_width": 160,
+								"min_height": 72
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.bridge.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Permitted contacts",
+								"rect": {
+									"x": 240,
+									"y": 0,
+									"width": 600,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							},
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Main propulsion",
+								"rect": {
+									"x": 850,
+									"y": 100,
+									"width": 150,
+									"height": 800
+								},
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "heading",
+								"kind": "component",
+								"component": "heading",
+								"label": "Heading",
+								"rect": {
+									"x": 0,
+									"y": 850,
+									"width": 220,
+									"height": 150
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"rect": {
+									"x": 0,
+									"y": 80,
+									"width": 220,
+									"height": 220
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"rect": {
+									"x": 0,
+									"y": 300,
+									"width": 220,
+									"height": 450
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								}
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Permitted contacts",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "flight",
+						"kind": "column",
+						"label": "Flight controls",
+						"children": [
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Main propulsion",
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "heading",
+								"kind": "component",
+								"component": "heading",
+								"label": "Heading",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight"
+							}
+						]
+					},
+					{
+						"id": "camera",
+						"kind": "column",
+						"label": "Camera",
+						"children": [
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"min_width": 160,
+								"min_height": 72
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.helm.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "Engineering and resource status",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "Engineering and resource status",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.engineering.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Science sensor",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Science sensor",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.science.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Tactical sensor",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Tactical sensor",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.tactical.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "Communications and received reports",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "Communications and received reports",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.comms.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "Shipwide objectives and reports",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "Shipwide objectives and reports",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.captain.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "map",
+								"kind": "component",
+								"component": "navigation",
+								"label": "Navigation map",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280
+							},
+							{
+								"id": "objectives",
+								"kind": "component",
+								"component": "objectives",
+								"label": "Ship objectives",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 300,
+									"height": 200
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "map",
+						"kind": "component",
+						"component": "navigation",
+						"label": "Navigation map",
+						"min_width": 280,
+						"min_height": 280
+					},
+					{
+						"id": "objectives",
+						"kind": "component",
+						"component": "objectives",
+						"label": "Ship objectives",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.navigation.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "map",
+								"kind": "component",
+								"component": "navigation",
+								"label": "Navigation map",
+								"rect": {
+									"x": 0,
+									"y": 240,
+									"width": 1000,
+									"height": 760
+								},
+								"min_width": 280,
+								"min_height": 280
+							},
+							{
+								"id": "objectives",
+								"kind": "component",
+								"component": "objectives",
+								"label": "Ship objectives",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 220
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "map",
+						"kind": "component",
+						"component": "navigation",
+						"label": "Navigation map",
+						"min_width": 280,
+						"min_height": 280
+					},
+					{
+						"id": "objectives",
+						"kind": "component",
+						"component": "objectives",
+						"label": "Ship objectives",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.navigation.hud"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "AI Console stances",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "AI Console stances",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.command.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.console.command.hud"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Local space / north up",
+								"rect": {
+									"x": 240,
+									"y": 0,
+									"width": 600,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							},
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Engine",
+								"rect": {
+									"x": 850,
+									"y": 100,
+									"width": 150,
+									"height": 800
+								},
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "steering",
+								"kind": "component",
+								"component": "steering",
+								"label": "Steering / 0 east, 90 north",
+								"rect": {
+									"x": 0,
+									"y": 850,
+									"width": 220,
+									"height": 150
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								}
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Local space / north up",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "flight",
+						"kind": "column",
+						"label": "Flight controls",
+						"children": [
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Engine",
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "steering",
+								"kind": "component",
+								"component": "steering",
+								"label": "Steering / 0 east, 90 north",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.carrier.console.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.carrier.support.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "test.group.operations"
+					}
+				]
+			},
+			"id": "test.carrier.automation.layout"
+		}
+	],
+	"ui_groups": [
+		{
+			"id": "test.group.operations",
+			"schema": 1,
+			"root": {
+				"id": "operations",
+				"kind": "component",
+				"component": "gameplay",
+				"label": "Operations",
+				"min_width": 260,
+				"min_height": 320
+			}
+		}
+	],
+	"themes": [
+		{
+			"id": "test.theme.current",
+			"schema": 1,
+			"tokens": {
+				"background": "#08131b",
+				"panel": "#102027",
+				"text": "#fff0d4",
+				"muted": "#b6c2c8",
+				"accent": "#d6ac64",
+				"focus": "#ffe4b0",
+				"disabled": "#64717b",
+				"error": "#f08070",
+				"border": "#988b71",
+				"font_family": "LatoLatin",
+				"font_size": 22,
+				"radius": 4,
+				"border_width": 1,
+				"gap": 12
+			},
+			"assets": {}
+		}
+	]
 }

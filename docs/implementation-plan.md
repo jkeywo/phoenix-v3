@@ -235,3 +235,7 @@ Departmental mission contributions support a primary transport, optional escorts
 ## Remaining Cruiser stations — 23 October 2026
 
 [Science, Comms and Captain](cruiser-science-comms-captain.md) implement the settled station responsibilities, psychic relocation (including Courier Veil), Captain Objectives GUI and navigation-first priority. The current World continuation schema is 21. Native/WebAssembly builds, synthetic station checks, authored-content verification and the explicit 1080p console smoke pass; the linked contract records evidence and its limits. Physical accessibility and six-display acceptance remain separate.
+
+## Responsive Workshop layouts and themes — 24 October 2026
+
+Versioned layouts, reusable groups and themes now pass through production loading, validation, dependency resolution and client presentation bundles. Workshop has a visual hierarchy, palette, properties and canvas backed by the production renderer, explicit legacy conversion, compact pages, instrument geometry, theme artwork/font fields and export/reopen support. Functional station panels share the authored placement path; Console tabs follow permitted session observations and retain independent surface state. Bundled Consoles and compact HUDs use explicit layouts and themes. Native menus and the HTML launcher consume the same theme data through generated styles. See [the authoring contract](responsive-ui.md) and [verification receipt](smoke/responsive-ui.md). Physical screen-reader, device and six-display performance acceptance remains separate.

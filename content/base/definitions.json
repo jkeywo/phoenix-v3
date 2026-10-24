@@ -38304,7 +38304,8 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"layout": "base.console.bridge.layout"
 		},
 		{
 			"id": "base.console.helm",
@@ -38380,7 +38381,8 @@
 					"description": "Automated propulsion stops and cancels destination guidance."
 				}
 			],
-			"default_stance": "routine"
+			"default_stance": "routine",
+			"layout": "base.console.helm.layout"
 		},
 		{
 			"id": "base.console.engineering",
@@ -38416,7 +38418,8 @@
 					"description": "Maximum safe generation and full operating power allocations."
 				}
 			],
-			"default_stance": "routine"
+			"default_stance": "routine",
+			"layout": "base.console.engineering.layout"
 		},
 		{
 			"id": "base.console.science",
@@ -38435,7 +38438,8 @@
 					"height": 1000,
 					"system": "sensors.radar"
 				}
-			]
+			],
+			"layout": "base.console.science.layout"
 		},
 		{
 			"id": "base.console.tactical",
@@ -38454,7 +38458,8 @@
 					"height": 1000,
 					"system": "tactical.radar"
 				}
-			]
+			],
+			"layout": "base.console.tactical.layout"
 		},
 		{
 			"id": "base.console.comms",
@@ -38473,7 +38478,8 @@
 					"height": 1000
 				}
 			],
-			"human_seeking": true
+			"human_seeking": true,
+			"layout": "base.console.comms.layout"
 		},
 		{
 			"id": "base.console.captain",
@@ -38491,7 +38497,8 @@
 					"width": 1000,
 					"height": 1000
 				}
-			]
+			],
+			"layout": "base.console.captain.layout"
 		},
 		{
 			"id": "base.console.navigation",
@@ -38548,7 +38555,9 @@
 						"height": 220
 					}
 				]
-			}
+			},
+			"layout": "base.console.navigation.layout",
+			"hud_layout": "base.console.navigation.hud"
 		},
 		{
 			"id": "base.console.command",
@@ -38572,7 +38581,9 @@
 			],
 			"compact": {
 				"widgets": []
-			}
+			},
+			"layout": "base.console.command.layout",
+			"hud_layout": "base.console.command.hud"
 		},
 		{
 			"id": "base.console.combat-helm",
@@ -38620,7 +38631,8 @@
 				"y": 0.7,
 				"width": 0.7,
 				"height": 0.29
-			}
+			},
+			"layout": "base.console.combat-helm.layout"
 		},
 		{
 			"id": "base.console.combat-tactical",
@@ -38646,7 +38658,8 @@
 				"y": 0.5,
 				"width": 1,
 				"height": 0.5
-			}
+			},
+			"layout": "base.console.combat-tactical.layout"
 		},
 		{
 			"id": "base.console.combat-support",
@@ -38657,7 +38670,8 @@
 				"y": 0,
 				"width": 1,
 				"height": 1
-			}
+			},
+			"layout": "base.console.combat-support.layout"
 		},
 		{
 			"id": "base.console.navigator",
@@ -38665,18 +38679,21 @@
 			"description": "Charge the FTL battery and depart the mission. Holding readiness consumes power and generates heat.",
 			"human_seeking": true,
 			"knowledge_roles": ["base.crew"],
-			"widgets": []
+			"widgets": [],
+			"layout": "base.console.navigator.layout"
 		},
 		{
 			"id": "base.console.craft",
 			"name": "Craft flight",
 			"description": "Automatic carried craft guidance",
-			"widgets": []
+			"widgets": [],
+			"layout": "base.console.craft.layout"
 		},
 		{
 			"id": "base.console.craft-automation",
 			"name": "Craft automation",
-			"widgets": []
+			"widgets": [],
+			"layout": "base.console.craft-automation.layout"
 		},
 		{
 			"id": "base.console.cruiser-science",
@@ -38689,7 +38706,8 @@
 				"y": 0,
 				"width": 1,
 				"height": 1
-			}
+			},
+			"layout": "base.console.cruiser-science.layout"
 		},
 		{
 			"id": "base.console.cruiser-tactical",
@@ -38708,7 +38726,8 @@
 					"height": 1000,
 					"system": "tactical.radar"
 				}
-			]
+			],
+			"layout": "base.console.cruiser-tactical.layout"
 		},
 		{
 			"id": "base.console.cruiser-engineering",
@@ -38739,7 +38758,8 @@
 				"y": 0,
 				"width": 1,
 				"height": 1
-			}
+			},
+			"layout": "base.console.cruiser-engineering.layout"
 		},
 		{
 			"id": "base.console.cruiser-captain",
@@ -38755,7 +38775,8 @@
 			},
 			"objectives": true,
 			"command": true,
-			"human_seeking": false
+			"human_seeking": false,
+			"layout": "base.console.cruiser-captain.layout"
 		},
 		{
 			"id": "base.console.cruiser-comms",
@@ -64295,6 +64316,1297 @@
 				"base.ammunition.duel-pdc": 100
 			},
 			"work": 80
+		}
+	],
+	"layouts": [
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Local space / north up",
+								"rect": {
+									"x": 240,
+									"y": 0,
+									"width": 600,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							},
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Engine",
+								"rect": {
+									"x": 850,
+									"y": 100,
+									"width": 150,
+									"height": 800
+								},
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "steering",
+								"kind": "component",
+								"component": "steering",
+								"label": "Steering / 0 east, 90 north",
+								"rect": {
+									"x": 0,
+									"y": 850,
+									"width": 220,
+									"height": 150
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"rect": {
+									"x": 0,
+									"y": 80,
+									"width": 220,
+									"height": 220
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"rect": {
+									"x": 0,
+									"y": 300,
+									"width": 220,
+									"height": 450
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								}
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Local space / north up",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "flight",
+						"kind": "column",
+						"label": "Flight controls",
+						"children": [
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Engine",
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "steering",
+								"kind": "component",
+								"component": "steering",
+								"label": "Steering / 0 east, 90 north",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight"
+							}
+						]
+					},
+					{
+						"id": "camera",
+						"kind": "column",
+						"label": "Camera",
+						"children": [
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"min_width": 160,
+								"min_height": 72
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.bridge.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Permitted contacts",
+								"rect": {
+									"x": 240,
+									"y": 0,
+									"width": 600,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							},
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Main propulsion",
+								"rect": {
+									"x": 850,
+									"y": 100,
+									"width": 150,
+									"height": 800
+								},
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "heading",
+								"kind": "component",
+								"component": "heading",
+								"label": "Heading",
+								"rect": {
+									"x": 0,
+									"y": 850,
+									"width": 220,
+									"height": 150
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"rect": {
+									"x": 0,
+									"y": 80,
+									"width": 220,
+									"height": 220
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"rect": {
+									"x": 0,
+									"y": 300,
+									"width": 220,
+									"height": 450
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								}
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Permitted contacts",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "flight",
+						"kind": "column",
+						"label": "Flight controls",
+						"children": [
+							{
+								"id": "engine",
+								"kind": "component",
+								"component": "engine",
+								"label": "Main propulsion",
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "heading",
+								"kind": "component",
+								"component": "heading",
+								"label": "Heading",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight"
+							}
+						]
+					},
+					{
+						"id": "camera",
+						"kind": "column",
+						"label": "Camera",
+						"children": [
+							{
+								"id": "camera-mode",
+								"kind": "component",
+								"component": "camera-mode",
+								"label": "Camera mode",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "camera-direction",
+								"kind": "component",
+								"component": "camera-direction",
+								"label": "Camera direction",
+								"min_width": 160,
+								"min_height": 72
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.helm.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "Engineering and resource status",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "Engineering and resource status",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.engineering.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Science sensor",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Science sensor",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.science.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Tactical sensor",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Tactical sensor",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.tactical.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "directory",
+						"kind": "component",
+						"component": "conversation-list",
+						"label": "Conversations",
+						"min_width": 220
+					},
+					{
+						"id": "conversation",
+						"kind": "column",
+						"label": "Conversation",
+						"children": [
+							{
+								"id": "header",
+								"kind": "component",
+								"component": "conversation-header",
+								"label": "Participants",
+								"min_height": 64,
+								"stretch": 0
+							},
+							{
+								"id": "history",
+								"kind": "component",
+								"component": "conversation-history",
+								"label": "History",
+								"min_height": 180,
+								"stretch": 3
+							},
+							{
+								"id": "incoming",
+								"kind": "component",
+								"component": "conversation-incoming",
+								"label": "Incoming",
+								"min_height": 44,
+								"stretch": 0
+							},
+							{
+								"id": "replies",
+								"kind": "component",
+								"component": "conversation-replies",
+								"label": "Replies",
+								"min_height": 72
+							},
+							{
+								"id": "compose",
+								"kind": "component",
+								"component": "conversation-compose",
+								"label": "Message",
+								"min_height": 56,
+								"stretch": 0
+							}
+						],
+						"min_width": 360
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.comms.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "Shipwide objectives and reports",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "Shipwide objectives and reports",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.captain.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "map",
+								"kind": "component",
+								"component": "navigation",
+								"label": "Navigation map",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280
+							},
+							{
+								"id": "objectives",
+								"kind": "component",
+								"component": "objectives",
+								"label": "Ship objectives",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 300,
+									"height": 200
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "map",
+						"kind": "component",
+						"component": "navigation",
+						"label": "Navigation map",
+						"min_width": 280,
+						"min_height": 280
+					},
+					{
+						"id": "objectives",
+						"kind": "component",
+						"component": "objectives",
+						"label": "Ship objectives",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.navigation.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "map",
+								"kind": "component",
+								"component": "navigation",
+								"label": "Navigation map",
+								"rect": {
+									"x": 0,
+									"y": 240,
+									"width": 1000,
+									"height": 760
+								},
+								"min_width": 280,
+								"min_height": 280
+							},
+							{
+								"id": "objectives",
+								"kind": "component",
+								"component": "objectives",
+								"label": "Ship objectives",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 220
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "map",
+						"kind": "component",
+						"component": "navigation",
+						"label": "Navigation map",
+						"min_width": 280,
+						"min_height": 280
+					},
+					{
+						"id": "objectives",
+						"kind": "component",
+						"component": "objectives",
+						"label": "Ship objectives",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.navigation.hud"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "status",
+								"kind": "component",
+								"component": "status",
+								"label": "AI Console stances",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 160,
+								"min_height": 72
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "status",
+						"kind": "component",
+						"component": "status",
+						"label": "AI Console stances",
+						"min_width": 160,
+						"min_height": 72
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.command.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.command.hud"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Combat radar",
+								"rect": {
+									"x": 240,
+									"y": 0,
+									"width": 600,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							},
+							{
+								"id": "throttle",
+								"kind": "component",
+								"component": "throttle",
+								"label": "Speed",
+								"rect": {
+									"x": 850,
+									"y": 100,
+									"width": 150,
+									"height": 800
+								},
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "heading",
+								"kind": "component",
+								"component": "heading",
+								"label": "Heading",
+								"rect": {
+									"x": 0,
+									"y": 850,
+									"width": 220,
+									"height": 150
+								},
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								}
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Combat radar",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "flight",
+						"kind": "column",
+						"label": "Flight controls",
+						"children": [
+							{
+								"id": "throttle",
+								"kind": "component",
+								"component": "throttle",
+								"label": "Speed",
+								"min_width": 72,
+								"min_height": 240
+							},
+							{
+								"id": "heading",
+								"kind": "component",
+								"component": "heading",
+								"label": "Heading",
+								"min_width": 160,
+								"min_height": 72
+							},
+							{
+								"id": "manual",
+								"kind": "component",
+								"component": "manual-flight",
+								"label": "Manual flight"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.combat-helm.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Combat radar",
+								"rect": {
+									"x": 360,
+									"y": 0,
+									"width": 640,
+									"height": 480
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Combat radar",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.combat-tactical.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.combat-support.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.navigator.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.craft.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.craft-automation.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.cruiser-science.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "instruments",
+						"kind": "instruments",
+						"label": "Instruments",
+						"children": [
+							{
+								"id": "radar",
+								"kind": "component",
+								"component": "radar",
+								"label": "Tactical sensor",
+								"rect": {
+									"x": 0,
+									"y": 0,
+									"width": 1000,
+									"height": 1000
+								},
+								"min_width": 280,
+								"min_height": 280,
+								"aspect": 1
+							}
+						],
+						"min_width": 640,
+						"min_height": 480,
+						"stretch": 3
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"compact": {
+				"id": "compact",
+				"kind": "tabs",
+				"label": "Console pages",
+				"children": [
+					{
+						"id": "radar",
+						"kind": "component",
+						"component": "radar",
+						"label": "Tactical sensor",
+						"min_width": 280,
+						"min_height": 280,
+						"aspect": 1
+					},
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.cruiser-tactical.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.cruiser-engineering.layout"
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "console",
+				"kind": "row",
+				"label": "Console",
+				"children": [
+					{
+						"id": "operations",
+						"group": "phoenix-base.group.operations"
+					}
+				]
+			},
+			"id": "base.console.cruiser-captain.layout"
+		}
+	],
+	"ui_groups": [
+		{
+			"id": "phoenix-base.group.operations",
+			"schema": 1,
+			"root": {
+				"id": "operations",
+				"kind": "component",
+				"component": "gameplay",
+				"label": "Operations",
+				"min_width": 260,
+				"min_height": 320
+			}
+		}
+	],
+	"themes": [
+		{
+			"id": "phoenix-base.theme.current",
+			"schema": 1,
+			"tokens": {
+				"background": "#08131b",
+				"panel": "#102027",
+				"text": "#fff0d4",
+				"muted": "#b6c2c8",
+				"accent": "#d6ac64",
+				"focus": "#ffe4b0",
+				"disabled": "#64717b",
+				"error": "#f08070",
+				"border": "#988b71",
+				"font_family": "LatoLatin",
+				"font_size": 22,
+				"radius": 4,
+				"border_width": 1,
+				"gap": 12
+			},
+			"assets": {}
 		}
 	]
 }

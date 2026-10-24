@@ -66,3 +66,7 @@ Native and browser builds succeeded. Native and WASM content integration checks 
 ## Presentation preferences
 
 **Presentation** changes tool scale (75–200%), language and pseudo-localisation in Workshop and read-only GM inspection. These are local-profile preferences. Tool text uses bundled LatoLatin and shared resources; see [GUI controls and presentation](gui-controls.md) for language coverage, keyboard shortcuts and validation evidence.
+
+## Responsive Console layout workspace
+
+New Consoles use a data-authored responsive layout. Select a Console, then use **Layout hierarchy**, **Layout palette**, **Layout properties** and **Layout canvas** to compose panels, instruments, compact pages, reusable groups and themes. Existing packs retain the legacy layout until explicitly converted. The canvas uses isolated observations through the production renderer; its controls cannot command a running ship. See [Console layouts and themes](responsive-ui.md) for the authoring workflow, pack format, granted-Console tabs and validation journey.
