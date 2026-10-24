@@ -352,45 +352,6 @@ void prepare_docking()
 		g.target = c.parent;
 		g.navigate = true;
 		const auto desired_heading = (other.heading + b.heading + 180000 - a.heading) % 360000;
-		g.destination = dock_position(c.parent, c.remote_port) - dock_rotate({a.x, a.y}, desired_heading);
-		g.altitude = altitude(c.parent) + b.z - a.z;
-		bool detour = false;
-		// A port on the far side of a hull needs an approach around that hull.
-		// Test the actual shapes, with a small navigation clearance, before choosing a side waypoint.
-		auto approach_pose = own;
-		approach_pose.position = g.destination;
-		approach_pose.heading = desired_heading;
-		auto shape = e.get<Collider>();
-		if (shape.box)
-		{
-			shape.half_width += 1000;
-			shape.half_length += 1000;
-		}
-		else
-			shape.radius += 1000;
-		const CollisionBody moving{approach_pose, Motion{}, shape},
-		    obstacle{other, Motion{}, entities.at(c.parent).get<Collider>()};
-		if (sweep_contact_time(moving, obstacle, own.position, other.position, false))
-		{
-			const auto outward = fixed::direction((other.heading + b.heading) % 360000);
-			const auto side = fixed::direction((other.heading + b.heading + 90000) % 360000);
-			const auto offset = own.position - other.position;
-			const auto sign = fixed::dot(offset, side) >= 0 ? 1 : -1;
-			const auto &target_shape = entities.at(c.parent).get<Collider>();
-			const auto radius =
-			    (target_shape.box ? target_shape.half_width + target_shape.half_length : target_shape.radius) +
-			    (shape.box ? shape.half_width + shape.half_length : shape.radius) + 3000;
-			// Clear the side of the hull before advancing around its far end.
-			// Holding the starting longitudinal offset forever cannot reach a far-side port.
-			const auto side_distance = std::abs(fixed::dot(offset, side) / fixed::unit);
-			const auto along = side_distance < radius * 3 / 4
-			                       ? std::min<std::int64_t>(0, fixed::dot(offset, outward) / fixed::unit)
-			                       : radius;
-			g.destination = other.position + fixed::scale(side, sign * radius) + fixed::scale(outward, along);
-			detour = true;
-		}
-		const auto delta = g.destination - own.position;
-		const auto distance = fixed::length(delta);
 		std::int64_t maximum = 10000, acceleration = 1000;
 		bool inertial_engine = false, lateral_thrust = false;
 		for (auto child : e.get<EquipmentIndex>().values)
@@ -410,6 +371,70 @@ void prepare_docking()
 				acceleration = engine->acceleration;
 			}
 		}
+		g.destination = dock_position(c.parent, c.remote_port) - dock_rotate({a.x, a.y}, desired_heading);
+		g.altitude = altitude(c.parent) + b.z - a.z;
+		bool detour = false;
+		// A port on the far side of a hull needs an approach around that hull.
+		// Test the actual shapes, with a small navigation clearance, before choosing a side waypoint.
+		const auto outward = fixed::direction((other.heading + b.heading) % 360000);
+		constexpr std::int64_t clearance = 1000;
+		bool port_corridor = false;
+		if (inertial_engine && !lateral_thrust && a.heading == 0)
+		{
+			// A fore-port ship must finish turning before entering hull contact.
+			// Otherwise its corners hit the receiver while it aligns at the port.
+			const auto side = fixed::direction((other.heading + b.heading + 90000) % 360000);
+			const auto offset = own.position - g.destination;
+			const auto heading_error = std::abs((own.heading - desired_heading + 540000) % 360000 - 180000);
+			port_corridor =
+			    fixed::dot(offset, outward) >= 0 &&
+			    std::abs(fixed::dot(offset, side) / fixed::unit) < std::min(a.capture_range, b.capture_range) / 2 &&
+			    heading_error < 1000;
+			if (!port_corridor)
+			{
+				const auto &hull = e.get<Collider>();
+				const auto turn_clearance =
+				    (hull.box ? hull.half_width + hull.half_length : hull.radius) + 2 * clearance;
+				g.destination = g.destination + fixed::scale(outward, turn_clearance);
+			}
+		}
+		auto approach_pose = own;
+		// Test clearance up to an exterior approach gate. The final port contact
+		// intentionally touches the hull and must not create a permanent detour.
+		approach_pose.position = g.destination + fixed::scale(outward, 2 * clearance);
+		approach_pose.heading = desired_heading;
+		auto shape = e.get<Collider>();
+		if (shape.box)
+		{
+			shape.half_width += clearance;
+			shape.half_length += clearance;
+		}
+		else
+			shape.radius += clearance;
+		const CollisionBody moving{approach_pose, Motion{}, shape},
+		    obstacle{other, Motion{}, entities.at(c.parent).get<Collider>()};
+		const bool final_approach =
+		    fixed::length(g.destination - own.position) <= 2 * clearance + std::min(a.capture_range, b.capture_range);
+		if (!final_approach && sweep_contact_time(moving, obstacle, own.position, other.position, false))
+		{
+			const auto side = fixed::direction((other.heading + b.heading + 90000) % 360000);
+			const auto offset = own.position - other.position;
+			const auto sign = fixed::dot(offset, side) >= 0 ? 1 : -1;
+			const auto &target_shape = entities.at(c.parent).get<Collider>();
+			const auto radius =
+			    (target_shape.box ? target_shape.half_width + target_shape.half_length : target_shape.radius) +
+			    (shape.box ? shape.half_width + shape.half_length : shape.radius) + 3000;
+			// Clear the side of the hull before advancing around its far end.
+			// Holding the starting longitudinal offset forever cannot reach a far-side port.
+			const auto side_distance = std::abs(fixed::dot(offset, side) / fixed::unit);
+			const auto along = side_distance < radius * 3 / 4
+			                       ? std::min<std::int64_t>(0, fixed::dot(offset, outward) / fixed::unit)
+			                       : radius;
+			g.destination = other.position + fixed::scale(side, sign * radius) + fixed::scale(outward, along);
+			detour = true;
+		}
+		const auto delta = g.destination - own.position;
+		const auto distance = fixed::length(delta);
 		const auto parent_velocity = entities.at(c.parent).get<Motion>().velocity;
 		const auto relative = e.get<Motion>().velocity - parent_velocity;
 		const auto approach_speed =
@@ -431,7 +456,9 @@ void prepare_docking()
 			};
 			const auto tolerance = std::max<std::int64_t>(1, std::min(a.capture_speed, b.capture_speed) / 4);
 			const auto remaining = fixed::length(relative);
-			const auto course = bearing(delta);
+			// Inside the capture-width corridor, keep the hull aligned and
+			// close longitudinally; chasing tiny lateral error would restart the turn.
+			const auto course = port_corridor ? desired_heading : bearing(delta);
 			const bool at_port = !detour && distance < std::min(a.capture_range, b.capture_range) / 2;
 			if (c.guidance_step == 0)
 			{

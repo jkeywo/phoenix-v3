@@ -87,16 +87,27 @@ int main(int argc, char **argv)
 			for (int i = 0;
 			     i < 1200 && flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") != "docked"; ++i)
 				flight.tick();
+			if (flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") != "docked")
+			{
+				const auto failed = flight.save();
+				for (const auto &body : failed.at("bodies"))
+					std::cerr << body.at("body").dump() << " dock=" << body.value("dock_connection", Json{}).dump()
+					          << '\n';
+			}
 			require(flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") == "docked",
 			        "Assisted approach reaches a real mating envelope");
 		}
 		// Abeam, fore-to-fore approach with no lateral thruster must brake before turning.
+		// Flush ports exercise intended hull contact, not only protruding docking booms.
+		for (const bool flush_ports : {false, true})
 		{
 			auto source = fixture();
 			auto &ship = source["entities"][0];
 			ship["motion_model"] = "inertial";
-			ship["collision"] = {
-			    {"shape", "box"}, {"half_width_mm", 4000}, {"half_length_mm", 2000}, {"mass_grams", 900000}};
+			ship["collision"] = {{"shape", "box"},
+			                     {"half_width_mm", flush_ports ? 5000 : 4000},
+			                     {"half_length_mm", flush_ports ? 5000 : 2000},
+			                     {"mass_grams", 900000}};
 			ship["systems"]["engine"]["max_speed_mm_s"] = 18000;
 			ship["systems"]["engine"]["acceleration_mm_s2"] = 9000;
 			for (const auto *system : {"engine", "steering"})
@@ -115,7 +126,7 @@ int main(int argc, char **argv)
 			require(flight.submit(101, command(flight, 101, "dock", "assist", "fore", "1/fore")),
 			        "Abeam docking accepted");
 			for (int tick = 0;
-			     tick < 2000 && flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") != "docked";
+			     tick < 4000 && flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") != "docked";
 			     ++tick)
 			{
 				flight.tick();
@@ -130,8 +141,16 @@ int main(int argc, char **argv)
 					require(flight.save() == restored.save(), "Latched docking guidance continues identically");
 				}
 			}
+			if (flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") != "docked")
+			{
+				const auto failed = flight.save();
+				for (const auto &body : failed.at("bodies"))
+					std::cerr << body.at("body").dump() << " dock=" << body.value("dock_connection", Json{}).dump()
+					          << '\n';
+			}
 			require(flight.observe(101)->gameplay.at("docking").at("ports")[0].at("phase") == "docked",
-			        "No-lateral inertial ship docks from abeam without orbiting");
+			        flush_ports ? "Flush hull ports dock from abeam without orbiting"
+			                    : "No-lateral inertial ship docks from abeam without orbiting");
 		}
 		for (const bool powered : {false, true})
 		{
