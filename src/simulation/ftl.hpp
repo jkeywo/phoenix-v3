@@ -18,6 +18,40 @@ bool departure_member_authorised(EntityId leader, EntityId member) const
 	}
 	return false;
 }
+// Older saves could retain the pirate-only remainder after the prize changed owner.
+// Discard only that identifiable obsolete encounter goal, without changing physical state.
+void discard_obsolete_encounter_departures()
+{
+	for (auto it = departure_groups.begin(); it != departure_groups.end();)
+	{
+		bool obsolete = false;
+		for (std::size_t i = 0; i < interdictions.size(); ++i)
+		{
+			const auto &operation = interdictions[i];
+			const auto participant = [&](EntityId id)
+			{
+				return std::find(operation.ships.begin(), operation.ships.end(), id) != operation.ships.end();
+			};
+			if (operation.captured && !participant(operational_owner(interdiction_definitions[i].target)) &&
+			    participant(it->first) && std::all_of(it->second.begin(), it->second.end(), participant))
+			{
+				obsolete = true;
+				break;
+			}
+		}
+		if (obsolete)
+		{
+			std::erase_if(departure_requests,
+			              [&](const auto &request)
+			              {
+				              return it->second.contains(std::get<0>(request).ship);
+			              });
+			it = departure_groups.erase(it);
+		}
+		else
+			++it;
+	}
+}
 void assign_departure_group(EntityId leader, const std::set<EntityId> &members)
 {
 	for (auto it = departure_groups.begin(); it != departure_groups.end();)

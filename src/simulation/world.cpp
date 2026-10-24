@@ -4434,10 +4434,14 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		if (!candidate.impl_->entities.contains(leader) || !group.contains(leader) || group.size() > 32)
 			throw std::runtime_error("Invalid departure group");
 		for (auto member : group)
-			if (!candidate.impl_->entities.contains(member) || !grouped_members.insert(member).second ||
-			    !candidate.impl_->departure_member_authorised(leader, member))
+			if (!candidate.impl_->entities.contains(member) || !grouped_members.insert(member).second)
 				throw std::runtime_error("Unknown or duplicate departure member");
 	}
+	candidate.impl_->discard_obsolete_encounter_departures();
+	for (const auto &[leader, group] : candidate.impl_->departure_groups)
+		for (auto member : group)
+			if (!candidate.impl_->departure_member_authorised(leader, member))
+				throw std::runtime_error("Unknown or duplicate departure member");
 	candidate.impl_->validate_personnel_postings();
 
 	for (const auto &[target, origin] : candidate.impl_->captured_by)

@@ -178,7 +178,7 @@ void selective_prize(Json &trace)
 }
 void captive_party(Json &trace)
 {
-	auto fixture = interdiction_fixture();
+	auto fixture = interdiction_fixture(3);
 	fixture["trees"].push_back(Json::parse(
 	    R"({"id":"test.retake","context":"away","boarding":true,"initial":"wait","states":[{"id":"wait","transitions":[{"target":"fight","conditions":[{"left":{"observation":"deployed"},"op":"eq","right":true}]}]},{"id":"fight","entry":[{"action":"encounter","arguments":["occupation"]}],"transitions":[{"target":"claim","conditions":[{"left":{"observation":"encounter_done"},"op":"eq","right":true},{"left":{"observation":"encounter_success"},"op":"eq","right":true}]}]},{"id":"claim","entry":[{"action":"secure","arguments":["bridge"]},{"action":"capture","arguments":["bridge"]},{"action":"complete","arguments":["retaken"]}]}]})"));
 	fixture["trees"].push_back({{"id", "test.retake-dialogue"},
@@ -264,6 +264,26 @@ void captive_party(Json &trace)
 	        "Successful retaking frees captives awaiting extraction");
 	continuation(catalog, w, 5, "Freed visitors and new Security prize crew continue exactly");
 	auto retained = w.save();
+	for (const auto &group : retained.at("departure_groups"))
+		require(group.at(0) == 2, "Recapture cancels the obsolete multi-ship pirate departure group");
+	auto legacy = retained;
+	const auto pirate_members = state(w).at("ships");
+	legacy["departure_groups"].push_back(Json::array({pirate_members.at(0), pirate_members}));
+	World migrated;
+	migrated.restore(catalog, legacy);
+	require(migrated.save() == retained,
+	        "Legacy obsolete pirate group is discarded without changing physical, personnel or timer state");
+	legacy["departure_groups"].back().at(1).push_back(999999);
+	bool rejected = false;
+	try
+	{
+		migrated.restore(catalog, legacy);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	require(rejected, "Obsolete-group migration still rejects unknown members");
 	auto retake_state = [&]() -> const Json &
 	{
 		for (const auto &mission : retained.at("away_missions"))

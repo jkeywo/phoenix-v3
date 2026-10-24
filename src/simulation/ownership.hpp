@@ -42,16 +42,23 @@ void validate_personnel_postings() const
 void set_operational_owner(EntityId target_id, EntityId origin_id)
 {
 	const auto target = entities.at(target_id);
+	std::set<EntityId> obsolete_members;
 	for (auto it = departure_groups.begin(); it != departure_groups.end();)
 	{
-		if (it->first == target_id)
-			it = departure_groups.erase(it);
-		else
+		if (it->first == target_id || it->second.contains(target_id))
 		{
-			it->second.erase(target_id);
-			++it;
+			obsolete_members.insert(it->first);
+			obsolete_members.insert(it->second.begin(), it->second.end());
+			it = departure_groups.erase(it);
 		}
+		else
+			++it;
 	}
+	std::erase_if(departure_requests,
+	              [&](const auto &request)
+	              {
+		              return obsolete_members.contains(std::get<0>(request).ship);
+	              });
 	departure_groups[operational_owner(origin_id)].insert(operational_owner(origin_id));
 	departure_groups[operational_owner(origin_id)].insert(target_id);
 	captured_by[target_id] = operational_owner(origin_id);
