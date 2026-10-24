@@ -1,6 +1,6 @@
 # Shared gameplay engine — migration notes
 
-Delivery direction · 23 October 2026
+Delivery direction · 24 October 2026
 
 The [system design](gameplay-engine-design.md) describes the finished architecture. This document records how to reach it and the implementation-level contracts still to specify. Neither document establishes completed implementation or acceptance.
 
@@ -43,7 +43,9 @@ The second slice, [shared property effects and Duty Officer buffs](property-effe
 
 The third slice, [resource, store and recipe unification](resource-store-migration-plan.md), implements shared material, magazine, energy and coolant stocks, single-type magazine selection, shared recipes/processors and existing supply/payment consumers. [Its implementation record](resource-store-evidence.md) records the schema boundary, supported continuous-ratio bound, review and verification evidence.
 
-The fourth slice is [directed systems and payload effects](directed-systems-migration-plan.md), planned after the resource prerequisite. It covers weapons and focused scanners, separate targeting/operating modes, native hit bindings, impact/destruction payloads and periodic conditions. Psychic powers remain a later ability migration. Implementation and acceptance are pending.
+The fourth slice is [directed systems and payload effects](directed-systems-migration-plan.md), being implemented following the resource prerequisite. It covers weapons and focused scanners, separate targeting/operating modes, native hit bindings, impact/destruction payloads and periodic conditions. Psychic powers move in the following ability migration. Acceptance remains pending.
+
+The fifth slice is [shared abilities and psychic migration](ability-migration-plan.md), planned after directed-system delivery. It adds officer/equipment abilities, optional preparation, explicit exclusions, source-owned recovery and effect-granted temporary abilities, proved by migrating existing psychic powers. Native psychic behaviour remains, with recovery intentionally moving from choir seat to officer. Implementation and acceptance are pending.
 
 Order later slices by the dependencies exposed by the shield implementation and the remaining existing systems. Each slice migrates its maintained definitions, production execution, observations, presentation and continuation together. A broad combat migration is not the prerequisite for proving the framework.
 

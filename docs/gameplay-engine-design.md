@@ -1,6 +1,6 @@
 # Shared gameplay engine
 
-Target design · 23 October 2026
+Target design · 24 October 2026
 
 This document describes the gameplay system after the overhaul is complete. It is a design contract, not a claim of implementation or acceptance. It refines the [GDD](GDD.md) for effects, abilities, properties, resources and reusable gameplay composition. The [migration notes](gameplay-engine-migration.md) describe delivery separately.
 
@@ -129,6 +129,10 @@ Continuous processes and activated abilities share conditions, targets, costs, p
 Operating modes expose supported choices such as firing pattern, scan mode or optional automatic ability use. Inherent reactions, such as damage producing a fault, do not require a player to enable them.
 
 An officer ability declares its own requirements. It may require a choir, team or apparatus, or operate from the officer alone. No universal apparatus requirement applies.
+
+Officers and equipment can grant several independently usable abilities. Abilities support instant activation, optional interruptible preparation and sustained operation. Explicit exclusion groups prevent incompatible preparations or active operations from overlapping; a conflicting activation is rejected rather than replacing the running ability. Recovery belongs to the performing officer or equipment and follows it across reassignment, while shared apparatus recovery is a separate authored constraint.
+
+Effects can grant temporary abilities. Grant refresh preserves identity and execution state; removal withdraws the ability and stops dependent work without resetting source recovery or reversing independent consequences. The granting effect, performing source, required apparatus and operating Console have separate identities and bindings. The [ability migration plan](ability-migration-plan.md) applies this model to existing psychic powers and synthetic officer/equipment abilities.
 
 ## Authority and knowledge
 
