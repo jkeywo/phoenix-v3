@@ -1608,6 +1608,19 @@ bool probe_workshop_layout(unsigned stage)
 		layout_workspace.text_scale = 150;
 		auto &console = editor.document.definitions()["consoles"][0];
 		console["theme_overrides"] = {{"tokens", {{"panel", "#16303b"}, {"text", "#ffffff"}}}};
+		AssetImage image{12, 12, Bytes(12 * 12 * 4, 255)};
+		for (int y = 0; y < 12; ++y)
+			for (int x = 0; x < 12; ++x)
+			{
+				const bool edge = x == 0 || y == 0 || x == 11 || y == 11;
+				const int pixel = (y * 12 + x) * 4;
+				image.rgba[pixel] = edge ? 180 : 20;
+				image.rgba[pixel + 1] = edge ? 140 : 44;
+				image.rgba[pixel + 2] = edge ? 60 : 55;
+			}
+		console["theme_overrides"]["assets"] = {
+		    {"button", editor.document.import_image("layout-probe.png", source_asset_image(image))}};
+		console["theme_overrides"]["slices"] = {{"button", {3, 3, 3, 3}}};
 	}
 	if (stage >= 4)
 	{
@@ -1618,6 +1631,8 @@ bool probe_workshop_layout(unsigned stage)
 		auto &console = editor.document.definitions()["consoles"][0];
 		if (stage == 4)
 		{
+			console["theme_overrides"].erase("assets");
+			console["theme_overrides"].erase("slices");
 			console["widgets"] = Json::array({{{"id", "conversations"},
 			                                   {"kind", "conversations"},
 			                                   {"label", "Conversations"},
@@ -1685,6 +1700,94 @@ bool probe_workshop_layout(unsigned stage)
 			                     {"root", {{"id", "navigation"}, {"kind", "component"}, {"component", "navigation"}}}};
 			layout_workspace.sample_state = 0;
 		}
+		if (stage == 7)
+		{
+			console["widgets"] = Json::array();
+			console["layout"] = {{"schema", 1},
+			                     {"root",
+			                      {{"id", "wrap"},
+			                       {"kind", "wrap"},
+			                       {"children", Json::array({{{"id", "cards"},
+			                                                  {"kind", "component"},
+			                                                  {"component", "engineering"},
+			                                                  {"width", 300},
+			                                                  {"height", 180}},
+			                                                 {{"id", "readouts"},
+			                                                  {"kind", "component"},
+			                                                  {"component", "readouts"},
+			                                                  {"width", 300},
+			                                                  {"height", 180}},
+			                                                 {{"id", "messages"},
+			                                                  {"kind", "component"},
+			                                                  {"component", "messages"},
+			                                                  {"width", 300},
+			                                                  {"height", 180}}})}}}};
+			layout_workspace.width = 700;
+			layout_workspace.sample_state = 1;
+		}
+		if (stage == 8)
+		{
+			const auto &geometry = console_preview_geometry();
+			if (geometry.placements.size() != 3 || geometry.placements[2].bounds.y <= geometry.placements[0].bounds.y)
+				return false;
+			console["widgets"] = Json::array({{{"id", "radar"},
+			                                   {"kind", "radar"},
+			                                   {"label", "Radar"},
+			                                   {"binding", "radar.contacts"},
+			                                   {"x", 0},
+			                                   {"y", 0},
+			                                   {"width", 1000},
+			                                   {"height", 1000}}});
+			console["layout"] = {{"schema", 1},
+			                     {"root",
+			                      {{"id", "cutout"},
+			                       {"kind", "cutout"},
+			                       {"min_width", 1000},
+			                       {"min_height", 480},
+			                       {"children", Json::array({{{"id", "radar"},
+			                                                  {"kind", "component"},
+			                                                  {"component", "radar"},
+			                                                  {"region", "centre"},
+			                                                  {"aspect", 1}},
+			                                                 {{"id", "messages"},
+			                                                  {"kind", "component"},
+			                                                  {"component", "messages"},
+			                                                  {"region", "top-left"}}})}}}};
+			layout_workspace.width = 1280;
+		}
+		if (stage == 9)
+		{
+			const auto &geometry = console_preview_geometry();
+			const auto &radar = geometry.placements.at(0).bounds;
+			if (radar.width <= 0 || std::abs(radar.width - radar.height) > 1)
+				return false;
+			layout_workspace.width = 390;
+			layout_workspace.height = 844;
+		}
+		if (stage == 10)
+		{
+			const auto &geometry = console_preview_geometry();
+			if (!geometry.compact || geometry.pages.size() != 2)
+				return false;
+			const auto &tab = geometry.pages.back();
+			layout_workspace.pages[geometry.page_groups.at(tab.id)] = tab.id;
+		}
+		if (stage == 11)
+		{
+			const auto &geometry = console_preview_geometry();
+			if (geometry.placements.at(0).visible || !geometry.placements.at(1).visible)
+				return false;
+			layout_workspace.width = 1280;
+			layout_workspace.height = 720;
+		}
+		if (stage == 12)
+		{
+			layout_workspace.width = 390;
+			layout_workspace.height = 844;
+		}
+		if (stage == 13 && (console_preview_geometry().placements.at(0).visible ||
+		                    !console_preview_geometry().placements.at(1).visible))
+			return false;
 	}
 
 	return true;

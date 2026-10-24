@@ -1,4 +1,5 @@
 #pragma once
+#include "menu_skin.hpp"
 namespace phoenix
 {
 // Generated styles only. No authored stylesheet or script crosses the content boundary.
@@ -8,6 +9,12 @@ class UiThemeRenderer
 	std::string signature_;
 
 public:
+	UiThemeRenderer() = default;
+	UiThemeRenderer(const UiThemeRenderer &) = delete;
+	inline ~UiThemeRenderer()
+	{
+		retain_menu_images({}, this);
+	}
 	inline void reset(Rml::ElementDocument &document)
 	{
 		if (signature_.empty())
@@ -16,6 +23,7 @@ public:
 			document.SetStyleSheetContainer(original_);
 		document.SetClass("theme", false);
 		signature_.clear();
+		retain_menu_images({}, this);
 	}
 	inline void apply(Rml::ElementDocument &document, const Catalog &catalog, const std::string &id = {},
 	                  const Json &overrides = Json::object())
@@ -56,6 +64,7 @@ public:
 		css += ".theme #gameplay,.theme #sensor-panel,.theme #comms-layer,.theme "
 		       "#settings-panel,.theme .command-card,.theme .menu-column {background-color:" +
 		       token("panel") + ";color:" + token("text") + ";}\n";
+		std::set<std::string> sources;
 		for (const auto &[slot, reference] : theme.at("assets").items())
 		{
 			const auto ref = reference.get<std::string>();
@@ -67,22 +76,23 @@ public:
 			}
 			if (slot != "background" && slot != "panel" && slot != "button")
 				continue;
-			const auto source = register_theme_image(catalog.assets.at(ref));
+			const auto source = register_menu_image(catalog.assets.at(ref));
+			sources.insert(source);
 			std::string decoration = "image(" + source + " cover)";
 			if (theme.contains("slices") && theme.at("slices").contains(slot))
 			{
 				const auto image = decode_asset_image(catalog.assets.at(ref));
 				const auto &s = theme.at("slices").at(slot);
-				const int top = s.at(0), right = s.at(1), bottom = s.at(2), left = s.at(3);
+				MenuSkin skin;
+				skin.width = image.width;
+				skin.height = image.height;
+				skin.top = s.at(0);
+				skin.right = s.at(1);
+				skin.bottom = s.at(2);
+				skin.left = s.at(3);
 				const auto name = "theme-" + slot;
-				css += "@spritesheet " + name + " {src:" + source + ";resolution:1x;" + name + "-outer:0px 0px " +
-				       std::to_string(image.width) + "px " + std::to_string(image.height) + "px;" + name +
-				       "-inner:" + std::to_string(left) + "px " + std::to_string(top) + "px " +
-				       std::to_string(image.width - left - right) + "px " +
-				       std::to_string(image.height - top - bottom) + "px;}\n";
-				decoration = "ninepatch(" + name + "-outer," + name + "-inner," + std::to_string(top) + "dp " +
-				             std::to_string(right) + "dp " + std::to_string(bottom) + "dp " + std::to_string(left) +
-				             "dp) border-box";
+				css += skin.sprite_sheet(name, source);
+				decoration = skin.decorator(name, "dp");
 			}
 			const std::string selector =
 			    slot == "button" ? ".theme button"
@@ -99,6 +109,7 @@ public:
 		document.SetStyleSheetContainer(original_->CombineStyleSheetContainer(generated));
 		document.SetClass("theme", true);
 		signature_ = signature;
+		retain_menu_images(sources, this);
 	}
 };
 } // namespace phoenix

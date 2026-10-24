@@ -1239,15 +1239,6 @@ async function boot() {
 			}
 			try {
 				style.textContent = themeStyles(selectedTheme);
-				if (selectedTheme?.asset_data?.font) {
-					const font = new FontFace(
-						selectedTheme.tokens.font_family,
-						`url("${selectedTheme.asset_data.font}")`,
-					);
-					font.load()
-						.then((face) => document.fonts.add(face))
-						.catch(() => {});
-				}
 			} catch {
 				style.textContent = "";
 			}

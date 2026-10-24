@@ -22,32 +22,24 @@ int main(int argc, char **argv)
 		phoenix::open_workshop_pack(argv[1]);
 		SetWindowSize(1600, 1000);
 		SetTargetFPS(60);
-		for (int frame = 0; frame < 240 && !WindowShouldClose(); ++frame)
+		for (int frame = 0; frame < 460 && !WindowShouldClose(); ++frame)
 		{
-			if (frame == 5 || frame == 30 || frame == 60 || frame == 95 || frame == 130 || frame == 165 ||
-			    frame == 200 || frame == 235)
-			{
-				const unsigned stage = frame == 5     ? 0
-				                       : frame == 30  ? 1
-				                       : frame == 60  ? 2
-				                       : frame == 95  ? 3
-				                       : frame == 130 ? 4
-				                       : frame == 165 ? 5
-				                       : frame == 200 ? 6
-				                                      : 7;
-				if (!phoenix::probe_workshop_layout(stage))
-					throw std::runtime_error("Layout authoring probe failed");
-			}
+			const int stages[] = {5, 30, 60, 95, 130, 165, 200, 235, 270, 305, 340, 375, 410, 445};
+			for (unsigned stage = 0; stage < 14; ++stage)
+				if (frame == stages[stage] && !phoenix::probe_workshop_layout(stage))
+					throw std::runtime_error("Layout authoring probe failed at stage " + std::to_string(stage));
 			BeginDrawing();
 			phoenix::draw_screen(app);
 			phoenix::draw_workshop(app);
 			EndDrawing();
-			if (frame == 20 || frame == 80 || frame == 115 || frame == 150 || frame == 185 || frame == 220)
+			if (frame == 20 || frame == 80 || frame == 115 || frame == 150 || frame == 185 || frame == 220 ||
+			    frame == 255 || frame == 290 || frame == 325 || frame == 360)
 				TakeScreenshot(("build/layout-workshop-" + std::to_string(frame) + ".png").c_str());
 		}
 		phoenix::end_tools();
 		phoenix::close_window();
-		std::cout << "PASS disposable layout edit, pack round trip, phone and theme preview\n";
+		std::cout << "PASS disposable layout edit, pack round trip, phone tabs, theme preview, RmlUi wrapping and "
+		             "circle-cutout geometry\n";
 	}
 	catch (const std::exception &error)
 	{

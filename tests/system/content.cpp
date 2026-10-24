@@ -67,9 +67,20 @@ int main()
 			source.manifest["theme"] = "test.theme";
 			definitions["ui_groups"] = Json::array(
 			    {{{"id", "test.group"}, {"schema", 1}, {"root", definitions["layouts"][0]["root"]["children"][0]}}});
-			definitions["layouts"][0]["root"]["children"][0] = {{"id", "first"}, {"group", "test.group"}};
+			definitions["ui_groups"].push_back(
+			    {{"id", "test.nested"},
+			     {"schema", 1},
+			     {"root", {{"id", "alias"}, {"group", "test.group"}, {"overrides", {{"label", "Nested group"}}}}}});
+			definitions["layouts"][0]["root"]["children"][0] = {
+			    {"id", "first"}, {"group", "test.nested"}, {"min_width", 320}};
 			source.files["definitions.json"] = json_bytes(definitions);
 			const auto ui_catalog = resolve_packs({read_pack(write_pack(source))});
+			const auto instance = definitions["layouts"][0]["root"]["children"][0];
+			const auto detached = expand_ui_groups(ui_catalog, instance);
+			require(!detached.contains("group") && detached.at("id") == "first" &&
+			            detached.at("component") == "gameplay" && detached.at("label") == "Nested group" &&
+			            detached.at("min_width") == 320,
+			        "nested groups detach with the same identity and overrides as production compilation");
 			const auto program =
 			    compile_ui_layout(ui_catalog, ui_catalog.consoles.at(console.at("id").get<std::string>()));
 			const auto wide = resolve_ui_layout(program, {0, 0, 1200, 700}, 1);
@@ -106,6 +117,13 @@ int main()
 			ui_draft.load_pack(write_pack(source));
 			require(ui_draft.definitions().at("themes")[1].at("extends") == "test.theme",
 			        "Workshop reopen preserves authored theme inheritance");
+			const auto cached_preview = ui_draft.preview_ui();
+			require(ui_draft.preview_ui() == cached_preview, "unchanged authoring reuses resolved UI content");
+			ui_draft.definitions()["themes"][0]["tokens"]["accent"] = "#abcdef";
+			const auto changed_preview = ui_draft.preview_ui();
+			require(changed_preview != cached_preview &&
+			            resolved_ui_theme(*changed_preview, "test.theme").at("tokens").at("accent") == "#abcdef",
+			        "live UI edits invalidate the preview without requiring a saved history checkpoint");
 			WorkshopHistory ui_history;
 			ui_history.reset(ui_draft);
 			ui_draft.rename_ui_definition(WorkshopDefinitionKind::Layout, "test.layout", "test.layout.renamed");

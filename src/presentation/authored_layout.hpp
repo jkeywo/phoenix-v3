@@ -3,7 +3,7 @@ UiThemeRenderer theme_renderer_;
 Json active_theme_ = Json::object();
 std::optional<UiLayout> authored_program_;
 UiResolved authored_resolved_;
-std::string authored_geometry_;
+std::string authored_geometry_, authored_dom_;
 struct SurfaceBrowsing
 {
 	NavigationCamera camera;
@@ -61,9 +61,8 @@ void restore_console_browsing()
 }
 std::map<std::string, std::string> authored_pages_;
 std::map<std::string, std::string> authored_parents_;
-UiTabs console_tabs_;
-std::map<std::string, UiTabs> authored_tab_groups_;
 std::string preview_pages_signature_;
+bool preview_interact_ = false;
 std::string authored_identity_, authored_tabs_markup_, console_tabs_markup_, theme_identity_;
 std::map<std::string, std::string> authored_page_groups_;
 
@@ -110,7 +109,7 @@ bool authored_component_visible(const std::string &target)
 		}
 	return false;
 }
-void restore_authored_components()
+void return_authored_components()
 {
 	// Restore parents before legacy generators replace their children.
 	if (!authored_parents_.empty())
@@ -122,11 +121,18 @@ void restore_authored_components()
 		if (component && parent && component->GetParentNode() != parent)
 			parent->AppendChild(component->GetParentNode()->RemoveChild(component));
 		if (component)
-			for (const char *field : {"left", "top", "width", "height", "display", "position", "overflow",
-			                          "pointer-events", "right", "bottom"})
+			for (const char *field :
+			     {"left", "top", "width", "height", "display", "position", "overflow", "pointer-events", "right",
+			      "bottom", "min-width", "min-height", "max-width", "max-height", "box-sizing", "flex"})
 				component->RemoveProperty(field);
 	}
 	authored_parents_.clear();
+}
+void restore_authored_components()
+{
+	return_authored_components();
+	document_->GetElementById("authored-body")->SetInnerRML("");
+	authored_dom_.clear();
 	authored_program_.reset();
 	authored_resolved_ = UiResolved{};
 	authored_identity_.clear();
@@ -171,8 +177,6 @@ bool authored_action(const std::string &action)
 		cancel_pointer();
 		model_.release_controls();
 		const auto group = authored_page_groups_.at(page);
-		if (!authored_tab_groups_[group].select(page))
-			return false;
 		authored_pages_[group] = page;
 		displayed_values_.clear();
 		page_focus_pending_ = true;
@@ -180,9 +184,6 @@ bool authored_action(const std::string &action)
 	}
 	if (action.starts_with("game.console/"))
 	{
-		const auto next = action.substr(13);
-		if (!console_tabs_.select(next))
-			return false;
 		cancel_pointer();
 		model_.release_controls();
 
@@ -192,28 +193,203 @@ bool authored_action(const std::string &action)
 }
 void prepare_console_tabs(const ConsoleRegion &region)
 {
-	console_tabs_.update(model_.available_tabs());
-	if (model_.observation())
-		console_tabs_.select(model_.observation()->console);
 	std::string markup;
-	if (console_tabs_.items().size() > 1)
-		for (const auto &tab : console_tabs_.items())
+	if (model_.available_tabs().size() > 1)
+		for (const auto &tab : model_.available_tabs())
 		{
 			const auto action = id("game.console/" + tab.id);
 			const auto label = localise(tab.label) + (tab.attention ? " — " + localise("Unread") : "");
 			markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
-			          (tab.id == console_tabs_.selected() ? "selected" : "") + "\">" +
+			          (tab.id == model_.observation()->console ? "selected" : "") + "\">" +
 			          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			app_->screen_controls.emplace_back(action, label);
-			app_->screen_toggles[action] = tab.id == console_tabs_.selected();
+			app_->screen_toggles[action] = tab.id == model_.observation()->console;
 		}
 	if (markup != console_tabs_markup_)
 	{
 		document_->GetElementById("console-tabs")->SetInnerRML(markup);
 		console_tabs_markup_ = markup;
 	}
-	for (const auto &tab : console_tabs_.items())
+	for (const auto &tab : model_.available_tabs())
 		place(*app_, region, id("game.console/" + tab.id));
+}
+std::string layout_node_id(const UiNode &node) const
+{
+	return "layout-node/" + node.id;
+}
+void build_authored_tree(const UiNode &root)
+{
+	return_authored_components();
+	std::function<std::string(const UiNode &)> markup = [&](const UiNode &node)
+	{
+		std::string result =
+		    "<div id=\"" + Rml::StringUtilities::EncodeRml(layout_node_id(node)) + "\" class=\"layout-node\">";
+		for (const auto &child : node.children)
+			result += markup(child);
+		return result + "</div>";
+	};
+	document_->GetElementById("authored-body")->SetInnerRML(markup(root));
+	for (const auto &placement : authored_resolved_.placements)
+		if (auto *component = authored_component(placement.component))
+		{
+			authored_parents_[placement.component] = component->GetParentNode()->GetId();
+			auto *slot = document_->GetElementById("layout-node/" + placement.id);
+			slot->AppendChild(component->GetParentNode()->RemoveChild(component));
+			for (const char *field : {"right", "bottom"})
+				component->RemoveProperty(field);
+		}
+}
+void style_authored_tree(const UiNode &node, const UiNode *parent = nullptr, bool visible = true)
+{
+	auto *box = document_->GetElementById(layout_node_id(node));
+	const auto unit = [&](float value)
+	{
+		return std::to_string(value * text_scale_ / 100.f) + "dp";
+	};
+	if (node.component == "manual-flight" && !model_.manual_available())
+		visible = false;
+	property(box, "display", visible ? "flex" : "none");
+	property(box, "position",
+	         !parent || parent->kind == "instruments" || parent->kind == "cutout" ? "absolute" : "relative");
+	property(box, "min-width", unit(node.minimum_width));
+	property(box, "min-height", unit(node.minimum_height));
+	property(box, "flex-direction", node.kind == "row" || node.kind == "wrap" ? "row" : "column");
+	property(box, "flex-wrap", node.kind == "wrap" ? "wrap" : "nowrap");
+	property(box, "gap", unit(node.gap));
+	property(box, "padding",
+	         unit(node.children.empty() || node.kind == "instruments" || node.kind == "cutout" ? 0 : node.padding));
+	property(box, "align-self", node.align == "start" ? "flex-start" : node.align == "end" ? "flex-end" : node.align);
+	property(box, "pointer-events", node.component == "manual-flight" ? "none" : "auto");
+	if (!parent)
+	{
+		property(box, "left", "0dp");
+		property(box, "top", "0dp");
+		property(box, "width", "100%");
+		property(box, "height", "100%");
+	}
+	else if (parent->kind != "instruments" && parent->kind != "cutout")
+	{
+		const bool row = parent->kind == "row" || parent->kind == "wrap";
+		const auto basis = row ? std::max(node.minimum_width, node.preferred_width)
+		                       : std::max(node.minimum_height, node.preferred_height);
+		property(box, "flex", std::to_string(parent->kind == "wrap" ? 0.f : node.stretch) + " 0 " + unit(basis));
+		property(box, "width",
+		         parent->kind == "wrap" ? unit(std::max(node.minimum_width, node.preferred_width)) : "auto");
+		property(box, "height",
+		         parent->kind == "wrap" ? unit(std::max(node.minimum_height, node.preferred_height)) : "auto");
+	}
+	if (!node.component.empty())
+		if (auto *component = authored_component(node.component))
+		{
+			property(component, "display", visible ? "block" : "none");
+			property(component, "flex", "1 1 0dp");
+			if (node.aspect <= 0)
+			{
+				property(component, "position", "relative");
+				property(component, "left", "0dp");
+				property(component, "top", "0dp");
+				property(component, "width", "100%");
+				property(component, "height", "100%");
+			}
+			property(component, "box-sizing", "border-box");
+			property(component, "max-width", "none");
+			property(component, "max-height", "none");
+			property(component, "min-width", "0dp");
+			property(component, "min-height", "0dp");
+			property(component, "overflow", "auto");
+			property(component, "pointer-events", node.component == "manual-flight" ? "none" : "auto");
+			for (const auto &[key, value] : node.style.items())
+				if (key == "background" || key == "text" || key == "font_family")
+					property(component,
+					         key == "background" ? "background-color"
+					         : key == "text"     ? "color"
+					                             : "font-family",
+					         value.get<std::string>());
+			if (node.style.contains("font_size"))
+				property(component, "font-size", unit(node.style.at("font_size").get<float>()));
+		}
+	for (const auto &child : node.children)
+		style_authored_tree(child, &node, visible && (node.kind != "tabs" || authored_pages_.at(node.id) == child.id));
+}
+void place_authored_instruments(const UiNode &node)
+{
+	auto *box = document_->GetElementById(layout_node_id(node));
+	if (node.kind == "instruments" || node.kind == "cutout")
+	{
+		const float pad = node.padding * text_scale_ / 100.f;
+		const float width = std::max(1.f, box->GetClientWidth() - pad * 2),
+		            height = std::max(1.f, box->GetClientHeight() - pad * 2);
+		for (const auto &child : node.children)
+		{
+			UiRect bounds{width * child.rect.x / 1000, height * child.rect.y / 1000, width * child.rect.width / 1000,
+			              height * child.rect.height / 1000};
+			if (node.kind == "cutout" && !child.region.empty())
+			{
+				const float x = width * node.circle_x, y = height * node.circle_y;
+				const float radius = std::min(width, height) * node.circle_radius, corner = radius / std::sqrt(2.f);
+				const bool right = child.region.ends_with("right"), bottom = child.region.starts_with("bottom");
+				bounds = child.region == "centre" ? UiRect{x - radius, y - radius, radius * 2, radius * 2}
+				                                  : UiRect{right ? x + corner : 0, bottom ? y + corner : 0,
+				                                           right ? width - x - corner : x - corner,
+				                                           bottom ? height - y - corner : y - corner};
+			}
+			auto *slot = document_->GetElementById(layout_node_id(child));
+			for (const auto &[field, value] : std::map<std::string, float>{{"left", pad + bounds.x},
+			                                                               {"top", pad + bounds.y},
+			                                                               {"width", bounds.width},
+			                                                               {"height", bounds.height}})
+				property(slot, field, std::to_string(value) + "dp");
+		}
+	}
+	for (const auto &child : node.children)
+		place_authored_instruments(child);
+}
+void fit_authored_aspects(const UiNode &node)
+{
+	if (node.aspect > 0 && !node.component.empty())
+		if (auto *component = authored_component(node.component))
+		{
+			auto *box = document_->GetElementById(layout_node_id(node));
+			const auto minimum = text_scale_ / 100.f;
+			const float width = std::max({node.minimum_width * minimum, node.minimum_height * minimum * node.aspect,
+			                              std::min(box->GetClientWidth(), box->GetClientHeight() * node.aspect)});
+			property(component, "position", "absolute");
+			property(component, "left", std::to_string((box->GetClientWidth() - width) / 2) + "dp");
+			property(component, "top", std::to_string((box->GetClientHeight() - width / node.aspect) / 2) + "dp");
+			property(component, "width", std::to_string(width) + "dp");
+			property(component, "height", std::to_string(width / node.aspect) + "dp");
+		}
+	for (const auto &child : node.children)
+		fit_authored_aspects(child);
+}
+void measure_authored_geometry()
+{
+	if (authored_dom_.empty())
+		return;
+	const auto origin = document_->GetElementById("authored-body")->GetAbsoluteOffset(Rml::BoxArea::Border);
+	authored_resolved_.diagnostics.clear();
+	for (auto &placement : authored_resolved_.placements)
+		if (auto *component = authored_component(placement.component))
+		{
+			placement.visible = component->IsVisible(true);
+			const auto at = component->GetAbsoluteOffset(Rml::BoxArea::Border);
+			placement.bounds = {at.x - origin.x, at.y - origin.y, component->GetOffsetWidth(),
+			                    component->GetOffsetHeight()};
+			if (placement.visible && (component->GetScrollHeight() > component->GetClientHeight() + 1 ||
+			                          component->GetScrollWidth() > component->GetClientWidth() + 1))
+				authored_resolved_.diagnostics.push_back(placement.id +
+				                                         ": content scrolls to retain usable text and control sizes");
+		}
+	std::function<void(const UiNode &)> measure = [&](const UiNode &node)
+	{
+		auto *box = document_->GetElementById(layout_node_id(node));
+		const auto at = box->GetAbsoluteOffset(Rml::BoxArea::Border);
+		authored_resolved_.containers[node.id] = {at.x - origin.x, at.y - origin.y, box->GetOffsetWidth(),
+		                                          box->GetOffsetHeight()};
+		for (const auto &child : node.children)
+			measure(child);
+	};
+	measure(authored_resolved_.root);
 }
 void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 {
@@ -238,36 +414,26 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		authored_program_ = compile_ui_layout(app_->session->catalog(), *layout);
 		authored_identity_ = signature;
 	}
-	if (context_name_.starts_with("preview-") && layout->contains("_preview_pages"))
+	auto geometry_key = [&]
 	{
-		const auto hint = layout->at("_preview_pages").dump();
-		if (!layout->value("_preview_interact", false) || hint != preview_pages_signature_)
-			authored_pages_ = layout->at("_preview_pages").get<std::map<std::string, std::string>>();
-		preview_pages_signature_ = hint;
-	}
-	std::string geometry = signature + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) + "/" +
-	                       std::to_string(text_scale_) + "/" + std::to_string(console_tabs_.items().size());
-	for (const auto &[key, value] : authored_pages_)
-		geometry += "/" + key + "/" + value;
+		std::string key = signature + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) + "/" +
+		                  std::to_string(text_scale_) + "/" + std::to_string(model_.available_tabs().size());
+		for (const auto &[group, page] : authored_pages_)
+			key += "/" + group + "/" + page;
+		return key;
+	};
+	const auto geometry = geometry_key();
 	if (geometry != authored_geometry_)
 	{
 		if (!authored_geometry_.empty())
 			cancel_pointer();
 		authored_resolved_ = resolve_console_ui(*authored_program_, region.width, region.height, text_scale_ / 100.f,
-		                                        authored_pages_, console_tabs_.items().size() > 1);
-		authored_geometry_ = geometry;
+		                                        authored_pages_, model_.available_tabs().size() > 1);
+		for (const auto &[group, page] : authored_resolved_.selected_pages)
+			authored_pages_[group] = page;
+		authored_geometry_ = geometry_key();
 	}
 	const auto &resolved = authored_resolved_;
-	std::map<std::string, std::vector<UiTab>> groups;
-	for (const auto &tab : resolved.pages)
-		groups[resolved.page_groups.at(tab.id)].push_back(tab);
-	for (auto &[group, items] : groups)
-	{
-		auto &tabs = authored_tab_groups_[group];
-		tabs.update(std::move(items));
-		if (authored_pages_.contains(group))
-			tabs.select(authored_pages_.at(group));
-	}
 
 	property(document_->GetElementById("authored-body"), "top", std::to_string(resolved.body.y) + "dp");
 	property(document_->GetElementById("layout-tabs"), "top",
@@ -286,39 +452,17 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		if (auto *element = document_->GetElementById(panel); element && !targets.contains(element))
 			property(element, "display", "none");
 	authored_page_groups_ = resolved.page_groups;
-	for (const auto &placement : resolved.placements)
+	const auto dom = signature + (resolved.compact ? "/compact" : "/wide");
+	if (authored_dom_ != dom)
 	{
-		auto *component = authored_component(placement.component);
-		if (!component)
-			continue;
-		if (!authored_parents_.contains(placement.component))
-			authored_parents_[placement.component] = component->GetParentNode()->GetId();
-		if (component->GetParentNode() != host)
-			host->AppendChild(component->GetParentNode()->RemoveChild(component));
-		property(component, "display",
-		         placement.visible && (placement.component != "manual-flight" || model_.manual_available()) ? "block"
-		                                                                                                    : "none");
-		property(component, "position", "absolute");
-		property(component, "pointer-events", placement.component == "manual-flight" ? "none" : "auto");
-		property(component, "overflow", "auto");
-		component->RemoveProperty("right");
-		component->RemoveProperty("bottom");
-		for (const auto &[key, value] : placement.style.items())
-			if (key == "background" || key == "text" || key == "font_family")
-				property(component,
-				         key == "background" ? "background-color"
-				         : key == "text"     ? "color"
-				                             : "font-family",
-				         value.get<std::string>());
-		if (placement.style.contains("font_size"))
-			property(component, "font-size",
-			         std::to_string(placement.style.at("font_size").get<float>() * text_scale_ / 100.f) + "dp");
-		const auto r = placement.bounds;
-		property(component, "left", std::to_string(r.x) + "dp");
-		property(component, "top", std::to_string(r.y) + "dp");
-		property(component, "width", std::to_string(r.width) + "dp");
-		property(component, "height", std::to_string(r.height) + "dp");
+		build_authored_tree(resolved.root);
+		authored_dom_ = dom;
 	}
+	style_authored_tree(resolved.root);
+	context_->Update();
+	place_authored_instruments(resolved.root);
+	context_->Update();
+	fit_authored_aspects(resolved.root);
 	std::string markup;
 	for (const auto &tab : resolved.pages)
 	{
@@ -329,12 +473,7 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 				for (const auto &thread : model_.conversations().value("threads", Json::array()))
 					unread |= thread.value("unread", false);
 		const auto label = localise(tab.label) + (unread ? " — " + localise("Unread") : "");
-		const auto group = authored_page_groups_.find(tab.id);
-		const bool selected = std::any_of(resolved.placements.begin(), resolved.placements.end(),
-		                                  [&](const auto &p)
-		                                  {
-			                                  return p.visible && (p.id == tab.id || p.id.starts_with(tab.id + "."));
-		                                  });
+		const bool selected = authored_pages_.at(resolved.page_groups.at(tab.id)) == tab.id;
 		markup += "<button id=\"" + id("layout-page/" + tab.id) + "\" class=\"" + (selected ? "selected" : "") + "\">" +
 		          Rml::StringUtilities::EncodeRml(label) + "</button>";
 		app_->screen_controls.emplace_back(id("layout-page/" + tab.id), label);
@@ -346,6 +485,7 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		authored_tabs_markup_ = markup;
 	}
 	context_->Update();
+	measure_authored_geometry();
 	if (auto *focus = context_->GetFocusElement(); focus && !focus->IsVisible(true))
 		for (const auto &placement : resolved.placements)
 		{

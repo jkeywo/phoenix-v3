@@ -57,17 +57,12 @@ namespace phoenix
 namespace
 {
 std::map<std::string, Bytes> menu_images, theme_fonts;
-}
+std::map<const void *, std::set<std::string>> menu_image_owners;
+} // namespace
 std::string register_menu_image(const Bytes &png)
 {
 	const auto source = "phoenix-menu://image/" + sha256(png) + ".png";
 	menu_images.try_emplace(source, png);
-	return source;
-}
-std::string register_theme_image(const Bytes &image)
-{
-	const auto source = "phoenix-theme://image/" + sha256(image) + ".png";
-	menu_images.try_emplace(source, image);
 	return source;
 }
 void register_theme_font(const Bytes &font, const std::string &family, bool fallback)
@@ -88,10 +83,17 @@ const Bytes *menu_image_data(const std::string &source)
 	const auto found = menu_images.find(source);
 	return found == menu_images.end() ? nullptr : &found->second;
 }
-void retain_menu_images(const std::set<std::string> &sources)
+void retain_menu_images(const std::set<std::string> &sources, const void *owner)
 {
+	if (sources.empty())
+		menu_image_owners.erase(owner);
+	else
+		menu_image_owners[owner] = sources;
+	std::set<std::string> retained;
+	for (const auto &[identity, owned] : menu_image_owners)
+		retained.insert(owned.begin(), owned.end());
 	for (auto it = menu_images.begin(); it != menu_images.end();)
-		if (!sources.contains(it->first) && !it->first.starts_with("phoenix-theme:"))
+		if (!retained.contains(it->first))
 		{
 			Rml::ReleaseTexture(it->first);
 			it = menu_images.erase(it);
@@ -271,7 +273,7 @@ class PreviewSession final : public SessionPort
 	Catalog catalog_;
 	Observation view_;
 	std::string preview_state_;
-	const Catalog *authoring_identity_ = nullptr;
+	std::shared_ptr<const Catalog> authoring_identity_;
 	std::uint64_t generation_ = 1;
 
 public:
@@ -295,7 +297,7 @@ public:
 			                          static_cast<std::int64_t>(i / 4) * 19000 - 25000, 0, 0,
 			                          static_cast<std::int64_t>(i) * 23000, static_cast<RadarIcon>(1 + i % 3)});
 	}
-	void layout(Json value, const Catalog *authoring = nullptr)
+	void layout(Json value, std::shared_ptr<const Catalog> authoring = {})
 	{
 		if (!authoring && authoring_identity_)
 		{
@@ -317,6 +319,8 @@ public:
 			catalog_.assets = authoring->assets;
 			++generation_;
 		}
+		value.erase("_preview_pages");
+		value.erase("_preview_interact");
 		const auto sample_state = value.value("_preview_state", std::string("normal"));
 		value.erase("_preview_state");
 		if (sample_state != preview_state_)
@@ -1923,8 +1927,12 @@ void close_window()
 	document = nullptr;
 	CloseWindow();
 }
+const UiResolved &console_preview_geometry()
+{
+	return preview_surface->authored_geometry();
+}
 Texture2D draw_console_preview(const Json &layout, int width, int height, Vector2 pointer, bool pressed, bool released,
-                               float wheel, bool pseudo, const Catalog *authoring, int text_scale)
+                               float wheel, bool pseudo, std::shared_ptr<const Catalog> authoring, int text_scale)
 {
 	width = std::clamp(width, 100, 1920);
 	height = std::clamp(height, 100, 1920);
@@ -1937,6 +1945,7 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 	}
 	preview_session->layout(layout, authoring);
 	preview_surface->preview_text_scale(text_scale);
+	preview_surface->preview_pages(layout);
 	preview_app.pseudo_locale = pseudo;
 	preview_app.screen_controls.clear();
 	preview_app.screen_toggles.clear();

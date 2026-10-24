@@ -668,6 +668,7 @@ button.on-screen-active .share-live {display:block;}
 #comms-choices {max-height:18%;overflow:auto;}
 #comms-choices button {min-height:44px;margin:4px;}
 #comms-compose input {width:75%;height:40px;}
+.layout-node {box-sizing:border-box;min-width:0;min-height:0;}
 #authored-body {display:none;position:absolute;left:0;right:0;top:160dp;bottom:0;overflow:auto;}
 #layout-tabs,#console-tabs {position:absolute;left:1%;right:1%;top:64dp;height:44dp;overflow-x:auto;white-space:nowrap;z-index:8;}
 #layout-tabs {display:none;top:110dp;}
@@ -707,6 +708,21 @@ button.on-screen-active .share-live {display:block;}
 	void preview_text_scale(int scale)
 	{
 		text_scale_ = std::clamp(scale, 50, 200);
+	}
+	const UiResolved &authored_geometry() const
+	{
+		return authored_resolved_;
+	}
+	void preview_pages(const Json &layout)
+	{
+		if (!layout.contains("_preview_pages"))
+			return;
+		const auto hint = layout.at("_preview_pages").dump();
+		const bool interact = layout.value("_preview_interact", false);
+		if (hint != preview_pages_signature_ || (preview_interact_ && !interact))
+			authored_pages_ = layout.at("_preview_pages").get<std::map<std::string, std::string>>();
+		preview_pages_signature_ = hint;
+		preview_interact_ = interact;
 	}
 	Rml::Context &context()
 	{
@@ -1488,6 +1504,7 @@ button.on-screen-active .share-live {display:block;}
 	void update_view()
 	{
 		context_->Update();
+		measure_authored_geometry();
 		if (settings_open_)
 			return;
 		// Read geometry as one batch before changing any text. Interleaving these

@@ -28,7 +28,7 @@ A group instance names `group`; optional `overrides` patch its root. Instance pl
 
 `hud_layout` and `hud_layout_overrides` provide the same authoring model for a Console's compact Viewscreen HUD. Its targets are checked against the existing compact widget catalogue. The hierarchy's **Edit Viewscreen HUD** option edits that arrangement separately from the full Console.
 
-The loader compiles layout nodes into typed presentation data. The resolver supplies bounds and page membership for RmlUi elements, custom instrument rendering, input and the Workshop overlays. Resolution is cached until layout, viewport, page selection or text size changes. Telemetry refreshes do not recreate the layout.
+The loader compiles layout nodes into typed presentation data and selects responsive structure and page membership. RmlUi flex layout measures ordinary rows, columns and wrapping panels, including their translated text. Custom geometry is limited to precise instruments, aspect ratios and circle-cutout regions. The canvas reads the production surface's measured DOM bounds, also used by rendering and input, rather than resolving another copy of the layout. Unchanged definitions reuse the compiled preview; telemetry and page navigation do not recreate its component tree.
 
 Old packs retain their legacy layout path. New layouts bypass the legacy station-specific placement and outer-frame rules. The ship's physical Controller layout remains a separate concept.
 

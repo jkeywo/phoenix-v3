@@ -483,23 +483,19 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 			tabs.push_back({key, label, true, unread});
 		}
 		granted_tabs_.update(std::move(tabs));
-		if (!selected_console_.empty())
-			granted_tabs_.select(selected_console_);
-		selected_console_ = granted_tabs_.selected();
-		if (!selected_console_.empty() && selected_console_ != next->console)
+		const auto &selected_console = granted_tabs_.selected();
+		if (!selected_console.empty() && selected_console != next->console)
 		{
 			const auto extra = std::find_if(next->additional_consoles.begin(), next->additional_consoles.end(),
 			                                [&](const auto &view)
 			                                {
-				                                return view.console == selected_console_;
+				                                return view.console == selected_console;
 			                                });
 			if (extra != next->additional_consoles.end())
 			{
 				auto view = *extra;
 				next = std::move(view);
 			}
-			else
-				selected_console_.clear();
 		}
 	}
 	const bool changed = observation_.has_value() != next.has_value() ||
@@ -727,7 +723,7 @@ bool ConsoleModel::act(const std::string &id)
 		                 }))
 			return false;
 		release_controls();
-		selected_console_ = requested;
+		granted_tabs_.select(requested);
 		return true;
 	}
 	auto session = owner_.lock();

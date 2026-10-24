@@ -176,7 +176,9 @@ void draw_screen(Application &app);
 void close_window();
 // Authoring-only sample model. This preview never acquires gameplay authority.
 Texture2D draw_console_preview(const Json &layout, int width, int height, Vector2 pointer, bool pressed, bool released,
-                               float wheel, bool pseudo, const Catalog *authoring = nullptr, int text_scale = 100);
+                               float wheel, bool pseudo, std::shared_ptr<const Catalog> authoring = {},
+                               int text_scale = 100);
+const UiResolved &console_preview_geometry();
 } // namespace phoenix
 
 export namespace phoenix

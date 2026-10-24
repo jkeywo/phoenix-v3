@@ -332,23 +332,13 @@ void console_layout_workspace(Application &app)
 			{
 				if (auto *parent = layout_find_parent(root, layout_workspace.selected))
 				{
-					auto copy = *selected;
+					auto copy = expand_ui_groups(*catalog, *selected);
 					auto widgets = console.at("widgets");
 					std::function<bool(Json &, unsigned)> duplicate_bindings;
 					duplicate_bindings = [&](Json &node, unsigned depth)
 					{
 						if (depth > 24)
 							return false;
-						if (node.contains("group"))
-						{
-							auto group = catalog->ui_groups.at(node.at("group").get<std::string>()).at("root");
-							if (node.contains("overrides"))
-								group.merge_patch(node.at("overrides"));
-							for (const auto &[key, value] : node.items())
-								if (key != "group" && key != "overrides")
-									group[key] = value;
-							node = std::move(group);
-						}
 						if (node.contains("component"))
 						{
 							auto original = std::find_if(console.at("widgets").begin(), console.at("widgets").end(),
@@ -473,13 +463,7 @@ void console_layout_workspace(Application &app)
 			}
 			if (ImGui::Button(tool_label("Detach reusable group").c_str()) && selected->contains("group"))
 			{
-				auto copy = catalog->ui_groups.at(selected->at("group").get<std::string>()).at("root");
-				if (selected->contains("overrides"))
-					copy.merge_patch(selected->at("overrides"));
-				for (const auto &[key, value] : selected->items())
-					if (key != "group" && key != "overrides")
-						copy[key] = value;
-				*selected = copy;
+				*selected = expand_ui_groups(*catalog, *selected);
 			}
 			if (ImGui::Button(tool_label("Delete layout node").c_str()))
 			{
@@ -646,17 +630,6 @@ void console_layout_workspace(Application &app)
 				widget["binding"] =
 				    widget.at("kind") == "throttle" ? "engine.desired_speed" : "steering.desired_heading";
 		}
-		const auto program = compile_ui_layout(*catalog, sample);
-		const auto resolved = resolve_console_ui(program, static_cast<float>(layout_workspace.width),
-		                                         static_cast<float>(layout_workspace.height),
-		                                         layout_workspace.text_scale / 100.f, layout_workspace.pages);
-		for (const auto &tab : resolved.pages)
-		{
-			if (ImGui::Button(localise(tab.label).c_str()))
-				layout_workspace.pages[resolved.page_groups.at(tab.id)] = tab.id;
-			ImGui::SameLine();
-		}
-		ImGui::NewLine();
 		const auto origin = ImGui::GetCursorScreenPos();
 		const float scale =
 		    std::min({1.f, std::max(100.f, ImGui::GetContentRegionAvail().x) / layout_workspace.width,
@@ -670,8 +643,9 @@ void console_layout_workspace(Application &app)
 		    {hovered && layout_workspace.interact ? (mouse.x - origin.x) / scale : -100.f,
 		     hovered && layout_workspace.interact ? (mouse.y - origin.y) / scale : -100.f},
 		    hovered && layout_workspace.interact && ImGui::IsMouseClicked(0), ImGui::IsMouseReleased(0),
-		    hovered && layout_workspace.interact ? ImGui::GetIO().MouseWheel : 0, app.pseudo_locale, catalog.get(),
+		    hovered && layout_workspace.interact ? ImGui::GetIO().MouseWheel : 0, app.pseudo_locale, catalog,
 		    layout_workspace.text_scale);
+		const auto &resolved = console_preview_geometry();
 		ImGui::Image(static_cast<ImTextureID>(texture.id), size, {0, 1}, {1, 0});
 		if (!ImGui::IsMouseDown(0) || (hovered && ImGui::IsMouseClicked(0)))
 			layout_workspace.canvas_drag = false;
@@ -742,6 +716,15 @@ void console_layout_workspace(Application &app)
 					}
 				}
 			}
+		for (const auto &tab : resolved.pages)
+		{
+			ImGui::PushID(tab.id.c_str());
+			if (ImGui::Button(localise(tab.label).c_str()))
+				layout_workspace.pages[resolved.page_groups.at(tab.id)] = tab.id;
+			ImGui::PopID();
+			ImGui::SameLine();
+		}
+		ImGui::NewLine();
 		ImGui::TextWrapped("%s", localise("Drag instruments to move. Shift-drag resizes. Use hierarchy drag/drop to "
 		                                  "move panels between containers.")
 		                             .c_str());

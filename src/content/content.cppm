@@ -360,6 +360,8 @@ struct UiPlacement
 };
 struct UiResolved
 {
+	UiNode root; // Responsive structure; the presentation adapter fills measured geometry.
+	std::map<std::string, std::string> selected_pages;
 	UiRect body;
 	std::vector<UiPlacement> placements;
 	std::vector<UiTab> pages;
@@ -368,6 +370,7 @@ struct UiResolved
 	std::vector<std::string> diagnostics;
 	bool compact = false;
 };
+Json expand_ui_groups(const Catalog &, const Json &node);
 UiLayout compile_ui_layout(const Catalog &, const Json &console);
 UiLayout compile_ui_tree(const Catalog &, const Json &definition);
 UiResolved resolve_ui_layout(const UiLayout &, UiRect available, float text_scale,
@@ -1332,7 +1335,7 @@ public:
 
 private:
 	mutable std::shared_ptr<const Catalog> ui_preview_;
-	mutable std::string ui_preview_signature_;
+	mutable Json ui_preview_source_, ui_preview_manifest_;
 	PackDraft pack_;
 	Json definitions_;
 	std::size_t map_index_ = 0;

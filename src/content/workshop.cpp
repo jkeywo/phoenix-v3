@@ -129,17 +129,20 @@ WorkshopDocument::WorkshopDocument()
 }
 std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 {
+	// Raw draft access is supported by all existing editors. Compare against the last UI
+	// snapshot without copying/serialising unchanged rows. Imports and loads invalidate assets.
+	static const Json empty = Json::array();
+	bool unchanged = ui_preview_ && ui_preview_manifest_ == pack_.manifest;
+	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles"})
+	{
+		const auto row = definitions_.find(kind);
+		unchanged = unchanged && ui_preview_source_.at(kind) == (row == definitions_.end() ? empty : *row);
+	}
+	if (unchanged)
+		return ui_preview_;
 	Json source = Json::object();
 	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles"})
 		source[kind] = draft_rows(definitions_, kind);
-	std::string signature = source.dump() + pack_.manifest.dump();
-	for (const auto &[id, hash] : library_catalog_.ordered_packs)
-		signature += id + hash;
-	for (const auto &[path, bytes] : pack_.files)
-		if (path.starts_with("assets/"))
-			signature += path;
-	if (ui_preview_ && ui_preview_signature_ == signature)
-		return ui_preview_;
 	Catalog preview;
 	preview.ui_theme = library_catalog_.ui_theme;
 	preview.ordered_packs = library_catalog_.ordered_packs;
@@ -160,7 +163,8 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))
 			preview.assets[prefix + path] = bytes;
 	ui_preview_ = std::make_shared<const Catalog>(std::move(preview));
-	ui_preview_signature_ = signature;
+	ui_preview_source_ = std::move(source);
+	ui_preview_manifest_ = pack_.manifest;
 	return ui_preview_;
 }
 Catalog WorkshopDocument::preview_equipment() const
@@ -855,6 +859,7 @@ std::string WorkshopDocument::import_model(const std::string &filename, Bytes by
 	const auto path = "assets/" + leaf;
 	if (pack_.files.contains(path))
 		throw std::runtime_error("Asset already exists; rename the imported model");
+	ui_preview_.reset();
 	pack_.files[path] = std::move(bytes);
 	return pack_.manifest.at("id").get<std::string>() + ":" + path;
 }
@@ -877,6 +882,7 @@ std::string WorkshopDocument::import_image(const std::string &filename, Bytes by
 	                            {"systems", Json::object()},
 	                            {"collision", {{"shape", "circle"}, {"radius_mm", 1}, {"mass_grams", 0}}}};
 	verify_catalog(probe);
+	ui_preview_.reset();
 	pack_.files[path] = std::move(bytes);
 	return reference;
 }
@@ -895,6 +901,7 @@ std::string WorkshopDocument::import_font(const std::string &filename, Bytes byt
 	const auto path = "assets/fonts/" + leaf;
 	if (pack_.files.contains(path))
 		throw std::runtime_error("Font already exists; rename the imported file");
+	ui_preview_.reset();
 	pack_.files[path] = std::move(bytes);
 	return pack_.manifest.at("id").get<std::string>() + ":" + path;
 }

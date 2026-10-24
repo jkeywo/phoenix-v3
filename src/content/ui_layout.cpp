@@ -29,8 +29,34 @@ float ui_number(const Json &j, const char *key, float fallback, float minimum = 
 	ui_require(std::isfinite(value) && value >= minimum && value <= maximum, key, "outside supported range");
 	return value;
 }
-UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::string> &ids,
-                    std::set<std::string> groups, const std::string &prefix, unsigned depth, unsigned &count)
+Json expand_node(const Catalog &catalog, Json source, std::set<std::string> groups, unsigned depth, unsigned &count)
+{
+	ui_require(depth <= 24 && ++count <= 512, "layout", "exceeds 24 levels or 512 nodes");
+	ui_require(source.is_object(), "layout", "expected node object");
+	if (source.contains("group"))
+	{
+		const auto group = source.at("group").get<std::string>();
+		ui_require(catalog.ui_groups.contains(group) && groups.insert(group).second, "layout.group",
+		           "unresolved or recursive reusable group " + group);
+		const auto &definition = catalog.ui_groups.at(group);
+		ui_require(definition.value("schema", 0) == 1, group, "expected UI schema 1");
+		auto root = definition.at("root");
+		if (source.contains("overrides"))
+			root.merge_patch(source.at("overrides"));
+		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
+		                          "stretch", "aspect", "align", "region", "circle", "style"})
+			if (source.contains(field))
+				root[field] = source.at(field);
+		root["id"] = source.at("id");
+		return expand_node(catalog, std::move(root), std::move(groups), depth + 1, count);
+	}
+	if (source.contains("children"))
+		for (auto &child : source["children"])
+			child = expand_node(catalog, std::move(child), groups, depth + 1, count);
+	return source;
+}
+UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::string> &ids, const std::string &prefix,
+                    unsigned depth, unsigned &count)
 {
 	ui_require(depth <= 24 && ++count <= 512, "layout", "exceeds 24 levels or 512 nodes");
 	ui_require(source.is_object(), "layout", "expected node object");
@@ -44,25 +70,6 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 	ui_require(ids.insert(node.id).second, node.id, "duplicate node identity");
 	node.kind = source.value("kind", std::string("column"));
 	node.label = source.value("label", local);
-	if (source.contains("group"))
-	{
-		const auto group = source.at("group").get<std::string>();
-		ui_require(catalog.ui_groups.contains(group) && groups.insert(group).second, node.id,
-		           "unresolved or recursive reusable group " + group);
-		auto definition = catalog.ui_groups.at(group);
-		ui_require(definition.value("schema", 0) == 1, group, "expected UI schema 1");
-		auto root = definition.at("root");
-		if (source.contains("overrides"))
-			root.merge_patch(source.at("overrides"));
-		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
-		                          "stretch", "aspect", "align", "region", "circle", "style"})
-			if (source.contains(field))
-				root[field] = source.at(field);
-		// The instance owns identity; reusable group children are namespaced.
-		root["id"] = local;
-		ids.erase(node.id);
-		return compile_node(catalog, root, ids, groups, prefix, depth + 1, count);
-	}
 	ui_require(node.kind == "row" || node.kind == "column" || node.kind == "wrap" || node.kind == "tabs" ||
 	               node.kind == "instruments" || node.kind == "component" || node.kind == "cutout",
 	           node.id, "unsupported layout node kind");
@@ -112,7 +119,7 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 		ui_require(source.contains("children") && source.at("children").is_array() && !source.at("children").empty(),
 		           node.id, "container needs children");
 		for (const auto &child : source.at("children"))
-			node.children.push_back(compile_node(catalog, child, ids, groups, node.id + ".", depth + 1, count));
+			node.children.push_back(compile_node(catalog, child, ids, node.id + ".", depth + 1, count));
 	}
 	return node;
 }
@@ -151,6 +158,11 @@ void targets(const UiNode &node, std::set<std::string> &result)
 }
 } // namespace
 
+Json expand_ui_groups(const Catalog &catalog, const Json &source)
+{
+	unsigned count = 0;
+	return expand_node(catalog, source, {}, 0, count);
+}
 bool UiTabs::update(std::vector<UiTab> tabs)
 {
 	std::set<std::string> unique;
@@ -200,13 +212,13 @@ UiLayout compile_ui_tree(const Catalog &catalog, const Json &definition)
 	UiLayout result;
 	std::set<std::string> ids;
 	unsigned count = 0;
-	result.root = compile_node(catalog, definition.at("root"), ids, {}, {}, 0, count);
+	result.root = compile_node(catalog, expand_ui_groups(catalog, definition.at("root")), ids, {}, 0, count);
 	std::set<std::string> full;
 	targets(result.root, full);
 	if (definition.contains("compact"))
 	{
 		ids.clear();
-		result.compact = compile_node(catalog, definition.at("compact"), ids, {}, {}, 0, count);
+		result.compact = compile_node(catalog, expand_ui_groups(catalog, definition.at("compact")), ids, {}, 0, count);
 		std::set<std::string> compact;
 		targets(*result.compact, compact);
 		ui_require(full == compact, "layout.compact", "must preserve all component targets exactly once");
@@ -258,166 +270,46 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 	result.body = available;
 	const auto [mw, mh] = minimum_size(layout.root, text_scale);
 	result.compact = available.width < mw || available.height < mh;
-	UiNode automatic;
-	const UiNode *root = &layout.root;
-	if (result.compact)
+	result.root = result.compact && layout.compact ? *layout.compact : layout.root;
+	if (result.compact && !layout.compact && !result.root.children.empty() && result.root.kind != "tabs")
 	{
-		if (layout.compact)
-			root = &*layout.compact;
-		else if (!root->children.empty() && root->kind != "tabs")
-		{
-			automatic = *root;
-			automatic.kind = "tabs";
-			root = &automatic;
-		}
+		result.root.kind = "tabs";
+		result.root.minimum_width = result.root.minimum_height = 44;
 	}
-	std::function<void(const UiNode &, UiRect, bool, const std::string &)> place;
-	place = [&](const UiNode &node, UiRect area, bool visible, const std::string &page)
+	// Only choose responsive structure and page visibility here. RmlUi owns container geometry.
+	std::function<void(UiNode &, bool, const std::string &)> visit;
+	visit = [&](UiNode &node, bool visible, const std::string &page)
 	{
-		if (result.compact && (node.kind == "instruments" || node.kind == "cutout") &&
-		    (area.width < minimum_size(node, text_scale).first || area.height < minimum_size(node, text_scale).second))
+		if (result.compact && (node.kind == "instruments" || node.kind == "cutout"))
 		{
-			auto fallback = node;
-			fallback.kind = "column";
-			place(fallback, area, visible, page);
-			return;
+			node.kind = "column";
+			node.minimum_width = node.minimum_height = 44;
 		}
-		result.containers[node.id] = area;
 		if (node.kind == "component")
-		{
-			const auto [w, h] = minimum_size(node, text_scale);
-			if (visible && (area.width < w || area.height < h))
-				result.diagnostics.push_back(node.id + ": scroll required to retain minimum control size");
-			area.width = std::max(area.width, w);
-			area.height = std::max(area.height, h);
-			if (node.aspect > 0)
-			{
-				const float width = std::max({w, h * node.aspect, std::min(area.width, area.height * node.aspect)}),
-				            height = width / node.aspect;
-				area.x += (area.width - width) / 2;
-				area.y += (area.height - height) / 2;
-				area.width = width;
-				area.height = height;
-			}
-			result.placements.push_back({node.id, node.component, page, area, visible, node.style});
-			return;
-		}
-		const auto pad = node.padding * text_scale, gap = node.gap * text_scale;
-		area = {area.x + pad, area.y + pad, std::max(1.f, area.width - pad * 2), std::max(1.f, area.height - pad * 2)};
+			result.placements.push_back({node.id, node.component, page, {}, visible, node.style});
 		if (node.kind == "tabs")
 		{
-			std::string chosen = node.children.front().id;
+			auto chosen = node.children.front().id;
 			if (selected_pages.contains(node.id))
 				for (const auto &child : node.children)
 					if (child.id == selected_pages.at(node.id))
 						chosen = child.id;
-			for (const auto &child : node.children)
+			result.selected_pages[node.id] = chosen;
+			for (auto &child : node.children)
 			{
 				if (visible)
 				{
 					result.pages.push_back({child.id, child.label});
 					result.page_groups[child.id] = node.id;
 				}
-				// Page navigation is reserved once by resolve_console_ui and displayed by the shared tab strip.
-				place(child, area, visible && child.id == chosen, node.id);
+				visit(child, visible && child.id == chosen, node.id);
 			}
-			return;
 		}
-		if (node.kind == "instruments" || node.kind == "cutout")
-		{
-			for (const auto &child : node.children)
-			{
-				auto r = child.rect;
-				if (node.kind == "cutout" && !child.region.empty())
-				{
-					const float x = area.width * node.circle_x, y = area.height * node.circle_y;
-					const float radius = std::min(area.width, area.height) * node.circle_radius,
-					            corner = radius / std::sqrt(2.f);
-					UiRect bounds;
-					if (child.region == "centre")
-						bounds = {area.x + x - radius, area.y + y - radius, radius * 2, radius * 2};
-					else
-					{
-						const bool right = child.region.ends_with("right"), bottom = child.region.starts_with("bottom");
-						bounds = {area.x + (right ? x + corner : 0), area.y + (bottom ? y + corner : 0),
-						          right ? area.width - x - corner : x - corner,
-						          bottom ? area.height - y - corner : y - corner};
-					}
-					place(child, bounds, visible, page);
-					continue;
-				}
-				place(child,
-				      {area.x + area.width * r.x / 1000, area.y + area.height * r.y / 1000, area.width * r.width / 1000,
-				       area.height * r.height / 1000},
-				      visible, page);
-			}
-			return;
-		}
-		if (node.kind == "wrap")
-		{
-			float x = area.x, y = area.y, line = 0;
-			for (const auto &child : node.children)
-			{
-				const auto [mw, mh] = minimum_size(child, text_scale);
-				const float w = std::max(mw, child.preferred_width * text_scale),
-				            h = std::max(mh, child.preferred_height * text_scale);
-				if (x > area.x && x + w > area.x + area.width)
-				{
-					x = area.x;
-					y += line + gap;
-					line = 0;
-				}
-				place(child, {x, y, w, h}, visible, page);
-				x += w + gap;
-				line = std::max(line, h);
-			}
-			return;
-		}
-		const bool horizontal = node.kind == "row";
-		float required = gap * (node.children.size() - 1), weight = 0;
-		std::vector<float> sizes;
-		for (const auto &child : node.children)
-		{
-			const auto [w, h] = minimum_size(child, text_scale);
-			const auto size = std::max(horizontal ? w : h,
-			                           (horizontal ? child.preferred_width : child.preferred_height) * text_scale);
-			sizes.push_back(size);
-			required += size;
-			weight += child.stretch;
-		}
-		const auto spare = std::max(0.f, (horizontal ? area.width : area.height) - required);
-		float position = horizontal ? area.x : area.y;
-		for (std::size_t i = 0; i < node.children.size(); ++i)
-		{
-			const auto &child = node.children[i];
-			const float size = sizes[i] + (weight > 0 ? spare * child.stretch / weight : 0);
-			UiRect bounds =
-			    horizontal ? UiRect{position, area.y, size, area.height} : UiRect{area.x, position, area.width, size};
-			if (child.align != "stretch")
-			{
-				const auto [w, h] = minimum_size(child, text_scale);
-				const float cross = std::max(
-				    horizontal ? h : w, (horizontal ? child.preferred_height : child.preferred_width) * text_scale);
-				const auto offset =
-				    ((horizontal ? bounds.height : bounds.width) - cross) * (child.align == "center" ? .5f
-				                                                             : child.align == "end"  ? 1.f
-				                                                                                     : 0.f);
-				if (horizontal)
-				{
-					bounds.y += std::max(0.f, offset);
-					bounds.height = cross;
-				}
-				else
-				{
-					bounds.x += std::max(0.f, offset);
-					bounds.width = cross;
-				}
-			}
-			place(child, bounds, visible, page);
-			position += size + gap;
-		}
+		else
+			for (auto &child : node.children)
+				visit(child, visible, page);
 	};
-	place(*root, available, true, {});
+	visit(result.root, true, {});
 	return result;
 }
 UiResolved resolve_console_ui(const UiLayout &layout, float width, float height, float text_scale,

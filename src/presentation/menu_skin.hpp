@@ -20,7 +20,7 @@ struct MenuSkin
 	std::array<float, 2> label{};
 	bool has_label = false;
 	float scale = 1;
-	static MenuSkin parse(const nlohmann::json &source, float display_scale)
+	static inline MenuSkin parse(const nlohmann::json &source, float display_scale)
 	{
 		auto invalid = []
 		{
@@ -70,23 +70,23 @@ struct MenuSkin
 		}
 		return skin;
 	}
-	std::string sprite_sheet(const std::string &name) const
+	inline std::string sprite_sheet(const std::string &name, const std::string &source = {}) const
 	{
 		auto px = [](int value)
 		{
 			return std::to_string(value) + "px ";
 		};
-		return "@spritesheet " + name + " { src: menu/" + sprite + "; resolution: 1x; " + name + "-outer: 0px 0px " +
-		       px(width) + px(height) + "; " + name + "-inner: " + px(left) + px(top) + px(width - left - right) +
-		       px(height - top - bottom) + "; }\n";
+		return "@spritesheet " + name + " { src: " + (source.empty() ? "menu/" + sprite : source) +
+		       "; resolution: 1x; " + name + "-outer: 0px 0px " + px(width) + px(height) + "; " + name +
+		       "-inner: " + px(left) + px(top) + px(width - left - right) + px(height - top - bottom) + "; }\n";
 	}
-	std::string decorator(const std::string &name) const
+	inline std::string decorator(const std::string &name, const std::string &unit = "px") const
 	{
-		return "ninepatch(" + name + "-outer, " + name + "-inner, " + std::to_string(top * scale) + "px " +
-		       std::to_string(right * scale) + "px " + std::to_string(bottom * scale) + "px " +
-		       std::to_string(left * scale) + "px) border-box";
+		return "ninepatch(" + name + "-outer, " + name + "-inner, " + std::to_string(top * scale) + unit + " " +
+		       std::to_string(right * scale) + unit + " " + std::to_string(bottom * scale) + unit + " " +
+		       std::to_string(left * scale) + unit + ") border-box";
 	}
-	std::array<float, 2> label_position(float display_width, float display_height) const
+	inline std::array<float, 2> label_position(float display_width, float display_height) const
 	{
 		// Match RmlUi's corner compression when a surface is smaller than its borders.
 		auto axis = [&](float point, float source_size, float leading, float trailing, float target_size)
