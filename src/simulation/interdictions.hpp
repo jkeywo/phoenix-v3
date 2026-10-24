@@ -74,8 +74,8 @@ bool encounter_command(EntityId ship, OperatingAction action, std::int64_t value
 			{
 				if (action == OperatingAction::WeaponTarget && value)
 				{
-					const auto observed = capture_console_observation({ship, c.definition.console});
-					if (std::none_of(observed.contacts.begin(), observed.contacts.end(),
+					const auto contacts = capture_sensor_contacts({ship, c.definition.console});
+					if (std::none_of(contacts.begin(), contacts.end(),
 					                 [&](const auto &contact)
 					                 {
 						                 return contact.id == static_cast<EntityId>(value);
@@ -102,8 +102,8 @@ std::optional<fixed::Vec> encounter_contact(EntityId ship, EntityId target) cons
 			for (const auto &channel : c.definition.commands)
 				if (channel.action == OperatingAction::Speed || channel.action == OperatingAction::Heading)
 				{
-					const auto observed = capture_console_observation({ship, c.definition.console});
-					for (const auto &contact : observed.contacts)
+					const auto contacts = capture_sensor_contacts({ship, c.definition.console});
+					for (const auto &contact : contacts)
 						if (contact.id == target)
 							return fixed::Vec{contact.x, contact.y};
 				}
