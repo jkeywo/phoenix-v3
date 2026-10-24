@@ -38291,7 +38291,6 @@
 					"relation": "hostile"
 				}
 			],
-			"combat_duel": true,
 			"regions": [
 				{
 					"id": "station-approach",
