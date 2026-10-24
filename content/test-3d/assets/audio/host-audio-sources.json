@@ -1,0 +1,56 @@
+{
+	"conversion": "libsndfile via SoundFile 0.14.0; original rate/channels; OGG Vorbis loops, PCM16 WAV shot",
+	"recordings": [
+		{
+			"source": "C:\\Coding\\project-phoenix-v2\\assets\\sounds\\Ambient.mp3",
+			"source_sha256": "30f806b006ea2e4607ba564ea528eaf046af1bc8bf07436c5ddacee493c688d2",
+			"runtime_file": "ship_ambient.ogg",
+			"runtime_sha256": "4e2ad572463b2587d601cd38322e09533286b629ac3b07156988ff66d604d25e",
+			"sample_rate": 24000,
+			"channels": 2,
+			"seconds": 64.62020833333334
+		},
+		{
+			"source": "C:\\Coding\\project-phoenix-v2\\assets\\sounds\\Engine.mp3",
+			"source_sha256": "efeb56f2542120bcbbfc860299232dca9e03b67885977df2faf300f693ecb85d",
+			"runtime_file": "engine.ogg",
+			"runtime_sha256": "f55af7b9918fa756953b263ac97e0d0011a2a9d76c171e9e0fb3e9befd27f411",
+			"sample_rate": 48000,
+			"channels": 1,
+			"seconds": 6.827
+		},
+		{
+			"source": "C:\\Coding\\project-phoenix-v2\\assets\\sounds\\Blaster.mp3",
+			"source_sha256": "39029737ca3a218af0f39567242e1ca6bf190c68b7a08a1c047ae0a77742bae4",
+			"runtime_file": "cannon.wav",
+			"runtime_sha256": "3b556f1ce0fe2a91317e2a8c33ac3be78a0e867e16772c638ad0054ca5905b5c",
+			"sample_rate": 24000,
+			"channels": 2,
+			"seconds": 2.2402083333333334
+		},
+		{
+			"source": "C:\\Coding\\project-phoenix-v2\\assets\\sounds\\PhaserLoop.mp3",
+			"source_sha256": "112f58ea6956ec7f24b85ff93ab59dc981bfa608ac0f610bb58ec70350b10d5c",
+			"runtime_file": "cutting_beam.ogg",
+			"runtime_sha256": "92ef8ad5b2e94aa576958b18345ce0d3c5deb67d21d4e4fa80d0e73d6443b4a9",
+			"sample_rate": 24000,
+			"channels": 2,
+			"seconds": 25.215958333333333
+		},
+		{
+			"source": "C:\\Coding\\project-phoenix-v2\\assets\\sounds\\ForcefieldHit.mp3",
+			"source_sha256": "57d69d7b29c8a28f476fbc4275e426e140dd9dc0d2f2e2bc48543bea34cebd4d",
+			"runtime_file": "shield.ogg",
+			"runtime_sha256": "81d0486fb62259d373667e0fc4085e90260a4f3958bd2ae3e1fe2e70e7c2fb35",
+			"sample_rate": 24000,
+			"channels": 2,
+			"seconds": 25.978666666666665
+		},
+		{
+			"source": "raw/audio/the_final_battle.ogg",
+			"source_sha256": "401fa62b9ed9bb2eea5821bdbe245e3eb991a89ecd1509c3742f7b5393b0df1c",
+			"runtime_file": "the_final_battle.ogg",
+			"conversion": "unchanged"
+		}
+	]
+}

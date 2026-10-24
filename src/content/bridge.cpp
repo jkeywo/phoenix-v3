@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -122,12 +123,19 @@ BridgeDefinition compile_bridge(const Catalog &catalog, const std::string &entit
 		condition.glow = rows[i].value("glow", false);
 		condition.siren = rows[i].value("siren", std::string{});
 		condition.music = rows[i].value("music", std::string{});
+		condition.music_gain = rows[i].value("music_gain", 1.f);
+		bridge_require(std::isfinite(condition.music_gain) && condition.music_gain >= 0 && condition.music_gain <= 1,
+		               entity, "condition music_gain must be 0..1");
 		bridge_require(condition.colour.size() == 7 && condition.colour.front() == '#' &&
 		                   condition.colour.substr(1).find_first_not_of("0123456789abcdefABCDEF") == std::string::npos,
 		               entity, "condition colour must be #RRGGBB");
 		for (const auto &asset : {condition.siren, condition.music})
+		{
 			bridge_require(asset.empty() || catalog.assets.contains(asset), entity,
 			               "unresolved condition audio " + asset);
+			if (!asset.empty())
+				verify_audio_asset(catalog, asset, entity + ".bridge.conditions");
+		}
 		result.conditions.push_back(std::move(condition));
 	}
 	result.initial = initial_choice(result.conditions, bridge, "initial", entity);

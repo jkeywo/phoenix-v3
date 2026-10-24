@@ -50,10 +50,8 @@ void open_file(ImportId id, FilePurpose purpose)
 	}
 	try
 	{
-		complete_import(
-		    id, utf8(std::filesystem::path(path).filename().wstring()),
-		    read_file(utf8(path), purpose == FilePurpose::GameSave ? runtime_save_archive_limit : 32 * 1024 * 1024), {},
-		    false, utf8(path));
+		complete_import(id, utf8(std::filesystem::path(path).filename().wstring()),
+		                read_file(utf8(path), file_import_limit(purpose)), {}, false, utf8(path));
 	}
 	catch (const std::exception &error)
 	{

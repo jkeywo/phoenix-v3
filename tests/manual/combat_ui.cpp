@@ -4,11 +4,16 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <atomic>
+#include <cmath>
+#include <functional>
+#include <mutex>
 #include <nlohmann/json.hpp>
 import phoenix.application;
 import phoenix.presentation;
 import phoenix.session.execution;
 using namespace phoenix;
+#include "host_audio_smoke.hpp"
 int main(int argc, char **argv)
 {
 	bool opened = false;
@@ -19,11 +24,14 @@ int main(int argc, char **argv)
 		const bool mvp = argc > 2 && std::string(argv[2]) == "mvp";
 		const bool support = argc > 2 && std::string(argv[2]) == "support";
 		const bool destruction = argc > 2 && std::string(argv[2]) == "destruction";
+		const bool audio = argc > 2 && std::string(argv[2]) == "audio";
 		Application app;
 		app.can_host = true;
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
+		if (FileExists((std::string(argv[1]) + "/test-missions.zip").c_str()))
+			app.session->add_pack(read_file(std::string(argv[1]) + "/test-missions.zip"));
 		if (destruction)
 		{
 			auto enemy = app.session->catalog().entities.at("base.pirate-raider");
@@ -49,10 +57,28 @@ int main(int argc, char **argv)
 			app.session->add_pack(write_pack(draft));
 		}
 
-		app.session->start({"base.asteroid-duel",
-		                    {{"base.duellist", "base.armed-courier"}},
-		                    "base.duellist",
-		                    support ? "support" : "helm"});
+		const auto &duel_slot = app.session->catalog().maps.at("base.asteroid-duel").at("ship_slots")[0];
+		const auto duel_ship = duel_slot.value("default_ship", duel_slot.at("allowed_ships")[0].get<std::string>());
+		GameSetup setup{
+		    "base.asteroid-duel", {{"base.duellist", duel_ship}}, "base.duellist", support ? "support" : "helm"};
+		if (audio)
+		{
+			setup.console_profiles["base.duellist"] = {{"helm", "detailed"}, {"support", "detailed"}};
+			auto map = app.session->catalog().maps.at("base.asteroid-duel");
+			map["regions"] = Json::array();
+			map["entities"][0]["x_mm"] = 60000;
+			map["entities"][0]["y_mm"] = 0;
+			map["ship_slots"][0]["x_mm"] = 0;
+			map["ship_slots"][0]["y_mm"] = 0;
+			PackDraft draft;
+			draft.manifest = {{"schema", 1},
+			                  {"id", "audio-smoke"},
+			                  {"parent", "phoenix-base"},
+			                  {"overrides", {"base.asteroid-duel"}}};
+			draft.files["definitions.json"] = json_bytes(Json{{"schema", 4}, {"maps", Json::array({map})}});
+			app.session->add_pack(write_pack(draft));
+		}
+		app.session->start(setup);
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
@@ -76,6 +102,12 @@ int main(int argc, char **argv)
 				break;
 		}
 		frame();
+		if (audio)
+		{
+			run_host_audio_smoke(app, frame);
+			close_window();
+			return 0;
+		}
 		if (support)
 		{
 			if (!app.screen_action("console/1/game.compartment/1"))

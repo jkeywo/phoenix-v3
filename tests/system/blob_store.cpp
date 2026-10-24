@@ -57,7 +57,7 @@ int main()
 		        "Synthetic session profile must persist through the same platform store");
 		// Exercise the public payload bound through the real record encoder and
 		// native file reader: the on-disk integrity header adds bytes to this size.
-		auto maximum = std::make_shared<const Bytes>(32 * 1024 * 1024, 0xa5);
+		auto maximum = std::make_shared<const Bytes>(content_archive_limit, 0xa5);
 		require(store->write(8, "maximum.synthetic", maximum) && wait(*store).error.empty(),
 		        "A maximum-size blob payload must be accepted and durably stored");
 		store.reset();

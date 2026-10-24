@@ -93,8 +93,8 @@ void pump_browser_workshop_test(Application &app)
 	{
 		try
 		{
-			if (pending->pack.size() > 32 * 1024 * 1024)
-				throw std::runtime_error("Disposable test archive exceeds 32 MiB.");
+			if (pending->pack.size() > content_archive_limit)
+				throw std::runtime_error("Disposable test archive exceeds 64 MiB.");
 			Json metadata{{"mission", pending->mission},
 			              {"slot", pending->slot},
 			              {"ship", pending->ship},
@@ -122,7 +122,7 @@ void pump_browser_workshop_test(Application &app)
 				throw std::runtime_error("Disposable test has more than 64 dependencies.");
 			for (const auto &dependency : pending->dependencies)
 			{
-				if (dependency.size() > 32 * 1024 * 1024 ||
+				if (dependency.size() > content_archive_limit ||
 				    dependencies.size() + dependency.size() + pending->pack.size() > 128 * 1024 * 1024)
 					throw std::runtime_error("Disposable test archive transfer exceeds its finite limit.");
 				metadata["dependency_lengths"].push_back(dependency.size());

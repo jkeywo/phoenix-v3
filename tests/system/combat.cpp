@@ -11,6 +11,8 @@ import phoenix.simulation;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
+#include "../../src/presentation/host_audio.hpp"
+#include "../../src/presentation/ship_camera.hpp"
 namespace
 {
 Json fixture()
@@ -1346,12 +1348,14 @@ void resource_availability_contracts()
 		require(world.save() == resumed.save(), "unavailable supplies retain deterministic allocation continuation");
 	}
 }
+#include "host_audio_contracts.hpp"
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
 		repair_workload_contract();
+		host_audio_contracts();
 		{
 			auto source = fixture();
 			auto &ship = source["entities"][0];

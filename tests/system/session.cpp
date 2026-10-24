@@ -32,9 +32,9 @@ int main()
 			extra.manifest = {{"schema", 1}, {"id", "test-save-assets"}, {"dependencies", {"test-core"}}};
 			extra.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
 			std::uint32_t random = 0x9e3779b9;
-			for (int n = 0; n < 2; ++n)
+			for (int n = 0; n < 3; ++n)
 			{
-				Bytes payload(9 * 1024 * 1024);
+				Bytes payload(11 * 1024 * 1024);
 				for (auto &byte : payload)
 				{
 					random ^= random << 13;
@@ -51,7 +51,7 @@ int main()
 			original->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 			original->tick();
 			const auto portable_large = original->save();
-			require(portable_large.size() > 32 * 1024 * 1024,
+			require(portable_large.size() > content_archive_limit,
 			        "Portable fixture must cross the content-archive boundary");
 			bool rejected = false;
 			try

@@ -687,7 +687,7 @@ export function menuPreview(source) {
 export async function zipEntry(bytes, name, optional = false) {
 	// DAT retains bounded text metadata for the pre-WASM launcher; gameplay definitions are binary.
 	if (new TextDecoder().decode(bytes.subarray(0, 8)) === "PHXDAT1\n") bytes = bytes.subarray(8);
-	if (bytes.length > 32 * 1024 * 1024) throw Error("Archive exceeds 32 MiB.");
+	if (bytes.length > 64 * 1024 * 1024) throw Error("Archive exceeds 64 MiB.");
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	let end = bytes.length - 22;
 	for (; end >= Math.max(0, bytes.length - 65557); --end) if (view.getUint32(end, true) === 0x06054b50) break;
@@ -708,7 +708,7 @@ export async function zipEntry(bytes, name, optional = false) {
 				method = view.getUint16(at + 10, true);
 			if (
 				size > 1024 * 1024 ||
-				packed > 32 * 1024 * 1024 ||
+				packed > 64 * 1024 * 1024 ||
 				view.getUint16(at + 8, true) & 1 ||
 				view.getUint32(offset, true) !== 0x04034b50
 			)
@@ -1011,7 +1011,7 @@ async function boot() {
 			throw error;
 		}
 	}
-	async function fetchFile(url, limit = 32 * 1024 * 1024, cache = "default", onProgress) {
+	async function fetchFile(url, limit = 64 * 1024 * 1024, cache = "default", onProgress) {
 		const response = await fetch(url, { cache });
 		if (!response.ok) throw Error("Could not load " + url);
 		if (+response.headers.get("content-length") > limit) throw Error("Download exceeds size limit.");
@@ -1625,9 +1625,9 @@ async function boot() {
 		input.onchange = run(async () => {
 			const file = input.files[0];
 			if (!file) return;
-			const limit = (kind === "pack" ? 32 : 128) * 1024 * 1024;
+			const limit = (kind === "pack" ? 64 : 128) * 1024 * 1024;
 			if (file.size > limit)
-				throw Error(kind === "pack" ? "Archive exceeds 32 MiB." : "Save archive exceeds 128 MiB.");
+				throw Error(kind === "pack" ? "Archive exceeds 64 MiB." : "Save archive exceeds 128 MiB.");
 			const bytes = new Uint8Array(await file.arrayBuffer());
 			if (kind === "pack") {
 				const meta = await derivePreview(bytes),

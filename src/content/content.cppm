@@ -299,6 +299,13 @@ struct Catalog
 	std::string ui_theme;
 	BaseConfiguration base;
 };
+struct ShipAudioDefinition
+{
+	AudioClip ambient, engine;
+};
+AudioClip compile_audio_clip(const Catalog &, const Json &, const std::string &, bool loop = true);
+ShipAudioDefinition compile_ship_audio(const Catalog &, const std::string &);
+void verify_audio_asset(const Catalog &, const std::string &, const std::string &);
 // Presentation-only definitions. Components refer to existing permitted widgets/panels.
 struct UiRect
 {
@@ -835,6 +842,7 @@ struct BridgeChoice
 };
 struct AlertCondition : BridgeChoice
 {
+	float music_gain = 1;
 	std::string colour = "#000000", siren, music;
 	bool glow = false;
 };
@@ -1000,6 +1008,7 @@ struct ReserveDefinition
 };
 struct WeaponDefinition
 {
+	AudioClip firing_audio;
 	AmmunitionDefinition ammunition;
 	std::string turret, muzzle_marker, family = "projectile";
 	std::int64_t ammo_use = 1, range = 0, beam_damage = 0, standby_energy = 0;
@@ -1033,6 +1042,9 @@ struct TeamDefinition
 };
 struct ShieldDefinition
 {
+	AudioClip audio;
+	float audio_peak_gain = .8f, audio_decay = 1.5f;
+	std::int64_t audio_threshold = 1, audio_full_damage = 30;
 	std::vector<ShieldReactionDefinition> reactions;
 	std::int64_t pre_damage_permille = 1000;
 	std::int64_t recharge_modifier = 0, sustain_modifier = 0, discharge_modifier = 0, protection_modifier = 0;

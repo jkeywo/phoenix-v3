@@ -284,6 +284,23 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 		}
 	if (kind == "shield" && spec.contains("shield_effect"))
 		compile_shield_effect(catalog, composition_text(spec, "shield_effect", path));
+	if (kind == "weapon" && spec.contains("firing_audio"))
+	{
+		bool checked = false;
+		for (const auto &id : spec.value("directed", Json::object()).value("modes", Json::array()))
+		{
+			const auto mode = compile_directed_mode(catalog, id.get<std::string>());
+			if (mode.operation == DirectedOperationKind::Scan)
+				continue;
+			(void)compile_audio_clip(catalog, spec.at("firing_audio"), path + ".firing_audio",
+			                         mode.operation == DirectedOperationKind::Beam);
+			checked = true;
+		}
+		// Abstract equipment can acquire its directed binding when fitted.
+		if (!checked)
+			(void)compile_audio_clip(catalog, spec.at("firing_audio"), path + ".firing_audio",
+			                         spec.at("firing_audio").value("asset", std::string{}).ends_with(".ogg"));
+	}
 	if (spec.contains("controller"))
 	{
 		const auto controller = composition_text(spec, "controller", path);

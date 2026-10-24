@@ -264,13 +264,13 @@ public:
 		LocalSession candidate;
 		for (const auto &chunks : data.at("packs"))
 		{
-			if (!chunks.is_array() || chunks.empty() || chunks.size() > 4)
+			if (!chunks.is_array() || chunks.empty() || chunks.size() > 8)
 				throw std::runtime_error("Invalid saved pack chunk list");
 			Bytes bytes;
 			for (const auto &path : chunks)
 			{
 				const auto &chunk = container.files.at(path.get<std::string>());
-				if (chunk.size() > 8 * 1024 * 1024 || bytes.size() + chunk.size() > 32 * 1024 * 1024)
+				if (chunk.size() > 8 * 1024 * 1024 || bytes.size() + chunk.size() > content_archive_limit)
 					throw std::runtime_error("Saved pack exceeds archive limits");
 				bytes.insert(bytes.end(), chunk.begin(), chunk.end());
 			}

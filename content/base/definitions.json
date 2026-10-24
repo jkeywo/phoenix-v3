@@ -2,6 +2,16 @@
 	"schema": 4,
 	"entities": [
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.courier",
 			"render": {
 				"mode": "eight",
@@ -2259,6 +2269,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "phoenix-base:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -2731,6 +2743,16 @@
 			}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.cruiser",
 			"name": "Cruiser \u2014 Six-station combat fit",
 			"render": {
@@ -9619,6 +9641,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "phoenix-base:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -9670,6 +9694,10 @@
 					}
 				},
 				"fore-dorsal-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "weapons",
 					"turret": "fore-dorsal",
@@ -9739,6 +9767,10 @@
 					}
 				},
 				"fore-ventral-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "weapons",
 					"turret": "fore-ventral",
@@ -9808,6 +9840,10 @@
 					}
 				},
 				"aft-dorsal-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "engineering",
 					"turret": "aft-dorsal",
@@ -9877,6 +9913,10 @@
 					}
 				},
 				"aft-ventral-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "engineering",
 					"turret": "aft-ventral",
@@ -9946,6 +9986,10 @@
 					}
 				},
 				"mid-dorsal-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "magazines",
 					"turret": "mid-dorsal",
@@ -18729,6 +18773,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "phoenix-base:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -19768,6 +19814,55 @@
 			"systems": {}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
+			"bridge": {
+				"conditions": [
+					{
+						"id": "condition-5",
+						"label": "Condition 5",
+						"colour": "#3399cc",
+						"glow": false
+					},
+					{
+						"id": "condition-4",
+						"label": "Condition 4",
+						"colour": "#33bb77",
+						"glow": true
+					},
+					{
+						"id": "condition-3",
+						"label": "Condition 3",
+						"colour": "#e5c340",
+						"glow": true
+					},
+					{
+						"id": "condition-2",
+						"label": "Condition 2",
+						"colour": "#ed8534",
+						"glow": true
+					},
+					{
+						"music_gain": 0.35,
+						"music": "phoenix-base:assets/audio/the_final_battle.ogg",
+						"id": "condition-1",
+						"label": "Condition 1",
+						"colour": "#e73535",
+						"glow": true,
+						"siren": "phoenix-base:assets/audio/red_alert_siren.ogg"
+					}
+				],
+				"initial": "condition-5",
+				"alert_console": "support"
+			},
 			"id": "base.armed-courier",
 			"name": "Armed Courier",
 			"tags": ["ship"],
@@ -20186,6 +20281,10 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -20262,6 +20361,10 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -20346,6 +20449,10 @@
 					}
 				},
 				"forward-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
@@ -20398,6 +20505,10 @@
 					"template": "base.equipment.combat-shield-cell"
 				},
 				"beam": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cutting_beam.ogg",
+						"gain": 0.5
+					},
 					"kind": "weapon",
 					"turret": "beam-turret",
 					"arc_mdeg": 12000,
@@ -22021,6 +22132,16 @@
 			"class_key": "Courier"
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.pirate-raider",
 			"name": "Pirate raider",
 			"tags": ["ship"],
@@ -22334,6 +22455,10 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -22410,6 +22535,10 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -25330,6 +25459,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "phoenix-base:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -25836,6 +25967,55 @@
 			}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
+			"bridge": {
+				"conditions": [
+					{
+						"id": "condition-5",
+						"label": "Condition 5",
+						"colour": "#3399cc",
+						"glow": false
+					},
+					{
+						"id": "condition-4",
+						"label": "Condition 4",
+						"colour": "#33bb77",
+						"glow": true
+					},
+					{
+						"id": "condition-3",
+						"label": "Condition 3",
+						"colour": "#e5c340",
+						"glow": true
+					},
+					{
+						"id": "condition-2",
+						"label": "Condition 2",
+						"colour": "#ed8534",
+						"glow": true
+					},
+					{
+						"music_gain": 0.35,
+						"music": "phoenix-base:assets/audio/the_final_battle.ogg",
+						"id": "condition-1",
+						"label": "Condition 1",
+						"colour": "#e73535",
+						"glow": true,
+						"siren": "phoenix-base:assets/audio/red_alert_siren.ogg"
+					}
+				],
+				"initial": "condition-5",
+				"alert_console": "support"
+			},
 			"id": "base.rescue-courier",
 			"name": "Courier",
 			"tags": ["ship"],
@@ -26256,6 +26436,10 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -26332,6 +26516,10 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -26416,6 +26604,10 @@
 					}
 				},
 				"forward-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
@@ -26468,6 +26660,10 @@
 					"template": "base.equipment.combat-shield-cell"
 				},
 				"beam": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cutting_beam.ogg",
+						"gain": 0.5
+					},
 					"kind": "weapon",
 					"turret": "beam-turret",
 					"arc_mdeg": 12000,
@@ -29128,6 +29324,16 @@
 			}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.rescue-casualty",
 			"name": "Stranded courier",
 			"tags": ["ship"],
@@ -29489,6 +29695,10 @@
 					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-port",
 					"turret": "top",
@@ -29565,6 +29775,10 @@
 					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "mid-starboard",
 					"turret": "bottom",
@@ -29649,6 +29863,10 @@
 					}
 				},
 				"forward-gun": {
+					"firing_audio": {
+						"asset": "phoenix-base:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"compartment": "bow-port",
 					"arc_mdeg": 10000,
@@ -31719,6 +31937,16 @@
 			}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.shuttle",
 			"name": "Utility shuttle",
 			"tags": ["ship"],
@@ -32097,6 +32325,16 @@
 			}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.interceptor",
 			"name": "Interceptor",
 			"tags": ["ship"],
@@ -32519,6 +32757,16 @@
 			}
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.bomber",
 			"name": "Bomber",
 			"tags": ["ship"],
@@ -34106,6 +34354,16 @@
 			]
 		},
 		{
+			"audio": {
+				"ambient": {
+					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "phoenix-base:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "base.delivery-station",
 			"name": "Cairn orbital starbase",
 			"tags": ["ship", "contact", "station"],
@@ -63351,6 +63609,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 0,
 					"arc_mdeg": 100000,
 					"layer": 0,
@@ -63370,6 +63636,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 90000,
 					"arc_mdeg": 100000,
 					"layer": 0,
@@ -63389,6 +63663,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 180000,
 					"arc_mdeg": 100000,
 					"layer": 0,
@@ -63408,6 +63690,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 270000,
 					"arc_mdeg": 100000,
 					"layer": 0,
@@ -63427,6 +63717,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 0,
 					"arc_mdeg": 90000,
 					"layer": 0,
@@ -63446,6 +63744,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 180000,
 					"arc_mdeg": 270000,
 					"layer": 1,
@@ -63465,6 +63771,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 0,
 					"arc_mdeg": 90000,
 					"layer": 0,
@@ -63484,6 +63798,14 @@
 			"kind": "shield",
 			"contributions": {
 				"main": {
+					"audio": {
+						"asset": "phoenix-base:assets/audio/shield.ogg",
+						"gain": 0.06,
+						"peak_gain": 0.8,
+						"decay_per_second": 1.5,
+						"damage_threshold": 1,
+						"damage_full_spike": 30
+					},
 					"bearing_mdeg": 180000,
 					"arc_mdeg": 270000,
 					"layer": 1,

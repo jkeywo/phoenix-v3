@@ -60,10 +60,8 @@ void open_file(ImportId id, FilePurpose purpose)
 		if (!path)
 			complete_import(id, {}, {}, {}, true);
 		else
-			complete_import(
-			    id, std::filesystem::path(*path).filename().string(),
-			    read_file(*path, purpose == FilePurpose::GameSave ? runtime_save_archive_limit : 32 * 1024 * 1024), {},
-			    false, *path);
+			complete_import(id, std::filesystem::path(*path).filename().string(),
+			                read_file(*path, file_import_limit(purpose)), {}, false, *path);
 	}
 	catch (const std::exception &error)
 	{

@@ -111,6 +111,29 @@ struct GameplayEditor
 	{
 		return edit_field(label(title ? title : key).c_str(), value, key, std::string{});
 	}
+	void audio_fields(Json &owner, const char *key, bool shield = false)
+	{
+		ScopedId identity(key);
+		ScopedTree panel(key);
+		if (!panel)
+			return;
+		if (!owner.contains(key) && button("Add audio recording"))
+			owner[key] = {{"asset", ""}, {"gain", shield ? .06 : 1.0}};
+		if (!owner.contains(key))
+			return;
+		auto &clip = owner[key];
+		string(clip, "asset");
+		edit_field(label("gain").c_str(), clip, "gain", 1.0);
+		if (shield)
+		{
+			edit_field(label("peak_gain").c_str(), clip, "peak_gain", .8);
+			edit_field(label("decay_per_second").c_str(), clip, "decay_per_second", 1.5);
+			integer(clip, "damage_threshold", 1);
+			integer(clip, "damage_full_spike", 30);
+		}
+		if (button("Remove audio recording"))
+			owner.erase(key);
+	}
 	void optional_string(Json &value, const char *key)
 	{
 		ScopedId identity(key);
@@ -640,6 +663,7 @@ struct GameplayEditor
 		        });
 		if (kind == "weapon")
 		{
+			audio_fields(spec, "firing_audio");
 			optional_string(spec, "magazine");
 			strings(spec, "magazines");
 			optional_string(spec, "turret");
@@ -1028,6 +1052,16 @@ struct GameplayEditor
 		auto &ship = *selected;
 		personnel(ship);
 		{
+			ScopedTree panel("Host audio");
+			if (panel)
+			{
+				if (!ship.contains("audio"))
+					ship["audio"] = Json::object();
+				audio_fields(ship["audio"], "ambient");
+				audio_fields(ship["audio"], "engine");
+			}
+		}
+		{
 			ScopedTree panel("Storage and logistics");
 			if (panel)
 			{
@@ -1264,6 +1298,7 @@ struct GameplayEditor
 						        boolean(condition, "glow", false);
 						        optional_string(condition, "siren");
 						        optional_string(condition, "music");
+						        edit_field(label("music_gain").c_str(), condition, "music_gain", 1.0);
 					        });
 				}
 			}
@@ -2925,6 +2960,7 @@ struct GameplayEditor
 						    integer(arc, key);
 					    integer(arc, "pre_damage_permille", 1000);
 					    integer(arc, "post_damage");
+					    audio_fields(arc, "audio", true);
 					    scalar_map(arc, "modifiers");
 					    records(arc, "reactions", {{"energy", 0}, {"operations", Json::array()}},
 					            [&](Json &reaction)

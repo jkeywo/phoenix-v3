@@ -2,6 +2,16 @@
 	"schema": 4,
 	"entities": [
 		{
+			"audio": {
+				"ambient": {
+					"asset": "test:assets/audio/ship_ambient.ogg",
+					"gain": 0.25
+				},
+				"engine": {
+					"asset": "test:assets/audio/engine.ogg",
+					"gain": 0.15
+				}
+			},
 			"id": "test.courier",
 			"render": {
 				"mode": "eight",
@@ -1783,6 +1793,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "test:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -4411,6 +4423,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "test:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -6708,6 +6722,8 @@
 						"glow": true
 					},
 					{
+						"music_gain": 0.35,
+						"music": "test:assets/audio/the_final_battle.ogg",
 						"id": "condition-1",
 						"label": "Condition 1",
 						"colour": "#e73535",
@@ -8429,6 +8445,10 @@
 					}
 				},
 				"weapon": {
+					"firing_audio": {
+						"asset": "test:assets/audio/cannon.wav",
+						"gain": 0.9
+					},
 					"kind": "weapon",
 					"magazine": "bomb-mag",
 					"compartment": "hull",

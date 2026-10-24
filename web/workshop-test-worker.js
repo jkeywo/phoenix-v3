@@ -59,7 +59,7 @@ function ensureRuntime() {
 }
 
 function upload(module, buffer) {
-	if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength || buffer.byteLength > 32 * 1024 * 1024) {
+	if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength || buffer.byteLength > 64 * 1024 * 1024) {
 		throw new Error("Invalid disposable test archive transfer.");
 	}
 	const identity = module.ccall("phoenix_workshop_test_begin_blob", "number", ["number"], [buffer.byteLength]);

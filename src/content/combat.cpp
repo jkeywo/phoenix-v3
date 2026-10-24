@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -164,7 +165,8 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 		                                          "pre_damage_permille",
 		                                          "post_damage",
 		                                          "reactions",
-		                                          "modifiers"};
+		                                          "modifiers",
+		                                          "audio"};
 		for (const auto &[key, item] : value.items())
 			if (!fields.contains(key))
 				throw std::runtime_error(at + "." + key + ": unsupported shield field");
@@ -182,6 +184,24 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 		c.bearing = n("bearing_mdeg", 0, 0, 359999);
 		c.arc = n("arc_mdeg", 360000, 1, 360000);
 		auto &d = c.shield;
+		if (value.contains("audio"))
+		{
+			auto clip = value.at("audio");
+			for (const auto *key : {"damage_threshold", "damage_full_spike"})
+				if (clip.contains(key) && !clip.at(key).is_number_integer())
+					throw std::runtime_error(at + ".audio." + key + ": expected integer");
+			d.audio_peak_gain = clip.value("peak_gain", .8f);
+			d.audio_decay = clip.value("decay_per_second", 1.5f);
+			d.audio_threshold = clip.value("damage_threshold", std::int64_t{1});
+			d.audio_full_damage = clip.value("damage_full_spike", std::int64_t{30});
+			for (const auto *key : {"peak_gain", "decay_per_second", "damage_threshold", "damage_full_spike"})
+				clip.erase(key);
+			d.audio = compile_audio_clip(catalog, clip, at + ".audio");
+			if (!std::isfinite(d.audio_peak_gain) || d.audio_peak_gain < d.audio.gain || d.audio_peak_gain > 1 ||
+			    !std::isfinite(d.audio_decay) || d.audio_decay <= 0 || d.audio_decay > 100 || d.audio_threshold < 1 ||
+			    d.audio_full_damage < d.audio_threshold || d.audio_full_damage > 1000000)
+				throw std::runtime_error(at + ".audio: invalid shield envelope");
+		}
 		if (value.contains("modifiers"))
 		{
 			const auto &modifiers = value.at("modifiers");
@@ -522,6 +542,10 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			weapon.standby_energy = mode->standby_energy;
 			for (const auto &policy : capability.targeting)
 				weapon.point_defence |= policy.kind == DirectedTargetingKind::Intercept;
+			if (v.contains("firing_audio"))
+				weapon.firing_audio =
+				    compile_audio_clip(catalog, v.at("firing_audio"), path + ".systems." + fit.id + ".firing_audio",
+				                       weapon.family == "beam");
 			weapon.intercept_classes = v.value("intercept_classes", std::vector<std::string>{"missile"});
 			for (const auto &tag : weapon.intercept_classes)
 				if (tag != "missile")

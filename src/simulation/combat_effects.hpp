@@ -1,3 +1,33 @@
+// Short-lived cosmetic receipts are deliberately absent from checkpoints.
+// Playback baselines on a new world, while continuous cues come from live state.
+std::map<EntityId, std::vector<SceneAudio>> audio_events;
+std::uint64_t next_audio_event = 1;
+void emit_audio(flecs::entity ship, SceneAudio cue)
+{
+	if (cue.clip.asset.empty())
+		return;
+	auto &events = audio_events[ship.get<StableId>().id];
+	if (events.size() >= 256)
+		events.erase(events.begin());
+	cue.event = next_audio_event++;
+	cue.tick = ecs.get<Clock>().tick;
+	events.push_back(std::move(cue));
+}
+void retire_audio()
+{
+	const auto now = ecs.get<Clock>().tick;
+	for (auto &[id, events] : audio_events)
+		std::erase_if(events,
+		              [&](const auto &cue)
+		              {
+			              return now > cue.tick + 3;
+		              });
+	std::erase_if(audio_events,
+	              [](const auto &entry)
+	              {
+		              return entry.second.empty();
+	              });
+}
 bool equipment_destroyed(flecs::entity ship, const std::string &equipment) const
 {
 	const auto *s = ship.try_get<CombatStructure>();
@@ -330,6 +360,17 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 				    *payload,
 				    {ship.get<StableId>().id, PayloadOutcomeKind::Shield, -1, {}, c.effect_id, c.definition.name},
 				    stopped);
+			if (assigned && !definition.audio.asset.empty())
+			{
+				SceneAudio cue{SceneAudioKind::Shield, "shield", definition.audio};
+				cue.clip.gain = 0; // The live contribution publishes the quiet bed separately.
+				cue.damage = assigned;
+				cue.peak_gain = definition.audio_peak_gain;
+				cue.decay = definition.audio_decay;
+				cue.threshold = definition.audio_threshold;
+				cue.full_damage = definition.audio_full_damage;
+				emit_audio(ship, std::move(cue));
+			}
 			if (stopped && blast_visuals.size() < 8192)
 			{
 				DestructionDefinition flash;

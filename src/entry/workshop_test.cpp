@@ -35,7 +35,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE const char *phoenix_verify_launch_base(const std
 {
 	try
 	{
-		if (!bytes || !size || size > 32 * 1024 * 1024)
+		if (!bytes || !size || size > phoenix::content_archive_limit)
 			throw std::runtime_error("Invalid launch base archive size");
 		const auto pack = phoenix::read_pack(phoenix::Bytes(bytes, bytes + size));
 		const auto base = phoenix::base_configuration(pack);
@@ -56,7 +56,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE const char *phoenix_verify_launch_base(const std
 }
 extern "C" EMSCRIPTEN_KEEPALIVE int phoenix_workshop_test_blob(const std::uint8_t *data, unsigned size)
 {
-	if (!data || !size || size > 32 * 1024 * 1024 || blobs.size() >= 65 || blob_bytes + size > 128 * 1024 * 1024)
+	if (!data || !size || size > phoenix::content_archive_limit || blobs.size() >= 65 ||
+	    blob_bytes + size > 128 * 1024 * 1024)
 		return 0;
 	try
 	{
@@ -131,7 +132,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_workshop_test_reset_blobs()
 }
 extern "C" EMSCRIPTEN_KEEPALIVE int phoenix_workshop_test_begin_blob(unsigned size)
 {
-	if (!size || size > 32 * 1024 * 1024 || blobs.size() >= 65 || blob_bytes + size > 128 * 1024 * 1024)
+	if (!size || size > phoenix::content_archive_limit || blobs.size() >= 65 || blob_bytes + size > 128 * 1024 * 1024)
 		return 0;
 	try
 	{

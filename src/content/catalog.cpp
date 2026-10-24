@@ -916,6 +916,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		(void)compile_craft(catalog, id);
 		(void)compile_craft_bays(catalog, id, directed_catalog);
 		(void)compile_combat(catalog, id, directed_catalog);
+		(void)compile_ship_audio(catalog, id);
 		if (entity.contains("destruction"))
 			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
 		if (entity.contains("durability"))

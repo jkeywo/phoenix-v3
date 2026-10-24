@@ -21,11 +21,12 @@ module;
 #endif
 #endif
 module phoenix.transport;
+import phoenix.data;
 namespace phoenix
 {
 namespace
 {
-constexpr std::size_t limit = 32 * 1024 * 1024;
+constexpr std::size_t limit = content_archive_limit;
 using Data = std::vector<std::uint8_t>;
 #ifdef __EMSCRIPTEN__
 class Download final : public ContentDownload

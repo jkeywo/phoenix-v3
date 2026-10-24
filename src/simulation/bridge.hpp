@@ -122,9 +122,15 @@ Json alert_board(EntityId ship) const
 		return Json::object();
 	const auto &state = entities.at(ship).get<BridgeBlackboard>();
 	const auto &choice = spec.conditions.at(state.condition);
-	return {
-	    {"id", choice.id},         {"label", choice.label}, {"severity", state.condition}, {"revision", state.revision},
-	    {"colour", choice.colour}, {"glow", choice.glow},   {"siren", choice.siren},       {"music", choice.music}};
+	return {{"id", choice.id},
+	        {"label", choice.label},
+	        {"severity", state.condition},
+	        {"revision", state.revision},
+	        {"colour", choice.colour},
+	        {"glow", choice.glow},
+	        {"siren", choice.siren},
+	        {"music", choice.music},
+	        {"music_gain", choice.music_gain}};
 }
 Json stance_board(const ConsoleAddress &address) const
 {

@@ -2706,6 +2706,7 @@ void World::clear_claims()
 }
 void World::tick()
 {
+	impl_->retire_audio();
 	// Keep committed frame numbering live after the race, but freeze its world.
 	if (impl_->scenario && impl_->scenario->runtime().mission_complete())
 	{
@@ -2954,6 +2955,38 @@ std::vector<SceneBody> World::scene() const
 					item.forward_thrust =
 					    std::max(item.forward_thrust, std::max(0, system.flight->state.actual_longitudinal));
 		const auto entity = impl_->entities.at(body.id);
+		item.audio_alive = !impl_->combat_dead(entity);
+		if (item.audio_alive)
+		{
+			if (auto at = impl_->audio_events.find(body.id); at != impl_->audio_events.end())
+				item.audio = at->second;
+			if (const auto *shields = entity.try_get<ShieldComponent>())
+				for (const auto &c : shields->contributions)
+				{
+					const auto &d = c.definition.shield;
+					if (!d.audio.asset.empty() && impl_->shield_available(entity, c) && c.state.warmup &&
+					    c.state.strength && c.protection > 0)
+					{
+						SceneAudio cue{SceneAudioKind::Shield, "shield", d.audio};
+						cue.peak_gain = d.audio_peak_gain;
+						cue.decay = d.audio_decay;
+						cue.threshold = d.audio_threshold;
+						cue.full_damage = d.audio_full_damage;
+						item.audio.push_back(std::move(cue));
+					}
+				}
+			if (entity.has<CombatStructure>())
+				for (auto child : entity.get<EquipmentIndex>().values)
+					if (const auto *m = child.try_get<CombatMechanism>();
+					    m && m->definition.kind == OperatingSystem::Weapon)
+					{
+						const auto &w = m->definition.get<WeaponDefinition>();
+						if (!w.firing_audio.asset.empty() && w.family == "beam" &&
+						    m->get<WeaponState>().beam_tick >= 0 &&
+						    m->get<WeaponState>().beam_tick + 1 == static_cast<std::int64_t>(ticks()))
+							item.audio.push_back({SceneAudioKind::Loop, "weapon:" + m->definition.id, w.firing_audio});
+					}
+		}
 		if (impl_->combat_dead(entity) && !entity.has<CombatStructure>())
 			continue;
 		if (const auto *structure = entity.try_get<CombatStructure>())
@@ -3020,8 +3053,8 @@ std::vector<SceneBody> World::scene() const
 		for (auto child : ship.get<EquipmentIndex>().values)
 			if (const auto *m = child.try_get<CombatMechanism>();
 			    m && m->definition.kind == OperatingSystem::Weapon &&
-			    m->definition.get<WeaponDefinition>().family == "beam" &&
-			    m->get<WeaponState>().beam_tick == static_cast<std::int64_t>(ticks()))
+			    m->definition.get<WeaponDefinition>().family == "beam" && m->get<WeaponState>().beam_tick >= 0 &&
+			    m->get<WeaponState>().beam_tick + 1 == static_cast<std::int64_t>(ticks()))
 			{
 				const auto [origin, heading] = impl_->weapon_mount(ship, *m);
 				SceneBody beam;

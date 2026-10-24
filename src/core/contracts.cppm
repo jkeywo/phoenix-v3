@@ -349,9 +349,33 @@ struct SceneMuzzle
 	std::string weapon, turret, marker;
 	std::int64_t x = 0, y = 0;
 };
+// Cosmetic output only. One-shots have stable local identities; loops describe
+// current execution and can be reconstructed without replaying history.
+struct AudioClip
+{
+	std::string asset;
+	float gain = 1;
+};
+enum class SceneAudioKind
+{
+	Loop,
+	Shot,
+	Shield
+};
+struct SceneAudio
+{
+	SceneAudioKind kind = SceneAudioKind::Loop;
+	std::string source;
+	AudioClip clip;
+	std::uint64_t event = 0, tick = 0;
+	float peak_gain = .8f, decay = 1.5f;
+	std::int64_t damage = 0, threshold = 1, full_damage = 30;
+};
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView
 {
+	bool audio_alive = true;
+	std::vector<SceneAudio> audio;
 	int forward_thrust = 0; // actual applied forward acceleration, 0..1000
 	std::uint32_t sprite_entry = 0;
 	std::int64_t visual_height_mm = 0;

@@ -144,11 +144,15 @@ int main()
 		        "Oversized platform results must not be retained");
 		FileImportInbox runtime_save;
 		const auto runtime_id = runtime_save.begin(FilePurpose::GameSave);
-		complete_import(runtime_id, "portable.zip", Bytes(32 * 1024 * 1024 + 1));
+		complete_import(runtime_id, "portable.zip", Bytes(content_archive_limit + 1));
 		auto runtime_result = runtime_save.take();
 		require(runtime_result && runtime_result->status == ImportStatus::Success,
 		        "A runtime-save file uses its separate bounded import allowance");
 		FileImportInbox content;
+		const auto audio_pack_id = content.begin(FilePurpose::GamePack);
+		complete_import(audio_pack_id, "audio-content.zip", Bytes(33 * 1024 * 1024));
+		require(content.take()->status == ImportStatus::Success,
+		        "Content archives above the former 32 MiB limit use the new bounded pack allowance");
 		const auto content_id = content.begin(FilePurpose::GamePack);
 		complete_import(content_id, "content.zip", std::move(runtime_result->bytes));
 		require(content.take()->status == ImportStatus::Failed,

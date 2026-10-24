@@ -39,7 +39,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_save_result(unsigned id, const char
     phoenix::complete_import(id,name,{},error,cancelled != 0,destination);
 }
 EM_JS(void, choose_file, (unsigned id, int purpose), {
-    const sizeLimit = (purpose === 1 ? 128 : 32)*1024*1024;
+    const sizeLimit = (purpose === 1 ? 128 : [0,2,3,7].includes(purpose) ? 64 : 32)*1024*1024;
     if ((purpose === 2 || purpose === 4) && window.showOpenFilePicker && window.isSecureContext) {
         (async () => {
             let pointer = 0;
@@ -47,7 +47,7 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
                 const extension = purpose === 4 ? '.json' : '.zip,.dat';
                 const [handle] = await window.showOpenFilePicker({multiple:false,types:[{description:'Phoenix content',accept:{'application/octet-stream':extension.split(',')}}]});
                 const file = await handle.getFile();
-                if (file.size > sizeLimit) throw new Error(purpose === 1 ? 'File exceeds 128 MiB' : 'File exceeds 32 MiB');
+                if (file.size > sizeLimit) throw new Error(purpose === 1 ? 'File exceeds 128 MiB' : 'File exceeds its content/import limit');
                 const bytes = new Uint8Array(await file.arrayBuffer());
                 pointer = Module._malloc(bytes.length || 1);
                 if (!pointer) throw new Error('Unable to allocate file buffer');
@@ -77,7 +77,7 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
     input.addEventListener('change', async () => {
         const file = input.files[0]; if (!file) { failure("",true); return; }
         try {
-            if (file.size > sizeLimit) throw new Error(purpose === 1 ? 'File exceeds 128 MiB' : 'File exceeds 32 MiB');
+            if (file.size > sizeLimit) throw new Error(purpose === 1 ? 'File exceeds 128 MiB' : 'File exceeds its content/import limit');
             const bytes = new Uint8Array(await file.arrayBuffer());
             const pointer = Module._malloc(bytes.length || 1);
             if (!pointer) throw new Error('Unable to allocate file buffer');

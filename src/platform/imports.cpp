@@ -72,8 +72,9 @@ void complete_import(ImportId id, std::string filename, Bytes bytes, std::string
 	requests.erase(found);
 	if (!state || state->pending != id)
 		return;
-	if (bytes.size() > (state->purpose == FilePurpose::GameSave ? runtime_save_archive_limit : 32 * 1024 * 1024))
-		error = state->purpose == FilePurpose::GameSave ? "File exceeds 128 MiB" : "File exceeds 32 MiB";
+	if (bytes.size() > file_import_limit(state->purpose))
+		error =
+		    state->purpose == FilePurpose::GameSave ? "File exceeds 128 MiB" : "File exceeds its content/import limit";
 	const auto status = cancelled       ? ImportStatus::Cancelled
 	                    : error.empty() ? ImportStatus::Success
 	                                    : ImportStatus::Failed;

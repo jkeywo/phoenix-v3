@@ -35,6 +35,15 @@ enum class ImportStatus
 	Cancelled,
 	Failed
 };
+inline std::size_t file_import_limit(FilePurpose purpose)
+{
+	if (purpose == FilePurpose::GameSave)
+		return 128 * 1024 * 1024;
+	if (purpose == FilePurpose::GamePack || purpose == FilePurpose::WorkshopPack ||
+	    purpose == FilePurpose::WorkshopLibrary || purpose == FilePurpose::WorkshopPackSave)
+		return content_archive_limit;
+	return 32 * 1024 * 1024;
+}
 struct ImportedFile
 {
 	ImportId id;

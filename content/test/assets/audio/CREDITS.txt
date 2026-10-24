@@ -1,2 +1,7 @@
 red_alert_siren.ogg
 Reused unchanged from project-phoenix-v2/assets/sounds/red_alert_siren.ogg at the project owner's request. No new authorship or licence claim is made.
+
+Host audio, 24 October 2026: the_final_battle.ogg promoted unchanged from V3 raw/audio at the project owner's request.
+ship_ambient.ogg, engine.ogg, cannon.wav, cutting_beam.ogg and shield.ogg converted from V2 Ambient.mp3, Engine.mp3, Blaster.mp3, PhaserLoop.mp3 and ForcefieldHit.mp3 respectively.
+Original rate and channels retained; source and output SHA-256 hashes are in host-audio-sources.json.
+Original recordings remain untouched. Existing V2 notices do not identify upstream authors/licences for these recordings; no new authorship or licence claim is made.

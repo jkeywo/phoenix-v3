@@ -3,7 +3,7 @@ self.onmessage = async ({ data }) => {
 		const archives = data.migration || (Array.isArray(data) ? data : [data]);
 		if (!archives.length || archives.length > 32) throw Error("Invalid pack selection.");
 		for (const data of archives)
-			if (!(data instanceof Uint8Array) || !data.length || data.length > 32 * 1024 * 1024)
+			if (!(data instanceof Uint8Array) || !data.length || data.length > 64 * 1024 * 1024)
 				throw Error("Invalid launch base archive size.");
 		self.postMessage({ phase: "Loading the mod checker…" });
 		importScripts(new URL("phoenix_workshop_test.js", self.location.href).href);
