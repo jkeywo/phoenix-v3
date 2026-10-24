@@ -750,68 +750,75 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 				    "recapture boarding encounter");
 			}
 
-			// Follow the public obstruction assessment around terrain before closing for recovery.
-			const auto approach = view("helm").second;
-			if (approach.gameplay.at("navigation").value("blocked", false) &&
-			    std::any_of(approach.contacts.begin(), approach.contacts.end(),
-			                [&](const auto &contact)
-			                {
-				                return contact.id == 1 && std::hypot(double(contact.x - approach.own.x),
-				                                                     double(contact.y - approach.own.y)) > 300000;
-			                }))
+			bool recovered = false;
+			for (const auto &operation : board.gameplay.at("away_missions"))
+				if (operation.at("id") == boarding)
+					recovered = operation.at("phase") == "recovered";
+			if (!recovered)
 			{
-				const auto bearing =
-				    (approach.gameplay.at("navigation").at("left_heading").get<std::int64_t>() + 60000) % 360000;
-				const double angle = bearing * 3.141592653589793 / 180000;
-				move(approach.own.x + static_cast<std::int64_t>(180000 * std::cos(angle)),
-				     approach.own.y + static_cast<std::int64_t>(180000 * std::sin(angle)), 15000);
+				// Follow the public obstruction assessment around terrain before closing for recovery.
+				const auto approach = view("helm").second;
+				if (approach.gameplay.at("navigation").value("blocked", false) &&
+				    std::any_of(approach.contacts.begin(), approach.contacts.end(),
+				                [&](const auto &contact)
+				                {
+					                return contact.id == 1 && std::hypot(double(contact.x - approach.own.x),
+					                                                     double(contact.y - approach.own.y)) > 300000;
+				                }))
+				{
+					const auto bearing =
+					    (approach.gameplay.at("navigation").at("left_heading").get<std::int64_t>() + 60000) % 360000;
+					const double angle = bearing * 3.141592653589793 / 180000;
+					move(approach.own.x + static_cast<std::int64_t>(180000 * std::cos(angle)),
+					     approach.own.y + static_cast<std::int64_t>(180000 * std::sin(angle)), 15000);
+				}
+
+				const auto tracked = view("tactical").second;
+				for (const auto &contact : tracked.contacts)
+					if (contact.id == 1)
+					{
+						const auto own = view("helm").second.own;
+						const double distance =
+						    std::max(1.0, std::hypot(double(own.x - contact.x), double(own.y - contact.y)));
+						if (distance > 260000)
+							move(contact.x + static_cast<std::int64_t>((own.x - contact.x) * 250000 / distance),
+							     contact.y + static_cast<std::int64_t>((own.y - contact.y) * 250000 / distance), 15000);
+					}
+
+				shields(false);
+				advance(150);
+				// Combat can incapacitate the qualified navigator. Use an available utility
+				// shuttle through the normal replacement-transport controls in that case.
+				const auto recovery_view = view(dispatch).second;
+				for (const auto &mission : recovery_view.gameplay.at("away_missions"))
+					if (mission.at("id") == boarding && mission.at("blocker") == "Qualified navigator required")
+					{
+						const auto engineering_view = view(engineering).second;
+						bool selected = false;
+						for (const auto &operation : engineering_view.gameplay.at("away_missions"))
+							if (operation.at("id") == boarding)
+								for (const auto &transport_option : operation.at("transports"))
+									if (!selected && transport_option.get<std::string>().starts_with("craft:"))
+									{
+										domain(engineering, "away", "transport", boarding, transport_option);
+										selected = true;
+									}
+						ensure(selected, "Replacement recovery shuttle available");
+						advance(1);
+					}
+				domain(dispatch, "away", "recall", boarding);
+				until(
+				    [&]
+				    {
+					    const auto observation = view(dispatch).second;
+					    for (const auto &mission : observation.gameplay.at("away_missions"))
+						    if (mission.at("id") == boarding)
+							    return mission.at("phase") == "recovered";
+					    return false;
+				    },
+				    "recapture selective recovery");
+				shields(true);
 			}
-
-			const auto tracked = view("tactical").second;
-			for (const auto &contact : tracked.contacts)
-				if (contact.id == 1)
-				{
-					const auto own = view("helm").second.own;
-					const double distance =
-					    std::max(1.0, std::hypot(double(own.x - contact.x), double(own.y - contact.y)));
-					if (distance > 260000)
-						move(contact.x + static_cast<std::int64_t>((own.x - contact.x) * 250000 / distance),
-						     contact.y + static_cast<std::int64_t>((own.y - contact.y) * 250000 / distance), 15000);
-				}
-
-			shields(false);
-			advance(150);
-			// Combat can incapacitate the qualified navigator. Use an available utility
-			// shuttle through the normal replacement-transport controls in that case.
-			const auto recovery_view = view(dispatch).second;
-			for (const auto &mission : recovery_view.gameplay.at("away_missions"))
-				if (mission.at("id") == boarding && mission.at("blocker") == "Qualified navigator required")
-				{
-					const auto engineering_view = view(engineering).second;
-					bool selected = false;
-					for (const auto &operation : engineering_view.gameplay.at("away_missions"))
-						if (operation.at("id") == boarding)
-							for (const auto &transport_option : operation.at("transports"))
-								if (!selected && transport_option.get<std::string>().starts_with("craft:"))
-								{
-									domain(engineering, "away", "transport", boarding, transport_option);
-									selected = true;
-								}
-					ensure(selected, "Replacement recovery shuttle available");
-					advance(1);
-				}
-			domain(dispatch, "away", "recall", boarding);
-			until(
-			    [&]
-			    {
-				    const auto observation = view(dispatch).second;
-				    for (const auto &mission : observation.gameplay.at("away_missions"))
-					    if (mission.at("id") == boarding)
-						    return mission.at("phase") == "recovered";
-				    return false;
-			    },
-			    "recapture selective recovery");
-			shields(true);
 		}
 		else
 			until(
@@ -970,6 +977,13 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 			    return true;
 		    },
 		    "shuttle recovery");
+	// Holding a charged drive while a prize cools needs its normal cooling allocation.
+	const auto departure_engineering = view(engineering).second;
+	for (const auto &controller : departure_engineering.gameplay.at("controllers"))
+		if (controller.at("id") == "ftl.cooling")
+			for (const auto &command : controller.at("commands"))
+				if (command.at("action") == "cooling_allocation")
+					channel(engineering, "cooling_allocation", command.at("maximum"), controller.at("id"));
 	channel("navigator", "system_enabled", 1, "ftl.drive");
 	advance(1);
 	until(
