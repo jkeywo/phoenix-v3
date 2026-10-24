@@ -35772,7 +35772,7 @@
 						"controller": "drive",
 						"compartment": "bow-port",
 						"compatibility": "standard",
-						"x_mm": 15000,
+						"x_mm": 20000,
 						"heading_mdeg": 0,
 						"capture_range_mm": 1500,
 						"capture_speed_mm_s": 1000,
