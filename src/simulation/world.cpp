@@ -4182,6 +4182,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	for (auto &[id, rock] : candidate.impl_->field_rocks)
 		candidate.impl_->unload_rock(rock);
 	candidate.impl_->field_rocks.clear();
+	candidate.impl_->field_windows.clear();
+	candidate.impl_->field_cells.clear();
 	candidate.impl_->index_contacts.run();
 	if (candidate.impl_->scenario)
 	{

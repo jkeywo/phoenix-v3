@@ -7,6 +7,10 @@ struct FieldRock
 	bool decorative = false, loaded = false;
 };
 std::map<EntityId, FieldRock> field_rocks;
+// Derived, bounded by the active window's existing 65,536-cell limit. Rock
+// loading and physical motion are still checked on every streaming pass.
+std::vector<std::array<std::int64_t, 4>> field_windows;
+std::set<std::pair<std::int64_t, std::int64_t>> field_cells;
 std::uint64_t field_seed = 1;
 static std::int64_t floor_cell(std::int64_t n, std::int64_t spacing)
 {
@@ -103,7 +107,7 @@ void stream_fields()
 		const fixed::Vec travel{(p.remainder.x + p.velocity.x) / rate, (p.remainder.y + p.velocity.y) / rate};
 		foci.push_back({p.position, fixed::length(travel) + rock_extent + rock_travel + spacing * 2 + 1});
 	}
-	std::set<std::pair<std::int64_t, std::int64_t>> cells;
+	std::vector<std::array<std::int64_t, 4>> windows;
 	for (const auto &focus : foci)
 	{
 		const auto minx = floor_cell(focus.position.x - focus.radius, spacing);
@@ -112,14 +116,18 @@ void stream_fields()
 		const auto maxy = floor_cell(focus.position.y + focus.radius, spacing);
 		if (maxx - minx > 512 || maxy - miny > 512)
 			throw std::runtime_error("Asteroid streaming window exceeds 512 cells: increase lattice spacing");
-		for (auto x = minx; x <= maxx; ++x)
-			for (auto y = miny; y <= maxy; ++y)
-			{
-				cells.emplace(x, y);
-				if (cells.size() > 65536)
-					throw std::runtime_error("Asteroid fleet streaming exceeds 65536 cells");
-			}
+		windows.push_back({minx, maxx, miny, maxy});
 	}
+	std::set<std::pair<std::int64_t, std::int64_t>> cells;
+	if (windows != field_windows)
+		for (const auto &[minx, maxx, miny, maxy] : windows)
+			for (auto x = minx; x <= maxx; ++x)
+				for (auto y = miny; y <= maxy; ++y)
+				{
+					cells.emplace(x, y);
+					if (cells.size() > 65536)
+						throw std::runtime_error("Asteroid fleet streaming exceeds 65536 cells");
+				}
 	for (auto &[id, rock] : field_rocks)
 	{
 		const auto p = rock.decorative || !rock.loaded ? fixed::Vec{rock.scene.x, rock.scene.y}
@@ -137,8 +145,12 @@ void stream_fields()
 		                                     }))
 			load_rock(rock);
 	}
+	if (windows == field_windows)
+		return;
 	for (const auto &[x, y] : cells)
 	{
+		if (field_cells.contains({x, y}))
+			continue;
 		for (auto generated : generate_asteroid_cell(regions, field_seed, x, y))
 		{
 			const auto id = generated.scene.id;
@@ -168,6 +180,8 @@ void stream_fields()
 			load_rock(field_rocks.emplace(id, std::move(rock)).first->second);
 		}
 	}
+	field_windows = std::move(windows);
+	field_cells = std::move(cells);
 }
 Json save_fields() const
 {
@@ -209,6 +223,8 @@ void restore_fields(const Json &saved)
 	for (auto &[id, r] : field_rocks)
 		unload_rock(r);
 	field_rocks.clear();
+	field_windows.clear();
+	field_cells.clear();
 	for (const auto &v : saved)
 	{
 		FieldRock r;
