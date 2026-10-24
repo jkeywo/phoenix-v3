@@ -178,6 +178,7 @@ int main(int argc, char **argv)
 			app.sfx_volume = preferences.sfx_volume;
 			app.siren_volume = preferences.siren_volume;
 			app.master_volume = preferences.master_volume;
+			app.tools_scale = preferences.tools_scale;
 			app.language = preferences.language;
 			app.pseudo_locale = preferences.pseudo;
 			app.reduced_motion = preferences.reduced_motion;

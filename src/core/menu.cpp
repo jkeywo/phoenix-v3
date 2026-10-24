@@ -24,8 +24,8 @@ namespace phoenix
 namespace
 {
 const Json global_defaults = {
-    {"volume", 50},    {"sfx_volume", 50},        {"siren_volume", 50}, {"master_volume", 50},   {"language", "en"},
-    {"pseudo", false}, {"reduced_motion", false}, {"dust_motes", true}, {"reference_grid", true}};
+    {"tools_scale", 100}, {"volume", 50},    {"sfx_volume", 50},        {"siren_volume", 50}, {"master_volume", 50},
+    {"language", "en"},   {"pseudo", false}, {"reduced_motion", false}, {"dust_motes", true}, {"reference_grid", true}};
 Json global_preferences(const Json &data)
 {
 	auto result = global_defaults;
@@ -110,6 +110,9 @@ void MenuLibrary::load()
 	if (prefs.siren_volume < 0 || prefs.siren_volume > 100)
 		throw std::runtime_error("Invalid siren volume");
 	prefs.master_volume = data.value("master_volume", 50);
+	prefs.tools_scale = data.value("tools_scale", 100);
+	if (prefs.tools_scale < 75 || prefs.tools_scale > 200 || prefs.tools_scale % 25 != 0)
+		throw std::runtime_error("Invalid tools scale");
 	prefs.language = data.at("language");
 	prefs.pseudo = data.value("pseudo", false);
 	prefs.reduced_motion = data.value("reduced_motion", false);
@@ -163,6 +166,7 @@ void MenuLibrary::remember()
 		throw std::runtime_error(
 		    "Native library index could not be loaded; preserve and repair library.json before saving changes");
 	Json data{{"schema", 1},
+	          {"tools_scale", preferences.tools_scale},
 	          {"volume", preferences.volume},
 	          {"sfx_volume", preferences.sfx_volume},
 	          {"siren_volume", preferences.siren_volume},

@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
+
 [Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.
 
 [Cruiser station complexity](docs/cruiser-complexity.md) defines the Helm, Tactical and Engineering workloads, department-owned Dispatch, utility shuttles and physical gift/barter supply missions.

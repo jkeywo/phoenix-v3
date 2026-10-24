@@ -89,6 +89,15 @@ EM_JS(void, update_semantic_status, (const char* text), {
 // clang-format on
 namespace phoenix
 {
+void focus_semantic_text(const std::string &id)
+{
+	EM_ASM({
+		const id = UTF8ToString($0);
+		const input = Array.from(document.querySelectorAll('#semantics input')).find(item => item.dataset.action === id);
+		if (input) input.focus();
+	}, id.c_str());
+}
+
 void publish_semantics(const Application &app)
 {
 	static auto next_status = std::chrono::steady_clock::time_point{};

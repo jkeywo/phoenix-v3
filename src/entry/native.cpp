@@ -57,6 +57,7 @@ try
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
 	int smoke_frames = 0;
+	bool gui_smoke = false, tools_presentation_smoke = false;
 	bool helm_smoke = false, readout_smoke = false, controller_report_smoke = false;
 	bool engineering_smoke = false, personnel_smoke = false;
 	bool navigation_smoke = false;
@@ -177,6 +178,18 @@ try
 			smoke_frames = 6;
 			app.screen = phoenix::Screen::server_lobby;
 		}
+		if (argument == "--gui-navigation-smoke")
+		{
+			gui_smoke = true;
+			smoke_frames = 100;
+		}
+		if (argument == "--tools-presentation-smoke")
+		{
+			tools_presentation_smoke = true;
+			smoke_frames = 100;
+			app.screen = phoenix::Screen::workshop;
+		}
+
 		if (argument == "--readout-smoke")
 		{
 			readout_smoke = true;
@@ -425,6 +438,7 @@ try
 		app.sfx_volume = prefs.sfx_volume;
 		app.siren_volume = prefs.siren_volume;
 		app.master_volume = prefs.master_volume;
+		app.tools_scale = prefs.tools_scale;
 		app.language = prefs.language;
 		app.pseudo_locale = prefs.pseudo;
 		app.reduced_motion = prefs.reduced_motion;
@@ -904,6 +918,13 @@ try
 		}
 
 		app.session->poll();
+		if (gui_smoke && app.session->running())
+			for (const auto &region : app.console_regions)
+				if (!app.session->console_observation(region.console))
+					for (const auto &seat : app.session->console_seats())
+						if (seat.available && app.session->claim_console(region.console, seat.address))
+							break;
+
 		if (ai_config_smoke && !ai_config_opened && phoenix::ai_configuration_available(app) &&
 		    ++ai_config_ready_frames >= 120)
 		{
@@ -1026,6 +1047,42 @@ try
 		}
 		if (qr_smoke && smoke_frames == 6)
 			phoenix::invoke_navigation(app, "game.qr-client");
+		if (gui_smoke)
+		{
+			for (const auto [frame, stage] :
+			     std::vector<std::pair<int, unsigned>>{{85, 0}, {70, 1}, {55, 2}, {40, 3}, {25, 4}})
+				if (smoke_frames == frame && !phoenix::probe_gui_navigation(app, stage))
+					throw std::runtime_error("GUI controller smoke failed at stage " + std::to_string(stage));
+			if (smoke_frames == 3)
+				TakeScreenshot("build/gui-controller-smoke.png");
+			if (smoke_frames == 1)
+				std::cout
+				    << "GUI controller traversal, numeric commit/cancel, Settings, text scale and mode smoke passed\n";
+		}
+		if (tools_presentation_smoke)
+		{
+			for (const auto [frame, scale] :
+			     std::vector<std::pair<int, int>>{{95, 75}, {80, 100}, {65, 150}, {50, 200}, {35, 100}})
+				if (smoke_frames == frame)
+				{
+					app.tools_scale = scale;
+					app.pseudo_locale = scale >= 150;
+				}
+			if (smoke_frames == 46)
+				app.screen = phoenix::Screen::gm;
+			for (int frame : {90, 75, 60, 45, 30})
+				if (smoke_frames == frame)
+				{
+					if (!phoenix::probe_tool_presentation(app))
+						throw std::runtime_error("Tool presentation smoke failed");
+					TakeScreenshot(("build/gui-tools-" + std::to_string(app.tools_scale) +
+					                (app.screen == phoenix::Screen::gm ? "-gm" : "") + ".png")
+					                   .c_str());
+				}
+			if (smoke_frames == 1)
+				std::cout << "Workshop/GM font, scale reset, pseudo-localisation and literal parameters smoke passed\n";
+		}
+
 		if (readout_smoke && smoke_frames == 1 && !phoenix::probe_console_readouts(1))
 		{
 			std::cerr << "Deferred readout smoke failed or found no changed offscreen readout\n";

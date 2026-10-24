@@ -21,6 +21,8 @@ struct SemanticControl
 	bool read_only = false;
 	bool tab = false, selected = false;
 	bool toggle = false, pressed = false;
+	bool numeric = false;
+	double minimum = 0, maximum = 100, step = 1;
 };
 std::string translate(const std::string &key, bool pseudo);
 void configure_translations(const Json &catalog);

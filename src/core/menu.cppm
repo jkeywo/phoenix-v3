@@ -20,6 +20,7 @@ struct MenuPreferences
 	Bytes avatar;
 	int sfx_volume = 50, master_volume = 50;
 	int siren_volume = 50;
+	int tools_scale = 100;
 };
 struct LibraryPack
 {

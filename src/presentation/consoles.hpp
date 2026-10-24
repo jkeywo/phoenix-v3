@@ -380,9 +380,13 @@ class ConsoleSurface final : public Rml::EventListener
 		const auto at = widget_offset(key);
 		const auto &size = hud_metadata_.at("helm-throttle-track").at("image_size");
 		const float density = context_->GetDensityIndependentPixelRatio();
-		const float height = std::max(30.f * density, widget->GetOffsetHeight() - 100 * density),
+		Rml::ElementList headings;
+		widget->GetElementsByTagName(headings, "h2");
+		const float header =
+		    std::max(45.f * density, (headings.empty() ? 0.f : headings.front()->GetOffsetHeight()) + 16.f * density);
+		const float height = std::max(30.f * density, widget->GetOffsetHeight() - header - 55.f * density),
 		            width = height * size[0].get<float>() / size[1].get<float>();
-		return {at.x + (widget->GetOffsetWidth() - width) / 2, at.y + 45 * density, width, height};
+		return {at.x + (widget->GetOffsetWidth() - width) / 2, at.y + header, width, height};
 	}
 	void place(Application &app, const ConsoleRegion &region, const std::string &name)
 	{
@@ -474,8 +478,8 @@ body {width:100%;height:100%;font-family:LatoLatin;font-size:20px;color:#e5e4ca;
 .stance-row {display:block;}
 .command-console #toolbar h1 {background:#101b1cee;padding:8px 14px;}
 .narrow-command #gameplay-controls .stance-button {width:96%;max-width:none;}
-.stance-label {pointer-events:none;display:block;max-width:90px;margin:0 auto;font-size:20px;text-align:center;}
-.stance-state {pointer-events:none;display:block;font-size:12px;margin-top:8px;color:#ffd082;}
+.stance-label {pointer-events:none;display:block;max-width:90px;margin:0 auto;font-size:1em;text-align:center;}
+.stance-state {pointer-events:none;display:block;font-size:0.6em;margin-top:8px;color:#ffd082;}
 .stance-button:focus .stance-state {background:#fff3d9;color:#101b1c;}
 .command-card h2 {margin:0 8px 10px;color:#ffbd76;}
 .objective-card {max-width:none;}
@@ -493,8 +497,8 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow-x:hidden;overflow-y:auto;clip:always;box-sizing:border-box;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
 #sensor-panel {position:absolute;left:4%;top:105dp;width:30%;height:42%;overflow-y:auto;background:#0b1719ee;border:1px #988b71;padding:8dp;display:none;}
 #sensor-controls,#sensor-readouts,#sensor-title {display:block;width:100%;box-sizing:border-box;}
-#sensor-panel p {width:100%;font-size:16dp;margin:6dp 0;box-sizing:border-box;}
-#sensor-panel button {width:46%;min-width:140dp;min-height:44dp;box-sizing:border-box;font-size:16dp;}
+#sensor-panel p {width:100%;font-size:0.8em;margin:6dp 0;box-sizing:border-box;}
+#sensor-panel button {width:46%;min-width:140dp;min-height:44dp;box-sizing:border-box;font-size:0.8em;}
 .local-settings-open #sensor-panel {visibility:hidden;}
 #gameplay scrollbarvertical {width:14px;background:#263638;}
 #gameplay scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
@@ -516,12 +520,12 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 .engineering-card p {min-height:56px;line-height:1.5;}
 .engineering-card button {width:180px;min-height:48px;box-sizing:border-box;font-size:.85em;}
 .widget {position:absolute;box-sizing:border-box;padding:8px;overflow:hidden;}
-p {display:block;font-size:.85em;margin:4px 0;}
+p {display:block;word-break:break-word;font-size:.85em;margin:4px 0;}
 .dial {position:absolute;left:12px;right:12px;top:48px;bottom:72px;}
 .widget button {position:absolute;bottom:8px;left:8px;}
 .radar-widget button.on-screen {position:absolute;left:auto;right:8px;}
 .readout {position:absolute;bottom:12px;left:16px;right:16px;height:44px;text-align:center;color:#cbe9c8;}
-.heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;height:36px;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
+.heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;min-height:1.8em;height:auto;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
 .throttle {position:absolute;background:transparent;border:0px;}
 .throttle slidertrack {background:transparent;}
 .throttle sliderbar {width:100%;background:transparent;}
@@ -529,7 +533,7 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .throttle sliderarrowdec,.throttle sliderarrowinc {display:none;}
 .ready-card {position:absolute;left:10%;top:390px;width:80%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
 .profile-card {top:18%;}
-.ready-card h1 {display:block;font-size:32px;}
+.ready-card h1 {display:block;font-size:1.6em;}
 .ready-card button {min-width:120px;}
 .ready-card .avatar-choice {min-width:0;width:64px;height:64px;padding:6px;}
 .ready-card input {display:block;width:90%;height:40px;background:#211f1a;color:#fff0d4;margin:10px 0;}
@@ -542,12 +546,12 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .helm .radar-widget {overflow:visible;}
 .helm .dial {left:0;right:0;top:0;bottom:0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}
-.helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
+.helm .radar-widget button:focus,.helm .heading-value:focus,.helm .radar-widget button.pad-selected,.helm .heading-value.pad-selected {opacity:1;}
 .helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:auto;right:auto;min-width:0;z-index:4;}
 .helm .radar-widget button.on-screen,.helm .radar-widget button.on-screen:hover,.helm .radar-widget button.on-screen:focus {background:transparent;border:0px;margin:0;padding:0;min-height:0;border-radius:0px;pointer-events:none;}
 .helm .radar-widget button.on-screen span {display:none;}
-.helm .radar-widget button.on-screen .share-label {display:block;left:24px;right:50px;top:12px;height:28px;line-height:28px;font-size:22px;text-align:left;color:#f0dfbf;}
-.helm .radar-widget button.on-screen .share-caption {display:block;left:25px;bottom:14px;height:16px;line-height:16px;font-size:13px;}
+.helm .radar-widget button.on-screen .share-label {display:block;left:24px;right:50px;top:12px;height:1.28em;line-height:1.28em;font-size:1.1em;text-align:left;color:#f0dfbf;}
+.helm .radar-widget button.on-screen .share-caption {display:block;left:25px;bottom:14px;height:1.24em;line-height:1.24em;font-size:0.65em;}
 .helm .radar-widget button.on-screen:focus .share-label {text-decoration:underline;color:#ffd49b;}
 .helm .radar-widget button.on-screen .share-live {display:none;}
 .helm .radar-widget button.on-screen-active .share-live {display:block;}
@@ -559,8 +563,8 @@ button.on-screen:hover {background:#303c3e;border-top-color:#d1a26d;}
 button.on-screen:focus {border-color:#ffd09a;}
 button.on-screen .share-monitor {position:absolute;left:12px;top:18px;width:25px;height:17px;border:2px #a7906d;border-radius:2px;background:#081315;pointer-events:none;}
 button.on-screen .share-monitor span {position:absolute;left:8px;top:19px;width:10px;height:3px;background:#a7906d;}
-button.on-screen .share-label {position:absolute;left:48px;right:30px;top:9px;font-size:16px;color:#f0dfbf;pointer-events:none;}
-button.on-screen .share-caption {position:absolute;left:49px;bottom:9px;font-size:11px;color:#a3aaa1;pointer-events:none;}
+button.on-screen .share-label {position:absolute;left:48px;right:30px;top:9px;font-size:0.8em;color:#f0dfbf;pointer-events:none;}
+button.on-screen .share-caption {position:absolute;left:49px;bottom:9px;font-size:0.55em;color:#a3aaa1;pointer-events:none;}
 button.on-screen .share-live {display:none;color:#a9f5b8;}
 button.on-screen .share-lamp-housing {position:absolute;right:9px;top:15px;width:20px;height:20px;border:1px #11191a;border-top-color:#758078;border-radius:11px;background:#17231d;pointer-events:none;}
 button.on-screen .share-lamp {position:absolute;left:4px;top:4px;width:10px;height:10px;border-radius:6px;background:#34493b;border:1px #172a1c;}
@@ -576,20 +580,20 @@ button.on-screen-active .share-live {display:block;}
 .helm #gameplay {background:transparent;border:0px;padding:0px;}
 .helm .radar-widget button.manual-toggle {display:block;opacity:1;left:5%;bottom:4%;width:220px;height:82px;padding:0;margin:0;background:transparent;border:2px transparent;tab-index:auto;}
 .manual-toggle .manual-art {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
-.manual-toggle .manual-label {position:absolute;left:17%;top:50%;margin-top:-12px;height:24px;font-size:18px;color:#f3e6c9;pointer-events:none;}
-.manual-toggle .manual-lamp {position:absolute;left:55%;top:50%;margin-top:-11px;width:22px;height:22px;box-sizing:border-box;border:3px #ff625f;background:#410e10;color:#ffc4ba;font-family:Space Mono;font-size:17px;line-height:16px;text-align:center;pointer-events:none;}
-.manual-toggle.manual-on .manual-lamp {border-radius:11px;background:#4fd791;border-color:#a5ffcb;color:#09261b;}
-.manual-toggle .manual-state {position:absolute;left:70%;top:50%;margin-top:-10px;height:20px;font-family:Space Mono;font-size:13px;line-height:20px;color:#f3e6c9;pointer-events:none;}
+.manual-toggle .manual-label {position:absolute;left:17%;top:50%;margin-top:-0.67em;height:1.34em;font-size:0.9em;color:#f3e6c9;pointer-events:none;}
+.manual-toggle .manual-lamp {position:absolute;left:55%;top:50%;margin-top:-.65em;width:1.3em;height:1.3em;box-sizing:border-box;border:3px #ff625f;background:#410e10;color:#ffc4ba;font-family:Space Mono;font-size:0.85em;line-height:.94em;text-align:center;pointer-events:none;}
+.manual-toggle.manual-on .manual-lamp {border-radius:50%;background:#4fd791;border-color:#a5ffcb;color:#09261b;}
+.manual-toggle .manual-state {position:absolute;left:70%;top:50%;margin-top:-0.77em;height:1.54em;font-family:Space Mono;font-size:0.65em;line-height:1.54em;color:#f3e6c9;pointer-events:none;}
 .helm .radar-widget button.manual-toggle:hover,.helm .radar-widget button.manual-toggle:focus {border-color:#ffe4b0;}
 .helm .radar-widget button.manual-toggle:disabled {opacity:.5;}
 
 .profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
 #manual-flight {position:absolute;right:2%;top:76px;width:22%;min-width:180px;max-width:280px;max-height:80%;overflow:auto;z-index:8;background:#08171bee;padding:8px;box-sizing:border-box;}
-#manual-flight button {width:46%;min-height:44px;margin:2px;padding:6px;font-size:16px;box-sizing:border-box;}
+#manual-flight button {width:46%;min-height:44px;margin:2px;padding:6px;font-size:0.8em;box-sizing:border-box;}
 #manual-flight button.flight-mode {width:96%;}
 #manual-stick {display:block;position:relative;width:160px;height:160px;margin:8px auto;border:2px #98cbb8;border-radius:80px;background:#10292a;}
 #manual-knob {display:block;position:absolute;width:32px;height:32px;margin-left:-16px;margin-top:-16px;left:50%;top:50%;border-radius:16px;background:#bce8ad;pointer-events:none;}
-#manual-flight p {font-size:14px;}
+#manual-flight p {font-size:0.7em;}
 .manual-flight .throttle-widget,.manual-flight .heading-widget {visibility:hidden;}
 .local-settings-open #manual-flight {visibility:hidden;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
@@ -621,30 +625,30 @@ button.on-screen-active .share-live {display:block;}
 .mission-art {position:absolute;left:0;top:0;width:100%;height:100%;}
 .camera-choices {position:absolute;top:28px;left:8px;width:100px;height:100px;}
 .camera-art {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
-.camera-choices button {display:block;position:absolute;bottom:auto;box-sizing:border-box;min-width:0;min-height:0;font-family:Space Mono;font-size:28px;line-height:1;padding:0;margin:0;tab-index:auto;text-align:center;background:transparent;border:2px transparent;color:#e9dec4;}
-.camera-icon {position:absolute;display:block;left:0;right:0;top:50%;margin-top:-14px;height:28px;pointer-events:none;}
-.camera_mode-widget .camera-choices button {font-size:24px;}
-.camera_mode-widget .camera-icon {margin-top:-12px;height:24px;}
+.camera-choices button {display:block;position:absolute;bottom:auto;box-sizing:border-box;min-width:0;min-height:0;font-family:Space Mono;font-size:1.4em;line-height:1;padding:0;margin:0;tab-index:auto;text-align:center;background:transparent;border:2px transparent;color:#e9dec4;}
+.camera-icon {position:absolute;display:block;left:0;right:0;top:50%;margin-top:-.5em;height:1em;pointer-events:none;}
+.camera_mode-widget .camera-choices button {font-size:1.2em;}
+.camera_mode-widget .camera-icon {margin-top:-.5em;height:1em;}
 .camera-choices button:hover {background:#ffc07a22;border-color:#e9dec488;}
 .camera-choices button.selected {background:#fca65133;border-color:#ffc078;color:#ffc078;}
 .camera-choices button:focus {border-color:#fff3d9;background:#fff3d933;}
-.camera_mode-widget h2,.camera_direction-widget h2 {font-size:14px;margin:0;color:#e9dec4;background:#071012bb;padding:2px 4px;}
-.camera-status {position:absolute;left:0;right:0;text-align:center;font-size:14px;color:#f1ddaf;pointer-events:none;}
+.camera_mode-widget h2,.camera_direction-widget h2 {font-size:0.7em;margin:0;color:#e9dec4;background:#071012bb;padding:2px 4px;}
+.camera-status {position:absolute;left:0;right:0;text-align:center;font-size:0.7em;color:#f1ddaf;pointer-events:none;}
 .mission-copy {display:block;position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;background:#081b14ed;padding:24px;box-sizing:border-box;border:1px #51744c;pointer-events:auto;}
-.mission-copy h1 {font-size:18px;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
-.mission-copy h2 {font-size:44px;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
-.mission-copy p {font-size:22px;margin:10px 0;}
-.mission-copy .mission-report-main p,.mission-copy .mission-report-side p {font-size:18px;margin:8px 0;}
+.mission-copy h1 {font-size:0.9em;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
+.mission-copy h2 {font-size:2.2em;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
+.mission-copy p {font-size:1.1em;margin:10px 0;}
+.mission-copy .mission-report-main p,.mission-copy .mission-report-side p {font-size:0.9em;margin:8px 0;}
 .mission-copy h1,.mission-copy h2,.mission-copy p {display:block;width:100%;box-sizing:border-box;}
 .mission-copy .terminal-rule {height:1px;background:#51744c;margin:18px 0;}
-.mission-copy .terminal-status {font-size:16px;letter-spacing:2px;color:#81af79;}
+.mission-copy .terminal-status {font-size:0.8em;letter-spacing:2px;color:#81af79;}
 .mission-copy button {display:block;width:260px;height:54px;box-sizing:border-box;margin:22px 0 0 0;padding:12px 20px;background:#122116;border:1px #87b77b;color:#d1f9be;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
-#gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:14px;overflow:hidden;}
+#gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:0.7em;overflow:hidden;}
 #fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
-#fault-dialog p {font-size:22px;line-height:1.4;}
+#fault-dialog p {font-size:1.1em;line-height:1.4;}
 #comms-layer {position:absolute;left:1%;top:80px;width:98%;bottom:1%;background:#102027;}
 #comms-list {position:absolute;left:0;top:0;height:100%;overflow:auto;}
 #comms-list button {display:block;width:96%;min-height:48px;margin:4px;}
@@ -955,6 +959,42 @@ button.on-screen-active .share-live {display:block;}
 		app_->accessible_status = model_.announcement();
 		return accepted;
 	}
+	bool controller_hold(const std::string &name, bool pressed)
+	{
+		if (!name.starts_with(id("game.control/")))
+			return false;
+		const auto key = name.substr(id("").size());
+		if (!pressed)
+			return model_.release_control(key);
+		return !settings_open_ && model_.hold_control(key);
+	}
+	bool controller_flight() const
+	{
+		return !settings_open_ && model_.layout() &&
+		       std::any_of(model_.layout()->at("widgets").begin(), model_.layout()->at("widgets").end(),
+		                   [](const auto &w)
+		                   {
+			                   return w.at("kind") == "throttle";
+		                   });
+	}
+	Rml::Element *controller_element(const std::string &name)
+	{
+		return document_->GetElementById(name);
+	}
+	void controller_cancel()
+	{
+		cancel_pointer();
+		model_.release_controls();
+	}
+	bool controller_back()
+	{
+		if (settings_open_)
+			return action(id("local-settings.close"));
+		if (profile_open_)
+			return action(id("profile"));
+		return false;
+	}
+
 	void ProcessEvent(Rml::Event &event) override
 	{
 		if (syncing_values_)
@@ -1934,8 +1974,9 @@ button.on-screen-active .share-live {display:block;}
 			{
 				button("settings", "Settings");
 				bool teams = false;
-				for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
-					teams |= !t.at("orders").empty();
+				if (model_.observation())
+					for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
+						teams |= !t.at("orders").empty();
 				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" +
 				           (teams ? button("game.teams", "Teams") : std::string{}) + button("personnel", "Personnel") +
 				           "<span class=\"" + std::string(away_attention() ? "away-attention" : "") + "\">" +
@@ -2053,15 +2094,15 @@ button.on-screen-active .share-live {display:block;}
 				const auto &aperture = terminal_.at("screen");
 				const float ax = aperture.at("x"), ay = aperture.at("y"), aw = aperture.at("width"),
 				            ah = aperture.at("height");
-				lobby += "<button id=\"" + id("profile") +
-				         "\" class=\"profile-tv\" style=\"width:" + std::to_string(tw) +
-				         "dp;height:" + std::to_string(tw * sh / sw) + "dp\"><img src=\"" +
-				         asset_path("../menu/crt-terminal.png") + "\" width=\"" + std::to_string(tw) +
-				         "\"/><span style=\"left:" + std::to_string(ax / sw * 100) +
-				         "%;top:" + std::to_string((ay + ah * .85f) / sh * 100) +
-				         "%;width:" + std::to_string(aw / sw * 100) +
-				         "%;height:" + std::to_string(ah * .15f / sh * 100) + "%;background:#101918;font-size:16dp\">" +
-				         Rml::StringUtilities::EncodeRml(profile_name_) + "</span></button>";
+				lobby +=
+				    "<button id=\"" + id("profile") + "\" class=\"profile-tv\" style=\"width:" + std::to_string(tw) +
+				    "dp;height:" + std::to_string(tw * sh / sw) + "dp\"><img src=\"" +
+				    asset_path("../menu/crt-terminal.png") + "\" width=\"" + std::to_string(tw) +
+				    "\"/><span style=\"left:" + std::to_string(ax / sw * 100) +
+				    "%;top:" + std::to_string((ay + ah * .85f) / sh * 100) +
+				    "%;width:" + std::to_string(aw / sw * 100) + "%;height:" + std::to_string(ah * .15f / sh * 100) +
+				    "%;background:#101918;font-size:0.8em\">" + Rml::StringUtilities::EncodeRml(profile_name_) +
+				    "</span></button>";
 				if (profile_open_)
 				{
 					controls_.clear();
@@ -2315,7 +2356,7 @@ button.on-screen-active .share-live {display:block;}
 		const auto messages = pregame ? std::vector<ConsoleMessageView>{} : model_.messages();
 		const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty() || !messages.empty();
 		const auto placement = signature_ + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) +
-		                       (has_gameplay ? "/gameplay" : "/empty");
+		                       "/" + std::to_string(text_scale_) + (has_gameplay ? "/gameplay" : "/empty");
 		const bool placement_changed = placement_signature_ != placement;
 		if (placement_changed)
 		{
@@ -2808,8 +2849,9 @@ button.on-screen-active .share-live {display:block;}
 					const auto parent = widget_offset(key);
 					const float r = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
 					const float cx = at.x + dial->GetOffsetWidth() / 2, cy = at.y + dial->GetOffsetHeight() / 2;
-					const float pod_width = std::clamp(r * .70f, 196.f * display_scale, 240.f * display_scale);
-					const float pod_height = 76.f * display_scale;
+					const float pod_width =
+					    std::clamp(r * .70f, 196.f * display_scale, 240.f * display_scale) * text_scale_ / 100.f;
+					const float pod_height = 76.f * display_scale * text_scale_ / 100.f;
 					const Rectangle pod{
 					    std::min(cx + r * .34f, physical_region.width - pod_width - 24.f * display_scale),
 					    std::min(cy + r * 1.02f, physical_region.height - pod_height - 24.f * display_scale), pod_width,
@@ -2837,7 +2879,8 @@ button.on-screen-active .share-live {display:block;}
 					toggle->SetAttribute("aria-pressed", manual ? "true" : "false");
 					// Keep the single switch inside the radar bezel at smaller viewport sizes.
 					const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f,
-					                               160.f * display_scale, 220.f * display_scale);
+					                               160.f * display_scale, 220.f * display_scale) *
+					                    text_scale_ / 100.f;
 					property(toggle, "width", std::to_string(width) + "px");
 					property(toggle, "height", std::to_string(width / 2.68f) + "px");
 				}

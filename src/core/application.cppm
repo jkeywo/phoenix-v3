@@ -94,6 +94,7 @@ struct Application
 	Screen launch_screen = Screen::viewscreen;
 	int music_volume = 50, sfx_volume = 50, master_volume = 50;
 	int siren_volume = 50;
+	int tools_scale = 100;
 	std::function<void()> button_click;
 	std::string network_code;
 	std::string network_service = default_network_service, network_profile = "default", join_page;

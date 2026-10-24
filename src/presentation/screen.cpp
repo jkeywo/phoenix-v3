@@ -1,5 +1,6 @@
 module;
 #include <raylib.h>
+#include "../core/pad_navigation.hpp"
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/StringUtilities.h>
 #include <FontEngineInterfaceHarfBuzz.h>
@@ -414,6 +415,7 @@ void cancel_captures()
 				context->ProcessMouseButtonUp(button, 0);
 	mouse_capture.reset();
 }
+#include "pad_surface.hpp"
 Screen shown = Screen::gm;
 struct Navigation : Rml::EventListener
 {
@@ -1304,7 +1306,14 @@ void draw_screen(Application &app)
 			return primary_value ? primary_value(id, value) : false;
 		};
 		for (const auto &region : active_console_regions)
-			console_surfaces.at(region.console)->prepare(app, region, gamepads);
+			try
+			{
+				console_surfaces.at(region.console)->prepare(app, region, gamepads);
+			}
+			catch (const std::exception &error)
+			{
+				throw std::runtime_error("Console " + std::to_string(region.console) + " preparation: " + error.what());
+			}
 	}
 	auto *sidebar_selector = document->GetElementById("sidebar-selector");
 	if (!sidebar_selector)
@@ -1381,27 +1390,25 @@ void draw_screen(Application &app)
 			gamepads.insert(event.device);
 		else if (event.kind == DeviceEventKind::Removed)
 		{
+			cancel_pad(event.device);
 			input.disconnect_gamepad(event.device);
 			app.gamepad_assignments.erase(event.device);
 			gamepads.erase(event.device);
 		}
 		else if (event.kind == DeviceEventKind::Gamepad)
 		{
-			if (!console_mode && app.native_menu && window_focused() && event.value > 0)
+			const auto found = app.gamepad_assignments.find(event.device);
+			const ConsoleId route = console_mode && found != app.gamepad_assignments.end() ? found->second : 0;
+			prepare_pad(event.device, route, app);
+			auto &pad = pad_surfaces.at(event.device);
+			if (window_focused())
 			{
-				if (event.control == "game.contacts")
-					context->ProcessKeyDown(Rml::Input::KI_RETURN, 0);
-				else
-					context->ProcessKeyDown(
-					    Rml::Input::KI_TAB,
-					    event.control == "game.faster" || event.control == "game.left" ? Rml::Input::KM_SHIFT : 0);
-			}
-			if (console_mode && window_focused())
-			{
-				auto found = app.gamepad_assignments.find(event.device);
-				if (found != app.gamepad_assignments.end())
-					input.assign_gamepad(event.device, found->second);
-				input.gamepad(event.device, event.control, event.value);
+				pad.navigation.sample(event.control, event.value, GetTime());
+				if (!pad.ui && route)
+				{
+					input.assign_gamepad(event.device, route);
+					input.gamepad(event.device, event.control, event.value);
+				}
 			}
 		}
 		else
@@ -1461,6 +1468,7 @@ void draw_screen(Application &app)
 				captures[event.contact] = *point;
 		}
 	}
+	update_pads(app);
 	for (const auto &event : input.drain_gamepad_inputs())
 		if (console_mode && console_surfaces.contains(event.console))
 		{
@@ -1472,7 +1480,7 @@ void draw_screen(Application &app)
 				else
 					surface.gamepad(event.device, event.control, event.value);
 			}
-			else if (event.value > 0)
+			else if (event.value > 0 && event.control != "game.manual")
 				surface.action("console/" + std::to_string(event.console) + "/" + event.control);
 		}
 	if (app.screen == Screen::workshop || app.screen == Screen::gm)
@@ -1654,8 +1662,132 @@ void draw_screen(Application &app)
 		    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 		draw_alert_glow(app.session->public_board().value("alert", Json::object()), {r.x, r.y, r.width, r.height});
 	}
+	draw_pad_selection(app);
 	publish_semantics(app);
 }
+bool probe_gui_navigation(Application &app, unsigned stage)
+{
+	std::cout << "GUI navigation stage " << stage << std::endl;
+	const ConsoleId route = 1;
+	const std::string device = "gui-smoke";
+	if (!console_surfaces.contains(route))
+		return false;
+	app.gamepad_assignments[device] = route;
+	prepare_pad(device, route, app);
+	auto &pad = pad_surfaces.at(device);
+	pad.ui = true;
+	auto pulse = [&](const std::string &control)
+	{
+		pad.navigation.sample("flight.yaw", 0, GetTime());
+		pad.navigation.sample("flight.thrust", 0, GetTime());
+		pad.navigation.sample(control, 1, GetTime());
+		update_pads(app);
+		pad.navigation.sample(control, 0, GetTime());
+		update_pads(app);
+	};
+	auto activate = [&](const std::string &suffix)
+	{
+		const auto controls = pad_controls(app, route, device);
+		for (const auto &control : controls)
+			if (control.id.ends_with(suffix))
+			{
+				pad_select(pad_selections[route], route, control, app);
+				pulse("game.contacts");
+				return true;
+			}
+		return false;
+	};
+	if (stage == 0)
+	{
+		const auto controls = pad_controls(app, route, device);
+		if (controls.size() < 3)
+			return false;
+		const auto keyboard = input.keyboard_console();
+		std::set<std::string> reached;
+		for (std::size_t i = 0; i < controls.size(); ++i)
+		{
+			pulse("flight.starboard");
+			reached.insert(pad_selections[route].selected);
+		}
+		if (reached.size() != controls.size() || input.keyboard_console() != keyboard)
+			return false;
+		if (console_surfaces.contains(2))
+		{
+			const auto first_selection = pad_selections[route].selected;
+			app.gamepad_assignments["gui-second"] = 2;
+			prepare_pad("gui-second", 2, app);
+			auto &second = pad_surfaces.at("gui-second");
+			second.ui = true;
+			second.navigation.sample("flight.yaw", 0, GetTime());
+			second.navigation.sample("flight.thrust", 0, GetTime());
+			second.navigation.sample("flight.starboard", 1, GetTime());
+			update_pads(app);
+			second.navigation.sample("flight.starboard", 0, GetTime());
+			update_pads(app);
+			if (pad_selections[2].selected.empty() || pad_selections[route].selected != first_selection ||
+			    input.keyboard_console() != keyboard)
+				return false;
+		}
+
+		for (const auto &control : controls)
+			if (control.numeric)
+			{
+				pad_select(pad_selections[route], route, control, app);
+				int commits = 0;
+				auto original = app.set_control_value;
+				app.set_control_value = [&](const std::string &id, const std::string &value)
+				{
+					if (id == control.id)
+						++commits;
+					return original && original(id, value);
+				};
+				pulse("game.contacts");
+				pulse("game.right");
+				pulse("game.camera-back");
+				const bool cancelled = commits == 0 && pad_selections[route].editing.empty();
+				pulse("game.contacts");
+				pulse("game.right");
+				pulse("game.contacts");
+				app.set_control_value = original;
+				if (!cancelled || commits != 1)
+					return false;
+				break;
+			}
+		return activate("/settings");
+	}
+	if (stage == 1)
+		return activate("/local-settings.tab/display");
+	if (stage == 2)
+	{
+		for (int i = 0; i < 5; ++i)
+			if (!activate("/local-settings.larger"))
+				return false;
+		return true;
+	}
+	if (stage == 3)
+	{
+		auto *button = console_surfaces.at(route)->controller_element("console/1/local-settings.larger");
+		if (!button || button->GetComputedValues().font_size() < 29.f)
+			return false;
+		if (console_surfaces.contains(2))
+		{
+			auto *other = console_surfaces.at(2)->controller_element("console/2/settings");
+			if (other && other->GetComputedValues().font_size() >= button->GetComputedValues().font_size())
+				return false;
+		}
+
+		return activate("/local-settings.close");
+	}
+	if (stage == 4)
+	{
+		pulse("game.manual");
+		const bool flight = !pad.ui;
+		pulse("game.manual");
+		return flight && pad.ui;
+	}
+	return false;
+}
+
 void close_window()
 {
 	preview_surface.reset();
@@ -1679,6 +1811,8 @@ void close_window()
 	native_menu.reset();
 	server_music.reset();
 	cancel_captures();
+	pad_surfaces.clear();
+	pad_selections.clear();
 	console_surfaces.clear();
 	close_devices(GetWindowHandle());
 	remove_native_accessibility(GetWindowHandle());

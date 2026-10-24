@@ -3357,7 +3357,7 @@ struct GameplayEditor
 		text("Payload fields are typed data. Display parameters format translated text; AI never parses that text. "
 		     "Sending requires a declared action or reporting rule, and delivery does not grant control authority.");
 	}
-	void disposable_test(WorkshopDocument &document, std::string &status)
+	void disposable_test(WorkshopDocument &document, ToolMessage &status)
 	{
 		heading("Disposable production test");
 		text("Run an isolated simulation of the verified draft. Pause, step and restart apply to this test.");
@@ -3392,7 +3392,7 @@ struct GameplayEditor
 			if (button(title))
 			{
 				if (action == GameplayTestAction::Start && (test_map.empty() || test_slot.empty() || test_ship.empty()))
-					status = translate("Choose a mission, slot and ship before starting a test.", pseudo);
+					status = "Choose a mission, slot and ship before starting a test.";
 				else
 				{
 					GameplayTestRequest request;
@@ -3406,7 +3406,7 @@ struct GameplayEditor
 						request.dependencies = document.dependency_archives();
 					}
 					test_request = std::move(request);
-					status = translate("Disposable test request queued.", pseudo);
+					status = "Disposable test request queued.";
 				}
 			}
 			ImGui::SameLine();
@@ -3532,7 +3532,7 @@ struct GameplayEditor
 			}
 	}
 
-	void properties(WorkshopDocument &document, Application &app, std::string &status, const std::string &selection,
+	void properties(WorkshopDocument &document, Application &app, ToolMessage &status, const std::string &selection,
 	                const std::string &selected_entity)
 	{
 		pseudo = app.pseudo_locale;
@@ -3579,10 +3579,10 @@ struct GameplayEditor
 			ImGui::TextWrapped("%s", status.c_str());
 		}
 	}
-	void areas(WorkshopDocument &document, Application &app, std::string &status, std::string &selection)
+	void areas(WorkshopDocument &document, Application &app, ToolMessage &status, std::string &selection)
 	{
 		pseudo = app.pseudo_locale;
-		if (ImGui::Begin(label("State trees").c_str()))
+		if (tool_window(label("State trees").c_str()))
 		{
 			try
 			{
@@ -3594,7 +3594,7 @@ struct GameplayEditor
 			}
 		}
 		ImGui::End();
-		if (ImGui::Begin(label("Scenario").c_str()))
+		if (tool_window(label("Scenario").c_str()))
 		{
 			text("Select a map to inspect its regions, objectives, spawns and situations in Properties.");
 			auto &maps = document.definitions()["maps"];
@@ -3616,7 +3616,7 @@ struct GameplayEditor
 		ImGui::End();
 		if (controller_probe)
 			ImGui::SetNextWindowFocus();
-		if (ImGui::Begin(label("Test").c_str()))
+		if (tool_window(label("Test").c_str()))
 		{
 			try
 			{
@@ -3632,13 +3632,13 @@ struct GameplayEditor
 };
 GameplayEditor gameplay_editor;
 } // namespace
-void draw_workshop_areas(WorkshopDocument &document, Application &app, std::string &status, std::string &selection)
+void draw_workshop_areas(WorkshopDocument &document, Application &app, ToolMessage &status, std::string &selection)
 {
 	if (gameplay_editor.vocabulary.empty())
 		set_gameplay_authoring_vocabulary(gameplay_tree_vocabulary());
 	gameplay_editor.areas(document, app, status, selection);
 }
-void draw_gameplay_properties(WorkshopDocument &document, Application &app, std::string &status,
+void draw_gameplay_properties(WorkshopDocument &document, Application &app, ToolMessage &status,
                               const std::string &selection, const std::string &entity)
 {
 	if (gameplay_editor.vocabulary.empty())

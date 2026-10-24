@@ -41,6 +41,7 @@ const globalPreferenceDefaults = {
 	sfx_volume: 50,
 	siren_volume: 50,
 	master_volume: 50,
+	tools_scale: 100,
 	language: "en",
 	pseudo: false,
 	reduced_motion: false,
@@ -133,6 +134,36 @@ export function installPack(selection, meta, hash, metadata, baseId) {
 	return [...selection, { hash, id: meta.id, enabled: false }];
 }
 
+// The pre-launch shell has no WASM yet. Use ordinary DOM controls with the
+// same thresholds/repeat policy as the runtime's shared C++ navigator.
+export function menuPadInput(state, pad, now) {
+	const values = {
+		left: Math.max(-(pad.axes?.[0] || 0), pad.buttons?.[14]?.pressed ? 1 : 0),
+		right: Math.max(pad.axes?.[0] || 0, pad.buttons?.[15]?.pressed ? 1 : 0),
+		up: Math.max(-(pad.axes?.[1] || 0), pad.buttons?.[12]?.pressed ? 1 : 0),
+		down: Math.max(pad.axes?.[1] || 0, pad.buttons?.[13]?.pressed ? 1 : 0),
+		activate: pad.buttons?.[0]?.pressed ? 1 : 0,
+		cancel: pad.buttons?.[1]?.pressed ? 1 : 0,
+		previous: pad.buttons?.[4]?.pressed ? 1 : 0,
+		next: pad.buttons?.[5]?.pressed ? 1 : 0,
+	};
+	if (!state.ready) {
+		if (Object.values(values).some((v) => Math.abs(v) > 0.15)) return [];
+		state.ready = true;
+	}
+	state.held ||= {};
+	const actions = [];
+	for (const [key, value] of Object.entries(values)) {
+		const held = (state.held[key] ||= { down: false, next: 0 });
+		const down = value >= (held.down ? 0.15 : 0.25);
+		if (down && (!held.down || (key !== "activate" && key !== "cancel" && now >= held.next))) {
+			actions.push(key);
+			held.next = now + (held.down ? 100 : 400);
+		}
+		held.down = down;
+	}
+	return actions;
+}
 // The HTML shell gathers launch hints. C++ verifies content, setup and admission.
 // Keep one landscape coordinate space for rendering, touch and semantic controls.
 export function viewportLayout(width, height, runtime = false) {
@@ -247,6 +278,7 @@ const defaults = () => ({
 	volume: 50,
 	sfx_volume: 50,
 	master_volume: 50,
+	tools_scale: 100,
 	language: "en",
 	pseudo: false,
 	reduced_motion: false,
@@ -1503,7 +1535,9 @@ async function boot() {
 		input.onchange = run(async () => {
 			const file = input.files[0];
 			if (!file) return;
-			if (file.size > 32 * 1024 * 1024) throw Error("Archive exceeds 32 MiB.");
+			const limit = (kind === "pack" ? 32 : 128) * 1024 * 1024;
+			if (file.size > limit)
+				throw Error(kind === "pack" ? "Archive exceeds 32 MiB." : "Save archive exceeds 128 MiB.");
 			const bytes = new Uint8Array(await file.arrayBuffer());
 			if (kind === "pack") {
 				const meta = await derivePreview(bytes),
@@ -2257,3 +2291,110 @@ async function boot() {
 	}
 }
 if (typeof document !== "undefined") boot();
+
+if (
+	typeof document !== "undefined" &&
+	typeof navigator.getGamepads === "function" &&
+	typeof requestAnimationFrame === "function"
+) {
+	const pads = new Map();
+	let editing;
+	const visible = (el) =>
+		!el.disabled && !el.hidden && el.getClientRects().length && getComputedStyle(el).visibility !== "hidden";
+	function navigateMenu(action) {
+		const root = document.querySelector("#popup[open]") || document.getElementById("menu");
+		const controls = Array.from(root.querySelectorAll("button,input,select,textarea")).filter(visible);
+		if (!controls.length) return;
+		let current = controls.includes(document.activeElement) ? document.activeElement : controls[0];
+		if (editing && (!editing.el.isConnected || !controls.includes(editing.el))) editing = undefined;
+		if (action === "cancel") {
+			if (editing) {
+				editing.el.value = editing.original;
+				editing = undefined;
+				return;
+			}
+			const popup = document.querySelector("#popup[open]");
+			if (popup) {
+				popup.close();
+				return;
+			}
+			const back = document.getElementById("back");
+			if (visible(back)) back.click();
+			return;
+		}
+		if (action === "activate") {
+			if (editing) {
+				editing.el.dispatchEvent(new Event("input", { bubbles: true }));
+				editing.el.dispatchEvent(new Event("change", { bubbles: true }));
+				editing = undefined;
+			} else if (current.matches('input[type="range"],input[type="number"]'))
+				editing = { el: current, original: current.value };
+			else {
+				current.focus();
+				if (current.matches("button,input[type=checkbox]")) current.click();
+			}
+			return;
+		}
+		if (editing && ["left", "right", "up", "down"].includes(action)) {
+			const el = editing.el,
+				step = Number(el.step) || 1,
+				sign = action === "right" || action === "up" ? 1 : -1;
+			el.value = String(
+				Math.max(
+					el.min === "" ? -1e9 : Number(el.min),
+					Math.min(el.max === "" ? 1e9 : Number(el.max), Number(el.value) + sign * step),
+				),
+			);
+			return;
+		}
+		let next;
+		if (action === "previous" || action === "next")
+			next =
+				controls[
+					(controls.indexOf(current) + controls.length + (action === "next" ? 1 : -1)) % controls.length
+				];
+		else {
+			const a = current.getBoundingClientRect(),
+				dx = action === "left" ? -1 : action === "right" ? 1 : 0,
+				dy = action === "up" ? -1 : action === "down" ? 1 : 0;
+			let best = Infinity;
+			for (const c of controls) {
+				const b = c.getBoundingClientRect(),
+					x = b.x + b.width / 2 - a.x - a.width / 2,
+					y = b.y + b.height / 2 - a.y - a.height / 2;
+				const score = Math.hypot(x, y) + 2 * Math.abs(dx ? y : x);
+				if (x * dx + y * dy > 1 && score < best) {
+					best = score;
+					next = c;
+				}
+			}
+		}
+		(next || current).focus();
+		(next || current).scrollIntoView({ block: "nearest", inline: "nearest" });
+	}
+	function poll(now) {
+		if (document.hidden || !document.hasFocus() || document.body.classList.contains("running")) {
+			pads.clear();
+			if (editing) editing.el.value = editing.original;
+			editing = undefined;
+		} else {
+			const seen = new Set();
+			for (const pad of navigator.getGamepads?.() || [])
+				if (pad?.connected) {
+					seen.add(pad.index);
+					if (!pads.has(pad.index)) pads.set(pad.index, {});
+					for (const action of menuPadInput(pads.get(pad.index), pad, now)) navigateMenu(action);
+				}
+			for (const id of pads.keys())
+				if (!seen.has(id)) {
+					pads.delete(id);
+					if (editing) {
+						editing.el.value = editing.original;
+						editing = undefined;
+					}
+				}
+		}
+		requestAnimationFrame(poll);
+	}
+	requestAnimationFrame(poll);
+}

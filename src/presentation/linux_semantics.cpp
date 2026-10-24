@@ -1,5 +1,6 @@
 module;
 #include <iostream>
+#include <string>
 
 module phoenix.presentation;
 
@@ -12,6 +13,9 @@ void install_native_accessibility(void *)
 	std::cerr << "Linux accessibility: AT-SPI screen-reader integration is not implemented\n";
 }
 void remove_native_accessibility(void *)
+{
+}
+void focus_semantic_text(const std::string &)
 {
 }
 void publish_semantics(const Application &)

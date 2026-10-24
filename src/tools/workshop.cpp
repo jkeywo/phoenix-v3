@@ -1,5 +1,8 @@
 module;
 #include <imgui.h>
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
 #include <raylib.h>
 #include <rlgl.h>
 #include <cstdint>
@@ -23,7 +26,38 @@ void close_editor();
 namespace
 {
 Texture2D font_texture{};
+ImGuiStyle base_style;
+int applied_scale = 0;
+void scale_tools(int percent)
+{
+	percent = std::clamp(percent, 75, 200);
+	if (percent == applied_scale)
+		return;
+	const float scale = percent / 100.f;
+	auto &io = ImGui::GetIO();
+	io.Fonts->Clear();
+	static const ImWchar ranges[] = {0x20, 0x024f, 0x2000, 0x206f, 0};
+#ifdef __EMSCRIPTEN__
+	const std::string font = "/assets/LatoLatin-Regular.ttf";
+#else
+	const std::string font = std::string(GetApplicationDirectory()) + "assets/LatoLatin-Regular.ttf";
+#endif
+	if (!io.Fonts->AddFontFromFileTTF(font.c_str(), 16.f * scale, nullptr, ranges))
+		throw std::runtime_error("Cannot load Workshop font: " + font);
+	unsigned char *pixels;
+	int width, height;
+	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+	const auto next = LoadTextureFromImage({pixels, width, height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8});
+	if (font_texture.id)
+		UnloadTexture(font_texture);
+	font_texture = next;
+	io.Fonts->SetTexID(static_cast<ImTextureID>(font_texture.id));
+	ImGui::GetStyle() = base_style;
+	ImGui::GetStyle().ScaleAllSizes(scale);
+	ImGui::GetStyle().WindowMinSize.y = std::max(ImGui::GetStyle().WindowMinSize.y, 64.f * scale);
+	applied_scale = percent;
 }
+} // namespace
 void begin_tools()
 {
 	enable_workshop_file_shortcuts();
@@ -31,16 +65,15 @@ void begin_tools()
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	ImGui::GetIO().IniFilename = nullptr;
-	unsigned char *pixels;
-	int width, height;
-	ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-	Image image{pixels, width, height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
-	font_texture = LoadTextureFromImage(image);
-	ImGui::GetIO().Fonts->SetTexID(static_cast<ImTextureID>(font_texture.id));
 	ImGui::StyleColorsDark();
+	base_style = ImGui::GetStyle();
+	applied_scale = 0;
+	scale_tools(100);
 }
 void draw_workshop(Application &app)
 {
+	scale_tools(app.tools_scale);
+	select_language(app.language, app.pseudo_locale);
 	auto &io = ImGui::GetIO();
 	Rectangle area{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
 	if (app.embedded_tools && app.gm_region)
@@ -130,6 +163,7 @@ void draw_workshop(Application &app)
 	                                         {KEY_C, ImGuiKey_C},
 	                                         {KEY_V, ImGuiKey_V},
 	                                         {KEY_X, ImGuiKey_X},
+	                                         {KEY_Y, ImGuiKey_Y},
 	                                         {KEY_Z, ImGuiKey_Z}};
 	for (auto [key, imgui_key] : keys)
 		io.AddKeyEvent(imgui_key, keyboard && (IsKeyDown(key) || pressed[key]));
@@ -183,7 +217,24 @@ void draw_gm_region(Application &app)
 	inspector.screen = Screen::gm;
 	inspector.embedded_tools = true;
 	draw_workshop(inspector);
+	app.tools_scale = inspector.tools_scale;
+	app.language = inspector.language;
+	app.pseudo_locale = inspector.pseudo_locale;
 }
+bool probe_tool_presentation(const Application &app)
+{
+	const auto &io = ImGui::GetIO();
+	if (applied_scale != app.tools_scale || io.Fonts->Fonts.empty() ||
+	    std::abs(io.Fonts->Fonts[0]->LegacySize - 16.f * app.tools_scale / 100.f) > .1f ||
+	    !io.Fonts->Fonts[0]->IsGlyphInFont(0x00e9) ||
+	    std::abs(ImGui::GetStyle().WindowPadding.x - base_style.WindowPadding.x * app.tools_scale / 100.f) > 1.f)
+		return false;
+	const ToolMessage message("Imported {file}", {{"file", "R\xc3\xa9sum\xc3\xa9-{file}.zip"}});
+	const std::string rendered = message.c_str();
+	return rendered.find("R\xc3\xa9sum\xc3\xa9-{file}.zip") != std::string::npos &&
+	       (rendered.starts_with("[ ") == app.pseudo_locale);
+}
+
 void end_tools()
 {
 	close_editor();

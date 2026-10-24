@@ -58,7 +58,7 @@ struct Editor
 	std::string selection = "Entity";
 	std::uint64_t selected = 0;
 	int definition = -1, console = -1;
-	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
+	ToolMessage status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
 	std::string mod_tree_identity;
 	std::map<std::string, Json> mod_manifests;
@@ -641,7 +641,7 @@ void sprite_import(Json &render)
 }
 void lighting_preview()
 {
-	if (!ImGui::Begin(tool_label("Lighting and sprite preview").c_str()))
+	if (!tool_window(tool_label("Lighting and sprite preview").c_str()))
 	{
 		ImGui::End();
 		return;
@@ -906,7 +906,8 @@ void lighting_preview()
 void entity_properties(Json &entity)
 {
 	string_field("Default faction (optional)", entity, "faction");
-	ImGui::TextWrapped("Reusable definition: %s", entity.at("id").get_ref<const std::string &>().c_str());
+	ImGui::TextWrapped("%s",
+	                   ToolMessage("Reusable definition: {id}", {{"id", entity.at("id").get<std::string>()}}).c_str());
 	const auto id = entity.at("id").get<std::string>();
 	if (editor.rename_from != id)
 		editor.template_id = editor.rename_from = id;
@@ -922,7 +923,7 @@ void entity_properties(Json &entity)
 	string_field("Display name", entity, "name");
 	if (entity.contains("extends"))
 	{
-		ImGui::TextWrapped("Inherited definition. Flatten before editing its resolved fields.");
+		ImGui::TextWrapped("%s", localise("Inherited definition. Flatten before editing its resolved fields.").c_str());
 		if (ImGui::Button(tool_label("Flatten definition").c_str()))
 			attempt(
 			    [&]
@@ -1187,12 +1188,14 @@ void console_editor(Application &app, bool inspector)
 						           s["colour"] = {colour[0], colour[1], colour[2], colour[3]};
 				           }
 			           }
-			           ImGui::TextWrapped("Binding: %s",
-			                              widget.value("binding", std::string("Controller command")).c_str());
+			           ImGui::TextWrapped(
+			               "%s", ToolMessage("Binding: {binding}",
+			                                 {{"binding", widget.value("binding", std::string("Controller command"))}})
+			                         .c_str());
 			           for (const char *key : {"x", "y", "width", "height"})
 			           {
 				           int value = widget[key];
-				           if (ImGui::SliderInt(key, &value,
+				           if (ImGui::SliderInt(tool_label(key).c_str(), &value,
 				                                (std::string(key) == "x" || std::string(key) == "y") ? 0 : 1, 1000))
 					           widget[key] = value;
 			           }
@@ -1205,7 +1208,7 @@ void console_editor(Application &app, bool inspector)
 	if (ImGui::CollapsingHeader(tool_label("Bindings and knowledge").c_str()))
 		draw_console_gameplay_properties(editor.document, app, selected);
 	ImGui::SeparatorText(tool_label("Live Console preview").c_str());
-	ImGui::TextWrapped("Sample data; controls affect only this preview.");
+	ImGui::TextWrapped("%s", localise("Sample data; controls affect only this preview.").c_str());
 	static int preview_resolution = 0;
 	ImGui::Combo(tool_label("Preview resolution").c_str(), &preview_resolution,
 	             "1280 x 720\0001920 x 1080\0001080 x 1920\000");
@@ -1270,7 +1273,7 @@ void slots_editor()
 				           slot["mandatory"] = mandatory;
 			           transform_fields(slot);
 			           string_field("Faction (empty is unaffiliated)", slot, "faction");
-			           ImGui::TextUnformatted("Allowed ships:");
+			           ImGui::TextUnformatted(localise("Allowed ships:").c_str());
 			           for (const auto &id : editor.document.definition_choices(WorkshopDefinitionKind::Entity))
 			           {
 				           auto &allowed = slot["allowed_ships"];
@@ -1313,7 +1316,7 @@ void map_gestures(Application &app, ImVec2 origin, ImVec2 size, float minimum, f
 }
 void map_view(Application &app)
 {
-	ImGui::Begin(tool_label("Map").c_str());
+	tool_window(tool_label("Map").c_str());
 	ImGui::TextWrapped("%s: %s", localise("Editing pack").c_str(),
 	                   editor.document.manifest().at("id").get_ref<const std::string &>().c_str());
 	ImGui::BeginDisabled(editor.saving);
@@ -1357,8 +1360,10 @@ void map_view(Application &app)
 		else
 			editor.document.map().erase("loading_background");
 	}
-	ImGui::TextWrapped("Double-click: place selected definition | drag: move | middle-drag: pan | wheel: zoom | touch: "
-	                   "drag to pan, pinch to zoom");
+	ImGui::TextWrapped(
+	    "%s", localise("Double-click: place selected definition | drag: move | middle-drag: pan | wheel: zoom | touch: "
+	                   "drag to pan, pinch to zoom")
+	              .c_str());
 	auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
 	size.x = std::max(size.x, 1.0f);
 	size.y = std::max(size.y, 1.0f);
@@ -1555,7 +1560,7 @@ void open_workshop_pack(const std::string &path)
 	editor.console = editor.document.definitions()["consoles"].empty() ? -1 : 0;
 	editor.selected =
 	    editor.document.map()["entities"].empty() ? 0 : editor.document.map()["entities"][0]["id"].get<std::uint64_t>();
-	editor.status = "Loaded and verified " + path;
+	editor.status = ToolMessage("Loaded and verified {path}", {{"path", path}});
 }
 bool probe_workshop_controllers(unsigned stage)
 {
@@ -1713,7 +1718,8 @@ void render_editor(Application &app)
 	{
 		if (auto packaged = editor.packages.take())
 		{
-			editor.status = packaged->status == ImportStatus::Success     ? "Packaged " + packaged->filename
+			editor.status = packaged->status == ImportStatus::Success
+			                    ? ToolMessage("Packaged {file}", {{"file", packaged->filename}})
 			                : packaged->status == ImportStatus::Cancelled ? "Packaging cancelled"
 			                                                              : packaged->error;
 #ifndef __EMSCRIPTEN__
@@ -1742,7 +1748,8 @@ void render_editor(Application &app)
 				}
 				catch (const std::exception &error)
 				{
-					editor.status = std::string("Archive saved; companion export failed: ") + error.what();
+					editor.status =
+					    ToolMessage("Archive saved; companion export failed: {error}", {{"error", error.what()}});
 				}
 #endif
 			editor.package_files.clear();
@@ -1753,7 +1760,7 @@ void render_editor(Application &app)
 			if (saved->status == ImportStatus::Success)
 			{
 				if (editor.saving_library)
-					editor.status = "Saved " + saved->filename;
+					editor.status = ToolMessage("Saved {file}", {{"file", saved->filename}});
 				else
 				{
 					auto &location = saved->purpose == FilePurpose::WorkshopMapSave
@@ -1766,7 +1773,7 @@ void render_editor(Application &app)
 					    saved->destination.empty()
 					        ? "Download requested. This browser cannot overwrite the same file; use a browser "
 					          "with file access for Save in place."
-					        : "Saved " + saved->filename;
+					        : ToolMessage("Saved {file}", {{"file", saved->filename}});
 				}
 			}
 			else if (saved->status == ImportStatus::Cancelled)
@@ -1870,7 +1877,7 @@ void render_editor(Application &app)
 						    }
 					    }
 				    }
-				    editor.status = "Imported " + imported->filename;
+				    editor.status = ToolMessage("Imported {file}", {{"file", imported->filename}});
 			    }
 		    }
 	    });
@@ -2031,27 +2038,65 @@ void render_editor(Application &app)
 				    editor.document.verify();
 				    editor.status = "Definitions, PNGs, map references, slots and widget bindings verified.";
 			    });
+		if (ImGui::BeginMenu(tool_label("Presentation").c_str()))
+		{
+			bool changed = false;
+			if (ImGui::BeginMenu(tool_label("Tool scale").c_str()))
+			{
+				for (int scale = 75; scale <= 200; scale += 25)
+					if (ImGui::MenuItem((std::to_string(scale) + "%").c_str(), nullptr, app.tools_scale == scale))
+					{
+						app.tools_scale = scale;
+						changed = true;
+					}
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu(tool_label("Language").c_str()))
+			{
+				for (const auto &language : installed_languages())
+					if (ImGui::MenuItem(tool_label(language == "en" ? "English" : language).c_str(), nullptr,
+					                    app.language == language))
+					{
+						app.language = language;
+						changed = true;
+					}
+				ImGui::EndMenu();
+			}
+			if (ImGui::MenuItem(tool_label("Pseudo-localisation").c_str(), nullptr, app.pseudo_locale))
+			{
+				app.pseudo_locale = !app.pseudo_locale;
+				changed = true;
+			}
+			if (changed)
+			{
+				select_language(app.language, app.pseudo_locale);
+				remember_preferences(app);
+			}
+			ImGui::EndMenu();
+		}
 		ImGui::EndMainMenuBar();
 	}
 	if (readonly)
 	{
 		const auto state = app.session ? app.session->inspection() : Json(nullptr);
-		ImGui::Begin(tool_label("Status").c_str());
+		tool_window(tool_label("Status").c_str());
 		if (!app.status.empty())
-			ImGui::TextWrapped("%s", app.status.c_str());
-		ImGui::TextWrapped("%s", app.session ? app.session->connection_status().c_str()
-		                                     : "Connect to a ship server to request read-only inspection.");
+			ImGui::TextWrapped("%s", localise(app.status).c_str());
+		ImGui::TextWrapped("%s", app.session
+		                             ? app.session->connection_status().c_str()
+		                             : localise("Connect to a ship server to request read-only inspection.").c_str());
 		ImGui::End();
 		if (state.is_null())
 		{
-			ImGui::Begin(tool_label("Map").c_str());
-			ImGui::TextWrapped("%s", app.session && app.session->lobby().active
-			                             ? "GM screen claimed. Inspection begins when the game launches."
-			                             : "Waiting for host approval. Live world data is unavailable.");
+			tool_window(tool_label("Map").c_str());
+			ImGui::TextWrapped("%s",
+			                   app.session && app.session->lobby().active
+			                       ? localise("GM screen claimed. Inspection begins when the game launches.").c_str()
+			                       : localise("Waiting for host approval. Live world data is unavailable.").c_str());
 			ImGui::End();
 			return;
 		}
-		ImGui::Begin(tool_label("Entities").c_str());
+		tool_window(tool_label("Entities").c_str());
 		for (const auto &value : state.at("bodies"))
 		{
 			const auto &body = value.at("body");
@@ -2061,7 +2106,7 @@ void render_editor(Application &app)
 				editor.selected = id;
 		}
 		ImGui::End();
-		ImGui::Begin(tool_label("Properties").c_str());
+		tool_window(tool_label("Properties").c_str());
 		for (const auto &value : state.at("bodies"))
 			if (value.at("body").at("id") == editor.selected)
 			{
@@ -2069,8 +2114,9 @@ void render_editor(Application &app)
 				ImGui::TextUnformatted(details.c_str());
 			}
 		ImGui::End();
-		ImGui::Begin(tool_label("Map").c_str());
-		ImGui::Text("Committed tick %llu / read only", static_cast<unsigned long long>(app.session->ticks()));
+		tool_window(tool_label("Map").c_str());
+		ImGui::TextUnformatted(
+		    ToolMessage("Committed tick {tick} / read only", {{"tick", std::to_string(app.session->ticks())}}).c_str());
 		const auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
 		ImGui::InvisibleButton("Live map", ImVec2(std::max(1.f, size.x), std::max(1.f, size.y)),
 		                       ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
@@ -2117,7 +2163,7 @@ void render_editor(Application &app)
 		ImGui::End();
 		return;
 	}
-	ImGui::Begin(tool_label("Entities").c_str());
+	tool_window(tool_label("Entities").c_str());
 	for (const auto &instance : editor.document.map()["entities"])
 	{
 		auto label = std::to_string(instance.at("id").get<std::uint64_t>()) + " / " +
@@ -2139,7 +2185,7 @@ void render_editor(Application &app)
 		}
 	}
 	ImGui::End();
-	ImGui::Begin(tool_label("Definitions").c_str());
+	tool_window(tool_label("Definitions").c_str());
 
 	for (const char *area : {"Templates and assemblies", "Knowledge", "Coordination"})
 		if (ImGui::Selectable(tool_label(area).c_str(), editor.selection == area))
@@ -2206,7 +2252,8 @@ void render_editor(Application &app)
 	}
 	if (ImGui::CollapsingHeader(tool_label("Override dependency definitions").c_str()))
 	{
-		ImGui::TextWrapped("Copy a dependency definition into this pack and explicitly declare its override.");
+		ImGui::TextWrapped(
+		    "%s", localise("Copy a dependency definition into this pack and explicitly declare its override.").c_str());
 		auto overrides = [&](const char *kind, const auto &table)
 		{
 			for (const auto &[id, value] : table)
@@ -2220,7 +2267,8 @@ void render_editor(Application &app)
 					                                });
 					if (exists)
 					{
-						editor.status = "This definition is already editable in the pack: " + id;
+						editor.status =
+						    ToolMessage("This definition is already editable in the pack: {id}", {{"id", id}});
 						continue;
 					}
 					local.push_back(value);
@@ -2229,7 +2277,7 @@ void render_editor(Application &app)
 						declared = Json::array();
 					if (std::find(declared.begin(), declared.end(), Json(id)) == declared.end())
 						declared.push_back(id);
-					editor.status = "Explicit override added: " + id;
+					editor.status = ToolMessage("Explicit override added: {id}", {{"id", id}});
 				}
 		};
 		overrides("entities", editor.document.libraries().entities);
@@ -2241,17 +2289,17 @@ void render_editor(Application &app)
 	ImGui::TextWrapped("%s", editor.status.c_str());
 	ImGui::End();
 
-	ImGui::Begin(tool_label("Consoles").c_str());
+	tool_window(tool_label("Consoles").c_str());
 	console_editor(app, false);
 	ImGui::End();
 	map_view(app);
 	draw_workshop_areas(editor.document, app, editor.status, editor.selection);
-	ImGui::Begin(tool_label("Properties").c_str());
+	tool_window(tool_label("Properties").c_str());
 	if (editor.selection == "Entity")
 	{
 		if (auto *instance = selected_instance())
 		{
-			ImGui::Text("Instance %llu", static_cast<unsigned long long>(editor.selected));
+			ImGui::TextUnformatted(ToolMessage("Instance {id}", {{"id", std::to_string(editor.selected)}}).c_str());
 			transform_fields(*instance);
 			string_field("Faction", *instance, "faction");
 			ImGui::Separator();
@@ -2284,9 +2332,9 @@ void render_editor(Application &app)
 	if (!ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
 		editor.history.checkpoint(editor.document);
 
-	ImGui::Begin(tool_label("Status").c_str());
+	tool_window(tool_label("Status").c_str());
 	if (!app.status.empty())
-		ImGui::TextWrapped("%s", app.status.c_str());
+		ImGui::TextWrapped("%s", localise(app.status).c_str());
 	ImGui::TextWrapped("%s", editor.status.c_str());
 	ImGui::End();
 }

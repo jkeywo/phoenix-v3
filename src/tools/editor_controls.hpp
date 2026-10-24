@@ -70,3 +70,11 @@ inline void append_row(Json &parent, const char *key, Json value)
 		parent[key] = Json::array();
 	parent[key].push_back(std::move(value));
 }
+
+// Keep long translated headings reachable at larger type sizes.
+inline bool tool_window(const char *label)
+{
+	if (std::string(label).ends_with("###Properties"))
+		ImGui::SetNextWindowContentSize({ImGui::GetFontSize() * 32.f, 0});
+	return ImGui::Begin(label, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
+}

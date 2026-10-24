@@ -1,4 +1,5 @@
 #include "../support/assertions.hpp"
+#include "../../src/core/pad_navigation.hpp"
 #include <iostream>
 #include <cmath>
 #include <iterator>
@@ -309,6 +310,40 @@ int main()
 		const auto semantics = navigation_controls(client);
 		require(semantics.size() == 2 && semantics[1].placement.x == 1920 && semantics[1].placement.focused,
 		        "Console semantics must retain per-region geometry and focus without unrelated global navigation");
+		{
+			PadNavigation pad, other;
+			pad.sample("flight.yaw", 0, 0);
+			pad.sample("flight.thrust", 0, 0);
+			pad.sample("flight.yaw", .2f, 0);
+			require(pad.drain(.1).empty(), "Menu stick drift does not become Tab");
+			pad.sample("flight.yaw", .3f, .1);
+			auto events = pad.drain(.1);
+			require(events.size() == 1 && events[0].action == "left" && events[0].pressed,
+			        "Navigation emits an immediate threshold crossing");
+			require(pad.drain(.49).empty() && pad.drain(.5).size() == 1 && pad.drain(.55).empty() &&
+			            pad.drain(.61).size() == 1 && other.drain(1).empty(),
+			        "Navigation repeat is bounded and device state is independent");
+			pad.sample("flight.yaw", .16f, .62);
+			require(pad.drain(.62).empty(), "Navigation retains its direction within hysteresis");
+			pad.sample("flight.yaw", 0, .63);
+			events = pad.drain(.63);
+			require(events.size() == 1 && !events.front().pressed, "Navigation releases below its release threshold");
+			pad.sample("game.contacts", 1, .7);
+			require(pad.drain(.7).size() == 1 && pad.drain(2).empty(), "Activation never repeats");
+			pad.cancel();
+			require(!pad.drain(2).front().pressed, "Cancellation pairs activation with release");
+			pad.sample("game.contacts", 1, 2);
+			require(pad.drain(2).empty(), "A held button cannot reactivate after interruption");
+			pad.sample("game.contacts", 0, 2);
+			pad.sample("game.contacts", 1, 2.1);
+			require(pad.drain(2.1).size() == 1, "Released input can activate again after neutral recovery");
+			pad.sample("game.contacts", 0, 2.2);
+			pad.sample("game.faster", 1, 2.2);
+			pad.sample("flight.thrust", 0, 2.2);
+			pad.drain(2.2);
+			require(pad.drain(2.61).size() == 1, "Neutral stick samples do not release a held D-pad direction");
+		}
+
 		std::cout << "PASS console routing, safe release, semantic admission and translation\n";
 		configure_translations(
 		    Json{{"schema", 1}, {"languages", {{"en", {{"home", "Home"}}}, {"test", {{"home", "Translated home"}}}}}});

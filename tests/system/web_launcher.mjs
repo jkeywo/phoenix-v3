@@ -8,6 +8,7 @@ import { acquireSessionProfile } from "../../web/session-profile.mjs";
 import { deflateRawSync } from "node:zlib";
 import {
 	stagedSelection,
+	menuPadInput,
 	viewportLayout,
 	introPlayback,
 	loadingFeedback,
@@ -749,4 +750,29 @@ test("staged content retries failures and a stale failure cannot reject the curr
 	const retried = loader.ready();
 	pending.get("retry").resolve("recovered");
 	assert.equal(await retried, "recovered");
+});
+
+test("tool scale survives runtime and concurrent scoped preference merges", () => {
+	const scope = "profile/phoenix-base";
+	const merged = mergeScopedLibrary({}, { tools_scale: 175, packs: [], saves: [] }, scope);
+	assert.equal(merged.global_profiles.profile.tools_scale, 175);
+	const updated = mergeScopedLibrary(merged, { tools_scale: 200, packs: [], saves: [] }, scope);
+	assert.equal(updated.global_profiles.profile.tools_scale, 200);
+});
+
+test("pre-launch controller navigation rejects drift, bounds repeat and requires neutral recovery", () => {
+	const state = {},
+		pad = { axes: [0, 0], buttons: [] };
+	assert.deepEqual(menuPadInput(state, pad, 0), []);
+	pad.axes[0] = 0.2;
+	assert.deepEqual(menuPadInput(state, pad, 10), []);
+	pad.axes[0] = 0.3;
+	assert.deepEqual(menuPadInput(state, pad, 20), ["right"]);
+	assert.deepEqual(menuPadInput(state, pad, 419), []);
+	assert.deepEqual(menuPadInput(state, pad, 420), ["right"]);
+	pad.axes[0] = 0;
+	pad.buttons[0] = { pressed: true };
+	assert.deepEqual(menuPadInput(state, pad, 430), ["activate"]);
+	assert.deepEqual(menuPadInput(state, pad, 1000), []);
+	assert.deepEqual(menuPadInput({}, pad, 1000), []);
 });

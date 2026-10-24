@@ -158,6 +158,7 @@ private:
 void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyView &body, Vector2 centre, float radius,
                      Color colour);
 bool probe_menu_keyboard(Application &app);
+bool probe_gui_navigation(Application &app, unsigned stage);
 bool probe_console_on_screen(ConsoleId route, const std::string &widget);
 bool probe_console_helm(Application &app, ConsoleId route, bool verify = false);
 bool probe_console_ready(ConsoleId route);
@@ -180,6 +181,7 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 
 export namespace phoenix
 {
+void focus_semantic_text(const std::string &id);
 void publish_semantics(const Application &app);
 void drain_semantic_actions(Application &app);
 void install_native_accessibility(void *window);

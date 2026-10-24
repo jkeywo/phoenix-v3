@@ -110,6 +110,7 @@ void remember_preferences(Application &app)
 		app.library->preferences.sfx_volume = app.sfx_volume;
 		app.library->preferences.siren_volume = app.siren_volume;
 		app.library->preferences.master_volume = app.master_volume;
+		app.library->preferences.tools_scale = app.tools_scale;
 		app.library->remember();
 #ifdef __EMSCRIPTEN__
 		phoenix_persist_preferences();
@@ -239,6 +240,15 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 		    {input.id, translate(input.label, app.pseudo_locale), {}, true, input.value, input.percentage});
 	for (auto &control : controls)
 	{
+		control.numeric = control.percentage || control.id.find("/heading/") != std::string::npos ||
+		                  control.id.ends_with("/nav.x") || control.id.ends_with("/nav.y");
+		if (control.id.find("/heading/") != std::string::npos)
+			control.maximum = 360;
+		if (control.id.ends_with("/nav.x") || control.id.ends_with("/nav.y"))
+		{
+			control.minimum = -1e9;
+			control.maximum = 1e9;
+		}
 		if (const auto found = app.screen_toggles.find(control.id); found != app.screen_toggles.end())
 		{
 			control.toggle = true;

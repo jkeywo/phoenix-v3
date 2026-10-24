@@ -73,8 +73,9 @@ int main()
 		MenuLibrary library(directory);
 		library.load();
 		require(library.preferences.volume == 50 && library.preferences.sfx_volume == 50 &&
-		            library.preferences.master_volume == 50 && library.preferences.language == "en" &&
-		            library.preferences.dust_motes && library.preferences.reference_grid,
+		            library.preferences.master_volume == 50 && library.preferences.tools_scale == 100 &&
+		            library.preferences.language == "en" && library.preferences.dust_motes &&
+		            library.preferences.reference_grid,
 		        "First launch has English and half volume");
 		auto draft =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
@@ -477,6 +478,7 @@ int main()
 		library.apply(selected);
 		library.preferences = {0, "en", true, true, false, false};
 		library.preferences.master_volume = 65;
+		library.preferences.tools_scale = 175;
 		library.preferences.sfx_volume = 30;
 		library.preferences.player_name = "Navigator";
 		library.preferences.avatar = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -484,9 +486,10 @@ int main()
 		MenuLibrary reopened(directory);
 		reopened.load();
 		require(reopened.preferences.volume == 0 && reopened.preferences.master_volume == 65 &&
-		            reopened.preferences.sfx_volume == 30 && reopened.preferences.pseudo &&
-		            reopened.preferences.reduced_motion && !reopened.preferences.dust_motes &&
-		            !reopened.preferences.reference_grid && reopened.archives(reopened.packs).front() == archive,
+		            reopened.preferences.sfx_volume == 30 && reopened.preferences.tools_scale == 175 &&
+		            reopened.preferences.pseudo && reopened.preferences.reduced_motion &&
+		            !reopened.preferences.dust_motes && !reopened.preferences.reference_grid &&
+		            reopened.archives(reopened.packs).front() == archive,
 		        "Preferences and exact enabled archives survive reopening");
 		require(reopened.preferences.player_name == "Navigator" &&
 		            reopened.preferences.avatar == library.preferences.avatar,

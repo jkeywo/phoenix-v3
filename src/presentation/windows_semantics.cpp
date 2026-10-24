@@ -11,10 +11,13 @@ module;
 #include <RmlUi/Core/TextInputHandler.h>
 #include <RmlUi/Core/TextInputContext.h>
 #include <atomic>
+#include <algorithm>
+#include <map>
 #include <cmath>
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <type_traits>
 
 #include <functional>
 #include <string>
@@ -37,7 +40,8 @@ struct Shared
 	std::deque<std::string> actions;
 	std::deque<std::string> focuses;
 	std::deque<std::pair<std::string, std::string>> values;
-	int revision = 0;
+	std::map<std::string, int> identities;
+	int next_identity = 1;
 	std::weak_ptr<SessionPort> session;
 	std::uint64_t generation = 0;
 	int focus = -1;
@@ -85,12 +89,27 @@ class Provider final : public IRawElementProviderSimple,
 {
 	std::atomic<ULONG> refs_{1};
 	std::shared_ptr<Shared> state_;
-	int index_;
-	int revision_;
+	mutable int index_;
+	std::string id_;
+	int identity_ = 0;
 	bool valid() const
 	{
-		return state_->active &&
-		       (index_ < 0 || (revision_ == state_->revision && index_ < static_cast<int>(state_->controls.size())));
+		if (!state_->active)
+			return false;
+		if (id_.empty())
+			return true;
+		const auto token = state_->identities.find(id_);
+		if (token == state_->identities.end() || token->second != identity_)
+			return false;
+		const auto at = std::find_if(state_->controls.begin(), state_->controls.end(),
+		                             [&](const auto &c)
+		                             {
+			                             return c.id == id_;
+		                             });
+		if (at == state_->controls.end())
+			return false;
+		index_ = static_cast<int>(at - state_->controls.begin());
+		return true;
 	}
 	IUnknown *marshaler_ = nullptr;
 	Provider *make(int index)
@@ -99,9 +118,13 @@ class Provider final : public IRawElementProviderSimple,
 	}
 
 public:
-	Provider(std::shared_ptr<Shared> shared, int index)
-	    : state_(std::move(shared)), index_(index), revision_(state_->revision)
+	Provider(std::shared_ptr<Shared> shared, int index) : state_(std::move(shared)), index_(index)
 	{
+		if (index >= 0)
+		{
+			id_ = state_->controls[index].id;
+			identity_ = state_->identities.at(id_);
+		}
 		CoCreateFreeThreadedMarshaler(static_cast<IRawElementProviderSimple *>(this), &marshaler_);
 	}
 	~Provider()
@@ -393,13 +416,15 @@ public:
 	{
 		if (!result)
 			return E_POINTER;
-		*result = SafeArrayCreateVector(VT_I4, 0, 4);
+		std::lock_guard lock(state_->mutex);
+		if (!valid())
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = SafeArrayCreateVector(VT_I4, 0, 3);
 		if (!*result)
 			return E_OUTOFMEMORY;
 		int values[] = {UiaAppendRuntimeId,
-		                static_cast<int>(reinterpret_cast<std::uintptr_t>(state_->window) & 0x7fffffff), index_ + 1,
-		                revision_};
-		for (LONG i = 0; i < 4; ++i)
+		                static_cast<int>(reinterpret_cast<std::uintptr_t>(state_->window) & 0x7fffffff), identity_};
+		for (LONG i = 0; i < 3; ++i)
 			SafeArrayPutElement(*result, &i, &values[i]);
 		return S_OK;
 	}
@@ -438,6 +463,8 @@ public:
 			std::lock_guard lock(state_->mutex);
 			if (!valid())
 				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (index_ >= 0 && !state_->controls[index_].placement.enabled)
+				return UIA_E_ELEMENTNOTENABLED;
 			if (index_ >= 0 && state_->focuses.size() < 64)
 				state_->focuses.push_back(state_->controls[index_].id);
 		}
@@ -530,6 +557,8 @@ public:
 		std::lock_guard lock(state_->mutex);
 		if (!valid() || index_ < 0)
 			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (state_->controls[index_].read_only || state_->controls[index_].editable)
+			return UIA_E_NOTSUPPORTED;
 		if (!state_->controls[index_].placement.enabled)
 			return UIA_E_ELEMENTNOTENABLED;
 		if (state_->actions.size() < 64)
@@ -556,12 +585,16 @@ void install_native_accessibility(void *window)
 	root = new Provider(state, -1);
 	SetWindowSubclass(state->window, window_proc, 1, 0);
 }
+void focus_semantic_text(const std::string &)
+{
+}
 void publish_semantics(const Application &app)
 {
 	if (!state)
 		return;
 	std::unique_lock lock(state->mutex);
-	const auto previous_focus = state->focus;
+	const auto previous_focus = state->focus >= 0 ? state->controls[state->focus].id : std::string{};
+	const auto previous = state->controls;
 	const bool announce =
 	    (app.console_surface_active ||
 	     (app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
@@ -576,22 +609,121 @@ void publish_semantics(const Application &app)
 	{
 		state->session = app.session;
 		state->generation = app.session ? app.session->generation() : 0;
+		state->identities.clear();
 		state->actions.clear();
 		state->focuses.clear();
 		state->values.clear();
 	}
 	for (std::size_t i = 0; !changed && i < controls.size(); ++i)
 		changed = controls[i].id != state->controls[i].id;
-	if (changed)
-		++state->revision;
+	std::erase_if(state->identities,
+	              [&](const auto &entry)
+	              {
+		              return std::none_of(controls.begin(), controls.end(),
+		                                  [&](const auto &c)
+		                                  {
+			                                  return c.id == entry.first;
+		                                  });
+	              });
+	std::erase_if(state->actions,
+	              [&](const auto &id)
+	              {
+		              return !state->identities.contains(id);
+	              });
+	std::erase_if(state->focuses,
+	              [&](const auto &id)
+	              {
+		              return !state->identities.contains(id);
+	              });
+	std::erase_if(state->values,
+	              [&](const auto &value)
+	              {
+		              return !state->identities.contains(value.first);
+	              });
+	for (const auto &control : controls)
+		if (!state->identities.contains(control.id))
+			state->identities[control.id] = state->next_identity++;
 	state->focus = -1;
 	for (std::size_t i = 0; i < controls.size(); ++i)
 		if (controls[i].placement.focused)
 			state->focus = static_cast<int>(i);
 	state->controls = std::move(controls);
-	Provider *focused =
-	    state->focus >= 0 && (changed || state->focus != previous_focus) ? new Provider(state, state->focus) : nullptr;
+	Provider *focused = state->focus >= 0 && (replaced || state->controls[state->focus].id != previous_focus)
+	                        ? new Provider(state, state->focus)
+	                        : nullptr;
+	struct PropertyChange
+	{
+		Provider *provider;
+		PROPERTYID property;
+		VARIANT old_value, new_value;
+	};
+	std::vector<PropertyChange> properties;
+	const bool listening = root && UiaClientsAreListening();
+	if (listening && !replaced)
+		for (std::size_t i = 0; i < state->controls.size(); ++i)
+		{
+			const auto &now = state->controls[i];
+			const auto old = std::find_if(previous.begin(), previous.end(),
+			                              [&](const auto &c)
+			                              {
+				                              return c.id == now.id;
+			                              });
+			if (old == previous.end())
+				continue;
+			auto property = [&](PROPERTYID id, const auto &before, const auto &after)
+			{
+				if (before == after)
+					return;
+				VARIANT a{}, b{};
+				if constexpr (std::is_same_v<std::decay_t<decltype(before)>, std::string>)
+				{
+					a.vt = b.vt = VT_BSTR;
+					a.bstrVal = SysAllocString(wide(before).c_str());
+					b.bstrVal = SysAllocString(wide(after).c_str());
+				}
+				else if constexpr (std::is_same_v<std::decay_t<decltype(before)>, bool>)
+				{
+					a.vt = b.vt = VT_BOOL;
+					a.boolVal = before ? VARIANT_TRUE : VARIANT_FALSE;
+					b.boolVal = after ? VARIANT_TRUE : VARIANT_FALSE;
+				}
+				else if constexpr (std::is_same_v<std::decay_t<decltype(before)>, double>)
+				{
+					a.vt = b.vt = VT_R8;
+					a.dblVal = before;
+					b.dblVal = after;
+				}
+				else
+				{
+					a.vt = b.vt = VT_I4;
+					a.lVal = before;
+					b.lVal = after;
+				}
+				properties.push_back({new Provider(state, static_cast<int>(i)), id, a, b});
+			};
+			property(UIA_NamePropertyId, old->label, now.label);
+			if (now.editable)
+				property(UIA_ValueValuePropertyId, old->value, now.value);
+			if (now.percentage && old->percentage)
+				property(UIA_RangeValueValuePropertyId, std::stod(old->value), std::stod(now.value));
+			property(UIA_IsEnabledPropertyId, old->placement.enabled, now.placement.enabled);
+			if (now.toggle)
+				property(UIA_ToggleToggleStatePropertyId, int(old->pressed ? ToggleState_On : ToggleState_Off),
+				         int(now.pressed ? ToggleState_On : ToggleState_Off));
+			if (now.tab)
+				property(UIA_SelectionItemIsSelectedPropertyId, old->selected, now.selected);
+		}
 	lock.unlock();
+	if (changed && listening)
+		UiaRaiseStructureChangedEvent(root, StructureChangeType_ChildrenInvalidated, nullptr, 0);
+	for (auto &property : properties)
+	{
+		UiaRaiseAutomationPropertyChangedEvent(property.provider, property.property, property.old_value,
+		                                       property.new_value);
+		VariantClear(&property.old_value);
+		VariantClear(&property.new_value);
+		property.provider->Release();
+	}
 	if (announce && root && UiaClientsAreListening())
 	{
 		auto message = SysAllocString(wide(app.accessible_status).c_str());
@@ -620,14 +752,24 @@ void drain_semantic_actions(Application &app)
 		focuses.swap(state->focuses);
 		values.swap(state->values);
 	}
+	const auto controls = navigation_controls(app);
+	const auto available = [&](const std::string &id)
+	{
+		return std::any_of(controls.begin(), controls.end(),
+		                   [&](const auto &c)
+		                   {
+			                   return c.id == id && c.placement.enabled;
+		                   });
+	};
 	for (const auto &id : focuses)
-		if (app.focus_control)
+		if (app.focus_control && available(id))
 			app.focus_control(id);
 	for (const auto &[id, value] : values)
-		if (app.set_control_value)
+		if (app.set_control_value && available(id))
 			app.set_control_value(id, value);
 	for (const auto &action : pending)
-		invoke_navigation(app, action);
+		if (available(action))
+			invoke_navigation(app, action);
 }
 void remove_native_accessibility(void *window)
 {
@@ -648,6 +790,55 @@ void remove_native_accessibility(void *window)
 }
 bool probe_native_accessibility(Application &app)
 {
+	// Exercise provider lifetime through the real publisher and COM methods.
+	{
+		Application fixture;
+		fixture.console_surface_active = true;
+		fixture.screen_controls = {{"stable", "Stable control"}};
+		publish_semantics(fixture);
+		auto *stable = new Provider(state, 0);
+		SAFEARRAY *before = nullptr, *after = nullptr;
+		stable->GetRuntimeId(&before);
+		fixture.screen_controls.insert(fixture.screen_controls.begin(), {"unrelated", "Unrelated control"});
+		fixture.screen_controls.back().second = "Updated stable control";
+		publish_semantics(fixture);
+		VARIANT name{};
+		const bool available = SUCCEEDED(stable->GetPropertyValue(UIA_NamePropertyId, &name)) && name.vt == VT_BSTR &&
+		                       std::wstring(name.bstrVal) == L"Updated stable control";
+		stable->GetRuntimeId(&after);
+		bool same = available && before && after;
+		for (LONG i = 0; same && i < 3; ++i)
+		{
+			int a = 0, b = 0;
+			SafeArrayGetElement(before, &i, &a);
+			SafeArrayGetElement(after, &i, &b);
+			same = a == b;
+		}
+		VariantClear(&name);
+		if (before)
+			SafeArrayDestroy(before);
+		if (after)
+			SafeArrayDestroy(after);
+		fixture.screen_controls.pop_back();
+		publish_semantics(fixture);
+		const bool removed = stable->GetPropertyValue(UIA_NamePropertyId, &name) == UIA_E_ELEMENTNOTAVAILABLE;
+		fixture.screen_controls.push_back({"stable", "Recreated control"});
+		publish_semantics(fixture);
+		const bool recreated = stable->Invoke() == UIA_E_ELEMENTNOTAVAILABLE;
+		stable->Release();
+		auto *replacement = new Provider(state, 1);
+		fixture.session = app.session;
+		if (app.session)
+		{
+			publish_semantics(fixture);
+			same = same && replacement->Invoke() == UIA_E_ELEMENTNOTAVAILABLE;
+		}
+		replacement->Release();
+		publish_semantics(app);
+		if (!same || !removed || !recreated)
+			return false;
+	}
+
 	publish_semantics(app);
 	if (app.native_menu)
 	{
