@@ -41,20 +41,43 @@ fixed::Vec sensor_origin(EntityId ship, const SensorDefinition &d) const
 	const auto &m = instance(entity, d.turret)->entity.get<CombatMechanism>().definition;
 	return combat_world({m.x, m.y}, entity.get<Pose>());
 }
-bool sensor_covers(EntityId ship, const std::string &id, fixed::Vec target, bool outer = false) const
+// Query-local physical coverage. No cache survives a scan: power, damage, mounts,
+// personnel and modifiers can all change during a tick.
+struct SensorCoverage
+{
+	fixed::Vec origin;
+	std::int64_t normal = 0, outer = 0, heading = 0, arc = 360000;
+	bool mount_enabled = true;
+};
+SensorCoverage sensor_coverage(EntityId ship, const std::string &id, bool include_outer) const
 {
 	const auto &d = sensor_definition(ship, id);
-	const auto source = entities.at(ship);
-	if (!d.turret.empty() && (!instance(source, d.turret)->enabled || structurally_disabled(source, d.turret)))
+	SensorCoverage result;
+	result.origin = sensor_origin(ship, d);
+	result.normal = sensor_range(ship, id);
+	result.outer = include_outer ? sensor_range(ship, id, true) : 0;
+	result.arc = d.arc;
+	if (d.arc != 360000)
+		result.heading = sensor_heading(ship, d);
+	if (!d.turret.empty())
+	{
+		const auto source = entities.at(ship);
+		result.mount_enabled = instance(source, d.turret)->enabled && !structurally_disabled(source, d.turret);
+	}
+	return result;
+}
+bool sensor_covers(const SensorCoverage &coverage, fixed::Vec target, std::int64_t range) const
+{
+	if (!coverage.mount_enabled || !range ||
+	    !scenario_sensor_visible(regions, {coverage.origin.x, coverage.origin.y}, {target.x, target.y}, range))
 		return false;
-	const auto range = sensor_range(ship, id, outer);
-	if (!range)
-		return false;
-	const auto origin = sensor_origin(ship, d);
-	if (!scenario_sensor_visible(regions, {origin.x, origin.y}, {target.x, target.y}, range))
-		return false;
-	return d.arc == 360000 ||
-	       std::abs(combat_delta(combat_bearing(target - origin), sensor_heading(ship, d))) <= d.arc / 2;
+	return coverage.arc == 360000 ||
+	       std::abs(combat_delta(combat_bearing(target - coverage.origin), coverage.heading)) <= coverage.arc / 2;
+}
+bool sensor_covers(EntityId ship, const std::string &id, fixed::Vec target, bool outer = false) const
+{
+	const auto coverage = sensor_coverage(ship, id, outer);
+	return sensor_covers(coverage, target, outer ? coverage.outer : coverage.normal);
 }
 enum class SensorContact
 {
@@ -62,18 +85,21 @@ enum class SensorContact
 	Bearing,
 	Position
 };
+SensorContact sensor_contact(const SensorCoverage &coverage, fixed::Vec target, std::int64_t distance,
+                             std::int64_t visibility = 1000) const
+{
+	const auto normal = coverage.normal * visibility / 1000;
+	if (distance <= normal && sensor_covers(coverage, target, coverage.normal))
+		return SensorContact::Position;
+	const auto outer = coverage.outer * visibility / 1000;
+	if (outer > normal && distance <= outer && sensor_covers(coverage, target, coverage.outer))
+		return SensorContact::Bearing;
+	return SensorContact::None;
+}
 SensorContact sensor_contact(EntityId ship, const std::string &id, fixed::Vec target, std::int64_t distance,
                              bool include_outer = true, std::int64_t visibility = 1000) const
 {
-	const auto normal = sensor_range(ship, id) * visibility / 1000;
-	if (distance <= normal && sensor_covers(ship, id, target))
-		return SensorContact::Position;
-	if (!include_outer)
-		return SensorContact::None;
-	const auto outer = sensor_range(ship, id, true) * visibility / 1000;
-	if (outer > normal && distance <= outer && sensor_covers(ship, id, target, true))
-		return SensorContact::Bearing;
-	return SensorContact::None;
+	return sensor_contact(sensor_coverage(ship, id, include_outer), target, distance, visibility);
 }
 bool sensor_powered(EntityId ship, const std::string &id) const
 {
@@ -194,8 +220,11 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
                          bool focused = false) const
 {
 	const auto &shows = definition(ship).radar_shows.at(id);
-	const auto origin = sensor_origin(ship, sensor_definition(ship, id));
-	auto range = sensor_range(ship, id, include_outer);
+	const auto coverage = sensor_coverage(ship, id, include_outer);
+	const auto origin = coverage.origin;
+	auto range = include_outer ? coverage.outer : coverage.normal;
+	const auto position = entities.at(ship).get<Pose>().position;
+	const auto source_altitude = altitude(ship);
 	const auto child = instance(entities.at(ship), id)->entity;
 	const auto *mode = directed_mode(ship, id);
 	const bool acquiring = focused && mode && directed_enabled(entities.at(ship), child, DirectedOperationKind::Scan);
@@ -212,11 +241,11 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 			                                    return std::find(shows.begin(), shows.end(), tag) != shows.end();
 		                                    }))
 			return;
-		const auto delta = fixed::Vec{body.x, body.y} - entities.at(ship).get<Pose>().position;
-		const auto z = body.altitude - altitude(ship);
+		const auto delta = fixed::Vec{body.x, body.y} - position;
+		const auto z = body.altitude - source_altitude;
 		const auto distance = fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z));
 		const auto visibility = apparent ? 1000 : 1000 - concealment(body.id);
-		const auto detection = sensor_contact(ship, id, {body.x, body.y}, distance, include_outer, visibility);
+		const auto detection = sensor_contact(coverage, {body.x, body.y}, distance, visibility);
 		const bool focused_only = detection == SensorContact::None && acquiring &&
 		                          body.id == child.get<DirectedRuntime>().target &&
 		                          distance <= focused_range * visibility / 1000 && directed_scan_covers(ship, id, body);
