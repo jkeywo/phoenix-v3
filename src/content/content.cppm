@@ -656,6 +656,8 @@ struct InterdictionDefinition
 	std::map<std::string, std::vector<InterdictionShip>> variants;
 	std::vector<std::pair<std::int64_t, std::string>> pleas;
 	std::vector<std::string> occupation_teams;
+	// Omitted effects retain the historical takeover contract for embedded saves.
+	bool repair_on_takeover = true, kill_original_crew = true, capture_visiting_personnel = true;
 	state_tree::Program program;
 };
 state_tree::Registry interdiction_registry();
@@ -690,6 +692,13 @@ struct LogisticsDefinition
 };
 LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
 LogisticsDefinition compile_logistics(const Catalog &, const std::string &, const DirectedCatalog &);
+// Mission setup changes physical stocks once, without changing reusable ship definitions.
+struct StartingStockDefinition
+{
+	std::string slot, definition;
+	std::map<std::string, std::map<std::string, std::int64_t>> stores;
+};
+std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &, const Json &, const DirectedCatalog &);
 struct DockPortDefinition
 {
 	std::string id, controller, compartment, compatibility;

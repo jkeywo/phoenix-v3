@@ -50,6 +50,20 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		d.combat_standoff = j.value("combat_standoff_mm", 10000LL);
 		d.cruise_speed = j.value("cruise_speed_mm_s", 20000LL);
 		d.occupation_teams = j.value("occupation_teams", std::vector<std::string>{});
+		if (j.contains("takeover_effects"))
+		{
+			const auto &effects = j.at("takeover_effects");
+			if (!effects.is_object())
+				throw std::runtime_error("takeover_effects must be an object");
+			for (const auto &[key, value] : effects.items())
+				if ((key == "repair" || key == "capture_visitors")
+				        ? !value.is_boolean()
+				        : key != "original_crew" || !value.is_string() || (value != "kill" && value != "detain"))
+					throw std::runtime_error("Invalid takeover effect: " + key);
+			d.repair_on_takeover = effects.value("repair", true);
+			d.kill_original_crew = effects.value("original_crew", std::string("kill")) == "kill";
+			d.capture_visiting_personnel = effects.value("capture_visitors", true);
+		}
 		if (!catalog.conversation_programs.contains(d.dialogue))
 			throw std::runtime_error("Unknown interdiction dialogue");
 		std::set<std::int64_t> plea_ticks;

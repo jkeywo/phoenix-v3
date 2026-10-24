@@ -180,14 +180,17 @@ bool encounter_dock_order(EntityId ship, const std::string &action, EntityId tar
 		}
 	return false;
 }
-void kill_original_complement(EntityId target, const std::vector<std::string> &occupation)
+void apply_occupation(EntityId target, const std::vector<std::string> &occupation, bool lethal)
 {
 	auto e = entities.at(target);
 	for (auto child : e.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
 		{
 			if (std::find(occupation.begin(), occupation.end(), child.get<Equipment>().id) == occupation.end())
-				m->get<TeamState>().condition = "lost";
+			{
+				if (lethal)
+					m->get<TeamState>().condition = "lost";
+			}
 			else
 			{
 				m->get<TeamState>().condition = "healthy";
@@ -195,7 +198,7 @@ void kill_original_complement(EntityId target, const std::vector<std::string> &o
 				child.get_mut<Equipment>().enabled = true;
 			}
 		}
-	if (e.has<PersonnelState>())
+	if (lethal && e.has<PersonnelState>())
 	{
 		auto &p = e.get_mut<PersonnelState>();
 		for (auto &o : p.officers)
@@ -329,10 +332,12 @@ void advance_interdictions()
 			else if (name == "takeover" && !s.captured && !lost && ready && s.boarder &&
 			         dock_ready(s.boarder, d.target))
 			{
-				restore_repairable_ship(d.target);
+				if (d.repair_on_takeover)
+					restore_repairable_ship(d.target);
 				set_operational_owner(d.target, s.boarder);
-				kill_original_complement(d.target, d.occupation_teams);
-				capture_visitors(d.target, s.boarder);
+				apply_occupation(d.target, d.occupation_teams, d.kill_original_crew);
+				if (d.capture_visiting_personnel)
+					capture_visitors(d.target, s.boarder);
 				s.captured = true;
 				s.progress = d.takeover_ticks;
 				mission_transition("ship.taken", player, d.target, d.id, "taken_by_pirates");

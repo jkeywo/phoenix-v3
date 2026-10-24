@@ -2327,38 +2327,52 @@ struct GameplayEditor
 			        optional_string(f, "tag");
 			        optional_string(f, "destination_station");
 		        });
-		records(map, "interdictions",
-		        {{"id", "encounter"},
-		         {"player_slot", ""},
-		         {"target_entity", 1},
-		         {"start_event", ""},
-		         {"tree", ""},
-		         {"dialogue", ""},
-		         {"threat_radius_mm", 600000},
-		         {"clearance_radius_mm", 750000},
-		         {"engagement_radius_mm", 2500000},
-		         {"formation_radius_mm", 800000},
-		         {"takeover_ticks", 2400},
-		         {"variants", Json::object()},
-		         {"pleas", Json::array()},
-		         {"occupation_teams", Json::array()}},
-		        [&](Json &m)
+		records(map, "starting_stocks", {{"ship_slot", ""}, {"definition", ""}, {"stores", Json::object()}},
+		        [&](Json &setup)
 		        {
-			        string(m, "id");
-			        string(m, "player_slot");
-			        integer(m, "target_entity", 1);
-			        string(m, "start_event");
-			        optional_string(m, "target_character");
-			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
-			        choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
-			        for (auto key :
-			             {"threat_radius_mm", "clearance_radius_mm", "engagement_radius_mm", "formation_radius_mm",
-			              "takeover_ticks", "combat_standoff_mm", "cruise_speed_mm_s"})
-				        integer(m, key, 1);
-			        strings(m, "occupation_teams");
-			        structured_field(m, "variants");
-			        structured_field(m, "pleas");
+			        string(setup, "ship_slot");
+			        choice(setup, "definition", document.definition_choices(WorkshopDefinitionKind::Entity));
+			        structured_field(setup, "stores");
 		        });
+		records(
+		    map, "interdictions",
+		    {{"id", "encounter"},
+		     {"player_slot", ""},
+		     {"target_entity", 1},
+		     {"start_event", ""},
+		     {"tree", ""},
+		     {"dialogue", ""},
+		     {"threat_radius_mm", 600000},
+		     {"clearance_radius_mm", 750000},
+		     {"engagement_radius_mm", 2500000},
+		     {"formation_radius_mm", 800000},
+		     {"takeover_ticks", 2400},
+		     {"variants", Json::object()},
+		     {"pleas", Json::array()},
+		     {"occupation_teams", Json::array()},
+		     {"takeover_effects", {{"repair", false}, {"original_crew", "detain"}, {"capture_visitors", true}}}},
+		    [&](Json &m)
+		    {
+			    string(m, "id");
+			    string(m, "player_slot");
+			    integer(m, "target_entity", 1);
+			    string(m, "start_event");
+			    optional_string(m, "target_character");
+			    choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+			    choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
+			    for (auto key : {"threat_radius_mm", "clearance_radius_mm", "engagement_radius_mm",
+			                     "formation_radius_mm", "takeover_ticks", "combat_standoff_mm", "cruise_speed_mm_s"})
+				    integer(m, key, 1);
+			    strings(m, "occupation_teams");
+			    if (!m.contains("takeover_effects"))
+				    m["takeover_effects"] = {{"repair", true}, {"original_crew", "kill"}, {"capture_visitors", true}};
+			    auto &effects = m["takeover_effects"];
+			    boolean(effects, "repair", true);
+			    choice(effects, "original_crew", {"kill", "detain"});
+			    boolean(effects, "capture_visitors", true);
+			    structured_field(m, "variants");
+			    structured_field(m, "pleas");
+		    });
 		records(map, "away_missions",
 		        {{"id", "mission"},
 		         {"title_key", "Away mission"},

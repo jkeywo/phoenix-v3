@@ -22,6 +22,56 @@ std::int64_t material_number(const Json &j, const char *key, std::int64_t fallba
 	return v.get<std::int64_t>();
 }
 } // namespace
+std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &catalog, const Json &map,
+                                                             const DirectedCatalog &directed_catalog)
+{
+	std::vector<StartingStockDefinition> result;
+	if (catalog.presentation)
+		return result;
+	const auto setups = map.value("starting_stocks", Json::array());
+	material_require(setups.is_array() && setups.size() <= 128, "invalid starting_stocks array");
+	const auto resources = compile_resource_catalog(catalog);
+	std::set<std::pair<std::string, std::string>> seen;
+	for (const auto &setup : setups)
+	{
+		StartingStockDefinition d;
+		d.slot = setup.at("ship_slot");
+		d.definition = setup.at("definition");
+		bool allowed = false;
+		for (const auto &slot : map.at("ship_slots"))
+			if (slot.at("id") == d.slot)
+				for (const auto &ship : slot.at("allowed_ships"))
+					allowed |= ship == d.definition;
+		material_require(allowed && seen.emplace(d.slot, d.definition).second,
+		                 "starting_stocks requires a unique allowed slot/definition");
+		const auto logistics = compile_logistics(catalog, d.definition, directed_catalog);
+		const auto &stores = setup.at("stores");
+		material_require(stores.is_object() && !stores.empty() && stores.size() <= 128, "invalid starting stores");
+		for (const auto &[id, quantities] : stores.items())
+		{
+			const auto found = std::find_if(logistics.stores.begin(), logistics.stores.end(),
+			                                [&](const auto &store)
+			                                {
+				                                return store.id == id;
+			                                });
+			material_require(found != logistics.stores.end(), "unknown starting store " + id);
+			material_require(quantities.is_object() && !quantities.empty() && quantities.size() <= 128,
+			                 "invalid starting quantities");
+			auto initial = found->stock;
+			for (const auto &[resource, quantity] : quantities.items())
+			{
+				material_require(quantity.is_number_integer() && !quantity.is_boolean() && quantity >= 0 &&
+				                     quantity <= 1000000000,
+				                 "invalid starting quantity");
+				d.stores[id][resource] = quantity.get<std::int64_t>();
+				initial.initial[resource] = quantity.get<std::int64_t>();
+			}
+			validate_stock_store(initial, resources);
+		}
+		result.push_back(std::move(d));
+	}
+	return result;
+}
 LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string &id)
 {
 	const DirectedCatalog directed_catalog{{id, compile_directed(catalog, id)}};

@@ -1,6 +1,7 @@
 #include "../support/assertions.hpp"
 #include "../support/interdiction_fixture.hpp"
 #include <iostream>
+#include <utility>
 import phoenix.simulation;
 using namespace phoenix;
 using namespace phoenix::test;
@@ -176,6 +177,81 @@ void selective_prize(Json &trace)
 	continuation(catalog, w, 3, "Joint departure and prize assignments remain frozen on resume");
 	trace.push_back(w.save());
 }
+void configurable_takeover(Json &trace)
+{
+	for (const auto [repair, capture] :
+	     {std::pair{false, false}, std::pair{false, true}, std::pair{true, false}, std::pair{true, true}})
+	{
+		auto fixture = interdiction_fixture();
+		// Visitors wait aboard; neither they nor the target crew repair the authored damage.
+		fixture["trees"].push_back({{"id", "test.waiting-visitors"},
+		                            {"context", "away"},
+		                            {"initial", "wait"},
+		                            {"states", Json::array({{{"id", "wait"}}})}});
+		fixture["maps"][0]["away_missions"][0]["tree"] = "test.waiting-visitors";
+		fixture["entities"][1]["systems"]["team"]["enabled"] = false;
+		for (auto &controller : fixture["entities"][1]["control_layout"]["controllers"])
+			if (controller["id"] == "team")
+				for (auto &command : controller["commands"])
+					if (command["action"] == "system_enabled")
+						command["initial"] = 0;
+		auto &operation = fixture["maps"][0]["interdictions"][0];
+		operation["takeover_effects"] = {
+		    {"repair", repair}, {"original_crew", "detain"}, {"capture_visitors", capture}};
+		fixture["maps"][0]["ship_slots"][0]["x_mm"] = 0;
+		fixture["maps"][0]["entities"][0]["x_mm"] = 10000;
+		for (auto &deck : fixture["entities"][1]["combat"]["decks"])
+			for (auto &room : deck["compartments"])
+				room["initial_hp"] = room.at("hp").get<std::int64_t>() - 1;
+		for (auto &tree : fixture["trees"])
+			if (tree["id"] == "test.interdiction")
+				tree["states"][0]["transitions"][0]["conditions"] =
+				    Json::array({{{"left", {{"elapsed", true}}}, {"op", "ge"}, {"right", 120}}});
+		const auto catalog = load(fixture);
+		World w;
+		w.load(catalog, "test.map", {{"crew", "test.away"}});
+		send_party(w, false);
+		while (state(w)["ships"].empty())
+			w.tick();
+		ticks(w, 3);
+		require(w.submit(101, reply(w, "withdraw")), "Accept the configurable takeover's truce");
+		w.tick();
+		for (int i = 0; i < 1800 && !state(w)["captured"].get<bool>(); ++i)
+			w.tick();
+		require(state(w)["captured"], "Configurable takeover still requires actual boarding completion");
+		auto saved = w.save();
+		const auto &target = body(saved, 1);
+		require(!target["personnel"]["officers"].empty(), "Exercise an original named crew");
+		for (const auto &officer : target["personnel"]["officers"])
+			require(officer["condition"] != "dead" && officer["detained"] == true,
+			        "Nonlethal takeover preserves the original crew as living detainees");
+		require((saved["away_missions"][0]["phase"] == "captured") == capture,
+		        "Visitor custody follows its authored policy independently of original-crew treatment");
+		bool remaining_damage = false;
+		for (std::size_t i = 0; i < target["combat"]["compartments"].size(); ++i)
+		{
+			const auto maximum =
+			    fixture["entities"][1]["combat"]["decks"][0]["compartments"][i]["hp"].get<std::int64_t>();
+			remaining_damage |= target["combat"]["compartments"][i]["hp"].get<std::int64_t>() < maximum;
+		}
+		require(remaining_damage != repair,
+		        "Disabled takeover repair preserves remaining damage; enabled repair restores the hull");
+		continuation(catalog, w, 3, "Nonlethal takeover effects and visitor custody survive exact continuation");
+		trace.push_back(w.save());
+		auto invalid = fixture;
+		invalid["maps"][0]["interdictions"][0]["takeover_effects"]["original_crew"] = "typo";
+		bool rejected = false;
+		try
+		{
+			(void)load(invalid);
+		}
+		catch (const std::exception &)
+		{
+			rejected = true;
+		}
+		require(rejected, "Unknown takeover policies fail production verification");
+	}
+}
 void captive_party(Json &trace)
 {
 	auto fixture = interdiction_fixture(3);
@@ -341,6 +417,7 @@ int main(int argc, char **argv)
 			        "Later NPC activity cannot rewrite a destruction report");
 			trace.push_back(w.save());
 		}
+		configurable_takeover(trace);
 		selective_prize(trace);
 		captive_party(trace);
 		{

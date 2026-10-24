@@ -71,6 +71,56 @@ int main(int argc, char **argv)
 	try
 	{
 		supply_cases();
+		// One shared fit receives a consignment only in the mission/slot selecting it.
+		{
+			auto source = fixture();
+			source["maps"][0]["starting_stocks"] = Json::array(
+			    {{{"ship_slot", "crew"}, {"definition", "test.away"}, {"stores", {{"hold", {{"parts", 7}}}}}}});
+			auto alternate_fit = source["entities"][0];
+			alternate_fit["id"] = "test.alternate";
+			source["entities"].push_back(alternate_fit);
+			source["maps"][0]["ship_slots"][0]["allowed_ships"].push_back("test.alternate");
+			auto ordinary = source["maps"][0];
+			ordinary["id"] = "test.ordinary";
+			ordinary.erase("starting_stocks");
+			source["maps"].push_back(ordinary);
+			const auto catalog = load(source);
+			World assigned, unassigned, alternate;
+			assigned.load(catalog, "test.map", {{"crew", "test.away"}});
+			unassigned.load(catalog, "test.ordinary", {{"crew", "test.away"}});
+			alternate.load(catalog, "test.map", {{"crew", "test.alternate"}});
+			auto quantity = [](const World &world, EntityId id)
+			{
+				const auto saved = world.save();
+				for (const auto &body : saved.at("bodies"))
+					if (body.at("body").at("id") == id)
+						return saved_material_stock(body, 0).at("quantities").value("parts", 0);
+				throw std::runtime_error("Missing stock owner");
+			};
+			require(quantity(assigned, 2) == 7 && quantity(assigned, 1) == 4 && quantity(unassigned, 2) == 4 &&
+			            quantity(alternate, 2) == 4,
+			        "Starting stocks are mission/slot scoped; NPCs and shared fits retain their own stock");
+			World resumed;
+			resumed.restore(catalog, assigned.save());
+			require(resumed.save() == assigned.save(), "Starting-stock continuation is ordinary physical inventory");
+			for (const auto &bad : {Json{{"missing", {{"parts", 1}}}}, Json{{"hold", {{"parts", 8}}}},
+			                        Json{{"hold", {{"parts", true}}}}, Json{{"hold", {{"missing", 1}}}}})
+			{
+				auto invalid = source;
+				invalid["maps"][0]["starting_stocks"][0]["stores"] = bad;
+				bool rejected = false;
+				try
+				{
+					(void)load(invalid);
+				}
+				catch (const std::exception &)
+				{
+					rejected = true;
+				}
+				require(rejected, "Reject incompatible or over-capacity starting stocks during production loading");
+			}
+		}
+
 		{
 			auto delegated = fixture();
 			auto &ship = delegated["entities"][0];
@@ -131,7 +181,9 @@ int main(int argc, char **argv)
 			require(permission.submit(102, command(permission, 102, "deliver", "hold", text, "team")),
 			        "Engineering orders the authorised utility craft through the existing cargo path");
 		}
-		const auto source = fixture();
+		auto source = fixture();
+		source["maps"][0]["starting_stocks"] =
+		    Json::array({{{"ship_slot", "crew"}, {"definition", "test.away"}, {"stores", {{"hold", {{"parts", 4}}}}}}});
 		const auto catalog = load(source);
 		World w;
 		w.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -268,6 +320,9 @@ int main(int argc, char **argv)
 		require(w.observe(102)->gameplay.at("logistics").at("stores")[0].at("quantities").at("parts") == 1,
 		        "Cargo leaves source stock");
 		const auto save = w.save();
+		World completed;
+		completed.restore(catalog, save);
+		require(completed.save() == save, "Completed delivery restores without reapplying starting cargo");
 		std::int64_t received = -1;
 		for (const auto &body : save.at("bodies"))
 			if (body.at("body").at("id") == 1)

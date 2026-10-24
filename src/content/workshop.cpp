@@ -649,6 +649,10 @@ void WorkshopDocument::rename_entity(const std::string &from, const std::string 
 		for (auto &instance : map["entities"])
 			if (instance.at("definition") == from)
 				instance["definition"] = to;
+		if (map.contains("starting_stocks"))
+			for (auto &setup : map["starting_stocks"])
+				if (setup.value("definition", std::string{}) == from)
+					setup["definition"] = to;
 		for (auto &slot : map["ship_slots"])
 			for (auto &ship : slot["allowed_ships"])
 				if (ship == from)

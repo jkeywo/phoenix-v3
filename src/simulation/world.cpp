@@ -331,6 +331,7 @@ struct World::Impl
 	std::map<EntityId, fixed::Vec> step_starts;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
+	mutable std::map<std::uint64_t, std::shared_ptr<const Observation>> presentation_snapshots;
 	std::map<EntityId, std::vector<std::vector<ControllerChannelState>>> command_snapshots;
 	std::map<ControllerAddress, std::vector<CoordinationDelivery>> controller_inboxes;
 	bool gameplay = false;
@@ -2532,6 +2533,28 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 		candidate->slot_entities[slot] = next;
 		candidate->create(next++, ship, slots.at(slot));
 	}
+	for (const auto &setup : compile_starting_stocks(content, data, directed_catalog))
+		if (ships.contains(setup.slot) && ships.at(setup.slot) == setup.definition)
+		{
+			const auto id = candidate->slot_entities.at(setup.slot);
+			const auto &stores = candidate->definition(id).logistics.stores;
+			for (const auto &[name, quantities] : setup.stores)
+			{
+				const auto found = std::find_if(stores.begin(), stores.end(),
+				                                [&](const auto &store)
+				                                {
+					                                return store.id == name;
+				                                });
+				auto &stock = candidate->material_stock(id, std::distance(stores.begin(), found));
+				// Remove replaced quantities first, so changing cargo types cannot overfill mid-setup.
+				for (const auto &[resource, quantity] : quantities)
+					if (const auto existing = stock.quantity(resource); existing && !stock.consume(resource, existing))
+						throw std::runtime_error("Starting stock is already committed");
+				for (const auto &[resource, quantity] : quantities)
+					if (quantity && !stock.add(resource, quantity))
+						throw std::runtime_error("Starting stock exceeds the receiving store");
+			}
+		}
 	candidate->initialise_craft();
 	if (content.scenarios.contains(map))
 	{
@@ -2602,6 +2625,7 @@ std::vector<EntityId> World::operational_fleet(EntityId origin) const
 }
 bool World::prepare_console_profile(const ConsoleAddress &address, const std::string &profile)
 {
+	impl_->presentation_snapshots.clear();
 	if (ticks() || !impl_->claims.empty() || !impl_->entities.contains(address.ship))
 		return false;
 	auto entity = impl_->entities.at(address.ship);
@@ -2624,6 +2648,7 @@ bool World::prepare_console_profile(const ConsoleAddress &address, const std::st
 }
 bool World::claim(std::uint64_t console, EntityId ship, const std::string &name, bool sidebar)
 {
+	impl_->presentation_snapshots.clear();
 	if (!can_claim(console, ship, name, sidebar))
 		return false;
 	const auto &seat = *impl_->seat(ship, name);
@@ -2642,6 +2667,7 @@ std::optional<EntityId> World::ship_for_slot(const std::string &slot) const
 }
 bool World::release(std::uint64_t console)
 {
+	impl_->presentation_snapshots.clear();
 	auto found = impl_->claims.find(console);
 	if (found == impl_->claims.end())
 		return false;
@@ -2682,6 +2708,7 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 }
 bool World::submit(std::uint64_t console, const OperatingCommand &command)
 {
+	impl_->presentation_snapshots.clear();
 	if (!can_submit(console, command))
 		return false;
 	if (impl_->meta(console, command, false))
@@ -2699,6 +2726,7 @@ bool World::submit(std::uint64_t console, const OperatingCommand &command)
 }
 void World::clear_claims()
 {
+	impl_->presentation_snapshots.clear();
 	impl_->claims.clear();
 	impl_->displays.clear();
 	impl_->meta_pending.clear();
@@ -2710,6 +2738,7 @@ void World::clear_claims()
 }
 void World::tick()
 {
+	impl_->presentation_snapshots.clear();
 	TickProfile profile;
 	impl_->retire_audio();
 	// Keep committed frame numbering live after the race, but freeze its world.
@@ -3238,6 +3267,13 @@ Json World::public_board(EntityId entity) const
 }
 std::optional<Observation> World::observe(std::uint64_t console) const
 {
+	const auto snapshot = observe_shared(console);
+	return snapshot ? std::optional<Observation>{*snapshot} : std::nullopt;
+}
+std::shared_ptr<const Observation> World::observe_shared(std::uint64_t console) const
+{
+	if (const auto cached = impl_->presentation_snapshots.find(console); cached != impl_->presentation_snapshots.end())
+		return cached->second;
 	const auto found = impl_->claims.find(console);
 	if (found == impl_->claims.end())
 		return {};
@@ -3249,7 +3285,9 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 		    impl_->bridge_visible(address))
 			result.additional_consoles.push_back(observe_at(console, address));
 	}
-	return result;
+	auto snapshot = std::make_shared<const Observation>(std::move(result));
+	impl_->presentation_snapshots.emplace(console, snapshot);
+	return snapshot;
 }
 Observation World::observe_at(std::uint64_t console, const ConsoleAddress &address) const
 {
@@ -3266,8 +3304,6 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["craft"] = impl_->craft_board(address);
-	result.gameplay["logistics"] = impl_->logistics_board(address);
-	result.gameplay["docking"] = impl_->docking_board(address);
 	result.gameplay["ftl"] = impl_->ftl_board(address);
 	result.gameplay["mission_report"] =
 	    entity.has<MissionDeparture>() ? entity.get<MissionDeparture>().report : Json(nullptr);
@@ -3676,6 +3712,7 @@ Json World::controller_decision_snapshot(const ControllerAddress &address)
 }
 bool World::configure_controller_provider(const ControllerAddress &address, const std::string &provider)
 {
+	impl_->presentation_snapshots.clear();
 	if (provider != "tree" && provider != "anyjev" && provider != "llamacpp" && provider != "jev")
 		return false;
 	auto *c = impl_->model_controller(address);
@@ -3703,6 +3740,7 @@ bool World::configure_controller_provider(const ControllerAddress &address, cons
 }
 bool World::submit_controller_decision(const Json &decision)
 {
+	impl_->presentation_snapshots.clear();
 	try
 	{
 		const auto &snapshot = decision.at("snapshot");

@@ -43,6 +43,44 @@ Definitions schema 3 adds calibrated sprite materials, signed attachments and sc
 
 Optional map `presentation.dust` and entity `render.reference_grid` provide render-only navigation aids, including platform dust overrides, custom textures and Workshop tuning. See [navigation aids](navigation-aids.md) for fields, defaults, camera behaviour and verification evidence.
 
+## Mission starting stocks
+
+Optional map `starting_stocks` configures physical inventory on a selected player ship at world creation. Each record names a `ship_slot`, an allowed `definition`, and `stores`, an object mapping logistics store IDs to resource/quantity objects. For example:
+
+```json
+{
+  "starting_stocks": [
+    {
+      "ship_slot": "transport",
+      "definition": "example.freighter",
+      "stores": { "cargo-hold": { "example.consignment": 18 } }
+    }
+  ]
+}
+```
+
+Only the chosen slot/definition receives that setup. Other missions, other fits and NPCs retain their template stock. A quantity replaces that resource's authored initial amount; unlisted resources remain unchanged. Zero clears a resource. Verification checks the complete resulting stock against the real store's filter, volume and finite capacity, and rejects unknown slots, disallowed fits, stores, materials, duplicate slot/definition records and invalid quantities. It does not create holds or enlarge capacity.
+
+Setup runs before the first simulation tick, without dispatching craft or completing delivery objectives. Receipt still requires physical unloading. Saves retain ordinary inventories; restore does not re-grant a consignment. Workshop edits the records and updates their definition references when a ship template is renamed. This field does not change replenishment goals: those remain ordinary ship configuration and crew logistics orders.
+
+## Configurable takeover consequences
+
+An interdiction may author `takeover_effects`:
+
+```json
+{
+  "takeover_effects": {
+    "repair": false,
+    "original_crew": "detain",
+    "capture_visitors": true
+  }
+}
+```
+
+`repair` enables shared repairable hull/fault restoration; it never replenishes ammunition, fuel or FTL reserves. `original_crew` is `detain` or `kill`. Detention preserves living personnel and injuries through the ordinary ownership/custody path. Declared occupation teams become operational in either case. `capture_visitors` independently selects whether surviving visiting parties enter captivity; false leaves their existing deployment and recovery obligations intact.
+
+Every policy still requires the same actual docked takeover and retains its stable effect receipts. Unknown policies or mistyped fields fail verification. New Workshop records explicitly default to nonlethal occupation without repairs. Omitted fields retain the historical repair/kill/capture behaviour so older embedded content keeps its contract; rescue now declares that policy explicitly. Save/resume never reapplies completed consequences. Existing domain event names and payloads remain stable; mission-specific descriptions belong in mapped events and report text.
+
 ## Fitted System identities
 
 System object keys are ship-local instance identities. Optional `kind` names the

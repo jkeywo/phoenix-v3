@@ -1244,6 +1244,7 @@ void prepare_catalog(Catalog &catalog)
 		verify_scenario_authoring(catalog, map, directed_catalog);
 		(void)compile_away(catalog, map, directed_catalog);
 		(void)compile_interdictions(catalog, map, directed_catalog);
+		(void)compile_starting_stocks(catalog, map, directed_catalog);
 		(void)compile_sensor_findings(catalog, map);
 	}
 	verify_conversation_authoring(catalog);
