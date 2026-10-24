@@ -690,8 +690,9 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	               {"compartments", Json::array()},
 	               {"teams", Json::array()},
 	               {"arcs", Json::array()}};
+	const bool compartments_visible = address.console == s->definition.repair_console || team_map_allowed(address);
 	for (std::size_t i = 0; i < s->compartments.size(); ++i)
-		if (address.console == s->definition.repair_console || team_map_allowed(address))
+		if (compartments_visible)
 		{
 			const auto &d = s->definition.compartments[i];
 			const auto &c = s->compartments[i];

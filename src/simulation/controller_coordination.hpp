@@ -343,8 +343,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 						                             .id == "hold";
 				}
 		if (r->operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment)
-			for (const auto &compartment :
-			     observed.gameplay.value("combat", Json::object()).value("compartments", Json::array()))
+			for (const auto &compartment : combat_observation(observed).at("compartments"))
 				if (compartment.at("index") == r->target)
 				{
 					feasible = true;
@@ -363,7 +362,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 						    system.telemetry.contains("enabled") && !system.telemetry.at("enabled"))
 							blocked = true;
 	if (r->operation == OfficerOperation::Repair)
-		for (const auto &fault : observed.gameplay.value("combat", Json::object()).value("faults", Json::array()))
+		for (const auto &fault : combat_observation(observed).at("faults"))
 			if (fault.value("compartment_index", std::int64_t{0}) == r->target)
 			{
 				done = false;
@@ -425,13 +424,11 @@ bool controller_coordination_action(EntityId id, std::size_t index, const std::s
 					                        return contact.id == r.target && contact.disposition == "hostile";
 				                        });
 			else
-				for (const auto &compartment :
-				     observed.gameplay.value("combat", Json::object()).value("compartments", Json::array()))
+				for (const auto &compartment : combat_observation(observed).at("compartments"))
 					if (compartment.at("index") == r.target && compartment.at("hp") < compartment.at("maximum"))
 						permitted = true;
 			if (r.operation == OfficerOperation::Repair)
-				for (const auto &fault :
-				     observed.gameplay.value("combat", Json::object()).value("faults", Json::array()))
+				for (const auto &fault : combat_observation(observed).at("faults"))
 					if (fault.value("compartment_index", std::int64_t{0}) == r.target &&
 					    !fault.value("destroyed", false))
 						permitted = true;

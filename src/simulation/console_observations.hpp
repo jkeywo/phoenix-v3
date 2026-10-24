@@ -115,36 +115,56 @@ std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) con
 {
 	return capture_sensor_observation(address).contacts;
 }
-// World::Impl observation producer. Human projection and decision snapshots share this boundary.
-Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object()) const
+// Human projection and frozen decisions share the same permitted physical feeds.
+// Decisions need combat facts, telemetry, contacts and admission revisions, without
+// constructing presentation-only lists and sensor reach geometry for every Console.
+enum class ObservationDetail
+{
+	Presentation,
+	Decision
+};
+Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object(),
+                                        ObservationDetail detail = ObservationDetail::Presentation) const
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
 	const auto &seat = *this->seat(address.ship, address.console);
+	const bool presentation = detail == ObservationDetail::Presentation;
 	Observation result{view(address.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
 	result.own.faction = (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{});
 	result.own.faction_label = result.own.faction.empty() ? "Unaffiliated" : factions.labels.at(result.own.faction);
 	result.own.disposition = factions.relationship(result.own.faction, result.own.faction);
 	result.console = seat.id;
-	result.regions = region_markers(regions);
+	if (presentation)
+		result.regions = region_markers(regions);
 	result.observed_tick = ecs.get<Clock>().tick;
 	result.controls = seat.controls;
 	result.feeds = seat.feeds;
 	result.gameplay = std::move(gameplay);
 	project_combat(address, result);
-	result.gameplay["processors"] = project_processors(address);
-	result.gameplay["logistics"] = logistics_board(address);
-	result.gameplay["docking"] = docking_board(address);
+	if (presentation)
+	{
+		result.gameplay["processors"] = project_processors(address);
+		result.gameplay["logistics"] = logistics_board(address);
+		result.gameplay["docking"] = docking_board(address);
+		result.gameplay["directed"] = Json::array();
+		for (const auto &id : seat.feed_systems)
+			if (directed_definition(address.ship, id))
+			{
+				auto row = directed_projection(address.ship, id);
+				row["id"] = id;
+				result.gameplay["directed"].push_back(std::move(row));
+			}
+	}
+	else
+	{
+		result.gameplay["logistics"] = {{"revision", logistics_revision(entity)}};
+		const auto *docking = entity.try_get<DockingState>();
+		result.gameplay["docking"] = {{"revision", docking ? docking->revision : 1}};
+	}
 	const auto evidence = sensor_evidence(address);
-	result.gameplay["sensors"] = sensor_projection(address, evidence);
-	result.gameplay["directed"] = Json::array();
-	for (const auto &id : seat.feed_systems)
-		if (directed_definition(address.ship, id))
-		{
-			auto row = directed_projection(address.ship, id);
-			row["id"] = id;
-			result.gameplay["directed"].push_back(std::move(row));
-		}
+	if (presentation)
+		result.gameplay["sensors"] = sensor_projection(address, evidence);
 	result.engine_enabled = false;
 	result.radar_enabled = false;
 	for (const auto &id : seat.feed_systems)
@@ -203,11 +223,14 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 		{
 			state.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
 			state.effective_range = sensor_range(address.ship, id);
-			const auto &envelope = sensor_envelope(address.ship, id, state.effective_range);
-			state.radial_ranges = envelope.distances;
-			state.reach_profile = envelope.profile;
-			state.reach_uncertainty_mm = envelope.uncertainty;
-			state.reach_limited = envelope.limited;
+			if (presentation)
+			{
+				const auto &envelope = sensor_envelope(address.ship, id, state.effective_range);
+				state.radial_ranges = envelope.distances;
+				state.reach_profile = envelope.profile;
+				state.reach_uncertainty_mm = envelope.uncertainty;
+				state.reach_limited = envelope.limited;
+			}
 		}
 		if (instance && structurally_disabled(entity, id))
 		{
@@ -238,4 +261,8 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 		return result;
 	}
 	return result;
+}
+Observation capture_decision_observation(const ConsoleAddress &address) const
+{
+	return capture_console_observation(address, Json::object(), ObservationDetail::Decision);
 }

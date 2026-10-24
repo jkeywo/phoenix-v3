@@ -103,12 +103,12 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		    !structurally_disabled(entity, m->definition.id))
 			facts[14] =
 			    std::max<std::int64_t>(facts[14], point_defence_target(entity, m->definition, observed.contacts));
-	const auto combat = observed.gameplay.value("combat", Json::object());
+	const auto &combat = combat_observation(observed);
 	// Equipment indices are static fitting metadata. Candidate damage and duties
 	// come only from this Console's permitted snapshot and its accepted requests.
 	const auto &structure = definition(observed.own.id).combat;
 	std::set<std::int64_t> disabled_compartments;
-	for (const auto &compartment : combat.value("compartments", Json::array()))
+	for (const auto &compartment : combat.at("compartments"))
 		if (compartment.at("disabled").get<bool>())
 			disabled_compartments.insert(compartment.at("index").get<std::int64_t>());
 	const auto needed = [&](std::int64_t compartment)
@@ -132,7 +132,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		                                    (candidate == current || (best != current && (!best || candidate < best))));
 	};
 	int best_priority = -1, best_system_priority = -1;
-	for (const auto &compartment : combat.value("compartments", Json::array()))
+	for (const auto &compartment : combat.at("compartments"))
 	{
 		if (compartment.at("hp") >= compartment.at("maximum"))
 			continue;
@@ -144,7 +144,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			facts[4] = candidate;
 		}
 	}
-	for (const auto &fault : combat.value("faults", Json::array()))
+	for (const auto &fault : combat.at("faults"))
 	{
 		if (fault.value("destroyed", false))
 			continue;
@@ -198,7 +198,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			if (t.contains("thermal_stopped") && t.at("thermal_stopped"))
 				facts[12] = 1;
 		}
-	for (const auto &shield : combat.value("shields", Json::array()))
+	for (const auto &shield : combat.at("shields"))
 	{
 		const auto capacity = shield.at("capacity").get<std::int64_t>();
 		const auto fraction = capacity > 0 ? shield.at("strength").get<std::int64_t>() * 1000 / capacity : 0;
@@ -207,7 +207,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			facts[6] = fraction;
 	}
 	facts[8] = facts[6] - facts[7];
-	for (const auto &weapon : combat.value("weapons", Json::array()))
+	for (const auto &weapon : combat.at("weapons"))
 		if (owns(weapon.at("id")))
 		{
 			point_defence = weapon.value("point_defence", false);
@@ -215,7 +215,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			                                     DirectedTargetingKind::Intercept;
 			facts[3] = weapon.value("selected", std::int64_t{0});
 			std::int64_t best = std::numeric_limits<std::int64_t>::max();
-			for (const auto &option : weapon.value("ammunition_options", Json::array()))
+			for (const auto &option : weapon.at("ammunition_options"))
 				if (option.at("available").get<bool>() && option.at("range_mm").get<std::int64_t>() >= facts[1] &&
 				    option.at("range_mm").get<std::int64_t>() < best)
 				{

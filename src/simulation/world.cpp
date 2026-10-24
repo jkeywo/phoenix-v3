@@ -2805,7 +2805,7 @@ void World::tick()
 		for (const auto &console : impl_->definition(id).consoles)
 		{
 			const ConsoleAddress address{id, console.id};
-			impl_->observation_snapshots.emplace(address, impl_->capture_console_observation(address));
+			impl_->observation_snapshots.emplace(address, impl_->capture_decision_observation(address));
 		}
 	profile.mark("console_observation_snapshots");
 	for (const auto &[id, entity] : impl_->entities)

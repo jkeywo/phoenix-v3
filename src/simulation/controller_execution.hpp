@@ -72,6 +72,17 @@ void clear_controller_settings(EntityId ship, std::size_t controller_index, std:
 		                     std::find(channels.begin(), channels.end(), p.channel) != channels.end();
 	              });
 }
+// Borrow the frozen combat projection. Json::value returns a deep copy, which
+// multiplies compartment/weapon/shield data by the number of Controllers.
+const Json &combat_observation(const Observation &observation) const
+{
+	static const Json empty{{"compartments", Json::array()},
+	                        {"faults", Json::array()},
+	                        {"shields", Json::array()},
+	                        {"weapons", Json::array()}};
+	const auto found = observation.gameplay.find("combat");
+	return found == observation.gameplay.end() ? empty : *found;
+}
 // World::Impl methods. Physical mutation is confined to command consumption below.
 std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller)
 {
@@ -158,7 +169,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 			    Value::boolean(capacity && energy * 1000 <= capacity * definition(id).craft->return_reserve);
 		}
 		bool armed = false;
-		for (const auto &weapon : observation.gameplay.value("combat", Json::object()).value("weapons", Json::array()))
+		for (const auto &weapon : combat_observation(observation).at("weapons"))
 		{
 			const auto child = away_equipment(id, weapon.at("id"));
 			const auto &m = child.get<CombatMechanism>();
@@ -198,7 +209,9 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		                                            ? Value::boolean(amount != 0)
 		                                            : Value::integer(amount);
 	}
-	const auto board = brain_snapshots.contains(address) ? brain_snapshots.at(address) : knowledge.project(address);
+	const auto fallback_board =
+	    brain_snapshots.contains(address) ? std::optional<GameplayKnowledgeProjection>{} : knowledge.project(address);
+	const auto &board = fallback_board ? *fallback_board : brain_snapshots.at(address);
 	std::vector<const KnowledgeRecord *> evidence(brain.reads.size(), nullptr);
 	for (std::size_t i = 0; i < brain.reads.size(); ++i)
 	{
@@ -273,8 +286,10 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		                               : Value::integer(number);
 	}
 	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
-	const auto inbox = controller_inboxes.contains(recipient) ? controller_inboxes.at(recipient)
-	                                                          : knowledge.peek_controller(recipient);
+	const auto fallback_inbox = controller_inboxes.contains(recipient)
+	                                ? std::optional<std::vector<CoordinationDelivery>>{}
+	                                : knowledge.peek_controller(recipient);
+	const auto &inbox = fallback_inbox ? *fallback_inbox : controller_inboxes.at(recipient);
 	values[brain.inbox[ControllerInboxField::Available]] = Value::boolean(!inbox.empty());
 	if (!inbox.empty())
 	{

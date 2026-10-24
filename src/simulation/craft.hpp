@@ -452,6 +452,9 @@ void launch_craft(flecs::entity e)
 }
 void prepare_craft()
 {
+	// This phase only queues orders; no craft has launched or moved yet. All craft
+	// using a watch can share its current permitted contacts until those orders apply.
+	std::map<ConsoleAddress, std::vector<BodyView>> watch_contacts;
 	// Assisted combat craft use ordinary admitted orders and the watch's evidence.
 	for (const auto &[id, e] : craft_rows())
 	{
@@ -472,7 +475,9 @@ void prepare_craft()
 					if (controller.definition.commands[j].label_key == "Combat target")
 						target = controller.commands[j].value;
 		bool hostile = false, threat = false;
-		for (const auto &contact : capture_sensor_contacts(owner))
+		if (!watch_contacts.contains(owner))
+			watch_contacts.emplace(owner, capture_sensor_contacts(owner));
+		for (const auto &contact : watch_contacts.at(owner))
 		{
 			threat |= contact.disposition == "hostile";
 			hostile |= contact.id == target && contact.disposition == "hostile";
