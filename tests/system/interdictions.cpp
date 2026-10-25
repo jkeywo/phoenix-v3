@@ -390,6 +390,88 @@ void captive_party(Json &trace)
 	require(w.save()["away_missions"][0]["phase"] == "recovered", "Released repair personnel physically return");
 	trace.push_back(w.save());
 }
+
+void legacy_registry_continuation(Json &trace)
+{
+	const auto catalog = load(interdiction_fixture());
+	World w;
+	w.load(catalog, "test.map", {{"crew", "test.away"}});
+	ticks(w, 4);
+	auto saved = w.save();
+	auto registry = interdiction_registry();
+	require(registry.observations.back().name == "player_target_distance_mm",
+	        "Legacy migration removes only the appended distance field");
+	registry.observations.pop_back();
+	const auto legacy = state_tree::compile(catalog.trees.at("test.interdiction"), registry, catalog.trees);
+	saved["interdictions"][0]["continuation"]["program"] = legacy.signature;
+	World resumed;
+	resumed.restore(catalog, saved);
+	require(w.save() == resumed.save(),
+	        "Legacy encounter continuation preserves all physical state, messages and deadlines");
+	ticks(w, 4);
+	ticks(resumed, 4);
+	require(w.save() == resumed.save(), "Migrated silence clocks continue without a reset");
+	saved["interdictions"][0]["continuation"]["program"] = "unrelated-program";
+	bool rejected = false;
+	try
+	{
+		World invalid;
+		invalid.restore(catalog, saved);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	require(rejected, "The compatibility path still rejects an unrelated program identity");
+	trace.push_back(w.save());
+}
+void proximity_gated_demand(Json &trace)
+{
+	auto fixture = interdiction_fixture();
+	auto &tree = fixture["trees"].back();
+	tree["states"][0]["transitions"][0]["target"] = "arrival";
+	tree["states"][1]["entry"].erase(tree["states"][1]["entry"].begin());
+	tree["states"].push_back(Json::parse(
+	    R"({"id":"arrival","entry":[{"action":"spawn","arguments":[""]},{"action":"posture","arguments":["watch"]}],"transitions":[
+ {"target":"hostile","conditions":[{"left":{"observation":"attacked"},"op":"eq","right":true}]},
+ {"target":"demand","conditions":[{"left":{"observation":"player_target_distance_mm"},"op":"le","right":50000}]}]})"));
+	const auto catalog = load(fixture);
+	World w;
+	w.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(w.claim(101, 2, "drive"), "Claim the player ship for proximity gating");
+	ticks(w, 20);
+	const auto prompt = [&]() -> Json
+	{
+		const auto saved = w.save();
+		if (state(w)["conversation"] == 0)
+			return Json{{"id", 0}};
+		for (const auto &thread : saved["conversations"]["threads"])
+			if (thread["id"] == state(w)["conversation"])
+				return thread["prompt"];
+		throw std::runtime_error("Missing encounter conversation");
+	};
+	require(!state(w)["ships"].empty() && state(w)["posture"] == "watch" && state(w)["conversation"] == 0 &&
+	            prompt()["id"] == 0,
+	        "Pirates arrive and hold near the target without starting a distant player's ultimatum");
+	continuation(catalog, w, 15, "Waiting for player proximity persists without running silence clocks");
+	require(prompt()["id"] == 0 && state(w)["posture"] == "watch",
+	        "Nearby NPCs and carried craft cannot trigger the player's demand");
+	auto nearby = w.save();
+	const auto target = body(nearby, 1)["body"]["position"];
+	body(nearby, 2)["body"]["position"] = {{"x", target["x"].get<std::int64_t>() - 50000}, {"y", target["y"]}};
+	w.restore(catalog, nearby);
+	for (int i = 0; i < 3 && prompt()["id"] == 0; ++i)
+		w.tick();
+	require(prompt()["id"] != 0 && state(w)["posture"] == "watch",
+	        "The player entering the boundary starts the ultimatum");
+	const auto id = prompt()["id"];
+	continuation(catalog, w, 2, "A delivered proximity demand resumes with the same deadline and identity");
+	require(prompt()["id"] == id, "Resuming a proximity demand cannot duplicate its prompt");
+	ticks(w, 12);
+	require(state(w)["posture"] == "hostile", "Silence starts hostilities after the nearby demand");
+	trace.push_back(w.save());
+}
+
 } // namespace
 int main(int argc, char **argv)
 {
@@ -417,6 +499,8 @@ int main(int argc, char **argv)
 			        "Later NPC activity cannot rewrite a destruction report");
 			trace.push_back(w.save());
 		}
+		legacy_registry_continuation(trace);
+		proximity_gated_demand(trace);
 		configurable_takeover(trace);
 		selective_prize(trace);
 		captive_party(trace);

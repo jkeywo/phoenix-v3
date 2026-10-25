@@ -1,7 +1,7 @@
 // Explicit manual smoke: normal authored cargo and rescue, rendered with real Consoles.
 int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opened, const std::string &checkpoint = {},
                          bool preview = false, bool render = true, bool seize = false, bool takeover = false,
-                         bool recapture = false)
+                         bool recapture = false, bool comms_preview = false)
 {
 	Application app;
 	app.can_host = true;
@@ -574,6 +574,28 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 		}
 		if (preview)
 		{
+
+			if (comms_preview)
+			{
+				move(950000, 0, 20000);
+				advance(100);
+				const auto route = cruiser ? 4u : 2u;
+				app.console_regions = {{route, 0, 0, 1280, 1080}};
+				show(route, "comms");
+				frame();
+				for (const auto &control : app.screen_controls)
+					if (control.first.starts_with("console/" + std::to_string(route) + "/comms/select/") &&
+					    control.second.find("Morrow") != std::string::npos)
+					{
+						const auto id = control.first;
+						ensure(app.screen_action(id), "Select Morrow's named rescue conversation");
+						break;
+					}
+				advance(1);
+				frame();
+				capture("comms-preview");
+				std::cout << "COMMS PREVIEW " << view("comms").second.gameplay.at("conversations").dump() << std::endl;
+			}
 			const auto stocks = view(engineering).second.gameplay.at("logistics").at("stores");
 			for (const auto &store : stocks)
 				if (store.at("id") == "cargo-hold")

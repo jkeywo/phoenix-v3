@@ -240,6 +240,19 @@ void reset_interdiction_attempt(InterdictionState &s)
 						message.expired.insert(recipient);
 	s.plea_messages.clear();
 }
+bool open_interdiction_conversation(InterdictionState &s, const InterdictionDefinition &d, EntityId player)
+{
+	if (!s.conversation && s.boarder)
+	{
+		const auto pirate = "ship:" + std::to_string(s.boarder);
+		const auto engineer =
+		    "ship:" + std::to_string(d.target) + (d.target_character.empty() ? "" : "/" + d.target_character);
+		const auto self = "ship:" + std::to_string(player);
+		s.conversation = conversations.open(d.dialogue, {{"pirate", pirate}, {"engineer", engineer}, {"ship", self}},
+		                                    {pirate, engineer, self});
+	}
+	return s.conversation != 0;
+}
 void advance_interdictions()
 {
 	using state_tree::Value;
@@ -280,9 +293,18 @@ void advance_interdictions()
 		const bool ready = !lost && !claimed && !close_threat && s.boarder && !truly_destroyed(s.boarder) &&
 		                   dock_ready(s.boarder, d.target) && s.progress + 1 >= d.takeover_ticks;
 		const bool start = d.start_event.empty() || (scenario && !scenario->runtime().events(d.start_event).empty());
-		std::vector<Value> observations{
-		    Value::boolean(start), Value::boolean(s.attacked), Value::boolean(s.reinforced), Value::boolean(s.captured),
-		    Value::boolean(lost),  Value::boolean(claimed),    Value::boolean(ready),        Value::string(answer)};
+		std::vector<Value> observations{Value::boolean(start),
+		                                Value::boolean(s.attacked),
+		                                Value::boolean(s.reinforced),
+		                                Value::boolean(s.captured),
+		                                Value::boolean(lost),
+		                                Value::boolean(claimed),
+		                                Value::boolean(ready),
+		                                Value::string(answer),
+		                                Value::integer(player_active && !lost
+		                                                   ? fixed::length(entities.at(player).get<Pose>().position -
+		                                                                   entities.at(d.target).get<Pose>().position)
+		                                                   : std::numeric_limits<std::int64_t>::max())};
 		const auto outputs = state_tree::step(d.program, s.continuation, observations);
 		for (const auto &o : outputs.outputs)
 		{
@@ -302,12 +324,6 @@ void advance_interdictions()
 					s.ships.push_back(id);
 				}
 				s.boarder = s.ships.front();
-				const auto pirate = "ship:" + std::to_string(s.boarder);
-				const auto engineer =
-				    "ship:" + std::to_string(d.target) + (d.target_character.empty() ? "" : "/" + d.target_character);
-				const auto self = "ship:" + std::to_string(player);
-				s.conversation = conversations.open(
-				    d.dialogue, {{"pirate", pirate}, {"engineer", engineer}, {"ship", self}}, {pirate, engineer, self});
 			}
 			else if (name == "posture")
 			{
@@ -315,9 +331,9 @@ void advance_interdictions()
 				if (value != "watch" && s.conversation)
 					conversations.conversations.at(s.conversation).prompt = {};
 			}
-			else if (name == "say" && s.conversation)
+			else if (name == "say" && open_interdiction_conversation(s, d, player))
 				conversations.report(s.conversation, value);
-			else if (name == "offer" && s.conversation)
+			else if (name == "offer" && open_interdiction_conversation(s, d, player))
 				conversations.offer(s.conversation, value);
 			else if (name == "log" && s.effects.insert("log/" + value).second)
 				mission_transition("mission.log", player, d.target, d.id, value);
@@ -365,7 +381,8 @@ void advance_interdictions()
 			{
 				s.progress = std::min(d.takeover_ticks, s.progress + 1);
 				for (const auto &[tick, line] : d.pleas)
-					if (s.progress == tick && s.conversation && conversations.report(s.conversation, line))
+					if (s.progress == tick && open_interdiction_conversation(s, d, player) &&
+					    conversations.report(s.conversation, line))
 						s.plea_messages.push_back(conversations.conversations.at(s.conversation).messages.back().id);
 			}
 			else
@@ -512,7 +529,7 @@ Json save_interdictions() const
 	}
 	return rows;
 }
-void restore_interdictions(const Json &rows)
+void restore_interdictions(const Json &rows, const Catalog &content)
 {
 	if (!rows.is_array() || rows.size() != interdictions.size())
 		throw std::runtime_error("Invalid interdiction continuation");
@@ -557,7 +574,18 @@ void restore_interdictions(const Json &rows)
 				                                    return m.id == message;
 			                                    }))
 				throw std::runtime_error("Unknown takeover plea receipt");
-		s.continuation = state_tree::load(d.program, j.at("continuation"));
+		auto continuation = j.at("continuation");
+		if (continuation.at("program") != d.program.signature)
+		{
+			// The appended read-only distance field must not invalidate older embedded trees.
+			// Recompile the exact same source with its former registry; no state or timer is reset.
+			auto legacy_registry = interdiction_registry();
+			legacy_registry.observations.pop_back();
+			const auto legacy = state_tree::compile(content.trees.at(d.tree), legacy_registry, content.trees);
+			if (continuation.at("program") == legacy.signature)
+				continuation["program"] = d.program.signature;
+		}
+		s.continuation = state_tree::load(d.program, continuation);
 	}
 }
 void validate_interdiction_physics() const

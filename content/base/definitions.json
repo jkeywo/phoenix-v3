@@ -34786,6 +34786,22 @@
 						"recovery_ticks": 1200
 					}
 				]
+			},
+			"comms": {
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Vale",
+						"public": true,
+						"portrait": "phoenix-base:assets/personnel/officer-3.png"
+					},
+					{
+						"id": "engineer",
+						"name_key": "Engineer Orin",
+						"public": false,
+						"portrait": "phoenix-base:assets/personnel/officer-4.png"
+					}
+				]
 			}
 		},
 		{
@@ -36002,17 +36018,20 @@
 					{
 						"id": "quartermaster",
 						"name_key": "Cairn Receiving",
-						"public": true
+						"public": true,
+						"portrait": "phoenix-base:assets/personnel/officer-7.png"
 					},
 					{
 						"id": "captain",
 						"name_key": "Cairn Control",
-						"public": true
+						"public": true,
+						"portrait": "phoenix-base:assets/personnel/officer-8.png"
 					},
 					{
 						"id": "engineer",
 						"name_key": "Cairn Engineering",
-						"public": false
+						"public": false,
+						"portrait": "phoenix-base:assets/personnel/officer-9.png"
 					}
 				]
 			},
@@ -36112,7 +36131,8 @@
 					},
 					"members": ["ship", "engineer"],
 					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"],
-					"start_event": "rescue.distress"
+					"start_event": "rescue.distress",
+					"title_key": "Morrow — Rescue assistance"
 				},
 				{
 					"id": "delivery-courier-arrival",
@@ -36254,7 +36274,8 @@
 						}
 					},
 					"members": ["ship", "engineer"],
-					"cancel_events": ["rescue.reactor-secured"]
+					"cancel_events": ["rescue.reactor-secured"],
+					"title_key": "Morrow — Reactor emergency"
 				}
 			],
 			"away_missions": [
@@ -51556,7 +51577,8 @@
 						}
 					]
 				}
-			]
+			],
+			"title_key": "Boarding operations"
 		},
 		{
 			"id": "base.craft-guidance",
@@ -55600,7 +55622,8 @@
 					],
 					"transitions": []
 				}
-			]
+			],
+			"title_key": "Morrow — Reactor emergency"
 		},
 		{
 			"id": "base.cruiser.assist.command.cooling.orders",
@@ -59991,7 +60014,7 @@
 					"id": "delay",
 					"transitions": [
 						{
-							"target": "warning",
+							"target": "arrival",
 							"conditions": [
 								{
 									"left": {
@@ -60005,7 +60028,7 @@
 					]
 				},
 				{
-					"id": "warning",
+					"id": "arrival",
 					"entry": [
 						{
 							"action": "spawn",
@@ -60014,7 +60037,62 @@
 						{
 							"action": "posture",
 							"arguments": ["watch"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
+						{
+							"target": "finish",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "hostile",
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "warning",
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_target_distance_mm"
+									},
+									"op": "le",
+									"right": 600000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "warning",
+					"entry": [
 						{
 							"action": "offer",
 							"arguments": ["ultimatum"]

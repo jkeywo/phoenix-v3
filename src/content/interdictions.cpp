@@ -16,6 +16,7 @@ state_tree::Registry interdiction_registry()
 	     {"started", "attacked", "reinforced", "captured", "target_lost", "player_claimed", "takeover_ready"})
 		r.observations.push_back({name, Type::Boolean, 2, {}});
 	r.observations.push_back({"answer", Type::Text, 2, {}});
+	r.observations.push_back({"player_target_distance_mm", Type::Integer, 2, {}});
 	for (const auto *name : {"spawn", "posture", "say", "offer", "takeover", "log", "emit", "finish"})
 		r.actions.push_back({name, 2, {Type::Text}, true});
 	return r;

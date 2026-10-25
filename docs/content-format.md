@@ -63,6 +63,10 @@ Only the chosen slot/definition receives that setup. Other missions, other fits 
 
 Setup runs before the first simulation tick, without dispatching craft or completing delivery objectives. Receipt still requires physical unloading. Saves retain ordinary inventories; restore does not re-grant a consignment. Workshop edits the records and updates their definition references when a ship template is renamed. This field does not change replenishment goals: those remain ordinary ship configuration and crew logistics orders.
 
+## Encounter proximity
+
+Interdiction trees can read the integer observation `player_target_distance_mm`: the current physical distance between the configured player ship and the encounter target. Destroyed or departed participants report the maximum signed integer distance. Carried craft and NPC movement do not substitute for the player. Author a distance condition in the tree to separate fleet arrival from its first demand; ordinary tree continuation preserves the waiting state and starts elapsed-time warnings only after that transition. The pirate conversation opens on its first authored communication, rather than on fleet spawn. Older embedded encounter trees can retain their existing continuation: restore accepts only the exact former registry signature for the same source, then preserves all states, receipts and elapsed time. Unrelated program identities still fail.
+
 ## Configurable takeover consequences
 
 An interdiction may author `takeover_effects`:

@@ -4502,7 +4502,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
 	candidate.impl_->personnel_postings =
 	    saved.value("personnel_postings", decltype(candidate.impl_->personnel_postings){});
-	candidate.impl_->restore_interdictions(saved.value("interdictions", Json::array()));
+	candidate.impl_->restore_interdictions(saved.value("interdictions", Json::array()), content);
 	candidate.impl_->departure_groups = saved.value("departure_groups", decltype(candidate.impl_->departure_groups){});
 	std::set<EntityId> grouped_members;
 	for (const auto &[leader, group] : candidate.impl_->departure_groups)
