@@ -125,14 +125,15 @@ int main(int argc, char **argv)
 			const auto count = std::count_if(app.screen_controls.begin(), app.screen_controls.end(),
 			                                 [&](const auto &row)
 			                                 {
-				                                 return row.first.starts_with(prefix + "game.");
+				                                 return row.first.starts_with(prefix + "game.") ||
+				                                        row.first.starts_with(prefix + "inline/");
 			                                 });
 			std::cout << "Route " << route << " gameplay controls: " << count << std::endl;
 			require(count > 0, "Routed Console has visible gameplay controls after launch");
 			require(probe_console_fit(route), "Radar fits its own 1080p monitor beside a 4K host");
 		}
 		for (const auto &[route, tabs] : std::vector<std::pair<unsigned, std::vector<std::string>>>{
-		         {3, {"tactical", "helm"}}, {4, {"comms", "navigator", "support"}}})
+		         {3, {"helm"}}, {4, {"comms", "navigator", "support"}}})
 			for (const auto &tab : tabs)
 			{
 				require(probe_console_tab(route, "game.console/" + tab),
@@ -156,6 +157,49 @@ int main(int argc, char **argv)
 			frame();
 			frame();
 		};
+		require(!has("console/3/game.console/tactical"), "No redundant Tactical tab");
+		require(!has("console/4/station-page/docking"), "Support has no Docking tab");
+		require(!has("console/3/game.combat-target/2"), "No target button list");
+		auto weapon_state = [&]
+		{
+			std::map<std::string, bool> result;
+			const auto observation = app.session->console_observation(3);
+			for (const auto &extra : observation->additional_consoles)
+				for (const auto &system : extra.systems)
+					if (system.kind == OperatingSystem::Weapon)
+						result[system.id] = system.enabled;
+			return result;
+		};
+		const auto before_weapon = weapon_state();
+		std::string toggle;
+		for (const auto &[name, label] : app.screen_controls)
+			if (name.starts_with("console/3/inline/game.control/") &&
+			    (label.ends_with("Enabled") || label.ends_with("Disabled")))
+			{
+				toggle = name.substr(std::string("console/3/").size());
+				break;
+			}
+		require(!toggle.empty() && probe_console_tab(3, toggle), "Pointer toggles a weapon from Helm");
+		for (int i = 0; i < 60 && weapon_state() == before_weapon; ++i)
+			frame();
+		require(weapon_state() != before_weapon, "Weapon toggle changes authoritative tactical system state");
+		require(probe_console_tab(3, "radar-contact/2"), "Click starbase on Helm radar");
+		frame();
+		frame();
+		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                    [](const auto &row)
+		                    {
+			                    return row.first == "console/3/target/name" &&
+			                           row.second.find("#2") != std::string::npos;
+		                    }),
+		        "Radar selection populates target panel");
+		TakeScreenshot("build/console-transition-target.png");
+		require(probe_console_tab(3, "systems"), "Open one Systems popup");
+		frame();
+		frame();
+		require(has("console/3/systems-close"), "System statuses have one close action");
+		TakeScreenshot("build/console-transition-systems.png");
+		action("console/3/systems-close");
 		action("console/3/station-page/personnel");
 		require(!has("console/3/local-settings.tab/display"), "Personnel excludes preference tabs");
 		require(has("console/4/station-page/personnel"), "Other Console remains usable");

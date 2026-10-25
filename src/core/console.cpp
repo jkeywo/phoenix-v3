@@ -1501,6 +1501,26 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 	}
 	return false;
 }
+bool ConsoleModel::select_contact(EntityId contact)
+{
+	if (!observation_ || (!std::any_of(observation_->contacts.begin(), observation_->contacts.end(),
+	                                   [&](const auto &row)
+	                                   {
+		                                   return row.id == contact;
+	                                   }) &&
+	                      !std::any_of(observation_->bearing_contacts.begin(), observation_->bearing_contacts.end(),
+	                                   [&](const auto &row)
+	                                   {
+		                                   return row.id == contact;
+	                                   })))
+		return false;
+	combat_target_ = sensor_contact_ = static_cast<std::int64_t>(contact);
+	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
+		if (descriptor.value("shared_combat_target", false) &&
+		    descriptor.value("value", std::int64_t{}) == static_cast<std::int64_t>(contact))
+			return submit(decode_operating_command(descriptor));
+	return true;
+}
 bool ConsoleModel::submit(OperatingCommand command)
 {
 	auto session = owner_.lock();

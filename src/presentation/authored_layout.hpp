@@ -172,6 +172,8 @@ bool authored_action(const std::string &action)
 	if (action.starts_with("station-page/"))
 	{
 		const auto page = action.substr(13);
+		if (page == "docking" && model_.docking().value("ports", Json::array()).empty())
+			return false;
 		if (page != "logistics" && page != "docking" && page != "away" && page != "craft" && page != "personnel")
 			return false;
 		cancel_pointer();
@@ -214,6 +216,8 @@ void prepare_console_tabs(const ConsoleRegion &region)
 	if (!model_.available_tabs().empty())
 		for (const auto &tab : model_.available_tabs())
 		{
+			if (tab.id == inline_console_)
+				continue;
 			const auto action = id("game.console/" + tab.id);
 			const auto label = localise(tab.label) + (tab.attention ? " — " + localise("Unread") : "");
 			markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
@@ -230,6 +234,8 @@ void prepare_console_tabs(const ConsoleRegion &region)
 	                                                                                  {"personnel", "Personnel"},
 	                                                                                  {"away", "Away missions"}})
 	{
+		if (page == "docking" && model_.docking().value("ports", Json::array()).empty())
+			continue;
 		const auto action = id("station-page/" + page);
 		markup += "<button id=\"" + action + "\" class=\"" +
 		          (settings_open_ && local_settings_tab_ == page ? "selected" : "") + "\">" +
@@ -446,10 +452,39 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		}
 		return;
 	}
-	const auto signature = std::to_string(layout_identity_);
+	const auto signature = std::to_string(layout_identity_) + "/" + inline_console_;
 	if (authored_identity_ != signature)
 	{
 		authored_program_ = compile_ui_layout(app_->session->catalog(), *layout);
+		if (!inline_console_.empty())
+		{
+			std::function<void(UiNode &)> integrate = [&](UiNode &node)
+			{
+				if (node.kind == "tabs")
+					node.kind = "column";
+				if (node.component == "gameplay")
+				{
+					node.component.clear();
+					node.kind = "column";
+					UiNode target, weapons;
+					target.id = node.id + "/target";
+					target.kind = "component";
+					target.component = "readouts";
+					target.minimum_height = 170;
+					weapons.id = node.id + "/weapons";
+					weapons.kind = "component";
+					weapons.component = "controls";
+					weapons.minimum_height = 280;
+					node.children = {target, weapons};
+				}
+				for (auto &child : node.children)
+					integrate(child);
+			};
+			integrate(authored_program_->root);
+			if (authored_program_->compact)
+				integrate(*authored_program_->compact);
+		}
+
 		authored_identity_ = signature;
 	}
 	auto geometry_key = [&]

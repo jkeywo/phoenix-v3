@@ -960,6 +960,10 @@ void match_speed()
 		command(world, "match_speed", 1, "drive");
 		world.tick();
 		const auto before_guidance = world.observe(101);
+		if (feed)
+			require(system(*before_guidance, "radar").maximum ==
+			            source["entities"][0]["systems"]["radar"]["range_mm"].get<std::int64_t>(),
+			        "Advanced radar projection preserves authored plotting range rather than generic system maximum");
 		std::int64_t frozen_target_speed = 0;
 		for (const auto &contact : before_guidance->contacts)
 			if (contact.id == 2)

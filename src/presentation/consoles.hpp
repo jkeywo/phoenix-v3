@@ -330,6 +330,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "away.hpp"
 #include "craft.hpp"
 #include "logistics.hpp"
+#include "station_combat.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -792,6 +793,9 @@ button.on-screen-active .share-live {display:block;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
 #gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:0.7em;overflow:hidden;}
+.integrated-helm #gameplay-controls button {width:210dp;min-height:48dp;font-size:.85em;padding:6dp;margin:2dp;}
+.radar-contact {position:absolute;width:24px;height:24px;min-width:0;min-height:0;margin:0;padding:0;background:transparent;border:1px transparent;z-index:4;}
+.radar-contact:focus {border-color:#ffe2a5;background:#285052;}
 #fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
 #fault-dialog p {font-size:1.1em;line-height:1.4;}
 #comms-layer {position:absolute;left:1%;top:80px;width:98%;bottom:1%;background:#102027;}
@@ -886,6 +890,20 @@ button.on-screen-active .share-live {display:block;}
 		if (station_loading_)
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (action == "systems" || action == "systems-close")
+		{
+			model_.act("game.status-close");
+			inline_model_.act("game.status-close");
+			systems_open_ = action == "systems";
+			return true;
+		}
+		if (action.starts_with("inline/"))
+		{
+			const bool accepted = !inline_console_.empty() && inline_model_.act(action.substr(7));
+			return accepted;
+		}
+		if (action.starts_with("radar-contact/"))
+			return select_radar_contact(std::stoull(action.substr(14)));
 		if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
 		    action.starts_with("station-page/"))
 			return authored_action(action);
@@ -1303,7 +1321,8 @@ button.on-screen-active .share-live {display:block;}
 			(name == id("nav.x") ? navigation_x_ : navigation_y_) = static_cast<double>(value);
 			return true;
 		}
-		if (settings_open_)
+		if (settings_open_ || systems_open_ || !model_.status_system().empty() ||
+		    (!inline_console_.empty() && !inline_model_.status_system().empty()))
 			return false;
 		if (app_ && profile_open_ && name == id("profile-name"))
 		{
@@ -1508,7 +1527,8 @@ button.on-screen-active .share-live {display:block;}
 		    throttle_contacts_.contains(contact) || navigation_contacts_.contains(contact) ||
 		    joystick_contact_ == contact)
 			prepare_dirty_ = true;
-		if (settings_open_)
+		if (settings_open_ || systems_open_ || !model_.status_system().empty() ||
+		    (!inline_console_.empty() && !inline_model_.status_system().empty()))
 			return false;
 		if (kind == DeviceEventKind::Down)
 			for (auto *hit = context_->GetElementAtPoint({x, y}); hit; hit = hit->GetParentNode())
@@ -1561,12 +1581,35 @@ button.on-screen-active .share-live {display:block;}
 						    select_system(view.systems, OperatingSystem::Radar, model_.widget_system(key), false);
 						for (const auto &sensor : view.systems)
 							if (radar && sensor.id == *radar && sensor.enabled)
+							{
+								EntityId nearest = 0;
+								float distance = 18 * context_->GetDensityIndependentPixelRatio();
+								for (const auto &body : view.contacts)
+									if (sensor.maximum > 0 &&
+									    std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), body.id) !=
+									        sensor.contact_ids.end() &&
+									    std::hypot(double(body.x - view.own.x), double(body.y - view.own.y)) <=
+									        sensor.maximum)
+									{
+										const Vector2 point{
+										    centre.x + float(double(body.x - view.own.x) / sensor.maximum) * radius,
+										    centre.y - float(double(body.y - view.own.y) / sensor.maximum) * radius};
+										const float delta = std::hypot(x - point.x, y - point.y);
+										if (delta < distance)
+										{
+											distance = delta;
+											nearest = body.id;
+										}
+									}
+								if (nearest)
+									return select_radar_contact(nearest);
 								for (const auto &b : view.bearing_contacts)
 									if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), b.id) !=
 									        sensor.contact_ids.end() &&
 									    CheckCollisionPointCircle(
 									        {x, y}, bearing_ring_point(centre, radius, b.bearing_mdeg), 14))
-										return action(id("game.sensor-contact/" + std::to_string(b.id)));
+										return select_radar_contact(b.id);
+							}
 					}
 				}
 		if (navigation_pointer(contact, x, y, kind))
@@ -2233,6 +2276,8 @@ button.on-screen-active .share-live {display:block;}
 		              });
 		const auto previous_announcement = model_.announcement();
 		model_.refresh(app.session, route_);
+		refresh_inline_console(app);
+		document_->SetClass("integrated-helm", !inline_console_.empty());
 		sync_console_browsing();
 		app.frame_metrics["console/" + std::to_string(route_) + "/projection"] = GetTime() - preparation_started;
 		const auto layout_started = GetTime();
@@ -2429,7 +2474,7 @@ button.on-screen-active .share-live {display:block;}
 				if (model_.observation())
 					for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
 						teams |= !t.at("orders").empty();
-				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" +
+				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" + button("systems", "Systems") +
 				           (teams ? button("game.teams", "Teams") : std::string{}) + "</div>";
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
@@ -2594,28 +2639,6 @@ button.on-screen-active .share-live {display:block;}
 				                                : Rml::StringUtilities::EncodeRml(localise("Starting in")) + " " +
 				                                      std::to_string((left + 999) / 1000));
 			}
-		const auto details = model_.system_details();
-		const auto selected_system = model_.status_system();
-		auto *dialog = document_->GetElementById("fault-dialog");
-		if (fault_dialog_signature_ != details)
-		{
-			elements_.clear();
-			dialog->SetInnerRML(
-			    details.empty()
-			        ? ""
-			        : "<h1>" + Rml::StringUtilities::EncodeRml(localise("System details")) + "</h1><p>" +
-			              Rml::StringUtilities::EncodeRml(details) + "</p><button id=\"" + id("game.status-close") +
-			              "\">" + Rml::StringUtilities::EncodeRml(localise("Close system details")) + "</button>");
-			dialog->SetProperty("display", details.empty() ? "none" : "block");
-			fault_dialog_signature_ = details;
-		}
-		if (fault_dialog_system_ != selected_system)
-		{
-			const auto target = selected_system.empty() ? "game.status/" + fault_dialog_system_ : "game.status-close";
-			if (auto *focus = document_->GetElementById(id(target)))
-				focus->Focus();
-			fault_dialog_system_ = selected_system;
-		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/chrome"] = GetTime() - layout_started;
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
@@ -2623,8 +2646,15 @@ button.on-screen-active .share-live {display:block;}
 		std::erase_if(gameplay_controls,
 		              [](const auto &control)
 		              {
-			              return control.first.starts_with("game.console/");
+			              return control.first.starts_with("game.console/") ||
+			                     control.first.starts_with("game.status") ||
+			                     control.first.starts_with("game.sensor-contact/") ||
+			                     control.first.starts_with("game.combat-target/");
 		              });
+		if (!inline_console_.empty())
+		{
+			gameplay_controls = helm_weapon_controls();
+		}
 		std::map<std::string, ConsoleSystemStatus> status_controls;
 		const auto owned_systems =
 		    model_.observation() ? station_owned_systems(*model_.observation()) : std::set<std::string>{};
@@ -2721,6 +2751,8 @@ button.on-screen-active .share-live {display:block;}
 			              return specialised_controls.contains(control.first);
 		              });
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		if (!inline_console_.empty())
+			readout_values_ = helm_target_readouts();
 		if (model_.observation())
 			for (const auto &system : model_.observation()->systems)
 				if (!owned_systems.contains(system.id))
@@ -3021,7 +3053,8 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &held : held_clicks_)
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
-			std::string markup = objective_markup + command_markup_;
+			std::string markup = objective_markup + command_markup_ +
+			                     (!inline_console_.empty() ? "<h2>" + localise("Weapons") + "</h2>" : "");
 			if (team_dispatch)
 			{
 				markup += "<h2>" + Rml::StringUtilities::EncodeRml(localise("Team dispatch")) + "</h2>";
@@ -3488,6 +3521,11 @@ button.on-screen-active .share-live {display:block;}
 				joystick_area_ = {};
 		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/placements"] = GetTime() - semantics_started;
+		if (!pregame && !settings_open_)
+		{
+			prepare_radar_choices(region);
+			prepare_system_popup(region, cards);
+		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 	}
 	void draw_profile(const ConsoleRegion &region)

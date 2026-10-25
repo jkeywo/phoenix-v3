@@ -133,7 +133,11 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 			        sensor.contact_ids.end() &&
 			    std::hypot(static_cast<double>(contact.x - view.own.x), static_cast<double>(contact.y - view.own.y)) <=
 			        range)
+			{
 				draw_radar_body(textures, catalog, contact, point(contact.x, contact.y), 7, SKYBLUE);
+				if (contact.id == settings.value("sensor_contact", EntityId{0}))
+					DrawCircleLinesV(point(contact.x, contact.y), 12, GOLD);
+			}
 	draw_bearing_ring(view, sensor, centre, radius, settings.value("sensor_contact", EntityId{0}));
 	for (const auto &f : view.gameplay.value("psychic", Json::object()).value("fading", Json::array()))
 	{

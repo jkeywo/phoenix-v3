@@ -49,6 +49,7 @@ public:
 	void refresh(const std::shared_ptr<SessionPort> &session, std::uint64_t route = 1);
 	void reset();
 	bool act(const std::string &action);
+	bool select_contact(EntityId contact);
 	bool contact_arcs_visible() const
 	{
 		return contact_arcs_;

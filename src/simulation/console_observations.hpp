@@ -242,7 +242,7 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 				                : state.kind == OperatingSystem::Lateral
 				                    ? runtime->values[index].flight->definition.lateral_speed
 				                    : runtime->values[index].flight->definition.maximum_speed;
-			else
+			else if (state.kind != OperatingSystem::Radar)
 				state.maximum = instance->maximum;
 		}
 		const auto &controls = entity.get<EntityControls>();
