@@ -370,137 +370,19 @@ void MenuLibrary::install_default(const Bytes &archive)
 }
 void MenuLibrary::install_bundled(const Bytes &base_archive, const Bytes &addon_archive)
 {
-	const auto base = read_pack(base_archive), addon = read_pack(addon_archive);
-	const auto base_id = base.manifest().at("id").get<std::string>(),
-	           addon_id = addon.manifest().at("id").get<std::string>();
+	const auto base = read_pack(base_archive);
 	install_default(base_archive);
-	// Move the old bundled examples out of an edited base without losing authored maps or changes to the examples.
-	const auto selected = packs;
-	const auto existing_addon = std::find_if(selected.begin(), selected.end(),
-	                                         [&](const auto &p)
-	                                         {
-		                                         return p.id == addon_id;
-	                                         });
-	const auto source = std::find_if(selected.begin(), selected.end(),
-	                                 [&](const auto &p)
-	                                 {
-		                                 return p.id == base_id;
-	                                 });
-	const auto installed = read_pack(read_pack_archive(source->hash));
-	const auto installed_addon = existing_addon == selected.end() || existing_addon->hash == addon.hash()
-	                                 ? addon
-	                                 : read_pack(read_pack_archive(existing_addon->hash));
-	PackDraft base_draft{installed.manifest(), installed.files()},
-	    addon_draft{installed_addon.manifest(), installed_addon.files()};
-	auto from = parse_json(base_draft.files.at("definitions.json"), "installed base definitions");
-	auto to = parse_json(addon_draft.files.at("definitions.json"), "bundled mod definitions");
-	bool moved = false;
-	for (const char *kind : {"entities", "maps", "consoles", "trees"})
-	{
-		if (!to.contains(kind))
-			continue;
-		for (auto &definition : to.at(kind))
-			if (from.contains(kind))
-				for (auto it = from[kind].begin(); it != from[kind].end(); ++it)
-					if (it->at("id") == definition.at("id"))
-					{
-						definition = *it;
-						from[kind].erase(it);
-						moved = true;
-						break;
-					}
-	}
-	// A rebuilt game can add missions and their supporting definitions. Keep
-	// authored records intact, but do not pin an installed base to its first build.
-	const auto shipped = parse_json(base.files().at("definitions.json"), "bundled base definitions");
-	bool added = false;
-	const auto merge_missing = [&](auto &&self, Json &destination, const Json &incoming) -> void
-	{
-		if (destination.is_object() && incoming.is_object())
-			for (const auto &[key, value] : incoming.items())
-			{
-				if (!destination.contains(key))
-				{
-					destination[key] = value;
-					added = true;
-				}
-				else
-					self(self, destination[key], value);
-			}
-		else if (destination.is_array() && incoming.is_array())
-			for (const auto &record : incoming)
-				if (record.is_object() && record.contains("id") &&
-				    std::none_of(destination.begin(), destination.end(),
-				                 [&](const auto &existing)
-				                 {
-					                 return existing.is_object() && existing.value("id", Json{}) == record.at("id");
-				                 }))
-				{
-					destination.push_back(record);
-					added = true;
-				}
-	};
-	merge_missing(merge_missing, from, shipped);
-	for (const auto &[name, bytes] : base.files())
-		if (name.starts_with("assets/") && !base_draft.files.contains(name))
-		{
-			base_draft.files[name] = bytes;
-			added = true;
-		}
-	if (!moved)
-	{
-		if (added)
-		{
-			base_draft.files["definitions.json"] = json_bytes(from);
-			base_draft.files.erase("launcher.json");
-			base_draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft({}, base_draft)));
-			replace_pack(source->hash, write_pack(base_draft));
-		}
-		install_default(addon_archive);
-		return;
-	}
-	base_draft.files["definitions.json"] = json_bytes(from);
-	addon_draft.files["definitions.json"] = json_bytes(to);
-	base_draft.files.erase("launcher.json");
-	addon_draft.files.erase("launcher.json");
-	base_draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft({}, base_draft)));
-	const auto same_source = [](const PackDraft &draft, const Pack &published)
-	{
-		if (draft.manifest != published.manifest())
-			return false;
-		auto a = draft.files, b = published.files();
-		for (const auto *name : {"launcher.json", "manifest.json"})
-		{
-			a.erase(name);
-			b.erase(name);
-		}
-		a["definitions.json"] = json_bytes(parse_json(a.at("definitions.json"), "definitions"));
-		b["definitions.json"] = json_bytes(parse_json(b.at("definitions.json"), "definitions"));
-		return a == b;
-	};
-	const auto migrated_base = same_source(base_draft, base) ? base_archive : write_pack(base_draft);
-	addon_draft.files["launcher.json"] =
-	    json_bytes(launcher_catalog(resolve_draft({read_pack(migrated_base)}, addon_draft)));
-	const auto migrated_addon = same_source(addon_draft, addon) ? addon_archive : write_pack(addon_draft);
-	auto candidate = selected;
-	const bool addon_enabled = existing_addon == selected.end() ? false : existing_addon->enabled;
-	std::erase_if(candidate,
-	              [&](const auto &p)
-	              {
-		              return p.id == addon_id;
-	              });
-	const auto index = static_cast<std::size_t>(std::find_if(candidate.begin(), candidate.end(),
-	                                                         [&](const auto &p)
-	                                                         {
-		                                                         return p.id == base_id;
-	                                                         }) -
-	                                            candidate.begin());
-	candidate[index].hash = sha256(migrated_base);
-	candidate.insert(candidate.begin() + index + 1, {sha256(migrated_addon), addon_id, addon_enabled});
-	atomic_write(path("packs", candidate[index].hash, ".zip"), migrated_base);
-	atomic_write(path("packs", candidate[index + 1].hash, ".zip"), migrated_addon);
-	apply(candidate);
+	const auto current = std::find_if(packs.begin(), packs.end(),
+	                                  [&](const auto &pack)
+	                                  {
+		                                  return pack.id == base.manifest().at("id").get<std::string>();
+	                                  });
+	if (current != packs.end() && current->hash != base.hash())
+		replace_pack(current->hash, base_archive);
+	// User-authored mods remain independent. Bundled base edits are deliberately refreshed, without backup.
+	install_default(addon_archive);
 }
+
 std::vector<LibraryPack> MenuLibrary::toggle_pack(const std::vector<LibraryPack> &selection,
                                                   const std::string &hash) const
 {

@@ -397,9 +397,10 @@ int main()
 		auto migrated_base = resolve_packs({read_pack(migrated.read_pack_archive(migrated.packs[0].hash))});
 		auto migrated_all = resolve_packs({read_pack(migrated.read_pack_archive(migrated.packs[0].hash)),
 		                                   read_pack(migrated.read_pack_archive(migrated.packs[1].hash))});
-		require(migrated_base.maps.contains("test.user-map") && !migrated_base.maps.contains("test.practice") &&
-		            migrated_all.maps.at("test.practice").at("name") == "Edited practice" && !migrated.packs[1].enabled,
-		        "Splitting an older base retains user maps and moves edited examples intact into the mod");
+		require(!migrated_base.maps.contains("test.user-map") && !migrated_base.maps.contains("test.practice") &&
+		            migrated_all.maps.at("test.practice").value("name", "") != "Edited practice" &&
+		            !migrated.packs[1].enabled,
+		        "Refreshing bundled base replaces obsolete base records without creating backup mods");
 		// Upgrade an already-installed, Workshop-edited base through startup's real path.
 		auto upgrade = draft;
 		auto updated = parse_json(upgrade.files.at("definitions.json"), "updated synthetic base");
@@ -413,7 +414,13 @@ int main()
 		upgrade.files["definitions.json"] = json_bytes(updated);
 		upgrade.files["assets/new.png"] = draft.files.at("assets/pixel.png");
 		const auto upgraded_archive = write_pack(upgrade);
-		const auto old_archive = migrated.read_pack_archive(migrated.packs[0].hash);
+		auto independent = addon;
+		independent.manifest["id"] = "test-user-mod";
+		auto independent_map = practice;
+		independent_map["id"] = "test.independent-map";
+		independent.files["definitions.json"] = json_bytes(Json{{"schema", 1}, {"maps", {independent_map}}});
+		const auto independent_bytes = write_pack(independent);
+		migrated.install_default(independent_bytes);
 		migrated.install_bundled(upgraded_archive, addon_archive);
 		MenuLibrary upgraded_library(directory + "/migrated");
 		upgraded_library.load();
@@ -421,15 +428,13 @@ int main()
 		const auto upgraded_catalog = resolve_packs({upgraded_pack});
 		require(
 		    upgraded_catalog.maps.contains("test.new-mission") && upgraded_catalog.entities.contains("test.new-ship") &&
-		        upgraded_catalog.maps.contains("test.user-map") && upgraded_pack.files().contains("assets/new.png") &&
+		        !upgraded_catalog.maps.contains("test.user-map") && upgraded_pack.files().contains("assets/new.png") &&
 		        upgraded_library.packs[0].enabled && !upgraded_library.packs[1].enabled,
-		    "Startup adds shipped missions, support definitions and assets without losing authored maps or selections");
-		const auto before_upgrade = parse_json(read_pack(old_archive).files().at("definitions.json"), "prior base");
-		const auto after_upgrade = parse_json(upgraded_pack.files().at("definitions.json"), "upgraded base");
-		for (const auto &existing : before_upgrade.at("maps"))
-			require(std::find(after_upgrade.at("maps").begin(), after_upgrade.at("maps").end(), existing) !=
-			            after_upgrade.at("maps").end(),
-			        "Existing map definitions survive bundled additions unchanged");
+		    "Startup refreshes shipped content and retains independent mod selections");
+		require(upgraded_library.packs.size() == 3 &&
+		            upgraded_library.read_pack_archive(upgraded_library.packs[2].hash) == independent_bytes &&
+		            upgraded_library.packs[0].hash == read_pack(upgraded_archive).hash(),
+		        "bundled refresh preserves a separate edited Workshop mod byte-for-byte and creates no backup pack");
 		const auto stable_hash = upgraded_library.packs[0].hash;
 		upgraded_library.install_bundled(upgraded_archive, addon_archive);
 		require(upgraded_library.packs[0].hash == stable_hash, "Repeated startup does not rewrite the upgraded pack");
