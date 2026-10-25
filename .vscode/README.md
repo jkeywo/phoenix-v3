@@ -9,6 +9,10 @@ Choose a configuration in **Run and Debug**, then press **F5** (or **Ctrl+F5** t
 
 **Ctrl+Shift+B** builds native. **Tasks: Run Task** also offers **Phoenix: build all WASM** and **Phoenix: serve web**; the latter builds first and serves without opening a browser. The server uses the bootstrapped Emscripten Python, falling back to `python` on PATH.
 
+Every native build stages the current packs, UI and audio beside that executable, including when only content changed and no relink was needed. Use the named Phoenix launch configuration so its build task runs first. If a build fails, fix the error before launching; choosing to debug anyway runs the previous executable. Stop the running native game before rebuilding so Windows can replace it.
+
+Verified on 25 October 2026: an incremental `native` build replaced a deliberately stale generated runtime locale file with the current asset while the executable's modification time stayed unchanged. The native build check also passed. This checks staging independently of a successful relink.
+
 The server stays running after the browser debug session closes. Stop it with **Ctrl+C** in its dedicated task terminal or **Tasks: Terminate Task**. Stop it before launching again when you want a fresh build. Port 8080 must be free. For a different port, pass `-Port` to the server task and update the launch URL together.
 
 This is a localhost static development server. For multiplayer, start the separate signalling service described in [Network play](../docs/network-play.md).

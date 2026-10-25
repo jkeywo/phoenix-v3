@@ -901,22 +901,27 @@ if(EMSCRIPTEN)
 	configure_file(web/session-clock.js "${CMAKE_CURRENT_BINARY_DIR}/session-clock.js" COPYONLY)
 else()
 	add_executable(native src/entry/native.cpp)
-	add_dependencies(native base_pack test_missions_pack)
 	target_link_libraries(
 		native
 		PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools phoenix_workshop_test_host
 	)
-	add_custom_command(
-		TARGET native
-		POST_BUILD
+	# Content and UI-only edits do not relink native. Always stage its runtime
+	# dependencies so an incremental IDE launch consumes the current build.
+	add_custom_target(
+		native_runtime_assets
 		COMMAND
 			${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:native>/assets/training.zip" "$<TARGET_FILE_DIR:native>/assets/test.zip"
 			"$<TARGET_FILE_DIR:native>/assets/test-3d.zip"
-		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets" "$<TARGET_FILE_DIR:native>/assets"
 		COMMAND
-			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/server-audio"
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:native>/assets"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/server-audio"
 			"$<TARGET_FILE_DIR:native>/assets/audio"
+		COMMENT "Staging current native packs, UI and audio"
 	)
+	add_dependencies(native_runtime_assets base_pack test_missions_pack)
+	add_dependencies(native native_runtime_assets)
 endif()
 
 include(cmake/Networking.cmake)
