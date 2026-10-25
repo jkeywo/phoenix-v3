@@ -67,3 +67,9 @@ Console models retain resolved Console definitions until the session/catalog cha
 Resource-card text now uses the same offscreen deferral as generic readouts, while publishing current accessible values. A graphical probe verifies a stale offscreen value is already current semantically and refreshes after scrolling. It passes on native and WebAssembly. The bounded HarfBuzz width cache includes face, exact text, language, direction, kerning, letter spacing and preceding character. It clears on font loading, language registration, resource release and shutdown. Native and browser smoke modes each compare at least 100 cache hits directly against HarfBuzz without mismatch. The probe is disabled in performance samples.
 
 The current native bridge sample (five Consoles plus Viewscreen, 5760 × 2160) is 177.52 ms mean frame, with 63.98 ms preparation, 17.80 ms Console rendering and 24.10 ms mean tick. It remains a failed 60 FPS result; about 404 ticks execute during 20.30 seconds, with 0.054 seconds of elapsed simulation time discarded by the diagnostic cap. The font/accessibility functional sample is separate and is not performance evidence.
+
+## Physical sensor read-pass reuse
+
+Read-only snapshot passes now share the raw physical returns of the same ship/sensor. Each Console still merges those returns through its own feed selection and retained evidence, including its own identity and finding permissions. The cache is confined to the decision pass or cleared with the presentation epoch; actuator and mutable sensor phases retain independent queries.
+
+Native and WebAssembly simulation and focused sensor checks pass. The 600-tick frozen rescue continuation still matches the fresh baseline exactly. Mean native tick is 21.76 ms, p95 26.39 ms, p99 29.51 ms. This remains above a 16.67 ms frame budget even before rendering, so further frame-loop work is required for the requested presentation target.

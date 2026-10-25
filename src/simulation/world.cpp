@@ -332,12 +332,15 @@ struct World::Impl
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
 	using TelemetrySnapshot = std::map<std::pair<EntityId, std::size_t>, std::map<std::string, std::int64_t>>;
+	using ContactSnapshot = std::map<std::pair<EntityId, std::string>, std::vector<std::pair<BodyView, int>>>;
+	mutable ContactSnapshot presentation_contacts;
 	mutable TelemetrySnapshot presentation_telemetry;
 	mutable std::map<std::uint64_t, std::shared_ptr<const Observation>> presentation_snapshots;
 	void clear_presentation_snapshots()
 	{
 		presentation_snapshots.clear();
 		presentation_telemetry.clear();
+		presentation_contacts.clear();
 	}
 	std::map<EntityId, std::vector<std::vector<ControllerChannelState>>> command_snapshots;
 	std::map<ControllerAddress, std::vector<CoordinationDelivery>> controller_inboxes;
@@ -2838,11 +2841,12 @@ void World::tick()
 		}
 	profile.mark("command_snapshots");
 	Impl::TelemetrySnapshot decision_telemetry;
+	Impl::ContactSnapshot decision_contacts;
 	for (const auto &[id, entity] : impl_->entities)
 		for (const auto &console : impl_->definition(id).consoles)
 		{
 			const ConsoleAddress address{id, console.id};
-			impl_->observation_snapshots.emplace(address, impl_->capture_decision_observation(address, &decision_telemetry));
+			impl_->observation_snapshots.emplace(address, impl_->capture_decision_observation(address, &decision_telemetry, &decision_contacts));
 		}
 	profile.mark("console_observation_snapshots");
 	for (const auto &[id, entity] : impl_->entities)
@@ -3302,7 +3306,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	auto entity = impl_->entities.at(address.ship);
 	const auto &seat = *impl_->seat(address.ship, address.console);
 	Observation result = impl_->capture_console_observation(address, impl_->knowledge.project_json(address),
-	                                                      Impl::ObservationDetail::Presentation, &impl_->presentation_telemetry);
+	                                                      Impl::ObservationDetail::Presentation, &impl_->presentation_telemetry, &impl_->presentation_contacts);
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);

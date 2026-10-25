@@ -1,6 +1,6 @@
 // Append contacts using only the permitted radar feeds supplied by the caller.
 void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
-                            const std::map<EntityId, Json> &evidence) const
+                            const std::map<EntityId, Json> &evidence, ContactSnapshot *contact_snapshot = nullptr) const
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
@@ -8,21 +8,40 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 	std::map<EntityId, BearingContactView> bearings;
 	for (auto &sensor : result.systems)
 		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
-			for_sensor_contacts(
-			    address.ship, sensor.id,
-			    [&](const auto &input)
-			    {
-				    sensor.contact_ids.push_back(input.body.id);
-				    if (input.detection == SensorContact::Position)
-					    contacts.emplace(input.body.id, input.body);
-				    else
-					    bearings.emplace(
-					        input.body.id,
-					        BearingContactView{input.body.id,
-					                           combat_bearing(fixed::Vec{input.body.x, input.body.y} - own.position),
-					                           ecs.get<Clock>().tick});
-			    },
-			    true);
+		{
+			auto append = [&](const BodyView &body, SensorContact detection)
+			{
+				sensor.contact_ids.push_back(body.id);
+				if (detection == SensorContact::Position)
+					contacts.emplace(body.id, body);
+				else
+					bearings.emplace(
+					    body.id, BearingContactView{body.id, combat_bearing(fixed::Vec{body.x, body.y} - own.position),
+					                                ecs.get<Clock>().tick});
+			};
+			if (contact_snapshot)
+			{
+				auto [found, inserted] = contact_snapshot->try_emplace({address.ship, sensor.id});
+				if (inserted)
+					for_sensor_contacts(
+					    address.ship, sensor.id,
+					    [&](const auto &input)
+					    {
+						    found->second.emplace_back(input.body, static_cast<int>(input.detection));
+					    },
+					    true);
+				for (const auto &[body, detection] : found->second)
+					append(body, static_cast<SensorContact>(detection));
+			}
+			else
+				for_sensor_contacts(
+				    address.ship, sensor.id,
+				    [&](const auto &input)
+				    {
+					    append(input.body, input.detection);
+				    },
+				    true);
+		}
 	for (auto &[id, body] : contacts)
 		result.contacts.push_back(std::move(body));
 	for (const auto &[id, bearing] : bearings)
@@ -126,7 +145,8 @@ enum class ObservationDetail
 };
 Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object(),
                                         ObservationDetail detail = ObservationDetail::Presentation,
-                                        TelemetrySnapshot *telemetry_snapshot = nullptr) const
+                                        TelemetrySnapshot *telemetry_snapshot = nullptr,
+                                        ContactSnapshot *contact_snapshot = nullptr) const
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
@@ -271,15 +291,16 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 				range = std::max(range, sensor_range(address.ship, state.id));
 		}
 		result.radar_enabled = range > 0;
-		append_sensor_contacts(address, result, evidence);
+		append_sensor_contacts(address, result, evidence, contact_snapshot);
 		return result;
 	}
 	return result;
 }
-Observation capture_decision_observation(const ConsoleAddress &address,
-                                         TelemetrySnapshot *telemetry_snapshot = nullptr) const
+Observation capture_decision_observation(const ConsoleAddress &address, TelemetrySnapshot *telemetry_snapshot = nullptr,
+                                         ContactSnapshot *contact_snapshot = nullptr) const
 {
-	return capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot);
+	return capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot,
+	                                   contact_snapshot);
 }
 // Visibility consumers use the identical Console feed/type/contact boundary,
 // without building combat and UI boards just to discard them.
