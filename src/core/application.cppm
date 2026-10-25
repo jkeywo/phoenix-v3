@@ -59,10 +59,14 @@ struct Application
 	{
 		int id;
 		std::string name;
+		std::string identity;
 	};
 	std::vector<NativeDisplay> native_displays;
 	int host_display = -1;
 	std::map<int, std::string> display_consoles;
+	std::map<std::string, std::map<std::string, std::string>> remembered_station_displays;
+	std::weak_ptr<SessionPort> restored_display_session;
+	std::string restored_display_ship;
 	std::map<std::uint64_t, std::string> local_player_names;
 	int inspector_display = -1;
 	std::function<void()> apply_displays;

@@ -41,12 +41,29 @@ inline std::vector<std::string> command_consumers(const Observation &view, const
 		}
 	return {};
 }
+inline std::set<std::string> station_owned_systems(const Observation &view)
+{
+	std::set<std::string> owned_systems;
+	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+	{
+		const auto channels = controller.value("commands", Json::object());
+		for (const auto &[channel, command] : channels.items())
+			for (const auto &consumer : command.value("consumers", std::vector<std::string>{}))
+				owned_systems.insert(consumer);
+	}
+	if (!view.gameplay.contains("controllers"))
+		for (const auto &system : view.systems)
+			if (system.controlled)
+				owned_systems.insert(system.id);
+	return owned_systems;
+}
 inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 {
 	std::vector<EngineeringCard> result;
 	const auto logistics = view.gameplay.find("logistics");
 	const bool assisted_stock = logistics != view.gameplay.end() && !logistics->value("manual", true);
 	std::set<std::string> placed_controls;
+	const auto owned_systems = station_owned_systems(view);
 	// Resolve immutable Controller bindings once, rather than copying and searching
 	// the entire Controller board for every control on every resource card.
 	std::vector<std::pair<const Json *, std::vector<std::string>>> commands;
@@ -55,6 +72,8 @@ inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 			commands.emplace_back(&descriptor, command_consumers(view, descriptor));
 	for (const auto &system : view.systems)
 	{
+		if (!owned_systems.contains(system.id))
+			continue;
 		if (system.kind != OperatingSystem::Generator && system.kind != OperatingSystem::Storage &&
 		    system.kind != OperatingSystem::Distribution && system.kind != OperatingSystem::Coolant)
 			continue;

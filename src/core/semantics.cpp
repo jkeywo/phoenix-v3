@@ -141,6 +141,7 @@ void remember_preferences(Application &app)
 		app.library->preferences.siren_volume = app.siren_volume;
 		app.library->preferences.master_volume = app.master_volume;
 		app.library->preferences.tools_scale = app.tools_scale;
+		app.library->preferences.station_displays = app.remembered_station_displays;
 		app.library->remember();
 #ifdef __EMSCRIPTEN__
 		phoenix_persist_preferences();
@@ -150,6 +151,78 @@ void remember_preferences(Application &app)
 	{
 		app.status = error.what();
 	}
+}
+void remember_station_display(Application &app, const std::string &console, int monitor)
+{
+	if (!app.session)
+		return;
+	const auto lobby = app.session->lobby();
+	std::string own_slot;
+	for (const auto &member : lobby.members)
+		if (member.id == lobby.self)
+			own_slot = member.slot;
+	for (const auto &seat : lobby.consoles)
+		if (seat.id == console && seat.slot == own_slot)
+			for (const auto &slot : lobby.slots)
+				if (slot.id == seat.slot)
+				{
+					auto &saved = app.remembered_station_displays[slot.ship];
+					if (monitor < 0)
+						saved.erase(console);
+					else
+						for (const auto &display : app.native_displays)
+							if (display.id == monitor)
+							{
+								const auto key = display.identity.empty() ? display.name : display.identity;
+								std::erase_if(saved,
+								              [&](const auto &entry)
+								              {
+									              return entry.second == key;
+								              });
+								saved[console] = key;
+							}
+					remember_preferences(app);
+					return;
+				}
+}
+void restore_station_displays(Application &app)
+{
+	if (!app.can_host || !app.session || app.screen != Screen::server_lobby ||
+	    !app.session->preparation_phase().empty())
+		return;
+	const auto lobby = app.session->lobby();
+	if (!lobby.active || lobby.launched)
+		return;
+	for (const auto &member : lobby.members)
+		if (member.id == lobby.self)
+			for (const auto &slot : lobby.slots)
+				if (slot.id == member.slot)
+				{
+					if (app.restored_display_session.lock() == app.session && app.restored_display_ship == slot.ship)
+						return;
+					app.restored_display_session = app.session;
+					app.restored_display_ship = slot.ship;
+					if (!app.remembered_station_displays.contains(slot.ship))
+						return;
+					bool changed = false;
+					for (const auto &[console, identity] : app.remembered_station_displays.at(slot.ship))
+						for (const auto &display : app.native_displays)
+							if (display.id != app.host_display && display.id != app.inspector_display &&
+							    (display.identity.empty() ? display.name : display.identity) == identity &&
+							    !app.display_consoles.contains(display.id))
+							{
+								LobbyCommand command{LobbyAction::assign_local_console, "", slot.id, "", console};
+								command.screen = display.id + 2;
+								if (app.session->lobby_command(command))
+								{
+									app.display_consoles[display.id] = console;
+									changed = true;
+								}
+							}
+					if (changed && app.apply_displays)
+						app.apply_displays();
+					return;
+				}
 }
 void load_display_preferences(Application &app)
 {
@@ -288,7 +361,8 @@ std::vector<SemanticControl> navigation_controls(const Application &app, bool in
 			control.pressed = found->second;
 		}
 		if (control.id.find("/layout-page/") != std::string::npos ||
-		    control.id.find("/game.console/") != std::string::npos)
+		    control.id.find("/game.console/") != std::string::npos ||
+		    control.id.find("/station-page/") != std::string::npos)
 		{
 			control.tab = true;
 			control.selected = app.screen_toggles.contains(control.id) && app.screen_toggles.at(control.id);

@@ -363,6 +363,7 @@ struct NativeMenuScreen::State
 	{
 		if (!app.native_menu)
 			return;
+		restore_station_displays(app);
 #ifndef __EMSCRIPTEN__
 		if (!game_active(app) && app.display_consoles.empty() && app.inspector_display < 0)
 		{

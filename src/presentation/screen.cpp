@@ -128,6 +128,9 @@ Texture2D loading_background{};
 TextureCache loading_images;
 std::string loading_markup, loading_art_identity;
 bool loading_visible = false;
+std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
+std::optional<GameScreen::Loading> station_loading;
+std::set<ConsoleId> station_loading_routes;
 bool show_loading(Application &app)
 {
 	const bool eligible = static_cast<bool>(app.content_action) || app.screen == Screen::console ||
@@ -145,6 +148,23 @@ bool show_loading(Application &app)
 		return false;
 	}
 	const auto progress = game_screen->preload(app);
+	if (app.screen == Screen::server_lobby && !app.console_regions.empty() && !app.content_action)
+	{
+		station_loading = progress.active ? std::optional(progress) : std::nullopt;
+		if (progress.active)
+			for (const auto &region : app.console_regions)
+				if (!console_surfaces.contains(region.console))
+					station_loading_routes.insert(region.console);
+		if (!progress.active)
+			station_loading_routes.clear();
+		if (loading_document)
+			loading_document->Hide();
+		document->Show();
+		loading_visible = false;
+		return false;
+	}
+	station_loading.reset();
+	station_loading_routes.clear();
 	if (!progress.active)
 	{
 		if (loading_document)
@@ -274,7 +294,6 @@ bool show_loading(Application &app)
 	return true;
 }
 
-std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
 class PreviewSession final : public SessionPort
 {
 	Catalog catalog_;
@@ -975,6 +994,14 @@ bool probe_console_readouts(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_readout_scroll();
 }
+bool probe_console_tab(ConsoleId route, const std::string &action)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_tab(action);
+}
+bool probe_console_fit(ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_fit();
+}
 bool probe_console_engineering(ConsoleId route, unsigned stage)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_engineering(stage);
@@ -1437,6 +1464,11 @@ void draw_screen(Application &app)
 				console_surfaces.at(region.console)
 				    ->prepare(app, region, gamepads,
 				              !app.budget_console_preparation || (preparation_index == selected_preparation));
+				console_surfaces.at(region.console)
+				    ->prepare_loading(station_loading && station_loading_routes.contains(region.console)
+				                          ? &*station_loading
+				                          : nullptr,
+				                      region);
 				++preparation_index;
 			}
 			catch (const std::exception &error)

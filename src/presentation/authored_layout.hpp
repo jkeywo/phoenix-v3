@@ -169,6 +169,23 @@ void apply_console_theme(const Json *layout)
 }
 bool authored_action(const std::string &action)
 {
+	if (action.starts_with("station-page/"))
+	{
+		const auto page = action.substr(13);
+		if (page != "logistics" && page != "docking" && page != "away" && page != "craft" && page != "personnel")
+			return false;
+		cancel_pointer();
+		settings_open_ = true;
+		local_settings_tab_ = page;
+		document_->SetClass("local-settings-open", true);
+		return true;
+	}
+	if (settings_open_)
+	{
+		settings_open_ = false;
+		document_->SetClass("local-settings-open", false);
+		document_->SetClass("station-page-open", false);
+	}
 	if (action.starts_with("layout-page/"))
 	{
 		const auto page = action.substr(12);
@@ -194,24 +211,42 @@ bool authored_action(const std::string &action)
 void prepare_console_tabs(const ConsoleRegion &region)
 {
 	std::string markup;
-	if (model_.available_tabs().size() > 1)
+	if (!model_.available_tabs().empty())
 		for (const auto &tab : model_.available_tabs())
 		{
 			const auto action = id("game.console/" + tab.id);
 			const auto label = localise(tab.label) + (tab.attention ? " — " + localise("Unread") : "");
 			markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
-			          (tab.id == model_.observation()->console ? "selected" : "") + "\">" +
+			          (!settings_open_ && tab.id == model_.observation()->console ? "selected" : "") + "\">" +
 			          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			app_->screen_controls.emplace_back(action, label);
-			app_->screen_toggles[action] = tab.id == model_.observation()->console;
+			app_->screen_toggles[action] = !settings_open_ && tab.id == model_.observation()->console;
 		}
+	if (!settings_open_)
+		markup += authored_tabs_markup_;
+	for (const auto &[page, label] : std::vector<std::pair<std::string, std::string>>{{"logistics", "Operations"},
+	                                                                                  {"docking", "Docking"},
+	                                                                                  {"craft", "Flight operations"},
+	                                                                                  {"personnel", "Personnel"},
+	                                                                                  {"away", "Away missions"}})
+	{
+		const auto action = id("station-page/" + page);
+		markup += "<button id=\"" + action + "\" class=\"" +
+		          (settings_open_ && local_settings_tab_ == page ? "selected" : "") + "\">" +
+		          Rml::StringUtilities::EncodeRml(localise(label)) + "</button>";
+		app_->screen_controls.emplace_back(action, localise(label));
+		app_->screen_toggles[action] = settings_open_ && local_settings_tab_ == page;
+	}
 	if (markup != console_tabs_markup_)
 	{
+		elements_.clear();
 		document_->GetElementById("console-tabs")->SetInnerRML(markup);
 		console_tabs_markup_ = markup;
 	}
 	for (const auto &tab : model_.available_tabs())
 		place(*app_, region, id("game.console/" + tab.id));
+	for (const auto *page : {"logistics", "docking", "craft", "personnel", "away"})
+		place(*app_, region, id(std::string("station-page/") + page));
 }
 std::string layout_node_id(const UiNode &node) const
 {
@@ -316,9 +351,10 @@ void place_authored_instruments(const UiNode &node)
 	auto *box = document_->GetElementById(layout_node_id(node));
 	if (node.kind == "instruments" || node.kind == "cutout")
 	{
+		const float density = context_->GetDensityIndependentPixelRatio();
 		const float pad = node.padding * text_scale_ / 100.f;
-		const float width = std::max(1.f, box->GetClientWidth() - pad * 2),
-		            height = std::max(1.f, box->GetClientHeight() - pad * 2);
+		const float width = std::max(1.f, box->GetClientWidth() / density - pad * 2),
+		            height = std::max(1.f, box->GetClientHeight() / density - pad * 2);
 		for (const auto &child : node.children)
 		{
 			UiRect bounds{width * child.rect.x / 1000, height * child.rect.y / 1000, width * child.rect.width / 1000,
@@ -350,12 +386,14 @@ void fit_authored_aspects(const UiNode &node)
 		if (auto *component = authored_component(node.component))
 		{
 			auto *box = document_->GetElementById(layout_node_id(node));
+			const float density = context_->GetDensityIndependentPixelRatio();
+			const float box_width = box->GetClientWidth() / density, box_height = box->GetClientHeight() / density;
 			const auto minimum = text_scale_ / 100.f;
 			const float width = std::max({node.minimum_width * minimum, node.minimum_height * minimum * node.aspect,
-			                              std::min(box->GetClientWidth(), box->GetClientHeight() * node.aspect)});
+			                              std::min(box_width, box_height * node.aspect)});
 			property(component, "position", "absolute");
-			property(component, "left", std::to_string((box->GetClientWidth() - width) / 2) + "dp");
-			property(component, "top", std::to_string((box->GetClientHeight() - width / node.aspect) / 2) + "dp");
+			property(component, "left", std::to_string((box_width - width) / 2) + "dp");
+			property(component, "top", std::to_string((box_height - width / node.aspect) / 2) + "dp");
 			property(component, "width", std::to_string(width) + "dp");
 			property(component, "height", std::to_string(width / node.aspect) + "dp");
 		}
@@ -396,9 +434,9 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	const bool authored = layout && layout->contains("layout") && mission_outcome_.empty();
 	document_->SetClass("authored", authored);
 	apply_console_theme(layout);
-	prepare_console_tabs(region);
 	if (!authored)
 	{
+		prepare_console_tabs(region);
 		if (!mission_outcome_.empty())
 		{
 			restore_authored_components();
@@ -493,9 +531,9 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	}
 	if (markup != authored_tabs_markup_)
 	{
-		document_->GetElementById("layout-tabs")->SetInnerRML(markup);
 		authored_tabs_markup_ = markup;
 	}
+	prepare_console_tabs(region);
 	stage("authored-tabs");
 	context_->Update();
 	stage("authored-update-aspects");

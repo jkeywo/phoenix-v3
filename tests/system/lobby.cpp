@@ -16,6 +16,7 @@ import phoenix.network.client;
 import phoenix.session.local;
 import phoenix.fleet_setup;
 import phoenix.console;
+import phoenix.navigation;
 using namespace phoenix;
 using phoenix::test::require;
 int main(int argc, char **argv)
@@ -126,6 +127,27 @@ int main(int argc, char **argv)
 			auto worker = make_frame_session(make_game_lobby(options, true));
 			worker->add_pack(write_pack(pack));
 			worker->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			const auto prepared_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+			while (!worker->preparation_phase().empty() && std::chrono::steady_clock::now() < prepared_deadline)
+			{
+				worker->poll();
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			Application layout;
+			layout.can_host = true;
+			layout.session = worker;
+			layout.screen = Screen::server_lobby;
+			layout.host_display = 0;
+			layout.native_displays = {{0, "Host", "host"}, {1, "Different monitor", "other"}};
+			layout.remembered_station_displays = {{"test.ship", {{"main", "monitor-a"}}}};
+			restore_station_displays(layout);
+			require(layout.display_consoles.empty(),
+			        "A missing saved monitor never assigns the station to another display");
+			layout.native_displays.push_back({4, "Re-enumerated monitor", "monitor-a"});
+			layout.restored_display_session.reset();
+			restore_station_displays(layout);
+			require(layout.display_consoles.at(4) == "main",
+			        "Saved monitor identity restores despite a changed monitor index");
 			LobbyCommand reserve{LobbyAction::assign_local_console, "", "test.slot", "", "main"};
 			reserve.screen = 2;
 			require(worker->lobby_command(reserve), "Reserve a synthetic local display through the worker");

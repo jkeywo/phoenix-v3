@@ -23,9 +23,17 @@ namespace phoenix
 {
 namespace
 {
-const Json global_defaults = {
-    {"tools_scale", 100}, {"volume", 50},    {"sfx_volume", 50},        {"siren_volume", 50}, {"master_volume", 50},
-    {"language", "en"},   {"pseudo", false}, {"reduced_motion", false}, {"dust_motes", true}, {"reference_grid", true}};
+const Json global_defaults = {{"tools_scale", 100},
+                              {"volume", 50},
+                              {"sfx_volume", 50},
+                              {"siren_volume", 50},
+                              {"master_volume", 50},
+                              {"language", "en"},
+                              {"pseudo", false},
+                              {"reduced_motion", false},
+                              {"dust_motes", true},
+                              {"reference_grid", true},
+                              {"station_displays", Json::object()}};
 Json global_preferences(const Json &data)
 {
 	auto result = global_defaults;
@@ -35,6 +43,37 @@ Json global_preferences(const Json &data)
 	return result;
 }
 } // namespace
+std::string native_monitor_identity(int x, int y, const std::string &fallback)
+{
+#ifdef _WIN32
+	for (DWORD i = 0;; ++i)
+	{
+		DISPLAY_DEVICEW adapter{};
+		adapter.cb = sizeof(adapter);
+		if (!EnumDisplayDevicesW(nullptr, i, &adapter, 0))
+			break;
+		DEVMODEW mode{};
+		mode.dmSize = sizeof(mode);
+		if (!EnumDisplaySettingsW(adapter.DeviceName, ENUM_CURRENT_SETTINGS, &mode) || mode.dmPosition.x != x ||
+		    mode.dmPosition.y != y)
+			continue;
+		DISPLAY_DEVICEW monitor{};
+		monitor.cb = sizeof(monitor);
+		if (EnumDisplayDevicesW(adapter.DeviceName, 0, &monitor, EDD_GET_DEVICE_INTERFACE_NAME))
+		{
+			const std::wstring value = monitor.DeviceID;
+			const int size = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0,
+			                                     nullptr, nullptr);
+			std::string identity(size, '\0');
+			WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), identity.data(), size,
+			                    nullptr, nullptr);
+			if (!identity.empty())
+				return identity;
+		}
+	}
+#endif
+	return fallback;
+}
 std::string native_data_directory()
 {
 #ifdef _WIN32
@@ -111,6 +150,18 @@ void MenuLibrary::load()
 		throw std::runtime_error("Invalid siren volume");
 	prefs.master_volume = data.value("master_volume", 50);
 	prefs.tools_scale = data.value("tools_scale", 100);
+	const auto displays = data.value("station_displays", Json::object());
+	if (!displays.is_object() || displays.size() > 128)
+		throw std::runtime_error("Invalid saved station displays");
+	prefs.station_displays = displays.get<decltype(prefs.station_displays)>();
+	for (const auto &[ship, seats] : prefs.station_displays)
+	{
+		if (ship.empty() || ship.size() > 256 || seats.size() > 32)
+			throw std::runtime_error("Invalid saved station display map");
+		for (const auto &[seat, identity] : seats)
+			if (seat.empty() || seat.size() > 256 || identity.empty() || identity.size() > 2048)
+				throw std::runtime_error("Invalid saved station display identity");
+	}
 	if (prefs.tools_scale < 75 || prefs.tools_scale > 200 || prefs.tools_scale % 25 != 0)
 		throw std::runtime_error("Invalid tools scale");
 	prefs.language = data.at("language");
@@ -166,6 +217,7 @@ void MenuLibrary::remember()
 		throw std::runtime_error(
 		    "Native library index could not be loaded; preserve and repair library.json before saving changes");
 	Json data{{"schema", 1},
+	          {"station_displays", preferences.station_displays},
 	          {"tools_scale", preferences.tools_scale},
 	          {"volume", preferences.volume},
 	          {"sfx_volume", preferences.sfx_volume},

@@ -30,6 +30,8 @@ void select_language(const std::string &language, bool pseudo = false);
 std::string localise(const std::string &key);
 std::vector<std::string> installed_languages();
 void remember_preferences(Application &app);
+void remember_station_display(Application &app, const std::string &console, int monitor);
+void restore_station_displays(Application &app);
 void load_display_preferences(Application &app);
 std::vector<SemanticControl> navigation_controls(const Application &app, bool include_consoles = true);
 std::vector<std::pair<std::string, std::string>> settings_tabs(const Application &app);

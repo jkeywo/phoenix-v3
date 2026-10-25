@@ -10,6 +10,7 @@ export namespace phoenix
 {
 // A launcher's working directory is neither stable nor necessarily writable.
 std::string native_data_directory();
+std::string native_monitor_identity(int x, int y, const std::string &fallback);
 struct MenuPreferences
 {
 	int volume = 50;
@@ -21,6 +22,7 @@ struct MenuPreferences
 	int sfx_volume = 50, master_volume = 50;
 	int siren_volume = 50;
 	int tools_scale = 100;
+	std::map<std::string, std::map<std::string, std::string>> station_displays;
 };
 struct LibraryPack
 {

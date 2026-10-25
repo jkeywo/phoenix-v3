@@ -287,6 +287,8 @@ class ConsoleSurface final : public Rml::EventListener
 	std::uint64_t manual_sent_tick_ = ~std::uint64_t{0};
 	bool syncing_values_ = false;
 	bool settings_open_ = false;
+	bool station_loading_ = false;
+	std::string station_loading_markup_;
 	std::string local_settings_tab_ = "display", local_settings_markup_;
 	int text_scale_ = 100;
 	std::string local_language_ = "en";
@@ -338,19 +340,20 @@ class ConsoleSurface final : public Rml::EventListener
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 		    "dp;\"><h1>" + localise(operations ? "Ship operations" : "Console settings") + "</h1><div>";
-		for (const auto &[tab, label] :
-		     std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
-		                                                      {"docking", "Docking"},
-		                                                      {"away", "Away missions"},
-		                                                      {"craft", "Flight operations"},
-		                                                      {"personnel", "Personnel"},
-		                                                      {"display", "Display"},
-		                                                      {"language", "Language"},
-		                                                      {"audio", "Audio"},
-		                                                      {"session", "Session"}})
-			if (operations ==
-			    (tab == "logistics" || tab == "docking" || tab == "away" || tab == "craft" || tab == "personnel"))
-				markup += settings_button("local-settings.tab/" + tab, label);
+		if (!operations)
+			for (const auto &[tab, label] :
+			     std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
+			                                                      {"docking", "Docking"},
+			                                                      {"away", "Away missions"},
+			                                                      {"craft", "Flight operations"},
+			                                                      {"personnel", "Personnel"},
+			                                                      {"display", "Display"},
+			                                                      {"language", "Language"},
+			                                                      {"audio", "Audio"},
+			                                                      {"session", "Session"}})
+				if (operations ==
+				    (tab == "logistics" || tab == "docking" || tab == "away" || tab == "craft" || tab == "personnel"))
+					markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
 		if (local_settings_tab_ == "logistics")
 			markup += logistics_markup();
@@ -820,6 +823,11 @@ button.on-screen-active .share-live {display:block;}
 
 .authored #authored-body #navigation-layer {pointer-events:auto;}
 .local-settings-open #authored-body,.local-settings-open #layout-tabs,.local-settings-open #console-tabs,.local-settings-open #navigation-layer {visibility:hidden;}
+.authored #layout-tabs {display:none;}
+.station-page-open #console-tabs {visibility:visible;z-index:25;}
+.station-page-open .local-settings-card {top:120dp;max-height:75%;}
+#station-loading {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#08131b;z-index:40;}
+#station-loading div {position:absolute;left:10%;top:35%;width:80%;padding:20dp;background:#102027;}
 </style></head><body><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
@@ -875,8 +883,11 @@ button.on-screen-active .share-live {display:block;}
 		if (!app_ || !name.starts_with(prefix))
 			return false;
 		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
+		if (station_loading_)
+			return false;
 		const auto action = name.substr(prefix.size());
-		if (action.starts_with("layout-page/") || action.starts_with("game.console/"))
+		if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
+		    action.starts_with("station-page/"))
 			return authored_action(action);
 		if (app_ && app_->session && away_action(action))
 			return true;
@@ -1499,6 +1510,10 @@ button.on-screen-active .share-live {display:block;}
 			prepare_dirty_ = true;
 		if (settings_open_)
 			return false;
+		if (kind == DeviceEventKind::Down)
+			for (auto *hit = context_->GetElementAtPoint({x, y}); hit; hit = hit->GetParentNode())
+				if (hit->GetTagName() == "button")
+					return false;
 		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
@@ -1688,6 +1703,46 @@ button.on-screen-active .share-live {display:block;}
 			render_dirty_ = true;
 			context_->Update();
 		}
+	}
+	bool probe_tab(const std::string &action)
+	{
+		auto *control = document_->GetElementById(id(action));
+		if (!control || !control->IsVisible(true))
+			return false;
+		control->ScrollIntoView();
+		context_->Update();
+		const auto at = control->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const float x = at.x + control->GetOffsetWidth() / 2, y = at.y + control->GetOffsetHeight() / 2;
+		if (pointer(9999, x, y, DeviceEventKind::Down))
+		{
+			pointer(9999, x, y, DeviceEventKind::Cancel);
+			return false;
+		}
+		context_->ProcessMouseMove(static_cast<int>(x), static_cast<int>(y), 0);
+		context_->ProcessMouseButtonDown(0, 0);
+		context_->ProcessMouseButtonUp(0, 0);
+		model_.refresh(app_->session, route_);
+		if (action.starts_with("game.console/"))
+			return model_.observation() && model_.observation()->console == action.substr(13);
+		if (action.starts_with("station-page/"))
+			return settings_open_ && local_settings_tab_ == action.substr(13);
+		return true;
+	}
+	bool probe_fit() const
+	{
+		const auto dimensions = context_->GetDimensions();
+		for (const auto &placement : authored_resolved_.placements)
+			if (placement.visible && model_.layout())
+				for (const auto &widget : model_.layout()->at("widgets"))
+					if (widget.at("id") == placement.component && widget.at("kind") == "radar")
+					{
+						auto *element = document_->GetElementById("widget/" + placement.component);
+						const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+						if (at.x < -1 || at.y < -1 || at.x + element->GetOffsetWidth() > dimensions.x + 1 ||
+						    at.y + element->GetOffsetHeight() > dimensions.y + 1)
+							return false;
+					}
+		return true;
 	}
 	bool probe_readout_scroll()
 	{
@@ -2116,6 +2171,51 @@ button.on-screen-active .share-live {display:block;}
 		               {region.x, region.y, region.width, region.height}, {0, 0}, 0, WHITE);
 		EndBlendMode();
 	}
+	void prepare_loading(const GameScreen::Loading *loading, const ConsoleRegion &region)
+	{
+		auto *panel = document_->GetElementById("station-loading");
+		if (!panel)
+		{
+			auto node = document_->CreateElement("div");
+			node->SetId("station-loading");
+			panel = document_->AppendChild(std::move(node));
+		}
+		station_loading_ = loading != nullptr;
+		const auto text =
+		    loading ? localise(loading->phase) +
+		                  (loading->total ? " " + std::to_string(loading->completed * 100 / loading->total) + "%" : "")
+		            : std::string{};
+		if (text != station_loading_markup_)
+		{
+			station_loading_markup_ = text;
+			panel->SetInnerRML("<div><h1>" + Rml::StringUtilities::EncodeRml(localise("Loading Console")) +
+			                   "</h1><p id=\"" + id("loading") + "\">" + Rml::StringUtilities::EncodeRml(text) +
+			                   "</p></div>");
+			render_dirty_ = render_urgent_ = true;
+		}
+		property(panel, "display", station_loading_ ? "block" : "none");
+		if (station_loading_)
+		{
+			std::erase_if(app_->screen_controls,
+			              [&](const auto &row)
+			              {
+				              return row.first.starts_with(id(""));
+			              });
+			std::erase_if(app_->screen_readouts,
+			              [&](const auto &row)
+			              {
+				              return row.first.starts_with(id(""));
+			              });
+			app_->screen_readouts.emplace_back(id("loading"), localise("Loading Console") + ": " + text);
+			std::erase_if(app_->screen_inputs,
+			              [&](const auto &field)
+			              {
+				              return field.id.starts_with(id(""));
+			              });
+			context_->Update();
+			place(*app_, region, id("loading"));
+		}
+	}
 	void prepare_current(Application &app, const ConsoleRegion &physical_region, const std::set<std::string> &pads)
 	{
 		// Embedded Command uses the scale of its parent Viewscreen.
@@ -2199,6 +2299,12 @@ button.on-screen-active .share-live {display:block;}
 		             "dp");
 		if (settings_open_)
 		{
+			const bool operations = local_settings_tab_ == "logistics" || local_settings_tab_ == "docking" ||
+			                        local_settings_tab_ == "away" || local_settings_tab_ == "craft" ||
+			                        local_settings_tab_ == "personnel";
+			document_->SetClass("station-page-open", operations);
+			if (operations)
+				prepare_console_tabs(region);
 			prepare_local_settings(app, region);
 			return;
 		}
@@ -2324,11 +2430,7 @@ button.on-screen-active .share-live {display:block;}
 					for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
 						teams |= !t.at("orders").empty();
 				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" +
-				           (teams ? button("game.teams", "Teams") : std::string{}) +
-				           button("operations", "Ship operations") + button("personnel", "Personnel") +
-				           "<span class=\"" + std::string(away_attention() ? "away-attention" : "") + "\">" +
-				           button("away", away_attention() ? "Away missions: assignment needed" : "Away missions") +
-				           "</span>" + "</div>";
+				           (teams ? button("game.teams", "Teams") : std::string{}) + "</div>";
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 			}
@@ -2524,9 +2626,17 @@ button.on-screen-active .share-live {display:block;}
 			              return control.first.starts_with("game.console/");
 		              });
 		std::map<std::string, ConsoleSystemStatus> status_controls;
+		const auto owned_systems =
+		    model_.observation() ? station_owned_systems(*model_.observation()) : std::set<std::string>{};
 		if (!pregame)
 			for (const auto &status : model_.system_statuses())
-				status_controls.emplace("game.status/" + status.system, status);
+				if (owned_systems.contains(status.system))
+					status_controls.emplace("game.status/" + status.system, status);
+		std::erase_if(gameplay_controls,
+		              [&](const auto &control)
+		              {
+			              return control.first.starts_with("game.status/") && !status_controls.contains(control.first);
+		              });
 
 		enum class ControlDestination
 		{
@@ -2611,6 +2721,17 @@ button.on-screen-active .share-live {display:block;}
 			              return specialised_controls.contains(control.first);
 		              });
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		if (model_.observation())
+			for (const auto &system : model_.observation()->systems)
+				if (!owned_systems.contains(system.id))
+				{
+					const auto key = "game.readout/system-" + descriptor_action(system.id).substr(13);
+					std::erase_if(readout_values_,
+					              [&](const auto &readout)
+					              {
+						              return readout.first == key;
+					              });
+				}
 		if (route_ == 31)
 			std::erase_if(readout_values_,
 			              [](const auto &row)

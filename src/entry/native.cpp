@@ -447,6 +447,7 @@ try
 		app.siren_volume = prefs.siren_volume;
 		app.master_volume = prefs.master_volume;
 		app.tools_scale = prefs.tools_scale;
+		app.remembered_station_displays = prefs.station_displays;
 		app.language = prefs.language;
 		app.pseudo_locale = prefs.pseudo;
 		app.reduced_motion = prefs.reduced_motion;
@@ -545,7 +546,11 @@ try
 		                }))
 			continue;
 		app.native_displays.push_back(
-		    {monitor, "Screen " + std::to_string(monitor + 1) + " (" + GetMonitorName(monitor) + ")"});
+		    {monitor, "Screen " + std::to_string(monitor + 1) + " (" + GetMonitorName(monitor) + ")",
+		     phoenix::native_monitor_identity(
+		         static_cast<int>(position.x), static_cast<int>(position.y),
+		         std::string(GetMonitorName(monitor)) + "/" + std::to_string(GetMonitorWidth(monitor)) + "x" +
+		             std::to_string(GetMonitorHeight(monitor)) + "/" + std::to_string(monitor))});
 	}
 	bool lobby_span = false;
 	const auto apply_frame_pacing = [&]()

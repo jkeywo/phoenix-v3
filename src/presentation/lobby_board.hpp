@@ -278,6 +278,7 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 							    app.inspector_display = -1;
 						    if (app.apply_displays)
 							    app.apply_displays();
+						    remember_station_display(app, seat.id, monitor);
 					    },
 					    seat.local_screen == static_cast<unsigned>(display.id + 2),
 					    "S" + std::to_string(display.id + 1));
@@ -304,6 +305,7 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 					                if (app.session->lobby_command(command))
 					                {
 						                app.display_consoles.erase(static_cast<int>(seat.local_screen) - 2);
+						                remember_station_display(app, seat.id, -1);
 						                app.local_player_names.erase(seat.local_screen);
 						                if (app.apply_displays)
 							                app.apply_displays();
@@ -348,6 +350,8 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 					    command.screen = monitor + 2;
 					    if (!app.session->lobby_command(command))
 						    throw std::runtime_error("Cannot release this screen");
+					    if (app.display_consoles.contains(monitor))
+						    remember_station_display(app, app.display_consoles.at(monitor), -1);
 					    app.display_consoles.erase(monitor);
 					    app.local_player_names.erase(command.screen);
 					    app.inspector_display = monitor;

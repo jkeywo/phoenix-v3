@@ -189,6 +189,7 @@ int main()
 		    "Disabled child ordering retains a valid installed tree");
 		rooted_library.preferences.player_name = "First base";
 		rooted_library.preferences.volume = 37;
+		rooted_library.preferences.station_displays = {{"test.ship", {{"helm", "monitor-stable-a"}}}};
 		rooted_library.remember();
 		auto second = rooted;
 		second.manifest["id"] = "other-root";
@@ -201,6 +202,8 @@ int main()
 		const auto second_bytes = write_pack(second);
 		MenuLibrary other(scoped_directory, "default/other-root");
 		other.load();
+		require(other.preferences.station_displays.at("test.ship").at("helm") == "monitor-stable-a",
+		        "Stable station display preferences persist through library reload and base selection");
 		other.launch_base(second_bytes);
 		require(other.preferences.player_name == "<username>" && other.preferences.volume == 37 &&
 		            other.packs.size() == 1,
