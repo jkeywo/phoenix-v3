@@ -1651,6 +1651,18 @@ int main()
 		    "unsafe path");
 		require(sha256(Bytes{'a', 'b', 'c'}) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
 		        "content hash must match the SHA256 format contract");
+		// Independent SHA-256 vectors across the bounded hashing input boundary.
+		require(sha256(Bytes(0, 'a')) == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		        "SHA256 preserves the standard identity for 0 bytes");
+		require(sha256(Bytes(4095, 'a')) == "e2e8bab8dad4a3879ffed30a624fee2310f39141d454c57f89e908e527dfd8cd",
+		        "SHA256 preserves the standard identity for 4095 bytes");
+		require(sha256(Bytes(4096, 'a')) == "c93eee2d0db02f10acc7460d9576e122dcf8cd53c4bf8dfcae1b3e74ebcfff5a",
+		        "SHA256 preserves the standard identity for 4096 bytes");
+		require(sha256(Bytes(4097, 'a')) == "4e369b5618643c3abddd027b650bfa54810be3b418028a7c9d82299a59d008e8",
+		        "SHA256 preserves the standard identity for 4097 bytes");
+		require(sha256(Bytes(1000000, 'a')) == "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0",
+		        "SHA256 preserves the standard identity for 1000000 bytes");
+
 		WorkshopDocument workshop;
 		workshop.import_image("pixel.png", read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png"));
 		auto definition = workshop.create_entity();

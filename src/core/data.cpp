@@ -1,5 +1,6 @@
 module;
 #include <picosha2.h>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -18,7 +19,17 @@ namespace phoenix
 {
 std::string sha256(std::span<const std::uint8_t> bytes)
 {
-	return picosha2::hash256_hex_string(bytes.begin(), bytes.end());
+	// PicoSHA2 buffers each process() argument before compressing it. Feed bounded
+	// chunks so archive identities do not allocate another archive-sized buffer.
+	picosha2::hash256_one_by_one hasher;
+	while (!bytes.empty())
+	{
+		const auto chunk = bytes.first(std::min<std::size_t>(bytes.size(), 4096));
+		hasher.process(chunk.begin(), chunk.end());
+		bytes = bytes.subspan(chunk.size());
+	}
+	hasher.finish();
+	return picosha2::get_hash_hex_string(hasher);
 }
 Bytes read_file(const std::string &path, std::size_t max_bytes)
 {
