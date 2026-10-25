@@ -799,6 +799,7 @@ Json refresh_and_distinct_sources()
 	source["maps"][0]["entities"][2]["x_mm"] = 30000;
 	source["maps"][0]["entities"][2]["y_mm"] = 20000;
 	source["maps"][0]["entities"][2]["heading_mdeg"] = 326310;
+	source["maps"][0]["entities"][2]["faction"] = "blue";
 	const auto content = load(source);
 	World world;
 	world.load(content, "test.map");
