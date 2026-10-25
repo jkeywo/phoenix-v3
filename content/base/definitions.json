@@ -64344,14 +64344,6 @@
 						"label": "Personnel",
 						"min_width": 320,
 						"min_height": 240
-					},
-					{
-						"id": "away",
-						"kind": "component",
-						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
 					}
 				]
 			},
@@ -64397,14 +64389,6 @@
 						"kind": "component",
 						"component": "personnel",
 						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "away",
-						"kind": "component",
-						"component": "away",
-						"label": "Away missions",
 						"min_width": 320,
 						"min_height": 240
 					}
@@ -65712,14 +65696,6 @@
 						"label": "Personnel",
 						"min_width": 320,
 						"min_height": 240
-					},
-					{
-						"id": "away",
-						"kind": "component",
-						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
 					}
 				]
 			},
@@ -65766,14 +65742,6 @@
 						"kind": "component",
 						"component": "personnel",
 						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "away",
-						"kind": "component",
-						"component": "away",
-						"label": "Away missions",
 						"min_width": 320,
 						"min_height": 240
 					}
@@ -66476,14 +66444,6 @@
 						"label": "Personnel",
 						"min_width": 320,
 						"min_height": 240
-					},
-					{
-						"id": "away",
-						"kind": "component",
-						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
 					}
 				]
 			},
@@ -66530,14 +66490,6 @@
 						"kind": "component",
 						"component": "personnel",
 						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "away",
-						"kind": "component",
-						"component": "away",
-						"label": "Away missions",
 						"min_width": 320,
 						"min_height": 240
 					}

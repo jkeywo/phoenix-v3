@@ -61,6 +61,9 @@ std::string personnel_markup(Application &app)
 					html += paragraph(description, "officer/" + o.at("id").get<std::string>() + "/trait/" +
 					                                   t.at("id").get<std::string>());
 				}
+				for (const auto &[action, label] :
+				     model_.asset_away_controls("officer:" + o.at("id").get<std::string>()))
+					html += settings_button(action, label);
 				html += "</div>";
 			}
 		for (const auto &d : board.at("duties"))

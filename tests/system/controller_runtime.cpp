@@ -53,6 +53,7 @@ std::int64_t requested(const World &world, const std::string &id)
 #include "../support/objective_priority_cases.hpp"
 #include "../support/stock_selection_cases.hpp"
 #include "../support/power_panel_cases.hpp"
+#include "../support/away_assignment_cases.hpp"
 
 int main(int argc, char **argv)
 {
@@ -61,6 +62,7 @@ int main(int argc, char **argv)
 		objective_priority_cases();
 		stock_selection_cases();
 		power_panel_cases();
+		away_assignment_cases();
 		{
 			auto source = controller_session_fixture();
 			auto &controls = source["entities"][0]["control_layout"];

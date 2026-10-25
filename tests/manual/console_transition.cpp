@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 			if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
 			                [](const auto &row)
 			                {
-				                return row.first == "console/3/console-page/helm/station.personnel";
+				                return row.first == "console/3/console-page/helm/station.main";
 			                }))
 				break;
 		}
@@ -201,6 +201,12 @@ int main(int argc, char **argv)
 			                     return input.id.starts_with("console/4/power/");
 		                     }),
 		        "one-star automatic machinery has no unusable power or coolant sliders");
+		require(!has("console/3/console-page/helm/station.personnel") &&
+		            !has("console/4/console-page/support/station.personnel"),
+		        "one-star stations omit automated Personnel");
+		require(!has("console/4/console-page/support/station.away") &&
+		            !app.screen_action("console/4/station-page/away"),
+		        "Support has no mission lifecycle page");
 		require(!has("console/3/console-page/helm/station.operations") &&
 		            !has("console/4/console-page/support/station.operations"),
 		        "Helm and automatic Support omit Operations");
@@ -338,9 +344,16 @@ int main(int argc, char **argv)
 		require(has("console/3/systems-close"), "System statuses have one close action");
 		TakeScreenshot("build/console-transition-systems.png");
 		action("console/3/systems-close");
+		ConsoleModel personnel_helm;
+		personnel_helm.refresh(app.session, 3);
+		require(personnel_helm.command("preset", 2), "enable manual personnel workload on Helm");
+		for (int i = 0; i < 35; ++i)
+			frame();
 		action("console/3/console-page/helm/station.personnel");
 		require(!has("console/3/local-settings.tab/display"), "Personnel excludes preference tabs");
-		require(has("console/4/console-page/support/station.personnel"), "Other Console remains usable");
+		require(!has("console/4/console-page/support/station.personnel") &&
+		            has("console/4/console-page/support/station.power"),
+		        "Other station retains its automatic workload while Helm manages Personnel");
 		TakeScreenshot("build/console-transition-personnel.png");
 		action("console/3/console-page/helm/station.main");
 		action("console/3/settings");

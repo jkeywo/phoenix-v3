@@ -186,6 +186,11 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 							if (std::find(consumers.begin(), consumers.end(), system) != consumers.end())
 								markup += add(detail_prefix + name, label);
 						}
+		if (&source == &model_ && source.observation())
+			for (const auto &state : source.observation()->systems)
+				if (state.id == system && state.kind == OperatingSystem::Team)
+					for (const auto &[action, label] : model_.asset_away_controls("team:" + system))
+						markup += add(action, label);
 	}
 	else if (systems_open_ && support_popup_.starts_with("team/") && model_.observation())
 	{
@@ -224,6 +229,8 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 				}
 				else
 					markup += readout("team/damage", localise("System damage details require a team in the section"));
+				for (const auto &[action, label] : model_.asset_away_controls("team:" + selected))
+					markup += add(action, label);
 				if (!team.value("reserved", false))
 					for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
 					{
@@ -268,6 +275,11 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 				markup += readout("team/" + team.at("id").get<std::string>(),
 				                  localise(engineering_name(team.at("id"))) + " — " +
 				                      localise(team.value("work", "Idle")) + " | " + localise(team.at("condition")));
+		for (const auto &team : teams)
+			if (!team.value("repair", false))
+				for (const auto &[action, label] :
+				     model_.asset_away_controls("team:" + team.at("id").get<std::string>()))
+					markup += add(action, localise(engineering_name(team.at("id"))) + ": " + label);
 		for (const auto &[key, text] : model_.gameplay_readouts())
 			if (key.starts_with("medical."))
 				markup += readout(key, text);

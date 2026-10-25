@@ -32,6 +32,8 @@ Comms has no separate radio enable/disable control. FTL retains the same simple 
 
 Below three stars, officer assignments for duties and authorised away contributions are automatic and department-scoped. Teams and officers are distinct: contributing a team still requires the owning Station's authorisation. Three stars allows manual officer reassignment without permitting another Station to take its personnel.
 
+Personnel is shown only when the station can manually assign officers (currently three stars). One- and two-star automatic assignments do not get a Personnel tab. Away Missions belongs to Helm's Dispatch. Support has no mission lifecycle tab: once Helm opens a mission, eligible team details offer sending that team on it, and manual officer rosters offer the mission against eligible officers. These choices use the existing Station-owned contribution commands. At lower stars, team contributions retain automatic officer selection. Closing/cancelling a mission removes its assignment choices.
+
 ### Support presentation
 
 Support uses three peer views: Power, Repair and Comms. Power is one scrolling panel: reactor output, deduplicated battery and coolant reserves at the top, followed by power-group rows at lower complexity and individual reserve/System rows at three stars. Each row shows its name, permitted power slider, coolant slider when the profile grants control, and battery reading. Shared allocations are identified rather than duplicated. AI-operated machinery is labelled Automatic; unavailable coolant sliders are omitted. Remaining shield, FTL and Support controls stay on this panel, with Navigation available as a details view.

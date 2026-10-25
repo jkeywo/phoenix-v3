@@ -85,6 +85,8 @@ public:
 	Json objectives() const;
 	Json personnel() const;
 	Json away_missions() const;
+	std::vector<std::pair<std::string, std::string>> asset_away_controls(const std::string &asset) const;
+	bool asset_away_action(const std::string &action);
 	Json logistics() const;
 	bool selection_action(const std::string &, const std::string &, const std::string &);
 	bool logistics_action(const std::string &, const std::string &, const std::string & = {});

@@ -906,6 +906,12 @@ button.on-screen-active .share-live {display:block;}
 		if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
 		    action.starts_with("station-page/") || action.starts_with("console-page/"))
 			return authored_action(action);
+		if (action.starts_with("asset-away/"))
+		{
+			if (settings_open_ || (!station_component_active("personnel") && !systems_open_))
+				return false;
+			return model_.asset_away_action(action);
+		}
 		if (app_ && app_->session && away_action(action))
 			return true;
 		if (app_ && app_->session && supply_action(action))

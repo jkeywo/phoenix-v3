@@ -478,10 +478,12 @@ UiAvailability console_ui_availability(const Observation &view)
 		    (!logistics.value("stores", Json::array()).empty() || !logistics.value("routes", Json::array()).empty()))
 			result.features.insert("operations");
 	}
-	if (!view.gameplay.value("personnel", Json::object()).value("officers", Json::array()).empty())
+	if (view.gameplay.value("personnel", Json::object()).value("manual", false) &&
+	    !view.gameplay.value("personnel", Json::object()).value("officers", Json::array()).empty())
 		result.features.insert("personnel");
-	if (!view.gameplay.value("away_missions", Json::array()).empty())
-		result.features.insert("away");
+	for (const auto &mission : view.gameplay.value("away_missions", Json::array()))
+		if (mission.value("dispatch", false))
+			result.features.insert("away");
 	for (const auto &team : view.gameplay.value("teams", Json::array()))
 		if (team.value("repair", false) &&
 		    !view.gameplay.value("combat", Json::object()).value("compartments", Json::array()).empty())
@@ -1466,6 +1468,52 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 						return true;
 				}
 	return false;
+}
+std::vector<std::pair<std::string, std::string>> ConsoleModel::asset_away_controls(const std::string &asset) const
+{
+	std::vector<std::pair<std::string, std::string>> controls;
+	if (!asset.starts_with("officer:") && !asset.starts_with("team:"))
+		return controls;
+	for (const auto &mission : away_missions())
+	{
+		if ((mission.at("phase") != "open" && mission.at("phase") != "recovered") || mission.value("result", "") != "")
+			continue;
+		const auto key = mission.at("id").get<std::string>();
+		for (const auto &slot : mission.at("slots"))
+		{
+			const auto slot_id = slot.at("id").get<std::string>();
+			const auto suffix = key + "/" + slot_id + "/" + asset;
+			const auto label = localise(mission.at("title")) + " (" + localise(slot_id) + ")";
+			if (slot.at("assigned") == asset && slot.value("owned", false))
+				controls.emplace_back("asset-away/withdraw/" + suffix, localise("Withdraw from") + " " + label);
+			if (slot.at("assigned") == "")
+				for (const auto &choice : slot.at("choices"))
+					if (choice == asset)
+						controls.emplace_back("asset-away/assign/" + suffix, localise("Send on") + " " + label);
+		}
+	}
+	return controls;
+}
+bool ConsoleModel::asset_away_action(const std::string &action)
+{
+	if (!action.starts_with("asset-away/"))
+		return false;
+	const auto verb_end = action.find('/', 11), mission_end = action.find('/', verb_end + 1),
+	           slot_end = action.find('/', mission_end + 1);
+	if (verb_end == std::string::npos || mission_end == std::string::npos || slot_end == std::string::npos)
+		return false;
+	const auto asset = action.substr(slot_end + 1);
+	const auto controls = asset_away_controls(asset);
+	if (std::none_of(controls.begin(), controls.end(),
+	                 [&](const auto &option)
+	                 {
+		                 return option.first == action;
+	                 }))
+		return false;
+	const auto verb = action.substr(11, verb_end - 11),
+	           mission = action.substr(verb_end + 1, mission_end - verb_end - 1),
+	           slot = action.substr(mission_end + 1, slot_end - mission_end - 1);
+	return away_action(verb, mission, verb == "assign" ? slot + "/" + asset : slot);
 }
 bool ConsoleModel::away_action(const std::string &action, const std::string &mission, const std::string &text)
 {
