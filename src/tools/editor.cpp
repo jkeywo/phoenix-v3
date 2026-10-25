@@ -1790,6 +1790,51 @@ bool probe_workshop_layout(unsigned stage)
 			return false;
 	}
 
+	if (stage == 14)
+	{
+		auto &console = editor.document.definitions()["consoles"][0];
+		console["widgets"] = Json::array();
+		console["layout"] = {
+		    {"schema", 1},
+		    {"root",
+		     {{"id", "station"},
+		      {"kind", "tabs"},
+		      {"children",
+		       Json::array({{{"id", "power"}, {"kind", "component"}, {"component", "power"}, {"label", "Power"}},
+		                    {{"id", "repair"}, {"kind", "component"}, {"component", "repair"}, {"label", "Repair"}},
+		                    {{"id", "operations"},
+		                     {"kind", "component"},
+		                     {"component", "operations"},
+		                     {"label", "Operations"}}})}}}};
+		layout_workspace.width = 1280;
+		layout_workspace.height = 720;
+		layout_workspace.pages.clear();
+		layout_workspace.sample_state = 1;
+		layout_workspace.sample_stars = 1;
+		const auto exported = editor.document.export_pack();
+		editor.document.load_pack(exported);
+		editor.console = 0;
+		editor.selection = "Console";
+	}
+	if (stage == 15)
+	{
+		const auto &geometry = console_preview_geometry();
+		if (geometry.pages.size() != 2 || geometry.placements.size() != 2 || !geometry.placements[0].visible ||
+		    geometry.placements[0].bounds.width < 500)
+			return false;
+		layout_workspace.pages["station"] = "station.repair";
+	}
+	if (stage == 16)
+	{
+		const auto &geometry = console_preview_geometry();
+		if (geometry.placements[0].visible || !geometry.placements[1].visible ||
+		    geometry.placements[1].bounds.height < 200)
+			return false;
+		layout_workspace.sample_state = 0;
+	}
+	if (stage == 17 && !console_preview_geometry().placements.empty())
+		return false;
+
 	return true;
 }
 bool probe_workshop_controllers(unsigned stage)

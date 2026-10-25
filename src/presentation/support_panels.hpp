@@ -2,7 +2,8 @@
 std::string support_root_, support_comms_, support_navigation_, support_page_ = "support";
 bool support_detail_ = false;
 std::map<std::string, std::unique_ptr<ConsoleModel>> support_models_;
-std::string support_popup_;
+std::string support_popup_, support_layout_signature_;
+bool support_layout_requested_ = false;
 bool support_active() const
 {
 	return !support_root_.empty();
@@ -20,20 +21,34 @@ void refresh_support_panels(Application &app)
 		return;
 	}
 	const auto snapshot = app.session->console_snapshot(route_);
-	bool generator = false, repair = false, panel_layout = false;
-	if (snapshot)
-		for (const auto &system : snapshot->systems)
-		{
-			generator |= system.kind == OperatingSystem::Generator;
-			repair |= system.kind == OperatingSystem::Team;
-		}
+	bool panel_layout = false;
 	if (snapshot)
 		for (const auto &spec : resolve_consoles(app.session->catalog(), snapshot->own.definition))
 			if (spec.id == snapshot->console)
-				panel_layout = app.session->catalog().consoles.at(spec.definition).at("widgets").empty();
+			{
+				const auto &definition = app.session->catalog().consoles.at(spec.definition);
+				const auto signature = std::to_string(app.session->generation()) + definition.dump();
+				if (signature != support_layout_signature_)
+				{
+					support_layout_signature_ = signature;
+					support_layout_requested_ = false;
+					if (definition.contains("layout"))
+					{
+						const auto program = compile_ui_layout(app.session->catalog(), definition);
+						std::function<void(const UiNode &)> visit = [&](const UiNode &node)
+						{
+							support_layout_requested_ |= node.component == "power" || node.component == "repair";
+							for (const auto &child : node.children)
+								visit(child);
+						};
+						visit(program.root);
+					}
+				}
+				panel_layout = support_layout_requested_;
+			}
 	std::string root, comms, navigation;
 	std::set<std::string> auxiliaries;
-	if (snapshot && generator && repair && panel_layout)
+	if (snapshot && panel_layout)
 		for (const auto &spec : resolve_consoles(app.session->catalog(), snapshot->own.definition))
 		{
 			if (spec.id == snapshot->console)
@@ -55,7 +70,7 @@ void refresh_support_panels(Application &app)
 			if (!found->gameplay.value("ftl", Json::array()).empty())
 				auxiliaries.insert(spec.id);
 		}
-	if (snapshot && generator && repair && panel_layout)
+	if (snapshot && panel_layout)
 		root = snapshot->console;
 	if (root != support_root_)
 	{
@@ -89,8 +104,10 @@ void refresh_support_panels(Application &app)
 }
 bool support_action(const std::string &action)
 {
-	if (!support_active())
+	if (!support_active() && !station_component_active("power") && !station_component_active("repair"))
 		return false;
+	if (action == "support-page/repair")
+		return authored_action("station-page/repair");
 	if (action.starts_with("support-page/") || action == "support-close-details")
 	{
 		const auto page = action == "support-close-details" ? std::string("support") : action.substr(13);
@@ -114,7 +131,7 @@ bool support_action(const std::string &action)
 		support_detail_ = model_.act("game.console/" + support_navigation_);
 		return support_detail_;
 	}
-	if (action == "support-details/medical" && support_primary())
+	if (action == "support-details/medical" && station_component_active("power"))
 	{
 		model_.act("game.teams-close");
 		bool found = false;
@@ -139,7 +156,7 @@ bool support_action(const std::string &action)
 	if (action.starts_with("support-details/"))
 	{
 		const auto detail = action.substr(16);
-		if (!support_primary() || !detail.starts_with("team/"))
+		if (!station_component_active("repair") || !detail.starts_with("team/"))
 			return false;
 		const auto teams = model_.observation()->gameplay.value("teams", Json::array());
 		if (std::none_of(teams.begin(), teams.end(),
@@ -175,22 +192,6 @@ bool support_repair_control(const std::string &name, const Json &descriptor) con
 		    std::find(consumers.begin(), consumers.end(), system.id) != consumers.end())
 			return true;
 	return false;
-}
-void support_controls(std::vector<std::pair<std::string, std::string>> &controls)
-{
-	if (!support_primary())
-		return;
-	controls.clear();
-}
-void support_cards(std::vector<EngineeringCard> &cards)
-{
-	if (support_primary())
-		cards.clear();
-}
-void support_readouts(std::vector<std::pair<std::string, std::string>> &readouts)
-{
-	if (support_primary())
-		readouts.clear();
 }
 void finish_support_panels(const ConsoleRegion &region)
 {

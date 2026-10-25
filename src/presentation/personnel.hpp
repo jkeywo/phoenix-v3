@@ -116,15 +116,8 @@ std::string personnel_markup(Application &app)
 bool personnel_action(const std::string &action)
 {
 	if (action == "personnel")
-	{
-		settings_open_ = true;
-		local_settings_tab_ = "personnel";
-		cancel_pointer();
-		model_.release_controls();
-		document_->SetClass("local-settings-open", true);
-		return true;
-	}
-	if (!settings_open_ || local_settings_tab_ != "personnel" || !action.starts_with("personnel/"))
+		return authored_action("station-page/personnel");
+	if (!station_component_active("personnel") || !action.starts_with("personnel/"))
 		return false;
 	if (action.starts_with("personnel/select/"))
 	{

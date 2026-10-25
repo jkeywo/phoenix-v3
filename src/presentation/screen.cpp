@@ -349,6 +349,15 @@ public:
 		value.erase("_preview_interact");
 		const auto sample_state = value.value("_preview_state", std::string("normal"));
 		value.erase("_preview_state");
+		const int stars = value.value("_preview_stars", 3);
+		value.erase("_preview_stars");
+		view_.gameplay["profile"] = "preview";
+		view_.gameplay["profile_stars"] = {{"preview", stars}};
+		view_.gameplay["controllers"] = Json::array();
+		view_.gameplay["power"] = Json::object();
+		view_.gameplay["teams"] = Json::array();
+		view_.gameplay["combat"] = Json::object();
+
 		if (sample_state != preview_state_)
 		{
 			preview_state_ = sample_state;
@@ -369,6 +378,38 @@ public:
 			generator.telemetry = {
 			    {"heat", sample_state == "faults" ? 90 : 30}, {"heat_capacity", 100}, {"actual_output", 70}};
 			view_.systems.push_back(generator);
+			view_.gameplay["controllers"] = Json::array({{{"id", "reactor"},
+			                                              {"generation", 1},
+			                                              {"human", stars >= 2},
+			                                              {"commands",
+			                                               {{"output",
+			                                                 {{"action", "generator_output"},
+			                                                  {"consumers", {"reactor"}},
+			                                                  {"minimum", 0},
+			                                                  {"maximum", 100},
+			                                                  {"value", 70}}}}}}});
+			view_.gameplay["power"] = {
+			    {"reactors", Json::array({{{"id", "reactor"}, {"output", 70}, {"maximum", 100}}})},
+			    {"reserves", Json::array({{{"id", "battery"}, {"energy", 600}, {"capacity", 1000}}})},
+			    {"coolant", Json::array({{{"id", "coolant"}, {"remaining", 800}, {"capacity", 1000}}})}};
+			view_.gameplay["teams"] = Json::array({{{"id", "repair-team"},
+			                                        {"travel", 0},
+			                                        {"reserved", false},
+			                                        {"manual", false},
+			                                        {"orders", Json::array()},
+			                                        {"order", ""},
+			                                        {"patients", Json::array()},
+			                                        {"repair", true},
+			                                        {"location", 0},
+			                                        {"destination", 0},
+			                                        {"work", "Ready"}}});
+			view_.gameplay["combat"] = {{"compartments", Json::array({{{"id", "engineering"},
+			                                                           {"deck", "Engineering"},
+			                                                           {"disabled", false},
+			                                                           {"index", 1},
+			                                                           {"hp", sample_state == "faults" ? 60 : 100},
+			                                                           {"maximum", 100},
+			                                                           {"damaged", sample_state == "faults"}}})}};
 		}
 		bool conversations = sample_state == "conversations";
 		for (const auto &widget : value.at("widgets"))
@@ -410,6 +451,14 @@ public:
 			++generation_;
 		}
 		view_.gameplay["controls"] = Json::array();
+		if ((sample_state == "engineering" || sample_state == "faults") && stars >= 2)
+			view_.gameplay["controls"].push_back({{"id", "reactor.output"},
+			                                      {"action", "generator_output"},
+			                                      {"controller", "reactor"},
+			                                      {"channel", "output"},
+			                                      {"value", 70},
+			                                      {"label", "Reactor output"}});
+
 		for (const auto &widget : catalog_.consoles.at("preview.console").at("widgets"))
 		{
 			const auto kind = widget.at("kind").get<std::string>();

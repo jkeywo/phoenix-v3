@@ -209,7 +209,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 			for (const char *field :
 			     {"name", "description", "human_seeking", "stances", "default_stance", "command", "hide_without_ai",
 			      "viewscreen", "compact", "hud_layout", "hud_layout_overrides", "layout", "layout_overrides", "theme",
-			      "theme_overrides", "gameplay_panel", "when"})
+			      "theme_overrides", "gameplay_panel", "when", "tab"})
 				if (catalog.consoles.at(seat.definition).contains(field))
 					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))

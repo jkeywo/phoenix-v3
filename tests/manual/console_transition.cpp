@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 			if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
 			                [](const auto &row)
 			                {
-				                return row.first == "console/3/station-page/personnel";
+				                return row.first == "console/3/console-page/helm/station.personnel";
 			                }))
 				break;
 		}
@@ -127,13 +127,14 @@ int main(int argc, char **argv)
 			                                 [&](const auto &row)
 			                                 {
 				                                 return row.first.starts_with(prefix + "game.") ||
-				                                        row.first.starts_with(prefix + "inline/");
+				                                        row.first.starts_with(prefix + "inline/") ||
+				                                        row.first.starts_with(prefix + "support-");
 			                                 });
 			std::cout << "Route " << route << " gameplay controls: " << count << std::endl;
 			require(std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
 			                     [&](const auto &row)
 			                     {
-				                     return row.first == prefix + "station-page/craft";
+				                     return row.second == "Flight operations" && row.first.starts_with(prefix);
 			                     }),
 			        "Courier stations without craft omit Flight operations");
 			require(app.screen_action && !app.screen_action(prefix + "station-page/craft") &&
@@ -146,7 +147,10 @@ int main(int argc, char **argv)
 		     std::vector<std::pair<unsigned, std::vector<std::string>>>{{3, {"helm"}}, {4, {"comms", "support"}}})
 			for (const auto &tab : tabs)
 			{
-				require(probe_console_tab(route, "game.console/" + tab),
+				require(probe_console_tab(route, "console-page/" + tab +
+				                                     (tab == "comms"     ? "/"
+				                                      : tab == "support" ? "/station.power"
+				                                                         : "/station.main")),
 				        ("Pointer switches Console tab " + tab).c_str());
 				frame();
 				frame();
@@ -177,7 +181,7 @@ int main(int argc, char **argv)
 			frame();
 			frame();
 		};
-		require(has("console/4/support-page/repair"), "Support has a Repair tab");
+		require(has("console/4/console-page/support/station.repair"), "Support has a Repair tab");
 		require(!has("console/4/game.console/navigator") && !has("console/4/game.console/navigation"),
 		        "Remaining Console functions are integrated into Support");
 
@@ -197,8 +201,14 @@ int main(int argc, char **argv)
 			                     return input.id.starts_with("console/4/power/");
 		                     }),
 		        "one-star automatic machinery has no unusable power or coolant sliders");
+		require(!has("console/3/console-page/helm/station.operations") &&
+		            !has("console/4/console-page/support/station.operations"),
+		        "Helm and automatic Support omit Operations");
+		require(app.screen_action && !app.screen_action("console/3/station-page/logistics") &&
+		            !app.screen_action("console/4/station-page/logistics"),
+		        "Hidden Operations rejects stale navigation");
 		TakeScreenshot("build/support-power-one-star.png");
-		require(probe_console_tab(4, "support-page/repair"), "Pointer opens Repair board");
+		require(probe_console_tab(4, "console-page/support/station.repair"), "Pointer opens Repair board");
 		frame();
 		frame();
 		require(has_readout("console/4/support/repair/summary") && has_readout("console/4/support/repair/team/team-1"),
@@ -223,7 +233,7 @@ int main(int argc, char **argv)
 		}
 		require(prioritised, "Repair priority reaches authoritative state");
 		require(app.set_control_value("console/4/support-repair-priority", "0"), "Restore automatic repair priorities");
-		require(probe_console_tab(4, "game.console/support"), "Return to Power board");
+		require(probe_console_tab(4, "console-page/support/station.power"), "Return to Power board");
 		frame();
 		frame();
 		ConsoleModel power;
@@ -286,7 +296,7 @@ int main(int argc, char **argv)
 		}
 		TakeScreenshot("build/console-transition-throttle-stop.png");
 		require(!has("console/3/game.console/tactical"), "No redundant Tactical tab");
-		require(!has("console/4/station-page/docking"), "Support has no Docking tab");
+		require(!has("console/4/console-page/support/station.docking"), "Support has no Docking tab");
 		require(!has("console/3/game.combat-target/2"), "No target button list");
 		auto weapon_state = [&]
 		{
@@ -328,21 +338,27 @@ int main(int argc, char **argv)
 		require(has("console/3/systems-close"), "System statuses have one close action");
 		TakeScreenshot("build/console-transition-systems.png");
 		action("console/3/systems-close");
-		action("console/3/station-page/personnel");
+		action("console/3/console-page/helm/station.personnel");
 		require(!has("console/3/local-settings.tab/display"), "Personnel excludes preference tabs");
-		require(has("console/4/station-page/personnel"), "Other Console remains usable");
+		require(has("console/4/console-page/support/station.personnel"), "Other Console remains usable");
 		TakeScreenshot("build/console-transition-personnel.png");
-		action("console/3/local-settings.close");
+		action("console/3/console-page/helm/station.main");
 		action("console/3/settings");
 		require(has("console/3/local-settings.larger"), "Settings opens Display after Personnel");
 		require(!has("console/3/local-settings.tab/away"), "Settings excludes gameplay tabs");
 		action("console/3/local-settings.larger");
 		TakeScreenshot("build/console-transition-settings.png");
 		action("console/3/local-settings.close");
-		action("console/3/station-page/away");
-		require(has("console/3/station-page/away"), "Away missions is an integrated station tab");
-		TakeScreenshot("build/console-transition-away.png");
-		action("console/3/local-settings.close");
+		if (!app.session->console_observation(3)->gameplay.value("away_missions", nlohmann::json::array()).empty())
+		{
+			action("console/3/console-page/helm/station.away");
+			TakeScreenshot("build/console-transition-away.png");
+			action("console/3/console-page/helm/station.main");
+		}
+		else
+			require(!has("console/3/console-page/helm/station.away") &&
+			            !app.screen_action("console/3/station-page/away"),
+			        "Station without missions omits Away and rejects stale navigation");
 		std::cout << "PASS mixed-resolution Courier layout, pointer tabs, no unintended motion and independent pages"
 		          << std::endl;
 		Application cruiser;
@@ -367,7 +383,7 @@ int main(int argc, char **argv)
 			if (std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
 			                [](const auto &row)
 			                {
-				                return row.first == "console/1/support-page/repair";
+				                return row.first == "console/1/console-page/engineering/station.repair";
 			                }))
 				break;
 		}
@@ -377,7 +393,7 @@ int main(int argc, char **argv)
 		require(std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
 		                    [](const auto &row)
 		                    {
-			                    return row.first == "console/1/support-page/repair";
+			                    return row.first == "console/1/console-page/engineering/station.repair";
 		                    }),
 		        "Cruiser Engineering uses the same single Power and Repair boards");
 		const auto low_power = cruiser.session->observation()->gameplay.at("power");
@@ -397,7 +413,7 @@ int main(int argc, char **argv)
 		                     }),
 		        "lower-complexity Cruiser hides coolant sliders");
 		TakeScreenshot("build/cruiser-power-one-star.png");
-		require(probe_console_tab(1, "support-page/repair"), "Open Cruiser Repair board");
+		require(probe_console_tab(1, "console-page/engineering/station.repair"), "Open Cruiser Repair board");
 		cruiser_frame();
 		cruiser_frame();
 		require(probe_console_tab(1, "support-details/team/repair-1"), "Open a Cruiser repair team's details");
@@ -412,7 +428,7 @@ int main(int argc, char **argv)
 		require(cruiser.screen_action("console/1/systems-close"), "Close Cruiser team details");
 		cruiser_frame();
 		cruiser_frame();
-		require(probe_console_tab(1, "game.console/engineering"), "Return to Cruiser Power");
+		require(probe_console_tab(1, "console-page/engineering/station.power"), "Return to Cruiser Power");
 		cruiser_frame();
 		cruiser_frame();
 		ConsoleModel engineering;

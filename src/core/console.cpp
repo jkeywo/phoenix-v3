@@ -461,6 +461,39 @@ UiAvailability console_ui_availability(const Observation &view)
 			result.features.insert("craft");
 	if (!view.gameplay.value("docking", Json::object()).value("ports", Json::array()).empty())
 		result.features.insert("docking");
+	const auto logistics = view.gameplay.value("logistics", Json::object());
+	auto human = [&](const std::string &id)
+	{
+		for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+			if (controller.at("id") == id)
+				return controller.value("human", false);
+		return false;
+	};
+	if (logistics.value("manual", false))
+	{
+		bool available = human(logistics.value("controller", "")) || human(logistics.value("route_controller", ""));
+		for (const auto &store : logistics.value("stores", Json::array()))
+			available |= human(store.value("controller", ""));
+		if (available &&
+		    (!logistics.value("stores", Json::array()).empty() || !logistics.value("routes", Json::array()).empty()))
+			result.features.insert("operations");
+	}
+	if (!view.gameplay.value("personnel", Json::object()).value("officers", Json::array()).empty())
+		result.features.insert("personnel");
+	if (!view.gameplay.value("away_missions", Json::array()).empty())
+		result.features.insert("away");
+	for (const auto &team : view.gameplay.value("teams", Json::array()))
+		if (team.value("repair", false) &&
+		    !view.gameplay.value("combat", Json::object()).value("compartments", Json::array()).empty())
+			result.features.insert("repair");
+	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+		for (const auto &[channel, command] : controller.at("commands").items())
+			for (const auto &consumer : command.at("consumers"))
+				for (const auto &system : view.systems)
+					if (system.id == consumer.get<std::string>() &&
+					    (system.kind == OperatingSystem::Generator || system.kind == OperatingSystem::Distribution ||
+					     system.kind == OperatingSystem::Coolant || system.kind == OperatingSystem::Storage))
+						result.features.insert("power");
 	return result;
 }
 void ConsoleModel::reset()

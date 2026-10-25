@@ -70,15 +70,8 @@ bool craft_action(const std::string &action)
 	if (!model_.ui_availability().features.contains("craft"))
 		return false;
 	if (action == "craft")
-	{
-		settings_open_ = true;
-		local_settings_tab_ = "craft";
-		cancel_pointer();
-		model_.release_controls();
-		document_->SetClass("local-settings-open", true);
-		return true;
-	}
-	if (!settings_open_ || local_settings_tab_ != "craft" || !action.starts_with("craft/"))
+		return authored_action("station-page/craft");
+	if (!station_component_active("craft") || !action.starts_with("craft/"))
 		return false;
 	const auto a = action.find('/', 6), b = action.find('/', a + 1);
 	if (a == std::string::npos || b == std::string::npos)

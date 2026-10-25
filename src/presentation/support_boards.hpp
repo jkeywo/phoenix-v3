@@ -1,5 +1,6 @@
 // One persistent board per engineering watch. Telemetry updates never recreate a live slider.
-std::string support_board_signature_, power_identity_;
+std::map<std::string, std::string> engineering_signatures_;
+std::string power_identity_;
 std::weak_ptr<SessionPort> power_owner_;
 std::uint64_t power_generation_ = 0;
 std::map<std::string, PowerSetting> power_controls_;
@@ -12,14 +13,14 @@ std::map<std::string, PowerPending> power_pending_;
 std::map<std::string, std::string> support_choices_;
 bool support_value(const std::string &name, const std::string &text)
 {
-	if (!support_primary() || settings_open_)
+	if (settings_open_)
 		return false;
-	if (name == id("support-repair-priority"))
+	if (name == id("support-repair-priority") && authored_component_visible("repair"))
 	{
 		const auto choice = support_choices_.find(text);
 		return choice != support_choices_.end() && model_.act(choice->second);
 	}
-	if (!name.starts_with(id("power/")))
+	if (!authored_component_visible("power") || !name.starts_with(id("power/")))
 		return false;
 	const auto found = power_controls_.find(name.substr(id("").size()));
 	if (found == power_controls_.end())
@@ -36,33 +37,11 @@ bool support_value(const std::string &name, const std::string &text)
 	power_pending_[setting.id] = {value, app_->session->ticks() + 40};
 	return true;
 }
-void prepare_support_board(const ConsoleRegion &region, bool pregame)
+void prepare_engineering_component(const std::string &component, const ConsoleRegion &region, bool pregame)
 {
-	auto *board = document_->GetElementById("support-board");
-	if (!board)
-	{
-		auto created = document_->CreateElement("div");
-		created->SetId("support-board");
-		board = document_->AppendChild(std::move(created));
-	}
-	const bool visible = support_primary() && !settings_open_ && !pregame;
-	property(board, "display", visible ? "block" : "none");
-	if (!visible)
-	{
-		property(document_->GetElementById("authored-body"), "display",
-		         !pregame && model_.layout() && model_.layout()->contains("layout") ? "block" : "none");
+	auto *board = authored_component(component);
+	if (settings_open_ || pregame || !model_.observation() || !authored_component_visible(component))
 		return;
-	}
-	property(document_->GetElementById("authored-body"), "display", "none");
-	property(document_->GetElementById("gameplay"), "display", "none");
-	property(board, "top", std::to_string(120 * text_scale_ / 100.f) + "dp");
-	property(board, "left", "2%");
-	property(board, "right", "2%");
-	property(board, "bottom", "2%");
-	property(board, "position", "absolute");
-	property(board, "overflow", "auto");
-	property(board, "padding", "12dp");
-	property(board, "background-color", "#102027");
 	const auto &view = *model_.observation();
 	if (power_owner_.lock() != app_->session || power_generation_ != app_->session->generation() ||
 	    power_identity_ != controller_identity())
@@ -72,8 +51,10 @@ void prepare_support_board(const ConsoleRegion &region, bool pregame)
 		power_generation_ = app_->session->generation();
 		power_identity_ = controller_identity();
 	}
-	power_controls_.clear();
-	support_choices_.clear();
+	if (component == "power")
+		power_controls_.clear();
+	else
+		support_choices_.clear();
 	std::vector<std::pair<std::string, std::string>> readouts, buttons;
 	std::vector<std::pair<std::string, std::string>> selects;
 	auto esc = [](const std::string &text)
@@ -101,8 +82,8 @@ void prepare_support_board(const ConsoleRegion &region, bool pregame)
 		       esc(id(setting->id)) + "\" type=\"range\" min=\"0\" max=\"100\" step=\"0.1\" value=\"0\"/>" +
 		       readout("setting/" + setting->id, std::to_string(setting->value));
 	};
-	std::string markup = "<h2>" + esc(localise(support_page_ == "repair" ? "Repair" : "Power")) + "</h2>";
-	if (support_page_ == "repair")
+	std::string markup = "<h2>" + esc(localise(component == "repair" ? "Repair" : "Power")) + "</h2>";
+	if (component == "repair")
 	{
 		const auto combat = view.gameplay.value("combat", Json::object());
 		const auto parts = combat.value("compartments", Json::array());
@@ -276,14 +257,14 @@ void prepare_support_board(const ConsoleRegion &region, bool pregame)
 		if (!support_navigation_.empty())
 			markup += button("support-navigation", localise("Navigation details"));
 	}
-	if (markup != support_board_signature_)
+	if (markup != engineering_signatures_[component])
 	{
 		syncing_values_ = true;
 		board->SetInnerRML(markup);
 		syncing_values_ = false;
 		elements_.clear();
 		properties_.clear();
-		support_board_signature_ = markup;
+		engineering_signatures_[component] = markup;
 	}
 	for (const auto &[name, text] : readouts)
 	{
@@ -296,7 +277,7 @@ void prepare_support_board(const ConsoleRegion &region, bool pregame)
 	for (const auto &[name, value] : selects)
 		app_->screen_inputs.push_back({name, localise("Repair priority"), value, false});
 	syncing_values_ = true;
-	for (const auto &[key, setting] : power_controls_)
+	for (const auto &[key, setting] : component == "power" ? power_controls_ : std::map<std::string, PowerSetting>{})
 	{
 		auto value = setting.value;
 		if (auto pending = power_pending_.find(key); pending != power_pending_.end())
@@ -325,6 +306,6 @@ void prepare_support_board(const ConsoleRegion &region, bool pregame)
 		place(*app_, region, name);
 	for (const auto &[name, value] : selects)
 		place(*app_, region, name);
-	for (const auto &[key, setting] : power_controls_)
+	for (const auto &[key, setting] : component == "power" ? power_controls_ : std::map<std::string, PowerSetting>{})
 		place(*app_, region, id(key));
 }

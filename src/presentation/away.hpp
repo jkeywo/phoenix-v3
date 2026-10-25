@@ -132,15 +132,8 @@ std::string away_markup()
 bool away_action(const std::string &action)
 {
 	if (action == "away")
-	{
-		settings_open_ = true;
-		local_settings_tab_ = "away";
-		cancel_pointer();
-		model_.release_controls();
-		document_->SetClass("local-settings-open", true);
-		return true;
-	}
-	if (!settings_open_ || local_settings_tab_ != "away" || !action.starts_with("away/"))
+		return authored_action("station-page/away");
+	if (!station_component_active("away") || !action.starts_with("away/"))
 		return false;
 	const auto a = action.find('/', 5), b = action.find('/', a + 1);
 	if (a == std::string::npos || b == std::string::npos)

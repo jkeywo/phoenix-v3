@@ -69,7 +69,14 @@ std::map<std::string, std::string> authored_page_groups_;
 
 Rml::Element *authored_component(const std::string &target)
 {
-	static const std::map<std::string, std::string> panels = {{"gameplay", "gameplay"},
+	static const std::map<std::string, std::string> panels = {{"power", "power-panel"},
+	                                                          {"repair", "repair-panel"},
+	                                                          {"operations", "operations-panel"},
+	                                                          {"docking", "docking-panel"},
+	                                                          {"craft", "craft-panel"},
+	                                                          {"personnel", "personnel-panel"},
+	                                                          {"away", "away-panel"},
+	                                                          {"gameplay", "gameplay"},
 	                                                          {"controls", "gameplay-controls"},
 	                                                          {"readouts", "gameplay-readouts"},
 	                                                          {"messages", "gameplay-messages"},
@@ -170,19 +177,27 @@ void apply_console_theme(const Json *layout)
 }
 bool authored_action(const std::string &action)
 {
-	if (action.starts_with("station-page/"))
+	if (action.starts_with("station-page/") || action.starts_with("console-page/"))
 	{
-		const auto page = action.substr(13);
-		if ((page == "craft" && !model_.ui_availability().features.contains("craft")) ||
-		    (page == "docking" && model_.docking().value("ports", Json::array()).empty()))
-			return false;
-		if (page != "logistics" && page != "docking" && page != "away" && page != "craft" && page != "personnel")
-			return false;
-		cancel_pointer();
-		settings_open_ = true;
-		local_settings_tab_ = page;
-		document_->SetClass("local-settings-open", true);
-		return true;
+		const auto requested = action.starts_with("station-page/") ? action.substr(13) : std::string{};
+		for (const auto &page : station_pages_)
+			if (action == page.action ||
+			    (!requested.empty() && page.component == (requested == "logistics" ? "operations" : requested)))
+			{
+				if (!model_.act("game.console/" + page.console))
+					return false;
+				model_.refresh(app_->session, route_);
+				sync_console_browsing();
+				if (!page.group.empty())
+					authored_pages_[page.group] = page.page;
+				settings_open_ = false;
+				support_detail_ = false;
+				page_focus_pending_ = true;
+				document_->SetClass("local-settings-open", false);
+				document_->SetClass("station-page-open", false);
+				return true;
+			}
+		return false;
 	}
 	if (settings_open_)
 	{
@@ -227,66 +242,90 @@ bool authored_action(const std::string &action)
 	}
 	return false;
 }
+struct StationPage
+{
+	std::string console, group, page, label, component, action;
+};
+std::vector<StationPage> station_pages_;
+std::weak_ptr<SessionPort> station_program_owner_;
+std::map<std::string, std::pair<std::string, UiLayout>> station_programs_;
 void prepare_console_tabs(const ConsoleRegion &region)
 {
-	std::string markup;
-	if (!model_.available_tabs().empty())
-		for (const auto &tab : model_.available_tabs())
-		{
-			if (tab.id == inline_console_ || (support_active() && tab.id != support_root_ && tab.id != support_comms_))
-				continue;
-			const auto action = id("game.console/" + tab.id);
-			const auto label = localise(support_active() && tab.id == support_root_ ? "Power" : tab.label) +
-			                   (tab.attention ? " — " + localise("Unread") : "");
-			markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
-			          (!settings_open_ && tab.id == model_.observation()->console &&
-			                   !(support_primary() && support_page_ == "repair")
-			               ? "selected"
-			               : "") +
-			          "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
-			app_->screen_controls.emplace_back(action, label);
-			app_->screen_toggles[action] = !settings_open_ && tab.id == model_.observation()->console &&
-			                               !(support_primary() && support_page_ == "repair");
-			if (support_active() && tab.id == support_root_)
-			{
-				const auto action = id("support-page/repair");
-				const bool selected = !settings_open_ && support_primary() && support_page_ == "repair";
-				markup += "<button id=\"" + action + "\" class=\"" + (selected ? "selected" : "") + "\">" +
-				          Rml::StringUtilities::EncodeRml(localise("Repair")) + "</button>";
-				app_->screen_controls.emplace_back(action, localise("Repair"));
-				app_->screen_toggles[action] = selected;
-			}
-		}
-	if (!support_active() && !settings_open_)
-		markup += authored_tabs_markup_;
-	for (const auto &[page, label] : std::vector<std::pair<std::string, std::string>>{{"logistics", "Operations"},
-	                                                                                  {"docking", "Docking"},
-	                                                                                  {"craft", "Flight operations"},
-	                                                                                  {"personnel", "Personnel"},
-	                                                                                  {"away", "Away missions"}})
+	station_pages_.clear();
+	if (station_program_owner_.lock() != app_->session)
 	{
-		if ((page == "craft" && !model_.ui_availability().features.contains("craft")) ||
-		    (page == "docking" && model_.docking().value("ports", Json::array()).empty()))
-			continue;
-		const auto action = id("station-page/" + page);
-		markup += "<button id=\"" + action + "\" class=\"" +
-		          (settings_open_ && local_settings_tab_ == page ? "selected" : "") + "\">" +
-		          Rml::StringUtilities::EncodeRml(localise(label)) + "</button>";
-		app_->screen_controls.emplace_back(action, localise(label));
-		app_->screen_toggles[action] = settings_open_ && local_settings_tab_ == page;
+		station_programs_.clear();
+		station_program_owner_ = app_->session;
 	}
+	std::string markup;
+	const auto snapshot = app_->session->console_snapshot(route_);
+	if (!snapshot)
+		return;
+	const auto &catalog = app_->session->catalog();
+	const auto specs = resolve_consoles(catalog, snapshot->own.definition);
+	for (const auto &tab : model_.available_tabs())
+	{
+		const Observation *view = snapshot.get();
+		for (const auto &extra : snapshot->additional_consoles)
+			if (extra.console == tab.id)
+				view = &extra;
+		const Json *definition = nullptr;
+		for (const auto &spec : specs)
+			if (spec.id == tab.id)
+				definition = &catalog.consoles.at(spec.definition);
+		if (!definition || (!definition->value("tab", true) && tab.id != snapshot->console))
+			continue;
+		auto add = [&](const std::string &group, const std::string &page, const std::string &label,
+		               const std::string &component)
+		{
+			station_pages_.push_back({tab.id, group, page,
+			                          localise(label) + (tab.attention ? " — " + localise("Unread") : ""), component,
+			                          "console-page/" + tab.id + "/" + page});
+		};
+		if (definition->contains("layout"))
+		{
+			const auto key = definition->at("id").get<std::string>();
+			// Group and layout assets may change without changing the Console definition in Workshop.
+			const auto signature = std::to_string(app_->session->generation()) + definition->dump();
+			if (!station_programs_.contains(key) || station_programs_.at(key).first != signature)
+				station_programs_[key] = {signature, compile_ui_layout(catalog, *definition)};
+			auto program = available_ui_layout(station_programs_.at(key).second, console_ui_availability(*view));
+			const auto resolved =
+			    resolve_console_ui(program, region.width, region.height, text_scale_ / 100.f, authored_pages_, true);
+			const auto &root = resolved.root;
+			if (root.component.empty() && root.children.empty())
+				continue;
+			if (root.kind == "tabs")
+				for (const auto &page : root.children)
+					add(root.id, page.id, page.label, page.component);
+			else
+				add("", "", tab.label, root.component);
+		}
+		else
+			add("", "", tab.label, "");
+	}
+	for (const auto &page : station_pages_)
+	{
+		const auto label = localise(page.label);
+		const bool selected = !settings_open_ && model_.observation()->console == page.console &&
+		                      (page.group.empty() ||
+		                       (authored_pages_.contains(page.group) && authored_pages_.at(page.group) == page.page));
+		const auto action = id(page.action);
+		markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
+		          (selected ? "selected" : "") + "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
+		app_->screen_controls.emplace_back(action, label);
+		app_->screen_toggles[action] = selected;
+	}
+	if (!settings_open_)
+		markup += authored_tabs_markup_;
 	if (markup != console_tabs_markup_)
 	{
 		elements_.clear();
 		document_->GetElementById("console-tabs")->SetInnerRML(markup);
 		console_tabs_markup_ = markup;
 	}
-	if (support_active())
-		place(*app_, region, id("support-page/repair"));
-	for (const auto &tab : model_.available_tabs())
-		place(*app_, region, id("game.console/" + tab.id));
-	for (const auto *page : {"logistics", "docking", "craft", "personnel", "away"})
-		place(*app_, region, id(std::string("station-page/") + page));
+	for (const auto &page : station_pages_)
+		place(*app_, region, id(page.action));
 }
 std::string layout_node_id(const UiNode &node) const
 {
@@ -473,6 +512,7 @@ void measure_authored_geometry()
 }
 void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 {
+	ensure_station_components();
 	const bool authored = layout && layout->contains("layout") && mission_outcome_.empty();
 	document_->SetClass("authored", authored);
 	apply_console_theme(layout);
@@ -502,62 +542,6 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		};
 		collect(compiled.root);
 		authored_program_ = available_ui_layout(std::move(compiled), model_.ui_availability());
-
-		// Installed packs can retain the older shared Operations group on a Comms-only layout.
-		// Give conversation-only Consoles their dedicated surface without changing command authority.
-		if (!layout->at("widgets").empty() && std::all_of(layout->at("widgets").begin(), layout->at("widgets").end(),
-		                                                  [](const auto &widget)
-		                                                  {
-			                                                  return widget.at("kind") == "conversations";
-		                                                  }))
-		{
-			std::set<std::string> conversation_targets{"conversations"};
-			for (const auto &widget : layout->at("widgets"))
-				conversation_targets.insert(widget.at("id"));
-			std::function<bool(UiNode &)> keep_conversations = [&](UiNode &node)
-			{
-				for (auto child = node.children.begin(); child != node.children.end();)
-					if (keep_conversations(*child))
-						++child;
-					else
-						child = node.children.erase(child);
-				return !node.component.empty() ? conversation_targets.contains(node.component) ||
-				                                     node.component.starts_with("conversation-")
-				                               : !node.children.empty();
-			};
-			keep_conversations(authored_program_->root);
-			if (authored_program_->compact)
-				keep_conversations(*authored_program_->compact);
-		}
-
-		if (!inline_console_.empty())
-		{
-			std::function<void(UiNode &)> integrate = [&](UiNode &node)
-			{
-				if (node.kind == "tabs")
-					node.kind = "column";
-				if (node.component == "gameplay")
-				{
-					node.component.clear();
-					node.kind = "column";
-					UiNode target, weapons;
-					target.id = node.id + "/target";
-					target.kind = "component";
-					target.component = "readouts";
-					target.minimum_height = 170;
-					weapons.id = node.id + "/weapons";
-					weapons.kind = "component";
-					weapons.component = "controls";
-					weapons.minimum_height = 280;
-					node.children = {target, weapons};
-				}
-				for (auto &child : node.children)
-					integrate(child);
-			};
-			integrate(authored_program_->root);
-			if (authored_program_->compact)
-				integrate(*authored_program_->compact);
-		}
 
 		authored_identity_ = signature;
 	}
@@ -595,7 +579,8 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		if (auto *component = authored_component(placement.component))
 			targets.insert(component);
 	for (const char *panel :
-	     {"widgets", "gameplay", "comms-layer", "sensor-panel", "navigation-layer", "manual-flight"})
+	     {"widgets", "gameplay", "comms-layer", "sensor-panel", "navigation-layer", "manual-flight", "power-panel",
+	      "repair-panel", "operations-panel", "docking-panel", "craft-panel", "personnel-panel", "away-panel"})
 		if (auto *element = document_->GetElementById(panel); element && !targets.contains(element))
 			property(element, "display", "none");
 	authored_page_groups_ = resolved.page_groups;
@@ -628,6 +613,8 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	std::string markup;
 	for (const auto &tab : resolved.pages)
 	{
+		if (resolved.page_groups.at(tab.id) == resolved.root.id)
+			continue;
 		bool unread = false;
 		for (const auto &p : resolved.placements)
 			if ((p.id == tab.id || p.id.starts_with(tab.id + ".")) &&
@@ -662,7 +649,10 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 			if (contains)
 				for (const auto &tab : resolved.pages)
 					if (placement.id == tab.id || placement.id.starts_with(tab.id + "."))
-						if (auto *button = document_->GetElementById(id("layout-page/" + tab.id)))
+						if (auto *button = document_->GetElementById(
+						        id(resolved.page_groups.at(tab.id) == resolved.root.id
+						               ? "console-page/" + model_.observation()->console + "/" + tab.id
+						               : "layout-page/" + tab.id)))
 							button->Focus();
 		}
 	if (page_focus_pending_)

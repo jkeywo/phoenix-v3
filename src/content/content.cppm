@@ -312,6 +312,11 @@ struct UiRect
 	float x = 0, y = 0, width = 0, height = 0;
 };
 // Structural permissions, independent of transient readiness, damage or resource values.
+struct UiComponentSpec
+{
+	std::string id, label, feature;
+};
+std::vector<UiComponentSpec> console_ui_components();
 struct UiAvailability
 {
 	std::string profile;

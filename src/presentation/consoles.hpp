@@ -334,42 +334,19 @@ class ConsoleSurface final : public Rml::EventListener
 #include "throttle.hpp"
 #include "support_panels.hpp"
 #include "support_boards.hpp"
+#include "station_components.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
-		const bool operations = local_settings_tab_ == "logistics" || local_settings_tab_ == "docking" ||
-		                        local_settings_tab_ == "away" || local_settings_tab_ == "craft" ||
-		                        local_settings_tab_ == "personnel";
 		const auto content_width = std::max(180.f, region.width * .84f - 52.f);
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
-		    "dp;\"><h1>" + localise(operations ? "Ship operations" : "Console settings") + "</h1><div>";
-		if (!operations)
-			for (const auto &[tab, label] :
-			     std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
-			                                                      {"docking", "Docking"},
-			                                                      {"away", "Away missions"},
-			                                                      {"craft", "Flight operations"},
-			                                                      {"personnel", "Personnel"},
-			                                                      {"display", "Display"},
-			                                                      {"language", "Language"},
-			                                                      {"audio", "Audio"},
-			                                                      {"session", "Session"}})
-				if (operations ==
-				    (tab == "logistics" || tab == "docking" || tab == "away" || tab == "craft" || tab == "personnel"))
-					markup += settings_button("local-settings.tab/" + tab, label);
+		    "dp;\"><h1>" + localise("Console settings") + "</h1><div>";
+		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{
+		         {"display", "Display"}, {"language", "Language"}, {"audio", "Audio"}, {"session", "Session"}})
+			markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
-		if (local_settings_tab_ == "logistics")
-			markup += logistics_markup();
-		else if (local_settings_tab_ == "docking")
-			markup += docking_markup();
-		else if (local_settings_tab_ == "away")
-			markup += away_markup();
-		else if (local_settings_tab_ == "craft")
-			markup += craft_markup();
-		else if (local_settings_tab_ == "personnel")
-			markup += personnel_markup(app);
-		else if (local_settings_tab_ == "display")
+		if (local_settings_tab_ == "display")
 		{
 			markup += "<p>" + localise("Text size") + ": " + std::to_string(text_scale_) + "%</p>";
 			markup += settings_button("local-settings.smaller", "Smaller text");
@@ -442,30 +419,6 @@ class ConsoleSurface final : public Rml::EventListener
 		                 }))
 			if (auto *first = document_->GetElementById(local_settings_controls_.front().first))
 				first->Focus();
-		if (local_settings_tab_ == "personnel")
-			for (const auto &[key, text] : personnel_readouts_)
-			{
-				app.screen_readouts.emplace_back(key, text);
-				place(app, region, key);
-			}
-		if (local_settings_tab_ == "away")
-			for (const auto &[key, text] : away_readouts_)
-			{
-				app.screen_readouts.emplace_back(key, text);
-				place(app, region, key);
-			}
-		if (local_settings_tab_ == "logistics" || local_settings_tab_ == "docking")
-			for (const auto &[key, text] : supply_readouts_)
-			{
-				app.screen_readouts.emplace_back(key, text);
-				place(app, region, key);
-			}
-		if (local_settings_tab_ == "craft")
-			for (const auto &[key, text] : craft_readouts_)
-			{
-				app.screen_readouts.emplace_back(key, text);
-				place(app, region, key);
-			}
 		for (const auto &[name, label] : local_settings_controls_)
 		{
 			app.screen_controls.emplace_back(name, localise(label));
@@ -824,25 +777,25 @@ button.on-screen-active .share-live {display:block;}
 #comms-history {height:52%;overflow:auto;background:#172b32;padding:8px;}
 #comms-incoming {height:30px;}
 #comms-choices {max-height:18%;overflow:auto;}
-.local-settings-open #support-board {display:none;}
-#support-board input {display:block;width:90%;height:44dp;margin:0 4dp;}
-#support-board input slidertrack {height:40dp;background:#253b43;}
-#support-board input sliderprogress {height:40dp;background:#456a75;}
-#support-board input sliderbar {width:24dp;height:36dp;margin-top:2dp;background:#ffc16d;border:2dp #ffe4b0;}
-#support-board input sliderarrowdec,#support-board input sliderarrowinc {display:none;}
-#support-board label {display:block;}
-#support-board select {display:block;height:44dp;width:70%;min-width:280dp;max-width:520dp;}
-#support-board button span {pointer-events:none;}
-#support-board button {min-height:44dp;margin:4dp;padding:8dp;}
-#support-board .power-reserves {display:flex;flex-wrap:wrap;gap:16dp;border-bottom:1dp #988b71;}
-#support-board .power-reserves > div {min-width:300dp;flex:1;}
-#support-board .power-row {display:flex;align-items:center;gap:12dp;padding:8dp 0;border-bottom:1dp #526167;}
-#support-board .power-name {width:22%;}
-#support-board .power-control {flex:1;min-width:160dp;}
-#support-board .power-battery {width:22%;}
-#support-board .repair-columns {display:flex;gap:24dp;}
-#support-board .repair-columns > div {flex:1;min-width:0;}
-#support-board .repair-columns button {display:block;width:95%;}
+.local-settings-open .engineering-board {display:none;}
+.engineering-board input {display:block;width:90%;height:44dp;margin:0 4dp;}
+.engineering-board input slidertrack {height:40dp;background:#253b43;}
+.engineering-board input sliderprogress {height:40dp;background:#456a75;}
+.engineering-board input sliderbar {width:24dp;height:36dp;margin-top:2dp;background:#ffc16d;border:2dp #ffe4b0;}
+.engineering-board input sliderarrowdec,.engineering-board input sliderarrowinc {display:none;}
+.engineering-board label {display:block;}
+.engineering-board select {display:block;height:44dp;width:70%;min-width:280dp;max-width:520dp;}
+.engineering-board button span {pointer-events:none;}
+.engineering-board button {min-height:44dp;margin:4dp;padding:8dp;}
+.engineering-board .power-reserves {display:flex;flex-wrap:wrap;gap:16dp;border-bottom:1dp #988b71;}
+.engineering-board .power-reserves > div {min-width:300dp;flex:1;}
+.engineering-board .power-row {display:flex;align-items:center;gap:12dp;padding:8dp 0;border-bottom:1dp #526167;}
+.engineering-board .power-name {width:22%;}
+.engineering-board .power-control {flex:1;min-width:160dp;}
+.engineering-board .power-battery {width:22%;}
+.engineering-board .repair-columns {display:flex;gap:24dp;}
+.engineering-board .repair-columns > div {flex:1;min-width:0;}
+.engineering-board .repair-columns button {display:block;width:95%;}
 #comms-choices button {display:block;width:100%;box-sizing:border-box;min-height:44dp;margin:4dp 0;}
 #comms-compose input {width:75%;height:40px;}
 .layout-node {box-sizing:border-box;min-width:0;min-height:0;}
@@ -951,7 +904,7 @@ button.on-screen-active .share-live {display:block;}
 		if (action.starts_with("radar-contact/"))
 			return select_radar_contact(std::stoull(action.substr(14)));
 		if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
-		    action.starts_with("station-page/"))
+		    action.starts_with("station-page/") || action.starts_with("console-page/"))
 			return authored_action(action);
 		if (app_ && app_->session && away_action(action))
 			return true;
@@ -1021,14 +974,7 @@ button.on-screen-active .share-live {display:block;}
 			return true;
 		}
 		if (action == "operations")
-		{
-			settings_open_ = true;
-			local_settings_tab_ = "logistics";
-			cancel_pointer();
-			model_.release_controls();
-			document_->SetClass("local-settings-open", true);
-			return true;
-		}
+			return authored_action("station-page/logistics");
 		if (settings_open_)
 		{
 			if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
@@ -1039,7 +985,8 @@ button.on-screen-active .share-live {display:block;}
 				return false;
 			if (action.starts_with("local-settings.tab/"))
 			{
-				if (action.substr(19) == "craft" && !model_.ui_availability().features.contains("craft"))
+				if (action.substr(19) != "display" && action.substr(19) != "language" && action.substr(19) != "audio" &&
+				    action.substr(19) != "session")
 					return false;
 				local_settings_tab_ = action.substr(19);
 			}
@@ -1933,8 +1880,11 @@ button.on-screen-active .share-live {display:block;}
 			return model_.observation() && model_.observation()->console == action.substr(13);
 		if (action.starts_with("support-page/"))
 			return support_primary() && support_page_ == action.substr(13);
-		if (action.starts_with("station-page/"))
-			return settings_open_ && local_settings_tab_ == action.substr(13);
+		if (action.starts_with("console-page/"))
+			for (const auto &page : station_pages_)
+				if (page.action == action)
+					return !settings_open_ && model_.observation() && model_.observation()->console == page.console &&
+					       (page.group.empty() || authored_pages_.at(page.group) == page.page);
 		return true;
 	}
 	bool probe_fit() const
@@ -2521,23 +2471,8 @@ button.on-screen-active .share-live {display:block;}
 		             (active_theme_.contains("tokens") ? active_theme_.at("tokens").value("font_size", 20.f) : 20.f) /
 		             100.f) +
 		             "dp");
-		if (settings_open_ && local_settings_tab_ == "craft" && !model_.ui_availability().features.contains("craft"))
-		{
-			cancel_pointer();
-			model_.release_controls();
-			settings_open_ = false;
-			document_->SetClass("local-settings-open", false);
-			document_->SetClass("station-page-open", false);
-		}
 		if (settings_open_)
 		{
-			property(document_->GetElementById("support-board"), "display", "none");
-			const bool operations = local_settings_tab_ == "logistics" || local_settings_tab_ == "docking" ||
-			                        local_settings_tab_ == "away" || local_settings_tab_ == "craft" ||
-			                        local_settings_tab_ == "personnel";
-			document_->SetClass("station-page-open", operations);
-			if (operations)
-				prepare_console_tabs(region);
 			prepare_local_settings(app, region);
 			return;
 		}
@@ -2573,7 +2508,7 @@ button.on-screen-active .share-live {display:block;}
 		auto cards = !pregame && (!helm || (layout && layout->contains("layout"))) && model_.observation()
 		                 ? engineering_cards(*model_.observation())
 		                 : std::vector<EngineeringCard>{};
-		support_cards(cards);
+
 		document_->SetClass("support-panels", support_primary());
 		app.frame_metrics["console/" + std::to_string(route_) + "/card-model"] = GetTime() - cards_started;
 		const bool engineering = !cards.empty();
@@ -2850,7 +2785,7 @@ button.on-screen-active .share-live {display:block;}
 		{
 			gameplay_controls = helm_weapon_controls();
 		}
-		support_controls(gameplay_controls);
+
 		std::map<std::string, ConsoleSystemStatus> status_controls;
 		const auto owned_systems =
 		    model_.observation() ? station_owned_systems(*model_.observation()) : std::set<std::string>{};
@@ -2949,7 +2884,7 @@ button.on-screen-active .share-live {display:block;}
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
 		if (!inline_console_.empty())
 			readout_values_ = helm_target_readouts();
-		support_readouts(readout_values_);
+
 		if (model_.observation())
 			for (const auto &system : model_.observation()->systems)
 				if (!owned_systems.contains(system.id))
@@ -3242,8 +3177,7 @@ button.on-screen-active .share-live {display:block;}
 					                    Rml::StringUtilities::EncodeRml(label) + "</button>";
 			objective_markup += "</div>";
 		}
-		const auto gameplay_signature =
-		    gameplay_identity.dump() + command_markup_ + objective_markup + (support_primary() ? support_page_ : "");
+		const auto gameplay_signature = gameplay_identity.dump() + command_markup_ + objective_markup;
 		if (gameplay_signature_ != gameplay_signature)
 		{
 			const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
@@ -3251,12 +3185,8 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &held : held_clicks_)
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
-			std::string markup =
-			    objective_markup + command_markup_ +
-			    (!inline_console_.empty() ? "<h2>" + localise("Weapons") + "</h2>"
-			     : support_primary()
-			         ? "<h2>" + localise(support_page_ == "repair" ? "Repair" : "Support controls") + "</h2>"
-			         : "");
+			std::string markup = objective_markup + command_markup_ +
+			                     (!inline_console_.empty() ? "<h2>" + localise("Weapons") + "</h2>" : "");
 			if (team_dispatch)
 			{
 				markup += "<h2>" + Rml::StringUtilities::EncodeRml(localise("Team dispatch")) + "</h2>";
@@ -3265,7 +3195,7 @@ button.on-screen-active .share-live {display:block;}
 						markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
 						          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			}
-			if (model_.observation() && !support_active())
+			if (model_.observation())
 			{
 				const auto compartments = model_.team_map();
 				std::set<std::string> decks;
@@ -3407,7 +3337,7 @@ button.on-screen-active .share-live {display:block;}
 			finish_support_panels(region);
 			app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 		}
-		prepare_support_board(region, pregame);
+		prepare_station_components(region, pregame);
 		if (layout && !pregame)
 			for (const auto &widget : layout->at("widgets"))
 			{

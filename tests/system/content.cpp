@@ -162,6 +162,44 @@ int main()
 					            authored["consoles"][0]["widgets"][0]["when"],
 					        "restricted client packs preserve widget conditions");
 			}
+			{
+				auto specialized = definitions;
+				auto &console = specialized["consoles"][0];
+				console["tab"] = false;
+				Json pages = Json::array();
+				for (const auto &component : console_ui_components())
+					if (!component.feature.empty())
+						pages.push_back({{"id", component.id},
+						                 {"kind", "component"},
+						                 {"label", component.label},
+						                 {"component", component.id}});
+				console["layout"] = {{"schema", 1},
+				                     {"root", {{"id", "station"}, {"kind", "tabs"}, {"children", pages}}}};
+				auto pack = source;
+				pack.files["definitions.json"] = json_bytes(specialized);
+				WorkshopDocument document;
+				document.load_pack(write_pack(pack));
+				const auto reopened = resolve_packs({read_pack(document.export_pack())});
+				const auto remote = resolve_packs({console_assets(reopened, reopened.entities.begin()->first)});
+				const auto &definition = remote.consoles.at(console.at("id").get<std::string>());
+				require(!definition.at("tab").get<bool>(), "restricted assets retain authored tab visibility");
+				const auto program = compile_ui_layout(remote, definition);
+				require(resolve_ui_layout(available_ui_layout(program, {}), {0, 0, 1200, 700}, 1).placements.empty(),
+				        "specialist panels require actual capabilities even without author conditions");
+				UiAvailability permissions;
+				permissions.stars = 2;
+				permissions.features = {"power", "repair"};
+				const auto rendered = resolve_ui_layout(available_ui_layout(program, permissions), {0, 0, 1200, 700}, 1,
+				                                        {{"station", "station.operations"}});
+				require(rendered.pages.size() == 2 && rendered.placements.size() == 2 &&
+				            rendered.placements[0].visible && !rendered.placements[1].visible,
+				        "Workshop-exported specialist pages select an available peer after revocation");
+				permissions.features.insert("operations");
+				require(
+				    resolve_ui_layout(available_ui_layout(program, permissions), {0, 0, 1200, 700}, 1).pages.size() ==
+				        3,
+				    "manual Operations appears only with its projected capability");
+			}
 			UiTabs tabs;
 			tabs.update({{"a", "First"}, {"b", "Second"}, {"c", "Third"}});
 			require(tabs.select("b") && !tabs.select("unknown"), "tab selection accepts only available identities");

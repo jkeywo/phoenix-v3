@@ -3,7 +3,7 @@ std::int64_t supply_quantity_ = 10;
 std::vector<std::pair<std::string, std::string>> supply_readouts_;
 std::string supply_line(const std::string &text)
 {
-	const auto key = id("supply/readout/" + std::to_string(supply_readouts_.size()));
+	const auto key = id(station_component_scope_ + "/supply/readout/" + std::to_string(supply_readouts_.size()));
 	supply_readouts_.emplace_back(key, text);
 	return "<p id=\"" + key + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
 }
@@ -252,18 +252,21 @@ std::string docking_markup()
 }
 bool supply_action(const std::string &action)
 {
-	if (settings_open_ && action.starts_with("supply-quantity/"))
+	if (station_component_active("operations") && action.starts_with("supply-quantity/"))
 	{
 		supply_quantity_ = std::clamp<std::int64_t>(supply_quantity_ + (action.ends_with("up") ? 10 : -10), 1, 1000000);
 		return true;
 	}
-	if (!settings_open_ || !action.starts_with("supply/"))
+	if ((!station_component_active("operations") && !station_component_active("docking")) ||
+	    !action.starts_with("supply/"))
 		return false;
 	const auto a = action.find('/', 7), b = action.find('/', a + 1), c = action.find('/', b + 1);
 	if (a == std::string::npos || b == std::string::npos || c == std::string::npos)
 		return false;
 	const auto kind = action.substr(7, a - 7), verb = action.substr(a + 1, b - a - 1),
 	           system = action.substr(b + 1, c - b - 1), text = action.substr(c + 1);
+	if (!station_component_active(kind == "dock" ? "docking" : "operations"))
+		return false;
 	const bool ok = kind == "dock"                              ? model_.docking_action(verb, system, text)
 	                : kind == "magazine" || kind == "processor" ? model_.selection_action(kind, system, text)
 	                                                            : model_.logistics_action(verb, system, text);

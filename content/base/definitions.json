@@ -37792,7 +37792,8 @@
 				]
 			},
 			"layout": "base.console.navigation.layout",
-			"hud_layout": "base.console.navigation.hud"
+			"hud_layout": "base.console.navigation.hud",
+			"tab": false
 		},
 		{
 			"id": "base.console.command",
@@ -37894,7 +37895,8 @@
 				"width": 1,
 				"height": 0.5
 			},
-			"layout": "base.console.combat-tactical.layout"
+			"layout": "base.console.combat-tactical.layout",
+			"tab": false
 		},
 		{
 			"id": "base.console.combat-support",
@@ -63631,178 +63633,332 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
+						"id": "main",
+						"kind": "row",
+						"label": "Ship Operations",
 						"children": [
 							{
-								"id": "radar",
-								"kind": "component",
-								"component": "radar",
-								"label": "Local space / north up",
-								"rect": {
-									"x": 240,
-									"y": 0,
-									"width": 600,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280,
-								"aspect": 1
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Local space / north up",
+										"rect": {
+											"x": 240,
+											"y": 0,
+											"width": 600,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									},
+									{
+										"id": "engine",
+										"kind": "component",
+										"component": "engine",
+										"label": "Engine",
+										"rect": {
+											"x": 850,
+											"y": 100,
+											"width": 150,
+											"height": 800
+										},
+										"min_width": 72,
+										"min_height": 240
+									},
+									{
+										"id": "steering",
+										"kind": "component",
+										"component": "steering",
+										"label": "Steering / 0 east, 90 north",
+										"rect": {
+											"x": 0,
+											"y": 850,
+											"width": 220,
+											"height": 150
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-mode",
+										"kind": "component",
+										"component": "camera-mode",
+										"label": "Camera mode",
+										"rect": {
+											"x": 0,
+											"y": 80,
+											"width": 220,
+											"height": 220
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-direction",
+										"kind": "component",
+										"component": "camera-direction",
+										"label": "Camera direction",
+										"rect": {
+											"x": 0,
+											"y": 300,
+											"width": 220,
+											"height": 450
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "manual",
+										"kind": "component",
+										"component": "manual-flight",
+										"label": "Manual flight",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										}
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
 							},
 							{
-								"id": "engine",
-								"kind": "component",
-								"component": "engine",
-								"label": "Engine",
-								"rect": {
-									"x": 850,
-									"y": 100,
-									"width": 150,
-									"height": 800
-								},
-								"min_width": 72,
-								"min_height": 240
-							},
-							{
-								"id": "steering",
-								"kind": "component",
-								"component": "steering",
-								"label": "Steering / 0 east, 90 north",
-								"rect": {
-									"x": 0,
-									"y": 850,
-									"width": 220,
-									"height": 150
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "camera-mode",
-								"kind": "component",
-								"component": "camera-mode",
-								"label": "Camera mode",
-								"rect": {
-									"x": 0,
-									"y": 80,
-									"width": 220,
-									"height": 220
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "camera-direction",
-								"kind": "component",
-								"component": "camera-direction",
-								"label": "Camera direction",
-								"rect": {
-									"x": 0,
-									"y": 300,
-									"width": 220,
-									"height": 450
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "manual",
-								"kind": "component",
-								"component": "manual-flight",
-								"label": "Manual flight",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								}
+								"id": "target-weapons",
+								"kind": "column",
+								"label": "Target and weapons",
+								"min_width": 320,
+								"children": [
+									{
+										"id": "readouts",
+										"kind": "component",
+										"component": "readouts",
+										"label": "Target data",
+										"min_width": 320,
+										"min_height": 170,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "controls",
+										"kind": "component",
+										"component": "controls",
+										"label": "Weapons and flight",
+										"min_width": 320,
+										"min_height": 280
+									}
+								]
 							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						]
 					},
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "radar",
+						"id": "main",
+						"kind": "row",
+						"label": "Ship Operations",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Local space / north up",
+										"rect": {
+											"x": 240,
+											"y": 0,
+											"width": 600,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									},
+									{
+										"id": "engine",
+										"kind": "component",
+										"component": "engine",
+										"label": "Engine",
+										"rect": {
+											"x": 850,
+											"y": 100,
+											"width": 150,
+											"height": 800
+										},
+										"min_width": 72,
+										"min_height": 240
+									},
+									{
+										"id": "steering",
+										"kind": "component",
+										"component": "steering",
+										"label": "Steering / 0 east, 90 north",
+										"rect": {
+											"x": 0,
+											"y": 850,
+											"width": 220,
+											"height": 150
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-mode",
+										"kind": "component",
+										"component": "camera-mode",
+										"label": "Camera mode",
+										"rect": {
+											"x": 0,
+											"y": 80,
+											"width": 220,
+											"height": 220
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-direction",
+										"kind": "component",
+										"component": "camera-direction",
+										"label": "Camera direction",
+										"rect": {
+											"x": 0,
+											"y": 300,
+											"width": 220,
+											"height": 450
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "manual",
+										"kind": "component",
+										"component": "manual-flight",
+										"label": "Manual flight",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										}
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "target-weapons",
+								"kind": "column",
+								"label": "Target and weapons",
+								"min_width": 320,
+								"children": [
+									{
+										"id": "readouts",
+										"kind": "component",
+										"component": "readouts",
+										"label": "Target data",
+										"min_width": 320,
+										"min_height": 170,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "controls",
+										"kind": "component",
+										"component": "controls",
+										"label": "Weapons and flight",
+										"min_width": 320,
+										"min_height": 280
+									}
+								]
+							}
+						]
+					},
+					{
+						"id": "docking",
 						"kind": "component",
-						"component": "radar",
-						"label": "Local space / north up",
-						"min_width": 280,
-						"min_height": 280,
-						"aspect": 1
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
-						"id": "flight",
-						"kind": "column",
-						"label": "Flight controls",
-						"children": [
-							{
-								"id": "engine",
-								"kind": "component",
-								"component": "engine",
-								"label": "Engine",
-								"min_width": 72,
-								"min_height": 240
-							},
-							{
-								"id": "steering",
-								"kind": "component",
-								"component": "steering",
-								"label": "Steering / 0 east, 90 north",
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "manual",
-								"kind": "component",
-								"component": "manual-flight",
-								"label": "Manual flight"
-							}
-						]
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
-						"id": "camera",
-						"kind": "column",
-						"label": "Camera",
-						"children": [
-							{
-								"id": "camera-mode",
-								"kind": "component",
-								"component": "camera-mode",
-								"label": "Camera mode",
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "camera-direction",
-								"kind": "component",
-								"component": "camera-direction",
-								"label": "Camera direction",
-								"min_width": 160,
-								"min_height": 72
-							}
-						]
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -63811,178 +63967,332 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
+						"id": "main",
+						"kind": "row",
+						"label": "Helm",
 						"children": [
 							{
-								"id": "radar",
-								"kind": "component",
-								"component": "radar",
-								"label": "Permitted contacts",
-								"rect": {
-									"x": 240,
-									"y": 0,
-									"width": 600,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280,
-								"aspect": 1
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Permitted contacts",
+										"rect": {
+											"x": 240,
+											"y": 0,
+											"width": 600,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									},
+									{
+										"id": "engine",
+										"kind": "component",
+										"component": "engine",
+										"label": "Main propulsion",
+										"rect": {
+											"x": 850,
+											"y": 100,
+											"width": 150,
+											"height": 800
+										},
+										"min_width": 72,
+										"min_height": 240
+									},
+									{
+										"id": "heading",
+										"kind": "component",
+										"component": "heading",
+										"label": "Heading",
+										"rect": {
+											"x": 0,
+											"y": 850,
+											"width": 220,
+											"height": 150
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-mode",
+										"kind": "component",
+										"component": "camera-mode",
+										"label": "Camera mode",
+										"rect": {
+											"x": 0,
+											"y": 80,
+											"width": 220,
+											"height": 220
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-direction",
+										"kind": "component",
+										"component": "camera-direction",
+										"label": "Camera direction",
+										"rect": {
+											"x": 0,
+											"y": 300,
+											"width": 220,
+											"height": 450
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "manual",
+										"kind": "component",
+										"component": "manual-flight",
+										"label": "Manual flight",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										}
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
 							},
 							{
-								"id": "engine",
-								"kind": "component",
-								"component": "engine",
-								"label": "Main propulsion",
-								"rect": {
-									"x": 850,
-									"y": 100,
-									"width": 150,
-									"height": 800
-								},
-								"min_width": 72,
-								"min_height": 240
-							},
-							{
-								"id": "heading",
-								"kind": "component",
-								"component": "heading",
-								"label": "Heading",
-								"rect": {
-									"x": 0,
-									"y": 850,
-									"width": 220,
-									"height": 150
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "camera-mode",
-								"kind": "component",
-								"component": "camera-mode",
-								"label": "Camera mode",
-								"rect": {
-									"x": 0,
-									"y": 80,
-									"width": 220,
-									"height": 220
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "camera-direction",
-								"kind": "component",
-								"component": "camera-direction",
-								"label": "Camera direction",
-								"rect": {
-									"x": 0,
-									"y": 300,
-									"width": 220,
-									"height": 450
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "manual",
-								"kind": "component",
-								"component": "manual-flight",
-								"label": "Manual flight",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								}
+								"id": "target-weapons",
+								"kind": "column",
+								"label": "Target and weapons",
+								"min_width": 320,
+								"children": [
+									{
+										"id": "readouts",
+										"kind": "component",
+										"component": "readouts",
+										"label": "Target data",
+										"min_width": 320,
+										"min_height": 170,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "controls",
+										"kind": "component",
+										"component": "controls",
+										"label": "Weapons and flight",
+										"min_width": 320,
+										"min_height": 280
+									}
+								]
 							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						]
 					},
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "radar",
+						"id": "main",
+						"kind": "row",
+						"label": "Helm",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Permitted contacts",
+										"rect": {
+											"x": 240,
+											"y": 0,
+											"width": 600,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									},
+									{
+										"id": "engine",
+										"kind": "component",
+										"component": "engine",
+										"label": "Main propulsion",
+										"rect": {
+											"x": 850,
+											"y": 100,
+											"width": 150,
+											"height": 800
+										},
+										"min_width": 72,
+										"min_height": 240
+									},
+									{
+										"id": "heading",
+										"kind": "component",
+										"component": "heading",
+										"label": "Heading",
+										"rect": {
+											"x": 0,
+											"y": 850,
+											"width": 220,
+											"height": 150
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-mode",
+										"kind": "component",
+										"component": "camera-mode",
+										"label": "Camera mode",
+										"rect": {
+											"x": 0,
+											"y": 80,
+											"width": 220,
+											"height": 220
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "camera-direction",
+										"kind": "component",
+										"component": "camera-direction",
+										"label": "Camera direction",
+										"rect": {
+											"x": 0,
+											"y": 300,
+											"width": 220,
+											"height": 450
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "manual",
+										"kind": "component",
+										"component": "manual-flight",
+										"label": "Manual flight",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										}
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "target-weapons",
+								"kind": "column",
+								"label": "Target and weapons",
+								"min_width": 320,
+								"children": [
+									{
+										"id": "readouts",
+										"kind": "component",
+										"component": "readouts",
+										"label": "Target data",
+										"min_width": 320,
+										"min_height": 170,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "controls",
+										"kind": "component",
+										"component": "controls",
+										"label": "Weapons and flight",
+										"min_width": 320,
+										"min_height": 280
+									}
+								]
+							}
+						]
+					},
+					{
+						"id": "docking",
 						"kind": "component",
-						"component": "radar",
-						"label": "Permitted contacts",
-						"min_width": 280,
-						"min_height": 280,
-						"aspect": 1
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
-						"id": "flight",
-						"kind": "column",
-						"label": "Flight controls",
-						"children": [
-							{
-								"id": "engine",
-								"kind": "component",
-								"component": "engine",
-								"label": "Main propulsion",
-								"min_width": 72,
-								"min_height": 240
-							},
-							{
-								"id": "heading",
-								"kind": "component",
-								"component": "heading",
-								"label": "Heading",
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "manual",
-								"kind": "component",
-								"component": "manual-flight",
-								"label": "Manual flight"
-							}
-						]
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
-						"id": "camera",
-						"kind": "column",
-						"label": "Camera",
-						"children": [
-							{
-								"id": "camera-mode",
-								"kind": "component",
-								"component": "camera-mode",
-								"label": "Camera mode",
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "camera-direction",
-								"kind": "component",
-								"component": "camera-direction",
-								"label": "Camera direction",
-								"min_width": 160,
-								"min_height": 72
-							}
-						]
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -63991,56 +64301,112 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
-						"children": [
-							{
-								"id": "status",
-								"kind": "component",
-								"component": "status",
-								"label": "Engineering and resource status",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 160,
-								"min_height": 72
-							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						"id": "power",
+						"kind": "component",
+						"component": "power",
+						"label": "Power",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "repair",
+						"kind": "component",
+						"component": "repair",
+						"label": "Repair",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "status",
+						"id": "power",
 						"kind": "component",
-						"component": "status",
-						"label": "Engineering and resource status",
-						"min_width": 160,
-						"min_height": 72
+						"component": "power",
+						"label": "Power",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "repair",
+						"kind": "component",
+						"component": "repair",
+						"label": "Repair",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64049,58 +64415,168 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
+						"id": "main",
+						"kind": "row",
+						"label": "Science",
 						"children": [
 							{
-								"id": "radar",
-								"kind": "component",
-								"component": "radar",
-								"label": "Science sensor",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280,
-								"aspect": 1
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Science sensor",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
 							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "radar",
-						"kind": "component",
-						"component": "radar",
-						"label": "Science sensor",
-						"min_width": 280,
-						"min_height": 280,
-						"aspect": 1
+						"id": "main",
+						"kind": "row",
+						"label": "Science",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Science sensor",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64109,58 +64585,168 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
+						"id": "main",
+						"kind": "row",
+						"label": "Tactical",
 						"children": [
 							{
-								"id": "radar",
-								"kind": "component",
-								"component": "radar",
-								"label": "Tactical sensor",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280,
-								"aspect": 1
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Tactical sensor",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
 							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "radar",
-						"kind": "component",
-						"component": "radar",
-						"label": "Tactical sensor",
-						"min_width": 280,
-						"min_height": 280,
-						"aspect": 1
+						"id": "main",
+						"kind": "row",
+						"label": "Tactical",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Tactical sensor",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64234,56 +64820,166 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
+						"id": "main",
+						"kind": "row",
+						"label": "Captain",
 						"children": [
 							{
-								"id": "status",
-								"kind": "component",
-								"component": "status",
-								"label": "Shipwide objectives and reports",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 160,
-								"min_height": 72
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "status",
+										"kind": "component",
+										"component": "status",
+										"label": "Shipwide objectives and reports",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 160,
+										"min_height": 72
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
 							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "status",
-						"kind": "component",
-						"component": "status",
-						"label": "Shipwide objectives and reports",
-						"min_width": 160,
-						"min_height": 72
+						"id": "main",
+						"kind": "row",
+						"label": "Captain",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "status",
+										"kind": "component",
+										"component": "status",
+										"label": "Shipwide objectives and reports",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 160,
+										"min_height": 72
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64452,56 +65148,166 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
+						"id": "main",
+						"kind": "row",
+						"label": "Command",
 						"children": [
 							{
-								"id": "status",
-								"kind": "component",
-								"component": "status",
-								"label": "AI Console stances",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 160,
-								"min_height": 72
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "status",
+										"kind": "component",
+										"component": "status",
+										"label": "AI Console stances",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 160,
+										"min_height": 72
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
 							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "status",
-						"kind": "component",
-						"component": "status",
-						"label": "AI Console stances",
-						"min_width": 160,
-						"min_height": 72
+						"id": "main",
+						"kind": "row",
+						"label": "Command",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "status",
+										"kind": "component",
+										"component": "status",
+										"label": "AI Console stances",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 160,
+										"min_height": 72
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64525,127 +65331,276 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
-					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
-						"children": [
-							{
-								"id": "radar",
-								"kind": "component",
-								"component": "radar",
-								"label": "Combat radar",
-								"rect": {
-									"x": 240,
-									"y": 0,
-									"width": 600,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280,
-								"aspect": 1
-							},
-							{
-								"id": "throttle",
-								"kind": "component",
-								"component": "throttle",
-								"label": "Speed",
-								"rect": {
-									"x": 850,
-									"y": 100,
-									"width": 150,
-									"height": 800
-								},
-								"min_width": 72,
-								"min_height": 240
-							},
-							{
-								"id": "heading",
-								"kind": "component",
-								"component": "heading",
-								"label": "Heading",
-								"rect": {
-									"x": 0,
-									"y": 850,
-									"width": 220,
-									"height": 150
-								},
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "manual",
-								"kind": "component",
-								"component": "manual-flight",
-								"label": "Manual flight",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								}
-							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
-					},
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "radar",
-						"kind": "component",
-						"component": "radar",
-						"label": "Combat radar",
-						"min_width": 280,
-						"min_height": 280,
-						"aspect": 1
-					},
-					{
-						"id": "flight",
-						"kind": "column",
-						"label": "Flight controls",
+						"id": "main",
+						"kind": "row",
+						"label": "Helm",
 						"children": [
 							{
-								"id": "throttle",
-								"kind": "component",
-								"component": "throttle",
-								"label": "Speed",
-								"min_width": 72,
-								"min_height": 240
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Combat radar",
+										"rect": {
+											"x": 240,
+											"y": 0,
+											"width": 600,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									},
+									{
+										"id": "throttle",
+										"kind": "component",
+										"component": "throttle",
+										"label": "Speed",
+										"rect": {
+											"x": 850,
+											"y": 100,
+											"width": 150,
+											"height": 800
+										},
+										"min_width": 72,
+										"min_height": 240
+									},
+									{
+										"id": "heading",
+										"kind": "component",
+										"component": "heading",
+										"label": "Heading",
+										"rect": {
+											"x": 0,
+											"y": 850,
+											"width": 220,
+											"height": 150
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "manual",
+										"kind": "component",
+										"component": "manual-flight",
+										"label": "Manual flight",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										}
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
 							},
 							{
-								"id": "heading",
-								"kind": "component",
-								"component": "heading",
-								"label": "Heading",
-								"min_width": 160,
-								"min_height": 72
-							},
-							{
-								"id": "manual",
-								"kind": "component",
-								"component": "manual-flight",
-								"label": "Manual flight"
+								"id": "target-weapons",
+								"kind": "column",
+								"label": "Target and weapons",
+								"min_width": 320,
+								"children": [
+									{
+										"id": "readouts",
+										"kind": "component",
+										"component": "readouts",
+										"label": "Target data",
+										"min_width": 320,
+										"min_height": 170,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "controls",
+										"kind": "component",
+										"component": "controls",
+										"label": "Weapons and flight",
+										"min_width": 320,
+										"min_height": 280
+									}
+								]
 							}
 						]
 					},
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			},
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Helm",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Combat radar",
+										"rect": {
+											"x": 240,
+											"y": 0,
+											"width": 600,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									},
+									{
+										"id": "throttle",
+										"kind": "component",
+										"component": "throttle",
+										"label": "Speed",
+										"rect": {
+											"x": 850,
+											"y": 100,
+											"width": 150,
+											"height": 800
+										},
+										"min_width": 72,
+										"min_height": 240
+									},
+									{
+										"id": "heading",
+										"kind": "component",
+										"component": "heading",
+										"label": "Heading",
+										"rect": {
+											"x": 0,
+											"y": 850,
+											"width": 220,
+											"height": 150
+										},
+										"min_width": 160,
+										"min_height": 72
+									},
+									{
+										"id": "manual",
+										"kind": "component",
+										"component": "manual-flight",
+										"label": "Manual flight",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										}
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "target-weapons",
+								"kind": "column",
+								"label": "Target and weapons",
+								"min_width": 320,
+								"children": [
+									{
+										"id": "readouts",
+										"kind": "component",
+										"component": "readouts",
+										"label": "Target data",
+										"min_width": 320,
+										"min_height": 170,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "controls",
+										"kind": "component",
+										"component": "controls",
+										"label": "Weapons and flight",
+										"min_width": 320,
+										"min_height": 280
+									}
+								]
+							}
+						]
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64714,133 +65669,762 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"id": "base.console.combat-support.layout"
-		},
-		{
-			"schema": 1,
-			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
+						"id": "power",
+						"kind": "component",
+						"component": "power",
+						"label": "Power",
+						"min_width": 320,
+						"min_height": 240
+					},
 					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"id": "base.console.navigator.layout"
-		},
-		{
-			"schema": 1,
-			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"id": "base.console.craft.layout"
-		},
-		{
-			"schema": 1,
-			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"id": "base.console.craft-automation.layout"
-		},
-		{
-			"schema": 1,
-			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"id": "base.console.cruiser-science.layout"
-		},
-		{
-			"schema": 1,
-			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
-					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
-						"children": [
-							{
-								"id": "radar",
-								"kind": "component",
-								"component": "radar",
-								"label": "Tactical sensor",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280,
-								"aspect": 1
-							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
+						"id": "repair",
+						"kind": "component",
+						"component": "repair",
+						"label": "Repair",
+						"min_width": 320,
+						"min_height": 240
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			},
+			"id": "base.console.combat-support.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "power",
+						"kind": "component",
+						"component": "power",
+						"label": "Power",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "repair",
+						"kind": "component",
+						"component": "repair",
+						"label": "Repair",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Navigator",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			},
+			"id": "base.console.navigator.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Navigator",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Craft flight",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			},
+			"id": "base.console.craft.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Craft flight",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Craft automation",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			},
+			"id": "base.console.craft-automation.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Craft automation",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Science",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			},
+			"id": "base.console.cruiser-science.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Science",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
+		},
+		{
+			"schema": 1,
+			"root": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Tactical",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Tactical sensor",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
 			"compact": {
-				"id": "compact",
+				"id": "station",
 				"kind": "tabs",
-				"label": "Console pages",
+				"label": "Station pages",
 				"children": [
 					{
-						"id": "radar",
-						"kind": "component",
-						"component": "radar",
-						"label": "Tactical sensor",
-						"min_width": 280,
-						"min_height": 280,
-						"aspect": 1
+						"id": "main",
+						"kind": "row",
+						"label": "Tactical",
+						"children": [
+							{
+								"id": "instruments",
+								"kind": "instruments",
+								"label": "Instruments",
+								"children": [
+									{
+										"id": "radar",
+										"kind": "component",
+										"component": "radar",
+										"label": "Tactical sensor",
+										"rect": {
+											"x": 0,
+											"y": 0,
+											"width": 1000,
+											"height": 1000
+										},
+										"min_width": 280,
+										"min_height": 280,
+										"aspect": 1
+									}
+								],
+								"min_width": 640,
+								"min_height": 480,
+								"stretch": 3
+							},
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
 					},
 					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
@@ -64849,32 +66433,236 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
+						"id": "power",
+						"kind": "component",
+						"component": "power",
+						"label": "Power",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "repair",
+						"kind": "component",
+						"component": "repair",
+						"label": "Repair",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
-			"id": "base.console.cruiser-engineering.layout"
+			"id": "base.console.cruiser-engineering.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "power",
+						"kind": "component",
+						"component": "power",
+						"label": "Power",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "repair",
+						"kind": "component",
+						"component": "repair",
+						"label": "Repair",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
 		},
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
 				"children": [
 					{
+						"id": "main",
+						"kind": "row",
+						"label": "Captain",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
 						"id": "operations",
-						"group": "phoenix-base.group.operations"
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
 					}
 				]
 			},
-			"id": "base.console.cruiser-captain.layout"
+			"id": "base.console.cruiser-captain.layout",
+			"compact": {
+				"id": "station",
+				"kind": "tabs",
+				"label": "Station pages",
+				"children": [
+					{
+						"id": "main",
+						"kind": "row",
+						"label": "Captain",
+						"children": [
+							{
+								"id": "operations",
+								"group": "phoenix-base.group.operations"
+							}
+						]
+					},
+					{
+						"id": "operations",
+						"kind": "component",
+						"component": "operations",
+						"label": "Operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "docking",
+						"kind": "component",
+						"component": "docking",
+						"label": "Docking",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel",
+						"min_width": 320,
+						"min_height": 240
+					},
+					{
+						"id": "away",
+						"kind": "component",
+						"component": "away",
+						"label": "Away missions",
+						"min_width": 320,
+						"min_height": 240
+					}
+				]
+			}
 		}
 	],
 	"themes": [

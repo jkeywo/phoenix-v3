@@ -8,7 +8,7 @@ struct LayoutWorkspace
 	std::string last_error;
 	std::string selected, component = "gameplay", asset_name = "", asset_id = "", theme_name;
 	std::string drag_source, drag_target, drag_component;
-	int width = 1280, height = 720, text_scale = 100, serial = 1, sample_state = 0;
+	int width = 1280, height = 720, text_scale = 100, serial = 1, sample_state = 0, sample_stars = 3;
 	bool interact = false, compact = false, snap = true, resizing = false, focus_canvas = false, hud = false;
 	std::map<std::string, std::string> pages;
 } layout_workspace;
@@ -227,21 +227,9 @@ void console_layout_workspace(Application &app)
 		tool_window(tool_label("Layout palette").c_str());
 		ImGui::BeginDisabled(read_only);
 		ImGui::InputText(tool_label("Component target").c_str(), &layout_workspace.component);
-		std::vector<std::string> targets = {"gameplay",
-		                                    "controls",
-		                                    "readouts",
-		                                    "messages",
-		                                    "engineering",
-		                                    "sensors",
-		                                    "conversations",
-		                                    "conversation-list",
-		                                    "conversation-header",
-		                                    "conversation-history",
-		                                    "conversation-replies",
-		                                    "conversation-compose",
-		                                    "conversation-incoming",
-		                                    "navigation",
-		                                    "manual-flight"};
+		std::vector<std::string> targets;
+		for (const auto &component : console_ui_components())
+			targets.push_back(component.id);
 		for (const auto &widget : console.at("widgets"))
 			targets.push_back(widget.at("id"));
 		if (ImGui::BeginCombo(tool_label("Available components").c_str(), layout_workspace.component.c_str()))
@@ -323,6 +311,9 @@ void console_layout_workspace(Application &app)
 		ImGui::EndDisabled();
 		ImGui::End();
 		tool_window(tool_label("Layout properties").c_str());
+		bool show_tab = console.value("tab", true);
+		if (ImGui::Checkbox(tool_label("Show as station tab").c_str(), &show_tab))
+			console["tab"] = show_tab;
 		ImGui::BeginDisabled(read_only);
 		selected = layout_find_node(root, layout_workspace.selected);
 		if (selected)
@@ -439,6 +430,20 @@ void console_layout_workspace(Application &app)
 				if (ImGui::DragFloat(tool_label(field).c_str(), &value, 1, 0, 16384))
 					(*selected)[field] = value;
 			}
+			for (const char *field : {"min_stars", "max_stars"})
+			{
+				int stars = selected->value("when", Json::object()).value(field, 0);
+				if (ImGui::SliderInt(tool_label(field).c_str(), &stars, 0, 3, stars ? "%d stars" : "Any"))
+				{
+					if (stars)
+						(*selected)["when"][field] = stars;
+					else if (selected->contains("when"))
+						(*selected)["when"].erase(field);
+				}
+			}
+			for (const auto &component : console_ui_components())
+				if (selected->value("component", "") == component.id && !component.feature.empty())
+					ImGui::TextWrapped("Requires available %s capability on this station.", component.feature.c_str());
 			bool styled = selected->contains("style");
 			if (ImGui::Checkbox(tool_label("Override component appearance").c_str(), &styled))
 			{
@@ -618,6 +623,8 @@ void console_layout_workspace(Application &app)
 				sample["widgets"] = console.at("compact").at("widgets");
 			sample.erase("layout_overrides");
 		}
+		ImGui::SliderInt(tool_label("Preview complexity stars").c_str(), &layout_workspace.sample_stars, 1, 3);
+		sample["_preview_stars"] = layout_workspace.sample_stars;
 		sample["_preview_state"] = states[layout_workspace.sample_state];
 		sample["_preview_pages"] = layout_workspace.pages;
 		sample["_preview_interact"] = layout_workspace.interact;

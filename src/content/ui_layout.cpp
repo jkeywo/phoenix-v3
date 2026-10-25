@@ -163,6 +163,31 @@ void targets(const UiNode &node, std::set<std::string> &result)
 }
 } // namespace
 
+std::vector<UiComponentSpec> console_ui_components()
+{
+	return {{"gameplay", "Operating panel", {}},
+	        {"controls", "Controls", {}},
+	        {"readouts", "Readouts", {}},
+	        {"messages", "Messages", {}},
+	        {"engineering", "Engineering cards", {}},
+	        {"sensors", "Sensors", {}},
+	        {"conversations", "Conversations", {}},
+	        {"conversation-list", "Conversation list", {}},
+	        {"conversation-header", "Conversation header", {}},
+	        {"conversation-history", "Conversation history", {}},
+	        {"conversation-replies", "Conversation replies", {}},
+	        {"conversation-compose", "Conversation composer", {}},
+	        {"conversation-incoming", "Incoming conversations", {}},
+	        {"navigation", "Navigation", {}},
+	        {"manual-flight", "Manual flight", {}},
+	        {"power", "Power", "power"},
+	        {"repair", "Repair", "repair"},
+	        {"operations", "Operations", "operations"},
+	        {"docking", "Docking", "docking"},
+	        {"craft", "Flight operations", "craft"},
+	        {"personnel", "Personnel", "personnel"},
+	        {"away", "Away missions", "away"}};
+}
 bool UiAvailability::operator==(const UiAvailability &other) const
 {
 	auto same = [](const auto &a, const auto &b)
@@ -341,21 +366,24 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 	auto result = compile_ui_tree(catalog, source);
 	std::set<std::string> components;
 	targets(result.root, components);
-	std::set<std::string> allowed = {"gameplay",
-	                                 "controls",
-	                                 "readouts",
-	                                 "messages",
-	                                 "engineering",
-	                                 "sensors",
-	                                 "conversations",
-	                                 "conversation-list",
-	                                 "conversation-history",
-	                                 "conversation-replies",
-	                                 "navigation",
-	                                 "manual-flight",
-	                                 "conversation-header",
-	                                 "conversation-compose",
-	                                 "conversation-incoming"};
+	std::set<std::string> allowed;
+	for (const auto &component : console_ui_components())
+	{
+		allowed.insert(component.id);
+		if (component.feature.empty())
+			continue;
+		std::function<void(UiNode &)> require_capability = [&](UiNode &node)
+		{
+			if (node.component == component.id)
+				node.conditions.push_back(Json{{"features", {component.feature}}});
+			for (auto &child : node.children)
+				require_capability(child);
+		};
+		require_capability(result.root);
+		if (result.compact)
+			require_capability(*result.compact);
+	}
+
 	for (const auto &widget : console.at("widgets"))
 	{
 		const auto id = widget.at("id").get<std::string>();
@@ -644,6 +672,8 @@ void verify_ui_definitions(const Catalog &catalog)
 		(void)resolved_ui_theme(catalog, id);
 	for (const auto &[id, console] : catalog.consoles)
 	{
+		if (console.contains("tab"))
+			ui_require(console.at("tab").is_boolean(), id + ".tab", "expected boolean");
 		if (console.contains("when"))
 			verify_ui_condition(console.at("when"));
 		for (const auto &widget : console.at("widgets"))
