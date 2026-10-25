@@ -57,6 +57,71 @@ inline std::set<std::string> station_owned_systems(const Observation &view)
 				owned_systems.insert(system.id);
 	return owned_systems;
 }
+struct PowerSetting
+{
+	std::string id, controller, channel, action, subject;
+	std::int64_t minimum = 0, maximum = 0, value = 0;
+	bool coolant = false;
+};
+inline std::vector<PowerSetting> power_settings(const Observation &view)
+{
+	std::vector<PowerSetting> result;
+	const auto descriptors = view.gameplay.value("controls", Json::array());
+	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+		if (controller.value("human", false))
+			for (const auto &[channel, command] : controller.at("commands").items())
+			{
+				const auto action = command.at("action").get<std::string>();
+				if (action != "generator_output" && action != "group_allocation" && action != "cooling_allocation" &&
+				    action != "charge_limit" && !(action == "intent_integer" && command.contains("ui_system")))
+					continue;
+				if (std::none_of(descriptors.begin(), descriptors.end(),
+				                 [&](const Json &d)
+				                 {
+					                 return d.value("controller", "") == controller.at("id").get<std::string>() &&
+					                        d.value("channel", "") == channel && d.value("enabled", true);
+				                 }))
+					continue;
+				auto subjects = command.value("consumers", std::vector<std::string>{});
+				if (command.contains("ui_system"))
+					subjects = {command.at("ui_system").get<std::string>()};
+				for (const auto &subject : subjects)
+				{
+					bool coolant = action == "cooling_allocation";
+					for (const auto &system : view.systems)
+						if (system.id == subject)
+							coolant |= system.kind == OperatingSystem::Coolant;
+					auto maximum = command.at("maximum").get<std::int64_t>();
+					const auto limits = view.gameplay.value("power", Json::object()).value("limits", Json::object());
+					if (limits.contains(subject))
+					{
+						const auto &rated = limits.at(subject);
+						auto physical_action = action;
+						if (action == "intent_integer")
+							physical_action = coolant                              ? "cooling_allocation"
+							                  : rated.contains("generator_output") ? "generator_output"
+							                                                       : "group_allocation";
+						if (rated.contains(physical_action))
+							maximum = std::min(maximum, rated.at(physical_action).get<std::int64_t>());
+					}
+					if (maximum <= command.at("minimum").get<std::int64_t>())
+						continue;
+					result.push_back({"power/" + controller.at("id").get<std::string>() + "/" + channel,
+					                  controller.at("id"), channel, action, subject, command.at("minimum"), maximum,
+					                  command.at("value"), coolant});
+				}
+			}
+	return result;
+}
+inline const PowerSetting *power_setting_for(const std::vector<PowerSetting> &settings, const Json &row, bool coolant)
+{
+	for (const auto &subject : row.at(coolant ? "coolant_systems" : "power_systems"))
+		for (const auto &setting : settings)
+			if (setting.subject == subject.get<std::string>() && setting.coolant == coolant &&
+			    setting.action != "generator_output")
+				return &setting;
+	return nullptr;
+}
 inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 {
 	std::vector<EngineeringCard> result;

@@ -167,6 +167,7 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 		project_combat(address, result);
 	if (presentation)
 	{
+		result.gameplay["power"] = power_board(address);
 		result.gameplay["processors"] = project_processors(address);
 		result.gameplay["logistics"] = logistics_board(address);
 		result.gameplay["docking"] = docking_board(address);

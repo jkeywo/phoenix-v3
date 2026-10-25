@@ -1156,7 +1156,15 @@ void extended_contracts()
 		submit(w, 101, "beam", "target", 0);
 		w.tick();
 		const auto faults = w.observe(201)->gameplay["combat"]["faults"];
-		require(!faults.empty() && faults[0]["diagnosis"] == "", "exact fault hidden until team inspection");
+		require(faults.empty(), "individual system damage is absent before a team arrives");
+		const auto damaged_sections = w.observe(202)->gameplay["combat"]["compartments"];
+		require(std::any_of(damaged_sections.begin(), damaged_sections.end(),
+		                    [](const Json &part)
+		                    {
+			                    return part.at("id") == "aft" && part.value("damaged", false) &&
+			                           !part.value("inspected", false);
+		                    }),
+		        "section damage remains visible without revealing individual faults");
 		auto enable = command(w, 202, "team-a", "enabled", 1);
 		enable.target = 2;
 		require(w.submit(202, enable), "enable inspecting team");
@@ -1166,6 +1174,19 @@ void extended_contracts()
 		advance(w, 12);
 		require(w.observe(201)->gameplay["combat"]["faults"][0]["diagnosed"].get<bool>(),
 		        "team arrival reveals diagnosis to owner");
+		auto leave = command(w, 202, "team-a", "assignment", 1);
+		leave.target = 2;
+		require(w.submit(202, leave), "inspection team can leave the damaged section");
+		advance(w, 2);
+		require(w.observe(201)->gameplay["combat"]["faults"].empty(),
+		        "previously diagnosed system damage disappears when the team leaves");
+		const auto teams = w.observe(202)->gameplay.at("teams");
+		require(std::any_of(teams.begin(), teams.end(),
+		                    [](const Json &team)
+		                    {
+			                    return team.at("id") == "team-a" && team.value("work", "") == "Travelling";
+		                    }),
+		        "repair roster reports real team travel activity");
 	}
 }
 

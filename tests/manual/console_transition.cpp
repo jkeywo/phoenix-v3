@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 import phoenix.presentation;
+import phoenix.console;
 import phoenix.network.lobby;
 import phoenix.session.local;
 using namespace phoenix;
@@ -179,64 +180,93 @@ int main(int argc, char **argv)
 		require(has("console/4/support-page/repair"), "Support has a Repair tab");
 		require(!has("console/4/game.console/navigator") && !has("console/4/game.console/navigation"),
 		        "Remaining Console functions are integrated into Support");
-		require(!has("console/4/resource/weapon-cell"), "Power minutiae stay out of the Support summary");
-		require(probe_console_tab(4, "support-page/repair"), "Pointer opens Repair panel");
-		frame();
-		frame();
-		require(!has("console/4/game.status/reactor"), "Repair excludes reactor controls");
-		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
-		                    [](const auto &row)
-		                    {
-			                    return row.first == "console/4/support/repair/summary";
-		                    }),
-		        "Repair has a concise damage summary");
-		TakeScreenshot("build/support-repair.png");
-		require(probe_console_tab(4, "support-details/repair"), "Open repair details popup");
-		frame();
-		frame();
-		require(has("console/4/systems-close"), "Repair details share the status popup");
-		TakeScreenshot("build/support-repair-details.png");
-		std::string priority, automatic;
-		for (const auto &[name, label] : app.screen_controls)
-			if (name.starts_with("console/4/popup-control/game.control/"))
-			{
-				if (label == "Reactor")
-					priority = name.substr(std::string("console/4/").size());
-				if (label.starts_with("Automatic repair priorities"))
-					automatic = name.substr(std::string("console/4/").size());
-			}
-		require(!priority.empty() && probe_console_tab(4, priority), "Repair popup submits a real priority choice");
-		for (int i = 0; i < 10; ++i)
-			frame();
-		bool prioritised = false;
-		for (int attempt = 0; attempt < 60 && !prioritised; ++attempt)
+
+		auto has_readout = [&](const std::string &key)
 		{
-			const auto priority_view = app.session->console_observation(4);
-			for (const auto &controller : priority_view->gameplay.at("controllers"))
+			return std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+			                   [&](const auto &row)
+			                   {
+				                   return row.first == key;
+			                   });
+		};
+		require(has_readout("console/4/support/power/battery") && has_readout("console/4/support/power/coolant"),
+		        "Power reserves appear at the top of the single board");
+		require(std::none_of(app.screen_inputs.begin(), app.screen_inputs.end(),
+		                     [](const auto &input)
+		                     {
+			                     return input.id.starts_with("console/4/power/");
+		                     }),
+		        "one-star automatic machinery has no unusable power or coolant sliders");
+		TakeScreenshot("build/support-power-one-star.png");
+		require(probe_console_tab(4, "support-page/repair"), "Pointer opens Repair board");
+		frame();
+		frame();
+		require(has_readout("console/4/support/repair/summary") && has_readout("console/4/support/repair/team/team-1"),
+		        "Repair board shows section damage and current team activity together");
+		TakeScreenshot("build/support-repair.png");
+		require(probe_console_tab(4, "support-details/team/team-1"), "Click team for its details");
+		frame();
+		frame();
+		require(has("console/4/systems-close"), "Team details have a close control");
+		TakeScreenshot("build/support-repair-details.png");
+		action("console/4/systems-close");
+		require(app.set_control_value && app.set_control_value("console/4/support-repair-priority", "22"),
+		        "Single Repair board submits an assisted repair priority");
+		bool prioritised = false;
+		for (int i = 0; i < 100 && !prioritised; ++i)
+		{
+			frame();
+			const auto repair_view = app.session->console_observation(4);
+			for (const auto &controller : repair_view->gameplay.at("controllers"))
 				if (controller.at("id") == "repair-priority")
-					prioritised = controller.at("commands").at("system").at("value").get<std::int64_t>() != 0;
-			if (!prioritised)
-				frame();
+					prioritised = controller.at("commands").at("system").at("value") == 22;
 		}
-		require(prioritised, "Repair priority reaches authoritative Controller state");
-		require(!automatic.empty() && probe_console_tab(4, automatic), "Repair popup restores automatic priority");
+		require(prioritised, "Repair priority reaches authoritative state");
+		require(app.set_control_value("console/4/support-repair-priority", "0"), "Restore automatic repair priorities");
+		require(probe_console_tab(4, "game.console/support"), "Return to Power board");
+		frame();
+		frame();
+		ConsoleModel power;
+		power.refresh(app.session, 4);
+		require(power.command("preset", 2), "Select detailed Support workload");
+		for (int i = 0; i < 45; ++i)
+			frame();
+		require(std::any_of(app.screen_inputs.begin(), app.screen_inputs.end(),
+		                    [](const auto &input)
+		                    {
+			                    return input.id == "console/4/power/ftl.cooling/allocation";
+		                    }),
+		        "three-star Power board exposes a coolant slider");
+		require(app.set_control_value("console/4/power/reactor/output", "37.3"),
+		        "Power slider accepts an intermediate value");
+		for (int i = 0; i < 30; ++i)
+			frame();
+		power.refresh(app.session, 4);
+		bool changed = false;
+		for (const auto &controller : power.observation()->gameplay.at("controllers"))
+			if (controller.at("id") == "reactor")
+				changed = controller.at("commands").at("output").at("value").get<std::int64_t>() > 0;
+		require(changed, "Power slider changes the authoritative reactor setting");
+		require(probe_console_tab(4, "power/reactor/output"), "Pointer operates the visible reactor slider track");
 		for (int i = 0; i < 10; ++i)
 			frame();
-		action("console/4/systems-close");
-		require(probe_console_tab(4, "game.console/support"), "Return to Support");
+		TakeScreenshot("build/support-power-three-stars.png");
+		require(probe_console_tab(4, "support-details/medical"), "Open Medical team details from Power");
 		frame();
 		frame();
-		require(probe_console_tab(4, "game.status/reactor"), "Open reactor details popup");
-		frame();
-		frame();
-		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
-		                    [](const auto &row)
+		require(std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+		                    [](const auto &control)
 		                    {
-			                    return row.first.starts_with("console/4/popup/reactor/");
+			                    return control.first.starts_with(
+			                        "console/4/popup-control/game.team-order/medical-team/");
 		                    }),
-		        "Reactor telemetry lives in popup");
-		TakeScreenshot("build/support-reactor-details.png");
+		        "detailed Support retains admitted Medical orders without a readiness switch");
 		action("console/4/systems-close");
+		require(power.command("preset", 0), "Restore assisted Support workload");
+		for (int i = 0; i < 30; ++i)
+			frame();
+		require(!app.set_control_value("console/4/power/ftl.cooling/allocation", "50"),
+		        "Downgrade rejects a stale coolant slider");
 		require(probe_console_tab(4, "support-navigation"), "Open Navigation details");
 		frame();
 		frame();
@@ -315,6 +345,97 @@ int main(int argc, char **argv)
 		action("console/3/local-settings.close");
 		std::cout << "PASS mixed-resolution Courier layout, pointer tabs, no unintended motion and independent pages"
 		          << std::endl;
+		Application cruiser;
+		cruiser.can_host = true;
+		cruiser.native_menu = false;
+		cruiser.session = make_local_session();
+		cruiser.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
+		cruiser.session->start({"base.rescue-under-threat", {{"courier", "base.cruiser"}}, "courier", "engineering"});
+		cruiser.screen = Screen::console;
+		cruiser.console_regions = {{1, 0, 0, 1920, 1080}};
+		SetWindowSize(1920, 1080);
+		auto cruiser_frame = [&]
+		{
+			cruiser.session->tick();
+			BeginDrawing();
+			draw_screen(cruiser);
+			EndDrawing();
+		};
+		for (int i = 0; i < 1200; ++i)
+		{
+			cruiser_frame();
+			if (std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
+			                [](const auto &row)
+			                {
+				                return row.first == "console/1/support-page/repair";
+			                }))
+				break;
+		}
+		TakeScreenshot("build/cruiser-power-one-star.png");
+		std::cout << "Cruiser active Console " << cruiser.session->observation()->console << ", controls "
+		          << cruiser.screen_controls.size() << std::endl;
+		require(std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
+		                    [](const auto &row)
+		                    {
+			                    return row.first == "console/1/support-page/repair";
+		                    }),
+		        "Cruiser Engineering uses the same single Power and Repair boards");
+		const auto low_power = cruiser.session->observation()->gameplay.at("power");
+		require(!low_power.at("groups").empty(), "Cruiser exposes actual power groups");
+		for (const auto &group : low_power.at("groups"))
+			require(std::any_of(cruiser.screen_readouts.begin(), cruiser.screen_readouts.end(),
+			                    [&](const auto &row)
+			                    {
+				                    return row.first ==
+				                           "console/1/support/power/battery/" + group.at("id").get<std::string>();
+			                    }),
+			        "lower-complexity Power board lists group reserves");
+		require(std::none_of(cruiser.screen_inputs.begin(), cruiser.screen_inputs.end(),
+		                     [](const auto &input)
+		                     {
+			                     return input.label.starts_with("Coolant");
+		                     }),
+		        "lower-complexity Cruiser hides coolant sliders");
+		TakeScreenshot("build/cruiser-power-one-star.png");
+		require(probe_console_tab(1, "support-page/repair"), "Open Cruiser Repair board");
+		cruiser_frame();
+		cruiser_frame();
+		require(probe_console_tab(1, "support-details/team/repair-1"), "Open a Cruiser repair team's details");
+		cruiser_frame();
+		cruiser_frame();
+		require(std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
+		                    [](const auto &control)
+		                    {
+			                    return control.second.starts_with("Send to ");
+		                    }),
+		        "team deployment buttons identify their destination sections");
+		require(cruiser.screen_action("console/1/systems-close"), "Close Cruiser team details");
+		cruiser_frame();
+		cruiser_frame();
+		require(probe_console_tab(1, "game.console/engineering"), "Return to Cruiser Power");
+		cruiser_frame();
+		cruiser_frame();
+		ConsoleModel engineering;
+		engineering.refresh(cruiser.session);
+		require(engineering.command("preset", 2), "Select detailed Cruiser Engineering");
+		for (int i = 0; i < 30; ++i)
+			cruiser_frame();
+		require(std::any_of(cruiser.screen_inputs.begin(), cruiser.screen_inputs.end(),
+		                    [](const auto &input)
+		                    {
+			                    return input.label.starts_with("Coolant");
+		                    }),
+		        "detailed Cruiser exposes permitted coolant sliders");
+		engineering.refresh(cruiser.session);
+		const auto machinery_statuses = engineering.system_statuses();
+		require(std::none_of(machinery_statuses.begin(), machinery_statuses.end(),
+		                     [](const auto &status)
+		                     {
+			                     return status.system.starts_with("repair-");
+		                     }),
+		        "team condition belongs to its roster rather than an electrical on/off status");
+		TakeScreenshot("build/cruiser-power-three-stars.png");
+		std::cout << "PASS Courier and Cruiser Power/Repair boards and complexity-dependent controls" << std::endl;
 		close_window();
 	}
 	catch (const std::exception &error)

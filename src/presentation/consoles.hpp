@@ -333,6 +333,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "station_combat.hpp"
 #include "throttle.hpp"
 #include "support_panels.hpp"
+#include "support_boards.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -823,6 +824,25 @@ button.on-screen-active .share-live {display:block;}
 #comms-history {height:52%;overflow:auto;background:#172b32;padding:8px;}
 #comms-incoming {height:30px;}
 #comms-choices {max-height:18%;overflow:auto;}
+.local-settings-open #support-board {display:none;}
+#support-board input {display:block;width:90%;height:44dp;margin:0 4dp;}
+#support-board input slidertrack {height:40dp;background:#253b43;}
+#support-board input sliderprogress {height:40dp;background:#456a75;}
+#support-board input sliderbar {width:24dp;height:36dp;margin-top:2dp;background:#ffc16d;border:2dp #ffe4b0;}
+#support-board input sliderarrowdec,#support-board input sliderarrowinc {display:none;}
+#support-board label {display:block;}
+#support-board select {display:block;height:44dp;width:70%;min-width:280dp;max-width:520dp;}
+#support-board button span {pointer-events:none;}
+#support-board button {min-height:44dp;margin:4dp;padding:8dp;}
+#support-board .power-reserves {display:flex;flex-wrap:wrap;gap:16dp;border-bottom:1dp #988b71;}
+#support-board .power-reserves > div {min-width:300dp;flex:1;}
+#support-board .power-row {display:flex;align-items:center;gap:12dp;padding:8dp 0;border-bottom:1dp #526167;}
+#support-board .power-name {width:22%;}
+#support-board .power-control {flex:1;min-width:160dp;}
+#support-board .power-battery {width:22%;}
+#support-board .repair-columns {display:flex;gap:24dp;}
+#support-board .repair-columns > div {flex:1;min-width:0;}
+#support-board .repair-columns button {display:block;width:95%;}
 #comms-choices button {display:block;width:100%;box-sizing:border-box;min-height:44dp;margin:4dp 0;}
 #comms-compose input {width:75%;height:40px;}
 .layout-node {box-sizing:border-box;min-width:0;min-height:0;}
@@ -1367,6 +1387,8 @@ button.on-screen-active .share-live {display:block;}
 		if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !std::isfinite(value))
 			return false;
 		const auto action = name.substr(id("").size());
+		if (action.starts_with("power/") || action == "support-repair-priority")
+			return support_value(name, text);
 		if (model_.manual_active() && (action.starts_with("speed/") || action.starts_with("heading/")))
 			return false;
 		bool accepted = false;
@@ -1896,10 +1918,17 @@ button.on-screen-active .share-live {display:block;}
 			          << std::endl;
 			return false;
 		}
+		const auto previous_power =
+		    action.starts_with("power/") && power_controls_.contains(action) ? power_controls_.at(action).value : -1;
 		context_->ProcessMouseMove(static_cast<int>(x), static_cast<int>(y), 0);
 		context_->ProcessMouseButtonDown(0, 0);
 		context_->ProcessMouseButtonUp(0, 0);
 		model_.refresh(app_->session, route_);
+		if (action.starts_with("power/"))
+		{
+			const auto pending = power_pending_.find(action);
+			return pending != power_pending_.end() && pending->second.value != previous_power;
+		}
 		if (action.starts_with("game.console/"))
 			return model_.observation() && model_.observation()->console == action.substr(13);
 		if (action.starts_with("support-page/"))
@@ -2502,6 +2531,7 @@ button.on-screen-active .share-live {display:block;}
 		}
 		if (settings_open_)
 		{
+			property(document_->GetElementById("support-board"), "display", "none");
 			const bool operations = local_settings_tab_ == "logistics" || local_settings_tab_ == "docking" ||
 			                        local_settings_tab_ == "away" || local_settings_tab_ == "craft" ||
 			                        local_settings_tab_ == "personnel";
@@ -3235,7 +3265,7 @@ button.on-screen-active .share-live {display:block;}
 						markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
 						          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			}
-			if (model_.observation() && (!support_active() || (support_primary() && support_page_ == "repair")))
+			if (model_.observation() && !support_active())
 			{
 				const auto compartments = model_.team_map();
 				std::set<std::string> decks;
@@ -3377,6 +3407,7 @@ button.on-screen-active .share-live {display:block;}
 			finish_support_panels(region);
 			app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 		}
+		prepare_support_board(region, pregame);
 		if (layout && !pregame)
 			for (const auto &widget : layout->at("widgets"))
 			{

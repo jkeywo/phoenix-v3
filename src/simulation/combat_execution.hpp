@@ -679,6 +679,22 @@ void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, con
 			combat_damage(ship, nearest, damage);
 		}
 }
+bool repair_team_present(flecs::entity ship, std::size_t compartment) const
+{
+	for (auto child : ship.get<EquipmentIndex>().values)
+		if (const auto *team = child.try_get<CombatMechanism>();
+		    team && team->definition.kind == OperatingSystem::Team &&
+		    team->definition.get<TeamDefinition>().capabilities.contains("repair"))
+		{
+			const auto &state = team->get<TeamState>();
+			if (state.location == static_cast<std::int64_t>(compartment) && state.travel == 0 &&
+			    team_available(*team) && child.get<Equipment>().enabled &&
+			    !structurally_disabled(ship, team->definition.id) &&
+			    !away_reserved(ship.get<StableId>().id, "team:" + team->definition.id))
+				return true;
+		}
+	return false;
+}
 void project_combat(const ConsoleAddress &address, Observation &result) const
 {
 	const auto ship = entities.at(address.ship);
@@ -696,16 +712,30 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 		{
 			const auto &d = s->definition.compartments[i];
 			const auto &c = s->compartments[i];
-			output["compartments"].push_back({{"id", d.id},
-			                                  {"index", i + 1},
-			                                  {"deck", d.deck},
-			                                  {"hp", c.hp},
-			                                  {"maximum", d.maximum},
-			                                  {"disabled", c.disabled},
-			                                  {"x_mm", d.x},
-			                                  {"y_mm", d.y},
-			                                  {"half_width_mm", d.half_width},
-			                                  {"half_length_mm", d.half_length}});
+			output["compartments"].push_back(
+			    {{"id", d.id},
+			     {"index", i + 1},
+			     {"deck", d.deck},
+			     {"hp", c.hp},
+			     {"maximum", d.maximum},
+			     {"disabled", c.disabled},
+			     {"inspected", repair_team_present(ship, i)},
+			     {"damaged", c.hp < d.maximum || std::any_of(
+			                                         s->faults.begin(), s->faults.end(),
+			                                         [&](const auto &entry)
+			                                         {
+				                                         return s->definition.equipment_compartments.at(entry.first) ==
+				                                                    d.id &&
+				                                                std::any_of(entry.second.begin(), entry.second.end(),
+				                                                            [](const auto &fault)
+				                                                            {
+					                                                            return fault.active;
+				                                                            });
+			                                         })},
+			     {"x_mm", d.x},
+			     {"y_mm", d.y},
+			     {"half_width_mm", d.half_width},
+			     {"half_length_mm", d.half_length}});
 		}
 	const auto &feeds = seat(address.ship, address.console)->feed_systems;
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -766,6 +796,9 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	output["magazines"] = Json::array();
 	for (const auto &[equipment, defs] : s->definition.faults)
 	{
+		if (!repair_team_present(ship,
+		                         s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment))))
+			continue;
 		if (address.console != s->definition.repair_console &&
 		    std::find(feeds.begin(), feeds.end(), equipment) == feeds.end())
 			continue;

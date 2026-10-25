@@ -236,7 +236,8 @@ void prepare_console_tabs(const ConsoleRegion &region)
 			if (tab.id == inline_console_ || (support_active() && tab.id != support_root_ && tab.id != support_comms_))
 				continue;
 			const auto action = id("game.console/" + tab.id);
-			const auto label = localise(tab.label) + (tab.attention ? " — " + localise("Unread") : "");
+			const auto label = localise(support_active() && tab.id == support_root_ ? "Power" : tab.label) +
+			                   (tab.attention ? " — " + localise("Unread") : "");
 			markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
 			          (!settings_open_ && tab.id == model_.observation()->console &&
 			                   !(support_primary() && support_page_ == "repair")

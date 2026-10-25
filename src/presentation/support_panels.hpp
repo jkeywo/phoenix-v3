@@ -55,7 +55,7 @@ void refresh_support_panels(Application &app)
 			if (!found->gameplay.value("ftl", Json::array()).empty())
 				auxiliaries.insert(spec.id);
 		}
-	if (!comms.empty())
+	if (snapshot && generator && repair && panel_layout)
 		root = snapshot->console;
 	if (root != support_root_)
 	{
@@ -114,10 +114,42 @@ bool support_action(const std::string &action)
 		support_detail_ = model_.act("game.console/" + support_navigation_);
 		return support_detail_;
 	}
+	if (action == "support-details/medical" && support_primary())
+	{
+		model_.act("game.teams-close");
+		bool found = false;
+		for (const auto &team : model_.observation()->gameplay.value("teams", Json::array()))
+			if (!team.value("repair", false) && !team.at("orders").empty())
+			{
+				found = true;
+				if (team.value("manual", false) && !team.value("reserved", false))
+				{
+					model_.act("game.team-order/" + team.at("id").get<std::string>() + "/" +
+					           team.at("orders")[0].at("id").get<std::string>());
+					break;
+				}
+			}
+		if (!found)
+			return false;
+		model_.act("game.status-close");
+		support_popup_ = "medical";
+		systems_open_ = true;
+		return true;
+	}
 	if (action.starts_with("support-details/"))
 	{
+		const auto detail = action.substr(16);
+		if (!support_primary() || !detail.starts_with("team/"))
+			return false;
+		const auto teams = model_.observation()->gameplay.value("teams", Json::array());
+		if (std::none_of(teams.begin(), teams.end(),
+		                 [&](const Json &team)
+		                 {
+			                 return team.at("id") == detail.substr(5) && team.value("repair", false);
+		                 }))
+			return false;
 		model_.act("game.status-close");
-		support_popup_ = action.substr(16);
+		support_popup_ = detail;
 		systems_open_ = true;
 		return true;
 	}
@@ -148,143 +180,17 @@ void support_controls(std::vector<std::pair<std::string, std::string>> &controls
 {
 	if (!support_primary())
 		return;
-	const auto descriptors = model_.observation()->gameplay.value("controls", Json::array());
-	if (support_page_ == "repair")
-	{
-		std::erase_if(controls,
-		              [](const auto &control)
-		              {
-			              return control.first != "game.teams-close";
-		              });
-		controls.emplace_back("support-details/repair", localise("Repair priorities and teams"));
-		return;
-	}
-	std::erase_if(controls,
-	              [&](const auto &control)
-	              {
-		              Json descriptor = Json::object();
-		              for (const auto &entry : descriptors)
-			              if (descriptor_action(entry.at("id")) == control.first)
-			              {
-				              descriptor = entry;
-				              break;
-			              }
-		              const bool repair = support_repair_control(control.first, descriptor);
-		              if (support_page_ == "repair")
-			              return !repair;
-		              if (repair || descriptor.empty())
-			              return true;
-		              const auto action = descriptor.value("action", "");
-		              return action != "system_enabled" && action != "intent_boolean" && action != "intent_integer" &&
-		                     action != "generator_output";
-	              });
-	if (support_page_ == "support")
-	{
-		for (const auto &system : model_.observation()->systems)
-			if (system.kind == OperatingSystem::Generator)
-				controls.emplace_back("game.status/" + system.id, localise("Reactor details"));
-		for (const auto &[console, source] : support_models_)
-			for (const auto &[name, label] : source->gameplay_controls())
-				if (name.starts_with("game.control/"))
-					controls.emplace_back("support-console/" + console + "/" + name, label);
-		if (!support_navigation_.empty())
-			controls.emplace_back("support-navigation", localise("Navigation details"));
-	}
-	controls.emplace_back("support-details/" + support_page_, localise("Details"));
+	controls.clear();
 }
 void support_cards(std::vector<EngineeringCard> &cards)
 {
-	if (!support_primary())
-		return;
-	if (support_page_ == "repair")
-	{
+	if (support_primary())
 		cards.clear();
-		for (const auto &part :
-		     model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array()))
-		{
-			EngineeringCard card{"repair/" + part.at("id").get<std::string>(), engineering_name(part.at("id")), {}};
-			card.condition =
-			    int(part.at("hp").get<std::int64_t>() * 100 / std::max<std::int64_t>(1, part.at("maximum")));
-			card.summary = localise("Condition") + ": " + std::to_string(*card.condition) + "%";
-			if (part.at("disabled").get<bool>())
-				card.summary += " | " + localise("Disabled");
-			cards.push_back(std::move(card));
-		}
-		return;
-	}
-	std::erase_if(cards,
-	              [&](const auto &card)
-	              {
-		              if (support_page_ == "repair")
-			              return true;
-		              for (const auto &system : model_.observation()->systems)
-			              if (system.id == card.id)
-				              return system.kind != OperatingSystem::Generator;
-		              return true;
-	              });
-	for (auto &card : cards)
-	{
-		card.summary.clear();
-		if (card.heat)
-			card.summary += localise("Heat") + ": " + std::to_string(*card.heat) + "%";
-		if (card.battery)
-			card.summary += " | " + localise("Battery") + ": " + std::to_string(*card.battery) + "%";
-		for (const auto &system : model_.observation()->systems)
-			if (system.id == card.id && system.telemetry.contains("actual_output"))
-				card.summary +=
-				    " | " + localise("Output") + ": " + std::to_string(system.telemetry.at("actual_output")) + " / s";
-		card.controls.emplace_back("game.status/" + card.id, localise("Details"));
-	}
 }
 void support_readouts(std::vector<std::pair<std::string, std::string>> &readouts)
 {
-	if (!support_primary())
-		return;
-	readouts.clear();
-	const auto &view = *model_.observation();
-	const auto combat = view.gameplay.value("combat", Json::object());
-	if (support_page_ == "repair")
-	{
-		const auto compartments = combat.value("compartments", Json::array());
-		const auto damaged = std::count_if(compartments.begin(), compartments.end(),
-		                                   [](const auto &part)
-		                                   {
-			                                   return part.at("hp") < part.at("maximum");
-		                                   });
-		readouts.emplace_back("support/repair/summary", localise("Damaged compartments") + ": " +
-		                                                    std::to_string(damaged) + " / " +
-		                                                    std::to_string(compartments.size()));
-		const auto controls = model_.gameplay_controls();
-		for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
-			if (descriptor.value("controller", "").find("repair") != std::string::npos)
-				for (const auto &controller : view.gameplay.value("controllers", Json::array()))
-					if (controller.at("id") == descriptor.at("controller"))
-					{
-						const auto commands = controller.value("commands", Json::object());
-						const auto channel = descriptor.value("channel", "");
-						if (commands.contains(channel) && commands.at(channel).at("value") == descriptor.at("value"))
-							for (const auto &[name, label] : controls)
-								if (name == descriptor_action(descriptor.at("id")))
-									readouts.emplace_back("support/repair/priority",
-									                      localise("Repair priority") + ": " + engineering_name(label));
-					}
-		return;
-	}
-	for (const auto &shield : combat.value("shields", Json::array()))
-		readouts.emplace_back("support/shield/" + shield.at("id").get<std::string>(),
-		                      engineering_name(shield.at("id")) + ": " +
-		                          std::to_string(shield.at("strength").get<std::int64_t>()) + " / " +
-		                          std::to_string(shield.at("capacity").get<std::int64_t>()));
-	for (const auto &[console, source] : support_models_)
-		for (const auto &drive : source->observation()->gameplay.value("ftl", Json::array()))
-			readouts.emplace_back("support/ftl/" + console,
-			                      localise("FTL") + ": " +
-			                          localise(drive.at("ready").get<bool>() ? "Ready to depart"
-			                                                                 : drive.at("blocker").get<std::string>()) +
-			                          " | " +
-			                          std::to_string(drive.at("energy").get<std::int64_t>() * 100 /
-			                                         std::max<std::int64_t>(1, drive.at("capacity"))) +
-			                          "%");
+	if (support_primary())
+		readouts.clear();
 }
 void finish_support_panels(const ConsoleRegion &region)
 {

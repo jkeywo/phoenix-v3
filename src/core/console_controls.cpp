@@ -518,6 +518,15 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 					for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
 						projected |= manual_binding(view, layout, command.action, anchor) ==
 						             binding(command.controller, command.channel);
+				const bool power = command.action == "generator_output" || command.action == "group_allocation" ||
+				                   command.action == "cooling_allocation" || command.action == "charge_limit" ||
+				                   (command.action == "intent_integer" && c.contains("ui_system"));
+				if (power)
+					for (const auto &control : view.gameplay.value("controls", Json::array()))
+						if (control.value("controller", "") == command.controller &&
+						    control.value("channel", "") == command.channel &&
+						    control.value("action", "") == command.action && control.value("enabled", true))
+							projected = true;
 				if (command.action == "lateral_thrust" || command.action == "boost")
 					projected = true;
 			}

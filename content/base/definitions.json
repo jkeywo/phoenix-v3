@@ -1118,7 +1118,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.distribution"
 							}
 						]
 					},
@@ -1146,7 +1147,8 @@
 								"minimum": 0,
 								"maximum": 20000,
 								"initial": 13000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.generator"
 							}
 						]
 					},
@@ -1211,7 +1213,8 @@
 								"minimum": 0,
 								"maximum": 3000,
 								"initial": 3000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.reactor-cooling"
 							}
 						]
 					},
@@ -1325,7 +1328,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-cooling"
 							}
 						]
 					},
@@ -1359,7 +1363,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-supply"
 							}
 						]
 					},
@@ -1387,7 +1392,8 @@
 								"minimum": 0,
 								"maximum": 10000,
 								"initial": 8000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.distribution"
 							}
 						]
 					},
@@ -1484,7 +1490,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-cooling"
 							}
 						]
 					},
@@ -1518,7 +1525,8 @@
 								"minimum": 0,
 								"maximum": 4000,
 								"initial": 4000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-supply"
 							}
 						]
 					},
@@ -1590,7 +1598,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-cooling"
 							}
 						]
 					},
@@ -1624,7 +1633,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-supply"
 							}
 						]
 					},
@@ -1695,7 +1705,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-cooling"
 							}
 						]
 					},
@@ -1729,7 +1740,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-supply"
 							}
 						]
 					},
@@ -1819,7 +1831,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-cooling"
 							}
 						]
 					},
@@ -1853,7 +1866,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-supply"
 							}
 						]
 					},
@@ -1881,7 +1895,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.cooling"
 							}
 						]
 					},
@@ -1915,7 +1930,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.distribution"
 							}
 						]
 					},
@@ -5603,7 +5619,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "communications.cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.communications.cooling.orders"
@@ -5637,7 +5654,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "communications.distribution"
 							}
 						],
 						"tree": "base.cruiser.assist.communications.distribution.orders"
@@ -5702,7 +5720,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.distribution"
 							}
 						],
 						"tree": "base.cruiser.assist.core.distribution.orders"
@@ -5730,7 +5749,8 @@
 								"minimum": 0,
 								"maximum": 30000,
 								"initial": 30000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.generator"
 							}
 						],
 						"tree": "base.cruiser.assist.core.generator.orders"
@@ -5789,7 +5809,8 @@
 								"minimum": 0,
 								"maximum": 3000,
 								"initial": 3000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.reactor-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.core.reactor-cooling.orders"
@@ -5873,7 +5894,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.boost-cooling.orders"
@@ -5907,7 +5929,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.boost-supply.orders"
@@ -5935,7 +5958,8 @@
 								"minimum": 0,
 								"maximum": 10000,
 								"initial": 8000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.distribution"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.distribution.orders"
@@ -5996,7 +6020,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.engine-cooling.orders"
@@ -6030,7 +6055,8 @@
 								"minimum": 0,
 								"maximum": 4000,
 								"initial": 4000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.engine-supply.orders"
@@ -6074,7 +6100,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.impulse-cooling.orders"
@@ -6108,7 +6135,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.impulse-supply.orders"
@@ -6142,7 +6170,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.lateral-cooling.orders"
@@ -6176,7 +6205,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.lateral-supply.orders"
@@ -6230,7 +6260,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.steering-cooling.orders"
@@ -6264,7 +6295,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.drive.steering-supply.orders"
@@ -6292,7 +6324,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.sensors.cooling.orders"
@@ -6326,7 +6359,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.distribution"
 							}
 						],
 						"tree": "base.cruiser.assist.sensors.distribution.orders"
@@ -6367,7 +6401,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "tactical.cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.tactical.cooling.orders"
@@ -6401,7 +6436,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "tactical.distribution"
 							}
 						],
 						"tree": "base.cruiser.assist.tactical.distribution.orders"
@@ -6471,7 +6507,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.boost-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.boost-cooling.orders"
@@ -6505,7 +6542,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.boost-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.boost-supply.orders"
@@ -6533,7 +6571,8 @@
 								"minimum": 0,
 								"maximum": 10000,
 								"initial": 8000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.distribution"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.distribution.orders"
@@ -6610,7 +6649,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.engine-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.engine-cooling.orders"
@@ -6644,7 +6684,8 @@
 								"minimum": 0,
 								"maximum": 4000,
 								"initial": 4000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.engine-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.engine-supply.orders"
@@ -6688,7 +6729,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.impulse-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.impulse-cooling.orders"
@@ -6722,7 +6764,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.impulse-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.impulse-supply.orders"
@@ -6750,7 +6793,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.lateral-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.lateral-cooling.orders"
@@ -6784,7 +6828,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.lateral-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.lateral-supply.orders"
@@ -6850,7 +6895,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.steering-cooling"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.steering-cooling.orders"
@@ -6884,7 +6930,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "wing.steering-supply"
 							}
 						],
 						"tree": "base.cruiser.assist.wing.steering-supply.orders"
@@ -16005,7 +16052,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.distribution"
 							}
 						]
 					},
@@ -16033,7 +16081,8 @@
 								"minimum": 0,
 								"maximum": 20000,
 								"initial": 13000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.generator"
 							}
 						]
 					},
@@ -16098,7 +16147,8 @@
 								"minimum": 0,
 								"maximum": 3000,
 								"initial": 3000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.reactor-cooling"
 							}
 						]
 					},
@@ -16212,7 +16262,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-cooling"
 							}
 						]
 					},
@@ -16246,7 +16297,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-supply"
 							}
 						]
 					},
@@ -16274,7 +16326,8 @@
 								"minimum": 0,
 								"maximum": 10000,
 								"initial": 8000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.distribution"
 							}
 						]
 					},
@@ -16371,7 +16424,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-cooling"
 							}
 						]
 					},
@@ -16405,7 +16459,8 @@
 								"minimum": 0,
 								"maximum": 4000,
 								"initial": 4000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-supply"
 							}
 						]
 					},
@@ -16477,7 +16532,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-cooling"
 							}
 						]
 					},
@@ -16511,7 +16567,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-supply"
 							}
 						]
 					},
@@ -16582,7 +16639,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-cooling"
 							}
 						]
 					},
@@ -16616,7 +16674,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-supply"
 							}
 						]
 					},
@@ -16706,7 +16765,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-cooling"
 							}
 						]
 					},
@@ -16740,7 +16800,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-supply"
 							}
 						]
 					},
@@ -16768,7 +16829,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.cooling"
 							}
 						]
 					},
@@ -16802,7 +16864,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.distribution"
 							}
 						]
 					},
@@ -17593,7 +17656,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.distribution"
 							}
 						]
 					},
@@ -17621,7 +17685,8 @@
 								"minimum": 0,
 								"maximum": 20000,
 								"initial": 13000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.generator"
 							}
 						]
 					},
@@ -17686,7 +17751,8 @@
 								"minimum": 0,
 								"maximum": 3000,
 								"initial": 3000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.reactor-cooling"
 							}
 						]
 					},
@@ -17800,7 +17866,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-cooling"
 							}
 						]
 					},
@@ -17834,7 +17901,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-supply"
 							}
 						]
 					},
@@ -17862,7 +17930,8 @@
 								"minimum": 0,
 								"maximum": 10000,
 								"initial": 8000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.distribution"
 							}
 						]
 					},
@@ -17959,7 +18028,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-cooling"
 							}
 						]
 					},
@@ -17993,7 +18063,8 @@
 								"minimum": 0,
 								"maximum": 4000,
 								"initial": 4000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-supply"
 							}
 						]
 					},
@@ -18065,7 +18136,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-cooling"
 							}
 						]
 					},
@@ -18099,7 +18171,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-supply"
 							}
 						]
 					},
@@ -18170,7 +18243,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-cooling"
 							}
 						]
 					},
@@ -18204,7 +18278,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-supply"
 							}
 						]
 					},
@@ -18294,7 +18369,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-cooling"
 							}
 						]
 					},
@@ -18328,7 +18404,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-supply"
 							}
 						]
 					},
@@ -18356,7 +18433,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.cooling"
 							}
 						]
 					},
@@ -18390,7 +18468,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.distribution"
 							}
 						]
 					},
@@ -24255,7 +24334,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.distribution"
 							}
 						]
 					},
@@ -24283,7 +24363,8 @@
 								"minimum": 0,
 								"maximum": 20000,
 								"initial": 13000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.generator"
 							}
 						]
 					},
@@ -24348,7 +24429,8 @@
 								"minimum": 0,
 								"maximum": 3000,
 								"initial": 3000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "core.reactor-cooling"
 							}
 						]
 					},
@@ -24462,7 +24544,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-cooling"
 							}
 						]
 					},
@@ -24496,7 +24579,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.boost-supply"
 							}
 						]
 					},
@@ -24524,7 +24608,8 @@
 								"minimum": 0,
 								"maximum": 10000,
 								"initial": 8000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.distribution"
 							}
 						]
 					},
@@ -24621,7 +24706,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-cooling"
 							}
 						]
 					},
@@ -24655,7 +24741,8 @@
 								"minimum": 0,
 								"maximum": 4000,
 								"initial": 4000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.engine-supply"
 							}
 						]
 					},
@@ -24727,7 +24814,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-cooling"
 							}
 						]
 					},
@@ -24761,7 +24849,8 @@
 								"minimum": 0,
 								"maximum": 1500,
 								"initial": 1500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.impulse-supply"
 							}
 						]
 					},
@@ -24832,7 +24921,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-cooling"
 							}
 						]
 					},
@@ -24866,7 +24956,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.lateral-supply"
 							}
 						]
 					},
@@ -24956,7 +25047,8 @@
 								"minimum": 0,
 								"maximum": 100,
 								"initial": 100,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-cooling"
 							}
 						]
 					},
@@ -24990,7 +25082,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 500,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "drive.steering-supply"
 							}
 						]
 					},
@@ -25018,7 +25111,8 @@
 								"minimum": 0,
 								"maximum": 200,
 								"initial": 200,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.cooling"
 							}
 						]
 					},
@@ -25052,7 +25146,8 @@
 								"minimum": 0,
 								"maximum": 1000,
 								"initial": 1000,
-								"consumers": []
+								"consumers": [],
+								"ui_system": "sensors.distribution"
 							}
 						]
 					},

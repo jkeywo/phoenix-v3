@@ -512,6 +512,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			control_require(command.semantics != CommandSemantics::Request || command.initial == 0, where,
 			                "request channels must start idle");
 
+			command.ui_system = field.value("ui_system", std::string{});
+			control_require(command.ui_system.empty() ||
+			                    (command.action == OperatingAction::IntentInteger &&
+			                     system_ids.contains(command.ui_system) && !field.contains("choices")),
+			                where, "ui_system requires a numeric intent and a fitted presentation subject");
 			command.label_key = field.value("label_key", std::string{});
 			if (field.contains("shared_target") || field.contains("shared_command"))
 			{

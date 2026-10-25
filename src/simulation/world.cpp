@@ -1631,6 +1631,7 @@ struct World::Impl
 		combat_telemetry(entity, fitted.entity, values);
 		return values;
 	}
+#include "power_projection.hpp"
 #include "console_observations.hpp"
 	template <typename... Components>
 	std::vector<flecs::entity> ordered_equipment(const flecs::query<Components...> &query, EntityId ship = 0) const

@@ -190,3 +190,9 @@ Existing `navigation.blocked`, `navigation.left_heading`, `navigation.lateral_th
 ## Shared action execution
 
 Maintained policies select reusable actions through typed invocation bindings. See [shared Controller actions, officer requests and fixed factions](controller-actions.md) for runtime inputs, channel remapping, outcomes, coordination and schema-13 persistence. Legacy `policy: combat` declarations convert at the content boundary; they no longer select a separate native decision loop.
+
+## Power intent presentation
+
+A numeric `intent_integer` channel without discrete `choices` can name a fitted `ui_system` as its presentation subject, for example `"ui_system": "drive.distribution"`. This lets an abstract allocation intent appear beside the physical group or cooling link it describes. Verification requires a fitted subject and a numeric intent. The subject is projected with the channel; it neither adds a physical consumer nor grants control or a new observation feed. The Power board pairs it with the permitted resource projection. Native power actions use their actual consumer bindings directly.
+
+Power sliders submit values within the admitted setting channel's minimum/maximum range, including values between the old increment buttons. Slider travel follows the fitted generator rating, allocation budget, charge rate or cooling-link capacity. The client requires a currently projected human power channel; the server still checks operator, generation, star threshold, action and range. These rules also apply to abstract power intents.

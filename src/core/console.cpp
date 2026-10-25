@@ -1638,6 +1638,8 @@ std::vector<ConsoleSystemStatus> ConsoleModel::system_statuses() const
 		return result;
 	for (const auto &system : observation_->systems)
 	{
+		if (system.kind == OperatingSystem::Team)
+			continue; // Team activity/condition is presented by the roster.
 		const auto flag = [&](const char *key)
 		{
 			return system.telemetry.contains(key) && system.telemetry.at(key) != 0;
@@ -1780,6 +1782,17 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			continue;
 		if (descriptor.value("action", std::string{}) == "system_enabled")
 		{
+			bool team_switch = false;
+			for (const auto &controller : controller_rows(observation_->gameplay))
+				if (controller.at("id") == descriptor.value("controller", std::string{}))
+					for (const auto &[channel, command] : controller.at("commands").items())
+						if (channel == descriptor.value("channel", std::string{}))
+							for (const auto &consumer : command.at("consumers"))
+								for (const auto &system : observation_->systems)
+									team_switch |= system.id == consumer.get<std::string>() &&
+									               system.kind == OperatingSystem::Team;
+			if (team_switch)
+				continue; // Teams have activities and conditions, not player-operated readiness switches.
 			bool combat_control = false;
 			for (const auto &system : observation_->systems)
 				if (system.id == descriptor.value("controller", std::string{}) &&

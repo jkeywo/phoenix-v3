@@ -16,6 +16,10 @@ Repair priorities finish the selected system or compartment hull before resuming
 
 Shared flight settings follow the main assembly until an explicit three-star override is made. A downgrade returns the second assembly to shared commands. Coordinated impulse admits separate, idempotent requests for each physical executor. A request still has exactly one executor. Profile handover preserves physical work and clears unavailable held inputs and overrides.
 
+## Engineering presentation
+
+Engineering uses the same Power and Repair boards as Courier Support. Power lists actual distribution groups below three stars and individual reserves/System feeds at three stars; coolant sliders are omitted unless their channels are human controlled at the current level. Shared batteries and coolant sources are counted once. Repair lists section condition and team activity together; a team opens its own details, and individual fault reports require a repair team physically present in that section. Deployment and local repair priorities retain their existing star thresholds.
+
 ## Dispatch and contributions
 
 General `dispatch` belongs to Tactical. `engineering-dispatch` belongs to Engineering, together with the two-shuttle utility bay. Missions may name an explicit fitted Dispatch System with `dispatch`. Omission keeps the legacy `dispatch` System, or the unique fitted Dispatch when it has another ID.

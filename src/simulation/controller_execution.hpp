@@ -1178,6 +1178,8 @@ Json project_controllers(const ConsoleAddress &address, const Observation &proje
 			                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
 			                     {"accepted", state.accepted},
 			                     {"request_id", state.request_id}};
+			if (!spec.ui_system.empty())
+				commands[spec.id]["ui_system"] = spec.ui_system;
 			auto &consumers = commands[spec.id]["consumers"] = Json::array();
 			for (const auto index : spec.consumers)
 				consumers.push_back((*fittings(entities.at(address.ship))).values[index].id);

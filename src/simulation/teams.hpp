@@ -608,6 +608,34 @@ Json team_board(const ConsoleAddress &a) const
 					if (command.action == OperatingAction::SystemEnabled)
 						for (auto consumer : command.consumers)
 							manual |= definition(a.ship).fitted->values.at(consumer).id == m->definition.id;
+		row["repair"] = d.capabilities.contains("repair");
+		row["travel"] = r.travel;
+		row["work"] = row.at("reserved").get<bool>()                                        ? "Away mission"
+		              : !team_available(*m)                                                 ? "Unavailable"
+		              : r.travel > 0 || (r.destination >= 0 && r.destination != r.location) ? "Travelling"
+		              : !r.activity.empty()                                                 ? r.activity
+		                                                                                    : "Idle";
+		row["work_system"] = "";
+		if (d.capabilities.contains("repair") && !row.at("reserved").get<bool>() && r.travel == 0 && r.location >= 0 &&
+		    repair_team_present(ship, r.location) && team_available(*m))
+		{
+			std::string priority;
+			const auto &structure = ship.get<CombatStructure>();
+			if (r.repair_system >= 0)
+			{
+				auto selected = structure.definition.equipment_compartments.begin();
+				std::advance(selected, r.repair_system);
+				priority = selected->first;
+			}
+			const auto candidate = repair_candidate(ship, r.location, priority);
+			if (candidate.fault)
+			{
+				row["work"] = "Repairing system";
+				row["work_system"] = candidate.fault->first;
+			}
+			else if (candidate.score > 0)
+				row["work"] = "Repairing hull";
+		}
 		row["manual"] = manual;
 		row["patient_control"] = manual_workload(a, "medical");
 		row["assigned_compartment"] = r.medical_compartment;

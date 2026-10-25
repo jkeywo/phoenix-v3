@@ -187,29 +187,109 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 								markup += add(detail_prefix + name, label);
 						}
 	}
+	else if (systems_open_ && support_popup_.starts_with("team/") && model_.observation())
+	{
+		const auto selected = support_popup_.substr(5);
+		const auto &view = *model_.observation();
+		markup = "<h1>" + esc(localise(engineering_name(selected))) + "</h1>";
+		for (const auto &team : view.gameplay.value("teams", Json::array()))
+			if (team.at("id") == selected && team.value("repair", false))
+			{
+				markup += readout("team/activity",
+				                  localise(team.value("work", "Idle")) + " | " + localise(team.at("condition")));
+				const auto parts = view.gameplay.value("combat", Json::object()).value("compartments", Json::array());
+				for (const auto &part : parts)
+					if (part.at("index").get<std::int64_t>() == team.at("location").get<std::int64_t>() + 1)
+						markup += readout("team/location",
+						                  localise("Section") + ": " + localise(engineering_name(part.at("id"))));
+				const bool present = !team.value("reserved", false) && team.value("travel", 0) == 0 &&
+				                     team.at("condition") != "lost" && team.at("condition") != "detained";
+				if (present)
+				{
+					bool any = false;
+					for (const auto &fault :
+					     view.gameplay.value("combat", Json::object()).value("faults", Json::array()))
+						if (fault.at("compartment_index").get<std::int64_t>() ==
+						    team.at("location").get<std::int64_t>() + 1)
+						{
+							any = true;
+							markup += readout(
+							    "fault/" + fault.at("system").get<std::string>() + "/" +
+							        fault.at("symptom").get<std::string>(),
+							    localise(engineering_name(fault.at("system"))) + ": " + localise(fault.at("symptom")) +
+							        (fault.value("diagnosed", false) ? " — " + localise(fault.at("diagnosis")) : ""));
+						}
+					if (!any)
+						markup += readout("team/damage", localise("No observed system damage here"));
+				}
+				else
+					markup += readout("team/damage", localise("System damage details require a team in the section"));
+				if (!team.value("reserved", false))
+					for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
+					{
+						const auto consumers = command_consumers(view, descriptor);
+						if (std::find(consumers.begin(), consumers.end(), selected) == consumers.end())
+							continue;
+						const auto action = descriptor.value("action", "");
+						if (action == "repair_compartment")
+						{
+							const auto target = descriptor.at("value").get<std::int64_t>();
+							if (target == 0)
+								markup += add(descriptor_action(descriptor.at("id")), localise("Automatic deployment"));
+							for (const auto &part : parts)
+								if (part.at("index").get<std::int64_t>() == target)
+									markup +=
+									    add(descriptor_action(descriptor.at("id")),
+									        localise("Send to") + " " + localise(engineering_name(part.at("id"))));
+						}
+						else if (action == "repair_system" && present)
+						{
+							const auto label = descriptor.value("label", action);
+							bool observed = descriptor.at("value") == 0 || label == "Compartment hull";
+							for (const auto &fault :
+							     view.gameplay.value("combat", Json::object()).value("faults", Json::array()))
+								observed |=
+								    fault.at("system") == label && fault.at("compartment_index").get<std::int64_t>() ==
+								                                       team.at("location").get<std::int64_t>() + 1;
+							if (observed)
+								markup +=
+								    add(descriptor_action(descriptor.at("id")), localise(engineering_name(label)));
+						}
+					}
+			}
+		markup += add("systems-close", localise("Close"));
+	}
+	else if (systems_open_ && support_popup_ == "medical" && model_.observation())
+	{
+		markup = "<h1>" + esc(localise("Medical and support teams")) + "</h1>";
+		const auto teams = model_.observation()->gameplay.value("teams", Json::array());
+		for (const auto &team : teams)
+			if (!team.value("repair", false))
+				markup += readout("team/" + team.at("id").get<std::string>(),
+				                  localise(engineering_name(team.at("id"))) + " — " +
+				                      localise(team.value("work", "Idle")) + " | " + localise(team.at("condition")));
+		for (const auto &[key, text] : model_.gameplay_readouts())
+			if (key.starts_with("medical."))
+				markup += readout(key, text);
+		for (const auto &[name, label] : model_.gameplay_controls())
+		{
+			bool allowed = name.starts_with("game.team-patient/");
+			for (const auto &team : teams)
+				if (!team.value("repair", false))
+					allowed |= name.starts_with("game.team-order/" + team.at("id").get<std::string>() + "/") ||
+					           name == "game.team-cancel/" + team.at("id").get<std::string>();
+			if (allowed)
+				markup += add(name, label);
+		}
+		for (const auto &part : model_.team_map())
+			if (part.value("dispatch", false) && part.value("eligible", false))
+				markup += add("game.compartment/" + std::to_string(part.at("index").get<std::int64_t>()),
+				              localise("Send to") + " " + localise(engineering_name(part.at("id"))));
+		markup += add("systems-close", localise("Close"));
+	}
 	else if (systems_open_)
 	{
-		markup = "<h1>" + esc(localise(support_popup_ == "repair" ? "Repair details" : "System statuses")) + "</h1>";
-		if (support_popup_ == "repair")
-			for (const auto &[key, text] : model_.gameplay_readouts())
-				if (key.starts_with("compartment.") || key.starts_with("team."))
-					markup += readout(key, text);
-		if (support_popup_ == "repair" && model_.observation())
-		{
-			const auto descriptors = model_.observation()->gameplay.value("controls", Json::array());
-			for (const auto &[name, label] : model_.gameplay_controls())
-			{
-				Json descriptor = Json::object();
-				for (const auto &control : descriptors)
-					if (descriptor_action(control.at("id")) == name && !control.value("momentary", false))
-					{
-						descriptor = control;
-						break;
-					}
-				if (support_repair_control(name, descriptor))
-					markup += add(name, engineering_name(label));
-			}
-		}
+		markup = "<h1>" + esc(localise("System statuses")) + "</h1>";
 		std::set<std::string> shown, dedicated;
 		for (const auto &card : cards)
 			dedicated.insert(card.id);

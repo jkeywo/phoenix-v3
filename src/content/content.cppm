@@ -1208,7 +1208,7 @@ struct ControllerCommandSpec
 	std::vector<std::int64_t> initial_arguments;
 	bool initial_heading = false;
 	std::int64_t arrival_radius = 5000;
-	std::string label_key;
+	std::string label_key, ui_system; // Optional presentation subject for abstract power intent.
 	std::map<std::int64_t, std::string> choices;
 	std::string shared_target_controller, shared_target_channel;
 	int individual_stars = 1;
