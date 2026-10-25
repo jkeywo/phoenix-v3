@@ -64131,10 +64131,6 @@
 							}
 						],
 						"min_width": 360
-					},
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
 					}
 				]
 			},

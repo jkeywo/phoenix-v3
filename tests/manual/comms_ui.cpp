@@ -21,10 +21,11 @@ int main(int argc, char **argv)
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
+		app.session->add_pack(read_file(std::string(argv[1]) + "/test-missions.zip"));
 		app.session->start({"base.comms-demonstration",
-		                    {{"courier", "base.comms-courier"}, {"partner", "base.comms-courier"}},
+		                    {{"courier", "base.rescue-courier"}, {"partner", "base.rescue-courier"}},
 		                    "courier",
-		                    "engineering"});
+		                    "support"});
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
@@ -66,13 +67,21 @@ int main(int argc, char **argv)
 			app.session->tick();
 			frame();
 		}
-		TakeScreenshot("comms-incoming.png");
+		TakeScreenshot("build/comms-incoming.png");
 		for (int i = 0; i < 40; ++i)
 		{
 			app.session->tick();
 			frame();
 		}
-		TakeScreenshot("comms-choices.png");
+		TakeScreenshot("build/comms-choices.png");
+		if (!probe_console_conversation(1))
+			throw std::runtime_error("Comms transcript does not fill its dedicated panel");
+		SetWindowSize(1920, 1080);
+		for (int i = 0; i < 5; ++i)
+			frame();
+		TakeScreenshot("build/comms-1080p.png");
+		if (!probe_console_conversation(1))
+			throw std::runtime_error("1080p Comms transcript does not fill its dedicated panel");
 		if (!action("comms/answer/help"))
 			throw std::runtime_error("Authored response unavailable");
 		for (int i = 0; i < 80; ++i)
@@ -80,7 +89,7 @@ int main(int argc, char **argv)
 			app.session->tick();
 			frame();
 		}
-		TakeScreenshot("comms-group.png");
+		TakeScreenshot("build/comms-group.png");
 		if (!action("comms/screen"))
 			throw std::runtime_error("On Screen unavailable");
 		app.session->tick();
@@ -104,7 +113,7 @@ int main(int argc, char **argv)
 			                 return r.first.starts_with("viewscreen.conversation/");
 		                 }))
 			throw std::runtime_error("Shared transcript semantic rows missing");
-		TakeScreenshot("comms-viewscreen.png");
+		TakeScreenshot("build/comms-viewscreen.png");
 		app.screen = Screen::console;
 		frame();
 		if (!action("game.console/comms"))
@@ -112,9 +121,9 @@ int main(int argc, char **argv)
 		SetWindowSize(600, 900);
 		for (int i = 0; i < 3; ++i)
 			frame();
-		TakeScreenshot("comms-narrow.png");
+		TakeScreenshot("build/comms-narrow.png");
 		app.session->tick();
-		std::ofstream("comms-state.json")
+		std::ofstream("build/comms-state.json")
 		    << parse_json(read_pack(app.session->save()).files().at("session.json"), "smoke state").at("state").dump(2);
 		close_window();
 		opened = false;

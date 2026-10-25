@@ -998,6 +998,10 @@ bool probe_console_tab(ConsoleId route, const std::string &action)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_tab(action);
 }
+bool probe_console_conversation(ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_conversation();
+}
 bool probe_console_fit(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_fit();

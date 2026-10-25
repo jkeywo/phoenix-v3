@@ -140,6 +140,16 @@ int main(int argc, char **argv)
 				        ("Pointer switches Console tab " + tab).c_str());
 				frame();
 				frame();
+				if (route == 4 && tab == "comms")
+				{
+					require(std::none_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+					                     [](const auto &row)
+					                     {
+						                     return row.first.starts_with("console/4/resource/");
+					                     }),
+					        "Comms tab excludes Support machinery readouts");
+					TakeScreenshot("build/console-transition-comms.png");
+				}
 			}
 		const auto after_tabs = app.session->console_observation(3);
 		require(after_tabs && after_tabs->requested_speed == 0, "Tab navigation does not submit a flight command");

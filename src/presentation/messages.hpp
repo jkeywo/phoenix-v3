@@ -29,18 +29,22 @@ inline std::string markup(const ConsoleMessageView &message)
 		return Rml::StringUtilities::EncodeRml(text);
 	};
 	const auto portrait = message.avatar.empty() ? asset(message.portrait) : register_menu_image(message.avatar);
-	return "<div style=\"display:block;position:relative;min-height:64px;padding-left:72px;margin:12px 0;\">"
+	return "<div "
+	       "style=\"display:block;position:relative;width:100%;box-sizing:border-box;min-height:64px;padding-left:72px;"
+	       "margin:12px 0;\">"
 	       "<img src=\"" +
 	       escape(portrait) +
 	       "\" style=\"display:block;position:absolute;left:0;top:0;width:56px;height:56px;\"/>"
-	       "<div style=\"display:block;font-size:0.85em;margin-bottom:5px;\">" +
+	       "<div style=\"display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:5px;\">" +
 	       escape(message.sender) +
 	       "</div>"
-	       "<div style=\"display:block;position:relative;background:#fff7e5;color:#191919;border:2px #191919;"
+	       "<div "
+	       "style=\"display:block;position:relative;width:100%;box-sizing:border-box;background:#fff7e5;color:#191919;"
+	       "border:2px #191919;"
 	       "border-radius:12px;padding:10px;\">"
 	       "<div style=\"display:block;position:absolute;left:-7px;top:12px;width:10px;height:10px;"
 	       "background:#fff7e5;border-left:2px #191919;border-bottom:2px #191919;transform:rotate(45deg);\"></div>"
-	       "<div style=\"display:block;font-family:Comic "
+	       "<div class=\"message-text\" style=\"display:block;width:100%;box-sizing:border-box;font-family:Comic "
 	       "Neue;font-size:1.1em;white-space:pre-wrap;word-break:break-word;\">" +
 	       escape(message.text) + "</div></div></div>";
 }

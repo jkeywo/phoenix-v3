@@ -804,12 +804,12 @@ button.on-screen-active .share-live {display:block;}
 #comms-conversation {position:absolute;top:0;height:100%;}
 #comms-header {display:block;width:100%;height:20%;overflow:auto;}
 #comms-choices,#comms-incoming,#comms-compose {display:block;}
-#comms-header button {width:190px;min-height:48px;box-sizing:border-box;}
+#comms-header button {width:44%;min-height:44dp;box-sizing:border-box;}
 #comms-header h3,#comms-list h3 {display:block;margin:6px 4px;font-size:1.1em;}
 #comms-history {height:52%;overflow:auto;background:#172b32;padding:8px;}
 #comms-incoming {height:30px;}
 #comms-choices {max-height:18%;overflow:auto;}
-#comms-choices button {min-height:44px;margin:4px;}
+#comms-choices button {display:block;width:100%;box-sizing:border-box;min-height:44dp;margin:4dp 0;}
 #comms-compose input {width:75%;height:40px;}
 .layout-node {box-sizing:border-box;min-width:0;min-height:0;}
 #authored-body {display:none;position:absolute;left:0;right:0;top:160dp;bottom:0;overflow:auto;}
@@ -1746,6 +1746,46 @@ button.on-screen-active .share-live {display:block;}
 			render_dirty_ = true;
 			context_->Update();
 		}
+	}
+	bool probe_conversation() const
+	{
+		auto *history = document_->GetElementById("comms-history");
+		if (!history || !history->IsVisible(true) || !history->GetNumChildren())
+			return false;
+		for (const auto &placement : authored_resolved_.placements)
+			if (placement.visible && !placement.component.starts_with("conversation-") &&
+			    placement.component != "conversations")
+				return false;
+		const float density = context_->GetDensityIndependentPixelRatio();
+		auto *choices = document_->GetElementById("comms-choices");
+		Rml::ElementList replies;
+		choices->GetElementsByTagName(replies, "button");
+		for (auto *reply : replies)
+			if (reply->GetOffsetWidth() < history->GetClientWidth() - 24 * density)
+			{
+				std::cout << "Comms reply width " << reply->GetOffsetWidth() << "; history "
+				          << history->GetClientWidth() << std::endl;
+				return false;
+			}
+		for (int i = 0; i < history->GetNumChildren(); ++i)
+		{
+			auto *row = history->GetChild(i);
+			Rml::ElementList text;
+			row->GetElementsByClassName(text, "message-text");
+			if (text.empty() || row->GetOffsetWidth() < history->GetClientWidth() - 24 * density)
+			{
+				std::cout << "Comms row width " << row->GetOffsetWidth() << "; history " << history->GetClientWidth()
+				          << std::endl;
+				return false;
+			}
+			if (text.front()->GetOffsetWidth() < row->GetOffsetWidth() - 120 * density)
+			{
+				std::cout << "Comms text width " << text.front()->GetOffsetWidth() << "; row " << row->GetOffsetWidth()
+				          << std::endl;
+				return false;
+			}
+		}
+		return true;
 	}
 	bool probe_tab(const std::string &action)
 	{
@@ -3201,6 +3241,7 @@ button.on-screen-active .share-live {display:block;}
 		{
 			const auto authored_started = GetTime();
 			prepare_authored_layout(layout, region);
+			fit_conversation_controls(region);
 			app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 		}
 		restore_console_browsing();

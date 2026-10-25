@@ -119,7 +119,7 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	                            });
 	const auto panel_width =
 	    authored ? std::max(100.f, root->GetClientWidth() / context_->GetDensityIndependentPixelRatio()) : region.width;
-	const bool narrow = panel_width < 700;
+	const bool narrow = !split && panel_width < 700;
 	const bool detail_visible = split ? authored_component_visible("conversation-history")
 	                                  : (!authored || authored_component_visible("conversations")) &&
 	                                        (!narrow || (thread && !comms_list_only_));
@@ -133,12 +133,7 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 		property(conversation, "width", narrow ? "100%" : "68%");
 		property(conversation, "display", narrow && (!thread || comms_list_only_) ? "none" : "block");
 	}
-	const auto conversation_width = authored
-	                                    ? std::max(100.f, document_->GetElementById("comms-history")->GetClientWidth() /
-	                                                              context_->GetDensityIndependentPixelRatio() -
-	                                                          16.f)
-	                                    : panel_width * .98f * (narrow ? 1.f : .68f) - 24.f;
-	const auto width = std::to_string(conversation_width) + "dp";
+	const std::string width = "100%";
 	std::string header = "<div style=\"display:block;width:" + width + ";height:56dp;\">" +
 	                     button("comms/back", localise("Conversations")) +
 	                     button("comms/screen", localise("On screen") + ": " +
@@ -181,9 +176,9 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 			if (auto *row = document_->GetElementById(id("comms/message/" + std::to_string(selected) + "/" +
 			                                             std::to_string(message.at("id").get<std::uint64_t>()))))
 			{
-				property(row, "width", std::to_string(conversation_width * .88f) + "dp");
-				property(row, "margin-left",
-				         message.at("own").get<bool>() ? std::to_string(conversation_width * .12f) + "dp" : "0dp");
+				property(row, "width", "100%");
+				property(row, "box-sizing", "border-box");
+				property(row, "margin-left", "0dp");
 				property(row, "margin-right", "0dp");
 			}
 
@@ -254,4 +249,42 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	app.screen_toggles[id("comms/screen")] = model_.is_on_screen(comms_widget_);
 	if (detail_visible && !incoming.empty())
 		app.screen_readouts.emplace_back("comms-incoming", localise("Incoming message"));
+}
+
+// Fit controls after the authored slots have their measured pixel geometry.
+// Nested percentage widths can shrink to their intrinsic minimum on a density change.
+void fit_conversation_controls(const ConsoleRegion &region)
+{
+	if (!model_.layout() || !model_.layout()->contains("layout") || !authored_component_visible("conversation-history"))
+		return;
+	auto *history = document_->GetElementById("comms-history");
+	const float width = history->GetClientWidth() / context_->GetDensityIndependentPixelRatio();
+	const auto units = [](float value)
+	{
+		return std::to_string(std::max(0.f, value)) + "dp";
+	};
+	for (const auto *name : {"comms-header", "comms-choices", "comms-incoming", "comms-compose"})
+	{
+		auto *panel = document_->GetElementById(name);
+		property(panel, "width", units(width));
+		property(panel, "box-sizing", "border-box");
+	}
+	auto *header = document_->GetElementById("comms-header");
+	for (int i = 0; i < header->GetNumChildren(); ++i)
+		property(header->GetChild(i), "width", units(width));
+	Rml::ElementList buttons;
+	header->GetElementsByTagName(buttons, "button");
+	for (auto *button : buttons)
+		property(button, "width", units(std::min(190.f, (width - 24) / 2)));
+	buttons.clear();
+	document_->GetElementById("comms-choices")->GetElementsByTagName(buttons, "button");
+	for (auto *button : buttons)
+		property(button, "width", units(width));
+	if (auto *draft = document_->GetElementById(id("comms/draft")))
+		property(draft, "width", units(width - 140));
+	context_->Update();
+	elements_.clear();
+	for (const auto &[name, label] : comms_controls_)
+		place(*app_, region, id(name));
+	place(*app_, region, id("comms/draft"));
 }

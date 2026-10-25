@@ -199,6 +199,7 @@ bool probe_console_report(ConsoleId route);
 bool probe_console_readouts(ConsoleId route);
 bool probe_console_tab(ConsoleId route, const std::string &action);
 bool probe_console_fit(ConsoleId route);
+bool probe_console_conversation(ConsoleId route);
 bool probe_console_engineering(ConsoleId route, unsigned stage);
 void open_window();
 // Shared memory-image registry for runtime surfaces and standalone visual probes.

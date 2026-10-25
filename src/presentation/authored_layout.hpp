@@ -315,7 +315,9 @@ void style_authored_tree(const UiNode &node, const UiNode *parent = nullptr, boo
 		                       : std::max(node.minimum_height, node.preferred_height);
 		property(box, "flex", std::to_string(parent->kind == "wrap" ? 0.f : node.stretch) + " 0 " + unit(basis));
 		property(box, "width",
-		         parent->kind == "wrap" ? unit(std::max(node.minimum_width, node.preferred_width)) : "auto");
+		         parent->kind == "wrap"            ? unit(std::max(node.minimum_width, node.preferred_width))
+		         : !row && node.align == "stretch" ? "100%"
+		                                           : "auto");
 		property(box, "height",
 		         parent->kind == "wrap" ? unit(std::max(node.minimum_height, node.preferred_height)) : "auto");
 	}
@@ -456,6 +458,33 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	if (authored_identity_ != signature)
 	{
 		authored_program_ = compile_ui_layout(app_->session->catalog(), *layout);
+		// Installed packs can retain the older shared Operations group on a Comms-only layout.
+		// Give conversation-only Consoles their dedicated surface without changing command authority.
+		if (!layout->at("widgets").empty() && std::all_of(layout->at("widgets").begin(), layout->at("widgets").end(),
+		                                                  [](const auto &widget)
+		                                                  {
+			                                                  return widget.at("kind") == "conversations";
+		                                                  }))
+		{
+			std::set<std::string> conversation_targets{"conversations"};
+			for (const auto &widget : layout->at("widgets"))
+				conversation_targets.insert(widget.at("id"));
+			std::function<bool(UiNode &)> keep_conversations = [&](UiNode &node)
+			{
+				for (auto child = node.children.begin(); child != node.children.end();)
+					if (keep_conversations(*child))
+						++child;
+					else
+						child = node.children.erase(child);
+				return !node.component.empty() ? conversation_targets.contains(node.component) ||
+				                                     node.component.starts_with("conversation-")
+				                               : !node.children.empty();
+			};
+			keep_conversations(authored_program_->root);
+			if (authored_program_->compact)
+				keep_conversations(*authored_program_->compact);
+		}
+
 		if (!inline_console_.empty())
 		{
 			std::function<void(UiNode &)> integrate = [&](UiNode &node)
