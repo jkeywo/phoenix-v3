@@ -116,67 +116,142 @@ bool select_radar_contact(EntityId contact)
 void prepare_system_popup(const ConsoleRegion &region, const std::vector<EngineeringCard> &cards)
 {
 	popup_controls_.clear();
-	const auto selected = model_.status_system();
-	const auto inline_selected = inline_model_.status_system();
-	const auto details = !selected.empty()                                      ? model_.system_details()
-	                     : !inline_console_.empty() && !inline_selected.empty() ? inline_model_.system_details()
-	                                                                            : std::string{};
+	ConsoleModel *detail_model = nullptr;
+	std::string detail_prefix;
+	if (!model_.status_system().empty())
+		detail_model = &model_;
+	else if (!inline_console_.empty() && !inline_model_.status_system().empty())
+	{
+		detail_model = &inline_model_;
+		detail_prefix = "inline/";
+	}
+	else
+		for (const auto &[console, source] : support_models_)
+			if (!source->status_system().empty())
+			{
+				detail_model = source.get();
+				detail_prefix = "support-console/" + console + "/";
+				break;
+			}
+	const auto details = detail_model ? detail_model->system_details() : std::string{};
 	std::string markup;
+	std::vector<std::pair<std::string, std::string>> popup_readouts;
 	auto esc = [](const std::string &text)
 	{
 		return Rml::StringUtilities::EncodeRml(text);
 	};
 	auto add = [&](const std::string &action, const std::string &label)
 	{
-		popup_controls_.emplace_back(id(action), label);
-		return "<button id=\"" + esc(id(action)) + "\">" + esc(label) + "</button>";
+		const auto name = id((action.find("game.control/") != std::string::npos || action.starts_with("game.team") ||
+		                      action.starts_with("game.compartment/"))
+		                         ? "popup-control/" + action
+		                         : action);
+		popup_controls_.emplace_back(name, label);
+		return "<button id=\"" + esc(name) + "\">" + esc(label) + "</button>";
+	};
+	auto readout = [&](const std::string &key, const std::string &text)
+	{
+		const auto name = id("popup/" + key);
+		popup_readouts.emplace_back(name, text);
+		return "<p id=\"" + esc(name) + "\"></p>";
 	};
 	if (!details.empty())
 	{
-		markup = "<h1>" + esc(localise("System details")) + "</h1><p>" + esc(details) + "</p>" +
+		markup = "<h1>" + esc(localise("System details")) + "</h1>" + readout("summary", details) +
 		         add("systems", localise("All system statuses")) + add("systems-close", localise("Close"));
-		auto &source = !selected.empty() ? model_ : inline_model_;
-		const auto system = !selected.empty() ? selected : inline_selected;
+		auto &source = *detail_model;
+		const auto system = source.status_system();
+		if (source.observation())
+			for (const auto &state : source.observation()->systems)
+				if (state.id == system)
+				{
+					for (const auto &[key, value] : state.telemetry)
+						markup +=
+						    readout(system + "/" + key, localise(engineering_name(key)) + ": " + std::to_string(value));
+					for (const auto &[key, text] : source.gameplay_readouts())
+						if ((state.kind == OperatingSystem::Ftl && key.starts_with("game.readout/ftl")) ||
+						    (state.kind == OperatingSystem::Psychic && key.starts_with("psychic.")) ||
+						    (state.kind == OperatingSystem::Team &&
+						     (key.starts_with("team.") || key.starts_with("medical."))) ||
+						    (state.kind == OperatingSystem::Shield && key.starts_with("shield.")))
+							markup += readout(key, text);
+				}
 		if (source.observation())
 			for (const auto &[name, label] : source.gameplay_controls())
 				if (name.starts_with("game.control/"))
 					for (const auto &control : source.observation()->gameplay.value("controls", Json::array()))
-						if (descriptor_action(control.at("id")) == name)
+						if (descriptor_action(control.at("id")) == name && !control.value("momentary", false))
 						{
 							const auto consumers = command_consumers(*source.observation(), control);
 							if (std::find(consumers.begin(), consumers.end(), system) != consumers.end())
-								markup += add((&source == &inline_model_ ? "inline/" : "") + name, label);
+								markup += add(detail_prefix + name, label);
 						}
 	}
 	else if (systems_open_)
 	{
-		markup = "<h1>" + esc(localise("System statuses")) + "</h1>";
+		markup = "<h1>" + esc(localise(support_popup_ == "repair" ? "Repair details" : "System statuses")) + "</h1>";
+		if (support_popup_ == "repair")
+			for (const auto &[key, text] : model_.gameplay_readouts())
+				if (key.starts_with("compartment.") || key.starts_with("team."))
+					markup += readout(key, text);
+		if (support_popup_ == "repair" && model_.observation())
+		{
+			const auto descriptors = model_.observation()->gameplay.value("controls", Json::array());
+			for (const auto &[name, label] : model_.gameplay_controls())
+			{
+				Json descriptor = Json::object();
+				for (const auto &control : descriptors)
+					if (descriptor_action(control.at("id")) == name && !control.value("momentary", false))
+					{
+						descriptor = control;
+						break;
+					}
+				if (support_repair_control(name, descriptor))
+					markup += add(name, engineering_name(label));
+			}
+		}
 		std::set<std::string> shown, dedicated;
 		for (const auto &card : cards)
 			dedicated.insert(card.id);
-		for (auto *source : {&model_, &inline_model_})
-		{
-			if (source == &inline_model_ && inline_console_.empty())
-				continue;
+		std::vector<std::pair<ConsoleModel *, std::string>> sources{{&model_, ""}};
+		if (!inline_console_.empty())
+			sources.emplace_back(&inline_model_, "inline/");
+		for (const auto &[console, source] : support_models_)
+			sources.emplace_back(source.get(), "support-console/" + console + "/");
+		for (const auto &[source, prefix] : sources)
 			for (const auto &status : source->system_statuses())
 				if (!dedicated.contains(status.system) && shown.insert(status.system).second)
-					markup +=
-					    "<p>" +
-					    add((source == &inline_model_ ? "inline/" : "") + std::string("game.status/") + status.system,
-					        status.semantic_label) +
-					    "</p>";
-		}
+					markup += "<p>" + add(prefix + "game.status/" + status.system, status.semantic_label) + "</p>";
 		markup += add("systems-close", localise("Close"));
 	}
 	auto *dialog = document_->GetElementById("fault-dialog");
 	if (markup != fault_dialog_signature_)
 	{
 		elements_.clear();
+		properties_.clear();
 		dialog->SetInnerRML(markup);
 		fault_dialog_signature_ = markup;
 	}
+	property(dialog, "left", std::to_string(region.width * .1f) + "dp");
+	property(dialog, "top", std::to_string(region.height * .15f) + "dp");
+	property(dialog, "width", std::to_string(region.width * .8f) + "dp");
+	property(dialog, "height", std::to_string(region.height * .65f) + "dp");
 	property(dialog, "display", markup.empty() ? "none" : "block");
 	context_->Update();
+	if (!markup.empty())
+	{
+		const float width = std::max(44.f, region.width * .8f - 80.f);
+		Rml::ElementList buttons;
+		dialog->GetElementsByTagName(buttons, "button");
+		for (auto *button : buttons)
+		{
+			property(button, "width", std::to_string(std::min(210.f, width)) + "dp");
+			property(button, "min-height", "44dp");
+		}
+		for (int i = 0; i < dialog->GetNumChildren(); ++i)
+			if (auto *child = dialog->GetChild(i); child->GetTagName() == "p" || child->GetTagName() == "h1")
+				property(child, "width", std::to_string(width) + "dp");
+	}
 	if (!markup.empty())
 	{
 		std::erase_if(app_->screen_controls,
@@ -190,6 +265,13 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 			              return entry.id.starts_with(id(""));
 		              });
 	}
+	for (const auto &[name, text] : popup_readouts)
+	{
+		if (auto *row = document_->GetElementById(name))
+			leaf_markup(row, esc(text));
+		app_->screen_readouts.emplace_back(name, text);
+	}
+	context_->Update();
 	for (const auto &[name, label] : popup_controls_)
 	{
 		app_->screen_controls.emplace_back(name, label);

@@ -4,7 +4,7 @@ namespace phoenix
 struct EngineeringCard
 {
 	std::string id, title, summary;
-	std::optional<int> heat, battery;
+	std::optional<int> heat, battery, condition;
 	std::vector<std::pair<std::string, std::string>> controls;
 };
 inline std::string engineering_name(std::string name)

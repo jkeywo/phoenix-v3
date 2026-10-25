@@ -32,6 +32,10 @@ Comms has no separate radio enable/disable control. FTL retains the same simple 
 
 Below three stars, officer assignments for duties and authorised away contributions are automatic and department-scoped. Teams and officers are distinct: contributing a team still requires the owning Station's authorisation. Three stars allows manual officer reassignment without permitting another Station to take its personnel.
 
+### Support presentation
+
+Support uses three peer views: Support, Repair and Comms. The reactor view has the most spare room, so it becomes Support and also carries shields, FTL readiness and the remaining fitted controls. Repair shows compartment condition and the current priority. Its priority picker, team orders and detailed condition information open in a popup. Comms retains the full conversation workspace. Navigation is available as a details popup from Support. Detailed machinery telemetry and settings stay in the shared system popup, leaving concise summaries on the main views. These views preserve the existing one-, two- and three-star command allocations and Console ownership.
+
 ## Delivery boundaries
 
 Implementation must reuse authored Controller profiles, ordinary trees and admitted commands. Hidden controls must also be refused authoritatively. Station-level profile changes are atomic and retain accepted physical work. AI uses permitted observations, finite resources, real travel and existing docking/mission rules.

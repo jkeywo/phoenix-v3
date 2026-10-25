@@ -132,8 +132,8 @@ int main(int argc, char **argv)
 			require(count > 0, "Routed Console has visible gameplay controls after launch");
 			require(probe_console_fit(route), "Radar fits its own 1080p monitor beside a 4K host");
 		}
-		for (const auto &[route, tabs] : std::vector<std::pair<unsigned, std::vector<std::string>>>{
-		         {3, {"helm"}}, {4, {"comms", "navigator", "support"}}})
+		for (const auto &[route, tabs] :
+		     std::vector<std::pair<unsigned, std::vector<std::string>>>{{3, {"helm"}}, {4, {"comms", "support"}}})
 			for (const auto &tab : tabs)
 			{
 				require(probe_console_tab(route, "game.console/" + tab),
@@ -167,6 +167,78 @@ int main(int argc, char **argv)
 			frame();
 			frame();
 		};
+		require(has("console/4/support-page/repair"), "Support has a Repair tab");
+		require(!has("console/4/game.console/navigator") && !has("console/4/game.console/navigation"),
+		        "Remaining Console functions are integrated into Support");
+		require(!has("console/4/resource/weapon-cell"), "Power minutiae stay out of the Support summary");
+		require(probe_console_tab(4, "support-page/repair"), "Pointer opens Repair panel");
+		frame();
+		frame();
+		require(!has("console/4/game.status/reactor"), "Repair excludes reactor controls");
+		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                    [](const auto &row)
+		                    {
+			                    return row.first == "console/4/support/repair/summary";
+		                    }),
+		        "Repair has a concise damage summary");
+		TakeScreenshot("build/support-repair.png");
+		require(probe_console_tab(4, "support-details/repair"), "Open repair details popup");
+		frame();
+		frame();
+		require(has("console/4/systems-close"), "Repair details share the status popup");
+		TakeScreenshot("build/support-repair-details.png");
+		std::string priority, automatic;
+		for (const auto &[name, label] : app.screen_controls)
+			if (name.starts_with("console/4/popup-control/game.control/"))
+			{
+				if (label == "Reactor")
+					priority = name.substr(std::string("console/4/").size());
+				if (label.starts_with("Automatic repair priorities"))
+					automatic = name.substr(std::string("console/4/").size());
+			}
+		require(!priority.empty() && probe_console_tab(4, priority), "Repair popup submits a real priority choice");
+		for (int i = 0; i < 10; ++i)
+			frame();
+		bool prioritised = false;
+		for (int attempt = 0; attempt < 60 && !prioritised; ++attempt)
+		{
+			const auto priority_view = app.session->console_observation(4);
+			for (const auto &controller : priority_view->gameplay.at("controllers"))
+				if (controller.at("id") == "repair-priority")
+					prioritised = controller.at("commands").at("system").at("value").get<std::int64_t>() != 0;
+			if (!prioritised)
+				frame();
+		}
+		require(prioritised, "Repair priority reaches authoritative Controller state");
+		require(!automatic.empty() && probe_console_tab(4, automatic), "Repair popup restores automatic priority");
+		for (int i = 0; i < 10; ++i)
+			frame();
+		action("console/4/systems-close");
+		require(probe_console_tab(4, "game.console/support"), "Return to Support");
+		frame();
+		frame();
+		require(probe_console_tab(4, "game.status/reactor"), "Open reactor details popup");
+		frame();
+		frame();
+		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                    [](const auto &row)
+		                    {
+			                    return row.first.starts_with("console/4/popup/reactor/");
+		                    }),
+		        "Reactor telemetry lives in popup");
+		TakeScreenshot("build/support-reactor-details.png");
+		action("console/4/systems-close");
+		require(probe_console_tab(4, "support-navigation"), "Open Navigation details");
+		frame();
+		frame();
+		require(has("console/4/support-close-details"), "Navigation has popup close control");
+		TakeScreenshot("build/support-navigation-details.png");
+		action("console/4/settings");
+		require(!has("console/4/support-close-details"), "Settings hides Navigation popup controls");
+		action("console/4/local-settings.close");
+		require(has("console/4/support-close-details"), "Closing Settings restores Navigation details");
+		action("console/4/support-close-details");
+		TakeScreenshot("build/support-summary.png");
 		for (unsigned stage = 0; stage < 5; ++stage)
 		{
 			require(probe_console_throttle(3, stage), ("Touch throttle stage " + std::to_string(stage)).c_str());

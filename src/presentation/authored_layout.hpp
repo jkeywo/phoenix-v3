@@ -203,10 +203,25 @@ bool authored_action(const std::string &action)
 	}
 	if (action.starts_with("game.console/"))
 	{
+		if (support_active())
+		{
+			support_detail_ = false;
+			if (action.substr(13) == support_root_)
+			{
+				support_page_ = "support";
+				model_.act("game.teams-close");
+			}
+		}
 		cancel_pointer();
 		model_.release_controls();
 
-		return model_.act(action);
+		const bool accepted = model_.act(action);
+		if (accepted && support_active() && action.substr(13) == support_root_)
+		{
+			model_.refresh(app_->session, route_);
+			model_.act("game.teams-close");
+		}
+		return accepted;
 	}
 	return false;
 }
@@ -216,17 +231,30 @@ void prepare_console_tabs(const ConsoleRegion &region)
 	if (!model_.available_tabs().empty())
 		for (const auto &tab : model_.available_tabs())
 		{
-			if (tab.id == inline_console_)
+			if (tab.id == inline_console_ || (support_active() && tab.id != support_root_ && tab.id != support_comms_))
 				continue;
 			const auto action = id("game.console/" + tab.id);
 			const auto label = localise(tab.label) + (tab.attention ? " — " + localise("Unread") : "");
 			markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(action) + "\" class=\"" +
-			          (!settings_open_ && tab.id == model_.observation()->console ? "selected" : "") + "\">" +
-			          Rml::StringUtilities::EncodeRml(label) + "</button>";
+			          (!settings_open_ && tab.id == model_.observation()->console &&
+			                   !(support_primary() && support_page_ == "repair")
+			               ? "selected"
+			               : "") +
+			          "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
 			app_->screen_controls.emplace_back(action, label);
-			app_->screen_toggles[action] = !settings_open_ && tab.id == model_.observation()->console;
+			app_->screen_toggles[action] = !settings_open_ && tab.id == model_.observation()->console &&
+			                               !(support_primary() && support_page_ == "repair");
+			if (support_active() && tab.id == support_root_)
+			{
+				const auto action = id("support-page/repair");
+				const bool selected = !settings_open_ && support_primary() && support_page_ == "repair";
+				markup += "<button id=\"" + action + "\" class=\"" + (selected ? "selected" : "") + "\">" +
+				          Rml::StringUtilities::EncodeRml(localise("Repair")) + "</button>";
+				app_->screen_controls.emplace_back(action, localise("Repair"));
+				app_->screen_toggles[action] = selected;
+			}
 		}
-	if (!settings_open_)
+	if (!support_active() && !settings_open_)
 		markup += authored_tabs_markup_;
 	for (const auto &[page, label] : std::vector<std::pair<std::string, std::string>>{{"logistics", "Operations"},
 	                                                                                  {"docking", "Docking"},
@@ -249,6 +277,8 @@ void prepare_console_tabs(const ConsoleRegion &region)
 		document_->GetElementById("console-tabs")->SetInnerRML(markup);
 		console_tabs_markup_ = markup;
 	}
+	if (support_active())
+		place(*app_, region, id("support-page/repair"));
 	for (const auto &tab : model_.available_tabs())
 		place(*app_, region, id("game.console/" + tab.id));
 	for (const auto *page : {"logistics", "docking", "craft", "personnel", "away"})

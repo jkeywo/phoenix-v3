@@ -332,6 +332,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "logistics.hpp"
 #include "station_combat.hpp"
 #include "throttle.hpp"
+#include "support_panels.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -647,6 +648,12 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #sensor-panel p {width:100%;font-size:0.8em;margin:6dp 0;box-sizing:border-box;}
 #sensor-panel button {width:46%;min-width:140dp;min-height:44dp;box-sizing:border-box;font-size:0.8em;}
 .local-settings-open #sensor-panel {visibility:hidden;}
+scrollbarvertical {width:14dp;background:#263638;}
+scrollbarvertical slidertrack {width:14dp;}
+scrollbarvertical sliderbar {min-height:32dp;background:#ccc2af;}
+scrollbarhorizontal {height:14dp;background:#263638;}
+scrollbarhorizontal slidertrack {height:14dp;}
+scrollbarhorizontal sliderbar {min-width:32dp;background:#ccc2af;}
 #gameplay scrollbarvertical {width:14px;background:#263638;}
 #gameplay scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
 #gameplay scrollbarvertical slidertrack {width:14px;}
@@ -799,6 +806,10 @@ button.on-screen-active .share-live {display:block;}
 .integrated-helm #gameplay-controls button {width:210dp;min-height:48dp;font-size:.85em;padding:6dp;margin:2dp;}
 .radar-contact {position:absolute;width:24px;height:24px;min-width:0;min-height:0;margin:0;padding:0;background:transparent;border:1px transparent;z-index:4;}
 .radar-contact:focus {border-color:#ffe2a5;background:#285052;}
+.support-detail-close {position:absolute;right:3%;top:112dp;min-height:44dp;z-index:75;}
+.local-settings-open .support-detail-close {visibility:hidden;}
+.support-panels .engineering-card p {min-height:0;}
+.resource-condition {background:#83be90;}
 #fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
 #fault-dialog p {font-size:1.1em;line-height:1.4;}
 #comms-layer {position:absolute;left:1%;top:80px;width:98%;bottom:1%;background:#102027;}
@@ -893,6 +904,13 @@ button.on-screen-active .share-live {display:block;}
 		if (station_loading_)
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (action.starts_with("popup-control/"))
+		{
+			const bool accepted = this->action(id(action.substr(14)));
+			return accepted;
+		}
+		if (action.starts_with("support-") && support_action(action))
+			return true;
 		if (action.starts_with("all-stop/"))
 			return all_stop(action.substr(9));
 		if (action == "systems" || action == "systems-close")
@@ -900,6 +918,9 @@ button.on-screen-active .share-live {display:block;}
 			model_.act("game.status-close");
 			inline_model_.act("game.status-close");
 			systems_open_ = action == "systems";
+			support_popup_.clear();
+			for (auto &[console, source] : support_models_)
+				source->act("game.status-close");
 			return true;
 		}
 		if (action.starts_with("inline/"))
@@ -1848,7 +1869,11 @@ button.on-screen-active .share-live {display:block;}
 		auto *control = document_->GetElementById(id(action));
 		if (!control || !control->IsVisible(true))
 			return false;
-		control->ScrollIntoView();
+		Rml::ScrollIntoViewOptions scroll;
+		scroll.behavior = Rml::ScrollBehavior::Instant;
+		scroll.vertical = Rml::ScrollAlignment::Center;
+		scroll.parentage = Rml::ScrollParentage::Closest;
+		control->ScrollIntoView(scroll);
 		context_->Update();
 		const auto at = control->GetAbsoluteOffset(Rml::BoxArea::Border);
 		const float x = at.x + control->GetOffsetWidth() / 2, y = at.y + control->GetOffsetHeight() / 2;
@@ -1857,12 +1882,24 @@ button.on-screen-active .share-live {display:block;}
 			pointer(9999, x, y, DeviceEventKind::Cancel);
 			return false;
 		}
+		auto *hit = context_->GetElementAtPoint({x, y});
+		const auto hit_description = hit ? hit->GetTagName() + "#" + hit->GetId() : std::string("none");
+		while (hit && hit != control)
+			hit = hit->GetParentNode();
+		if (!hit)
+		{
+			std::cout << "Pointer probe missed " << action << " at " << x << "," << y << " hit " << hit_description
+			          << std::endl;
+			return false;
+		}
 		context_->ProcessMouseMove(static_cast<int>(x), static_cast<int>(y), 0);
 		context_->ProcessMouseButtonDown(0, 0);
 		context_->ProcessMouseButtonUp(0, 0);
 		model_.refresh(app_->session, route_);
 		if (action.starts_with("game.console/"))
 			return model_.observation() && model_.observation()->console == action.substr(13);
+		if (action.starts_with("support-page/"))
+			return support_primary() && support_page_ == action.substr(13);
 		if (action.starts_with("station-page/"))
 			return settings_open_ && local_settings_tab_ == action.substr(13);
 		return true;
@@ -2385,6 +2422,7 @@ button.on-screen-active .share-live {display:block;}
 		model_.refresh(app.session, route_);
 		reconcile_throttles();
 		refresh_inline_console(app);
+		refresh_support_panels(app);
 		document_->SetClass("integrated-helm", !inline_console_.empty());
 		sync_console_browsing();
 		app.frame_metrics["console/" + std::to_string(route_) + "/projection"] = GetTime() - preparation_started;
@@ -2490,9 +2528,11 @@ button.on-screen-active .share-live {display:block;}
 		                                              });
 		document_->SetClass("helm", helm && !pregame);
 		const auto cards_started = GetTime();
-		const auto cards = !pregame && (!helm || (layout && layout->contains("layout"))) && model_.observation()
-		                       ? engineering_cards(*model_.observation())
-		                       : std::vector<EngineeringCard>{};
+		auto cards = !pregame && (!helm || (layout && layout->contains("layout"))) && model_.observation()
+		                 ? engineering_cards(*model_.observation())
+		                 : std::vector<EngineeringCard>{};
+		support_cards(cards);
+		document_->SetClass("support-panels", support_primary());
 		app.frame_metrics["console/" + std::to_string(route_) + "/card-model"] = GetTime() - cards_started;
 		const bool engineering = !cards.empty();
 		document_->SetClass("engineering", engineering);
@@ -2583,7 +2623,7 @@ button.on-screen-active .share-live {display:block;}
 					for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
 						teams |= !t.at("orders").empty();
 				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" + button("systems", "Systems") +
-				           (teams ? button("game.teams", "Teams") : std::string{}) + "</div>";
+				           (teams && !support_active() ? button("game.teams", "Teams") : std::string{}) + "</div>";
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 			}
@@ -2768,6 +2808,7 @@ button.on-screen-active .share-live {display:block;}
 		{
 			gameplay_controls = helm_weapon_controls();
 		}
+		support_controls(gameplay_controls);
 		std::map<std::string, ConsoleSystemStatus> status_controls;
 		const auto owned_systems =
 		    model_.observation() ? station_owned_systems(*model_.observation()) : std::set<std::string>{};
@@ -2866,6 +2907,7 @@ button.on-screen-active .share-live {display:block;}
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
 		if (!inline_console_.empty())
 			readout_values_ = helm_target_readouts();
+		support_readouts(readout_values_);
 		if (model_.observation())
 			for (const auto &system : model_.observation()->systems)
 				if (!owned_systems.contains(system.id))
@@ -2932,7 +2974,7 @@ button.on-screen-active .share-live {display:block;}
 			                      "dp\"><h2>" + Rml::StringUtilities::EncodeRml(localise(card.title)) +
 			                      "</h2><p id=\"" + id("resource/" + card.id) + "\"></p>";
 			for (const auto &[name, value] : std::vector<std::pair<std::string, std::optional<int>>>{
-			         {"heat", card.heat}, {"battery", card.battery}})
+			         {"heat", card.heat}, {"battery", card.battery}, {"condition", card.condition}})
 				if (value)
 					engineering_markup += "<div class=\"resource-meter\"><div class=\"resource-fill resource-" + name +
 					                      "\" id=\"" + id("gauge/" + card.id + "/" + name) + "\"/></div>";
@@ -2964,7 +3006,7 @@ button.on-screen-active .share-live {display:block;}
 			update_readout(name, card.summary, false);
 			app.screen_readouts.emplace_back(id(name), localise(card.title) + ". " + card.summary);
 			for (const auto &[metric, value] : std::vector<std::pair<std::string, std::optional<int>>>{
-			         {"heat", card.heat}, {"battery", card.battery}})
+			         {"heat", card.heat}, {"battery", card.battery}, {"condition", card.condition}})
 				if (value)
 					property(element(id("gauge/" + card.id + "/" + metric)), "width", std::to_string(*value) + "%");
 		}
@@ -3158,7 +3200,8 @@ button.on-screen-active .share-live {display:block;}
 					                    Rml::StringUtilities::EncodeRml(label) + "</button>";
 			objective_markup += "</div>";
 		}
-		const auto gameplay_signature = gameplay_identity.dump() + command_markup_ + objective_markup;
+		const auto gameplay_signature =
+		    gameplay_identity.dump() + command_markup_ + objective_markup + (support_primary() ? support_page_ : "");
 		if (gameplay_signature_ != gameplay_signature)
 		{
 			const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
@@ -3166,8 +3209,12 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &held : held_clicks_)
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
-			std::string markup = objective_markup + command_markup_ +
-			                     (!inline_console_.empty() ? "<h2>" + localise("Weapons") + "</h2>" : "");
+			std::string markup =
+			    objective_markup + command_markup_ +
+			    (!inline_console_.empty() ? "<h2>" + localise("Weapons") + "</h2>"
+			     : support_primary()
+			         ? "<h2>" + localise(support_page_ == "repair" ? "Repair" : "Support controls") + "</h2>"
+			         : "");
 			if (team_dispatch)
 			{
 				markup += "<h2>" + Rml::StringUtilities::EncodeRml(localise("Team dispatch")) + "</h2>";
@@ -3176,7 +3223,7 @@ button.on-screen-active .share-live {display:block;}
 						markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
 						          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			}
-			if (model_.observation())
+			if (model_.observation() && (!support_active() || (support_primary() && support_page_ == "repair")))
 			{
 				const auto compartments = model_.team_map();
 				std::set<std::string> decks;
@@ -3208,7 +3255,7 @@ button.on-screen-active .share-live {display:block;}
 							           hw = c.at("half_width_mm").get<double>(),
 							           hl = c.at("half_length_mm").get<double>();
 							const auto name = "game.compartment/" + std::to_string(index);
-							std::string label;
+							std::string label = engineering_name(c.at("id"));
 							for (const auto &control : gameplay_controls)
 								if (control.first == name)
 									label = control.second;
@@ -3315,6 +3362,7 @@ button.on-screen-active .share-live {display:block;}
 			const auto authored_started = GetTime();
 			prepare_authored_layout(layout, region);
 			fit_conversation_controls(region);
+			finish_support_panels(region);
 			app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 		}
 		restore_console_browsing();
