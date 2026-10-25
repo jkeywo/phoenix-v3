@@ -6,7 +6,7 @@ Work in progress toward sustained 20 Hz simulation and 60 Hz presentation. The e
 
 Windows laptop: Core Ultra 9 275HX, 24 logical processors, 64 GiB RAM. These captures selected Intel graphics, including Edge 156 ANGLE/D3D11, rather than the NVIDIA GPU selected by the earlier graphical investigation. Release native and WebAssembly builds include the landed sensor, decision-snapshot, Controller borrowing and asteroid-cell optimisations.
 
-Content is frozen for comparisons at pack SHA-256 `0c49c05587061f5d50683608279fc3920441d91faf457b391cf5135763d05de4`. The current rescue fit is `base.logistics-cruiser`; `base.delivery-cruiser` is no longer present. Unrelated content edits continue in the shared checkout. The frozen pack and raw captures remain under ignored `build/performance-followup/`.
+Content is frozen for comparisons at pack SHA-256 `0c49c05587061f5d50683608279fc3920441d91faf457b391cf5135763d05de4`. The current playable Cruiser is `base.cruiser`; its former separate logistics fit has been removed. Frozen captures retain their original ship identifiers. Unrelated content edits continue in the shared checkout. The frozen pack and raw captures remain under ignored `build/performance-followup/`.
 
 | Capture | Observation |
 

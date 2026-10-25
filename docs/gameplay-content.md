@@ -22,7 +22,7 @@ All local reserves have real finite quantities, transfer limits and thermal para
 
 ## Reusable logistics and scenery
 
-The normal Courier's legacy ID is `base.rescue-courier`; its cargo hold is empty outside a mission assignment. `base.delivery-cruiser` adds cargo storage and high-capacity repair kits to `base.cruiser`. `base.shuttle` supplies generic finite cargo storage and docking. `base.delivery-raider` supplies a pirate raider with boarding-compatible docking and ordinary FTL. None carries an implicit station consignment.
+The normal Courier's legacy ID is `base.rescue-courier`; its cargo hold is empty outside a mission assignment. `base.cruiser` includes cargo storage, docking and high-capacity repair kits as standard equipment. Missions assign starting cargo and repair stocks through `starting_stocks`. `base.shuttle` supplies generic finite cargo storage and docking. `base.delivery-raider` supplies a pirate raider with boarding-compatible docking and ordinary FTL. None carries an implicit station consignment.
 
 `base.orbital-station` provides docking, a finite cargo receiving store and powered Comms with neutral speakers. `base.planet-billboard` and `base.system-star` provide configurable scenery. Rescue adds Cairn-specific thin definitions; the House depot derives directly from the neutral station. Shared art, equipment, UI, operating policies and cargo resource identities stay in the base library.
 

@@ -2754,7 +2754,7 @@
 				}
 			},
 			"id": "base.cruiser",
-			"name": "Cruiser — Six-station combat fit",
+			"name": "Cruiser",
 			"render": {
 				"mode": "eight",
 				"scale": 90,
@@ -5426,7 +5426,8 @@
 								"psychic-supply",
 								"psychic-cooling",
 								"utility-bay",
-								"engineering-dispatch"
+								"engineering-dispatch",
+								"sensors.radar"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -15645,7 +15646,7 @@
 						},
 						"stock": {
 							"capacity_tag": "cargo",
-							"capacity": 24,
+							"capacity": 4000,
 							"filter": {
 								"resources": ["parts"]
 							},
@@ -15664,7 +15665,7 @@
 						},
 						"stock": {
 							"capacity_tag": "cargo",
-							"capacity": 24,
+							"capacity": 4000,
 							"filter": {
 								"resources": ["parts"]
 							},
@@ -15683,7 +15684,7 @@
 						},
 						"stock": {
 							"capacity_tag": "cargo",
-							"capacity": 24,
+							"capacity": 4000,
 							"filter": {
 								"resources": ["parts"]
 							},
@@ -15702,7 +15703,7 @@
 						},
 						"stock": {
 							"capacity_tag": "cargo",
-							"capacity": 24,
+							"capacity": 4000,
 							"filter": {
 								"resources": ["parts"]
 							},
@@ -15808,6 +15809,20 @@
 								"medical": 32
 							}
 						}
+					},
+					{
+						"id": "cargo-hold",
+						"controller": "logistics",
+						"compartment": "magazines",
+						"main": true,
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 100,
+							"filter": {
+								"tags": ["cargo"]
+							},
+							"initial": {}
+						}
 					}
 				],
 				"consumers": [
@@ -15892,7 +15907,8 @@
 							}
 						}
 					}
-				]
+				],
+				"cargo_authorisation_controller": "dispatch"
 			},
 			"docking": {
 				"ports": [
@@ -33104,1104 +33120,6 @@
 			"faction": "raiders"
 		},
 		{
-			"id": "base.delivery-cruiser",
-			"extends": "base.cruiser",
-			"name": "Cruiser — logistics fit",
-			"faction": "crew",
-			"logistics": {
-				"controller": "logistics",
-				"units_per_second": 100,
-				"concurrency": 8,
-				"batch_size": 20,
-				"stores": [
-					{
-						"id": "main-hold",
-						"controller": "logistics",
-						"compartment": "magazines",
-						"main": true,
-						"targets": {
-							"parts": 2000,
-							"medical": 200,
-							"base.ammunition.kinetic": 1800,
-							"base.ammunition.homing": 192,
-							"base.ammunition.havok": 576,
-							"base.ammunition.pdc": 19200,
-							"base.craft.interceptor": 2400,
-							"base.craft.bomber": 128
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 52992,
-							"filter": {
-								"resources": [
-									"base.ammunition.havok",
-									"base.ammunition.homing",
-									"base.ammunition.kinetic",
-									"base.ammunition.pdc",
-									"base.craft.bomber",
-									"base.craft.interceptor",
-									"medical",
-									"parts"
-								]
-							},
-							"initial": {
-								"parts": 2000,
-								"medical": 200,
-								"base.ammunition.kinetic": 1800,
-								"base.ammunition.homing": 192,
-								"base.ammunition.havok": 576,
-								"base.ammunition.pdc": 19200,
-								"base.craft.interceptor": 2400,
-								"base.craft.bomber": 128
-							}
-						}
-					},
-					{
-						"id": "fore-dorsal-mag",
-						"system": "fore-dorsal-mag",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.kinetic": 180
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 180,
-							"filter": {
-								"resources": ["base.ammunition.kinetic"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.kinetic",
-							"initial": {
-								"base.ammunition.kinetic": 180
-							}
-						}
-					},
-					{
-						"id": "fore-ventral-mag",
-						"system": "fore-ventral-mag",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.kinetic": 180
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 180,
-							"filter": {
-								"resources": ["base.ammunition.kinetic"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.kinetic",
-							"initial": {
-								"base.ammunition.kinetic": 180
-							}
-						}
-					},
-					{
-						"id": "aft-dorsal-mag",
-						"system": "aft-dorsal-mag",
-						"controller": "armament-services",
-						"compartment": "engineering",
-						"targets": {
-							"base.ammunition.kinetic": 180
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 180,
-							"filter": {
-								"resources": ["base.ammunition.kinetic"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.kinetic",
-							"initial": {
-								"base.ammunition.kinetic": 180
-							}
-						}
-					},
-					{
-						"id": "aft-ventral-mag",
-						"system": "aft-ventral-mag",
-						"controller": "armament-services",
-						"compartment": "engineering",
-						"targets": {
-							"base.ammunition.kinetic": 180
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 180,
-							"filter": {
-								"resources": ["base.ammunition.kinetic"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.kinetic",
-							"initial": {
-								"base.ammunition.kinetic": 180
-							}
-						}
-					},
-					{
-						"id": "mid-dorsal-mag",
-						"system": "mid-dorsal-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.kinetic": 180
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 180,
-							"filter": {
-								"resources": ["base.ammunition.kinetic"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.kinetic",
-							"initial": {
-								"base.ammunition.kinetic": 180
-							}
-						}
-					},
-					{
-						"id": "bow-port-homing",
-						"system": "bow-port-homing",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.homing": 16
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 16,
-							"filter": {
-								"resources": ["base.ammunition.homing"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.homing",
-							"initial": {
-								"base.ammunition.homing": 16
-							}
-						}
-					},
-					{
-						"id": "bow-port-havok",
-						"system": "bow-port-havok",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.havok": 48
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 48,
-							"filter": {
-								"resources": ["base.ammunition.havok"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.havok",
-							"initial": {
-								"base.ammunition.havok": 48
-							}
-						}
-					},
-					{
-						"id": "bow-starboard-homing",
-						"system": "bow-starboard-homing",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.homing": 16
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 16,
-							"filter": {
-								"resources": ["base.ammunition.homing"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.homing",
-							"initial": {
-								"base.ammunition.homing": 16
-							}
-						}
-					},
-					{
-						"id": "bow-starboard-havok",
-						"system": "bow-starboard-havok",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.havok": 48
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 48,
-							"filter": {
-								"resources": ["base.ammunition.havok"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.havok",
-							"initial": {
-								"base.ammunition.havok": 48
-							}
-						}
-					},
-					{
-						"id": "port-fore-homing",
-						"system": "port-fore-homing",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.homing": 16
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 16,
-							"filter": {
-								"resources": ["base.ammunition.homing"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.homing",
-							"initial": {
-								"base.ammunition.homing": 16
-							}
-						}
-					},
-					{
-						"id": "port-fore-havok",
-						"system": "port-fore-havok",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.havok": 48
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 48,
-							"filter": {
-								"resources": ["base.ammunition.havok"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.havok",
-							"initial": {
-								"base.ammunition.havok": 48
-							}
-						}
-					},
-					{
-						"id": "port-aft-homing",
-						"system": "port-aft-homing",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.homing": 16
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 16,
-							"filter": {
-								"resources": ["base.ammunition.homing"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.homing",
-							"initial": {
-								"base.ammunition.homing": 16
-							}
-						}
-					},
-					{
-						"id": "port-aft-havok",
-						"system": "port-aft-havok",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.havok": 48
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 48,
-							"filter": {
-								"resources": ["base.ammunition.havok"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.havok",
-							"initial": {
-								"base.ammunition.havok": 48
-							}
-						}
-					},
-					{
-						"id": "starboard-fore-homing",
-						"system": "starboard-fore-homing",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.homing": 16
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 16,
-							"filter": {
-								"resources": ["base.ammunition.homing"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.homing",
-							"initial": {
-								"base.ammunition.homing": 16
-							}
-						}
-					},
-					{
-						"id": "starboard-fore-havok",
-						"system": "starboard-fore-havok",
-						"controller": "armament-services",
-						"compartment": "weapons",
-						"targets": {
-							"base.ammunition.havok": 48
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 48,
-							"filter": {
-								"resources": ["base.ammunition.havok"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.havok",
-							"initial": {
-								"base.ammunition.havok": 48
-							}
-						}
-					},
-					{
-						"id": "starboard-aft-homing",
-						"system": "starboard-aft-homing",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.homing": 16
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 16,
-							"filter": {
-								"resources": ["base.ammunition.homing"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.homing",
-							"initial": {
-								"base.ammunition.homing": 16
-							}
-						}
-					},
-					{
-						"id": "starboard-aft-havok",
-						"system": "starboard-aft-havok",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.havok": 48
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 48,
-							"filter": {
-								"resources": ["base.ammunition.havok"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.havok",
-							"initial": {
-								"base.ammunition.havok": 48
-							}
-						}
-					},
-					{
-						"id": "pdc-port-1-mag",
-						"system": "pdc-port-1-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-port-2-mag",
-						"system": "pdc-port-2-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-port-3-mag",
-						"system": "pdc-port-3-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-port-4-mag",
-						"system": "pdc-port-4-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-starboard-1-mag",
-						"system": "pdc-starboard-1-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-starboard-2-mag",
-						"system": "pdc-starboard-2-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-starboard-3-mag",
-						"system": "pdc-starboard-3-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "pdc-starboard-4-mag",
-						"system": "pdc-starboard-4-mag",
-						"controller": "armament-services",
-						"compartment": "magazines",
-						"targets": {
-							"base.ammunition.pdc": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.ammunition.pdc"]
-							},
-							"single_resource": true,
-							"selection": "base.ammunition.pdc",
-							"initial": {
-								"base.ammunition.pdc": 1200
-							}
-						}
-					},
-					{
-						"id": "repair-1-kit",
-						"system": "repair-1",
-						"controller": "logistics",
-						"compartment": "engineering",
-						"targets": {
-							"parts": 24
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 4000,
-							"filter": {
-								"resources": ["parts"]
-							},
-							"initial": {
-								"parts": 24
-							}
-						}
-					},
-					{
-						"id": "repair-2-kit",
-						"system": "repair-2",
-						"controller": "logistics",
-						"compartment": "engineering",
-						"targets": {
-							"parts": 24
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 4000,
-							"filter": {
-								"resources": ["parts"]
-							},
-							"initial": {
-								"parts": 24
-							}
-						}
-					},
-					{
-						"id": "repair-3-kit",
-						"system": "repair-3",
-						"controller": "logistics",
-						"compartment": "engineering",
-						"targets": {
-							"parts": 24
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 4000,
-							"filter": {
-								"resources": ["parts"]
-							},
-							"initial": {
-								"parts": 24
-							}
-						}
-					},
-					{
-						"id": "repair-4-kit",
-						"system": "repair-4",
-						"controller": "logistics",
-						"compartment": "engineering",
-						"targets": {
-							"parts": 24
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 4000,
-							"filter": {
-								"resources": ["parts"]
-							},
-							"initial": {
-								"parts": 24
-							}
-						}
-					},
-					{
-						"id": "interceptor-supply",
-						"system": "interceptor-supply",
-						"controller": "logistics",
-						"compartment": "magazines",
-						"targets": {
-							"base.craft.interceptor": 1200
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 1200,
-							"filter": {
-								"resources": ["base.craft.interceptor"]
-							},
-							"single_resource": true,
-							"selection": "base.craft.interceptor",
-							"initial": {
-								"base.craft.interceptor": 1200
-							}
-						}
-					},
-					{
-						"id": "bomber-supply",
-						"system": "bomber-supply",
-						"controller": "logistics",
-						"compartment": "magazines",
-						"targets": {
-							"base.craft.bomber": 64
-						},
-						"stock": {
-							"capacity_tag": "ammo",
-							"capacity": 64,
-							"filter": {
-								"resources": ["base.craft.bomber"]
-							},
-							"single_resource": true,
-							"selection": "base.craft.bomber",
-							"initial": {
-								"base.craft.bomber": 64
-							}
-						}
-					},
-					{
-						"id": "medical-1-kit",
-						"system": "medical-1",
-						"controller": "medical-1",
-						"compartment": "medical",
-						"targets": {
-							"medical": 12
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 12,
-							"filter": {
-								"resources": ["medical"]
-							},
-							"initial": {
-								"medical": 12
-							}
-						}
-					},
-					{
-						"id": "medical-2-kit",
-						"system": "medical-2",
-						"controller": "medical-2",
-						"compartment": "medical",
-						"targets": {
-							"medical": 12
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 12,
-							"filter": {
-								"resources": ["medical"]
-							},
-							"initial": {
-								"medical": 12
-							}
-						}
-					},
-					{
-						"id": "infirmary-supplies",
-						"controller": "medical-1",
-						"compartment": "medical",
-						"targets": {
-							"medical": 32
-						},
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 32,
-							"filter": {
-								"resources": ["medical"]
-							},
-							"initial": {
-								"medical": 32
-							}
-						}
-					},
-					{
-						"id": "cargo-hold",
-						"controller": "logistics",
-						"compartment": "magazines",
-						"main": true,
-						"stock": {
-							"capacity_tag": "cargo",
-							"capacity": 100,
-							"filter": {
-								"tags": ["cargo"]
-							},
-							"initial": {}
-						}
-					}
-				],
-				"consumers": [
-					{
-						"system": "repair-1",
-						"store": "repair-1-kit",
-						"costs": {
-							"repair": {
-								"parts": 1
-							},
-							"structural": {
-								"parts": 1
-							}
-						}
-					},
-					{
-						"system": "repair-2",
-						"store": "repair-2-kit",
-						"costs": {
-							"repair": {
-								"parts": 1
-							},
-							"structural": {
-								"parts": 1
-							}
-						}
-					},
-					{
-						"system": "repair-3",
-						"store": "repair-3-kit",
-						"costs": {
-							"repair": {
-								"parts": 1
-							},
-							"structural": {
-								"parts": 1
-							}
-						}
-					},
-					{
-						"system": "repair-4",
-						"store": "repair-4-kit",
-						"costs": {
-							"repair": {
-								"parts": 1
-							},
-							"structural": {
-								"parts": 1
-							}
-						}
-					},
-					{
-						"system": "medical-1",
-						"store": "medical-1-kit",
-						"costs": {
-							"treat": {
-								"medical": 1
-							},
-							"stabilise": {
-								"medical": 2
-							}
-						}
-					},
-					{
-						"system": "medical-2",
-						"store": "medical-2-kit",
-						"costs": {
-							"treat": {
-								"medical": 1
-							},
-							"stabilise": {
-								"medical": 2
-							}
-						}
-					},
-					{
-						"system": "infirmary",
-						"store": "infirmary-supplies",
-						"costs": {
-							"recover": {
-								"medical": 2
-							}
-						}
-					}
-				],
-				"cargo_authorisation_controller": "dispatch"
-			},
-			"stations": [
-				{
-					"consoles": [
-						{
-							"definition": "base.console.helm",
-							"feeds": [
-								"sensors.radar",
-								"drive.engine",
-								"drive.steering",
-								"drive.lateral",
-								"drive.boost",
-								"drive.impulse",
-								"wing.engine",
-								"wing.steering",
-								"wing.lateral",
-								"wing.boost",
-								"wing.impulse"
-							],
-							"id": "helm",
-							"knowledge_producers": ["base.machinery"],
-							"knowledge_roles": ["base.crew", "base.helm"],
-							"systems": []
-						}
-					],
-					"id": "helm"
-				},
-				{
-					"consoles": [
-						{
-							"definition": "base.console.cruiser-engineering",
-							"feeds": [
-								"core.generator",
-								"core.reserve",
-								"core.distribution",
-								"core.pump",
-								"core.reactor-cooling",
-								"drive.distribution",
-								"drive.engine-supply",
-								"drive.engine-cooling",
-								"drive.steering-supply",
-								"drive.steering-cooling",
-								"drive.lateral-supply",
-								"drive.lateral-cooling",
-								"drive.boost-supply",
-								"drive.boost-cooling",
-								"drive.impulse-supply",
-								"drive.impulse-cooling",
-								"wing.distribution",
-								"wing.engine-supply",
-								"wing.engine-cooling",
-								"wing.steering-supply",
-								"wing.steering-cooling",
-								"wing.lateral-supply",
-								"wing.lateral-cooling",
-								"wing.boost-supply",
-								"wing.boost-cooling",
-								"wing.impulse-supply",
-								"wing.impulse-cooling",
-								"sensors.distribution",
-								"sensors.cooling",
-								"tactical.distribution",
-								"tactical.cooling",
-								"communications.distribution",
-								"communications.cooling",
-								"ftl.supply",
-								"ftl.cooling",
-								"repair-1",
-								"repair-2",
-								"repair-3",
-								"repair-4",
-								"interceptor-supply",
-								"bomber-supply",
-								"weapons-supply",
-								"weapons-cooling",
-								"shields-supply",
-								"shields-cooling",
-								"services-supply",
-								"services-cooling",
-								"psychic-supply",
-								"psychic-cooling",
-								"utility-bay",
-								"engineering-dispatch",
-								"sensors.radar"
-							],
-							"id": "engineering",
-							"knowledge_producers": ["base.machinery"],
-							"knowledge_roles": ["base.crew", "base.engineering"],
-							"systems": []
-						}
-					],
-					"id": "engineering"
-				},
-				{
-					"consoles": [
-						{
-							"definition": "base.console.cruiser-science",
-							"feeds": [
-								"sensors.radar",
-								"shield-fore",
-								"shield-port",
-								"shield-aft",
-								"shield-starboard",
-								"scanner-fore",
-								"scanner-aft",
-								"displacement",
-								"medical-1",
-								"medical-2",
-								"psychic-choir"
-							],
-							"id": "science",
-							"knowledge_producers": ["base.machinery"],
-							"knowledge_roles": ["base.crew", "base.science"],
-							"systems": [],
-							"shield_feed": true
-						},
-						{
-							"id": "navigator",
-							"definition": "base.console.navigator",
-							"systems": [],
-							"feeds": ["ftl.drive"],
-							"human_preferences": ["science", "helm"],
-							"knowledge_roles": ["base.crew"]
-						}
-					],
-					"id": "science"
-				},
-				{
-					"consoles": [
-						{
-							"definition": "base.console.cruiser-tactical",
-							"feeds": [
-								"tactical.radar",
-								"fore-dorsal",
-								"fore-dorsal-mag",
-								"fore-dorsal-gun",
-								"fore-ventral",
-								"fore-ventral-mag",
-								"fore-ventral-gun",
-								"aft-dorsal",
-								"aft-dorsal-mag",
-								"aft-dorsal-gun",
-								"aft-ventral",
-								"aft-ventral-mag",
-								"aft-ventral-gun",
-								"mid-dorsal",
-								"mid-dorsal-mag",
-								"mid-dorsal-gun",
-								"bow-port-homing",
-								"bow-port-havok",
-								"bow-port-tube-1",
-								"bow-port-tube-2",
-								"bow-port-tube-3",
-								"bow-port-tube-4",
-								"bow-starboard-homing",
-								"bow-starboard-havok",
-								"bow-starboard-tube-1",
-								"bow-starboard-tube-2",
-								"bow-starboard-tube-3",
-								"bow-starboard-tube-4",
-								"port-fore-homing",
-								"port-fore-havok",
-								"port-fore-tube-1",
-								"port-fore-tube-2",
-								"port-fore-tube-3",
-								"port-fore-tube-4",
-								"port-aft-homing",
-								"port-aft-havok",
-								"port-aft-tube-1",
-								"port-aft-tube-2",
-								"port-aft-tube-3",
-								"port-aft-tube-4",
-								"starboard-fore-homing",
-								"starboard-fore-havok",
-								"starboard-fore-tube-1",
-								"starboard-fore-tube-2",
-								"starboard-fore-tube-3",
-								"starboard-fore-tube-4",
-								"starboard-aft-homing",
-								"starboard-aft-havok",
-								"starboard-aft-tube-1",
-								"starboard-aft-tube-2",
-								"starboard-aft-tube-3",
-								"starboard-aft-tube-4",
-								"pdc-port-1-mag",
-								"pdc-port-1",
-								"pdc-port-2-mag",
-								"pdc-port-2",
-								"pdc-port-3-mag",
-								"pdc-port-3",
-								"pdc-port-4-mag",
-								"pdc-port-4",
-								"pdc-starboard-1-mag",
-								"pdc-starboard-1",
-								"pdc-starboard-2-mag",
-								"pdc-starboard-2",
-								"pdc-starboard-3-mag",
-								"pdc-starboard-3",
-								"pdc-starboard-4-mag",
-								"pdc-starboard-4",
-								"combat-bay",
-								"security-1",
-								"security-2",
-								"dispatch"
-							],
-							"id": "tactical",
-							"knowledge_producers": ["base.machinery"],
-							"knowledge_roles": ["base.crew", "base.tactical"],
-							"systems": []
-						}
-					],
-					"id": "tactical"
-				},
-				{
-					"consoles": [
-						{
-							"definition": "base.console.cruiser-comms",
-							"feeds": ["communications.reserve", "comms-radio", "sensors.radar"],
-							"id": "comms",
-							"knowledge_producers": ["base.machinery"],
-							"knowledge_roles": ["base.crew", "base.comms"],
-							"systems": []
-						}
-					],
-					"id": "comms"
-				},
-				{
-					"consoles": [
-						{
-							"definition": "base.console.cruiser-captain",
-							"feeds": [],
-							"id": "captain",
-							"knowledge_producers": ["base.machinery"],
-							"knowledge_roles": ["base.crew", "base.captain"],
-							"systems": []
-						},
-						{
-							"id": "command",
-							"definition": "base.console.command",
-							"systems": [],
-							"feeds": []
-						}
-					],
-					"id": "captain"
-				}
-			]
-		},
-		{
 			"audio": {
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
@@ -37076,7 +35994,7 @@
 					"id": "courier",
 					"name": "Courier",
 					"mandatory": true,
-					"allowed_ships": ["base.rescue-courier", "base.delivery-cruiser"],
+					"allowed_ships": ["base.rescue-courier", "base.cruiser"],
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,
@@ -37769,7 +36687,7 @@
 								{
 									"fact": "delivery-ship",
 									"op": "eq",
-									"value": "base.delivery-cruiser"
+									"value": "base.cruiser"
 								},
 								{
 									"fact": "arrival-time",
@@ -38200,7 +37118,7 @@
 			],
 			"ship_briefings": {
 				"base.rescue-courier": "mission.rescue.briefing.courier",
-				"base.delivery-cruiser": "mission.rescue.briefing.cruiser"
+				"base.cruiser": "mission.rescue.briefing.cruiser"
 			},
 			"factions": [
 				{
@@ -38399,7 +37317,7 @@
 								"formation_mdeg": 270000
 							}
 						],
-						"base.delivery-cruiser": [
+						"base.cruiser": [
 							{
 								"definition": "base.delivery-raider",
 								"x_mm": 950000,
@@ -38444,7 +37362,7 @@
 				},
 				{
 					"ship_slot": "courier",
-					"definition": "base.delivery-cruiser",
+					"definition": "base.cruiser",
 					"stores": {
 						"cargo-hold": {
 							"perishable-essentials": 100
@@ -55214,7 +54132,7 @@
 										"observation": "self.definition"
 									},
 									"op": "eq",
-									"right": "base.delivery-cruiser"
+									"right": "base.cruiser"
 								}
 							]
 						},
@@ -55384,7 +54302,7 @@
 										"observation": "self.definition"
 									},
 									"op": "eq",
-									"right": "base.delivery-cruiser"
+									"right": "base.cruiser"
 								}
 							]
 						},

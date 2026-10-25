@@ -8,7 +8,7 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 	app.native_menu = false;
 	app.session = make_local_session();
 	std::cout << "WAIT Rescue loading content" << std::endl;
-	const std::string fit = cruiser ? "base.delivery-cruiser" : "base.rescue-courier";
+	const std::string fit = cruiser ? "base.cruiser" : "base.rescue-courier";
 	if (checkpoint.empty())
 	{
 		app.session->add_pack(read_file(directory + "/base.zip"));

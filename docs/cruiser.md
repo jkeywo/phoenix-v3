@@ -27,7 +27,7 @@ The Cruiser can select the existing **Boarding action** exercise, with collision
 
 ## Combat test
 
-Select **Cruiser combat test** and **Cruiser — Six-station combat fit**. The first three raiders arrive after ten seconds; subsequent groups arrive thirty seconds after the preceding three raiders are destroyed. Objectives and shipwide advisories identify the current wave. Damage, heat, ammunition, repairs and craft commitments persist.
+Select **Cruiser combat test** and **Cruiser**. The first three raiders arrive after ten seconds; subsequent groups arrive thirty seconds after the preceding three raiders are destroyed. Objectives and shipwide advisories identify the current wave. Damage, heat, ammunition, repairs and craft commitments persist.
 
 `base.cruiser-test-raider` inherits the existing pirate unchanged apart from fixed hostile faction membership. The encounter uses receipt-gated spawns and published condition objectives. Each spawned raider has its own stable handle; objective completion requires all three actual destruction facts. Save/recovery retains those handles and the inter-wave timer.
 
@@ -64,3 +64,7 @@ See the [execution evidence and remaining acceptance limits](smoke/cruiser.md).
 For the three revised workload screens at 1080p, run `phoenix_cruiser_ui_smoke.exe base.zip test-missions.zip --workloads`. Its rendered controls also exercise Comms disclosure, Engineering dispatch and Tactical contribution. The separate supply journey uses a quiet private combat-map variant with depleted initial parts and medical stores; it exercises both negotiated offers, automatic manifest preparation, a Tactical escort and physical return/unloading with continuation checks. The bounded `--watch` journey checks occupied one-star combat and compartment repair, independently of the complete three-wave exercise. See the [workload verification receipt](smoke/cruiser-workloads.md).
 
 Record actual execution results separately; successful loading or a screenshot does not establish a completed three-wave journey, screen-reader usability or physical six-display performance.
+
+## Standard cargo and repair storage
+
+The normal `base.cruiser` includes a generic cargo hold, standard docking ports, utility-shuttle cargo authorisation and high-capacity repair kits. Cargo starts empty and repair kits retain their ordinary initial stocks and replenishment targets. Mission `starting_stocks` assigns consignments and any larger initial repair supply; there is no separate logistics fit. Rescue selects the normal Cruiser for its briefing, encounter roster and cargo assignment.

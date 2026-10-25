@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 		options.player_name = "Bridge host";
 		app.session = make_game_lobby(options, true);
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->prepare_lobby({"base.rescue-under-threat", {{"courier", "base.delivery-cruiser"}}, "courier", ""});
+		app.session->prepare_lobby({"base.rescue-under-threat", {{"courier", "base.cruiser"}}, "courier", ""});
 		app.screen = Screen::server_lobby;
 		app.return_home = []
 		{
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 		frame();
 		// Wait for initial graphics preparation before exercising lobby claims.
 		wait_for_board();
-		for (const auto *fit : {"base.rescue-courier", "base.delivery-cruiser"})
+		for (const auto *fit : {"base.rescue-courier", "base.cruiser"})
 		{
 			require(app.session->lobby_command({LobbyAction::claim_ship, "", "courier", fit}),
 			        "Select the delivery fit in the lobby");
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 			network_host = make_game_lobby(options);
 			network_host->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
 			network_host->prepare_lobby(
-			    {"base.rescue-under-threat", {{"courier", "base.delivery-cruiser"}}, "courier", ""});
+			    {"base.rescue-under-threat", {{"courier", "base.cruiser"}}, "courier", ""});
 			LobbyCommand reserve{LobbyAction::assign_local_console, "", first.slot, "", first.id};
 			reserve.screen = 3;
 			require(network_host->lobby_command(reserve), "Native station is reserved before phone join");
