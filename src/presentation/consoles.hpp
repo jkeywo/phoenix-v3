@@ -331,10 +331,13 @@ class ConsoleSurface final : public Rml::EventListener
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
+		const bool operations = local_settings_tab_ == "logistics" || local_settings_tab_ == "docking" ||
+		                        local_settings_tab_ == "away" || local_settings_tab_ == "craft" ||
+		                        local_settings_tab_ == "personnel";
 		const auto content_width = std::max(180.f, region.width * .84f - 52.f);
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
-		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
+		    "dp;\"><h1>" + localise(operations ? "Ship operations" : "Console settings") + "</h1><div>";
 		for (const auto &[tab, label] :
 		     std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
 		                                                      {"docking", "Docking"},
@@ -345,7 +348,9 @@ class ConsoleSurface final : public Rml::EventListener
 		                                                      {"language", "Language"},
 		                                                      {"audio", "Audio"},
 		                                                      {"session", "Session"}})
-			markup += settings_button("local-settings.tab/" + tab, label);
+			if (operations ==
+			    (tab == "logistics" || tab == "docking" || tab == "away" || tab == "craft" || tab == "personnel"))
+				markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
 		if (local_settings_tab_ == "logistics")
 			markup += logistics_markup();
@@ -814,6 +819,7 @@ button.on-screen-active .share-live {display:block;}
 .authored .radar-widget button.on-screen-active .share-live {position:static;display:inline;font-size:0.8em;}
 
 .authored #authored-body #navigation-layer {pointer-events:auto;}
+.local-settings-open #authored-body,.local-settings-open #layout-tabs,.local-settings-open #console-tabs,.local-settings-open #navigation-layer {visibility:hidden;}
 </style></head><body><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
@@ -929,12 +935,23 @@ button.on-screen-active .share-live {display:block;}
 			if (!app_->session)
 				return false;
 			settings_open_ = action == "settings" && !settings_open_;
+			if (settings_open_)
+				local_settings_tab_ = "display";
 			cancel_pointer();
 			model_.release_controls();
 			document_->SetClass("local-settings-open", settings_open_);
 			if (!settings_open_)
 				if (auto *cog = document_->GetElementById(id("settings")))
 					cog->Focus();
+			return true;
+		}
+		if (action == "operations")
+		{
+			settings_open_ = true;
+			local_settings_tab_ = "logistics";
+			cancel_pointer();
+			model_.release_controls();
+			document_->SetClass("local-settings-open", true);
 			return true;
 		}
 		if (settings_open_)
@@ -2307,7 +2324,8 @@ button.on-screen-active .share-live {display:block;}
 					for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
 						teams |= !t.at("orders").empty();
 				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" +
-				           (teams ? button("game.teams", "Teams") : std::string{}) + button("personnel", "Personnel") +
+				           (teams ? button("game.teams", "Teams") : std::string{}) +
+				           button("operations", "Ship operations") + button("personnel", "Personnel") +
 				           "<span class=\"" + std::string(away_attention() ? "away-attention" : "") + "\">" +
 				           button("away", away_attention() ? "Away missions: assignment needed" : "Away missions") +
 				           "</span>" + "</div>";

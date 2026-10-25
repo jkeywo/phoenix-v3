@@ -117,7 +117,14 @@ class FrameSession final : public SessionPort
 		frame->phase = backend_->preparation_phase();
 		frame->progress = backend_->content_progress();
 		frame->lobby = backend_->lobby();
-		for (const auto route : routes_)
+		// Lobby reservations are claimed inside the backend during launch, rather
+		// than through this wrapper's claim_console. Publish those local surfaces
+		// too, including reservations made before the worker was attached.
+		auto routes = routes_;
+		for (const auto &seat : frame->lobby.consoles)
+			if (seat.local_screen)
+				routes.insert(seat.local_screen);
+		for (const auto route : routes)
 			frame->consoles.emplace(route, backend_->console_snapshot(route));
 		frame->primary = frame->consoles.contains(1) ? frame->consoles.at(1) : nullptr;
 		if (!frame->primary)

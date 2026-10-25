@@ -32,12 +32,13 @@ int main(int argc, char **argv)
 		if (argc != 2 && argc != 3)
 			throw std::runtime_error("Supply the private synthetic signalling URL");
 		NetworkOptions options;
+		const bool local_worker_only = std::string(argv[1]) == "--local-consoles";
 		options.link.url = argv[1];
 		options.link.room = "lobby-" + random_token();
 		options.link.self = "organiser";
 		options.link.force_relay = true;
 		options.data_location = "lobby-integration-" + random_token();
-		auto host = make_game_lobby(options);
+		auto host = make_game_lobby(options, local_worker_only);
 		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		auto defs = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic lobby");
@@ -119,6 +120,35 @@ int main(int argc, char **argv)
 		                                     {"test.delivery", "Urgent synthetic delivery"}};
 		pack.files["definitions.json"] = json_bytes(defs);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+#ifndef __EMSCRIPTEN__
+		if (local_worker_only)
+		{
+			auto worker = make_frame_session(make_game_lobby(options, true));
+			worker->add_pack(write_pack(pack));
+			worker->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			LobbyCommand reserve{LobbyAction::assign_local_console, "", "test.slot", "", "main"};
+			reserve.screen = 2;
+			require(worker->lobby_command(reserve), "Reserve a synthetic local display through the worker");
+			reserve.screen = 3;
+			require(worker->lobby_command(reserve), "Move the lobby reservation to another local display");
+			LobbyCommand ready{LobbyAction::ready};
+			ready.screen = 3;
+			require(worker->lobby_command(ready), "Ready the local participant");
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+			while (!worker->console_snapshot(3) && std::chrono::steady_clock::now() < deadline)
+			{
+				worker->poll();
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			require(worker->running() && worker->console_snapshot(3) && worker->console_snapshot(3)->console == "main",
+			        "Lobby-assigned Console publishes its immutable worker observation after launch");
+			require(!worker->console_snapshot(2), "The previous display receives no stale observation");
+			require(worker->release_console(3) && !worker->console_snapshot(3),
+			        "Release removes the local observation");
+			std::cout << "PASS worker publication of lobby-assigned local Consoles\n";
+			return 0;
+		}
+#endif
 		{
 			// A new content selection may reuse ship IDs with different authored
 			// profiles. Retained lobby metadata must follow the new content.

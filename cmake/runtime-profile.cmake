@@ -5,6 +5,10 @@ endif()
 add_executable(phoenix_runtime_profile EXCLUDE_FROM_ALL tests/manual/runtime_profile.cpp)
 set_property(TARGET phoenix_runtime_profile PROPERTY CXX_SCAN_FOR_MODULES ON)
 target_link_libraries(phoenix_runtime_profile PRIVATE phoenix_session phoenix_presentation)
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_console_transition_smoke EXCLUDE_FROM_ALL tests/manual/console_transition.cpp)
+	target_link_libraries(phoenix_console_transition_smoke PRIVATE phoenix_network_lobby phoenix_presentation)
+endif()
 if(EMSCRIPTEN)
 	set(
 		PHOENIX_PROFILE_PACK
