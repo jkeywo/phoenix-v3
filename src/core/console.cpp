@@ -22,6 +22,12 @@ namespace phoenix
 {
 namespace
 {
+const Json &borrowed_member(const Json &value, const std::string &key, bool array = false)
+{
+	static const Json empty_object = Json::object(), empty_array = Json::array();
+	const auto found = value.find(key);
+	return found == value.end() ? (array ? empty_array : empty_object) : *found;
+}
 const Json &controller_rows(const Json &gameplay)
 {
 	static const Json empty = Json::array();
@@ -1542,7 +1548,7 @@ std::vector<ConsoleSystemStatus> ConsoleModel::system_statuses() const
 {
 	std::vector<ConsoleSystemStatus> result;
 	if (!observation_ || !observation_->gameplay.is_object() ||
-	    observation_->gameplay.value("combat", Json::object()).empty())
+	    borrowed_member(observation_->gameplay, "combat").empty())
 		return result;
 	for (const auto &system : observation_->systems)
 	{
@@ -1586,7 +1592,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			result.emplace_back("game.console/" + key, localise("Open console") + " " + localise(label));
 	if (!observation_ || !observation_->gameplay.is_object())
 		return result;
-	const auto sensors = observation_->gameplay.value("sensors", Json::object());
+	const auto &sensors = borrowed_member(observation_->gameplay, "sensors");
 	for (const auto &contact : observation_->contacts)
 		result.emplace_back("game.sensor-contact/" + std::to_string(contact.id), localise("Inspect contact") + " " +
 		                                                                             localise(contact.definition) +
@@ -1595,7 +1601,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		result.emplace_back("game.sensor-contact/" + std::to_string(b.id), localise("Inspect contact") + " " +
 		                                                                       std::to_string(b.id) + "; " +
 		                                                                       bearing_readout(b.bearing_mdeg));
-	for (const auto &contact : sensors.value("contacts", Json::array()))
+	for (const auto &contact : borrowed_member(sensors, "contacts", true))
 		if (std::none_of(observation_->contacts.begin(), observation_->contacts.end(),
 		                 [&](const auto &c)
 		                 {
@@ -1611,13 +1617,13 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	if (!sensors.empty())
 		result.emplace_back("game.contact-arcs",
 		                    localise("Contact fire arcs") + ": " + localise(contact_arcs_ ? "On" : "Off"));
-	const auto combat = observation_->gameplay.value("combat", Json::object());
+	const auto &combat = borrowed_member(observation_->gameplay, "combat");
 	for (const auto &status : system_statuses())
 		result.emplace_back("game.status/" + status.system, status.semantic_label);
 	if (!status_system_.empty())
 		result.emplace_back("game.status-close", localise("Close system details"));
 	bool weapons = false;
-	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
+	for (const auto &descriptor : borrowed_member(observation_->gameplay, "controls", true))
 		weapons |= descriptor.value("action", std::string{}) == "weapon_target" ||
 		           descriptor.value("action", std::string{}) == "directed_target" ||
 		           descriptor.value("shared_combat_target", false);
@@ -1638,7 +1644,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			                        (combat_target_ == static_cast<std::int64_t>(b.id) ? " [*]" : ""));
 	if (!selected_team_.empty())
 		result.emplace_back("game.teams-close", localise("Close team dispatch"));
-	for (const auto &team : observation_->gameplay.value("teams", Json::array()))
+	for (const auto &team : borrowed_member(observation_->gameplay, "teams", true))
 	{
 		if (team.at("reserved").get<bool>() || !team.value("manual", true))
 			continue;
@@ -1672,7 +1678,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 				                    localise("Fire arcs") + ": " + localise(fire_arcs_ ? "On" : "Off"));
 				break;
 			}
-	const auto controls = observation_->gameplay.value("controls", Json::array());
+	const auto &controls = borrowed_member(observation_->gameplay, "controls", true);
 	if (!controls.is_array())
 		return result;
 	std::map<std::string, std::size_t> occurrences;
@@ -1683,7 +1689,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	{
 		if (!console_descriptor(descriptor))
 			continue;
-		if (!observation_->gameplay.value("ftl", Json::array()).empty() &&
+		if (!borrowed_member(observation_->gameplay, "ftl", true).empty() &&
 		    descriptor.value("action", "") != "system_enabled" && descriptor.value("action", "") != "ftl.depart")
 			continue;
 		if (descriptor.value("action", std::string{}) == "system_enabled")
@@ -1710,7 +1716,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 					for (const auto &[key, channel] : controller.at("commands").items())
 						if (key == descriptor.value("channel", std::string{}))
 							for (const auto &consumer : channel.at("consumers"))
-								for (const auto &team : observation_->gameplay.value("teams", Json::array()))
+								for (const auto &team : borrowed_member(observation_->gameplay, "teams", true))
 									if (team.at("id") == consumer && !team.at("orders").empty())
 										authored = true;
 			if (authored)
@@ -1759,8 +1765,8 @@ std::string ConsoleModel::system_details() const
 		return {};
 	std::string text = status_system_;
 	bool fault = false;
-	const auto combat = observation_->gameplay.value("combat", Json::object());
-	for (const auto &f : combat.value("faults", Json::array()))
+	const auto &combat = borrowed_member(observation_->gameplay, "combat");
+	for (const auto &f : borrowed_member(combat, "faults", true))
 		if (f.at("system") == status_system_)
 		{
 			fault = true;
@@ -1816,7 +1822,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			result.emplace_back("game.objective/authority",
 			                    localise("Priority selection requires an AI-operated Controller"));
 	}
-	for (const auto &ftl : observation_->gameplay.value("ftl", Json::array()))
+	for (const auto &ftl : borrowed_member(observation_->gameplay, "ftl", true))
 	{
 		const auto capacity = ftl.at("capacity").get<std::int64_t>();
 		result.emplace_back(
@@ -1836,7 +1842,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	}
 	if (!status_system_.empty())
 		result.emplace_back("game.readout/system-details", system_details());
-	for (const auto &directed : observation_->gameplay.value("directed", Json::array()))
+	for (const auto &directed : borrowed_member(observation_->gameplay, "directed", true))
 	{
 		std::string text = directed.at("id").get<std::string>();
 		for (const auto *selection : {"operating_mode", "targeting_mode"})
@@ -1854,13 +1860,13 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			text += "; " + localise("Target") + " " + std::to_string(directed.at("target").get<EntityId>());
 		result.emplace_back("game.directed/" + directed.at("id").get<std::string>(), std::move(text));
 	}
-	const auto sensors = observation_->gameplay.value("sensors", Json::object());
+	const auto &sensors = borrowed_member(observation_->gameplay, "sensors");
 	for (const auto &b : observation_->bearing_contacts)
 		if (b.id == static_cast<EntityId>(sensor_contact_))
 			result.emplace_back("game.scan-bearing/" + std::to_string(b.id), localise("Contact") + " " +
 			                                                                     std::to_string(b.id) + "; " +
 			                                                                     bearing_readout(b.bearing_mdeg));
-	for (const auto &scanner : sensors.value("scanners", Json::array()))
+	for (const auto &scanner : borrowed_member(sensors, "scanners", true))
 	{
 		const auto key = scanner.at("id").get<std::string>();
 		if (scanner.at("target") != 0)
@@ -1874,7 +1880,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			                                       std::max<std::int64_t>(1, progress.at("required"))) +
 			                        "%");
 	}
-	for (const auto &contact : sensors.value("contacts", Json::array()))
+	for (const auto &contact : borrowed_member(sensors, "contacts", true))
 		if (contact.at("id") == sensor_contact_)
 		{
 			for (const auto &[cap, finding] : contact.at("findings").items())
@@ -1904,20 +1910,20 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 						            r.at(cap == "shield_sectors" ? "capacity" : "maximum").get<std::int64_t>()));
 			}
 		}
-	const auto combat = observation_->gameplay.value("combat", Json::object());
+	const auto &combat = borrowed_member(observation_->gameplay, "combat");
 	if (!combat.empty())
 	{
 		if (combat.contains("result"))
 			result.emplace_back("combat.outcome", localise(combat.at("result")));
 		if (combat.value("destroyed", false))
 			result.emplace_back("combat.result", localise("Ship destroyed"));
-		for (const auto &c : combat.value("compartments", Json::array()))
+		for (const auto &c : borrowed_member(combat, "compartments", true))
 			result.emplace_back("compartment." + c.at("id").get<std::string>(),
 			                    c.at("deck").get<std::string>() + " / " + c.at("id").get<std::string>() + ": " +
 			                        std::to_string(c.at("hp").get<std::int64_t>()) + "/" +
 			                        std::to_string(c.at("maximum").get<std::int64_t>()) + " " +
 			                        localise(c.at("disabled").get<bool>() ? "Disabled" : "Operational"));
-		for (const auto &t : combat.value("teams", Json::array()))
+		for (const auto &t : borrowed_member(combat, "teams", true))
 			result.emplace_back(
 			    "team." + t.at("id").get<std::string>(),
 			    t.at("id").get<std::string>() + ": " + localise("Compartment") + " " +
@@ -1930,21 +1936,21 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		                {
 			                return w.value("fire_arcs", false);
 		                }))
-			for (const auto &arc : combat.value("arcs", Json::array()))
+			for (const auto &arc : borrowed_member(combat, "arcs", true))
 				result.emplace_back("arc." + arc.at("id").get<std::string>(),
 				                    arc.at("id").get<std::string>() + ": " + localise("Fire arc") + " " +
 				                        std::to_string(arc.at("arc_mdeg").get<std::int64_t>() / 1000) + "; " +
 				                        localise("Bearing") + " " +
 				                        std::to_string(arc.at("bearing_mdeg").get<std::int64_t>() / 1000));
 	}
-	for (const auto &shield : combat.value("shields", Json::array()))
+	for (const auto &shield : borrowed_member(combat, "shields", true))
 		result.emplace_back("shield." + shield.value("component_id", shield.at("id").get<std::string>()),
 		                    shield.at("id").get<std::string>() + ": " + localise("Stored strength") + " " +
 		                        std::to_string(shield.at("strength").get<std::int64_t>()) + "/" +
 		                        std::to_string(shield.at("capacity").get<std::int64_t>()) + "; " + localise("Warm-up") +
 		                        " " + std::to_string(shield.at("warmup").get<std::int64_t>()) + "/" +
 		                        std::to_string(shield.at("warmup_ticks").get<std::int64_t>()));
-	for (const auto &weapon : combat.value("weapons", Json::array()))
+	for (const auto &weapon : borrowed_member(combat, "weapons", true))
 	{
 		std::string text = weapon.at("id").get<std::string>();
 		if (!weapon.at("magazines").empty())
@@ -2042,7 +2048,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			    localise("Estimates assume current demand and supply remain constant; future commands are excluded.");
 		result.emplace_back("game.readout/system-" + console_encoded(system.id), std::move(text));
 	}
-	for (const auto &c : observation_->gameplay.value("psychic", Json::object()).value("choirs", Json::array()))
+	for (const auto &c : borrowed_member(observation_->gameplay, "psychic").value("choirs", Json::array()))
 	{
 		for (const auto &seat : c.at("seats"))
 		{
@@ -2054,7 +2060,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		}
 	}
 
-	for (const auto &t : observation_->gameplay.value("sensors", Json::object()).value("tracks", Json::array()))
+	for (const auto &t : borrowed_member(observation_->gameplay, "sensors").value("tracks", Json::array()))
 	{
 		const auto &b = t.at("body");
 		result.emplace_back("track." + std::to_string(b.at("id").get<EntityId>()),
