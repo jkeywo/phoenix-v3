@@ -331,6 +331,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "craft.hpp"
 #include "logistics.hpp"
 #include "station_combat.hpp"
+#include "throttle.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -530,7 +531,7 @@ class ConsoleSurface final : public Rml::EventListener
 		widget->GetElementsByTagName(headings, "h2");
 		const float header =
 		    std::max(45.f * density, (headings.empty() ? 0.f : headings.front()->GetOffsetHeight()) + 16.f * density);
-		const float height = std::max(30.f * density, widget->GetOffsetHeight() - header - 55.f * density),
+		const float height = std::max(30.f * density, widget->GetOffsetHeight() - header - 111.f * density),
 		            width = height * size[0].get<float>() / size[1].get<float>();
 		return {at.x + (widget->GetOffsetWidth() - width) / 2, at.y + header, width, height};
 	}
@@ -672,6 +673,8 @@ p {display:block;word-break:break-word;font-size:.85em;margin:4px 0;}
 .radar-widget button.on-screen {position:absolute;left:auto;right:8px;}
 .readout {position:absolute;bottom:12px;left:16px;right:16px;height:44px;text-align:center;color:#cbe9c8;}
 .heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;min-height:1.8em;height:auto;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
+.throttle-widget .readout {bottom:66dp;}
+.throttle-widget button.all-stop {position:absolute;left:8dp;right:8dp;bottom:8dp;width:auto;min-height:44dp;box-sizing:border-box;margin:0;}
 .throttle {position:absolute;background:transparent;border:0px;}
 .throttle slidertrack {background:transparent;}
 .throttle sliderbar {width:100%;background:transparent;}
@@ -890,6 +893,8 @@ button.on-screen-active .share-live {display:block;}
 		if (station_loading_)
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (action.starts_with("all-stop/"))
+			return all_stop(action.substr(9));
 		if (action == "systems" || action == "systems-close")
 		{
 			model_.act("game.status-close");
@@ -1647,6 +1652,12 @@ button.on-screen-active .share-live {display:block;}
 				if (CheckCollisionPointRec({x, y}, {track.x - track.width * .2f, track.y - track.width * .2f,
 				                                    track.width * 1.4f, track.height + track.width * .4f}))
 				{
+					if (std::any_of(throttle_contacts_.begin(), throttle_contacts_.end(),
+					                [&](const auto &held)
+					                {
+						                return held.second == key && held.first != contact;
+					                }))
+						return true;
 					throttle_contacts_[contact] = key;
 					break;
 				}
@@ -1656,19 +1667,26 @@ button.on-screen-active .share-live {display:block;}
 			if (kind != DeviceEventKind::Cancel && throttle_tracks_.contains(key))
 			{
 				const auto track = throttle_tracks_.at(key);
-				const double fraction = std::clamp((track.y + track.height - y) / track.height, 0.f, 1.f);
+				const double fraction =
+				    throttle_detent(key, std::clamp(double(track.y + track.height - y) / track.height, 0.0, 1.0));
 				const auto system = model_.widget_system(key);
-				const auto requested =
-				    std::llround(model_.system_minimum(system) +
-				                 (model_.system_maximum(system) - model_.system_minimum(system)) * fraction);
-				if (requested != model_.system_request(system) &&
+				auto [preview, inserted] = throttle_previews_.try_emplace(key);
+				if (inserted)
+					preview->second.sent = model_.system_request(system);
+				preview->second.fraction = fraction;
+				preview->second.updated_at = GetTime();
+				const auto requested = throttle_request(key);
+				if (preview->second.sent != requested &&
 				    (kind == DeviceEventKind::Down || kind == DeviceEventKind::Up ||
 				     GetTime() - throttle_sent_at_[key] >= .05))
-				{
 					if (model_.set_speed_fraction(fraction, system))
+					{
 						throttle_sent_at_[key] = GetTime();
-				}
+						preview->second.sent = requested;
+					}
 			}
+			if (kind == DeviceEventKind::Cancel)
+				throttle_previews_.erase(key);
 			if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
 				throttle_contacts_.erase(contact);
 			return true;
@@ -1722,6 +1740,7 @@ button.on-screen-active .share-live {display:block;}
 		heading_contacts_.clear();
 		sharing_contacts_.clear();
 		throttle_contacts_.clear();
+		throttle_previews_.clear();
 		model_.release_controls();
 		held_clicks_.clear();
 	}
@@ -1747,6 +1766,43 @@ button.on-screen-active .share-live {display:block;}
 			context_->Update();
 		}
 	}
+	bool probe_throttle(unsigned stage)
+	{
+		if (!model_.layout() || throttle_tracks_.empty())
+			return false;
+		const auto key = throttle_tracks_.begin()->first;
+		const auto track = throttle_tracks_.at(key);
+		auto touch = [&](double fraction, DeviceEventKind kind)
+		{
+			return pointer(89001, track.x + track.width / 2, track.y + track.height * (1 - fraction), kind);
+		};
+		if (stage == 0)
+		{
+			if (!touch(.73, DeviceEventKind::Down))
+				return false;
+			throttle_sent_at_[key] = GetTime();
+			return touch(.81, DeviceEventKind::Move) && std::abs(throttle_fraction(key) - .81) < .0001;
+		}
+		if (stage == 1)
+			return std::abs(throttle_fraction(key) - .81) < .0001 && throttle_contacts_.contains(89001);
+		if (stage == 2)
+		{
+			const auto zero = throttle_zero(key);
+			if (!touch(std::min(1.0, zero + .02), DeviceEventKind::Move) || throttle_request(key) != 0)
+				return false;
+			if (!touch(std::max(0.0, zero - .02), DeviceEventKind::Move) || throttle_request(key) != 0)
+				return false;
+			return touch(zero, DeviceEventKind::Up) && throttle_request(key) == 0;
+		}
+		if (stage == 3)
+		{
+			if (!touch(.75, DeviceEventKind::Down) || !touch(.75, DeviceEventKind::Up) || throttle_request(key) == 0)
+				return false;
+			return probe_tab("all-stop/" + key) && throttle_request(key) == 0;
+		}
+		return model_.system_request(model_.widget_system(key)) == 0;
+	}
+
 	bool probe_conversation() const
 	{
 		auto *history = document_->GetElementById("comms-history");
@@ -2007,6 +2063,17 @@ button.on-screen-active .share-live {display:block;}
 	{
 		if (!model_.manual_available())
 			return false;
+		if (model_.manual_active() && model_.layout())
+			for (const auto &widget : model_.layout()->at("widgets"))
+				if (widget.at("kind") == "throttle")
+				{
+					if (all_stop(widget.at("id")))
+						return false;
+					if (auto *stop = document_->GetElementById(id("all-stop/" + widget.at("id").get<std::string>()));
+					    stop && stop->IsVisible(true))
+						return false;
+				}
+
 		const auto requested = [&](const std::string &field, int expected)
 		{
 			for (const auto &system : model_.observation()->systems)
@@ -2316,6 +2383,7 @@ button.on-screen-active .share-live {display:block;}
 		              });
 		const auto previous_announcement = model_.announcement();
 		model_.refresh(app.session, route_);
+		reconcile_throttles();
 		refresh_inline_console(app);
 		document_->SetClass("integrated-helm", !inline_console_.empty());
 		sync_console_browsing();
@@ -2565,10 +2633,15 @@ button.on-screen-active .share-live {display:block;}
 						           Rml::StringUtilities::EncodeRml(id("camera-status/" + key)) + "\"/>";
 					}
 					if (kind == "throttle")
+					{
 						widgets += "<input class=\"throttle\" id=\"" + id("speed/" + key) +
 						           "\" type=\"range\" orientation=\"vertical\" min=\"-100\" max=\"0\" step=\"0.1\" "
 						           "value=\"0\"" +
 						           (pregame ? " disabled" : "") + "/>";
+						widgets += "<button class=\"all-stop\" id=\"" + id("all-stop/" + key) + "\">" +
+						           Rml::StringUtilities::EncodeRml(localise("All stop")) + "</button>";
+						controls_.emplace_back(id("all-stop/" + key), "All stop");
+					}
 					if (kind == "heading")
 					{
 						widgets += "<label for=\"" + id("heading/" + key) + "\">" +
@@ -3304,10 +3377,7 @@ button.on-screen-active .share-live {display:block;}
 					property(slider, "width", std::to_string(track.width * 1.2f) + "px");
 					property(slider, "height",
 					         std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
-					const auto system = model_.widget_system(key);
-					const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
-					const double percent =
-					    maximum > minimum ? 100.0 * (model_.system_request(system) - minimum) / (maximum - minimum) : 0;
+					const double percent = 100 * throttle_fraction(key);
 					throttle_tracks_[key] = {track.x, track.y + track.height * top, track.width,
 					                         track.height * (bottom - top)};
 					// Programmatic projection updates must never enqueue a fresh player command.
@@ -3383,10 +3453,8 @@ button.on-screen-active .share-live {display:block;}
 						}
 				}
 				std::string value =
-				    kind == "throttle" ? "Requested " +
-				                             std::string(TextFormat(
-				                                 "%.1f", model_.system_request(model_.widget_system(key)) / 1000.0)) +
-				                             " m/s"
+				    kind == "throttle"
+				        ? "Requested " + std::string(TextFormat("%.1f", throttle_request(key) / 1000.0)) + " m/s"
 				    : kind == "heading"
 				        ? "Actual " +
 				              std::to_string(model_.observation() ? model_.observation()->own.heading / 1000 : 0) +
@@ -3435,6 +3503,8 @@ button.on-screen-active .share-live {display:block;}
 		const auto semantics_started = GetTime();
 		for (const auto &[name, label] : controls_)
 		{
+			if (name.starts_with(id("all-stop/")) && model_.manual_active())
+				continue;
 			if (name == id("manual"))
 			{
 				const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
@@ -3737,13 +3807,7 @@ button.on-screen-active .share-live {display:block;}
 				track.x += ox;
 				track.y += oy;
 				image(hud("helm-throttle-track"), track);
-				const auto system = model_.widget_system(key);
-				const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
-				const float fraction =
-				    maximum > minimum
-				        ? std::clamp(static_cast<float>(model_.system_request(system) - minimum) / (maximum - minimum),
-				                     0.f, 1.f)
-				        : 0;
+				const float fraction = static_cast<float>(throttle_fraction(key));
 				const auto &marks = hud_metadata_.at("helm-throttle-track").at("markers");
 				const float top = marks.at("travel_max")[1].get<float>() /
 				                  hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>(),

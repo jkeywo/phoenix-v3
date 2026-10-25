@@ -1002,6 +1002,10 @@ bool probe_console_conversation(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_conversation();
 }
+bool probe_console_throttle(ConsoleId route, unsigned stage)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_throttle(stage);
+}
 bool probe_console_fit(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_fit();

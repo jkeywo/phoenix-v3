@@ -167,6 +167,13 @@ int main(int argc, char **argv)
 			frame();
 			frame();
 		};
+		for (unsigned stage = 0; stage < 5; ++stage)
+		{
+			require(probe_console_throttle(3, stage), ("Touch throttle stage " + std::to_string(stage)).c_str());
+			for (int i = 0; i < 10; ++i)
+				frame();
+		}
+		TakeScreenshot("build/console-transition-throttle-stop.png");
 		require(!has("console/3/game.console/tactical"), "No redundant Tactical tab");
 		require(!has("console/4/station-page/docking"), "Support has no Docking tab");
 		require(!has("console/3/game.combat-target/2"), "No target button list");

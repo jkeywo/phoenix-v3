@@ -25,7 +25,9 @@ int main(int argc, char **argv)
 		app.can_host = app.native_menu = true;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->start({"base.free-flight", {{"base.player", "test.courier-engineering"}}, "base.player", "helm"});
+		GameSetup setup{"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"};
+		setup.console_profiles["courier"]["helm"] = "detailed";
+		app.session->start(setup);
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
@@ -38,8 +40,8 @@ int main(int argc, char **argv)
 			draw_screen(app);
 			EndDrawing();
 		};
-		frame();
-		frame();
+		for (int i = 0; i < 300; ++i)
+			frame();
 		for (unsigned stage = 0; stage < 8; ++stage)
 		{
 			phoenix::test::require(probe_console_manual(1, stage),
