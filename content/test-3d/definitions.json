@@ -199,7 +199,7 @@
 		{
 			"id": "test3d.courier-engineering",
 			"extends": "test3d.courier",
-			"name": "Courier \u2014 Engineering fit",
+			"name": "Courier — Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -1573,7 +1573,7 @@
 		{
 			"id": "test3d.cruiser",
 			"extends": "test3d.courier-engineering",
-			"name": "Cruiser \u2014 Six-station fit",
+			"name": "Cruiser — Six-station fit",
 			"render": {
 				"scale": 18,
 				"radar_icon": "asteroid",
@@ -6870,7 +6870,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
 			"layout": "test3d.console.bridge.layout"
 		},
 		{
@@ -16500,20 +16500,6 @@
 			"id": "test3d.console.command.hud"
 		}
 	],
-	"ui_groups": [
-		{
-			"id": "test-3d.group.operations",
-			"schema": 1,
-			"root": {
-				"id": "operations",
-				"kind": "component",
-				"component": "gameplay",
-				"label": "Operations",
-				"min_width": 260,
-				"min_height": 320
-			}
-		}
-	],
 	"themes": [
 		{
 			"id": "test-3d.theme.current",
@@ -16535,6 +16521,20 @@
 				"gap": 12
 			},
 			"assets": {}
+		}
+	],
+	"ui_groups": [
+		{
+			"id": "test-3d.group.operations",
+			"schema": 1,
+			"root": {
+				"id": "operations",
+				"kind": "component",
+				"component": "gameplay",
+				"label": "Operations",
+				"min_width": 260,
+				"min_height": 320
+			}
 		}
 	]
 }

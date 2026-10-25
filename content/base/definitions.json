@@ -807,7 +807,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
+			"name": "Courier â€” Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -2754,7 +2754,7 @@
 				}
 			},
 			"id": "base.cruiser",
-			"name": "Cruiser \u2014 Six-station combat fit",
+			"name": "Cruiser — Six-station combat fit",
 			"render": {
 				"mode": "eight",
 				"scale": 90,
@@ -23917,7 +23917,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier \u00e2\u20ac\u201d Communications fit",
+			"name": "Courier â€” Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -33106,7 +33106,7 @@
 		{
 			"id": "base.delivery-cruiser",
 			"extends": "base.cruiser",
-			"name": "Cruiser \u2014 logistics fit",
+			"name": "Cruiser — logistics fit",
 			"faction": "crew",
 			"logistics": {
 				"controller": "logistics",
@@ -34502,7 +34502,7 @@
 		{
 			"id": "base.delivery-casualty",
 			"extends": "base.rescue-casualty",
-			"name": "Morrow \u2014 stranded merchant",
+			"name": "Morrow — stranded merchant",
 			"faction": "crew",
 			"systems": {
 				"comms-radio": {
@@ -37952,7 +37952,7 @@
 							{
 								"result": "taken",
 								"title_key": "Morrow taken by pirates",
-								"explanation_key": "The pirates killed Morrow\u2019s original crew and took the ship. Player personnel still aboard were captured.",
+								"explanation_key": "The pirates killed Morrow’s original crew and took the ship. Player personnel still aboard were captured.",
 								"when": {
 									"all": [
 										{
@@ -38015,7 +38015,7 @@
 									},
 									{
 										"result": "prompt",
-										"title_key": "Prompt delivery \u2014 full credit",
+										"title_key": "Prompt delivery — full credit",
 										"explanation_key": "Cairn received all perishable essentials within 10 minutes of arrival.",
 										"when": {
 											"all": [
@@ -38034,7 +38034,7 @@
 									},
 									{
 										"result": "late",
-										"title_key": "Late delivery \u2014 reduced credit",
+										"title_key": "Late delivery — reduced credit",
 										"explanation_key": "Cairn received the full consignment after 10 minutes, within the 20 minute limit.",
 										"when": {
 											"fact": "delivery-status",
@@ -38044,7 +38044,7 @@
 									},
 									{
 										"result": "expired",
-										"title_key": "Expired \u2014 delivery failed",
+										"title_key": "Expired — delivery failed",
 										"explanation_key": "The full consignment did not reach Cairn within 20 minutes. Cargo remains transferable but earns no delivery credit.",
 										"when": {
 											"fact": "delivery-status",
@@ -38066,7 +38066,7 @@
 									{
 										"result": "killed",
 										"title_key": "Original crew killed",
-										"explanation_key": "The pirates killed Morrow\u2019s original crew during their takeover. Retaking the ship does not undo those deaths.",
+										"explanation_key": "The pirates killed Morrow’s original crew during their takeover. Retaking the ship does not undo those deaths.",
 										"when": {
 											"fact": "pirate-takeover",
 											"value": true
@@ -38526,7 +38526,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"description": "Set the shipâ€™s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
 			"layout": "base.console.bridge.layout"
 		},
 		{
@@ -55589,7 +55589,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-cruiser-arrival",
@@ -55613,7 +55613,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-completed",
@@ -55637,7 +55637,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-expired",
@@ -55661,7 +55661,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-5",
@@ -55685,7 +55685,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-8",
@@ -55709,7 +55709,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-15",
@@ -55733,7 +55733,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-18",
@@ -55757,7 +55757,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.courier.assist.drive.direct",

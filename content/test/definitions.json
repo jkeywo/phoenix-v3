@@ -476,7 +476,7 @@
 		{
 			"id": "test.courier-engineering",
 			"extends": "test.courier",
-			"name": "Courier \u2014 Engineering fit",
+			"name": "Courier — Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -1810,7 +1810,7 @@
 		{
 			"id": "test.cruiser",
 			"extends": "test.courier-engineering",
-			"name": "Cruiser \u2014 Six-station fit",
+			"name": "Cruiser — Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -9874,7 +9874,7 @@
 		},
 		{
 			"id": "test.powered-navigation-offset",
-			"name": "Powered navigation \u2014 offset regions",
+			"name": "Powered navigation — offset regions",
 			"entities": [
 				{
 					"id": 1,
@@ -10367,7 +10367,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
 			"layout": "test.console.bridge.layout"
 		},
 		{
@@ -21955,20 +21955,6 @@
 			"id": "test.carrier.automation.layout"
 		}
 	],
-	"ui_groups": [
-		{
-			"id": "test.group.operations",
-			"schema": 1,
-			"root": {
-				"id": "operations",
-				"kind": "component",
-				"component": "gameplay",
-				"label": "Operations",
-				"min_width": 260,
-				"min_height": 320
-			}
-		}
-	],
 	"themes": [
 		{
 			"id": "test.theme.current",
@@ -21990,6 +21976,20 @@
 				"gap": 12
 			},
 			"assets": {}
+		}
+	],
+	"ui_groups": [
+		{
+			"id": "test.group.operations",
+			"schema": 1,
+			"root": {
+				"id": "operations",
+				"kind": "component",
+				"component": "gameplay",
+				"label": "Operations",
+				"min_width": 260,
+				"min_height": 320
+			}
 		}
 	]
 }
