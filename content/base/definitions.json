@@ -300,8 +300,9 @@
 			},
 			"systems": {
 				"engine": {
-					"max_speed_mm_s": 12000,
-					"acceleration_mm_s2": 2000
+					"max_speed_mm_s": 18000,
+					"acceleration_mm_s2": 4000,
+					"deceleration_mm_s2": 6000
 				},
 				"steering": {
 					"turn_mdeg_s": 45000
@@ -5066,8 +5067,10 @@
 							"engine": {
 								"observation_console": "helm",
 								"compartment": "engines",
-								"max_speed_mm_s": 22000,
-								"acceleration_mm_s2": 1600
+								"max_speed_mm_s": 33000,
+								"acceleration_mm_s2": 3200,
+								"deceleration_mm_s2": 4800,
+								"reverse_speed_mm_s": 9000
 							},
 							"engine-cooling": {
 								"observation_console": "engineering",
@@ -5127,8 +5130,10 @@
 					"overrides": {
 						"systems": {
 							"engine": {
-								"acceleration_mm_s2": 1600,
-								"max_speed_mm_s": 22000,
+								"acceleration_mm_s2": 3200,
+								"deceleration_mm_s2": 4800,
+								"reverse_speed_mm_s": 9000,
+								"max_speed_mm_s": 33000,
 								"observation_console": "helm",
 								"compartment": "engines"
 							},
@@ -26389,9 +26394,10 @@
 			"systems": {
 				"drive": {
 					"kind": "engine",
-					"max_speed_mm_s": 22000,
-					"reverse_speed_mm_s": 4000,
-					"acceleration_mm_s2": 3500,
+					"max_speed_mm_s": 33000,
+					"reverse_speed_mm_s": 6000,
+					"acceleration_mm_s2": 7000,
+					"deceleration_mm_s2": 10500,
 					"compartment": "stern-port",
 					"observation_console": "helm",
 					"faults": [

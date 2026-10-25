@@ -39,6 +39,7 @@ FlightDefinition compile_flight(const Json &spec, const std::string &path)
 	result.maximum_speed = number("max_speed_mm_s");
 	result.reverse_speed = number("reverse_speed_mm_s", 0, 0, result.maximum_speed);
 	result.acceleration = number("acceleration_mm_s2");
+	result.deceleration = number("deceleration_mm_s2", result.acceleration);
 	result.turn_rate = number("turn_mdeg_s", 0, 0, 360000);
 	result.lateral_speed = number("lateral_speed_mm_s", result.maximum_speed);
 	result.lateral_acceleration =

@@ -51,6 +51,9 @@ struct FlightState
 	fixed::Vec destination;
 	std::int64_t follow_distance = 0, follow_speed_limit = 0;
 	std::int64_t forward_remainder = 0, lateral_remainder = 0, turn_remainder = 0;
+	std::int64_t damping_remainder = 0;
+	// Derived each tick from admitted lateral actuators, never saved or commanded here.
+	std::int64_t desired_lateral = 0;
 	int actual_longitudinal = 0, actual_lateral = 0, actual_steering = 0;
 	int steering_limit_permille = 1000;
 	std::int64_t charge_spent = 0;
@@ -79,6 +82,8 @@ struct FlightDemand
 	std::int64_t target_speed = 0, acceleration = 0, target_lateral_speed = 0, lateral_acceleration = 0;
 	std::int64_t heading_basis = 0, desired_heading = 0;
 	std::int64_t turn_rate = 0;
+	fixed::Vec desired_velocity;
+	std::int64_t deceleration = 0;
 };
 struct FlightExecution
 {

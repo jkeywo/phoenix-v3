@@ -267,8 +267,9 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 		flight["kind"] = kind;
 		compile_flight(flight, path);
 	}
-	for (const char *key : {"max_speed_mm_s", "acceleration_mm_s2", "turn_mdeg_s", "range_mm", "energy_per_second",
-	                        "discrete_energy", "maximum_rate", "response_rate", "charge_ticks", "charge_time_ticks"})
+	for (const char *key :
+	     {"max_speed_mm_s", "acceleration_mm_s2", "deceleration_mm_s2", "turn_mdeg_s", "range_mm", "energy_per_second",
+	      "discrete_energy", "maximum_rate", "response_rate", "charge_ticks", "charge_time_ticks"})
 		if (spec.contains(key) && (!spec.at(key).is_number_integer() || spec.at(key).is_boolean() || spec.at(key) < 0 ||
 		                           spec.at(key) > resource_limit))
 			composition_error(path + "." + key, "expected bounded nonnegative integer");

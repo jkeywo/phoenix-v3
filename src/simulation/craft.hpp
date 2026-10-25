@@ -692,10 +692,15 @@ void prepare_craft()
 				// Brake at a recovery point above the carrier, rather than
 				// pursuing its centre while descending through a large hull.
 				const auto outward = e.get<Pose>().position - g.destination;
-				const auto offset =
-				    bay.legacy_transport ? 0 : std::min(fixed::length(outward), bay.docking_range * 3 / 4);
-				g.destination = g.destination + fixed::scale(fixed::normal(outward), offset);
 				const auto clearance = definition(s.home).half_height + definition(id).half_height + 1000;
+				// Choose an interior recovery point in the actual 3D envelope.
+				// A planar point near its edge relied on overshoot/coasting to enter
+				// the envelope and can queue returning craft against one another.
+				const auto vertical = std::min(clearance, bay.docking_range);
+				const auto horizontal = static_cast<std::int64_t>(fixed::sqrt(
+				    static_cast<std::uint64_t>(bay.docking_range * bay.docking_range - vertical * vertical)));
+				const auto offset = bay.legacy_transport ? 0 : std::min(fixed::length(outward), horizontal / 2);
+				g.destination = g.destination + fixed::scale(fixed::normal(outward), offset);
 				const auto band_room = std::max<std::int64_t>(0, bay.docking_range / 2 - clearance);
 				g.altitude += clearance + std::min(craft_flight_band(id), band_room);
 			}
@@ -707,7 +712,7 @@ void prepare_craft()
 				    f && child.get<Equipment>().kind == OperatingSystem::Engine)
 				{
 					maximum = std::max(maximum, f->definition.maximum_speed);
-					acceleration = std::max(acceleration, f->definition.acceleration);
+					acceleration = std::max(acceleration, f->definition.deceleration);
 				}
 			if (bay.legacy_transport)
 				maximum = std::min(maximum, bay.cruise_speed);
@@ -716,7 +721,7 @@ void prepare_craft()
 			                                          : (s.order == "escort" || s.order == "defend" ? 10000 : 1000);
 			g.speed = std::min(maximum, static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(
 			                                2 * acceleration * std::max<std::int64_t>(0, distance - separation)))));
-			// Aim a velocity correction, so inertial drift does not become an endless orbit.
+			// Request a destination-relative velocity; passive damping handles drift.
 			const auto relative_speed = std::min(g.speed, std::max<std::int64_t>(0, distance - separation) / 2);
 			auto desired_velocity = target_velocity + fixed::scale(fixed::normal(delta), relative_speed);
 			const auto guidance =

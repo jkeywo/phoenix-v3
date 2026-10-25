@@ -396,6 +396,15 @@ int main(int argc, char **argv)
 			require(ferry.submit(101, command(ferry, "away", "recall", "job")), "dispatch replacement pickup");
 			for (int t = 0; t < 500 && missions(ferry)[0].at("phase") != "recovered"; ++t)
 				ferry.tick();
+			if (missions(ferry)[0].at("phase") != "recovered")
+			{
+				const auto failed = ferry.save();
+				std::cerr << "pickup " << missions(ferry)[0].dump() << '\n';
+				std::cerr << "craft " << failed.at("craft").dump() << '\n';
+				for (const auto &entry : failed.at("bodies"))
+					std::cerr << entry.at("body").dump() << " altitude=" << entry.value("body_altitude", 0)
+					          << " vertical=" << entry.value("vertical", Json{}).dump() << '\n';
+			}
 			require(missions(ferry)[0].at("phase") == "recovered",
 			        "replacement shuttle physically recovers independent party");
 		}

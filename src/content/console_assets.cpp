@@ -175,6 +175,9 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		}
 		else
 			copy["maximum"] = system.maximum;
+		if (system.kind == OperatingSystem::Engine || systems.at(system.id).contains("deceleration_mm_s2"))
+			copy["deceleration_mm_s2"] = systems.at(system.id).value(
+			    "deceleration_mm_s2", systems.at(system.id).value("acceleration_mm_s2", std::int64_t{0}));
 		if (system.kind == OperatingSystem::Displacement)
 			for (const auto *field : {"range_mm", "capacity", "transfer_ticks"})
 				copy[field] = systems.at(system.id).at(field);

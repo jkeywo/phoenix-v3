@@ -33,6 +33,7 @@ struct FlightDefinition
 {
 	FlightKind kind = FlightKind::Engine;
 	std::int64_t maximum_speed = 0, reverse_speed = 0, acceleration = 0, turn_rate = 0;
+	std::int64_t deceleration = 0;
 	std::int64_t lateral_speed = 0, lateral_acceleration = 0;
 	std::int64_t power_rate = 0, heat_rate = 0;
 	bool boost_available = false, impulse_available = false, assist_lateral = false;

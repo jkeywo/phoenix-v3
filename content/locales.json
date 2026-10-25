@@ -61,7 +61,7 @@
 			"Forward thrust (pulse)": "Forward thrust (pulse)",
 			"Reverse thrust (pulse)": "Reverse thrust (pulse)",
 			"Release flight controls": "Release flight controls",
-			"W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to coast.": "W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to coast.",
+			"W/S speed; A/D yaw. Left stick: yaw and speed. Release to brake.": "W/S speed; A/D yaw. Left stick: yaw and speed. Release to brake.",
 			"Yaw": "Yaw",
 			"Thrust": "Thrust",
 			"Unable to complete action": "Unable to complete action",

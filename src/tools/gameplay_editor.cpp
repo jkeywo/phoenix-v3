@@ -728,6 +728,7 @@ struct GameplayEditor
 		{
 			integer(spec, "max_speed_mm_s");
 			integer(spec, "acceleration_mm_s2");
+			integer(spec, "deceleration_mm_s2", spec.value("acceleration_mm_s2", std::int64_t{0}));
 		}
 		if (kind == "engine" || kind == "steering")
 			integer(spec, "turn_mdeg_s");

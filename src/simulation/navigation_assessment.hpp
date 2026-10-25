@@ -135,13 +135,6 @@ void refresh_navigation_blackboard(EntityId id)
 			}
 		}
 	}
-	if (!lateral_safe && side_speed)
-	{
-		const auto acceleration = side_speed > 0 ? port_acceleration : starboard_acceleration;
-		if (acceleration)
-			lateral_order =
-			    static_cast<int>(std::clamp<std::int64_t>(-side_speed * rate * 1000 / acceleration, -1000, 1000));
-	}
 	evidence.lateral_thrust = lateral_order;
 	evidence.lateral_safe = lateral_safe;
 }

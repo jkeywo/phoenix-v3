@@ -363,12 +363,12 @@ void prepare_docking()
 			{
 				inertial_engine = true;
 				maximum = f->definition.maximum_speed;
-				acceleration = f->definition.acceleration;
+				acceleration = f->definition.deceleration;
 			}
 			else if (const auto *engine = child.try_get<Engine>())
 			{
 				maximum = engine->max_speed;
-				acceleration = engine->acceleration;
+				acceleration = engine->deceleration;
 			}
 		}
 		g.destination = dock_position(c.parent, c.remote_port) - dock_rotate({a.x, a.y}, desired_heading);
@@ -467,7 +467,7 @@ void prepare_docking()
 			}
 			g.heading = c.guidance_heading;
 			const auto facing = fixed::direction(own.heading);
-			// Turning with neutral longitudinal acceleration preserves the velocity we intend to brake.
+			// Hold the current forward component while passive damping removes drift during alignment.
 			g.speed = std::clamp(fixed::dot(e.get<Motion>().velocity, facing) / fixed::unit, std::int64_t{0}, maximum);
 			if (c.guidance_step == 1 && angle(own.heading, c.guidance_heading) < 1000)
 				c.guidance_step = 2;
@@ -491,7 +491,9 @@ void prepare_docking()
 			{
 				g.heading = desired_heading;
 				g.speed = std::clamp(fixed::dot(parent_velocity, facing) / fixed::unit, std::int64_t{0}, maximum);
-				if (!at_port || remaining > tolerance)
+				// Finish the latched turn before a changing approach gate can restart
+				// navigation. Otherwise damping can leave the ship orbiting the gate.
+				if (angle(own.heading, desired_heading) < 1000 && (!at_port || remaining > tolerance))
 					c.guidance_step = 0;
 			}
 		}

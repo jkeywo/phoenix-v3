@@ -400,8 +400,11 @@ int main(int argc, char **)
 		auto coast = engine.inspect()[0];
 		for (int i = 0; i < 5; ++i)
 			engine.tick();
-		require(engine.inspect()[0].vx == coast.vx && engine.inspect()[0].heading > coast.heading,
-		        "engine disable must preserve velocity while steering continues");
+		const auto damped = engine.inspect()[0];
+		require(damped.vx < coast.vx &&
+		            damped.vx * damped.vx + damped.vy * damped.vy <= coast.vx * coast.vx + coast.vy * coast.vy &&
+		            damped.heading > coast.heading,
+		        "engine disable must allow passive damping without adding speed while steering continues");
 		engine.submit(101, {1, "radar_enabled", 0});
 		engine.tick();
 		require(engine.observe(101)->contacts.empty(), "radar disable must remove its live observations");

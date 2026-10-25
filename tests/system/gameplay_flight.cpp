@@ -187,6 +187,9 @@ void manual_and_conservation()
 	const auto crew_catalog = resolve_packs({console_assets(catalog, "test.ship")});
 	require(!resolve_systems(crew_catalog, "test.ship").empty(),
 	        "advanced flight bounds survive restricted crew asset verification");
+	require(crew_catalog.entities.at("test.ship").at("systems").at("drive").at("deceleration_mm_s2") ==
+	            fixture()["entities"][0]["systems"]["drive"]["acceleration_mm_s2"],
+	        "restricted crew assets must retain the resolved default passive damping rate");
 	World world;
 	world.load(catalog, "test.map");
 	claim(world);
@@ -218,8 +221,9 @@ void manual_and_conservation()
 	command(world, "manual_steering", 0, "turn");
 	world.tick();
 	const auto coast = body(world);
-	require(coast.vx == moved.vx && coast.vy == moved.vy && coast.heading == moved.heading,
-	        "neutral manual controls must remove actuation while preserving momentum and heading");
+	require(std::abs(coast.vx) < std::abs(moved.vx) && std::abs(coast.vy) < std::abs(moved.vy) &&
+	            coast.heading == moved.heading,
+	        "neutral manual controls must remove powered actuation and passively brake without turning");
 	command(world, "assisted", 1, "drive");
 	world.tick();
 	require(telemetry(world, "drive", "longitudinal_thrust") == 0,
@@ -361,9 +365,8 @@ void targeted_modifiers()
 	command(boosted, "boost", 0, "boost");
 	const auto coast = body(boosted);
 	boosted.tick();
-	require(body(boosted).vx == coast.vx && body(boosted).vy == coast.vy &&
-	            telemetry(boosted, "boost", "effective_boost") == 0,
-	        "releasing a targeted boost removes modifiers while preserving momentum");
+	require(body(boosted).vx < coast.vx && body(boosted).vx >= 0 && telemetry(boosted, "boost", "effective_boost") == 0,
+	        "releasing a targeted boost removes modifiers while passive damping brakes a neutral velocity request");
 	command(boosted, "lateral_thrust", 1000, "side", 102);
 	boosted.tick();
 	require(telemetry(boosted, "side", "actual_lateral", 102) == 0,
@@ -575,8 +578,9 @@ void boost_and_impulse()
 	require(first.vx > 0 && sustained.vx > first.vx, "boost must remain active across ticks while paid and enabled");
 	command(world, "boost", 0, "boost");
 	world.tick();
-	require(body(world).vx == sustained.vx && telemetry(world, "boost", "actual_longitudinal") == 0,
-	        "releasing sustained boost removes extra thrust without deleting velocity");
+	require(body(world).vx > 0 && body(world).vx < sustained.vx &&
+	            telemetry(world, "boost", "actual_longitudinal") == 0,
+	        "releasing sustained boost removes extra thrust while neutral controls damp velocity gradually");
 	command(world, "impulse", 1, "impulse");
 	world.tick();
 	require(telemetry(world, "impulse", "impulse_phase") == 1 &&
@@ -612,9 +616,9 @@ void boost_and_impulse()
 	command(world, "impulse", 0, "impulse");
 	const auto velocity = body(world).vx;
 	world.tick();
-	require(body(world).vx == velocity && telemetry(world, "impulse", "impulse_phase") == 0 &&
+	require(body(world).vx > 0 && body(world).vx < velocity && telemetry(world, "impulse", "impulse_phase") == 0 &&
 	            telemetry(world, "impulse", "impulse_progress") == 0,
-	        "cancelling impulse clears charge and extra thrust while preserving momentum");
+	        "cancelling impulse clears charge and extra thrust while allowing passive damping");
 }
 void paid_overdrive()
 {
@@ -713,8 +717,8 @@ void prepaid_low_rate_actuation()
 	command(world, "longitudinal_thrust", 0, "drive");
 	for (int tick = 0; tick < 7; ++tick)
 		world.tick();
-	require(body(world).vx == first.vx && paid(world) == 0,
-	        "pausing prepaid thrust must preserve momentum without consuming the remaining work credit");
+	require(body(world).vx < first.vx && paid(world) == 0,
+	        "releasing prepaid thrust must damp motion without consuming the remaining powered work credit");
 	const auto saved = world.save();
 	World resumed;
 	resumed.restore(catalog, saved);
@@ -753,7 +757,8 @@ void prepaid_low_rate_actuation()
 	}
 	const auto shared_exhausted = body(shared);
 	shared.tick();
-	require(body(shared).vx == shared_exhausted.vx && body(shared).vy == shared_exhausted.vy &&
+	require(body(shared).vx * body(shared).vx + body(shared).vy * body(shared).vy <=
+	                shared_exhausted.vx * shared_exhausted.vx + shared_exhausted.vy * shared_exhausted.vy &&
 	            telemetry(shared, "drive", "supply_permille") == 0 &&
 	            telemetry(shared, "side", "supply_permille", 102) == 0,
 	        "shared prepaid credit must exhaust once rather than be duplicated independently for each consumer");
@@ -816,10 +821,11 @@ void unpaid_and_protected()
 	        "simultaneous consumers must share and exhaust a finite reserve without duplicating energy");
 	const auto coast = body(world);
 	world.tick();
-	require(body(world).vx == coast.vx && body(world).vy == coast.vy &&
+	require(body(world).vx * body(world).vx + body(world).vy * body(world).vy <=
+	                coast.vx * coast.vx + coast.vy * coast.vy &&
 	            telemetry(world, "drive", "actual_longitudinal") == 0 &&
 	            telemetry(world, "side", "actual_lateral", 102) == 0,
-	        "depleted continuous equipment must suppress further output while retaining existing velocity");
+	        "depleted continuous equipment must suppress powered output while permitting passive damping");
 }
 
 void follow_contact()
@@ -1056,8 +1062,8 @@ void immutable_flight_demands()
 	            telemetry(world, "b", "used_power") == 0,
 	        "an idle actuator cannot re-plan free braking after another fitted actuator accelerates");
 	world.tick();
-	require(telemetry(world, "b", "actual_longitudinal") < 0 && telemetry(world, "b", "used_power") > 0,
-	        "opposing correction must be quoted and paid on the next common motion snapshot");
+	require(telemetry(world, "b", "actual_longitudinal") == 0 && telemetry(world, "b", "used_power") == 0,
+	        "passive correction must not quote or consume powered acceleration");
 	World paired;
 	paired.load(catalog, "test.map");
 	claim(paired);
@@ -1455,6 +1461,199 @@ void equipment_ordering_and_recovery()
 	require(refused && resumed.save() == live,
 	        "runtime normalization must not admit formerly unsupported legacy delegation state on restore");
 }
+void passive_velocity_segments()
+{
+	auto source = fixture();
+	source["maps"][0]["entities"].erase(1);
+	source["entities"][0]["systems"]["drive"]["deceleration_mm_s2"] = 137;
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "speed_mm_s", 6000, "drive");
+	for (int i = 0; i < 30; ++i)
+		world.tick();
+	command(world, "speed_mm_s", 1000, "drive");
+	command(world, "engine_enabled", 0, "drive");
+	const auto overspeed = body(world);
+	world.tick();
+	require(body(world).vx < overspeed.vx && body(world).vx > 1000 && telemetry(world, "drive", "used_power") == 0,
+	        "projection beyond the desired segment must damp excess speed with the engine disabled");
+	const auto heat = telemetry(world, "drive", "heat");
+	auto legacy = world.save();
+	for (auto &entry : legacy["bodies"])
+	{
+		for (auto &operation : entry["systems"])
+			operation.erase("damping_remainder");
+		for (auto &equipment : entry["gameplay"])
+			if (equipment.contains("flight"))
+				equipment["flight"].erase("damping_remainder");
+	}
+	World legacy_resumed;
+	legacy_resumed.restore(catalog, legacy);
+	require(body(legacy_resumed).vx == body(world).vx,
+	        "older saves without damping remainders must retain their velocity");
+	const auto saved = world.save();
+	World resumed;
+	resumed.restore(catalog, saved);
+	require(resumed.save() == saved, "fractional passive damping must survive exact save recovery");
+	resumed.clear_claims();
+	claim(resumed);
+	for (int i = 0; i < 25; ++i)
+	{
+		world.tick();
+		resumed.tick();
+		require(body(world).vx == body(resumed).vx, "fractional damping must continue identically after recovery");
+	}
+	command(world, "speed_mm_s", -1000, "drive");
+	const auto opposite = body(world);
+	world.tick();
+	require(body(world).vx >= 0 && body(world).vx < opposite.vx && telemetry(world, "drive", "used_power") == 0,
+	        "projection behind the desired segment must brake toward its zero endpoint without unpaid reverse "
+	        "acceleration");
+	command(world, "engine_enabled", 1, "drive");
+	command(world, "speed_mm_s", 6000, "drive");
+	command(world, "heading_mdeg", 90000, "turn");
+	for (int i = 0; i < 25; ++i)
+		world.tick();
+	command(world, "engine_enabled", 0, "drive");
+	const auto crossing = body(world);
+	world.tick();
+	require(crossing.vx > 0 && crossing.vy > 0 && crossing.vy < 6000 && body(world).vx < crossing.vx &&
+	            body(world).vy == crossing.vy && telemetry(world, "drive", "used_power") == 0,
+	        "interior projection must damp only unwanted transverse motion while retaining the requested segment");
+	command(world, "speed_mm_s", 0, "drive");
+	const auto energy = telemetry(world, "drive", "stored_energy");
+	for (int i = 0; i < 1500; ++i)
+		world.tick();
+	require(body(world).vx == 0 && body(world).vy == 0 && telemetry(world, "drive", "stored_energy") == energy &&
+	            telemetry(world, "drive", "heat") == heat,
+	        "zero desired velocity must stop a disabled ship without energy use or overshoot");
+	auto lateral_source = fixture();
+	auto &lateral_ship = lateral_source["entities"][0];
+	auto dry = lateral_ship["resources"]["stores"][0];
+	dry["id"] = "lateral-cell";
+	dry["initial"] = 0;
+	lateral_ship["resources"]["stores"].push_back(dry);
+	lateral_ship["systems"]["side"]["power_store"] = "lateral-cell";
+	lateral_ship["systems"]["side"]["powerless_start"] = true;
+	const auto lateral_catalog = load(lateral_source);
+	World unfunded_lateral;
+	unfunded_lateral.load(lateral_catalog, "test.map");
+	claim(unfunded_lateral);
+	command(unfunded_lateral, "assisted", 0, "drive");
+	unfunded_lateral.tick();
+	command(unfunded_lateral, "longitudinal_thrust", 1000, "drive");
+	command(unfunded_lateral, "lateral_thrust", 1000, "side", 102);
+	unfunded_lateral.tick();
+	require(body(unfunded_lateral).vy == 0 && telemetry(unfunded_lateral, "side", "actual_lateral", 102) == 0,
+	        "a combined velocity target must not obtain powered lateral movement from an unfunded lateral actuator");
+	auto boosted_source = targeted_fixture();
+	boosted_source["maps"][0]["entities"].erase(1);
+	const auto boosted_catalog = load(boosted_source);
+	World boosted;
+	boosted.load(boosted_catalog, "test.map");
+	claim(boosted);
+	command(boosted, "assisted", 0, "drive");
+	boosted.tick();
+	command(boosted, "longitudinal_thrust", 1000, "drive");
+	command(boosted, "boost", 1, "boost");
+	for (int i = 0; i < 200; ++i)
+		boosted.tick();
+	const auto boosted_speed = body(boosted).vx;
+	command(boosted, "boost", 0, "boost");
+	boosted.tick();
+	const auto nominal_speed = boosted_source["entities"][0]["systems"]["drive"]["max_speed_mm_s"].get<std::int64_t>();
+	const auto damping = boosted_source["entities"][0]["systems"]["drive"]["acceleration_mm_s2"].get<std::int64_t>() /
+	                     World::ticks_per_second;
+	require(boosted_speed > nominal_speed && body(boosted).vx == boosted_speed - damping &&
+	            body(boosted).vx > nominal_speed && telemetry(boosted, "drive", "actual_longitudinal") == 0,
+	        "boost release must damp overspeed at the unmodified braking rate instead of clamping velocity or charging "
+	        "for braking");
+}
+void steady_throttle_heading_changes()
+{
+	auto source = explicit_fixture(fixture());
+	auto console = source["consoles"][0];
+	console["id"] = "test.steady-helm";
+	source["consoles"].push_back(console);
+	source["entities"][0]["stations"][0]["consoles"][0]["definition"] = "test.steady-helm";
+	// Both dials use independent Controller channels, as on an ordinary Helm.
+	for (const auto &[kind, action, consumer, binding] :
+	     std::vector<std::array<std::string, 4>>{{"throttle", "speed_mm_s", "drive", "engine.desired_speed"},
+	                                             {"heading", "heading_mdeg", "turn", "steering.desired_heading"}})
+		for (const auto &controller : source["entities"][0]["control_layout"]["controllers"])
+			for (const auto &channel : controller["commands"])
+				if (channel["action"] == action && channel["consumers"] == Json::array({consumer}))
+					source["consoles"].back()["widgets"].push_back({{"id", kind},
+					                                                {"kind", kind},
+					                                                {"binding", binding},
+					                                                {"label", kind},
+					                                                {"x", 0},
+					                                                {"y", 0},
+					                                                {"width", 200},
+					                                                {"height", 200},
+					                                                {"controller", controller["id"]},
+					                                                {"channel", channel["id"]}});
+	// Keep the exercise clear of the other fixture actor.
+	source["maps"][0]["entities"].erase(1);
+	auto session = make_local_session();
+	session->add_pack(archive(source));
+	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
+	ConsoleModel model;
+	model.refresh(session);
+	require(model.set_speed_fraction(.6), "steady throttle request must be admitted");
+	for (int i = 0; i < 100; ++i)
+		session->tick();
+	model.refresh(session);
+	const auto speed = system(*model.observation(), "drive").telemetry.at("desired_speed");
+	const auto speed_command = [&]() -> Json
+	{
+		for (const auto &controller : model.observation()->gameplay.at("controllers"))
+			for (const auto &command : controller.at("commands"))
+				if (command.at("action") == "speed_mm_s")
+					return command;
+		throw std::runtime_error("steady Helm is missing its speed command");
+	};
+	const auto original_speed_command = speed_command();
+	for (const auto heading : {90., 180.})
+	{
+		const auto before = model.observation()->own;
+		require(model.set_heading_degrees(heading), "heading dial request must be admitted independently");
+		session->tick();
+		model.refresh(session);
+		const auto first = model.observation()->own;
+		require(heading == 90. ? first.vx > 0 : first.vy > 0,
+		        "a turn must retain some old-direction motion initially rather than snapping velocity to the heading");
+		for (int i = 0; i < 30; ++i)
+			session->tick();
+		model.refresh(session);
+		const auto after = model.observation()->own;
+		require(after.heading == static_cast<std::int64_t>(heading * 1000) &&
+		            system(*model.observation(), "drive").telemetry.at("desired_speed") == speed,
+		        "a heading-only change must turn the hull while preserving the throttle setting");
+		require(heading == 90. ? after.vy > before.vy : after.vx < before.vx,
+		        "steady throttle must build velocity along the turned hull without another speed command");
+		require(heading == 90. ? after.vx < before.vx && after.vx >= 0 : after.vy < before.vy && after.vy >= 0,
+		        "turning must gradually damp transverse motion rather than rotating velocity with the hull");
+		require(speed_command().at("revision") == original_speed_command.at("revision") &&
+		            speed_command().at("value") == original_speed_command.at("value"),
+		        "heading changes must not require or manufacture an additional throttle command");
+	}
+	auto stopped = make_local_session();
+	stopped->add_pack(archive(source));
+	stopped->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
+	model.refresh(stopped);
+	require(model.set_heading_degrees(90), "a stationary ship can turn with its initial zero throttle");
+	for (int i = 0; i < 30; ++i)
+		stopped->tick();
+	model.refresh(stopped);
+	require(model.observation()->own.heading == 90000 && model.observation()->own.vx == 0 &&
+	            model.observation()->own.vy == 0 &&
+	            system(*model.observation(), "drive").telemetry.at("actual_longitudinal") == 0 &&
+	            system(*model.observation(), "drive").telemetry.at("desired_speed") == 0,
+	        "a heading-only change at zero throttle must not create translational thrust or motion");
+}
 void manual_console_controls()
 {
 	auto source = explicit_fixture(fixture());
@@ -1512,7 +1711,7 @@ void manual_console_controls()
 	model.refresh(session);
 	require(system(*model.observation(), "drive").telemetry.at("actual_longitudinal") == 0 &&
 	            model.observation()->own.vx > 0,
-	        "manual release removes actuation while retaining paid momentum");
+	        "manual release removes powered actuation and starts passive braking");
 	require(model.act(control_id(model, "destination", 1)), "authorised navigation can explicitly resume assistance");
 	session->tick();
 	model.refresh(session);
@@ -1777,6 +1976,8 @@ int main()
 		disabled_cooling();
 		invalid_controller_actions();
 		equipment_ordering_and_recovery();
+		passive_velocity_segments();
+		steady_throttle_heading_changes();
 		manual_console_controls();
 		semantic_controls();
 		lateral_controls_and_delegation();

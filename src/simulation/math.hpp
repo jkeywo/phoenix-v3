@@ -53,6 +53,20 @@ inline Vec normal(Vec value)
 	auto size = length(value);
 	return size ? Vec{value.x * unit / size, value.y * unit / size} : Vec{unit, 0};
 }
+// Closest point on the finite desired-velocity segment, including a zero target.
+inline Vec velocity_projection(Vec velocity, Vec desired)
+{
+	const auto size = length(desired);
+	if (!size)
+		return {};
+	const auto along = std::clamp<std::int64_t>(dot(velocity, normal(desired)) / unit, 0, size);
+	return along == size ? desired : scale(normal(desired), along);
+}
+inline Vec move_towards(Vec current, Vec target, std::int64_t step)
+{
+	const auto delta = target - current;
+	return length(delta) <= step ? target : current + scale(normal(delta), step);
+}
 // Integer CORDIC: no platform libm, floating point, or generated trig table.
 // Heading 0 points along +X and increases counterclockwise in world space.
 inline Vec direction(std::int64_t heading)

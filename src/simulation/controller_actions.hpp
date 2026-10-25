@@ -71,7 +71,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 				{
 					const auto child = entity.get<EquipmentIndex>().values.at(consumer);
 					if (const auto *f = child.try_get<FlightRuntime>())
-						acceleration = std::max(acceleration, f->definition.acceleration);
+						acceleration = std::max(acceleration, f->definition.deceleration);
 				}
 			}
 		const fixed::Vec delta{target->x - observed.own.x, target->y - observed.own.y};

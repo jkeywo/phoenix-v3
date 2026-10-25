@@ -1577,7 +1577,7 @@ progress fill {background:#83be90;}
 		{
 			markup += "<div id=\"manual-stick\"><div id=\"manual-knob\"/></div><p id=\"manual-values\"/><p>" +
 			          Rml::StringUtilities::EncodeRml(
-			              localise("W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to coast.")) +
+			              localise("W/S speed; A/D yaw. Left stick: yaw and speed. Release to brake.")) +
 			          "</p>";
 			for (std::size_t i = 1; i < actions.size(); ++i)
 				markup += "<button id=\"" + id(actions[i].first) + "\">" +
@@ -2259,8 +2259,7 @@ progress fill {background:#83be90;}
 			       pointer(9001, -100, -100, DeviceEventKind::Up);
 		if (stage == 3)
 		{
-			if (!requested("longitudinal_thrust", 0) || !requested("manual_steering", 0) ||
-			    !model_.observation()->own.vx)
+			if (!requested("longitudinal_thrust", 0) || !requested("manual_steering", 0))
 				return false;
 			manual_frame(true, {-1000, -1000}, true);
 			return true;

@@ -57,6 +57,7 @@ struct Engine
 	std::int64_t max_speed = 0, acceleration = 0, speed = 0, remainder = 0;
 	bool enabled = true;
 	int forward_output = 0;
+	std::int64_t deceleration = 0, damping_remainder = 0;
 };
 struct Steering
 {
@@ -101,7 +102,7 @@ struct SavedBody : Pose, Motion
 };
 struct SavedOperation
 {
-	std::int64_t speed = 0, heading = 0, acceleration_remainder = 0, turn_remainder = 0;
+	std::int64_t speed = 0, heading = 0, acceleration_remainder = 0, turn_remainder = 0, damping_remainder = 0;
 	bool engine_enabled = true, radar_enabled = true;
 };
 } // namespace phoenix

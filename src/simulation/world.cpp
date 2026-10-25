@@ -86,8 +86,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroy
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BlastVisual, id, position, altitude, tick, definition, kind, bearing, arc)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, turn_remainder,
-                                   engine_enabled, radar_enabled)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, damping_remainder,
+                                   turn_remainder, engine_enabled, radar_enabled)
 namespace
 {
 constexpr std::int64_t rate = World::ticks_per_second;
@@ -113,24 +113,24 @@ void step_basic_steering(Pose &pose, Steering &turn, std::int64_t effectiveness)
 void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine, std::int64_t effectiveness)
 {
 	engine.forward_output = 0;
+	const auto direction = fixed::direction(pose.heading);
+	const auto desired = fixed::scale(direction, engine.speed);
+	engine.damping_remainder += engine.deceleration;
+	const auto damping = engine.damping_remainder / rate;
+	engine.damping_remainder %= rate;
+	motion.velocity =
+	    fixed::move_towards(motion.velocity, fixed::velocity_projection(motion.velocity, desired), damping);
 	if (!engine.enabled)
 		return;
-	const auto forward_speed = fixed::dot(motion.velocity, fixed::direction(pose.heading)) / fixed::unit;
-	const auto acceleration = engine.speed > forward_speed && forward_speed >= 0
-	                              ? launch_acceleration(engine.acceleration, forward_speed, engine.max_speed)
-	                              : engine.acceleration;
-	auto available = acceleration * effectiveness / 1000 + engine.remainder;
-	auto step = available / rate;
+	const auto current = fixed::dot(motion.velocity, direction) / fixed::unit;
+	const auto acceleration =
+	    launch_acceleration(engine.acceleration, std::max<std::int64_t>(0, current), engine.max_speed);
+	const auto available = acceleration * effectiveness / 1000 + engine.remainder;
 	engine.remainder = available % rate;
-	auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
-	auto delta = desired - motion.velocity;
-	auto magnitude = fixed::length(delta);
-	const auto before = motion.velocity;
-	motion.velocity = magnitude <= step ? desired : motion.velocity + fixed::scale(fixed::normal(delta), step);
-	const auto applied = motion.velocity - before;
-	const auto forward = fixed::dot(applied, fixed::direction(pose.heading)) / fixed::unit;
+	const auto change = std::clamp<std::int64_t>(engine.speed - current, 0, available / rate);
+	motion.velocity = motion.velocity + fixed::scale(direction, change);
 	engine.forward_output = static_cast<int>(
-	    std::clamp<std::int64_t>(forward * rate * 1000 / std::max<std::int64_t>(1, engine.acceleration), 0, 1000));
+	    std::clamp<std::int64_t>(change * rate * 1000 / std::max<std::int64_t>(1, engine.acceleration), 0, 1000));
 }
 
 struct Clock
@@ -849,7 +849,10 @@ struct World::Impl
 				{
 					CompiledEquipment runtime{spec.id, spec.kind};
 					if (spec.kind == OperatingSystem::Engine)
+					{
 						runtime.engine = Engine{spec.maximum, spec.response};
+						runtime.engine->deceleration = systems.at(spec.id).value("deceleration_mm_s2", spec.response);
+					}
 					else if (spec.kind == OperatingSystem::Steering)
 						runtime.steering = Steering{spec.response};
 					else if (spec.kind == OperatingSystem::Radar)
@@ -1676,11 +1679,11 @@ struct World::Impl
 	void run_basic_engines()
 	{
 		for (auto child : ordered_equipment(engine_query))
-			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) &&
-			                                !structurally_disabled(ship, child.get<Equipment>().id))
+			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id))
 			{
 				auto &native = child.get_mut<Engine>();
 				auto effective = native;
+				effective.enabled &= !structurally_disabled(ship, child.get<Equipment>().id);
 				const auto &equipment = child.get<Equipment>().id;
 				effective.acceleration = effective_property(ship, equipment, "propulsion", native.acceleration);
 				effective.max_speed = effective_property(ship, equipment, "speed", native.max_speed);
@@ -1688,6 +1691,7 @@ struct World::Impl
 				                                                   : std::min(native.speed, effective.max_speed);
 				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), effective, 1000);
 				native.remainder = effective.remainder;
+				native.damping_remainder = effective.damping_remainder;
 				native.forward_output = effective.forward_output;
 			}
 	}
@@ -1760,6 +1764,7 @@ struct World::Impl
 	{
 		const auto &flight = child.get<FlightRuntime>();
 		auto state = flight.state;
+		const auto ship = child.parent();
 		state.steering_limit_permille = restrictions.steering_limit;
 		if (structurally_disabled(child.parent(), child.get<Equipment>().id))
 			state.enabled = false;
@@ -1768,6 +1773,20 @@ struct World::Impl
 		state.desired_speed = state.desired_speed == flight.definition.maximum_speed
 		                          ? definition.maximum_speed
 		                          : std::min(state.desired_speed, definition.maximum_speed);
+		state.desired_lateral = 0;
+		if (definition.kind == FlightKind::Engine)
+			for (const auto other : ship.get<EquipmentIndex>().values)
+				if (other != child)
+					if (const auto *side = other.try_get<FlightRuntime>();
+					    side && side->definition.kind == FlightKind::Lateral)
+					{
+						const auto effort = side->state.lateral;
+						if (side->definition.lateral_direction && effort * side->definition.lateral_direction < 0)
+							continue;
+						const auto desired = side->definition.lateral_speed * effort / 1000;
+						if (std::abs(desired) > std::abs(state.desired_lateral))
+							state.desired_lateral = desired;
+					}
 		return state;
 	}
 	void request_flight_resources(flecs::entity ship, FlightRestrictions restrictions)
@@ -1933,6 +1952,28 @@ struct World::Impl
 		auto power = ship.try_get_mut<ShipResources>();
 		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
 		int paid = power ? power->grants[slot].supply_permille : 1000;
+		// A diagonal target must not obtain powered lateral movement from an
+		// unfunded or disabled lateral fitting via the longitudinal engine.
+		if (flight.definition.kind == FlightKind::Engine)
+		{
+			const auto desired_side = effective_flight_state(child, flight.definition, restrictions).desired_lateral;
+			if (desired_side)
+			{
+				int lateral_paid = 0;
+				for (const auto other : ship.get<EquipmentIndex>().values)
+					if (const auto *side = other.try_get<FlightRuntime>();
+					    side && side->definition.kind == FlightKind::Lateral && side->state.enabled &&
+					    !structurally_disabled(ship, other.get<Equipment>().id) &&
+					    side->state.lateral * desired_side > 0 &&
+					    side->definition.lateral_speed * side->state.lateral / 1000 == desired_side &&
+					    (!side->definition.lateral_direction ||
+					     side->state.lateral * side->definition.lateral_direction > 0))
+						lateral_paid =
+						    std::max(lateral_paid,
+						             power ? power->grants[other.get<ResourceBinding>().slot].supply_permille : 1000);
+				paid = std::min(paid, lateral_paid);
+			}
+		}
 		if (flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy)
 		{
 			const auto &grant = power->grants[slot];
@@ -4107,6 +4148,7 @@ Json World::save() const
 					operation.speed = system.engine->speed;
 					operation.engine_enabled = system.engine->enabled;
 					operation.acceleration_remainder = system.engine->remainder;
+					operation.damping_remainder = system.engine->damping_remainder;
 				}
 				if (system.steering)
 				{
@@ -4358,12 +4400,15 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		}
 		if (auto systems = fittings(entity))
 		{
-			const auto &states = value.at("systems");
+			auto states = value.at("systems");
 			if (!states.is_object() || states.size() != systems->values.size())
 				throw std::runtime_error("Fitted System roster mismatch");
 			for (auto system : systems->values)
 			{
-				for (const auto *field : {"speed", "heading", "acceleration_remainder", "turn_remainder"})
+				if (!states.at(system.id).contains("damping_remainder"))
+					states.at(system.id)["damping_remainder"] = 0;
+				for (const auto *field :
+				     {"speed", "heading", "acceleration_remainder", "damping_remainder", "turn_remainder"})
 					if (!states.at(system.id).at(field).is_number_integer())
 						throw std::runtime_error("Fitted continuation requires integer state");
 				const auto state = states.at(system.id).get<SavedOperation>();
@@ -4376,20 +4421,22 @@ void World::restore(const Catalog &content, const Json &source_saved)
 					continue;
 				}
 				if (Json(state) != states.at(system.id) ||
-				    (!system.engine && (state.speed || state.acceleration_remainder || !state.engine_enabled)) ||
+				    (!system.engine && (state.speed || state.acceleration_remainder || state.damping_remainder ||
+				                        !state.engine_enabled)) ||
 				    (!system.steering && (state.heading != restored.heading || state.turn_remainder)) ||
 				    (!system.radar && !state.radar_enabled))
 					throw std::runtime_error("Unsupported fitted System continuation fields");
 				if (state.speed < 0 || state.heading < 0 || state.heading >= 360000 ||
 				    state.acceleration_remainder < 0 || state.acceleration_remainder >= rate ||
-				    state.turn_remainder < 0 || state.turn_remainder >= rate ||
-				    (system.engine && state.speed > system.engine->max_speed))
+				    state.damping_remainder < 0 || state.damping_remainder >= rate || state.turn_remainder < 0 ||
+				    state.turn_remainder >= rate || (system.engine && state.speed > system.engine->max_speed))
 					throw std::runtime_error("Invalid fitted System continuation");
 				if (system.engine)
 				{
 					system.engine->speed = state.speed;
 					system.engine->enabled = state.engine_enabled;
 					system.engine->remainder = state.acceleration_remainder;
+					system.engine->damping_remainder = state.damping_remainder;
 				}
 				if (system.steering)
 				{

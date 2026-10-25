@@ -827,6 +827,8 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 				integer(system, "max_speed_mm_s", field, 0);
 				if (!catalog.presentation)
 					integer(system, "acceleration_mm_s2", field, 1);
+				if (system.contains("deceleration_mm_s2"))
+					integer(system, "deceleration_mm_s2", field, 0);
 			}
 			else if (kind == "steering")
 			{
