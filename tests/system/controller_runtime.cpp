@@ -59,6 +59,67 @@ int main(int argc, char **argv)
 		objective_priority_cases();
 		stock_selection_cases();
 		{
+			auto source = controller_session_fixture();
+			auto &controls = source["entities"][0]["control_layout"];
+			controls["station_complexity"] = true;
+			controls["profiles"][0]["stars"] = 3;
+			controls["profiles"][1]["stars"] = 1;
+			// Both workloads retain a human Controller, but individual channels may vary.
+			controls["profiles"][1]["consoles"]["drive"] = {{"human", {"propulsion"}}};
+			controls["controllers"][0]["commands"].push_back({{"id", "individual"},
+			                                                  {"action", "engine_enabled"},
+			                                                  {"initial", 1},
+			                                                  {"individual_stars", 3},
+			                                                  {"consumers", {"port"}}});
+			auto detailed = source["consoles"][0];
+			detailed["id"] = "test.detailed-console";
+			detailed["human_seeking"] = true;
+			detailed["when"] = {{"min_stars", 3}};
+			source["consoles"].push_back(detailed);
+			source["entities"][0]["stations"][0]["consoles"][1]["definition"] = "test.detailed-console";
+			source["entities"][0]["stations"][0]["consoles"][1]["human_preferences"] = {"operations"};
+			auto session = make_local_session();
+			session->add_pack(archive(source));
+			session->start({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"});
+			ConsoleModel ui;
+			ui.refresh(session);
+			const auto full_revision = ui.layout_revision();
+			require(ui.available_tabs().size() == 2 && ui.ui_availability().stars == 3 &&
+			            ui.ui_availability().bindings.contains("controller/propulsion/individual"),
+			        "three-star Console exposes its conditional tab and individual channel");
+			require(ui.act("game.console/observer"), "Conditional tab can be selected while available");
+			ui.refresh(session);
+			require(ui.observation()->console == "observer" && ui.command("preset", 1),
+			        "Change workload from selected conditional tab");
+			session->tick();
+			ui.refresh(session);
+			require(ui.available_tabs().size() == 1 && ui.observation()->console == "drive" &&
+			            ui.ui_availability().stars == 1 && !ui.act("game.console/observer") &&
+			            ui.layout_revision() > full_revision,
+			        "downgrade removes and rejects the selected tab, selects the surviving Console, and invalidates "
+			        "presentation");
+			require(ui.ui_availability().controllers.contains("propulsion") &&
+			            !ui.ui_availability().bindings.contains("controller/propulsion/individual"),
+			        "channel star threshold hides individual UI even when its Controller remains human");
+			const auto revision = ui.layout_revision();
+			session->tick();
+			ui.refresh(session);
+			require(ui.layout_revision() == revision, "ordinary simulation progress does not rebuild the layout");
+			require(ui.command("preset", 0), "Restore detailed workload");
+			session->tick();
+			ui.refresh(session);
+			require(ui.available_tabs().size() == 2 &&
+			            ui.ui_availability().bindings.contains("controller/propulsion/individual") &&
+			            ui.layout_revision() > revision,
+			        "upgrade restores conditional tab and system controls on the same route");
+			auto unavailable = *ui.observation();
+			for (auto &control : unavailable.gameplay["controls"])
+				control["enabled"] = false;
+			require(console_ui_availability(unavailable) == ui.ui_availability(),
+			        "transient command readiness does not change structural UI visibility");
+		}
+
+		{
 			auto source = controller_fixture(true);
 			auto &layout = source["entities"][0]["control_layout"];
 			layout["station_complexity"] = {"operations"};
@@ -75,6 +136,11 @@ int main(int argc, char **argv)
 			require(controller(paired, 101, "port_drive")["human"] == true &&
 			            controller(paired, 101, "starboard_drive")["human"] == false,
 			        "Per-console default chooses an assisted workload");
+			const auto reduced_ui = console_ui_availability(*paired.observe(101));
+			require(reduced_ui.stars == 1 && reduced_ui.controllers.contains("port_drive") &&
+			            reduced_ui.systems.contains("port") && !reduced_ui.controllers.contains("starboard_drive") &&
+			            !reduced_ui.systems.contains("starboard"),
+			        "UI capabilities use per-Console human permissions at one star");
 			require(paired.submit(101, speed(paired, 101, "port_drive", 4200)), "Coordinated speed admitted");
 			paired.tick();
 			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 4200,
@@ -83,6 +149,13 @@ int main(int argc, char **argv)
 			        "Low workload rejects individual assembly command");
 			require(paired.submit(101, {1, "preset", 0, {}}), "Full assembly control selected");
 			paired.tick();
+			const auto full_ui = console_ui_availability(*paired.observe(101));
+			require(full_ui.stars == 3 && full_ui.bindings.contains("controller/starboard_drive/speed") &&
+			            full_ui.systems.contains("starboard") && full_ui != reduced_ui,
+			        "UI capabilities update after an admitted complexity change");
+			const Json widget{{"kind", "throttle"}, {"controller", "starboard_drive"}, {"channel", "speed"}};
+			require(!ui_widget_available(widget, reduced_ui) && ui_widget_available(widget, full_ui),
+			        "individual controls appear only when their projected command is available");
 			require(paired.submit(101, speed(paired, 101, "starboard_drive", 7000)),
 			        "Individual assembly override admitted");
 			paired.tick();

@@ -1018,7 +1018,11 @@ button.on-screen-active .share-live {display:block;}
 			                 }))
 				return false;
 			if (action.starts_with("local-settings.tab/"))
+			{
+				if (action.substr(19) == "craft" && !model_.ui_availability().features.contains("craft"))
+					return false;
 				local_settings_tab_ = action.substr(19);
+			}
 			else if (action == "local-settings.smaller")
 				text_scale_ = std::max(80, text_scale_ - 10);
 			else if (action == "local-settings.larger")
@@ -2488,6 +2492,14 @@ button.on-screen-active .share-live {display:block;}
 		             (active_theme_.contains("tokens") ? active_theme_.at("tokens").value("font_size", 20.f) : 20.f) /
 		             100.f) +
 		             "dp");
+		if (settings_open_ && local_settings_tab_ == "craft" && !model_.ui_availability().features.contains("craft"))
+		{
+			cancel_pointer();
+			model_.release_controls();
+			settings_open_ = false;
+			document_->SetClass("local-settings-open", false);
+			document_->SetClass("station-page-open", false);
+		}
 		if (settings_open_)
 		{
 			const bool operations = local_settings_tab_ == "logistics" || local_settings_tab_ == "docking" ||
@@ -3365,6 +3377,14 @@ button.on-screen-active .share-live {display:block;}
 			finish_support_panels(region);
 			app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 		}
+		if (layout && !pregame)
+			for (const auto &widget : layout->at("widgets"))
+			{
+				const bool available = ui_widget_available(widget, model_.ui_availability());
+				if (!layout->contains("layout") || !available)
+					property(document_->GetElementById("widget/" + widget.at("id").get<std::string>()), "display",
+					         available ? "block" : "none");
+			}
 		restore_console_browsing();
 		{
 			const auto update_started = GetTime();
@@ -3379,7 +3399,7 @@ button.on-screen-active .share-live {display:block;}
 		int heading_count = 0;
 		if (layout && !pregame)
 			for (const auto &widget : layout->at("widgets"))
-				if (widget.at("kind") == "heading")
+				if (widget.at("kind") == "heading" && ui_widget_available(widget, model_.ui_availability()))
 				{
 					shared_heading = model_.widget_system(widget.at("id").get<std::string>());
 					++heading_count;
@@ -3640,7 +3660,7 @@ button.on-screen-active .share-live {display:block;}
 				}
 			}
 		}
-		if (layout && layout->contains("layout") && !pregame)
+		if (layout && !pregame)
 		{
 			auto hidden = [&](const std::string &name)
 			{
@@ -3664,20 +3684,23 @@ button.on-screen-active .share-live {display:block;}
 			              {
 				              return hidden(entry.id);
 			              });
-			if (auto *canvas = document_->GetElementById("navigation-canvas"); canvas && canvas->IsVisible(true))
+			if (layout->contains("layout"))
 			{
-				const auto at = canvas->GetAbsoluteOffset(Rml::BoxArea::Border);
-				navigation_area_ = {at.x, at.y, canvas->GetOffsetWidth(), canvas->GetOffsetHeight()};
+				if (auto *canvas = document_->GetElementById("navigation-canvas"); canvas && canvas->IsVisible(true))
+				{
+					const auto at = canvas->GetAbsoluteOffset(Rml::BoxArea::Border);
+					navigation_area_ = {at.x, at.y, canvas->GetOffsetWidth(), canvas->GetOffsetHeight()};
+				}
+				else
+					navigation_visible_ = false;
+				if (auto *stick = document_->GetElementById("manual-stick"); stick && stick->IsVisible(true))
+				{
+					const auto at = stick->GetAbsoluteOffset(Rml::BoxArea::Border);
+					joystick_area_ = {at.x, at.y, stick->GetOffsetWidth(), stick->GetOffsetHeight()};
+				}
+				else
+					joystick_area_ = {};
 			}
-			else
-				navigation_visible_ = false;
-			if (auto *stick = document_->GetElementById("manual-stick"); stick && stick->IsVisible(true))
-			{
-				const auto at = stick->GetAbsoluteOffset(Rml::BoxArea::Border);
-				joystick_area_ = {at.x, at.y, stick->GetOffsetWidth(), stick->GetOffsetHeight()};
-			}
-			else
-				joystick_area_ = {};
 		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/placements"] = GetTime() - semantics_started;
 		if (!pregame && !settings_open_)

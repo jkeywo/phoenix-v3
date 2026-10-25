@@ -425,6 +425,44 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 	}
 	return rows;
 }
+UiAvailability console_ui_availability(const Observation &view)
+{
+	UiAvailability result;
+	result.profile = view.gameplay.value("profile", std::string{});
+	const auto stars = view.gameplay.value("profile_stars", Json::object());
+	result.stars = stars.value(result.profile, 0);
+	const auto controls = view.gameplay.value("controls", Json::array());
+	for (const auto &control : controls)
+	{
+		result.actions.insert(control.value("action", std::string{}));
+		const auto controller = control.value("controller", std::string{});
+		const auto channel = control.value("channel", std::string{});
+		if (!controller.empty() && !channel.empty())
+		{
+			result.controllers.insert(controller);
+			result.bindings.insert("controller/" + controller + "/" + channel);
+		}
+		const auto system = control.value("system", std::string{});
+		if (!system.empty() && std::any_of(view.systems.begin(), view.systems.end(),
+		                                   [&](const auto &physical)
+		                                   {
+			                                   return physical.id == system;
+		                                   }))
+			result.systems.insert(system);
+	}
+	// Consumers identify the physical systems behind the permitted command channels.
+	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+		for (const auto &[channel, command] : controller.at("commands").items())
+			if (result.bindings.contains("controller/" + controller.at("id").get<std::string>() + "/" + channel))
+				for (const auto &consumer : command.at("consumers"))
+					result.systems.insert(consumer.get<std::string>());
+	for (const auto &craft : view.gameplay.value("craft", Json::array()))
+		if (craft.value("manual", false))
+			result.features.insert("craft");
+	if (!view.gameplay.value("docking", Json::object()).value("ports", Json::array()).empty())
+		result.features.insert("docking");
+	return result;
+}
 void ConsoleModel::reset()
 {
 	combat_target_ = 0;
@@ -440,6 +478,7 @@ void ConsoleModel::reset()
 	owner_.reset();
 	packs_.clear();
 	observation_.reset();
+	ui_availability_ = {};
 	pending_at_.reset();
 	pending_requests_.clear();
 	held_controls_.clear();
@@ -484,6 +523,22 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 			for (auto &[key, label] : available_consoles_)
 				if (key == seat.id)
 					label = catalog.consoles.at(seat.definition).value("name", key);
+		std::erase_if(available_consoles_,
+		              [&](const auto &entry)
+		              {
+			              const Observation *view = next.get();
+			              for (const auto &extra : next->additional_consoles)
+				              if (extra.console == entry.first)
+					              view = &extra;
+			              for (const auto &seat : resolved_consoles_)
+				              if (seat.id == entry.first)
+				              {
+					              const auto &definition = catalog.consoles.at(seat.definition);
+					              return definition.contains("when") &&
+					                     !ui_condition_matches(definition.at("when"), console_ui_availability(*view));
+				              }
+			              return false;
+		              });
 		std::vector<UiTab> tabs;
 		auto attention = [](const Observation &view)
 		{
@@ -515,11 +570,22 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 				next = std::shared_ptr<const Observation>(next, &*extra);
 			}
 		}
+		if (granted_tabs_.selected().empty())
+			next.reset();
 	}
+	const auto availability = next ? console_ui_availability(*next) : UiAvailability{};
 	const bool changed = bool(observation_) != bool(next) ||
 	                     (next && observation_ &&
 	                      (next->own.id != observation_->own.id || next->console != observation_->console ||
 	                       next->controls != observation_->controls || next->feeds != observation_->feeds));
+	if (!changed && availability != ui_availability_)
+	{
+		release_controls();
+		pending_at_.reset();
+		pending_requests_.clear();
+		++layout_revision_;
+	}
+	ui_availability_ = availability;
 	if (changed)
 	{
 		if (observation_)

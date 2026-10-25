@@ -5,6 +5,7 @@
 #include <iostream>
 #include <set>
 import phoenix.simulation;
+import phoenix.console;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
@@ -65,6 +66,40 @@ int main(int argc, char **argv)
 		    },
 		    "prefilled craft cannot exceed bay slots");
 		const auto catalog = load(input);
+		{
+			World permissions;
+			permissions.load(catalog, "test.map");
+			require(permissions.claim(101, 1, "drive") && permissions.claim(102, 1, "observer"),
+			        "Craft consoles claimed");
+			require(console_ui_availability(*permissions.observe(101)).features.contains("craft") &&
+			            !console_ui_availability(*permissions.observe(102)).features.contains("craft"),
+			        "Flight operations exists only on a Console with controllable craft");
+			auto profiled = input;
+			auto &layout = profiled["entities"][0]["control_layout"];
+			auto automatic = layout["profiles"][0];
+			automatic["id"] = "automatic";
+			auto &human = automatic["consoles"]["drive"]["human"];
+			human.erase(std::find(human.begin(), human.end(), Json("bay")));
+			automatic["consoles"]["drive"]["ai"] = {"bay"};
+			layout["profiles"].push_back(automatic);
+			World switching;
+			switching.load(load(profiled), "test.map");
+			require(switching.claim(101, 1, "drive") && switching.submit(101, {1, "preset", 1, {}}),
+			        "Transfer craft to automatic workload");
+			switching.tick();
+			require(!switching.observe(101)->gameplay.at("craft").empty() &&
+			            !console_ui_availability(*switching.observe(101)).features.contains("craft"),
+			        "Craft rows without manual authority do not expose Flight operations");
+			require(switching.submit(101, {1, "preset", 0, {}}), "Restore craft command workload");
+			switching.tick();
+			require(console_ui_availability(*switching.observe(101)).features.contains("craft"),
+			        "Flight operations capability returns with craft order permission");
+			World empty;
+			empty.load(load(away_fixture()), "test.map");
+			require(empty.claim(101, 1, "drive"), "Console without craft claimed");
+			require(!console_ui_availability(*empty.observe(101)).features.contains("craft"),
+			        "No fitted craft means no Flight operations feature");
+		}
 		{
 			auto missing = armed_craft_fixture();
 			missing["entities"][0].erase("logistics");

@@ -22,6 +22,7 @@ struct ConsoleMessageView
 		return sender + ": " + text;
 	}
 };
+UiAvailability console_ui_availability(const Observation &);
 std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only = false);
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &, std::uint64_t now);
 enum class SystemCondition
@@ -109,6 +110,10 @@ public:
 	{
 		return observation_;
 	}
+	const UiAvailability &ui_availability() const
+	{
+		return ui_availability_;
+	}
 	const Json *layout() const
 	{
 		return layout_.is_null() ? nullptr : &layout_;
@@ -178,6 +183,7 @@ private:
 	std::shared_ptr<const Observation> observation_;
 	std::optional<std::uint64_t> pending_at_;
 	std::int64_t speed_ = 0, heading_ = 0, maximum_ = 0;
+	UiAvailability ui_availability_;
 	Json layout_;
 	std::uint64_t layout_revision_ = 0;
 	std::string announcement_;

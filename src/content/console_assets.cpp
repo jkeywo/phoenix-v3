@@ -33,10 +33,10 @@ Json public_ui_definition(const Json &source)
 	static const std::set<std::string> fields = {
 	    "id",   "schema",  "root",   "compact", "kind",   "label", "component", "group",     "overrides",  "children",
 	    "rect", "circle",  "x",      "y",       "radius", "width", "height",    "min_width", "min_height", "stretch",
-	    "gap",  "padding", "aspect", "align",   "region", "style", "tokens",    "assets",    "slices"};
+	    "gap",  "padding", "aspect", "align",   "region", "style", "tokens",    "assets",    "slices",     "when"};
 	for (const auto &[key, value] : source.items())
 		if (fields.contains(key))
-			result[key] = key == "tokens" || key == "assets" || key == "slices" || key == "style"
+			result[key] = key == "tokens" || key == "assets" || key == "slices" || key == "style" || key == "when"
 			                  ? value
 			                  : public_ui_definition(value);
 	return result;
@@ -206,9 +206,10 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		if (included.insert(seat.definition).second)
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
-			for (const char *field : {"name", "description", "human_seeking", "stances", "default_stance", "command",
-			                          "hide_without_ai", "viewscreen", "compact", "hud_layout", "hud_layout_overrides",
-			                          "layout", "layout_overrides", "theme", "theme_overrides", "gameplay_panel"})
+			for (const char *field :
+			     {"name", "description", "human_seeking", "stances", "default_stance", "command", "hide_without_ai",
+			      "viewscreen", "compact", "hud_layout", "hud_layout_overrides", "layout", "layout_overrides", "theme",
+			      "theme_overrides", "gameplay_panel", "when"})
 				if (catalog.consoles.at(seat.definition).contains(field))
 					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
@@ -222,7 +223,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 					copy["system"] = widget.at("system");
 				if (widget.contains("sweep"))
 					copy["sweep"] = widget.at("sweep");
-				for (const auto *field : {"controller", "channel"})
+				for (const auto *field : {"controller", "channel", "when"})
 					if (widget.contains(field))
 						copy[field] = widget.at(field);
 				layout["widgets"].push_back(std::move(copy));

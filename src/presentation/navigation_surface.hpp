@@ -112,7 +112,8 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	navigation_visible_ = false;
 	if (const auto *layout = model_.layout(); layout && !pregame)
 		for (const auto &widget : layout->at("widgets"))
-			navigation_visible_ |= widget.at("kind") == "navigation";
+			navigation_visible_ |=
+			    widget.at("kind") == "navigation" && ui_widget_available(widget, model_.ui_availability());
 	const auto objectives = model_.objectives();
 	const auto report =
 	    model_.observation() ? model_.observation()->gameplay.value("mission_report", Json(nullptr)) : Json(nullptr);

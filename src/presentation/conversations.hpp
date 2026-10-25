@@ -44,7 +44,7 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	comms_widget_.clear();
 	if (model_.layout())
 		for (const auto &w : model_.layout()->at("widgets"))
-			if (w.at("kind") == "conversations")
+			if (w.at("kind") == "conversations" && ui_widget_available(w, model_.ui_availability()))
 				comms_widget_ = w.at("id");
 	const auto board = model_.conversations();
 	const bool active = (!comms_widget_.empty() || (model_.layout() && model_.layout()->contains("layout"))) &&

@@ -44,7 +44,7 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
 		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
-		                          "stretch", "aspect", "align", "region", "circle", "style"})
+		                          "stretch", "aspect", "align", "region", "circle", "style", "when"})
 			if (source.contains(field))
 				root[field] = source.at(field);
 		root["id"] = source.at("id");
@@ -75,6 +75,11 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 	           node.id, "unsupported layout node kind");
 	node.component = source.value("component", std::string{});
 	node.style = source.value("style", Json::object());
+	if (source.contains("when"))
+	{
+		verify_ui_condition(source.at("when"));
+		node.conditions.push_back(source.at("when"));
+	}
 	if (!node.style.empty())
 		(void)resolved_ui_theme(catalog, {}, Json{{"tokens", node.style}});
 	node.minimum_width = ui_number(source, "min_width", 44, 1);
@@ -157,6 +162,103 @@ void targets(const UiNode &node, std::set<std::string> &result)
 		targets(child, result);
 }
 } // namespace
+
+bool UiAvailability::operator==(const UiAvailability &other) const
+{
+	auto same = [](const auto &a, const auto &b)
+	{
+		return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin());
+	};
+	return profile == other.profile && stars == other.stars && same(actions, other.actions) &&
+	       same(controllers, other.controllers) && same(bindings, other.bindings) && same(systems, other.systems) &&
+	       same(features, other.features);
+}
+void verify_ui_condition(const Json &condition)
+{
+	ui_require(condition.is_object(), "UI.when", "expected object");
+	for (const auto &[key, value] : condition.items())
+	{
+		if (key == "min_stars" || key == "max_stars")
+			ui_require(value.is_number_integer() && value >= 1 && value <= 3, "UI.when." + key,
+			           "expected integer from 1 to 3");
+		else
+		{
+			ui_require(key == "profiles" || key == "actions" || key == "controllers" || key == "bindings" ||
+			               key == "systems" || key == "features",
+			           "UI.when", "unknown condition " + key);
+			ui_require(value.is_array() && !value.empty(), "UI.when." + key, "expected nonempty identifier array");
+			for (const auto &id : value)
+				ui_require(id.is_string() && !id.get<std::string>().empty(), "UI.when." + key, "expected identifier");
+		}
+	}
+	ui_require(condition.value("min_stars", 1) <= condition.value("max_stars", 3), "UI.when",
+	           "min_stars exceeds max_stars");
+}
+bool ui_condition_matches(const Json &condition, const UiAvailability &available)
+{
+	if ((condition.contains("min_stars") || condition.contains("max_stars")) &&
+	    (available.stars < condition.value("min_stars", 1) || available.stars > condition.value("max_stars", 3)))
+		return false;
+	for (const auto &[key, value] : condition.items())
+	{
+		if (key == "min_stars" || key == "max_stars")
+			continue;
+		const auto *ids = key == "actions"       ? &available.actions
+		                  : key == "controllers" ? &available.controllers
+		                  : key == "bindings"    ? &available.bindings
+		                  : key == "systems"     ? &available.systems
+		                                         : &available.features;
+		if (!std::any_of(value.begin(), value.end(),
+		                 [&](const Json &id)
+		                 {
+			                 return key == "profiles" ? id == available.profile : ids->contains(id.get<std::string>());
+		                 }))
+			return false;
+	}
+	return true;
+}
+bool ui_widget_available(const Json &widget, const UiAvailability &available)
+{
+	if (widget.contains("when") && !ui_condition_matches(widget.at("when"), available))
+		return false;
+	const auto kind = widget.value("kind", std::string{});
+	// Informational widgets (radar, conversations, etc.) can remain useful under AI control.
+	if ((kind == "throttle" || kind == "heading") && widget.contains("controller") && widget.contains("channel"))
+		return available.bindings.contains("controller/" + widget.at("controller").get<std::string>() + "/" +
+		                                   widget.at("channel").get<std::string>());
+	return true;
+}
+UiLayout available_ui_layout(UiLayout layout, const UiAvailability &available)
+{
+	std::function<bool(UiNode &)> keep = [&](UiNode &node)
+	{
+		if (!std::all_of(node.conditions.begin(), node.conditions.end(),
+		                 [&](const Json &condition)
+		                 {
+			                 return ui_condition_matches(condition, available);
+		                 }))
+			return false;
+		std::erase_if(node.children,
+		              [&](UiNode &child)
+		              {
+			              return !keep(child);
+		              });
+		return node.kind == "component" || !node.children.empty();
+	};
+	auto filter = [&](UiNode &root)
+	{
+		if (!keep(root))
+		{
+			root.kind = "column";
+			root.component.clear();
+			root.children.clear();
+		}
+	};
+	filter(layout.root);
+	if (layout.compact)
+		filter(*layout.compact);
+	return layout;
+}
 
 Json expand_ui_groups(const Catalog &catalog, const Json &source)
 {
@@ -255,7 +357,33 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 	                                 "conversation-compose",
 	                                 "conversation-incoming"};
 	for (const auto &widget : console.at("widgets"))
-		allowed.insert(widget.at("id").get<std::string>());
+	{
+		const auto id = widget.at("id").get<std::string>();
+		allowed.insert(id);
+		if (widget.contains("when"))
+			verify_ui_condition(widget.at("when"));
+		std::function<void(UiNode &)> condition = [&](UiNode &node)
+		{
+			if (node.component == id || (widget.at("kind") == "navigation" && node.component == "navigation") ||
+			    (widget.at("kind") == "conversations" &&
+			     (node.component == "conversations" || node.component.starts_with("conversation-"))))
+			{
+				if (widget.contains("when"))
+					node.conditions.push_back(widget.at("when"));
+				const auto kind = widget.at("kind").get<std::string>();
+				if ((kind == "throttle" || kind == "heading") && widget.contains("controller") &&
+				    widget.contains("channel"))
+					node.conditions.push_back(Json{{"bindings",
+					                                {"controller/" + widget.at("controller").get<std::string>() + "/" +
+					                                 widget.at("channel").get<std::string>()}}});
+			}
+			for (auto &child : node.children)
+				condition(child);
+		};
+		condition(result.root);
+		if (result.compact)
+			condition(*result.compact);
+	}
 	for (const auto &target : components)
 		ui_require(allowed.contains(target), "console.layout", "unknown component " + target);
 	return result;
@@ -287,7 +415,7 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 		}
 		if (node.kind == "component")
 			result.placements.push_back({node.id, node.component, page, {}, visible, node.style});
-		if (node.kind == "tabs")
+		if (node.kind == "tabs" && !node.children.empty())
 		{
 			auto chosen = node.children.front().id;
 			if (selected_pages.contains(node.id))
@@ -516,6 +644,15 @@ void verify_ui_definitions(const Catalog &catalog)
 		(void)resolved_ui_theme(catalog, id);
 	for (const auto &[id, console] : catalog.consoles)
 	{
+		if (console.contains("when"))
+			verify_ui_condition(console.at("when"));
+		for (const auto &widget : console.at("widgets"))
+			if (widget.contains("when"))
+				verify_ui_condition(widget.at("when"));
+		if (console.contains("compact"))
+			for (const auto &widget : console.at("compact").at("widgets"))
+				if (widget.contains("when"))
+					verify_ui_condition(widget.at("when"));
 		if (console.contains("layout"))
 			(void)compile_ui_layout(catalog, console);
 		if (console.contains("hud_layout"))

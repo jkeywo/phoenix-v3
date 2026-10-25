@@ -311,6 +311,17 @@ struct UiRect
 {
 	float x = 0, y = 0, width = 0, height = 0;
 };
+// Structural permissions, independent of transient readiness, damage or resource values.
+struct UiAvailability
+{
+	std::string profile;
+	int stars = 0;
+	std::set<std::string> actions, controllers, bindings, systems, features;
+	bool operator==(const UiAvailability &) const;
+};
+void verify_ui_condition(const Json &);
+bool ui_condition_matches(const Json &, const UiAvailability &);
+bool ui_widget_available(const Json &, const UiAvailability &);
 struct UiNode
 {
 	std::string id, kind = "column", label, component;
@@ -321,6 +332,7 @@ struct UiNode
 	float circle_x = .5f, circle_y = .5f, circle_radius = .35f;
 	UiRect rect{0, 0, 1000, 1000};
 	Json style = Json::object();
+	std::vector<Json> conditions;
 	std::vector<UiNode> children;
 };
 struct UiLayout
@@ -372,6 +384,7 @@ struct UiResolved
 };
 Json expand_ui_groups(const Catalog &, const Json &node);
 UiLayout compile_ui_layout(const Catalog &, const Json &console);
+UiLayout available_ui_layout(UiLayout, const UiAvailability &);
 UiLayout compile_ui_tree(const Catalog &, const Json &definition);
 UiResolved resolve_ui_layout(const UiLayout &, UiRect available, float text_scale,
                              const std::map<std::string, std::string> &selected_pages = {});

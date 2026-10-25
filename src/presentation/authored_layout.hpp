@@ -2,6 +2,7 @@
 UiThemeRenderer theme_renderer_;
 Json active_theme_ = Json::object();
 std::optional<UiLayout> authored_program_;
+std::set<std::string> authored_targets_;
 UiResolved authored_resolved_;
 std::string authored_geometry_, authored_dom_;
 struct SurfaceBrowsing
@@ -172,7 +173,8 @@ bool authored_action(const std::string &action)
 	if (action.starts_with("station-page/"))
 	{
 		const auto page = action.substr(13);
-		if (page == "docking" && model_.docking().value("ports", Json::array()).empty())
+		if ((page == "craft" && !model_.ui_availability().features.contains("craft")) ||
+		    (page == "docking" && model_.docking().value("ports", Json::array()).empty()))
 			return false;
 		if (page != "logistics" && page != "docking" && page != "away" && page != "craft" && page != "personnel")
 			return false;
@@ -262,7 +264,8 @@ void prepare_console_tabs(const ConsoleRegion &region)
 	                                                                                  {"personnel", "Personnel"},
 	                                                                                  {"away", "Away missions"}})
 	{
-		if (page == "docking" && model_.docking().value("ports", Json::array()).empty())
+		if ((page == "craft" && !model_.ui_availability().features.contains("craft")) ||
+		    (page == "docking" && model_.docking().value("ports", Json::array()).empty()))
 			continue;
 		const auto action = id("station-page/" + page);
 		markup += "<button id=\"" + action + "\" class=\"" +
@@ -487,7 +490,18 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	const auto signature = std::to_string(layout_identity_) + "/" + inline_console_;
 	if (authored_identity_ != signature)
 	{
-		authored_program_ = compile_ui_layout(app_->session->catalog(), *layout);
+		auto compiled = compile_ui_layout(app_->session->catalog(), *layout);
+		authored_targets_.clear();
+		std::function<void(const UiNode &)> collect = [&](const UiNode &node)
+		{
+			if (!node.component.empty())
+				authored_targets_.insert(node.component);
+			for (const auto &child : node.children)
+				collect(child);
+		};
+		collect(compiled.root);
+		authored_program_ = available_ui_layout(std::move(compiled), model_.ui_availability());
+
 		// Installed packs can retain the older shared Operations group on a Comms-only layout.
 		// Give conversation-only Consoles their dedicated surface without changing command authority.
 		if (!layout->at("widgets").empty() && std::all_of(layout->at("widgets").begin(), layout->at("widgets").end(),
@@ -598,6 +612,9 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		stage_started = now;
 	};
 	style_authored_tree(resolved.root);
+	for (const auto &target : authored_targets_)
+		if (auto *component = authored_component(target); component && !targets.contains(component))
+			property(component, "display", "none");
 	stage("authored-style");
 	context_->Update();
 	stage("authored-update-style");

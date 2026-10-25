@@ -93,6 +93,75 @@ int main()
 			const auto second = resolve_ui_layout(program, {0, 0, 360, 700}, 1, {{"root", "root.second"}});
 			require(!second.placements[0].visible && second.placements[1].visible,
 			        "page selection resolves permitted geometry");
+			{
+				auto conditional = program;
+				conditional.root.kind = "tabs";
+				conditional.root.children[1].conditions.push_back(Json{{"min_stars", 3}, {"systems", {"starboard"}}});
+				UiAvailability low;
+				low.stars = 1;
+				UiAvailability high;
+				high.stars = 3;
+				high.systems.insert("starboard");
+				const auto full = resolve_ui_layout(available_ui_layout(conditional, high), {0, 0, 1200, 700}, 1,
+				                                    {{"root", "root.second"}});
+				const auto reduced =
+				    resolve_ui_layout(available_ui_layout(conditional, low), {0, 0, 1200, 700}, 1, full.selected_pages);
+				require(full.pages.size() == 2 && full.placements[1].visible && reduced.pages.size() == 1 &&
+				            reduced.placements.size() == 1 && reduced.placements[0].visible,
+				        "profile downgrade removes unavailable tab and safely selects an available page");
+				conditional.root.conditions.push_back(Json{{"features", {"craft"}}});
+				const auto empty = resolve_ui_layout(available_ui_layout(conditional, high), {0, 0, 1200, 700}, 1);
+				require(empty.pages.empty() && empty.placements.empty(), "fully unavailable layout resolves safely");
+				require(!ui_condition_matches(Json{{"min_stars", 1}}, UiAvailability{}),
+				        "unknown complexity does not meet a star constraint");
+				for (const auto &bad : Json::array(
+				         {Json{{"min_stars", 0}}, Json{{"max_stars", 4}}, Json{{"min_stars", 3}, {"max_stars", 1}},
+				          Json{{"features", "craft"}}, Json{{"systems", Json::array()}}, Json{{"stars", 2}}}))
+				{
+					auto invalid = definitions;
+					invalid["layouts"][0]["root"]["when"] = bad;
+					auto pack = source;
+					pack.files["definitions.json"] = json_bytes(invalid);
+					rejected(
+					    [&]
+					    {
+						    resolve_packs({read_pack(write_pack(pack))});
+					    },
+					    "UI.when");
+				}
+				auto widget_console = ui_catalog.consoles.at(console.at("id").get<std::string>());
+				const auto widget_id = widget_console.at("widgets")[0].at("id").get<std::string>();
+				widget_console["widgets"][0]["when"] = {{"features", {"craft"}}};
+				widget_console["layout"] = {
+				    {"schema", 1}, {"root", {{"id", "widget"}, {"kind", "component"}, {"component", widget_id}}}};
+				const auto widget_program = compile_ui_layout(ui_catalog, widget_console);
+				require(resolve_ui_layout(available_ui_layout(widget_program, low), {0, 0, 1200, 700}, 1)
+				            .placements.empty(),
+				        "widget condition removes its authored system UI");
+				low.features.insert("craft");
+				require(resolve_ui_layout(available_ui_layout(widget_program, low), {0, 0, 1200, 700}, 1)
+				                .placements.size() == 1,
+				        "widget condition restores system UI when capability becomes available");
+				auto authored = definitions;
+				authored["layouts"][0]["root"]["children"][1]["when"] = {
+				    {"min_stars", 2}, {"max_stars", 3}, {"profiles", {"detailed"}}};
+				authored["consoles"][0]["when"] = {{"min_stars", 1}};
+				if (!authored["consoles"][0]["widgets"].empty())
+					authored["consoles"][0]["widgets"][0]["when"] = {{"features", {"craft"}}};
+				auto pack = source;
+				pack.files["definitions.json"] = json_bytes(authored);
+				const auto loaded = resolve_packs({read_pack(write_pack(pack))});
+				const auto remote = resolve_packs({console_assets(loaded, loaded.entities.begin()->first)});
+				require(remote.layouts.at("test.layout")["root"]["children"][1]["when"] ==
+				                authored["layouts"][0]["root"]["children"][1]["when"] &&
+				            remote.consoles.at(console.at("id").get<std::string>()).at("when") ==
+				                authored["consoles"][0]["when"],
+				        "restricted client packs preserve nested conditions and Console conditions");
+				if (!authored["consoles"][0]["widgets"].empty())
+					require(remote.consoles.at(console.at("id").get<std::string>())["widgets"][0]["when"] ==
+					            authored["consoles"][0]["widgets"][0]["when"],
+					        "restricted client packs preserve widget conditions");
+			}
 			UiTabs tabs;
 			tabs.update({{"a", "First"}, {"b", "Second"}, {"c", "Third"}});
 			require(tabs.select("b") && !tabs.select("unknown"), "tab selection accepts only available identities");

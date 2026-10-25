@@ -16,6 +16,21 @@ The canvas offers desktop, tablet, phone, custom dimensions, rotation and enlarg
 
 The existing Properties inspector edits the widget's binding and semantic label. Layout properties edit its placement. Existing specialist panels can be placed whole or split into supported subpanels: operating controls/readouts/messages, engineering cards, sensor controls, conversation directory/header/history/incoming/replies/composer, navigation and manual flight. Their command handling stays in the existing Console model.
 
+## Complexity and capability visibility
+
+A Console definition, widget, or layout node can have a `when` object. Put it on a tab's child node to hide the whole page, or on a component/group to vary the system UI within a page. Empty containers disappear; when a selected page disappears, selection moves to an available page. Conditions are re-evaluated when the Console's profile or control permissions change.
+
+```json
+{"id":"individual-engines","kind":"component","component":"controls",
+ "when":{"min_stars":3,"bindings":["controller/port_drive/speed"]}}
+```
+
+Supported keys are `min_stars` and `max_stars` (integers 1–3), and nonempty arrays `profiles`, `actions`, `controllers`, `bindings`, `systems`, `features`. Fields combine with AND; identifiers within an array combine with OR. `profiles` names the active authored profile. `bindings` uses `controller/<id>/<channel>`; `systems` names physical consumers of permitted human commands. `actions` names command actions, and `controllers` names Controllers with projected human commands. An unknown star level does not satisfy a star constraint. Verification rejects malformed conditions and unknown keys.
+
+Prefer capability conditions for system controls: two Consoles at the same star level may operate different equipment. Permission checks use the Console's current permitted observation, including individual-channel star thresholds. Temporary readiness, damage or empty ammunition do not by themselves hide an available control. Informational panels can remain visible under AI operation. Controller-bound throttle/heading widgets automatically disappear when their command channel is unavailable; other widgets can opt into `when` conditions.
+
+Built-in `features` currently include `craft` (at least one craft this Console may order) and `docking` (permitted docking ports). Flight operations is omitted when `craft` is absent, including both Courier stations and Cruiser stations without craft authority. If that permission disappears while the page is open, the page closes. These presentation conditions never grant simulation command authority. Conditions survive pack export and restricted Console asset transfer; they can be edited in pack JSON and the Workshop definition source.
+
 ## Reuse and content
 
 Definitions add three ordinary pack tables: `layouts`, `ui_groups` and `themes`. Each uses UI schema `1`, stable IDs, the normal dependency order, inheritance and explicit override rules. They participate in Workshop history, export/reload and client presentation transfer.

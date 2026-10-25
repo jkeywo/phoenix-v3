@@ -129,6 +129,15 @@ int main(int argc, char **argv)
 				                                        row.first.starts_with(prefix + "inline/");
 			                                 });
 			std::cout << "Route " << route << " gameplay controls: " << count << std::endl;
+			require(std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+			                     [&](const auto &row)
+			                     {
+				                     return row.first == prefix + "station-page/craft";
+			                     }),
+			        "Courier stations without craft omit Flight operations");
+			require(app.screen_action && !app.screen_action(prefix + "station-page/craft") &&
+			            !app.screen_action(prefix + "craft"),
+			        "Courier rejects stale Flight operations navigation");
 			require(count > 0, "Routed Console has visible gameplay controls after launch");
 			require(probe_console_fit(route), "Radar fits its own 1080p monitor beside a 4K host");
 		}

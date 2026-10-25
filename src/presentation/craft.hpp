@@ -67,6 +67,8 @@ std::string craft_markup()
 }
 bool craft_action(const std::string &action)
 {
+	if (!model_.ui_availability().features.contains("craft"))
+		return false;
 	if (action == "craft")
 	{
 		settings_open_ = true;
