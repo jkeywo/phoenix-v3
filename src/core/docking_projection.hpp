@@ -24,10 +24,30 @@ inline Json board(const Json &source)
 		out["ports"].push_back(v);
 	}
 	for (const auto &r : source.at("targets"))
-		out["targets"].push_back({{"entity", projection::number(r.at("entity"), 1, 9007199254740991LL)},
-		                          {"port", projection::text(r.at("port"), 64)},
-		                          {"compatibility", projection::text(r.at("compatibility"), 64)},
-		                          {"available", r.at("available").get<bool>()}});
+	{
+		Json row{{"entity", projection::number(r.at("entity"), 1, 9007199254740991LL)},
+		         {"port", projection::text(r.at("port"), 64)},
+		         {"compatibility", projection::text(r.at("compatibility"), 64)},
+		         {"available", r.at("available").get<bool>()}};
+		if (r.contains("local_ports"))
+		{
+			const auto &ports = r.at("local_ports");
+			if (!ports.is_array() || ports.size() > 16)
+				throw std::runtime_error("Invalid docking option ports");
+			row["local_ports"] = Json::array();
+			for (const auto &port : ports)
+			{
+				const auto key = projection::text(port, 64);
+				bool owned = false;
+				for (const auto &local : out.at("ports"))
+					owned |= local.at("id") == key;
+				if (!owned)
+					throw std::runtime_error("Docking option references an unowned port");
+				row["local_ports"].push_back(key);
+			}
+		}
+		out["targets"].push_back(row);
+	}
 	return out;
 }
 } // namespace phoenix::docking_projection

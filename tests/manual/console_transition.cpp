@@ -302,6 +302,9 @@ int main(int argc, char **argv)
 		}
 		TakeScreenshot("build/console-transition-throttle-stop.png");
 		require(!has("console/3/game.console/tactical"), "No redundant Tactical tab");
+		require(!has("console/3/console-page/helm/station.docking") &&
+		            !app.screen_action("console/3/station-page/docking"),
+		        "Helm has no Docking tab or stale page action");
 		require(!has("console/4/console-page/support/station.docking"), "Support has no Docking tab");
 		require(!has("console/3/game.combat-target/2"), "No target button list");
 		auto weapon_state = [&]

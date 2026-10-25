@@ -20,6 +20,8 @@ Courier defaults to one star. One selection covers Helm/Tactical; another covers
 
 Shared target changes preserve explicit three-star weapon overrides. Downgrading removes those overrides and returns enabled offensive weapons to the shared target. Downgrading from direct flight releases held inputs and resumes assistance. Scanner control does not become a separate task at higher levels.
 
+Helm has no separate Docking tab. Select a contact on the radar: its info panel offers **Dock** when an owned port can dock with it, **Cancel docking** during approach, and **Undock** when connected. Separation shows status until finished. A normal Dock uses the existing assisted approach when flight guidance channels are available. Port permissions, supply-service settings and emergency release remain specialist docking controls rather than routine Helm buttons.
+
 ## Support
 
 | Level | Player                                                                                                                                                          | Assistance                                                                                                                              |

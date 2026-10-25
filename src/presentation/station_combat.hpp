@@ -96,6 +96,15 @@ std::vector<std::pair<std::string, std::string>> helm_target_readouts()
 			                    localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label) +
 			                        " / " + localise(contact.disposition));
 		}
+	for (const auto &port : model_.docking().value("ports", Json::array()))
+		if (selected && port.at("target") == selected && port.at("phase") != "free")
+		{
+			const auto phase = port.at("phase").get<std::string>();
+			result.emplace_back("target/docking", localise(phase == "approach"     ? "Approaching docking port"
+			                                               : phase == "mating"     ? "Connecting"
+			                                               : phase == "separating" ? "Undocking"
+			                                                                       : "Docked"));
+		}
 	if (!found)
 		result.emplace_back("target/empty", localise(selected ? "Selected contact is outside positional sensor coverage"
 		                                                      : "Select a contact on the radar"));

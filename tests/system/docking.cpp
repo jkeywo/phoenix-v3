@@ -1,5 +1,5 @@
 #include "../support/assertions.hpp"
-#include "../support/away_fixture.hpp"
+#include "../support/docking_fixture.hpp"
 #include <iostream>
 import phoenix.simulation;
 #include "../../src/network/projection.hpp"
@@ -11,28 +11,6 @@ void ticks(World &w, int n)
 {
 	while (n--)
 		w.tick();
-}
-Json fixture()
-{
-	auto s = away_fixture();
-	auto &e = s["entities"][0];
-	e["faction"] = "crew";
-	s["maps"][0]["factions"] = Json::array({{{"id", "crew"}, {"label", "Crew"}}});
-	for (auto &c : e["control_layout"]["controllers"])
-		if (c["id"] == "engine")
-		{
-			c["commands"].push_back({{"id", "speed"}, {"action", "speed_mm_s"}, {"consumers", {"engine"}}});
-			c["commands"].push_back({{"id", "heading"}, {"action", "heading_mdeg"}, {"consumers", {"steering"}}});
-		}
-	e["docking"] = Json::parse(R"({"ports":[
- {"id":"fore","controller":"engine","compartment":"bridge","compatibility":"standard","x_mm":5000,"heading_mdeg":0,"mating_ticks":3,"separation_ticks":3,"auto_accept_allies":true,"supply":true,"emergency_release":true},
- {"id":"aft","controller":"engine","compartment":"bridge","compatibility":"standard","x_mm":-5000,"heading_mdeg":180000,"mating_ticks":3,"separation_ticks":3,"auto_accept_allies":true,"supply":true}]})");
-	e["logistics"] = Json::parse(R"({"controller":"team","units_per_second":100,"materials":[{"id":"parts"}],
- "stores":[{"id":"hold","compartment":"workshop","capacity":20,"main":true,"accepts":["parts"],"initial":{"parts":4}}]})");
-	auto &m = s["maps"][0]["away_missions"][0];
-	m["allow_ship_transport"] = true;
-	m["docking_ports"] = {"aft"};
-	return s;
 }
 OperatingCommand command(const World &w, std::uint64_t claim, const std::string &kind, const std::string &verb,
                          const std::string &system, const std::string &text = {})
@@ -59,7 +37,7 @@ int main(int argc, char **argv)
 	try
 	{
 		{
-			auto approach = fixture();
+			auto approach = docking_fixture();
 			approach["maps"][0]["entities"][0]["x_mm"] = 30000;
 			const auto content = load(approach);
 			World flight;
@@ -101,7 +79,7 @@ int main(int argc, char **argv)
 		// Flush ports exercise intended hull contact, not only protruding docking booms.
 		for (const bool flush_ports : {false, true})
 		{
-			auto source = fixture();
+			auto source = docking_fixture();
 			auto &ship = source["entities"][0];
 			ship["motion_model"] = "inertial";
 			ship["collision"] = {{"shape", "box"},
@@ -154,7 +132,7 @@ int main(int argc, char **argv)
 		}
 		for (const bool powered : {false, true})
 		{
-			auto source = fixture();
+			auto source = docking_fixture();
 			source["maps"][0]["entities"][0]["x_mm"] = 30000;
 			if (powered)
 			{
@@ -211,7 +189,7 @@ int main(int argc, char **argv)
 		}
 
 		{
-			auto source = fixture();
+			auto source = docking_fixture();
 			source["entities"][0]["logistics"]["batch_size"] = 1;
 			for (auto &port : source["entities"][0]["docking"]["ports"])
 				port["units_per_second"] = 1;
@@ -283,7 +261,7 @@ int main(int argc, char **argv)
 			    "Crossed delivery conserves supply at receiving endpoint");
 		}
 
-		const auto source = fixture();
+		const auto source = docking_fixture();
 		const auto catalog = load(source);
 		World w;
 		w.load(catalog, "test.map", {{"crew", "test.away"}});

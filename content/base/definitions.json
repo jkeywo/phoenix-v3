@@ -63764,14 +63764,6 @@
 						]
 					},
 					{
-						"id": "docking",
-						"kind": "component",
-						"component": "docking",
-						"label": "Docking",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
 						"id": "craft",
 						"kind": "component",
 						"component": "craft",
@@ -63927,14 +63919,6 @@
 								]
 							}
 						]
-					},
-					{
-						"id": "docking",
-						"kind": "component",
-						"component": "docking",
-						"label": "Docking",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "craft",
@@ -64098,14 +64082,6 @@
 						]
 					},
 					{
-						"id": "docking",
-						"kind": "component",
-						"component": "docking",
-						"label": "Docking",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
 						"id": "craft",
 						"kind": "component",
 						"component": "craft",
@@ -64261,14 +64237,6 @@
 								]
 							}
 						]
-					},
-					{
-						"id": "docking",
-						"kind": "component",
-						"component": "docking",
-						"label": "Docking",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "craft",
@@ -65418,14 +65386,6 @@
 						]
 					},
 					{
-						"id": "docking",
-						"kind": "component",
-						"component": "docking",
-						"label": "Docking",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
 						"id": "craft",
 						"kind": "component",
 						"component": "craft",
@@ -65553,14 +65513,6 @@
 								]
 							}
 						]
-					},
-					{
-						"id": "docking",
-						"kind": "component",
-						"component": "docking",
-						"label": "Docking",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "craft",

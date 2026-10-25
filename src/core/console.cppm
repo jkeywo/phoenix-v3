@@ -43,6 +43,10 @@ struct ConsoleSystemStatus
 		return condition != SystemCondition::Operational;
 	}
 };
+struct ConsoleDockAction
+{
+	std::string id, label, action, port, text;
+};
 // One instance per routed Console. No renderer, device or authoritative world.
 class ConsoleModel
 {
@@ -91,6 +95,8 @@ public:
 	bool selection_action(const std::string &, const std::string &, const std::string &);
 	bool logistics_action(const std::string &, const std::string &, const std::string & = {});
 	Json docking() const;
+	std::optional<ConsoleDockAction> target_docking_control(EntityId target) const;
+	bool target_docking_action(EntityId target, const std::string &action);
 	bool docking_action(const std::string &, const std::string &, const std::string & = {});
 	Json craft() const;
 	bool craft_action(const std::string &, const std::string &, const std::string & = {});

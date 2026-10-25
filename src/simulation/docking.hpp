@@ -747,6 +747,26 @@ Json docking_board(const ConsoleAddress &a) const
 				                          {"port", p.id},
 				                          {"compatibility", p.compatibility},
 				                          {"available", !dock_port_busy(id, i)}});
+				auto &choices = out["targets"].back()["local_ports"] = Json::array();
+				if (!e.has<DockConnection>() && !ftl_preparing(a.ship) && !ftl_preparing(id) &&
+				    !dock_port_busy(id, i) && !dock_chain_contains(id, a.ship))
+					for (std::size_t own = 0; own < definition(a.ship).docking.size(); ++own)
+					{
+						const auto &local = definition(a.ship).docking[own];
+						if (!dock_port_busy(a.ship, own) && dock_permitted(a.ship, own, id, i) &&
+						    std::any_of(e.get<EntityControls>().controllers.begin(),
+						                e.get<EntityControls>().controllers.end(),
+						                [&](const auto &controller)
+						                {
+							                return controller.definition.console == a.console &&
+							                       controller.definition.id == local.controller && controller.human;
+						                }))
+						{
+							// One usable local port per remote port keeps the contextual choice and report bounded.
+							choices.push_back(local.id);
+							break;
+						}
+					}
 				if (out["targets"].size() >= 128)
 					return out;
 			}

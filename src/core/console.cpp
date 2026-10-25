@@ -1423,6 +1423,55 @@ bool ConsoleModel::logistics_action(const std::string &action, const std::string
 		}
 	return false;
 }
+std::optional<ConsoleDockAction> ConsoleModel::target_docking_control(EntityId target) const
+{
+	if (!target || !observation_ || target == observation_->own.id)
+		return std::nullopt;
+	const auto board = docking();
+	auto human = [&](const std::string &id)
+	{
+		for (const auto &controller : controller_rows(observation_->gameplay))
+			if (controller.at("id") == id)
+				return controller.value("human", false);
+		return false;
+	};
+	auto choice = [&](const std::string &action, const Json &port, const std::string &text, const std::string &label)
+	{
+		const auto key = port.at("id").get<std::string>();
+		return ConsoleDockAction{"contact-dock/" + std::to_string(target) + "/" + action + "/" + key + "/" + text,
+		                         localise(label), action, key, text};
+	};
+	for (const auto &port : board.value("ports", Json::array()))
+		if (port.at("target") == target && port.at("phase") != "free" && human(port.at("controller")))
+		{
+			const auto phase = port.at("phase").get<std::string>();
+			if (phase == "separating")
+				return std::nullopt;
+			return choice(phase == "approach" ? "cancel" : "undock", port, "",
+			              phase == "approach" ? "Cancel docking" : "Undock");
+		}
+	bool speed = false, heading = false;
+	for (const auto &controller : controller_rows(observation_->gameplay))
+		for (const auto &[key, channel] : controller.at("commands").items())
+		{
+			speed |= channel.at("action") == "speed_mm_s";
+			heading |= channel.at("action") == "heading_mdeg";
+		}
+	for (const auto &remote : board.value("targets", Json::array()))
+		if (remote.at("entity") == target)
+			for (const auto &port : board.value("ports", Json::array()))
+				if (port.at("phase") == "free" && human(port.at("controller")))
+					for (const auto &permitted : remote.value("local_ports", Json::array()))
+						if (permitted == port.at("id"))
+							return choice(speed && heading ? "assist" : "connect", port,
+							              std::to_string(target) + "/" + remote.at("port").get<std::string>(), "Dock");
+	return std::nullopt;
+}
+bool ConsoleModel::target_docking_action(EntityId target, const std::string &action)
+{
+	const auto control = target_docking_control(target);
+	return control && control->id == action && docking_action(control->action, control->port, control->text);
+}
 bool ConsoleModel::docking_action(const std::string &action, const std::string &system, const std::string &text)
 {
 	if (!observation_)

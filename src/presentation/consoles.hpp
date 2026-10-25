@@ -901,6 +901,15 @@ button.on-screen-active .share-live {display:block;}
 			const bool accepted = !inline_console_.empty() && inline_model_.act(action.substr(7));
 			return accepted;
 		}
+		if (action.starts_with("contact-dock/"))
+		{
+			if (settings_open_ || !authored_component_visible("readouts"))
+				return false;
+			const auto target = inline_console_.empty() ? model_.sensor_contact() : inline_model_.sensor_contact();
+			cancel_pointer();
+			model_.release_controls();
+			return model_.target_docking_action(target, action);
+		}
 		if (action.starts_with("radar-contact/"))
 			return select_radar_contact(std::stoull(action.substr(14)));
 		if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
@@ -2888,7 +2897,7 @@ button.on-screen-active .share-live {display:block;}
 			              return specialised_controls.contains(control.first);
 		              });
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
-		if (!inline_console_.empty())
+		if (helm)
 			readout_values_ = helm_target_readouts();
 
 		if (model_.observation())
@@ -3298,7 +3307,12 @@ button.on-screen-active .share-live {display:block;}
 		gameplay_identity = Json::array();
 		for (const auto &[name, text] : gameplay_readouts)
 			gameplay_identity.push_back(name);
-		const auto readout_signature = gameplay_identity.dump();
+		const auto dock_control =
+		    helm ? model_.target_docking_control(inline_console_.empty() ? model_.sensor_contact()
+		                                                                 : inline_model_.sensor_contact())
+		         : std::optional<ConsoleDockAction>{};
+		const auto readout_signature =
+		    gameplay_identity.dump() + (dock_control ? dock_control->id + dock_control->label : "");
 		if (gameplay_readout_signature_ != readout_signature)
 		{
 			elements_.clear();
@@ -3311,6 +3325,9 @@ button.on-screen-active .share-live {display:block;}
 				    "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"></p>";
 				displayed_values_.erase(name);
 			}
+			if (dock_control)
+				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(dock_control->id)) + "\">" +
+				          Rml::StringUtilities::EncodeRml(dock_control->label) + "</button>";
 			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
 			document_->GetElementById("sensor-readouts")->SetInnerRML(sensor_readouts);
 			gameplay_readout_signature_ = readout_signature;
@@ -3597,6 +3614,11 @@ button.on-screen-active .share-live {display:block;}
 		}
 		for (const auto &[name, text] : gameplay_readouts)
 			place(app, region, id(name));
+		if (dock_control)
+		{
+			app.screen_controls.emplace_back(id(dock_control->id), dock_control->label);
+			place(app, region, id(dock_control->id));
+		}
 		for (const auto &card : cards)
 			place(app, region, id("resource/" + card.id));
 		for (const auto &field : app.screen_inputs)
