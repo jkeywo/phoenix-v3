@@ -2,6 +2,8 @@ module;
 #include <algorithm>
 #include <chrono>
 #include <deque>
+#include <cstdlib>
+#include <iostream>
 #include <map>
 #include <cstdint>
 #include <memory>
@@ -27,6 +29,39 @@ namespace phoenix
 {
 namespace
 {
+struct NetworkPollProfile
+{
+	using Clock = std::chrono::steady_clock;
+	bool enabled = std::getenv("PHOENIX_PROFILE_NETWORK") != nullptr;
+	Clock::time_point previous = Clock::now();
+	std::map<std::string, double> stages;
+	void mark(const char *stage)
+	{
+		if (enabled)
+		{
+			const auto now = Clock::now();
+			stages[stage] = std::chrono::duration<double, std::milli>(now - previous).count();
+			previous = now;
+		}
+	}
+	void finish(bool advanced)
+	{
+		if (!enabled || !advanced)
+			return;
+		static thread_local std::map<std::string, double> totals;
+		static thread_local unsigned count = 0;
+		for (const auto &[name, ms] : stages)
+			totals[name] += ms;
+		if (++count == 100)
+		{
+			for (auto &[name, ms] : totals)
+				ms /= count;
+			std::cout << "PHOENIX_NETWORK_PROFILE " << Json(totals).dump() << std::endl;
+			totals.clear();
+			count = 0;
+		}
+	}
+};
 class NetworkHost final : public SessionPort
 {
 	struct Client
@@ -965,6 +1000,8 @@ public:
 	}
 	void poll() override
 	{
+		NetworkPollProfile profile;
+		const auto before_tick = ticks();
 		const auto current = std::chrono::steady_clock::now();
 		const auto wall = std::max<std::int64_t>(
 		    0, std::chrono::duration_cast<std::chrono::milliseconds>(current - last_poll_).count());
@@ -986,6 +1023,7 @@ public:
 				if (event.kind == LinkEvent::error)
 					message_ = event.data;
 			}
+			profile.mark("transport");
 			if (fleet_)
 			{
 				fleet_->poll();
@@ -1021,6 +1059,7 @@ public:
 					journal_->flush();
 				}
 			}
+			profile.mark("consensus_apply");
 			if (game_ && game_->checkpoint_ready() &&
 			    (fleet_ ? fleet_->checkpoint_due() : consensus_ && consensus_->checkpoint_due()))
 			{
@@ -1033,6 +1072,7 @@ public:
 				if (!fleet_)
 					journal_->flush();
 			}
+			profile.mark("checkpoint");
 			if (!running() || !available())
 				tick_due_ = false;
 			if (available() && proposal_.empty())
@@ -1053,6 +1093,7 @@ public:
 					last_proposal_was_tick_ = false;
 				}
 			}
+			profile.mark("proposal");
 			if (want_local_ && available())
 			{
 				if (game_ && game_->owned(member_, local, 1))
@@ -1067,6 +1108,7 @@ public:
 				if ((!client.connected || client.renew) && game_ && game_->owned(member_, id))
 					release(id, 1, false);
 			}
+			profile.mark("leases");
 			if (running() && available())
 				if (const auto ship = world_->authoritative_world().ship_for_slot(world_->setup().local_slot))
 					inference_.poll(world_->authoritative_world(), *ship,
@@ -1074,7 +1116,10 @@ public:
 					                {
 						                return intent(frame);
 					                });
+			profile.mark("inference");
 			project();
+			profile.mark("projection");
+			profile.finish(ticks() > before_tick);
 		}
 		catch (const std::exception &error)
 		{

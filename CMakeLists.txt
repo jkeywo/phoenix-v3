@@ -13,6 +13,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_link_options(-pthread)
 endif()
 
+# Opt-in while the browser worker and isolated hosting path are validated.
+option(PHOENIX_BROWSER_THREADS "Run browser local simulation on a shared-memory worker" OFF)
+set(PHOENIX_EXCEPTION_FLAG -fexceptions)
+if(EMSCRIPTEN AND PHOENIX_BROWSER_THREADS)
+	set(PHOENIX_EXCEPTION_FLAG -fwasm-exceptions)
+	add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fwasm-exceptions>" "-sSUPPORT_LONGJMP=wasm")
+	add_link_options(-fwasm-exceptions "-sSUPPORT_LONGJMP=wasm")
+	add_compile_options(-pthread)
+	add_compile_definitions(PHOENIX_BROWSER_THREADS=1)
+	add_link_options(-pthread "-sPTHREAD_POOL_SIZE=1" "-sALLOW_MEMORY_GROWTH=1" "-sMALLOC=mimalloc")
+endif()
+
 function(phoenix_fixture target)
 	if(EMSCRIPTEN)
 		target_compile_definitions(${target} PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
@@ -62,6 +74,13 @@ if(EMSCRIPTEN)
 	set(OPENGL_VERSION "ES 3.0" CACHE STRING "Phoenix browser graphics baseline" FORCE)
 endif()
 FetchContent_MakeAvailable(flecs raylib freetype)
+# GLFW exports the standard NVIDIA/AMD hybrid-GPU preference on Windows.
+# Keep an opt-out for battery-oriented builds and record the selected GPU in captures.
+option(PHOENIX_PREFER_HIGH_PERFORMANCE_GPU "Prefer the discrete GPU on hybrid Windows machines" OFF)
+if(WIN32 AND NOT EMSCRIPTEN AND PHOENIX_PREFER_HIGH_PERFORMANCE_GPU)
+	target_compile_definitions(glfw PRIVATE _GLFW_USE_HYBRID_HPG)
+endif()
+
 target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
 add_library(Freetype::Freetype ALIAS freetype)
 set(FREETYPE_INCLUDE_DIRS "${freetype_SOURCE_DIR}/include" CACHE STRING "" FORCE)
@@ -182,7 +201,7 @@ FetchContent_MakeAvailable(qrcodegen)
 add_library(phoenix_qr STATIC ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp)
 target_include_directories(phoenix_qr PUBLIC ${qrcodegen_SOURCE_DIR}/cpp)
 if(EMSCRIPTEN)
-	target_compile_options(phoenix_qr PRIVATE -fexceptions)
+	target_compile_options(phoenix_qr PRIVATE ${PHOENIX_EXCEPTION_FLAG})
 endif()
 file(CONFIGURE OUTPUT "${miniz_BINARY_DIR}/miniz_export.h" CONTENT "#pragma once\n#define MINIZ_EXPORT\n")
 add_library(
@@ -227,8 +246,8 @@ target_sources(
 )
 target_link_libraries(phoenix_foundation PUBLIC nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
-	target_compile_options(phoenix_foundation PUBLIC -fexceptions)
-	target_link_options(phoenix_foundation INTERFACE -fexceptions)
+	target_compile_options(phoenix_foundation PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_foundation INTERFACE ${PHOENIX_EXCEPTION_FLAG})
 endif()
 add_library(phoenix_session_api STATIC)
 
@@ -387,7 +406,7 @@ endif()
 add_library(phoenix_workshop_test_host STATIC src/simulation/workshop_test.cpp)
 target_sources(phoenix_workshop_test_host PUBLIC FILE_SET CXX_MODULES FILES src/simulation/workshop_test.cppm)
 target_link_libraries(phoenix_workshop_test_host PUBLIC phoenix_simulation)
-add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.cpp)
+add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.cpp src/session/frame.cpp)
 target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
 add_library(phoenix_files STATIC src/platform/imports.cpp)
 target_link_libraries(phoenix_files PUBLIC phoenix_content)
@@ -408,7 +427,7 @@ add_library(
 add_library(phoenix_devices STATIC)
 if(EMSCRIPTEN)
 	target_sources(phoenix_devices PRIVATE src/platform/browser_devices.cpp)
-	target_compile_options(phoenix_devices PUBLIC -fexceptions)
+	target_compile_options(phoenix_devices PUBLIC ${PHOENIX_EXCEPTION_FLAG})
 else()
 	target_sources(phoenix_devices PRIVATE src/platform/native_devices.cpp)
 	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static)
@@ -826,7 +845,8 @@ if(EMSCRIPTEN)
 				"-sASSERTIONS=1"
 				"-sFORCE_FILESYSTEM=1"
 				"-sSTACK_SIZE=1048576"
-				"-sSTACK_OVERFLOW_CHECK=2"
+				"$<$<CONFIG:Release>:-sSTACK_OVERFLOW_CHECK=1>"
+				"$<$<NOT:$<CONFIG:Release>>:-sSTACK_OVERFLOW_CHECK=2>"
 				"-g2"
 		)
 		# Crew clients receive gameplay presentation content from their ship server.
@@ -866,6 +886,14 @@ if(EMSCRIPTEN)
 	configure_file(web/index.html "${CMAKE_CURRENT_BINARY_DIR}/index.html" COPYONLY)
 	configure_file(web/menu.css "${CMAKE_CURRENT_BINARY_DIR}/menu.css" COPYONLY)
 	configure_file(web/launcher.mjs "${CMAKE_CURRENT_BINARY_DIR}/launcher.mjs" COPYONLY)
+	configure_file(web/runtime-environment.mjs "${CMAKE_CURRENT_BINARY_DIR}/runtime-environment.mjs" COPYONLY)
+	configure_file(web/isolation-worker.js "${CMAKE_CURRENT_BINARY_DIR}/isolation-worker.js" COPYONLY)
+	set(PHOENIX_ROOT_THREADED false)
+	if(PHOENIX_BROWSER_THREADS)
+		set(PHOENIX_ROOT_THREADED true)
+	endif()
+	configure_file(web/runtime-capabilities.json.in "${CMAKE_CURRENT_BINARY_DIR}/runtime-capabilities.json" @ONLY)
+
 	configure_file(web/base-verifier.mjs "${CMAKE_CURRENT_BINARY_DIR}/base-verifier.mjs" COPYONLY)
 	configure_file(web/base-verifier-worker.js "${CMAKE_CURRENT_BINARY_DIR}/base-verifier-worker.js" COPYONLY)
 	configure_file(web/session-pump.mjs "${CMAKE_CURRENT_BINARY_DIR}/session-pump.mjs" COPYONLY)

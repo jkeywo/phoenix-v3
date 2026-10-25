@@ -1,6 +1,8 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
 #include <iostream>
+#include <chrono>
+#include <thread>
 #include <stdexcept>
 #include <cstdint>
 #include <map>
@@ -381,6 +383,66 @@ int main()
 		require(session->generation() != started_generation && !session->running() && !session->observation() &&
 		            session->catalog().ordered_packs.empty(),
 		        "Reset must release authority and content together");
+#if !defined(__EMSCRIPTEN__) || defined(PHOENIX_BROWSER_THREADS)
+		{
+			// Synthetic production-loader fixture: concurrency must preserve the same
+			// fixed-tick state and immutable readers; elapsed time is only a hang guard.
+			auto worker = make_frame_session(make_local_session());
+			worker->add_pack(write_pack(pack));
+			const GameSetup setup{"test.map", {{"test.slot", "test.ship"}}, "test.slot"};
+			worker->start(setup);
+			const auto retained = worker->console_snapshot(1);
+			require(retained != nullptr, "Worker start must publish its admitted Console");
+			const auto retained_gameplay = retained->gameplay;
+			worker->tick();
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+			while (worker->ticks() < 3 && std::chrono::steady_clock::now() < deadline)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				worker->poll();
+			}
+			const auto checkpoint = pause_frame_session_checkpoint(worker);
+			const auto worker_state = state(checkpoint);
+			require(worker->ticks() >= 3 && retained->gameplay == retained_gameplay,
+			        "Worker must advance fixed ticks without modifying a retained reader");
+			auto serial = make_local_session();
+			serial->add_pack(write_pack(pack));
+			serial->start(setup);
+			for (std::uint64_t tick = 0; tick < worker->ticks(); ++tick)
+				serial->tick();
+			require(state(serial->save()) == worker_state, "Worker continuation must match serial execution exactly");
+			const OperatingCommand queued{retained->own.id, "speed_mm_s", 1200};
+			require(worker->dispatch_console_command(1, queued), "UI command delivery must enter the worker queue");
+			require(serial->console_command(1, queued), "Synthetic owned engine command must be admissible");
+			const OperatingCommand refused{retained->own.id + 9999, "speed_mm_s", 1200};
+			require(worker->dispatch_console_command(1, refused) && !serial->console_command(1, refused),
+			        "Queued delivery must leave foreign-target admission to the authoritative session");
+			const auto queued_tick = worker->ticks();
+			worker->tick();
+			const auto command_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+			while (worker->ticks() <= queued_tick && std::chrono::steady_clock::now() < command_deadline)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				worker->poll();
+			}
+			const auto command_checkpoint = pause_frame_session_checkpoint(worker);
+			while (serial->ticks() < worker->ticks())
+				serial->tick();
+			require(state(command_checkpoint) == state(serial->save()),
+			        "Queued commands and refusals must match ordered authoritative execution");
+			require(frame_session_profile(worker).at("refused_commands") == 1,
+			        "The worker must record the authoritative refusal after queued delivery");
+			require(worker->release_console(1) && !worker->console_snapshot(1) &&
+			            !worker->dispatch_console_command(1, queued),
+			        "Worker release must synchronously retire admission");
+			require(worker->claim_console(1, {retained->own.id, retained->console}),
+			        "Worker route reuse must pass real admission");
+			const auto before_clear = worker->generation();
+			worker->clear_packs();
+			require(worker->generation() != before_clear && !worker->running() && !worker->console_snapshot(1),
+			        "Worker reset must retire content and projections together");
+		}
+#endif
 		std::cout << "PASS local setup, rollback, admission, projections and portable paused recovery\n";
 	}
 	catch (const std::exception &error)

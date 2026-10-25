@@ -3,7 +3,8 @@ param(
 	[string[]]$BuildTarget,
 	[ValidateRange(1, 1024)][int]$Jobs = 8,
 	[switch]$Reconfigure,
-	[switch]$ConfigureOnly
+	[switch]$ConfigureOnly,
+	[switch]$Threaded
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -38,8 +39,10 @@ try
 		$toolPaths = @("$repo/.tools/emsdk", "$repo/.tools/emsdk/upstream/emscripten", "$repo/.tools/python/ninja/data/bin", "$repo/.tools/python/bin")
 		$env:PATH = ($toolPaths + $env:PATH) -join [System.IO.Path]::PathSeparator
 	}
+	$threadedRequested = $Target -eq 'web' -and $PSBoundParameters.ContainsKey('Threaded')
+	$threadedArguments = if ($threadedRequested) { @("-DPHOENIX_BROWSER_THREADS=$(if ($Threaded) { 'ON' } else { 'OFF' })") } else { @() }
 	# Generated builds already rerun CMake when tracked configuration inputs change.
-	if ($Reconfigure -or $ConfigureOnly -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))
+	if ($Reconfigure -or $ConfigureOnly -or $threadedRequested -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))
 	{
 		if ($Target -eq 'native')
 		{
@@ -47,7 +50,7 @@ try
 		}
 		else
 		{
-			& $cmake -S . -B $buildDirectory -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$repo/.tools/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" -DPLATFORM=Web
+			& $cmake -S . -B $buildDirectory -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$repo/.tools/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" -DPLATFORM=Web @threadedArguments
 		}
 		if ($LASTEXITCODE)
 		{

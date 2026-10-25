@@ -21,6 +21,10 @@ void focus_semantic_text(const std::string &)
 void publish_semantics(const Application &)
 {
 }
+bool semantic_actions_pending()
+{
+	return false;
+}
 void drain_semantic_actions(Application &)
 {
 }

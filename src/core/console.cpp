@@ -942,7 +942,7 @@ bool ConsoleModel::on_screen(const std::string &widget, const std::vector<std::i
 	if (update)
 		command.generation = session->public_board().at("display").at("revision");
 	const auto eligible = eligible_console_command(*observation_, layout_, session->public_board(), command);
-	const bool accepted = eligible && session->console_command(route_, eligible->command);
+	const bool accepted = eligible && session->dispatch_console_command(route_, eligible->command);
 	if (!update)
 		announcement_ = localise(accepted ? "Viewscreen request sent" : "The server refused that control request");
 	return accepted;
@@ -964,7 +964,7 @@ bool ConsoleModel::set_waypoint(std::int64_t x, std::int64_t y, bool active)
 					command.arguments = {x, y};
 					command.console = observation_->console;
 					return operating_arguments_valid(OperatingAction::Waypoint, command.value, command.arguments) &&
-					       session->console_command(route_, command);
+					       session->dispatch_console_command(route_, command);
 				}
 	return false;
 }
@@ -1317,7 +1317,7 @@ bool ConsoleModel::logistics_action(const std::string &action, const std::string
 			c.controller = ctrl.at("id");
 			c.generation = ctrl.at("generation");
 			c.text = text;
-			if (const auto session = owner_.lock(); session && session->console_command(route_, c))
+			if (const auto session = owner_.lock(); session && session->dispatch_console_command(route_, c))
 				return true;
 		}
 	return false;
@@ -1338,7 +1338,7 @@ bool ConsoleModel::docking_action(const std::string &action, const std::string &
 			c.controller = ctrl.at("id");
 			c.generation = ctrl.at("generation");
 			c.text = text;
-			if (const auto session = owner_.lock(); session && session->console_command(route_, c))
+			if (const auto session = owner_.lock(); session && session->dispatch_console_command(route_, c))
 				return true;
 		}
 	return false;
@@ -1363,7 +1363,7 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 					command.generation = ctrl.at("generation");
 					command.text = target;
 					const auto session = owner_.lock();
-					if (session && session->console_command(route_, command))
+					if (session && session->dispatch_console_command(route_, command))
 						return true;
 				}
 	return false;
@@ -1387,7 +1387,7 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 					c.controller = ctrl.at("id");
 					c.generation = ctrl.at("generation");
 					const auto session = owner_.lock();
-					if (session && session->console_command(route_, c))
+					if (session && session->dispatch_console_command(route_, c))
 						return true;
 				}
 	return false;
@@ -1406,7 +1406,7 @@ bool ConsoleModel::team_action(const std::string &action, const std::string &tea
 					command.console = observation_->console;
 					command.controller = ctrl.at("id");
 					command.generation = ctrl.at("generation");
-					if (auto session = owner_.lock(); session && session->console_command(route_, command))
+					if (auto session = owner_.lock(); session && session->dispatch_console_command(route_, command))
 						return true;
 				}
 	return false;
@@ -1465,7 +1465,7 @@ bool ConsoleModel::personnel_action(const std::string &action, const std::string
 	command.text = duty;
 	command.generation = personnel().at("revision");
 	const auto session = owner_.lock();
-	return session && session->console_command(route_, command);
+	return session && session->dispatch_console_command(route_, command);
 }
 Json ConsoleModel::conversations() const
 {
@@ -1497,7 +1497,7 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 		auto session = owner_.lock();
 		const auto eligible =
 		    session ? eligible_console_command(*observation_, layout_, session->public_board(), command) : std::nullopt;
-		return eligible && session->console_command(route_, eligible->command);
+		return eligible && session->dispatch_console_command(route_, eligible->command);
 	}
 	return false;
 }
@@ -1521,7 +1521,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 		if (descriptor.value("label_value", false))
 			projected_label += " " + std::to_string(command.value);
 	}
-	if (!session->console_command(route_, command))
+	if (!session->dispatch_console_command(route_, command))
 	{
 		announcement_ = localise("The server refused that control request");
 		return false;

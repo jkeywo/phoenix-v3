@@ -2,6 +2,7 @@ module;
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <optional>
 #include <nlohmann/json.hpp>
@@ -124,9 +125,10 @@ struct Application
 		float x = 0, y = 0, width = 0, height = 0;
 		bool focused = false, enabled = true;
 	};
-	std::map<std::string, ControlPlacement> control_placements;
+	std::unordered_map<std::string, ControlPlacement> control_placements;
 	std::function<void(const std::string &)> focus_control;
 	bool console_surface_active = false;
+	bool budget_console_preparation = false;
 };
 const char *screen_name(Screen screen);
 bool game_active(const Application &app);

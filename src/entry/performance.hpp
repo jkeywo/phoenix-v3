@@ -12,6 +12,8 @@ struct FrameCapture
 	unsigned focused_frames = 0;
 	bool completed = false;
 	unsigned warmup = 120, target = 1800;
+	double seconds = 0, started = 0;
+	std::uint64_t started_tick = 0;
 	std::string output;
 	bool record(double simulation, double drawing, double total, const Application &app)
 	{
@@ -22,16 +24,23 @@ struct FrameCapture
 			--warmup;
 			return false;
 		}
+		if (!started)
+		{
+			started = GetTime();
+			started_tick = app.session->ticks();
+		}
 		samples.push_back({simulation * 1000, drawing * 1000, total * 1000});
 		if (IsWindowFocused())
 			++focused_frames;
 		for (const auto &[name, duration] : app.frame_metrics)
 			stages[name].push_back(duration * 1000);
-		if (samples.size() < target)
+		if (seconds > 0 ? GetTime() - started < seconds : samples.size() < target)
 			return false;
 		Json result{
 		    {"schema", 1},
 		    {"samples", samples.size()},
+		    {"capture_seconds", GetTime() - started},
+		    {"captured_ticks", app.session->ticks() - started_tick},
 		    {"units", "milliseconds"},
 		    {"framebuffer", {GetRenderWidth(), GetRenderHeight()}},
 		    {"configured_consoles", app.console_regions.size()},
@@ -39,6 +48,7 @@ struct FrameCapture
 		    {"simulation_tick", app.session->ticks()},
 		    {"focused_frames", focused_frames},
 		    {"timing_scope", "CPU wall time; total includes presentation/frame limiting; GPU not timed separately"}};
+		result["background"] = frame_session_profile(app.session);
 		unsigned active = 0;
 		for (const auto &region : app.console_regions)
 			if (app.session->console_observation(region.console))
@@ -61,10 +71,19 @@ struct FrameCapture
 			{
 				return values[static_cast<std::size_t>((values.size() - 1) * p)];
 			};
+			double sum = 0;
+			for (const auto value : values)
+				sum += value;
+			const double mean = sum / values.size();
+			if (index == 2)
+				result["fps"] = 1000 / mean;
 			result[index == 0   ? "simulation_and_poll"
 			       : index == 1 ? "draw_submission"
-			                    : "frame"] = {
-			    {"p50", percentile(.5)}, {"p95", percentile(.95)}, {"p99", percentile(.99)}, {"max", values.back()}};
+			                    : "frame"] = {{"mean", mean},
+			                                  {"p50", percentile(.5)},
+			                                  {"p95", percentile(.95)},
+			                                  {"p99", percentile(.99)},
+			                                  {"max", values.back()}};
 		}
 		write_file(output, json_bytes(result));
 		auto image = LoadImageFromScreen();

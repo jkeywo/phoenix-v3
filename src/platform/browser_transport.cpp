@@ -1,4 +1,7 @@
 module;
+#include "browser_main.hpp"
+#include <atomic>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <emscripten.h>
 #include <deque>
@@ -34,11 +37,13 @@ struct Queue
 	bool overflow = false;
 };
 std::map<unsigned, Queue *> queues;
-unsigned next_link = 1;
+std::mutex registry_mutex;
+std::atomic<unsigned> next_link{1};
 } // namespace
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_link_notice(unsigned id, int kind, const char *peer, const char *bytes,
                                                          int)
 {
+	std::lock_guard lock(registry_mutex);
 	auto found = queues.find(id);
 	if (found == queues.end())
 		return;
@@ -53,7 +58,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_link_notice(unsigned id, int kind, 
 	queue.events.push_back({static_cast<BrowserEvent>(kind), peer ? peer : "", data});
 }
 // clang-format off: embedded JavaScript must retain its operators.
-EM_JS(void, open_browser_transport, (unsigned id, const char* configuration), {
+EM_JS(void, open_browser_transport_js, (unsigned id, const char* configuration), {
     const config = JSON.parse(UTF8ToString(configuration));
     const registry = Module.phoenixLinks || (Module.phoenixLinks = new Map());
     const state = {socket:null,peers:new Map(),closed:false,retry:null}; registry.set(id,state);
@@ -135,34 +140,102 @@ EM_JS(void, open_browser_transport, (unsigned id, const char* configuration), {
     };
     connect();
 });
-EM_JS(bool, send_browser_envelope, (unsigned id, const char* bytes), {
+EM_JS(bool, send_browser_envelope_js, (unsigned id, const char* bytes), {
     return Module.phoenixLinks.get(id)?.envelope(UTF8ToString(bytes)) || false;
 });
-EM_JS(double, browser_direct_buffered, (unsigned id, const char* peer), {
+EM_JS(double, browser_direct_buffered_js, (unsigned id, const char* peer), {
     const channel=Module.phoenixLinks.get(id)?.peers.get(UTF8ToString(peer))?.channel;
     return channel?.readyState === 'open' ? channel.bufferedAmount : -1;
 });
-EM_JS(bool, send_browser_direct, (unsigned id, const char* peer, const char* bytes), {
+EM_JS(bool, send_browser_direct_js, (unsigned id, const char* peer, const char* bytes), {
     const channel=Module.phoenixLinks.get(id)?.peers.get(UTF8ToString(peer))?.channel;
     if (channel?.readyState !== 'open') return false;
     try { channel.send(UTF8ToString(bytes)); return true; } catch { return false; }
 });
-EM_JS(void, initiate_browser_peer, (unsigned id, const char* peer), {
+EM_JS(void, initiate_browser_peer_js, (unsigned id, const char* peer), {
     Module.phoenixLinks.get(id)?.initiate(UTF8ToString(peer));
 });
-EM_JS(void, reset_browser_peer, (unsigned id, const char* peer), {
+EM_JS(void, reset_browser_peer_js, (unsigned id, const char* peer), {
     Module.phoenixLinks.get(id)?.reset(UTF8ToString(peer));
 });
-EM_JS(void, signal_browser_peer, (unsigned id, const char* peer, const char* bytes), {
+EM_JS(void, signal_browser_peer_js, (unsigned id, const char* peer, const char* bytes), {
     Module.phoenixLinks.get(id)?.signal(UTF8ToString(peer),UTF8ToString(bytes));
 });
-EM_JS(void, close_browser_transport, (unsigned id), {
+EM_JS(void, close_browser_transport_js, (unsigned id), {
     const registry=Module.phoenixLinks; if (!registry) return;
     const state=registry.get(id); if (!state) return;
     state.closed=true; if (state.retry) clearTimeout(state.retry); if (state.socket) state.socket.close();
     for (const link of state.peers.values()) { if (link.channel) link.channel.close(); link.pc.close(); } registry.delete(id);
 });
 // clang-format on
+
+namespace
+{
+static void open_browser_transport(unsigned id, const char *configuration)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return open_browser_transport_js(id, configuration);
+	    });
+}
+static bool send_browser_envelope(unsigned id, const char *bytes)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return send_browser_envelope_js(id, bytes);
+	    });
+}
+static double browser_direct_buffered(unsigned id, const char *peer)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return browser_direct_buffered_js(id, peer);
+	    });
+}
+static bool send_browser_direct(unsigned id, const char *peer, const char *bytes)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return send_browser_direct_js(id, peer, bytes);
+	    });
+}
+static void initiate_browser_peer(unsigned id, const char *peer)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return initiate_browser_peer_js(id, peer);
+	    });
+}
+static void reset_browser_peer(unsigned id, const char *peer)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return reset_browser_peer_js(id, peer);
+	    });
+}
+static void signal_browser_peer(unsigned id, const char *peer, const char *bytes)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return signal_browser_peer_js(id, peer, bytes);
+	    });
+}
+static void close_browser_transport(unsigned id)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return close_browser_transport_js(id);
+	    });
+}
+} // namespace
 namespace phoenix
 {
 namespace
@@ -183,7 +256,10 @@ public:
 	explicit BrowserTransport(const LinkOptions &options) : id_(next_link++), options_(options), policy_(options)
 	{
 		verify_link_options(options);
-		queues[id_] = &queue_;
+		{
+			std::lock_guard lock(registry_mutex);
+			queues[id_] = &queue_;
+		}
 		const nlohmann::json config{{"url", options.url},
 		                            {"ice_servers", options.ice_servers},
 		                            {"packet_limit", link_packet_limit},
@@ -204,18 +280,24 @@ public:
 	}
 	~BrowserTransport() override
 	{
-		queues.erase(id_);
+		{
+			std::lock_guard lock(registry_mutex);
+			queues.erase(id_);
+		}
 		close_browser_transport(id_);
 	}
 	std::vector<LinkNotice> poll() override
 	{
 		std::vector<LinkNotice> result;
-		if (queue_.overflow)
-			result.push_back({LinkEvent::error, {}, "Transport receive backpressure; packets dropped"});
 		std::deque<Incoming> events;
-		events.swap(queue_.events);
-		queue_.bytes = 0;
-		queue_.overflow = false;
+		{
+			std::lock_guard lock(registry_mutex);
+			if (queue_.overflow)
+				result.push_back({LinkEvent::error, {}, "Transport receive backpressure; packets dropped"});
+			events.swap(queue_.events);
+			queue_.bytes = 0;
+			queue_.overflow = false;
+		}
 		for (const auto &event : events)
 			try
 			{

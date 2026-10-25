@@ -6,6 +6,8 @@ module;
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -21,6 +23,7 @@ module;
 module phoenix.presentation;
 import phoenix.content;
 #include "environment.hpp"
+#include "graphics_profile.hpp"
 #include "sprite_direction.hpp"
 
 namespace phoenix
@@ -261,6 +264,7 @@ struct SpriteScene::State
 	TextureCache textures;
 	Shader shader{};
 	Shader fog_shader{};
+	ShaderLocations fog_locations;
 	Material fog_material{};
 	Material drawMaterial{};
 	Mesh grid{};
@@ -355,6 +359,7 @@ struct SpriteScene::State
 		if (fog_shader.id)
 			UnloadShader(fog_shader);
 		fog_shader = {};
+		fog_locations.clear();
 		if (fog_material.maps)
 			MemFree(fog_material.maps);
 		fog_material = {};
@@ -748,7 +753,7 @@ struct SpriteScene::State
 	}
 	void fog_uniforms(Shader target, const Json &environment)
 	{
-		set_scene_fog(target, environment, rebase);
+		set_scene_fog(target, environment, rebase, fog_locations);
 	}
 };
 SpriteScene::SpriteScene() : state_(std::make_unique<State>())
@@ -858,9 +863,12 @@ std::set<EntityId> SpriteScene::prepare(const Catalog &catalog, std::span<const 
                                         Rectangle region, EntityId hidden, double simulation_time, bool reduced_motion)
 {
 	auto &s = *state_;
-	const auto destination = rlGetActiveFramebuffer();
-	s.init();
-	rlEnableFramebuffer(destination);
+	if (!s.shader.id)
+	{
+		const auto destination = rlGetActiveFramebuffer();
+		s.init();
+		rlEnableFramebuffer(destination);
+	}
 	s.update_smoke(bodies, simulation_time, reduced_motion);
 	s.prepare(catalog, bodies, camera, hidden);
 	const auto vp = s.cull_instances(camera, region);
@@ -881,10 +889,11 @@ std::set<EntityId> SpriteScene::prepare(const Catalog &catalog, std::span<const 
 }
 void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera,
                                 Rectangle region, const Json &lighting, double time, SceneDiagnostic diagnostic,
-                                Vector2 surface_size, const SceneEnvironment &environment)
+                                Vector2 surface_size, const SceneEnvironment &environment,
+                                std::optional<unsigned> target)
 {
+	GraphicsTrace trace;
 	auto &s = *state_;
-	const auto destination = rlGetActiveFramebuffer();
 	const auto get = [&](const char *key, float fallback)
 	{
 		return lighting.value(key, fallback);
@@ -956,7 +965,7 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 	const auto lightView = MatrixLookAt(lightEye, centre, lightCamera.up),
 	           lightProj = MatrixOrtho(-radius, radius, -radius, radius, .1, shadow_depth);
 	const auto lightVP = MatrixMultiply(lightView, lightProj);
-	const auto framebuffer = rlGetActiveFramebuffer();
+	const auto framebuffer = target ? *target : rlGetActiveFramebuffer();
 	const bool shadows = lighting.value("shadows", true) && (!s.items.empty() || !s.instance_batches.empty());
 	const auto clock = lighting.value("environment", Json::object());
 	const double simulation = clock.value("simulation_time", time), step = clock.value("simulation_step", 0.0);
@@ -967,12 +976,17 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 		s.last_simulation_time = simulation;
 	}
 	s.number("simulationTime", static_cast<float>(simulation - std::max(0.0, step - (time - s.simulation_received))));
+	trace.mark("sprite/casters");
 	if (shadows)
 	{
 		rlDrawRenderBatchActive();
+		trace.mark("sprite/shadow-flush");
 		rlDisableScissorTest();
+		trace.mark("sprite/shadow-scissor");
 		rlEnableFramebuffer(s.shadow.id);
+		trace.mark("sprite/shadow-bind");
 		rlViewport(0, 0, 2048, 2048);
+		trace.mark("sprite/shadow-target");
 		BeginMode3D(lightCamera);
 		rlSetMatrixProjection(lightProj);
 		ClearBackground(WHITE);
@@ -982,16 +996,19 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 		SetShaderValueMatrix(s.shader, s.loc("viewProjection"), lightVP);
 		rlDisableBackfaceCulling();
 		rlDisableColorBlend();
+		trace.mark("sprite/shadow-state");
 		for (const auto &item : s.items)
 			if (item.shadow_visible && !item.engine && !item.material->sprite.emissive)
 				s.draw_item(item, true);
 		s.draw_instances(true);
+		trace.mark("sprite/shadow-draw");
 		rlEnableColorBlend();
 		rlEnableBackfaceCulling();
 		EndMode3D();
 		rlDrawRenderBatchActive();
 		rlEnableFramebuffer(framebuffer);
 	}
+	trace.mark("sprite/shadow-restore");
 	if (surface_size.x <= 0)
 		surface_size = {static_cast<float>(GetRenderWidth()), static_cast<float>(GetRenderHeight())};
 	const float sx = framebuffer ? 1.f : surface_size.x / GetScreenWidth(),
@@ -1008,7 +1025,9 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 	const auto projection = scene_camera_projection(camera, region);
 	rlSetMatrixProjection(projection);
 	const auto vp = MatrixMultiply(MatrixLookAt(camera.position, camera.target, camera.up), projection);
+	trace.mark("sprite/colour-target");
 	s.navigation.background(catalog, environment, camera);
+	trace.mark("sprite/background");
 	std::vector<SceneBody> stars;
 	for (const auto &body : bodies)
 		if (!body.definition.empty() && catalog.entities.at(body.definition).at("render").contains("star"))
@@ -1021,7 +1040,8 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 		world_camera.target = Vector3Add(camera.target, s.rebase);
 		auto star_lighting = lighting;
 		star_lighting["shadows"] = false;
-		s.stars.draw(catalog, stars, world_camera, region, star_lighting, time, surface_size, environment, false);
+		s.stars.draw(catalog, stars, world_camera, region, star_lighting, time, surface_size, environment, false,
+		             framebuffer);
 		rlEnableScissorTest();
 		rlScissor(static_cast<int>(region.x * sx),
 		          static_cast<int>((surface_size.y / sy - region.y - region.height) * sy),
@@ -1032,12 +1052,13 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 		BeginMode3D(camera);
 		rlSetMatrixProjection(projection);
 	}
+	trace.mark("sprite/stars");
 	const auto fog_environment = lighting.value("environment", Json::object());
 	s.fog_uniforms(s.shader, fog_environment);
 	if (!fog_environment.value("nebulae", Json::array()).empty())
 	{
 		const int has_skybox = 0;
-		SetShaderValue(s.fog_shader, GetShaderLocation(s.fog_shader, "hasSkybox"), &has_skybox, SHADER_UNIFORM_INT);
+		SetShaderValue(s.fog_shader, s.fog_locations.get(s.fog_shader, "hasSkybox"), &has_skybox, SHADER_UNIFORM_INT);
 		if (has_skybox)
 		{
 			const auto texture = s.textures.load(environment.skybox, catalog.assets.at(environment.skybox));
@@ -1048,12 +1069,14 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 		else
 			s.fog_material.maps[MATERIAL_MAP_ALBEDO].texture = s.white;
 		s.fog_uniforms(s.fog_shader, fog_environment);
-		SetShaderValueMatrix(s.fog_shader, GetShaderLocation(s.fog_shader, "inverseViewProjection"), MatrixInvert(vp));
+		SetShaderValueMatrix(s.fog_shader, s.fog_locations.get(s.fog_shader, "inverseViewProjection"),
+		                     MatrixInvert(vp));
 		rlDisableDepthMask();
 		rlDisableBackfaceCulling();
 		DrawMesh(s.grid, s.fog_material, MatrixIdentity());
 		rlEnableDepthMask();
 	}
+	trace.mark("sprite/fog");
 	s.integer("shadowPass", 0);
 	s.integer("burstGraphic", 0);
 	s.integer("useShadows", shadows ? 1 : 0);
@@ -1200,9 +1223,11 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 		s.navigation.draw(catalog, environment, camera, s.rebase,
 		                  {region.x * sx, (surface_size.y / sy - region.y - region.height) * sy, region.width * sx,
 		                   region.height * sy});
+	trace.mark("sprite/colour-draw");
 	rlEnableBackfaceCulling();
 	EndMode3D();
 	rlViewport(0, 0, static_cast<int>(surface_size.x), static_cast<int>(surface_size.y));
 	EndScissorMode();
+	trace.mark("sprite/finish");
 }
 } // namespace phoenix

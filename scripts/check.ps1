@@ -1,4 +1,4 @@
-param([ValidateSet('all', 'native', 'web')][string]$Target = 'all')
+param([ValidateSet('all', 'native', 'web')][string]$Target = 'all', [switch]$Threaded)
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path $PSScriptRoot -Parent
@@ -124,7 +124,9 @@ try
 	if ($Target -ne 'native')
 	{
 		$nativeTrace = Get-Content -LiteralPath "$repo/build/native/continuation.trace"
-		& "$PSScriptRoot/build.ps1" -Target web
+		$webOptions = @{}
+		if ($PSBoundParameters.ContainsKey('Threaded')) { $webOptions.Threaded = $Threaded }
+		& "$PSScriptRoot/build.ps1" -Target web @webOptions
 		Push-Location build/web
 		try
 		{

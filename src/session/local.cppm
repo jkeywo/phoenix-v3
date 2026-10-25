@@ -34,4 +34,9 @@ std::shared_ptr<HostAccess> make_host_world();
 export namespace phoenix
 {
 std::shared_ptr<SessionPort> make_local_session();
-}
+// Explicit frontend composition: fixed ticks and projection production run away
+// from the render loop; the authoritative session still owns all admission.
+std::shared_ptr<SessionPort> make_frame_session(std::shared_ptr<SessionPort> session);
+Json frame_session_profile(const std::shared_ptr<SessionPort> &session);
+Bytes pause_frame_session_checkpoint(const std::shared_ptr<SessionPort> &session);
+} // namespace phoenix

@@ -74,12 +74,14 @@ std::set<EntityId> SceneRenderer::prepare(const Catalog &c, std::span<const Scen
 }
 void SceneRenderer::draw_prepared(const Catalog &c, std::span<const SceneBody> bodies, Camera3D camera,
                                   Rectangle region, const Json &lighting, double time, SceneDiagnostic diagnostic,
-                                  Vector2 size, const SceneEnvironment &environment)
+                                  Vector2 size, const SceneEnvironment &environment,
+                                  std::optional<unsigned> framebuffer)
 {
 	if (state_->select(c))
-		state_->models.draw_prepared(c, bodies, camera, region, lighting, time, size, environment);
+		state_->models.draw_prepared(c, bodies, camera, region, lighting, time, size, environment, true, framebuffer);
 	else
-		state_->sprites.draw_prepared(c, bodies, camera, region, lighting, time, diagnostic, size, environment);
+		state_->sprites.draw_prepared(c, bodies, camera, region, lighting, time, diagnostic, size, environment,
+		                              framebuffer);
 }
 void SceneRenderer::draw(const Catalog &c, std::span<const SceneBody> b, Camera3D cam, Rectangle r, const Json &l,
                          double t, SceneDiagnostic d, Vector2 size, const SceneEnvironment &e)

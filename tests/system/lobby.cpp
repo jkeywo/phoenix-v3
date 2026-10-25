@@ -928,6 +928,27 @@ int main(int argc, char **argv)
 				                         }) == 3;
 			    });
 		}
+#ifndef __EMSCRIPTEN__
+		{
+			auto actor_options = options;
+			actor_options.link.room = "actor-" + random_token();
+			actor_options.link.self = "actor-host";
+			actor_options.profile = "actor";
+			auto actor = make_frame_session(make_network_host(actor_options));
+			actor->add_pack(write_pack(pack));
+			actor->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "main"});
+			nodes = {actor};
+			pump(
+			    [&]
+			    {
+				    return actor->ticks() >= 3;
+			    });
+			const auto checkpoint = pause_frame_session_checkpoint(actor);
+			const auto profile = frame_session_profile(actor);
+			require(!checkpoint.empty() && profile.value("completed_ticks", 0ULL) == actor->ticks(),
+			        "Worker counts durable simulation commits from poll, rather than uncommitted tick requests");
+		}
+#endif
 		std::cout << "PASS authenticated slot arbitration, automatic setup transfer, per-player readiness, "
 		             "cancellation, durable activation, AI-only slots and portable recovery\n";
 	}

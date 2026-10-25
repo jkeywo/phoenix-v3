@@ -136,9 +136,9 @@ Shader shader(const char *fragment)
 		throw std::runtime_error("Navigation aid shader failed to compile");
 	return result;
 }
-void uniform(Shader shader, const char *name, const void *value, int type)
+void uniform(ShaderLocations &locations, Shader shader, const char *name, const void *value, int type)
 {
-	SetShaderValue(shader, GetShaderLocation(shader, name), value, type);
+	SetShaderValue(shader, locations.get(shader, name), value, type);
 }
 void quad(Vector3 p, Vector3 x, Vector3 y)
 {
@@ -162,7 +162,7 @@ double wrap(double value, double half)
 	return value - std::floor((value + half) / period) * period;
 }
 } // namespace
-void set_scene_fog(Shader target, const Json &environment, Vector3 rebase)
+void set_scene_fog(Shader target, const Json &environment, Vector3 rebase, ShaderLocations &locations)
 {
 	const auto volumes = environment.value("nebulae", Json::array());
 	const int count = static_cast<int>(volumes.size());
@@ -176,12 +176,12 @@ void set_scene_fog(Shader target, const Json &environment, Vector3 rebase)
 		extents[i] = {v.at("half_width"), v.at("half_height"), v.at("height"), v.at("shape").get<float>()};
 		colours[i] = {v.at("colour")[0], v.at("colour")[1], v.at("colour")[2], v.at("density")};
 	}
-	SetShaderValue(target, GetShaderLocation(target, "fogCount"), &count, SHADER_UNIFORM_INT);
-	SetShaderValueV(target, GetShaderLocation(target, "fogBounds[0]"), bounds.data(), SHADER_UNIFORM_VEC4, 32);
-	SetShaderValueV(target, GetShaderLocation(target, "fogExtents[0]"), extents.data(), SHADER_UNIFORM_VEC4, 32);
-	SetShaderValueV(target, GetShaderLocation(target, "fogColours[0]"), colours.data(), SHADER_UNIFORM_VEC4, 32);
+	SetShaderValue(target, locations.get(target, "fogCount"), &count, SHADER_UNIFORM_INT);
+	SetShaderValueV(target, locations.get(target, "fogBounds[0]"), bounds.data(), SHADER_UNIFORM_VEC4, 32);
+	SetShaderValueV(target, locations.get(target, "fogExtents[0]"), extents.data(), SHADER_UNIFORM_VEC4, 32);
+	SetShaderValueV(target, locations.get(target, "fogColours[0]"), colours.data(), SHADER_UNIFORM_VEC4, 32);
 	const auto origin = Vector3Negate(rebase);
-	SetShaderValue(target, GetShaderLocation(target, "fogOrigin"), &origin, SHADER_UNIFORM_VEC3);
+	SetShaderValue(target, locations.get(target, "fogOrigin"), &origin, SHADER_UNIFORM_VEC3);
 }
 NavigationEffects::~NavigationEffects()
 {
@@ -190,6 +190,7 @@ NavigationEffects::~NavigationEffects()
 void NavigationEffects::clear()
 {
 	textures_.clear();
+	locations_.clear();
 	for (auto &texture : defaults_)
 	{
 		if (texture.id)
@@ -221,12 +222,12 @@ void NavigationEffects::background(const Catalog &catalog, const SceneEnvironmen
 	if (has_skybox)
 		texture = textures_.load(environment.skybox, catalog.assets.at(environment.skybox));
 	SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
-	uniform(sky_shader_, "hasSkybox", &has_skybox, SHADER_UNIFORM_INT);
-	set_scene_fog(sky_shader_, fog, rebase);
+	uniform(locations_, sky_shader_, "hasSkybox", &has_skybox, SHADER_UNIFORM_INT);
+	set_scene_fog(sky_shader_, fog, rebase, locations_);
 	const int strip = texture.height == texture.width * 6;
 	SetTextureWrap(texture, strip ? TEXTURE_WRAP_CLAMP : TEXTURE_WRAP_REPEAT);
-	uniform(sky_shader_, "cubeStrip", &strip, SHADER_UNIFORM_INT);
-	SetShaderValueMatrix(sky_shader_, GetShaderLocation(sky_shader_, "inverseViewProjection"),
+	uniform(locations_, sky_shader_, "cubeStrip", &strip, SHADER_UNIFORM_INT);
+	SetShaderValueMatrix(sky_shader_, locations_.get(sky_shader_, "inverseViewProjection"),
 	                     MatrixInvert(MatrixMultiply(GetCameraMatrix(camera), rlGetMatrixProjection())));
 	rlDrawRenderBatchActive();
 	rlDisableDepthMask();
@@ -263,14 +264,14 @@ void NavigationEffects::draw(const Catalog &catalog, const SceneEnvironment &env
 		const Vector2 centre{p.x, p.z}, spacing{c.minor_spacing, c.major_spacing},
 		    widths{c.minor_line_width_px * .5f, c.major_line_width_px * .5f};
 		const Vector4 fade{c.patch_radius - c.fade_band, std::max(.0001f, c.fade_band), c.fade_exponent, 0};
-		uniform(grid_shader_, "phase", &phase, SHADER_UNIFORM_VEC2);
-		uniform(grid_shader_, "centre", &centre, SHADER_UNIFORM_VEC2);
-		uniform(grid_shader_, "spacing", &spacing, SHADER_UNIFORM_VEC2);
-		uniform(grid_shader_, "halfWidth", &widths, SHADER_UNIFORM_VEC2);
-		uniform(grid_shader_, "fadeParams", &fade, SHADER_UNIFORM_VEC4);
-		uniform(grid_shader_, "minorColour", c.minor_colour.data(), SHADER_UNIFORM_VEC4);
-		uniform(grid_shader_, "majorColour", c.major_colour.data(), SHADER_UNIFORM_VEC4);
-		uniform(grid_shader_, "opacity", &c.opacity, SHADER_UNIFORM_FLOAT);
+		uniform(locations_, grid_shader_, "phase", &phase, SHADER_UNIFORM_VEC2);
+		uniform(locations_, grid_shader_, "centre", &centre, SHADER_UNIFORM_VEC2);
+		uniform(locations_, grid_shader_, "spacing", &spacing, SHADER_UNIFORM_VEC2);
+		uniform(locations_, grid_shader_, "halfWidth", &widths, SHADER_UNIFORM_VEC2);
+		uniform(locations_, grid_shader_, "fadeParams", &fade, SHADER_UNIFORM_VEC4);
+		uniform(locations_, grid_shader_, "minorColour", c.minor_colour.data(), SHADER_UNIFORM_VEC4);
+		uniform(locations_, grid_shader_, "majorColour", c.major_colour.data(), SHADER_UNIFORM_VEC4);
+		uniform(locations_, grid_shader_, "opacity", &c.opacity, SHADER_UNIFORM_FLOAT);
 		BeginShaderMode(grid_shader_);
 		quad(p, {c.patch_radius, 0, 0}, {0, 0, c.patch_radius});
 		EndShaderMode();
@@ -309,10 +310,10 @@ void NavigationEffects::draw(const Catalog &catalog, const SceneEnvironment &env
 		}
 		const Vector4 viewport{region.x, region.y, region.width, region.height};
 		const Vector3 masks{c.centre_fade_inner, c.centre_fade_outer, c.edge_fade};
-		uniform(dust_shader_, "viewport", &viewport, SHADER_UNIFORM_VEC4);
-		uniform(dust_shader_, "tint", c.tint.data(), SHADER_UNIFORM_VEC3);
-		uniform(dust_shader_, "opacity", &c.opacity, SHADER_UNIFORM_FLOAT);
-		uniform(dust_shader_, "masks", &masks, SHADER_UNIFORM_VEC3);
+		uniform(locations_, dust_shader_, "viewport", &viewport, SHADER_UNIFORM_VEC4);
+		uniform(locations_, dust_shader_, "tint", c.tint.data(), SHADER_UNIFORM_VEC3);
+		uniform(locations_, dust_shader_, "opacity", &c.opacity, SHADER_UNIFORM_FLOAT);
+		uniform(locations_, dust_shader_, "masks", &masks, SHADER_UNIFORM_VEC3);
 		const auto forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
 		const auto right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
 		const auto up = Vector3CrossProduct(right, forward);
@@ -329,7 +330,7 @@ void NavigationEffects::draw(const Catalog &catalog, const SceneEnvironment &env
 		for (int layer = 0; layer < 3; ++layer)
 		{
 			rlDrawRenderBatchActive();
-			uniform(dust_shader_, "brightness", &c.brightness[layer], SHADER_UNIFORM_FLOAT);
+			uniform(locations_, dust_shader_, "brightness", &c.brightness[layer], SHADER_UNIFORM_FLOAT);
 			rlSetTexture(textures[layer].id);
 			for (int i = layer; i < c.count; i += 3)
 			{

@@ -186,6 +186,10 @@ public:
 	virtual bool command(const OperatingCommand &command) = 0;
 	virtual std::optional<Observation> observation() const = 0;
 	virtual std::vector<BodyView> viewscreen() const = 0;
+	virtual std::shared_ptr<const std::vector<SceneBody>> scene_snapshot() const
+	{
+		return {};
+	}
 	virtual std::vector<SceneBody> scene() const
 	{
 		std::vector<SceneBody> result;
@@ -239,6 +243,12 @@ public:
 	virtual bool console_command(std::uint64_t route, const OperatingCommand &value)
 	{
 		return route == 1 && command(value);
+	}
+	// UI delivery receipt: the authoritative session still admits the command.
+	// Actor/network adapters may queue delivery; direct sessions retain synchronous admission.
+	virtual bool dispatch_console_command(std::uint64_t route, const OperatingCommand &value)
+	{
+		return console_command(route, value);
 	}
 	virtual std::optional<Observation> console_observation(std::uint64_t route) const
 	{

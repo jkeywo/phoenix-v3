@@ -1,3 +1,4 @@
+import { prepareRuntimeEnvironment } from "./runtime-environment.mjs";
 import { startSessionPump } from "./session-pump.mjs";
 import { acquireSessionProfile } from "./session-profile.mjs";
 import { verifyLaunchBase } from "./base-verifier.mjs";
@@ -750,6 +751,11 @@ export async function zipEntry(bytes, name, optional = false) {
 }
 
 async function boot() {
+	const runtime = await prepareRuntimeEnvironment().catch((error) => {
+		document.getElementById("status").textContent = String(error);
+		return null;
+	});
+	if (!runtime || runtime.reloading) return;
 	const $ = (id) => document.getElementById(id);
 	const status = (message) => {
 		$("status").textContent = message;
@@ -1857,7 +1863,7 @@ async function boot() {
 				phoenixLaunchError: launchError,
 			};
 			const script = document.createElement("script");
-			script.src = o.type + ".js";
+			script.src = runtime.script(o.type);
 			script.onerror = () => launchError("Build files unavailable. Build and serve the web output first.");
 			document.body.append(script);
 		} catch (error) {

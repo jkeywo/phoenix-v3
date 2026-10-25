@@ -14,6 +14,9 @@
 
 import phoenix.presentation;
 import phoenix.session.api;
+#if defined(PHOENIX_SERVER) && defined(PHOENIX_BROWSER_THREADS)
+import phoenix.session.local;
+#endif
 #ifdef PHOENIX_SERVER
 import phoenix.network.lobby;
 #else
@@ -46,6 +49,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 	}
 	if (app.native_menu && (app.screen == phoenix::Screen::home || app.exit_requested))
 		return_to_menu();
+#if defined(PHOENIX_SERVER) && defined(PHOENIX_BROWSER_THREADS)
+	if (app.session)
+		app.session = phoenix::make_frame_session(std::move(app.session));
+
+#endif
+	app.budget_console_preparation = true;
 	if (app.session)
 		app.session->poll();
 #ifdef PHOENIX_SERVER
@@ -257,5 +266,6 @@ int main(int argc, char **argv)
 #endif
 	EM_ASM({ Module.phoenixStartSessionPump(); });
 	startup_phase("Drawing the first game frame…");
-	emscripten_set_main_loop(frame, 0, true);
+	// Avoid oversubscribing presentation on high-refresh browser displays.
+	emscripten_set_main_loop(frame, 60, true);
 }

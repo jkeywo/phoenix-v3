@@ -14,6 +14,8 @@ EM_JS(void, phoenix_persist_preferences, (), { Module.phoenixPersistMenu?.().cat
 // clang-format on
 #endif
 #include <array>
+#include <cstdint>
+#include <unordered_map>
 #include <charconv>
 #include <cmath>
 #include <nlohmann/json.hpp>
@@ -33,6 +35,7 @@ namespace
 Json translations = Json::object();
 std::string language = "en";
 bool pseudo_language = false;
+std::uint64_t translation_revision = 0;
 } // namespace
 void configure_translations(const Json &catalog)
 {
@@ -49,6 +52,7 @@ void configure_translations(const Json &catalog)
 				throw std::runtime_error("Invalid translated label");
 	}
 	translations = catalog.at("languages");
+	++translation_revision;
 }
 void select_language(const std::string &locale, bool pseudo)
 {
@@ -61,6 +65,26 @@ std::string translate(const std::string &key, bool pseudo)
 {
 	if (key.empty())
 		return {};
+	struct Cache
+	{
+		std::string locale;
+		bool pseudo = false;
+		std::uint64_t revision = 0;
+		std::unordered_map<std::string, std::string> labels;
+	};
+	thread_local Cache cache;
+	if (cache.locale != language || cache.pseudo != pseudo || cache.revision != translation_revision)
+	{
+		cache.labels.clear();
+		cache.locale = language;
+		cache.pseudo = pseudo;
+		cache.revision = translation_revision;
+	}
+	const bool cacheable = key.size() <= 1024;
+	if (cacheable)
+		if (const auto found = cache.labels.find(key); found != cache.labels.end())
+			return found->second;
+
 	static constexpr std::pair<const char *, const char *> labels[] = {
 	    {"home", "Home"},         {"host", "New game"}, {"join", "Join console"},
 	    {"view", "Viewscreen"},   {"edit", "Workshop"}, {"locale", "Toggle pseudo-localisation"},
@@ -78,7 +102,13 @@ std::string translate(const std::string &key, bool pseudo)
 			result = labels.at(result);
 	}
 	if (pseudo)
-		return "[ " + result + " ~~~ ]";
+		result = "[ " + result + " ~~~ ]";
+	if (cacheable)
+	{
+		if (cache.labels.size() >= 4096)
+			cache.labels.clear();
+		cache.labels.emplace(key, result);
+	}
 	return result;
 }
 std::string localise(const std::string &key)
@@ -199,7 +229,7 @@ std::vector<std::pair<std::string, std::string>> settings_tabs(const Application
 		tabs.emplace_back("settings.tab/session", "Session");
 	return tabs;
 }
-std::vector<SemanticControl> navigation_controls(const Application &app)
+std::vector<SemanticControl> navigation_controls(const Application &app, bool include_consoles)
 {
 	std::vector<SemanticControl> controls;
 	for (const char *id : {"home", "host", "join", "view", "edit", "locale", "settings", "ai.config", "lobby"})
@@ -232,12 +262,15 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 		    {id, translate(std::string(id) == "ai.config" ? "AI configuration" : id, app.pseudo_locale)});
 	}
 	for (const auto &[id, label] : app.screen_controls)
-		controls.push_back({id, translate(label, app.pseudo_locale)});
+		if (include_consoles || !id.starts_with("console/"))
+			controls.push_back({id, translate(label, app.pseudo_locale)});
 	for (const auto &[id, label] : app.screen_readouts)
-		controls.push_back({id, label, {}, false, {}, false, true});
+		if (include_consoles || !id.starts_with("console/"))
+			controls.push_back({id, label, {}, false, {}, false, true});
 	for (const auto &input : app.screen_inputs)
-		controls.push_back(
-		    {input.id, translate(input.label, app.pseudo_locale), {}, true, input.value, input.percentage});
+		if (include_consoles || !input.id.starts_with("console/"))
+			controls.push_back(
+			    {input.id, translate(input.label, app.pseudo_locale), {}, true, input.value, input.percentage});
 	for (auto &control : controls)
 	{
 		control.numeric = control.percentage || control.id.find("/heading/") != std::string::npos ||

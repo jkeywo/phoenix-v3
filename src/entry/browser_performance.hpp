@@ -6,9 +6,13 @@
 EM_JS(bool, phoenix_frame_profile_enabled, (), {
 	return new URLSearchParams(location.search).get('perf') === '1';
 });
+EM_JS(double, phoenix_frame_profile_seconds, (), {
+    return Math.min(600, Math.max(0, Number(new URLSearchParams(location.search).get('perf-seconds')) || 0));
+});
 EM_JS(void, phoenix_frame_profile_report, (const char* json), {
 	const report = JSON.parse(UTF8ToString(json));
 	report.visible = !document.hidden;
+    report.heap_bytes = HEAPU8.length;
 	console.info('Phoenix frame profile', JSON.stringify(report));
 	let output = document.getElementById('phoenix-frame-profile');
 	if (!output) {
@@ -32,6 +36,10 @@ EM_JS(void, phoenix_frame_profile_report, (const char* json), {
 struct BrowserFrameProfile
 {
 	bool enabled = phoenix_frame_profile_enabled();
+	double capture_seconds = phoenix_frame_profile_seconds();
+	unsigned warmup = 120;
+	std::uint64_t first_tick = 0;
+	bool complete = false;
 	double previous = 0, window_started = 0;
 	unsigned frames = 0;
 	std::vector<double> intervals;
@@ -39,12 +47,21 @@ struct BrowserFrameProfile
 
 	void record(double started, double drawn, double ended, double session_work, const phoenix::Application &app)
 	{
-		if (!enabled)
+		if (!enabled || complete)
 			return;
+		if (capture_seconds > 0 &&
+		    (!app.session || !app.session->running() || !app.frame_metrics.contains("preparation") || warmup))
+		{
+			if (app.frame_metrics.contains("preparation") && warmup)
+				--warmup;
+			previous = 0;
+			return;
+		}
 		if (!previous)
 		{
 			previous = started;
 			window_started = started;
+			first_tick = app.session ? app.session->ticks() : 0;
 			return;
 		}
 		intervals.push_back((started - previous) * 1000);
@@ -55,21 +72,28 @@ struct BrowserFrameProfile
 		totals["end"] += (ended - drawn) * 1000;
 		for (const auto &[name, seconds] : app.frame_metrics)
 			totals["presentation." + name] += seconds * 1000;
-		if (started - window_started < 5)
+		if (started - window_started < (capture_seconds > 0 ? capture_seconds : 5))
 			return;
 		for (auto &[name, milliseconds] : totals)
 			milliseconds /= frames;
 		std::sort(intervals.begin(), intervals.end());
-		const nlohmann::json report{
+		nlohmann::json report{
 		    {"fps", frames / (started - window_started)},
 		    {"frames", frames},
+		    {"capture_seconds", started - window_started},
+		    {"captured_ticks", app.session ? app.session->ticks() - first_tick : 0},
+		    {"frame_p99_ms", intervals[static_cast<std::size_t>((intervals.size() - 1) * .99)]},
 		    {"frame_p95_ms", intervals[static_cast<std::size_t>((intervals.size() - 1) * .95)]},
 		    {"frame_max_ms", intervals.back()},
 		    {"width", GetRenderWidth()},
 		    {"height", GetRenderHeight()},
 		    {"mean_ms", totals},
 		    {"scope", "CPU wall time; frame interval includes browser scheduling; GPU not timed separately"}};
+#if defined(PHOENIX_SERVER) && defined(PHOENIX_BROWSER_THREADS)
+		report["background"] = phoenix::frame_session_profile(app.session);
+#endif
 		phoenix_frame_profile_report(report.dump().c_str());
+		complete = capture_seconds > 0;
 		window_started = started;
 		frames = 0;
 		intervals.clear();

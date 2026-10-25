@@ -1,4 +1,7 @@
 module;
+#include "browser_main.hpp"
+#include <atomic>
+#include <mutex>
 #include <emscripten.h>
 #include <deque>
 #include <map>
@@ -21,12 +24,14 @@ struct State
 	bool ready = false, busy = true;
 };
 std::map<unsigned, State *> states;
-unsigned next = 1;
+std::mutex registry_mutex;
+std::atomic<unsigned> next{1};
 } // namespace
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_blob_result(unsigned id, double request, int opened, const char *key,
                                                          const unsigned char *bytes, unsigned size, int exists,
                                                          const char *error)
 {
+	std::lock_guard lock(registry_mutex);
 	auto found = states.find(id);
 	if (found == states.end())
 		return;
@@ -51,7 +56,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_blob_result(unsigned id, double req
 	found->second->results.push_back(std::move(result));
 }
 // clang-format off: embedded JavaScript must retain its operators.
-EM_JS(void, open_browser_blobs, (unsigned id,const char* location), {
+EM_JS(void, open_browser_blobs_js, (unsigned id,const char* location), {
     const namespace=UTF8ToString(location), registry=Module.phoenixBlobs||(Module.phoenixBlobs=new Map());
     const state={db:null,closed:false}; registry.set(id,state);
     state.reply=(request,opened,key,bytes,error) => {
@@ -73,7 +78,7 @@ EM_JS(void, open_browser_blobs, (unsigned id,const char* location), {
         request.onsuccess=()=> { state.db=request.result; if (state.closed) {state.db.close();return;} state.db.onversionchange=()=>state.db.close(); state.reply(0,true,"",null,""); };
     } catch(error){state.reply(0,true,"",null,String(error));}
 });
-EM_JS(void, browser_blob_operation, (unsigned id,double request,const char* key,const unsigned char* bytes,unsigned size,int writing), {
+EM_JS(void, browser_blob_operation_js, (unsigned id,double request,const char* key,const unsigned char* bytes,unsigned size,int writing), {
     const state=Module.phoenixBlobs.get(id); if(!state||state.closed)return; const name=UTF8ToString(key);
     try {
         const tx=state.db.transaction('blobs',writing?'readwrite':'readonly',writing?{durability:'strict'}:undefined);
@@ -85,8 +90,37 @@ EM_JS(void, browser_blob_operation, (unsigned id,double request,const char* key,
         tx.onabort=()=>state.reply(request,false,name,null,String(tx.error||'Persistent blob operation aborted'));
     }catch(error){state.reply(request,false,name,null,String(error));}
 });
-EM_JS(void, close_browser_blobs,(unsigned id),{const registry=Module.phoenixBlobs;if(!registry)return;const state=registry.get(id);if(!state)return;state.closed=true;if(state.db)state.db.close();registry.delete(id);});
+EM_JS(void, close_browser_blobs_js,(unsigned id),{const registry=Module.phoenixBlobs;if(!registry)return;const state=registry.get(id);if(!state)return;state.closed=true;if(state.db)state.db.close();registry.delete(id);});
 // clang-format on
+
+namespace
+{
+static void open_browser_blobs(unsigned id, const char *location)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return open_browser_blobs_js(id, location);
+	    });
+}
+static void browser_blob_operation(unsigned id, double request, const char *key, const unsigned char *bytes,
+                                   unsigned size, int writing)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return browser_blob_operation_js(id, request, key, bytes, size, writing);
+	    });
+}
+static void close_browser_blobs(unsigned id)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return close_browser_blobs_js(id);
+	    });
+}
+} // namespace
 namespace phoenix
 {
 namespace
@@ -99,35 +133,46 @@ class BrowserBlobs final : public BlobStore
 public:
 	explicit BrowserBlobs(const std::string &location) : id_(next++)
 	{
-		states[id_] = &state_;
+		{
+			std::lock_guard lock(registry_mutex);
+			states[id_] = &state_;
+		}
 		open_browser_blobs(id_, location.c_str());
 	}
 	~BrowserBlobs() override
 	{
-		states.erase(id_);
+		{
+			std::lock_guard lock(registry_mutex);
+			states.erase(id_);
+		}
 		close_browser_blobs(id_);
 	}
 	bool read(std::uint64_t request, const std::string &key) override
 	{
+		std::unique_lock lock(registry_mutex);
 		if (!state_.ready || state_.busy)
 			return false;
 		blobs::verify_key(key);
 		state_.busy = true;
+		lock.unlock();
 		browser_blob_operation(id_, static_cast<double>(request), key.c_str(), nullptr, 0, false);
 		return true;
 	}
 	bool write(std::uint64_t request, const std::string &key, const Bytes &bytes) override
 	{
+		std::unique_lock lock(registry_mutex);
 		if (!state_.ready || state_.busy)
 			return false;
 		auto encoded = blobs::encode(key, bytes);
 		state_.busy = true;
+		lock.unlock();
 		browser_blob_operation(id_, static_cast<double>(request), key.c_str(), encoded.data(),
 		                       static_cast<unsigned>(encoded.size()), true);
 		return true;
 	}
 	std::optional<BlobResult> poll() override
 	{
+		std::lock_guard lock(registry_mutex);
 		if (state_.results.empty())
 			return {};
 		auto result = std::move(state_.results.front());

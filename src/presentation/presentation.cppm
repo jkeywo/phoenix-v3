@@ -54,6 +54,11 @@ struct ExplosionEffect
 struct SceneFrame
 {
 	std::vector<SceneBody> bodies;
+	std::shared_ptr<const std::vector<SceneBody>> shared_bodies;
+	std::span<const SceneBody> view() const
+	{
+		return shared_bodies ? std::span<const SceneBody>(*shared_bodies) : std::span<const SceneBody>(bodies);
+	}
 	std::set<EntityId> visible;
 };
 struct SceneEnvironment
@@ -92,7 +97,8 @@ public:
 	                           double simulation_time = 0, bool reduced_motion = false);
 	void draw_prepared(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
 	                   const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
-	                   Vector2 surface_size = {}, const SceneEnvironment &environment = {});
+	                   Vector2 surface_size = {}, const SceneEnvironment &environment = {},
+	                   std::optional<unsigned> framebuffer = {});
 
 private:
 	struct State;
@@ -107,12 +113,12 @@ public:
 	void preload(const Catalog &, const std::string &);
 	std::optional<AttachmentPose> attachment(const Catalog &, const SceneBody &, const std::string &, Camera3D);
 	void draw(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, const Json &, double, Vector2,
-	          const SceneEnvironment &, bool background = true);
+	          const SceneEnvironment &, bool background = true, std::optional<unsigned> framebuffer = {});
 
 	std::set<EntityId> prepare(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, EntityId hidden = 0,
 	                           double simulation_time = 0, bool reduced_motion = false);
 	void draw_prepared(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, const Json &, double, Vector2,
-	                   const SceneEnvironment &, bool background = true);
+	                   const SceneEnvironment &, bool background = true, std::optional<unsigned> framebuffer = {});
 
 private:
 	struct State;
@@ -142,7 +148,8 @@ public:
 	                           double simulation_time = 0, bool reduced_motion = false);
 	void draw_prepared(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
 	                   const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
-	                   Vector2 surface_size = {}, const SceneEnvironment &environment = {});
+	                   Vector2 surface_size = {}, const SceneEnvironment &environment = {},
+	                   std::optional<unsigned> framebuffer = {});
 
 private:
 	struct State;
@@ -210,6 +217,7 @@ export namespace phoenix
 {
 void focus_semantic_text(const std::string &id);
 void publish_semantics(const Application &app);
+bool semantic_actions_pending();
 void drain_semantic_actions(Application &app);
 void install_native_accessibility(void *window);
 void remove_native_accessibility(void *window);

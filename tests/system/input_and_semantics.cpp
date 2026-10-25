@@ -379,6 +379,8 @@ int main()
 		                          {"console/22/game.contacts", "Read radar contacts"}};
 		client.control_placements["console/22/game.contacts"] = {1920, 100, 300, 40, true, true};
 		const auto semantics = navigation_controls(client);
+		require(navigation_controls(client, false).empty(),
+		        "root-window placement queries exclude Console entries without changing full accessibility output");
 		require(semantics.size() == 2 && semantics[1].placement.x == 1920 && semantics[1].placement.focused,
 		        "Console semantics must retain per-region geometry and focus without unrelated global navigation");
 		{
@@ -425,7 +427,14 @@ int main()
 		const auto with_input = navigation_controls(client);
 		require(with_input.back().editable && with_input.back().value == "room/server",
 		        "Editable semantic controls must expose their current text separately from their names");
+		require(translate("home", false) == "Translated home", "Warm translation reads preserve the selected resource");
+		configure_translations(
+		    Json{{"schema", 1},
+		         {"languages", {{"en", {{"home", "Updated home"}}}, {"test", {{"home", "Updated translation"}}}}}});
+		require(translate("home", false) == "Updated translation", "Replacing resources invalidates warm translations");
 		select_language("en");
+		require(translate("home", false) == "Updated home" && translate("home", true) == "[ Updated home ~~~ ]",
+		        "Translation reuse must distinguish both locale and pseudo mode");
 	}
 	catch (const std::exception &error)
 	{

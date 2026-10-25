@@ -76,11 +76,13 @@ try
 	bool vsync = false, uncapped = false;
 	unsigned frame_limit = 0;
 	phoenix::FrameCapture performance;
-	bool resume_local = false;
+	bool resume_local = false, synchronous_session = false;
 	phoenix::Bytes launch_bytes;
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		if (argument == "--synchronous-session")
+			synchronous_session = true;
 		if (argument == "--base")
 		{
 			if (i + 1 >= argc)
@@ -141,6 +143,12 @@ try
 			app.language = argv[++i];
 		if (argument == "--performance-output" && i + 1 < argc)
 			performance.output = argv[++i];
+		if (argument == "--performance-seconds" && i + 1 < argc)
+		{
+			performance.seconds = std::stod(argv[++i]);
+			if (!(performance.seconds >= 1 && performance.seconds <= 600))
+				throw std::runtime_error("Performance capture duration must be 1 to 600 seconds");
+		}
 		if (argument == "--performance-frames" && i + 1 < argc)
 			performance.target = std::clamp(static_cast<unsigned>(std::stoul(argv[++i])), 60u, 36000u);
 		if (argument == "--span-displays")
@@ -873,6 +881,8 @@ try
 		SetWindowSize(bridge_smoke_width, bridge_smoke_height);
 	while (!app.exit_requested && !phoenix::close_requested())
 	{
+		if (!performance.output.empty())
+			app.frame_metrics.clear();
 		const auto frame_started = GetTime();
 		for (auto it = preparations.begin(); it != preparations.end();)
 		{
@@ -917,6 +927,9 @@ try
 			it = preparations.erase(it);
 		}
 
+		if (!synchronous_session && app.session)
+			app.session = phoenix::make_frame_session(std::move(app.session));
+		app.budget_console_preparation = !synchronous_session;
 		app.session->poll();
 		if (gui_smoke && app.session->running())
 			for (const auto &region : app.console_regions)

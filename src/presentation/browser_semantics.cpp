@@ -1,4 +1,6 @@
 module;
+#include <algorithm>
+#include <tuple>
 #include <emscripten.h>
 #include <deque>
 #include <chrono>
@@ -10,6 +12,8 @@ module;
 
 module phoenix.presentation;
 import phoenix.navigation;
+
+#include "semantic_equivalence.hpp"
 
 namespace
 {
@@ -33,6 +37,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_value(const char *id, cons
 		values.emplace_back(id, value);
 }
 // clang-format off: embedded JavaScript must retain its operators.
+EM_JS(bool, semantic_canvas_changed, (), {
+    const c = Module.canvas;
+    const geometry=[c.offsetLeft,c.offsetTop,c.clientWidth,c.clientHeight,c.width,c.height].join('/');
+    const root=document.getElementById('semantics');
+    const changed=root.phoenixGeometry!==geometry;root.phoenixGeometry=geometry;return changed;
+});
 EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
     root.phoenixControls = new Map();
@@ -113,7 +123,17 @@ void publish_semantics(const Application &app)
 		update_semantic_status(app.accessible_status.c_str());
 		next_status = now + std::chrono::seconds(1);
 	}
+	static std::vector<SemanticControl> previous;
+	static std::weak_ptr<SessionPort> owner;
+	static std::uint64_t generation = 0;
 	auto controls = navigation_controls(app);
+	const auto current_generation = app.session ? app.session->generation() : 0;
+	const bool canvas_changed = semantic_canvas_changed();
+	if (!canvas_changed && owner.lock() == app.session && generation == current_generation &&
+	    same_semantic_controls(controls, previous))
+		return;
+	owner = app.session;
+	generation = current_generation;
 	begin_semantics();
 	for (const auto &control : controls)
 		append_semantic_button(control.id.c_str(), control.label.c_str(), control.placement.x, control.placement.y,
@@ -121,6 +141,11 @@ void publish_semantics(const Application &app)
 		                       control.placement.enabled, control.editable, control.value.c_str(), control.percentage,
 		                       control.read_only, control.tab, control.selected, control.toggle, control.pressed);
 	end_semantics(localise("Settings").c_str());
+	previous = std::move(controls);
+}
+bool semantic_actions_pending()
+{
+	return !actions.empty() || !focuses.empty() || !values.empty();
 }
 void drain_semantic_actions(Application &app)
 {

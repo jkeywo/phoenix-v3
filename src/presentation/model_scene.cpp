@@ -140,15 +140,17 @@ struct ModelScene::State
 		if (cone.vaoId)
 			UnloadMesh(cone);
 		shader = {};
+		locations.clear();
 		shadow = {};
 		white = {};
 		sphere = {};
 		quad = {};
 		cone = {};
 	}
+	ShaderLocations locations;
 	int loc(const char *name)
 	{
-		return GetShaderLocation(shader, name);
+		return locations.get(shader, name);
 	}
 	void integer(const char *name, int n)
 	{
@@ -309,10 +311,10 @@ std::optional<AttachmentPose> ModelScene::attachment(const Catalog &catalog, con
 }
 void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
                       const Json &lighting, double time, Vector2 size, const SceneEnvironment &environment,
-                      bool background)
+                      bool background, std::optional<unsigned> framebuffer)
 {
 	prepare(catalog, bodies, camera, region);
-	draw_prepared(catalog, bodies, camera, region, lighting, time, size, environment, background);
+	draw_prepared(catalog, bodies, camera, region, lighting, time, size, environment, background, framebuffer);
 }
 std::set<EntityId> ModelScene::prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera,
                                        Rectangle region, EntityId hidden, double, bool)
@@ -390,10 +392,10 @@ std::set<EntityId> ModelScene::prepare(const Catalog &catalog, std::span<const S
 }
 void ModelScene::draw_prepared(const Catalog &catalog, std::span<const SceneBody>, Camera3D camera, Rectangle region,
                                const Json &lighting, double time, Vector2 size, const SceneEnvironment &environment,
-                               bool background)
+                               bool background, std::optional<unsigned> target)
 {
 	auto &s = *state_;
-	const auto framebuffer = rlGetActiveFramebuffer();
+	const auto framebuffer = target ? *target : rlGetActiveFramebuffer();
 	const auto rebase = camera.target;
 	camera.position = Vector3Subtract(camera.position, rebase);
 	camera.target = {};
@@ -451,7 +453,7 @@ void ModelScene::draw_prepared(const Catalog &catalog, std::span<const SceneBody
 	const auto fog = lighting.value("environment", Json::object());
 	if (background)
 		s.navigation.background(catalog, environment, camera, fog, rebase);
-	set_scene_fog(s.shader, fog, rebase);
+	set_scene_fog(s.shader, fog, rebase, s.locations);
 	s.vec("cameraPosition", camera.position);
 	s.shadow_pass = false;
 	s.integer("shadowPass", 0);

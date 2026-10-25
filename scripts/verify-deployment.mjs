@@ -98,6 +98,18 @@ async function inspect(folder) {
 		}
 	}
 }
+const capabilities = JSON.parse(await readFile(path.join(root, "runtime-capabilities.json"), "utf8"));
+for (const name of ["runtime-environment.mjs", "isolation-worker.js"]) await readFile(path.join(root, name));
+for (const role of ["server", "client", "workshop"])
+	for (const extension of ["js", "wasm", "data"]) {
+		if (!(await readFile(path.join(root, `${role}.${extension}`))).length) throw Error("Empty ordinary runtime");
+		if (
+			capabilities.threaded_directory &&
+			!(await readFile(path.join(root, "threaded", `${role}.${extension}`))).length
+		)
+			throw Error("Empty worker runtime");
+	}
+if (capabilities.root_threaded) throw Error("Public deployment must retain an ordinary runtime for compatibility");
 await inspect(root);
 for (const id of ["phoenix-base", "phoenix-test-missions"])
 	if (!published.has(id)) throw Error("Missing bundled production pack: " + id);

@@ -1,4 +1,7 @@
 module;
+#include "browser_main.hpp"
+#include <atomic>
+#include <mutex>
 #include <emscripten.h>
 #include <deque>
 #include <map>
@@ -21,11 +24,13 @@ struct BrowserState
 	bool ready = false, busy = true, failed = false;
 };
 std::map<unsigned, BrowserState *> stores;
-unsigned next_store = 1;
+std::mutex registry_mutex;
+std::atomic<unsigned> next_store{1};
 } // namespace
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_store_result(unsigned id, double generation, int opened, int success,
                                                           const char *journal, const char *error)
 {
+	std::lock_guard lock(registry_mutex);
 	auto found = stores.find(id);
 	if (found == stores.end())
 		return;
@@ -50,7 +55,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_store_result(unsigned id, double ge
 	state.results.push_back(std::move(result));
 }
 // clang-format off: embedded JavaScript must retain its operators.
-EM_JS(void, open_browser_store, (unsigned id, const char* location), {
+EM_JS(void, open_browser_store_js, (unsigned id, const char* location), {
     const namespace = UTF8ToString(location);
     const registry = Module.phoenixPeerStores || (Module.phoenixPeerStores = new Map());
     const state = {db:null,size:0,closed:false,pending:null}; registry.set(id,state);
@@ -96,7 +101,7 @@ EM_JS(void, open_browser_store, (unsigned id, const char* location), {
         return new Promise(resolve => { state.release = resolve; if (state.closed) resolve(); else begin(); });
     }).catch(error => reply(0,true,false,"",String(error)));
 });
-EM_JS(void, write_browser_store, (unsigned id, double generation, const char* bytes, bool replace), {
+EM_JS(void, write_browser_store_js, (unsigned id, double generation, const char* bytes, bool replace), {
     const state = Module.phoenixPeerStores.get(id); if (!state || state.closed) return;
     try {
         const record = UTF8ToString(bytes), size = lengthBytesUTF8(record);
@@ -109,12 +114,40 @@ EM_JS(void, write_browser_store, (unsigned id, double generation, const char* by
         const journal=tx.objectStore('journal'); if(replace)journal.clear(); journal.add(record);
     } catch (error) { if (state.pending) state.pending.abort(); else state.reply(generation,false,false,"",String(error)); }
 });
-EM_JS(void, close_browser_store, (unsigned id), {
+EM_JS(void, close_browser_store_js, (unsigned id), {
     const registry = Module.phoenixPeerStores; if (!registry) return;
     const state = registry.get(id); if (!state) return;
     state.closed = true; if (state.db) state.db.close(); if (!state.pending && state.release) state.release(); registry.delete(id);
 });
 // clang-format on
+
+namespace
+{
+static void open_browser_store(unsigned id, const char *location)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return open_browser_store_js(id, location);
+	    });
+}
+static void write_browser_store(unsigned id, double generation, const char *bytes, bool replace)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return write_browser_store_js(id, generation, bytes, replace);
+	    });
+}
+static void close_browser_store(unsigned id)
+{
+	return phoenix::browser::on_main(
+	    [&]
+	    {
+		    return close_browser_store_js(id);
+	    });
+}
+} // namespace
 namespace phoenix
 {
 namespace
@@ -127,27 +160,36 @@ class BrowserStore final : public PeerStore
 public:
 	explicit BrowserStore(const std::string &location) : id_(next_store++)
 	{
-		stores[id_] = &state_;
+		{
+			std::lock_guard lock(registry_mutex);
+			stores[id_] = &state_;
+		}
 		open_browser_store(id_, location.c_str());
 	}
 	~BrowserStore() override
 	{
-		stores.erase(id_);
+		{
+			std::lock_guard lock(registry_mutex);
+			stores.erase(id_);
+		}
 		close_browser_store(id_);
 	}
 	bool write(const DurableWrite &transaction) override
 	{
+		std::unique_lock lock(registry_mutex);
 		if (!state_.ready || state_.busy || state_.failed)
 			return false;
 		const auto record = storage::encode(transaction.transaction);
 		apply_peer_write(state_.recovered, transaction.transaction);
 		state_.busy = true;
+		lock.unlock();
 		write_browser_store(id_, static_cast<double>(transaction.generation), record.c_str(),
 		                    transaction.transaction.contains("snapshot"));
 		return true;
 	}
 	std::optional<PeerStoreResult> poll() override
 	{
+		std::lock_guard lock(registry_mutex);
 		if (state_.results.empty())
 			return {};
 		auto result = std::move(state_.results.front());

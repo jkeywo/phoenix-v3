@@ -2,8 +2,11 @@ module;
 #include <RmlUi/Core/StyleSheetContainer.h>
 #include <RmlUi/Core/StreamMemory.h>
 #include <raylib.h>
+#include <raymath.h>
+#include <cstddef>
 #include "../core/pad_navigation.hpp"
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/ElementText.h>
 #include <RmlUi/Core/StringUtilities.h>
 #include <FontEngineInterfaceHarfBuzz.h>
 #include <stdexcept>
@@ -1413,10 +1416,28 @@ void draw_screen(Application &app)
 			}
 			return primary_value ? primary_value(id, value) : false;
 		};
+		static std::size_t preparation_cursor = 0;
+		std::size_t selected_preparation =
+		    active_console_regions.empty() ? 0 : preparation_cursor % active_console_regions.size();
+		if (app.budget_console_preparation)
+			for (std::size_t offset = 0; offset < active_console_regions.size(); ++offset)
+			{
+				const auto index = (selected_preparation + offset) % active_console_regions.size();
+				if (console_surfaces.at(active_console_regions[index].console)->preparation_urgent())
+				{
+					selected_preparation = index;
+					break;
+				}
+			}
+		preparation_cursor = selected_preparation + 1;
+		std::size_t preparation_index = 0;
 		for (const auto &region : active_console_regions)
 			try
 			{
-				console_surfaces.at(region.console)->prepare(app, region, gamepads);
+				console_surfaces.at(region.console)
+				    ->prepare(app, region, gamepads,
+				              !app.budget_console_preparation || (preparation_index == selected_preparation));
+				++preparation_index;
 			}
 			catch (const std::exception &error)
 			{
@@ -1482,9 +1503,15 @@ void draw_screen(Application &app)
 		};
 	}
 	app.frame_metrics["preparation"] = GetTime() - preparation_started;
-	server_music->update(app, game_screen->prepare_scene(app));
+	const auto scene_preparation_started = GetTime();
+	const auto &scene_frame = game_screen->prepare_scene(app);
+	const auto audio_started = GetTime();
+	server_music->update(app, scene_frame);
+	app.frame_metrics["scene-audio"] = GetTime() - audio_started;
+	app.frame_metrics["scene-preparation"] = GetTime() - scene_preparation_started;
 	const auto semantics_started = GetTime();
-	publish_semantics(app);
+	if (semantic_actions_pending())
+		publish_semantics(app);
 	drain_semantic_actions(app);
 	const bool public_visible =
 	    app.session && app.session->running() &&
@@ -1699,7 +1726,7 @@ void draw_screen(Application &app)
 			renderer.finish();
 			if (lobby_consoles)
 				native_menu->draw(app, *document);
-			for (const auto &control : navigation_controls(app))
+			for (const auto &control : navigation_controls(app, false))
 				if (!control.id.starts_with("console/"))
 					if (auto *element = document->GetElementById(control.id))
 					{
@@ -1723,6 +1750,23 @@ void draw_screen(Application &app)
 			}
 		}
 		const auto consoles_started = GetTime();
+		std::optional<ConsoleId> paint_route;
+		if (app.budget_console_preparation)
+		{
+			// Reserve custom drawing, view updates and semantic publication.
+			const double remaining = .011 - (GetTime() - frame_started);
+			double oldest = -1;
+			for (const auto &region : active_console_regions)
+			{
+				auto &surface = *console_surfaces.at(region.console);
+				if (surface.paint_pending() && surface.paint_wait() > oldest &&
+				    (surface.paint_cost() <= remaining || surface.paint_wait() >= .08))
+				{
+					oldest = surface.paint_wait();
+					paint_route = region.console;
+				}
+			}
+		}
 		for (const auto &region :
 		     app.screen == Screen::settings ? std::vector<ConsoleRegion>{} : active_console_regions)
 		{
@@ -1735,11 +1779,9 @@ void draw_screen(Application &app)
 			surface.draw(region);
 			app.frame_metrics["console/" + std::to_string(region.console) + "/custom-paint"] =
 			    GetTime() - paint_started;
-			renderer.viewport({region.x, region.y, region.width, region.height});
 			const auto render_started = GetTime();
-			surface.context().Render();
+			surface.render_ui(renderer, region, !app.budget_console_preparation || paint_route == region.console);
 			app.frame_metrics["console/" + std::to_string(region.console) + "/rml-render"] = GetTime() - render_started;
-			renderer.finish();
 			surface.draw_profile(region);
 			if (const auto view = app.session->console_snapshot(region.console))
 				draw_alert_glow(view->gameplay.value("alert", Json::object()),
@@ -1779,7 +1821,9 @@ void draw_screen(Application &app)
 		draw_alert_glow(app.session->public_board().value("alert", Json::object()), {r.x, r.y, r.width, r.height});
 	}
 	draw_pad_selection(app);
+	const auto publication_started = GetTime();
 	publish_semantics(app);
+	app.frame_metrics["semantic-publication"] = GetTime() - publication_started;
 }
 bool probe_gui_navigation(Application &app, unsigned stage)
 {

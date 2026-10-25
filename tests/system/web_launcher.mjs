@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
+import { runtimeScript } from "../../web/runtime-environment.mjs";
 import { startSessionPump } from "../../web/session-pump.mjs";
 import { verifyLaunchBase } from "../../web/base-verifier.mjs";
 import { acquireSessionProfile } from "../../web/session-profile.mjs";
@@ -792,4 +793,12 @@ test("pack themes share visual tokens without executable styles", () => {
 	assert.throws(() => themeStyles({ ...theme, tokens: { ...theme.tokens, font_family: "X;display:none" } }));
 	assert.throws(() => themeStyles({ ...theme, asset_data: { panel: "https://example.invalid/asset.png" } }));
 	assert.equal(themeStyles(undefined), "");
+});
+
+test("isolated runtimes retain an ordinary fallback and validate roles", () => {
+	assert.equal(runtimeScript({ threaded_directory: true }, true, "server"), "threaded/server.js");
+	assert.equal(runtimeScript({ threaded_directory: true }, false, "client"), "client.js");
+	assert.equal(runtimeScript({ root_threaded: true }, true, "workshop"), "workshop.js");
+	assert.throws(() => runtimeScript({ root_threaded: true }, false, "server"), /requires an isolated/);
+	assert.throws(() => runtimeScript({}, true, "unknown"), /Unknown runtime role/);
 });

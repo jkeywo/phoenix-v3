@@ -132,7 +132,7 @@ void ServerMusic::clear_host_audio()
 bool ServerMusic::host_audio(const Application &app, const SceneFrame &scene, bool active)
 {
 	const auto own = active ? app.session->focus_body() : std::nullopt;
-	const auto &bodies = scene.bodies;
+	const auto bodies = scene.view();
 	const auto own_body = own ? std::find_if(bodies.begin(), bodies.end(),
 	                                         [&](const auto &b)
 	                                         {

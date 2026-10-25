@@ -37,6 +37,7 @@ class UiRenderer final : public Rml::RenderInterface
 	{
 		Rml::Span<const Rml::Vertex> vertices;
 		Rml::Span<const int> indices;
+		float left = 0, top = 0, right = 0, bottom = 0;
 	};
 	bool scissor_ = false;
 	std::optional<Rml::Matrix4f> transform_;
@@ -72,7 +73,20 @@ public:
 	}
 	Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> v, Rml::Span<const int> i) override
 	{
-		return reinterpret_cast<Rml::CompiledGeometryHandle>(new Geometry{v, i});
+		auto geometry = std::make_unique<Geometry>(Geometry{v, i});
+		if (!v.empty())
+		{
+			geometry->left = geometry->right = v[0].position.x;
+			geometry->top = geometry->bottom = v[0].position.y;
+			for (const auto &vertex : v)
+			{
+				geometry->left = std::min(geometry->left, vertex.position.x);
+				geometry->right = std::max(geometry->right, vertex.position.x);
+				geometry->top = std::min(geometry->top, vertex.position.y);
+				geometry->bottom = std::max(geometry->bottom, vertex.position.y);
+			}
+		}
+		return reinterpret_cast<Rml::CompiledGeometryHandle>(geometry.release());
 	}
 	void ReleaseGeometry(Rml::CompiledGeometryHandle handle) override
 	{
@@ -88,6 +102,60 @@ public:
 	void RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f offset, Rml::TextureHandle texture) override
 	{
 		const auto &geometry = *reinterpret_cast<Geometry *>(handle);
+		// Avoid expanding vertices that the GPU scissor would discard. Perspective
+		// crossings retain the existing path; positive-w rectangles have bounded projections.
+		const float x = scissor_ ? std::max(viewport_.x, origin_.x + region_.Left()) : viewport_.x;
+		const float y = scissor_ ? std::max(viewport_.y, origin_.y + region_.Top()) : viewport_.y;
+		const float right = scissor_ ? std::min(viewport_.x + viewport_.width, origin_.x + region_.Right())
+		                             : viewport_.x + viewport_.width;
+		const float bottom = scissor_ ? std::min(viewport_.y + viewport_.height, origin_.y + region_.Bottom())
+		                              : viewport_.y + viewport_.height;
+		const int width = static_cast<int>(std::max(0.f, right - x)),
+		          height = static_cast<int>(std::max(0.f, bottom - y));
+		if (geometry.indices.empty() || !width || !height)
+			return;
+		float left_bound = geometry.left + offset.x, right_bound = geometry.right + offset.x;
+		float top_bound = geometry.top + offset.y, bottom_bound = geometry.bottom + offset.y;
+		bool bounded = true;
+		if (transform_)
+		{
+			const std::array corners{
+			    Rml::Vector4f(left_bound, top_bound, 0, 1), Rml::Vector4f(right_bound, top_bound, 0, 1),
+			    Rml::Vector4f(left_bound, bottom_bound, 0, 1), Rml::Vector4f(right_bound, bottom_bound, 0, 1)};
+			bool first = true;
+			for (auto corner : corners)
+			{
+				corner = *transform_ * corner;
+				if (!(corner.w > 0) || !std::isfinite(corner.w) || !std::isfinite(corner.x) || !std::isfinite(corner.y))
+				{
+					bounded = false;
+					break;
+				}
+				const float px = corner.x / corner.w, py = corner.y / corner.w;
+				if (!std::isfinite(px) || !std::isfinite(py))
+				{
+					bounded = false;
+					break;
+				}
+				if (first)
+				{
+					left_bound = right_bound = px;
+					top_bound = bottom_bound = py;
+					first = false;
+				}
+				else
+				{
+					left_bound = std::min(left_bound, px);
+					right_bound = std::max(right_bound, px);
+					top_bound = std::min(top_bound, py);
+					bottom_bound = std::max(bottom_bound, py);
+				}
+			}
+		}
+		if (bounded &&
+		    (right_bound + origin_.x <= static_cast<int>(x) || left_bound + origin_.x >= static_cast<int>(x) + width ||
+		     bottom_bound + origin_.y <= static_cast<int>(y) || top_bound + origin_.y >= static_cast<int>(y) + height))
+			return;
 		rlSetTexture(texture ? reinterpret_cast<Texture2D *>(texture)->id : rlGetTextureIdDefault());
 		rlBegin(RL_TRIANGLES);
 		for (int index : geometry.indices)

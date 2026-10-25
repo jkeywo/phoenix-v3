@@ -7,6 +7,109 @@ namespace phoenix
 class ConsoleSurface final : public Rml::EventListener
 {
 	ConsoleId route_;
+	bool prepare_dirty_ = true, render_dirty_ = true, render_urgent_ = true, prepared_cache_ = false;
+	double render_dirty_since_ = 0, last_paint_cost_ = .003;
+	std::shared_ptr<const Observation> prepared_source_;
+	std::weak_ptr<SessionPort> prepared_owner_;
+	std::uint64_t prepared_generation_ = 0, painted_tick_ = 0;
+	std::string prepared_environment_;
+	std::set<std::string> prepared_pads_;
+	std::vector<std::pair<std::string, std::string>> cached_controls_, cached_readouts_;
+	std::vector<Application::TextControl> cached_inputs_;
+	std::map<std::string, bool> cached_toggles_;
+	std::map<std::string, Application::ControlPlacement> cached_placements_;
+	std::map<std::string, Application::ControlPlacement> painted_controls_;
+	RenderTexture2D ui_texture_{};
+	static bool same_observation_scope(const Observation &left, const Observation &right)
+	{
+		if (left.own.id != right.own.id || left.own.definition != right.own.definition ||
+		    left.console != right.console || left.controls != right.controls || left.feeds != right.feeds ||
+		    left.additional_consoles.size() != right.additional_consoles.size())
+			return false;
+		for (std::size_t i = 0; i < left.additional_consoles.size(); ++i)
+			if (!same_observation_scope(left.additional_consoles[i], right.additional_consoles[i]))
+				return false;
+		return true;
+	}
+	static bool same_observation_scope(const std::shared_ptr<const Observation> &left,
+	                                   const std::shared_ptr<const Observation> &right)
+	{
+		return left && right ? same_observation_scope(*left, *right) : !left && !right;
+	}
+	void remember_metadata(const Application &app)
+	{
+		const auto prefix = id("");
+		cached_controls_.clear();
+		cached_readouts_.clear();
+		cached_inputs_.clear();
+		cached_toggles_.clear();
+		cached_placements_.clear();
+		for (const auto &entry : app.screen_controls)
+			if (entry.first.starts_with(prefix))
+				cached_controls_.push_back(entry);
+		for (const auto &entry : app.screen_readouts)
+			if (entry.first.starts_with(prefix))
+				cached_readouts_.push_back(entry);
+		for (const auto &entry : app.screen_inputs)
+			if (entry.id.starts_with(prefix))
+				cached_inputs_.push_back(entry);
+		for (const auto &entry : app.screen_toggles)
+			if (entry.first.starts_with(prefix))
+				cached_toggles_.insert(entry);
+		for (const auto &entry : app.control_placements)
+			if (entry.first.starts_with(prefix))
+				cached_placements_.insert(entry);
+	}
+	std::map<std::string, Application::ControlPlacement> interactive_placements() const
+	{
+		std::map<std::string, Application::ControlPlacement> result;
+		for (const auto &[name, label] : cached_controls_)
+			if (auto found = cached_placements_.find(name); found != cached_placements_.end())
+				result.insert(*found);
+		for (const auto &input : cached_inputs_)
+			if (auto found = cached_placements_.find(input.id); found != cached_placements_.end())
+				result.insert(*found);
+		return result;
+	}
+	void check_painted_controls()
+	{
+		const auto current = interactive_placements();
+		if (current.size() != painted_controls_.size())
+		{
+			render_urgent_ = true;
+			return;
+		}
+		for (const auto &[name, placement] : current)
+		{
+			const auto found = painted_controls_.find(name);
+			if (found == painted_controls_.end())
+			{
+				render_urgent_ = true;
+				return;
+			}
+			const auto &old = found->second;
+			if (placement.x != old.x || placement.y != old.y || placement.width != old.width ||
+			    placement.height != old.height || placement.enabled != old.enabled)
+			{
+				render_urgent_ = true;
+				return;
+			}
+		}
+	}
+	void restore_metadata(Application &app)
+	{
+		app.screen_controls.insert(app.screen_controls.end(), cached_controls_.begin(), cached_controls_.end());
+		app.screen_readouts.insert(app.screen_readouts.end(), cached_readouts_.begin(), cached_readouts_.end());
+		app.screen_inputs.insert(app.screen_inputs.end(), cached_inputs_.begin(), cached_inputs_.end());
+		app.screen_toggles.insert(cached_toggles_.begin(), cached_toggles_.end());
+		const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
+		for (auto entry : cached_placements_)
+		{
+			entry.second.focused = entry.first == focused;
+			app.control_placements.insert(std::move(entry));
+		}
+	}
+
 	std::string context_name_;
 	bool toolbar_enabled_ = true;
 	std::uint64_t display_update_tick_ = ~std::uint64_t{0};
@@ -114,7 +217,12 @@ class ConsoleSurface final : public Rml::EventListener
 		// Keep measured offscreen heights; accessible values are published separately.
 		if (!force && !displayed_values_[name].empty() && !visible_readouts_.contains(name))
 			return false;
-		target->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
+		const auto encoded = Rml::StringUtilities::EncodeRml(text);
+		if (auto *leaf =
+		        target->GetNumChildren() == 1 ? dynamic_cast<Rml::ElementText *>(target->GetChild(0)) : nullptr)
+			leaf->SetText(encoded);
+		else
+			target->SetInnerRML(encoded);
 		displayed_values_[name] = text;
 		return true;
 	}
@@ -709,6 +817,8 @@ button.on-screen-active .share-live {display:block;}
 </style></head><body><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
+		for (const char *event : {"mouseover", "mousemove", "focus", "blur", "keydown", "keyup"})
+			document_->AddEventListener(event, this);
 		document_->AddEventListener("click", this);
 		document_->AddEventListener("mousescroll", this);
 		document_->AddEventListener("change", this);
@@ -726,6 +836,8 @@ button.on-screen-active .share-live {display:block;}
 	}
 	~ConsoleSurface()
 	{
+		if (ui_texture_.id)
+			UnloadRenderTexture(ui_texture_);
 		Rml::RemoveContext(context_name_);
 	}
 	void preview_text_scale(int scale)
@@ -756,6 +868,7 @@ button.on-screen-active .share-live {display:block;}
 		const auto prefix = id("");
 		if (!app_ || !name.starts_with(prefix))
 			return false;
+		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 		const auto action = name.substr(prefix.size());
 		if (action.starts_with("layout-page/") || action.starts_with("game.console/"))
 			return authored_action(action);
@@ -1075,6 +1188,9 @@ button.on-screen-active .share-live {display:block;}
 	{
 		if (syncing_values_)
 			return;
+		render_dirty_ = true;
+		if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
+			prepare_dirty_ = render_urgent_ = true;
 		const auto name = event.GetTargetElement()->GetId();
 		if (event.GetType() == "mousescroll" && navigation_visible_ && !settings_open_)
 		{
@@ -1127,6 +1243,7 @@ button.on-screen-active .share-live {display:block;}
 	}
 	void focus(const std::string &name)
 	{
+		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 		if (auto *element = this->element(name))
 		{
 			element->ScrollIntoView({Rml::ScrollAlignment::Nearest, Rml::ScrollAlignment::Nearest,
@@ -1136,6 +1253,8 @@ button.on-screen-active .share-live {display:block;}
 	}
 	bool set_value(const std::string &name, const std::string &text)
 	{
+		if (name.starts_with(id("")))
+			prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 		if (name == id("comms/draft") && text.size() <= 4096)
 		{
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(name)))
@@ -1238,6 +1357,8 @@ button.on-screen-active .share-live {display:block;}
 	}
 	void manual_frame(bool keyboard_selected, FlightAxes keyboard_axes, bool focused)
 	{
+		if (keyboard_axes.yaw || keyboard_axes.thrust)
+			prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 		const auto *keyboard_focus = context_->GetFocusElement();
 		const bool keyboard_enabled = keyboard_selected && focused && !settings_open_ &&
 		                              (!keyboard_focus || keyboard_focus->GetTagName() != "input");
@@ -1354,6 +1475,11 @@ button.on-screen-active .share-live {display:block;}
 	}
 	bool pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
 	{
+		render_dirty_ = true;
+		if (kind != DeviceEventKind::Move || heading_contacts_.contains(contact) ||
+		    throttle_contacts_.contains(contact) || navigation_contacts_.contains(contact) ||
+		    joystick_contact_ == contact)
+			prepare_dirty_ = true;
 		if (settings_open_)
 			return false;
 		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
@@ -1526,6 +1652,8 @@ button.on-screen-active .share-live {display:block;}
 	}
 	void update_view()
 	{
+		if (context_->GetNextUpdateDelay() <= 0)
+			render_dirty_ = true;
 		context_->Update();
 		measure_authored_geometry();
 		if (settings_open_)
@@ -1539,7 +1667,10 @@ button.on-screen-active .share-live {display:block;}
 		for (const auto &[name, text] : resource_readouts_)
 			changed |= update_readout(name, text, false);
 		if (changed)
+		{
+			render_dirty_ = true;
 			context_->Update();
+		}
 	}
 	bool probe_readout_scroll()
 	{
@@ -1867,7 +1998,108 @@ button.on-screen-active .share-live {display:block;}
 		}
 		return !action(id("release")) && !action(id("local-settings.quit"));
 	}
-	void prepare(Application &app, const ConsoleRegion &physical_region, const std::set<std::string> &pads)
+	bool preparation_urgent() const
+	{
+		return prepare_dirty_ || !prepared_cache_;
+	}
+	void prepare(Application &app, const ConsoleRegion &physical_region, const std::set<std::string> &pads,
+	             bool allow_fresh = true)
+	{
+		const auto source = app.session ? app.session->console_snapshot(route_) : nullptr;
+		const auto environment = std::to_string(physical_region.x) + "/" + std::to_string(physical_region.y) + "/" +
+		                         std::to_string(physical_region.width) + "/" + std::to_string(physical_region.height) +
+		                         "/" + app.language + "/" + std::to_string(app.pseudo_locale) + "/" +
+		                         std::to_string(text_scale_) + "/" + std::to_string(static_cast<int>(app.screen));
+		if (prepared_owner_.lock() != app.session || !app.session ||
+		    prepared_generation_ != app.session->generation() || !same_observation_scope(prepared_source_, source))
+			render_urgent_ = true;
+		const auto record_freshness = [&]
+		{
+			const auto tick = app.session ? app.session->ticks() : 0;
+			app.frame_metrics["console/" + std::to_string(route_) + "/data-age"] =
+			    prepared_source_ && tick >= prepared_source_->observed_tick
+			        ? (tick - prepared_source_->observed_tick) * .05
+			        : 0;
+		};
+		const bool stable = prepared_cache_ && !prepare_dirty_ && source && app.session && app.session->running() &&
+		                    app.screen == Screen::console && prepared_owner_.lock() == app.session &&
+		                    prepared_generation_ == app.session->generation() && prepared_environment_ == environment &&
+		                    prepared_pads_ == pads && same_observation_scope(prepared_source_, source);
+		if (stable &&
+		    (source == prepared_source_ || (app.budget_console_preparation && (!allow_fresh || render_dirty_))))
+		{
+			restore_metadata(app);
+			record_freshness();
+			return;
+		}
+		prepare_current(app, physical_region, pads);
+		remember_metadata(app);
+		check_painted_controls();
+		prepared_source_ = app.session ? app.session->console_snapshot(route_) : nullptr;
+		prepared_owner_ = app.session;
+		prepared_generation_ = app.session ? app.session->generation() : 0;
+		prepared_environment_ = environment;
+		prepared_pads_ = pads;
+		record_freshness();
+		prepared_cache_ = true;
+		prepare_dirty_ = false;
+		render_dirty_ = true;
+	}
+	bool paint_pending()
+	{
+		if (context_->GetNextUpdateDelay() <= 0)
+			render_dirty_ = true;
+		if (render_dirty_ && !render_dirty_since_)
+			render_dirty_since_ = GetTime();
+		return render_dirty_;
+	}
+	double paint_wait() const
+	{
+		return render_dirty_since_ ? GetTime() - render_dirty_since_ : 0;
+	}
+	double paint_cost() const
+	{
+		return last_paint_cost_;
+	}
+	void render_ui(UiRenderer &renderer, const ConsoleRegion &region, bool allow_paint = true)
+	{
+		if (app_)
+			app_->frame_metrics["console/" + std::to_string(route_) + "/paint-age"] = paint_wait();
+		const int width = static_cast<int>(region.width), height = static_cast<int>(region.height);
+		if (!ui_texture_.id || ui_texture_.texture.width != width || ui_texture_.texture.height != height)
+		{
+			if (ui_texture_.id)
+				UnloadRenderTexture(ui_texture_);
+			ui_texture_ = LoadRenderTexture(width, height);
+			render_dirty_ = render_urgent_ = true;
+		}
+		if (render_dirty_ && (allow_paint || render_urgent_))
+		{
+			const auto paint_started = GetTime();
+			BeginTextureMode(ui_texture_);
+			ClearBackground(BLANK);
+			renderer.viewport({0, 0, region.width, region.height});
+			context_->Render();
+			renderer.finish();
+			EndTextureMode();
+			painted_controls_ = interactive_placements();
+			painted_tick_ = prepared_source_ ? prepared_source_->observed_tick : 0;
+			render_dirty_ = render_urgent_ = false;
+			render_dirty_since_ = 0;
+			last_paint_cost_ = GetTime() - paint_started;
+		}
+		if (app_ && app_->session)
+		{
+			const auto tick = app_->session->ticks();
+			app_->frame_metrics["console/" + std::to_string(route_) + "/visible-data-age"] =
+			    tick >= painted_tick_ ? (tick - painted_tick_) * .05 : 0;
+		}
+		BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
+		DrawTexturePro(ui_texture_.texture, {0, 0, float(width), -float(height)},
+		               {region.x, region.y, region.width, region.height}, {0, 0}, 0, WHITE);
+		EndBlendMode();
+	}
+	void prepare_current(Application &app, const ConsoleRegion &physical_region, const std::set<std::string> &pads)
 	{
 		// Embedded Command uses the scale of its parent Viewscreen.
 		const float display_scale = std::max(

@@ -702,13 +702,18 @@ struct GameScreen::State
 		previous_description = displayed;
 		markup_ready = true;
 	}
-	const SceneFrame &prepare_scene(const Application &app)
+	const SceneFrame &prepare_scene(Application &app)
 	{
 		bind_session(app);
-		frame = {};
+		frame.visible.clear();
 		if (!app.session || !app.session->running() || app.screen == Screen::workshop ||
 		    (!app.can_host && app.screen != Screen::viewscreen && !app.viewscreen_region))
+		{
+			frame.bodies.clear();
+			frame.shared_bodies.reset();
 			return frame;
+		}
+		const auto scene_data_started = GetTime();
 		environment.own = app.session->focus_body();
 		environment.dust_enabled = app.dust_motes;
 		environment.grid_enabled = app.reference_grid;
@@ -774,6 +779,7 @@ struct GameScreen::State
 		                {0, 1, 0},
 		                50,
 		                CAMERA_PERSPECTIVE};
+		app.frame_metrics["scene-data"] = GetTime() - scene_data_started;
 		const auto tick = app.session->ticks();
 		if (!shake_previous || shake_previous->id != own.id || tick < shake_tick)
 		{
@@ -804,18 +810,27 @@ struct GameScreen::State
 		frame_camera = camera;
 		frame_lighting = app.session->scene_lighting();
 		frame_time = GetTime();
-		frame.bodies = app.session->scene();
-		for (auto &body : frame.bodies)
-			if (!body.sound.empty())
-				body.audio.push_back({SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
+		const auto scene_snapshot_started = GetTime();
+		frame.shared_bodies = app.session->scene_snapshot();
+		if (!frame.shared_bodies)
+		{
+			frame.bodies = app.session->scene();
+			for (auto &body : frame.bodies)
+				if (!body.sound.empty())
+					body.audio.push_back(
+					    {SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
+		}
+		app.frame_metrics["scene-snapshot"] = GetTime() - scene_snapshot_started;
 		const auto r = app.viewscreen_region;
 		const Rectangle region =
 		    r ? Rectangle{r->x, r->y, r->width, r->height}
 		      : Rectangle{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
+		const auto scene_prepare_started = GetTime();
 		frame.visible =
-		    scene.prepare(app.session->catalog(), frame.bodies, camera, region, settings.mode == 0 ? own.id : 0,
+		    scene.prepare(app.session->catalog(), frame.view(), camera, region, settings.mode == 0 ? own.id : 0,
 		                  frame_lighting.value("environment", Json::object()).value("simulation_time", frame_time),
 		                  environment.reduced_motion);
+		app.frame_metrics["scene-visibility"] = GetTime() - scene_prepare_started;
 		// Cockpit feedback remains audible when the camera hides the host hull.
 		frame.visible.insert(own.id);
 		return frame;
@@ -839,8 +854,8 @@ struct GameScreen::State
 			if (!environment.own)
 				return;
 			const auto stage = GetTime();
-			scene.draw_prepared(app.session->catalog(), frame.bodies, frame_camera, area(), frame_lighting, frame_time,
-			                    SceneDiagnostic::comic, {}, environment);
+			scene.draw_prepared(app.session->catalog(), frame.view(), frame_camera, area(), frame_lighting, frame_time,
+			                    SceneDiagnostic::comic, {}, environment, 0u);
 			scene_metrics["scene_render"] = GetTime() - stage;
 			const auto shared = app.session->public_board().value("display", Json(nullptr));
 			if (shared.is_object())
@@ -1144,7 +1159,7 @@ void GameScreen::prepare(Application &app, Rml::ElementDocument &document)
 {
 	state_->prepare(app, document);
 }
-const SceneFrame &GameScreen::prepare_scene(const Application &app)
+const SceneFrame &GameScreen::prepare_scene(Application &app)
 {
 	return state_->prepare_scene(app);
 }

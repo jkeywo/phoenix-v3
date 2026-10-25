@@ -1,4 +1,5 @@
 module;
+#include <tuple>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -29,6 +30,8 @@ module;
 
 module phoenix.presentation;
 import phoenix.navigation;
+
+#include "semantic_equivalence.hpp"
 
 namespace phoenix
 {
@@ -596,7 +599,7 @@ void publish_semantics(const Application &app)
 		return;
 	std::unique_lock lock(state->mutex);
 	const auto previous_focus = state->focus >= 0 ? state->controls[state->focus].id : std::string{};
-	const auto previous = std::move(state->controls);
+
 	const bool announce =
 	    (app.console_surface_active ||
 	     (app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
@@ -606,6 +609,9 @@ void publish_semantics(const Application &app)
 	auto controls = navigation_controls(app);
 	const bool replaced =
 	    state->session.lock() != app.session || (app.session && state->generation != app.session->generation());
+	if (!replaced && !announce && same_semantic_controls(controls, state->controls))
+		return;
+	const auto previous = std::move(state->controls);
 	bool changed = replaced || controls.size() != previous.size();
 	if (replaced)
 	{
@@ -618,33 +624,36 @@ void publish_semantics(const Application &app)
 	}
 	for (std::size_t i = 0; !changed && i < controls.size(); ++i)
 		changed = controls[i].id != previous[i].id;
-	std::unordered_set<std::string_view> current_ids;
-	current_ids.reserve(controls.size());
-	for (const auto &control : controls)
-		current_ids.insert(control.id);
-	std::erase_if(state->identities,
-	              [&](const auto &entry)
-	              {
-		              return !current_ids.contains(entry.first);
-	              });
-	std::erase_if(state->actions,
-	              [&](const auto &id)
-	              {
-		              return !state->identities.contains(id);
-	              });
-	std::erase_if(state->focuses,
-	              [&](const auto &id)
-	              {
-		              return !state->identities.contains(id);
-	              });
-	std::erase_if(state->values,
-	              [&](const auto &value)
-	              {
-		              return !state->identities.contains(value.first);
-	              });
-	for (const auto &control : controls)
-		if (!state->identities.contains(control.id))
-			state->identities[control.id] = state->next_identity++;
+	if (changed)
+	{
+		std::unordered_set<std::string_view> current_ids;
+		current_ids.reserve(controls.size());
+		for (const auto &control : controls)
+			current_ids.insert(control.id);
+		std::erase_if(state->identities,
+		              [&](const auto &entry)
+		              {
+			              return !current_ids.contains(entry.first);
+		              });
+		std::erase_if(state->actions,
+		              [&](const auto &id)
+		              {
+			              return !state->identities.contains(id);
+		              });
+		std::erase_if(state->focuses,
+		              [&](const auto &id)
+		              {
+			              return !state->identities.contains(id);
+		              });
+		std::erase_if(state->values,
+		              [&](const auto &value)
+		              {
+			              return !state->identities.contains(value.first);
+		              });
+		for (const auto &control : controls)
+			if (!state->identities.contains(control.id))
+				state->identities[control.id] = state->next_identity++;
+	}
 	state->focus = -1;
 	for (std::size_t i = 0; i < controls.size(); ++i)
 		if (controls[i].placement.focused)
@@ -743,6 +752,13 @@ void publish_semantics(const Application &app)
 		focused->Release();
 	}
 }
+bool semantic_actions_pending()
+{
+	if (!state)
+		return false;
+	std::lock_guard lock(state->mutex);
+	return !state->actions.empty() || !state->focuses.empty() || !state->values.empty();
+}
 void drain_semantic_actions(Application &app)
 {
 	if (!state)
@@ -752,10 +768,19 @@ void drain_semantic_actions(Application &app)
 	std::deque<std::pair<std::string, std::string>> values;
 	{
 		std::lock_guard lock(state->mutex);
+		if (state->session.lock() != app.session || (app.session && state->generation != app.session->generation()))
+		{
+			state->actions.clear();
+			state->focuses.clear();
+			state->values.clear();
+			return;
+		}
 		pending.swap(state->actions);
 		focuses.swap(state->focuses);
 		values.swap(state->values);
 	}
+	if (pending.empty() && focuses.empty() && values.empty())
+		return;
 	const auto controls = navigation_controls(app);
 	const auto available = [&](const std::string &id)
 	{

@@ -31,7 +31,7 @@ std::string localise(const std::string &key);
 std::vector<std::string> installed_languages();
 void remember_preferences(Application &app);
 void load_display_preferences(Application &app);
-std::vector<SemanticControl> navigation_controls(const Application &app);
+std::vector<SemanticControl> navigation_controls(const Application &app, bool include_consoles = true);
 std::vector<std::pair<std::string, std::string>> settings_tabs(const Application &app);
 bool ai_configuration_available(const Application &app);
 std::vector<std::pair<std::string, std::string>> inference_controls(const Application &app);
