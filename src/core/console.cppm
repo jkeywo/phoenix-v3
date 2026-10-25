@@ -157,6 +157,8 @@ private:
 	bool contact_arcs_ = true;
 	std::int64_t sensor_contact_ = 0;
 	std::vector<std::pair<std::string, std::string>> available_consoles_;
+	std::string resolved_ship_;
+	std::vector<ConsoleSpec> resolved_consoles_;
 	UiTabs granted_tabs_;
 	struct Browsing
 	{

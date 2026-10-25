@@ -427,6 +427,8 @@ void ConsoleModel::reset()
 	selected_team_order_.clear();
 	selected_patient_.clear();
 	granted_tabs_ = UiTabs{};
+	resolved_ship_.clear();
+	resolved_consoles_.clear();
 	browsing_.clear();
 	fire_arcs_ = true;
 	owner_.reset();
@@ -464,10 +466,15 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 	available_consoles_.clear();
 	if (next)
 	{
+		if (resolved_ship_ != next->own.definition)
+		{
+			resolved_consoles_ = resolve_consoles(catalog, next->own.definition);
+			resolved_ship_ = next->own.definition;
+		}
 		available_consoles_.emplace_back(next->console, next->console);
 		for (const auto &extra : next->additional_consoles)
 			available_consoles_.emplace_back(extra.console, extra.console);
-		for (const auto &seat : resolve_consoles(catalog, next->own.definition))
+		for (const auto &seat : resolved_consoles_)
 			for (auto &[key, label] : available_consoles_)
 				if (key == seat.id)
 					label = catalog.consoles.at(seat.definition).value("name", key);
@@ -535,7 +542,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		speed_ = heading_ = maximum_ = 0;
 		if (next)
 		{
-			for (const auto &seat : resolve_consoles(catalog, next->own.definition))
+			for (const auto &seat : resolved_consoles_)
 				if (seat.id == next->console || next->console.empty())
 				{
 					if (catalog.consoles.contains(seat.definition))

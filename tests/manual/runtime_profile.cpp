@@ -26,6 +26,8 @@ unsigned focused_frames = 0;
 std::map<std::string, std::vector<double>> samples;
 std::string output;
 bool graphics_ready = false;
+bool probe_readouts = false, readout_probe_passed = false;
+bool probe_accessibility = false, accessibility_probe_passed = false;
 void profile_frame()
 {
 	const auto started = GetTime();
@@ -78,6 +80,21 @@ void profile_frame()
 		capture_started = started;
 		capture_tick = app.session->ticks() - ticks;
 	}
+	if (probe_readouts && !readout_probe_passed && frames >= 20)
+		for (const auto &region : app.console_regions)
+			readout_probe_passed |= probe_console_readouts(region.console);
+#ifndef __EMSCRIPTEN__
+	if (probe_accessibility && !accessibility_probe_passed && frames >= 20)
+	{
+		Application fixture;
+		fixture.console_surface_active = fixture.native_menu = true;
+		fixture.session = app.session;
+		fixture.screen_readouts.emplace_back("probe.status", "Current readout");
+		fixture.control_placements["probe.status"] = {0, 0, 100, 40, false, true};
+		accessibility_probe_passed = probe_native_accessibility(fixture);
+		publish_semantics(app);
+	}
+#endif
 	if (IsWindowFocused())
 		++focused_frames;
 	samples["interval"].push_back(interval * 1000);
@@ -100,6 +117,10 @@ void profile_frame()
 	                      {"remaining_backlog_seconds", accumulated},
 	                      {"focused_frames", focused_frames},
 	                      {"warmup_seconds", capture_started - graphics_started},
+	                      {"readout_probe_requested", probe_readouts},
+	                      {"readout_probe_passed", readout_probe_passed},
+	                      {"accessibility_probe_requested", probe_accessibility},
+	                      {"accessibility_probe_passed", accessibility_probe_passed},
 	                      {"units", "milliseconds"}};
 	for (auto &[name, values] : samples)
 	{
@@ -146,6 +167,17 @@ int main(int argc, char **argv)
 		capture_seconds = argc > 8 ? std::stod(argv[8]) : 45;
 		const std::string seat = argc > 9 ? argv[9] : "helm";
 		warmup = argc > 10 ? std::stoul(argv[10]) : 20;
+		const std::string probes = argc > 11 ? argv[11] : "";
+		probe_readouts = probes.find("readouts") != std::string::npos;
+		probe_accessibility = probes.find("accessibility") != std::string::npos;
+		if (probes.find("fonts") != std::string::npos)
+		{
+#ifdef __EMSCRIPTEN__
+			setenv("PHOENIX_VERIFY_FONT_WIDTHS", "1", 1);
+#else
+			_putenv_s("PHOENIX_VERIFY_FONT_WIDTHS", "1");
+#endif
+		}
 		app.can_host = true;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(directory + "/base.zip"));

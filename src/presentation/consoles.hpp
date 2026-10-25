@@ -81,7 +81,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::string command_language_, command_markup_;
 
 	std::map<std::string, std::string> displayed_values_;
-	std::vector<std::pair<std::string, std::string>> readout_values_;
+	std::vector<std::pair<std::string, std::string>> readout_values_, resource_readouts_;
 	std::set<std::string> visible_readouts_;
 	void measure_readouts()
 	{
@@ -89,13 +89,22 @@ class ConsoleSurface final : public Rml::EventListener
 		auto *panel = document_->GetElementById("gameplay");
 		const auto panel_at = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
 		const auto bottom = panel_at.y + panel->GetOffsetHeight() + 100;
-		for (const auto &[name, text] : readout_values_)
-			if (auto *target = element(id(name)))
-			{
-				const auto at = target->GetAbsoluteOffset(Rml::BoxArea::Border);
-				if (at.y + target->GetOffsetHeight() >= panel_at.y - 100 && at.y <= bottom)
-					visible_readouts_.insert(name);
-			}
+		const auto viewport_bottom = static_cast<float>(context_->GetDimensions().y) + 100;
+		auto measure = [&](const auto &values)
+		{
+			for (const auto &[name, text] : values)
+				if (auto *target = element(id(name)); target && target->IsVisible(true))
+				{
+					const auto at = target->GetAbsoluteOffset(Rml::BoxArea::Border);
+					const auto top = name.starts_with("resource/") ? -100.f : std::max(-100.f, panel_at.y - 100);
+					const auto limit =
+					    name.starts_with("resource/") ? viewport_bottom : std::min(viewport_bottom, bottom);
+					if (at.y + target->GetOffsetHeight() >= top && at.y <= limit)
+						visible_readouts_.insert(name);
+				}
+		};
+		measure(readout_values_);
+		measure(resource_readouts_);
 	}
 	bool update_readout(const std::string &name, const std::string &text, bool force)
 	{
@@ -1527,6 +1536,8 @@ button.on-screen-active .share-live {display:block;}
 		bool changed = false;
 		for (const auto &[name, text] : readout_values_)
 			changed |= update_readout(name, text, false);
+		for (const auto &[name, text] : resource_readouts_)
+			changed |= update_readout(name, text, false);
 		if (changed)
 			context_->Update();
 	}
@@ -1534,27 +1545,34 @@ button.on-screen-active .share-live {display:block;}
 	{
 		// Explicit graphical smoke: deferred text becomes current on scrolling,
 		// while its semantic value was already current before it became visible.
-		for (const auto &[name, text] : readout_values_)
-			if (displayed_values_[name] != text)
+		auto values = readout_values_;
+		values.insert(values.end(), resource_readouts_.begin(), resource_readouts_.end());
+		for (const auto &[name, text] : values)
+			if (auto *target = element(id(name)); target && target->IsVisible(true) && displayed_values_[name] != text)
 			{
-				const auto semantic =
-				    std::find(app_->screen_readouts.begin(), app_->screen_readouts.end(), std::pair{id(name), text});
+				const auto semantic = std::find_if(app_->screen_readouts.begin(), app_->screen_readouts.end(),
+				                                   [&](const auto &entry)
+				                                   {
+					                                   return entry.first == id(name) && entry.second.ends_with(text);
+				                                   });
 				if (semantic == app_->screen_readouts.end())
 				{
 					std::cerr << "Deferred readout semantic missing: " << name << std::endl;
 					return false;
 				}
-				auto *panel = document_->GetElementById("gameplay");
-				const float previous_scroll = panel->GetScrollTop();
-				element(id(name))->ScrollIntoView({Rml::ScrollAlignment::Start, Rml::ScrollAlignment::Nearest,
-				                                   Rml::ScrollBehavior::Instant, Rml::ScrollParentage::Closest});
+				std::vector<std::pair<Rml::Element *, float>> scroll;
+				for (auto *parent = target->GetParentNode(); parent; parent = parent->GetParentNode())
+					scroll.emplace_back(parent, parent->GetScrollTop());
+				target->ScrollIntoView({Rml::ScrollAlignment::Start, Rml::ScrollAlignment::Nearest,
+				                        Rml::ScrollBehavior::Instant, Rml::ScrollParentage::Closest});
 				update_view();
 				if (displayed_values_[name] != text)
 				{
 					std::cerr << "Deferred readout did not refresh: " << name << std::endl;
 					return false;
 				}
-				panel->SetScrollTop(previous_scroll);
+				for (const auto &[parent, previous] : scroll)
+					parent->SetScrollTop(previous);
 				update_view();
 				std::cout << "Deferred readout scroll and current semantics passed" << std::endl;
 				return true;
@@ -2422,14 +2440,12 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &card : cards)
 				displayed_values_.erase("resource/" + card.id);
 		}
+		resource_readouts_.clear();
 		for (const auto &card : cards)
 		{
 			const auto name = "resource/" + card.id;
-			if (displayed_values_[name] != card.summary)
-			{
-				element(id(name))->SetInnerRML(Rml::StringUtilities::EncodeRml(card.summary));
-				displayed_values_[name] = card.summary;
-			}
+			resource_readouts_.emplace_back(name, card.summary);
+			update_readout(name, card.summary, false);
 			app.screen_readouts.emplace_back(id(name), localise(card.title) + ". " + card.summary);
 			for (const auto &[metric, value] : std::vector<std::pair<std::string, std::optional<int>>>{
 			         {"heat", card.heat}, {"battery", card.battery}})

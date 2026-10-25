@@ -59,3 +59,11 @@ A fixed decision-snapshot pass shares physical telemetry among overlapping Conso
 The frozen native autonomous Cruiser is now 22.60 ms mean tick, p95 26.97 ms, p99 30.76 ms (600 ticks). The intermediate native bridge is 221.07 ms mean frame. Its readout scroll/semantic probe passes. This remains far from the presentation target.
 
 A buffered-geometry renderer was trialled on native and WebGL2 and rendered the sampled Console correctly, but did not materially reduce the Console stage. It has been removed; its patch and diagnostic captures remain under ignored performance artifacts. The original renderer is retained. Separate timers now distinguish RmlUi view updates, custom painting and RmlUi rendering.
+
+## Presentation and accessibility checkpoint
+
+Console models retain resolved Console definitions until the session/catalog changes. Windows accessibility publication now indexes current identities once, moves the previous immutable control list instead of copying it, and indexes prior controls for property notifications. The native COM smoke passes stable identity across reorder/name changes, retirement/recreation, generation replacement and text-role checks.
+
+Resource-card text now uses the same offscreen deferral as generic readouts, while publishing current accessible values. A graphical probe verifies a stale offscreen value is already current semantically and refreshes after scrolling. It passes on native and WebAssembly. The bounded HarfBuzz width cache includes face, exact text, language, direction, kerning, letter spacing and preceding character. It clears on font loading, language registration, resource release and shutdown. Native and browser smoke modes each compare at least 100 cache hits directly against HarfBuzz without mismatch. The probe is disabled in performance samples.
+
+The current native bridge sample (five Consoles plus Viewscreen, 5760 × 2160) is 177.52 ms mean frame, with 63.98 ms preparation, 17.80 ms Console rendering and 24.10 ms mean tick. It remains a failed 60 FPS result; about 404 ticks execute during 20.30 seconds, with 0.054 seconds of elapsed simulation time discarded by the diagnostic cap. The font/accessibility functional sample is separate and is not performance evidence.

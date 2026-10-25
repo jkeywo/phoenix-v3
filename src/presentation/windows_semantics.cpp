@@ -18,6 +18,8 @@ module;
 #include <memory>
 #include <mutex>
 #include <type_traits>
+#include <unordered_set>
+#include <string_view>
 
 #include <functional>
 #include <string>
@@ -594,7 +596,7 @@ void publish_semantics(const Application &app)
 		return;
 	std::unique_lock lock(state->mutex);
 	const auto previous_focus = state->focus >= 0 ? state->controls[state->focus].id : std::string{};
-	const auto previous = state->controls;
+	const auto previous = std::move(state->controls);
 	const bool announce =
 	    (app.console_surface_active ||
 	     (app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
@@ -604,7 +606,7 @@ void publish_semantics(const Application &app)
 	auto controls = navigation_controls(app);
 	const bool replaced =
 	    state->session.lock() != app.session || (app.session && state->generation != app.session->generation());
-	bool changed = replaced || controls.size() != state->controls.size();
+	bool changed = replaced || controls.size() != previous.size();
 	if (replaced)
 	{
 		state->session = app.session;
@@ -615,15 +617,15 @@ void publish_semantics(const Application &app)
 		state->values.clear();
 	}
 	for (std::size_t i = 0; !changed && i < controls.size(); ++i)
-		changed = controls[i].id != state->controls[i].id;
+		changed = controls[i].id != previous[i].id;
+	std::unordered_set<std::string_view> current_ids;
+	current_ids.reserve(controls.size());
+	for (const auto &control : controls)
+		current_ids.insert(control.id);
 	std::erase_if(state->identities,
 	              [&](const auto &entry)
 	              {
-		              return std::none_of(controls.begin(), controls.end(),
-		                                  [&](const auto &c)
-		                                  {
-			                                  return c.id == entry.first;
-		                                  });
+		              return !current_ids.contains(entry.first);
 	              });
 	std::erase_if(state->actions,
 	              [&](const auto &id)
@@ -660,16 +662,17 @@ void publish_semantics(const Application &app)
 	std::vector<PropertyChange> properties;
 	const bool listening = root && UiaClientsAreListening();
 	if (listening && !replaced)
+	{
+		std::map<std::string_view, const SemanticControl *> previous_controls;
+		for (const auto &control : previous)
+			previous_controls.emplace(control.id, &control);
 		for (std::size_t i = 0; i < state->controls.size(); ++i)
 		{
 			const auto &now = state->controls[i];
-			const auto old = std::find_if(previous.begin(), previous.end(),
-			                              [&](const auto &c)
-			                              {
-				                              return c.id == now.id;
-			                              });
-			if (old == previous.end())
+			const auto found = previous_controls.find(now.id);
+			if (found == previous_controls.end())
 				continue;
+			const auto *old = found->second;
 			auto property = [&](PROPERTYID id, const auto &before, const auto &after)
 			{
 				if (before == after)
@@ -713,6 +716,7 @@ void publish_semantics(const Application &app)
 			if (now.tab)
 				property(UIA_SelectionItemIsSelectedPropertyId, old->selected, now.selected);
 		}
+	}
 	lock.unlock();
 	if (changed && listening)
 		UiaRaiseStructureChangedEvent(root, StructureChangeType_ChildrenInvalidated, nullptr, 0);

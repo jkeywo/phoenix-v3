@@ -14,6 +14,9 @@ module;
 #include <array>
 #include <tuple>
 #include <map>
+#include <list>
+#include <iterator>
+#include <cstdlib>
 #include <set>
 #include <optional>
 #include <nlohmann/json.hpp>
@@ -43,6 +46,7 @@ import phoenix.devices;
 #include "ui_theme.hpp"
 #include "complexity_stars.hpp"
 #include "rml_backend.hpp"
+#include "font_measurements.hpp"
 #include "game.hpp"
 #include "menu.hpp"
 #include "engineering.hpp"
@@ -105,7 +109,7 @@ namespace
 {
 UiSystem system;
 UiRenderer renderer;
-FontEngineInterfaceHarfBuzz shaping;
+CachedFontMeasurements shaping;
 Rml::Context *context = nullptr;
 Rml::ElementDocument *document = nullptr;
 Application *current_app = nullptr;
@@ -1723,10 +1727,18 @@ void draw_screen(Application &app)
 		     app.screen == Screen::settings ? std::vector<ConsoleRegion>{} : active_console_regions)
 		{
 			auto &surface = *console_surfaces.at(region.console);
+			const auto update_started = GetTime();
 			surface.update_view();
+			app.frame_metrics["console/" + std::to_string(region.console) + "/view-update"] =
+			    GetTime() - update_started;
+			const auto paint_started = GetTime();
 			surface.draw(region);
+			app.frame_metrics["console/" + std::to_string(region.console) + "/custom-paint"] =
+			    GetTime() - paint_started;
 			renderer.viewport({region.x, region.y, region.width, region.height});
+			const auto render_started = GetTime();
 			surface.context().Render();
+			app.frame_metrics["console/" + std::to_string(region.console) + "/rml-render"] = GetTime() - render_started;
 			renderer.finish();
 			surface.draw_profile(region);
 			if (const auto view = app.session->console_snapshot(region.console))
