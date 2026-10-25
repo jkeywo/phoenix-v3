@@ -688,9 +688,8 @@ class GameLobby final : public SessionPort
 		const auto config = coordinator_ ? config_for(self_) : configuration_;
 		if (role_ == JoinRole::ship_server)
 		{
-			auto prepared = services_.read(bundle_, self_);
 			if (offline_)
-				candidate = prepared.world;
+				candidate = services_.read(bundle_, self_).world;
 			else
 			{
 				auto options = options_;
