@@ -71,6 +71,8 @@ Json power_board(const ConsoleAddress &address) const
 	{
 		const auto &definition = network.stores.at(index);
 		Json row{{"id", definition.id},
+		         {"group", definition.group == no_resource ? std::string{} : network.groups.at(definition.group).id},
+		         {"allocation", power->network.stores().at(index).charge_limit},
 		         {"energy", power->network.stores().at(index).energy()},
 		         {"capacity", definition.capacity},
 		         {"power_systems", Json::array()},
@@ -99,6 +101,10 @@ Json power_board(const ConsoleAddress &address) const
 	for (auto index : groups)
 	{
 		Json row{{"id", network.groups.at(index).id},
+		         {"parent", network.groups.at(index).parent == no_resource
+		                        ? std::string{}
+		                        : network.groups.at(network.groups.at(index).parent).id},
+		         {"allocation", power->network.groups().at(index).budget_rate},
 		         {"energy", 0},
 		         {"capacity", 0},
 		         {"power_systems", Json::array()},

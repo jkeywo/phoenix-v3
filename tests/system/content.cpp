@@ -57,6 +57,12 @@ int main()
 			               {"component", "messages"},
 			               {"min_width", 300}}})}}}}});
 			console["layout"] = "test.layout";
+			auto authored_header = console_ui_header_template();
+			authored_header["id"] = "test.header";
+			definitions["layouts"].push_back(authored_header);
+			console["header"] = "test.header";
+			console["header_overrides"] = {{"root", {{"gap", 14}}}};
+
 			definitions["themes"] =
 			    Json::array({{{"id", "test.theme"}, {"schema", 1}, {"tokens", {{"accent", "#123456"}}}}});
 			console["theme"] = "test.theme";
@@ -83,6 +89,8 @@ int main()
 			        "nested groups detach with the same identity and overrides as production compilation");
 			const auto program =
 			    compile_ui_layout(ui_catalog, ui_catalog.consoles.at(console.at("id").get<std::string>()));
+			require(program.header && program.header->gap == 14 && program.header->children.size() == 3,
+			        "authored reusable header compiles Settings, station name and tab components with overrides");
 			const auto wide = resolve_ui_layout(program, {0, 0, 1200, 700}, 1);
 			const auto phone = resolve_ui_layout(program, {0, 0, 360, 700}, 1);
 			require(!wide.compact && wide.placements.size() == 2 && wide.pages.empty(),
@@ -209,6 +217,12 @@ int main()
 			        "theme merges built-in defaults");
 			const auto ship = ui_catalog.entities.begin()->first;
 			const auto client = resolve_packs({console_assets(ui_catalog, ship)});
+			require(
+			    client.layouts.contains("test.header") &&
+			        compile_ui_layout(client, client.consoles.at(console.at("id").get<std::string>())).header->gap ==
+			            14,
+			    "restricted transfer preserves authored header assets and overrides");
+
 			require(client.layouts.contains("test.layout") && client.themes.contains("test.theme"),
 			        "client bundle retains reachable presentation definitions");
 			require(client.ui_groups.contains("test.group") &&

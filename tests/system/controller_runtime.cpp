@@ -2871,6 +2871,15 @@ int main(int argc, char **argv)
 		public_resume.clear_claims();
 		require(!public_resume.observe(103) && public_resume.public_board(1) == board,
 		        "public board is available without a Console claim");
+		auto navigation_board = board;
+		navigation_board["shared"].push_back(
+		    {{"schema", "phoenix.objective"}, {"fields", {{"title", "HIDDEN-OBJECTIVE"}}}});
+		navigation_board["shared"].push_back(
+		    {{"schema", "phoenix.waypoint"}, {"fields", {{"title", "HIDDEN-WAYPOINT"}}}});
+		navigation_board["objectives"] = {{{"id", 999}, {"title", "HIDDEN-OBJECTIVE"}}};
+		for (const auto &[id, text] : public_board_readouts(navigation_board, public_messages.ticks()))
+			require(text.find("HIDDEN-") == std::string::npos,
+			        "Viewscreen excludes objective and waypoint semantic presentation in every shared-board form");
 		const auto board_rows = public_board_readouts(board, public_messages.ticks());
 		require(!board_rows.empty() && std::all_of(board_rows.begin(), board_rows.end(),
 		                                           [](const auto &row)

@@ -11,16 +11,18 @@ void ensure_station_components()
 		created->SetProperty("display", "none");
 		bank = document_->AppendChild(std::move(created));
 	}
-	for (const char *component : {"power", "repair", "operations", "docking", "craft", "personnel", "away"})
+	for (const auto &spec : console_ui_components())
+	{
+		const auto &component = spec.id;
 		if (!authored_component(component))
 		{
 			auto created = document_->CreateElement("div");
-			created->SetId(std::string(component) + "-panel");
+			created->SetId(component + "-panel");
 			created->SetClass("station-panel", true);
-			created->SetClass("engineering-board",
-			                  std::string(component) == "power" || std::string(component) == "repair");
+			created->SetClass("engineering-board", component == "power" || component == "repair");
 			bank->AppendChild(std::move(created));
 		}
+	}
 }
 bool station_component_active(const std::string &component)
 {
@@ -33,6 +35,7 @@ void prepare_station_components(const ConsoleRegion &region, bool pregame)
 		return;
 	prepare_engineering_component("power", region, pregame);
 	prepare_engineering_component("repair", region, pregame);
+	prepare_task_panels(region);
 	for (const char *component : {"operations", "docking", "craft", "personnel", "away"})
 	{
 		if (!station_component_active(component))

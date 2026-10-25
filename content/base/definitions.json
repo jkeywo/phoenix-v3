@@ -807,7 +807,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier â€” Engineering fit",
+			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -24012,7 +24012,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier â€” Communications fit",
+			"name": "Courier \u00e2\u20ac\u201d Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -27003,6 +27003,18 @@
 							"repair_work": 100
 						}
 					]
+				},
+				"weapons-distribution": {
+					"kind": "distribution",
+					"group": "combat-power.weapons",
+					"compartment": "mid-port",
+					"observation_console": "support"
+				},
+				"shields-distribution": {
+					"kind": "distribution",
+					"group": "combat-power.shields",
+					"compartment": "mid-port",
+					"observation_console": "support"
 				}
 			},
 			"stations": [
@@ -27115,7 +27127,9 @@
 								"veil-supply",
 								"veil-cooling",
 								"beam-turret",
-								"pdc-turret"
+								"pdc-turret",
+								"weapons-distribution",
+								"shields-distribution"
 							],
 							"shield_feed": true
 						},
@@ -27138,7 +27152,7 @@
 							"id": "navigation",
 							"definition": "base.console.navigation",
 							"systems": [],
-							"feeds": [],
+							"feeds": ["radar"],
 							"knowledge_roles": ["base.crew"],
 							"human_preferences": ["support", "helm"]
 						}
@@ -28094,6 +28108,32 @@
 								"consumers": ["veil-cooling"]
 							}
 						]
+					},
+					{
+						"id": "weapons-distribution",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "group_allocation",
+								"initial": 3000,
+								"consumers": ["weapons-distribution"]
+							}
+						]
+					},
+					{
+						"id": "shields-distribution",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "group_allocation",
+								"initial": 3000,
+								"consumers": ["shields-distribution"]
+							}
+						]
 					}
 				],
 				"default_profile": "simple",
@@ -28125,7 +28165,9 @@
 									"shield-aft.distribution",
 									"veil",
 									"veil-supply",
-									"veil-cooling"
+									"veil-cooling",
+									"weapons-distribution",
+									"shields-distribution"
 								]
 							},
 							"tactical": {
@@ -28201,7 +28243,9 @@
 									"shield-fore.distribution",
 									"shield-aft.distribution",
 									"veil-supply",
-									"veil-cooling"
+									"veil-cooling",
+									"weapons-distribution",
+									"shields-distribution"
 								]
 							},
 							"tactical": {
@@ -28272,7 +28316,9 @@
 									"shield-aft.distribution",
 									"veil",
 									"veil-supply",
-									"veil-cooling"
+									"veil-cooling",
+									"weapons-distribution",
+									"shields-distribution"
 								],
 								"ai": ["radar", "repair-priority", "shield-priority"]
 							},
@@ -29145,6 +29191,24 @@
 						"department": "sciences",
 						"compartment": "mid-port",
 						"choir": "veil",
+						"bindings": {}
+					},
+					{
+						"id": "weapons-distribution",
+						"label": "Weapons distribution",
+						"department": "engineering",
+						"controller": "weapons-distribution",
+						"console": "support",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "shields-distribution",
+						"label": "Shields distribution",
+						"department": "engineering",
+						"controller": "shields-distribution",
+						"console": "support",
+						"compartment": "mid-port",
 						"bindings": {}
 					}
 				],
@@ -33515,7 +33579,7 @@
 		{
 			"id": "base.delivery-casualty",
 			"extends": "base.rescue-casualty",
-			"name": "Morrow — stranded merchant",
+			"name": "Morrow \u2014 stranded merchant",
 			"faction": "crew",
 			"systems": {
 				"comms-radio": {
@@ -36132,7 +36196,7 @@
 					"members": ["ship", "engineer"],
 					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"],
 					"start_event": "rescue.distress",
-					"title_key": "Morrow — Rescue assistance"
+					"title_key": "Morrow \u2014 Rescue assistance"
 				},
 				{
 					"id": "delivery-courier-arrival",
@@ -36275,7 +36339,7 @@
 					},
 					"members": ["ship", "engineer"],
 					"cancel_events": ["rescue.reactor-secured"],
-					"title_key": "Morrow — Reactor emergency"
+					"title_key": "Morrow \u2014 Reactor emergency"
 				}
 			],
 			"away_missions": [
@@ -36986,7 +37050,7 @@
 							{
 								"result": "taken",
 								"title_key": "Morrow taken by pirates",
-								"explanation_key": "The pirates killed Morrow’s original crew and took the ship. Player personnel still aboard were captured.",
+								"explanation_key": "The pirates killed Morrow\u2019s original crew and took the ship. Player personnel still aboard were captured.",
 								"when": {
 									"all": [
 										{
@@ -37049,7 +37113,7 @@
 									},
 									{
 										"result": "prompt",
-										"title_key": "Prompt delivery — full credit",
+										"title_key": "Prompt delivery \u2014 full credit",
 										"explanation_key": "Cairn received all perishable essentials within 10 minutes of arrival.",
 										"when": {
 											"all": [
@@ -37068,7 +37132,7 @@
 									},
 									{
 										"result": "late",
-										"title_key": "Late delivery — reduced credit",
+										"title_key": "Late delivery \u2014 reduced credit",
 										"explanation_key": "Cairn received the full consignment after 10 minutes, within the 20 minute limit.",
 										"when": {
 											"fact": "delivery-status",
@@ -37078,7 +37142,7 @@
 									},
 									{
 										"result": "expired",
-										"title_key": "Expired — delivery failed",
+										"title_key": "Expired \u2014 delivery failed",
 										"explanation_key": "The full consignment did not reach Cairn within 20 minutes. Cargo remains transferable but earns no delivery credit.",
 										"when": {
 											"fact": "delivery-status",
@@ -37100,7 +37164,7 @@
 									{
 										"result": "killed",
 										"title_key": "Original crew killed",
-										"explanation_key": "The pirates killed Morrow’s original crew during their takeover. Retaking the ship does not undo those deaths.",
+										"explanation_key": "The pirates killed Morrow\u2019s original crew during their takeover. Retaking the ship does not undo those deaths.",
 										"when": {
 											"fact": "pirate-takeover",
 											"value": true
@@ -37560,7 +37624,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the shipâ€™s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
 			"layout": "base.console.bridge.layout"
 		},
 		{
@@ -37647,14 +37711,24 @@
 			"knowledge_roles": ["base.crew", "base.engineering"],
 			"widgets": [
 				{
-					"id": "status",
-					"kind": "status",
-					"binding": "ship.status",
-					"label": "Engineering and resource status",
+					"id": "camera-mode",
+					"kind": "camera_mode",
+					"binding": "ship.camera.mode",
+					"label": "Camera mode",
 					"x": 0,
-					"y": 0,
-					"width": 1000,
-					"height": 1000
+					"y": 100,
+					"width": 180,
+					"height": 160
+				},
+				{
+					"id": "camera-direction",
+					"kind": "camera_direction",
+					"binding": "ship.camera.direction",
+					"label": "Camera direction",
+					"x": 0,
+					"y": 280,
+					"width": 180,
+					"height": 400
 				}
 			],
 			"stances": [
@@ -37773,19 +37847,12 @@
 					"y": 0,
 					"width": 1000,
 					"height": 1000
-				},
-				{
-					"id": "objectives",
-					"kind": "objectives",
-					"binding": "ship.objectives",
-					"label": "Ship objectives",
-					"x": 0,
-					"y": 0,
-					"width": 300,
-					"height": 200
 				}
 			],
 			"viewscreen": true,
+			"layout": "base.console.navigation.layout",
+			"hud_layout": "base.console.navigation.hud",
+			"tab": true,
 			"compact": {
 				"widgets": [
 					{
@@ -37796,25 +37863,12 @@
 						"controller": "navigation.orders",
 						"channel": "waypoint",
 						"x": 0,
-						"y": 240,
-						"width": 1000,
-						"height": 760
-					},
-					{
-						"id": "objectives",
-						"kind": "objectives",
-						"binding": "ship.objectives",
-						"label": "Ship objectives",
-						"x": 0,
 						"y": 0,
 						"width": 1000,
-						"height": 220
+						"height": 1000
 					}
 				]
-			},
-			"layout": "base.console.navigation.layout",
-			"hud_layout": "base.console.navigation.hud",
-			"tab": false
+			}
 		},
 		{
 			"id": "base.console.command",
@@ -37922,7 +37976,28 @@
 		{
 			"id": "base.console.combat-support",
 			"name": "Support",
-			"widgets": [],
+			"widgets": [
+				{
+					"id": "camera-mode",
+					"kind": "camera_mode",
+					"binding": "ship.camera.mode",
+					"label": "Camera mode",
+					"x": 0,
+					"y": 100,
+					"width": 180,
+					"height": 160
+				},
+				{
+					"id": "camera-direction",
+					"kind": "camera_direction",
+					"binding": "ship.camera.direction",
+					"label": "Camera direction",
+					"x": 0,
+					"y": 280,
+					"width": 180,
+					"height": 400
+				}
+			],
 			"gameplay_panel": {
 				"x": 0,
 				"y": 0,
@@ -37938,7 +38013,8 @@
 			"human_seeking": true,
 			"knowledge_roles": ["base.crew"],
 			"widgets": [],
-			"layout": "base.console.navigator.layout"
+			"layout": "base.console.navigator.layout",
+			"tab": false
 		},
 		{
 			"id": "base.console.craft",
@@ -37992,7 +38068,28 @@
 			"name": "Engineering",
 			"description": "Operate the Cruiser engineering watch.",
 			"knowledge_roles": ["base.crew", "base.engineering"],
-			"widgets": [],
+			"widgets": [
+				{
+					"id": "camera-mode",
+					"kind": "camera_mode",
+					"binding": "ship.camera.mode",
+					"label": "Camera mode",
+					"x": 0,
+					"y": 100,
+					"width": 180,
+					"height": 160
+				},
+				{
+					"id": "camera-direction",
+					"kind": "camera_direction",
+					"binding": "ship.camera.direction",
+					"label": "Camera direction",
+					"x": 0,
+					"y": 280,
+					"width": 180,
+					"height": 400
+				}
+			],
 			"stances": [
 				{
 					"id": "routine",
@@ -54626,7 +54723,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-cruiser-arrival",
@@ -54650,7 +54747,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-completed",
@@ -54674,7 +54771,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-expired",
@@ -54698,7 +54795,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-5",
@@ -54722,7 +54819,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-8",
@@ -54746,7 +54843,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-15",
@@ -54770,7 +54867,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-18",
@@ -54794,7 +54891,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving — station delivery"
+			"title_key": "Cairn Receiving \u2014 station delivery"
 		},
 		{
 			"id": "base.courier.assist.drive.direct",
@@ -55623,7 +55720,7 @@
 					"transitions": []
 				}
 			],
-			"title_key": "Morrow — Reactor emergency"
+			"title_key": "Morrow \u2014 Reactor emergency"
 		},
 		{
 			"id": "base.cruiser.assist.command.cooling.orders",
@@ -61917,7 +62014,8 @@
 						"operation_heat_ppm": 150000,
 						"stop_heat": 5000,
 						"recover_heat": 1500,
-						"resource": "base.resource.energy"
+						"resource": "base.resource.energy",
+						"group": "weapons"
 					},
 					{
 						"id": "shields",
@@ -61929,7 +62027,8 @@
 						"operation_heat_ppm": 150000,
 						"stop_heat": 5000,
 						"recover_heat": 1500,
-						"resource": "base.resource.energy"
+						"resource": "base.resource.energy",
+						"group": "shields"
 					}
 				],
 				"generators": [
@@ -61953,6 +62052,16 @@
 						"from": "main",
 						"to": "shields",
 						"capacity_rate": 1500
+					}
+				],
+				"groups": [
+					{
+						"id": "weapons",
+						"budget_rate": 3000
+					},
+					{
+						"id": "shields",
+						"budget_rate": 3000
 					}
 				]
 			},
@@ -63717,9 +63826,34 @@
 				"children": [
 					{
 						"id": "main",
+						"label": "Helm",
 						"kind": "row",
-						"label": "Ship Operations",
 						"children": [
+							{
+								"id": "watch",
+								"kind": "column",
+								"children": [
+									{
+										"id": "weapons",
+										"kind": "component",
+										"component": "weapons",
+										"label": "Weapons",
+										"min_height": 180,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "target-info",
+										"kind": "component",
+										"component": "target-info",
+										"label": "Selected target",
+										"min_height": 180
+									}
+								],
+								"min_width": 260,
+								"width": 300,
+								"stretch": 0
+							},
 							{
 								"id": "instruments",
 								"kind": "instruments",
@@ -63731,9 +63865,9 @@
 										"component": "radar",
 										"label": "Local space / north up",
 										"rect": {
-											"x": 240,
+											"x": 0,
 											"y": 0,
-											"width": 600,
+											"width": 780,
 											"height": 1000
 										},
 										"min_width": 280,
@@ -63746,10 +63880,10 @@
 										"component": "engine",
 										"label": "Engine",
 										"rect": {
-											"x": 850,
-											"y": 100,
-											"width": 150,
-											"height": 800
+											"x": 800,
+											"y": 50,
+											"width": 190,
+											"height": 900
 										},
 										"min_width": 72,
 										"min_height": 240
@@ -63769,34 +63903,6 @@
 										"min_height": 72
 									},
 									{
-										"id": "camera-mode",
-										"kind": "component",
-										"component": "camera-mode",
-										"label": "Camera mode",
-										"rect": {
-											"x": 0,
-											"y": 80,
-											"width": 220,
-											"height": 220
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
-										"id": "camera-direction",
-										"kind": "component",
-										"component": "camera-direction",
-										"label": "Camera direction",
-										"rect": {
-											"x": 0,
-											"y": 300,
-											"width": 220,
-											"height": 450
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
 										"id": "manual",
 										"kind": "component",
 										"component": "manual-flight",
@@ -63809,61 +63915,23 @@
 										}
 									}
 								],
-								"min_width": 640,
-								"min_height": 480,
+								"min_width": 540,
+								"min_height": 420,
 								"stretch": 3
-							},
-							{
-								"id": "target-weapons",
-								"kind": "column",
-								"label": "Target and weapons",
-								"min_width": 320,
-								"children": [
-									{
-										"id": "readouts",
-										"kind": "component",
-										"component": "readouts",
-										"label": "Target data",
-										"min_width": 320,
-										"min_height": 170,
-										"height": 200,
-										"stretch": 0
-									},
-									{
-										"id": "controls",
-										"kind": "component",
-										"component": "controls",
-										"label": "Weapons and flight",
-										"min_width": 320,
-										"min_height": 280
-									}
-								]
 							}
 						]
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "personnel",
-						"kind": "component",
-						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "away",
 						"kind": "component",
 						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Away missions"
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel"
 					}
 				]
 			},
@@ -63874,9 +63942,34 @@
 				"children": [
 					{
 						"id": "main",
+						"label": "Helm",
 						"kind": "row",
-						"label": "Ship Operations",
 						"children": [
+							{
+								"id": "watch",
+								"kind": "column",
+								"children": [
+									{
+										"id": "weapons",
+										"kind": "component",
+										"component": "weapons",
+										"label": "Weapons",
+										"min_height": 180,
+										"height": 200,
+										"stretch": 0
+									},
+									{
+										"id": "target-info",
+										"kind": "component",
+										"component": "target-info",
+										"label": "Selected target",
+										"min_height": 180
+									}
+								],
+								"min_width": 260,
+								"width": 300,
+								"stretch": 0
+							},
 							{
 								"id": "instruments",
 								"kind": "instruments",
@@ -63888,9 +63981,9 @@
 										"component": "radar",
 										"label": "Local space / north up",
 										"rect": {
-											"x": 240,
+											"x": 0,
 											"y": 0,
-											"width": 600,
+											"width": 780,
 											"height": 1000
 										},
 										"min_width": 280,
@@ -63903,10 +63996,10 @@
 										"component": "engine",
 										"label": "Engine",
 										"rect": {
-											"x": 850,
-											"y": 100,
-											"width": 150,
-											"height": 800
+											"x": 800,
+											"y": 50,
+											"width": 190,
+											"height": 900
 										},
 										"min_width": 72,
 										"min_height": 240
@@ -63926,34 +64019,6 @@
 										"min_height": 72
 									},
 									{
-										"id": "camera-mode",
-										"kind": "component",
-										"component": "camera-mode",
-										"label": "Camera mode",
-										"rect": {
-											"x": 0,
-											"y": 80,
-											"width": 220,
-											"height": 220
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
-										"id": "camera-direction",
-										"kind": "component",
-										"component": "camera-direction",
-										"label": "Camera direction",
-										"rect": {
-											"x": 0,
-											"y": 300,
-											"width": 220,
-											"height": 450
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
 										"id": "manual",
 										"kind": "component",
 										"component": "manual-flight",
@@ -63966,61 +64031,23 @@
 										}
 									}
 								],
-								"min_width": 640,
-								"min_height": 480,
+								"min_width": 540,
+								"min_height": 420,
 								"stretch": 3
-							},
-							{
-								"id": "target-weapons",
-								"kind": "column",
-								"label": "Target and weapons",
-								"min_width": 320,
-								"children": [
-									{
-										"id": "readouts",
-										"kind": "component",
-										"component": "readouts",
-										"label": "Target data",
-										"min_width": 320,
-										"min_height": 170,
-										"height": 200,
-										"stretch": 0
-									},
-									{
-										"id": "controls",
-										"kind": "component",
-										"component": "controls",
-										"label": "Weapons and flight",
-										"min_width": 320,
-										"min_height": 280
-									}
-								]
 							}
 						]
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "personnel",
-						"kind": "component",
-						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "away",
 						"kind": "component",
 						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Away missions"
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel"
 					}
 				]
 			},
@@ -64035,9 +64062,34 @@
 				"children": [
 					{
 						"id": "main",
-						"kind": "row",
 						"label": "Helm",
+						"kind": "row",
 						"children": [
+							{
+								"id": "watch",
+								"kind": "column",
+								"children": [
+									{
+										"id": "weapons",
+										"kind": "component",
+										"component": "weapons",
+										"label": "Weapons",
+										"min_height": 100,
+										"height": 0,
+										"stretch": 2
+									},
+									{
+										"id": "target-info",
+										"kind": "component",
+										"component": "target-info",
+										"label": "Selected target",
+										"min_height": 100
+									}
+								],
+								"min_width": 220,
+								"width": 300,
+								"stretch": 0
+							},
 							{
 								"id": "instruments",
 								"kind": "instruments",
@@ -64049,9 +64101,9 @@
 										"component": "radar",
 										"label": "Permitted contacts",
 										"rect": {
-											"x": 240,
+											"x": 0,
 											"y": 0,
-											"width": 600,
+											"width": 780,
 											"height": 1000
 										},
 										"min_width": 280,
@@ -64064,55 +64116,13 @@
 										"component": "engine",
 										"label": "Main propulsion",
 										"rect": {
-											"x": 850,
-											"y": 100,
-											"width": 150,
-											"height": 800
+											"x": 800,
+											"y": 50,
+											"width": 190,
+											"height": 900
 										},
 										"min_width": 72,
 										"min_height": 240
-									},
-									{
-										"id": "heading",
-										"kind": "component",
-										"component": "heading",
-										"label": "Heading",
-										"rect": {
-											"x": 0,
-											"y": 850,
-											"width": 220,
-											"height": 150
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
-										"id": "camera-mode",
-										"kind": "component",
-										"component": "camera-mode",
-										"label": "Camera mode",
-										"rect": {
-											"x": 0,
-											"y": 80,
-											"width": 220,
-											"height": 220
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
-										"id": "camera-direction",
-										"kind": "component",
-										"component": "camera-direction",
-										"label": "Camera direction",
-										"rect": {
-											"x": 0,
-											"y": 300,
-											"width": 220,
-											"height": 450
-										},
-										"min_width": 160,
-										"min_height": 72
 									},
 									{
 										"id": "manual",
@@ -64127,61 +64137,23 @@
 										}
 									}
 								],
-								"min_width": 640,
-								"min_height": 480,
+								"min_width": 440,
+								"min_height": 300,
 								"stretch": 3
-							},
-							{
-								"id": "target-weapons",
-								"kind": "column",
-								"label": "Target and weapons",
-								"min_width": 320,
-								"children": [
-									{
-										"id": "readouts",
-										"kind": "component",
-										"component": "readouts",
-										"label": "Target data",
-										"min_width": 320,
-										"min_height": 170,
-										"height": 200,
-										"stretch": 0
-									},
-									{
-										"id": "controls",
-										"kind": "component",
-										"component": "controls",
-										"label": "Weapons and flight",
-										"min_width": 320,
-										"min_height": 280
-									}
-								]
 							}
 						]
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "personnel",
-						"kind": "component",
-						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "away",
 						"kind": "component",
 						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Away missions"
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel"
 					}
 				]
 			},
@@ -64192,9 +64164,34 @@
 				"children": [
 					{
 						"id": "main",
-						"kind": "row",
 						"label": "Helm",
+						"kind": "row",
 						"children": [
+							{
+								"id": "watch",
+								"kind": "column",
+								"children": [
+									{
+										"id": "weapons",
+										"kind": "component",
+										"component": "weapons",
+										"label": "Weapons",
+										"min_height": 100,
+										"height": 0,
+										"stretch": 2
+									},
+									{
+										"id": "target-info",
+										"kind": "component",
+										"component": "target-info",
+										"label": "Selected target",
+										"min_height": 100
+									}
+								],
+								"min_width": 220,
+								"width": 300,
+								"stretch": 0
+							},
 							{
 								"id": "instruments",
 								"kind": "instruments",
@@ -64206,9 +64203,9 @@
 										"component": "radar",
 										"label": "Permitted contacts",
 										"rect": {
-											"x": 240,
+											"x": 0,
 											"y": 0,
-											"width": 600,
+											"width": 780,
 											"height": 1000
 										},
 										"min_width": 280,
@@ -64221,55 +64218,13 @@
 										"component": "engine",
 										"label": "Main propulsion",
 										"rect": {
-											"x": 850,
-											"y": 100,
-											"width": 150,
-											"height": 800
+											"x": 800,
+											"y": 50,
+											"width": 190,
+											"height": 900
 										},
 										"min_width": 72,
 										"min_height": 240
-									},
-									{
-										"id": "heading",
-										"kind": "component",
-										"component": "heading",
-										"label": "Heading",
-										"rect": {
-											"x": 0,
-											"y": 850,
-											"width": 220,
-											"height": 150
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
-										"id": "camera-mode",
-										"kind": "component",
-										"component": "camera-mode",
-										"label": "Camera mode",
-										"rect": {
-											"x": 0,
-											"y": 80,
-											"width": 220,
-											"height": 220
-										},
-										"min_width": 160,
-										"min_height": 72
-									},
-									{
-										"id": "camera-direction",
-										"kind": "component",
-										"component": "camera-direction",
-										"label": "Camera direction",
-										"rect": {
-											"x": 0,
-											"y": 300,
-											"width": 220,
-											"height": 450
-										},
-										"min_width": 160,
-										"min_height": 72
 									},
 									{
 										"id": "manual",
@@ -64284,61 +64239,23 @@
 										}
 									}
 								],
-								"min_width": 640,
-								"min_height": 480,
+								"min_width": 440,
+								"min_height": 300,
 								"stretch": 3
-							},
-							{
-								"id": "target-weapons",
-								"kind": "column",
-								"label": "Target and weapons",
-								"min_width": 320,
-								"children": [
-									{
-										"id": "readouts",
-										"kind": "component",
-										"component": "readouts",
-										"label": "Target data",
-										"min_width": 320,
-										"min_height": 170,
-										"height": 200,
-										"stretch": 0
-									},
-									{
-										"id": "controls",
-										"kind": "component",
-										"component": "controls",
-										"label": "Weapons and flight",
-										"min_width": 320,
-										"min_height": 280
-									}
-								]
 							}
 						]
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "personnel",
-						"kind": "component",
-						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "away",
 						"kind": "component",
 						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Away missions"
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel"
 					}
 				]
 			},
@@ -64352,44 +64269,109 @@
 				"label": "Station pages",
 				"children": [
 					{
-						"id": "power",
-						"kind": "component",
-						"component": "power",
-						"label": "Power",
-						"min_width": 320,
-						"min_height": 240
+						"id": "support",
+						"kind": "row",
+						"label": "Support",
+						"children": [
+							{
+								"id": "mission",
+								"kind": "column",
+								"children": [
+									{
+										"id": "objectives",
+										"kind": "component",
+										"component": "objectives",
+										"label": "Objectives"
+									},
+									{
+										"id": "ftl-controls",
+										"kind": "component",
+										"component": "ftl-controls",
+										"label": "FTL"
+									}
+								]
+							},
+							{
+								"id": "ship",
+								"kind": "column",
+								"children": [
+									{
+										"id": "viewscreen-controls",
+										"kind": "component",
+										"component": "viewscreen-controls",
+										"label": "Viewscreen",
+										"height": 210,
+										"min_height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "alert-controls",
+										"kind": "component",
+										"component": "alert-controls",
+										"label": "Alert",
+										"height": 140,
+										"min_height": 140,
+										"stretch": 0
+									},
+									{
+										"id": "shield-display",
+										"kind": "component",
+										"component": "shield-display",
+										"label": "Shields",
+										"min_height": 150
+									}
+								]
+							}
+						]
 					},
 					{
-						"id": "repair",
-						"kind": "component",
-						"component": "repair",
-						"label": "Repair",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "operations",
-						"kind": "component",
-						"component": "operations",
-						"label": "Operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
+						"id": "engineering",
+						"kind": "row",
+						"label": "Engineering",
+						"children": [
+							{
+								"id": "power",
+								"kind": "component",
+								"component": "power",
+								"label": "Power",
+								"min_width": 360
+							},
+							{
+								"id": "crew",
+								"kind": "column",
+								"children": [
+									{
+										"id": "compartment-health",
+										"kind": "component",
+										"component": "compartment-health",
+										"label": "Compartments",
+										"min_height": 180,
+										"height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "team-roster",
+										"kind": "component",
+										"component": "team-roster",
+										"label": "Repair and Medical teams",
+										"min_height": 180
+									}
+								],
+								"min_width": 320
+							}
+						]
 					},
 					{
 						"id": "personnel",
 						"kind": "component",
 						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Personnel"
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations"
 					}
 				]
 			},
@@ -64399,44 +64381,109 @@
 				"label": "Station pages",
 				"children": [
 					{
-						"id": "power",
-						"kind": "component",
-						"component": "power",
-						"label": "Power",
-						"min_width": 320,
-						"min_height": 240
+						"id": "support",
+						"kind": "row",
+						"label": "Support",
+						"children": [
+							{
+								"id": "mission",
+								"kind": "column",
+								"children": [
+									{
+										"id": "objectives",
+										"kind": "component",
+										"component": "objectives",
+										"label": "Objectives"
+									},
+									{
+										"id": "ftl-controls",
+										"kind": "component",
+										"component": "ftl-controls",
+										"label": "FTL"
+									}
+								]
+							},
+							{
+								"id": "ship",
+								"kind": "column",
+								"children": [
+									{
+										"id": "viewscreen-controls",
+										"kind": "component",
+										"component": "viewscreen-controls",
+										"label": "Viewscreen",
+										"height": 210,
+										"min_height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "alert-controls",
+										"kind": "component",
+										"component": "alert-controls",
+										"label": "Alert",
+										"height": 140,
+										"min_height": 140,
+										"stretch": 0
+									},
+									{
+										"id": "shield-display",
+										"kind": "component",
+										"component": "shield-display",
+										"label": "Shields",
+										"min_height": 150
+									}
+								]
+							}
+						]
 					},
 					{
-						"id": "repair",
-						"kind": "component",
-						"component": "repair",
-						"label": "Repair",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "operations",
-						"kind": "component",
-						"component": "operations",
-						"label": "Operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
+						"id": "engineering",
+						"kind": "row",
+						"label": "Engineering",
+						"children": [
+							{
+								"id": "power",
+								"kind": "component",
+								"component": "power",
+								"label": "Power",
+								"min_width": 360
+							},
+							{
+								"id": "crew",
+								"kind": "column",
+								"children": [
+									{
+										"id": "compartment-health",
+										"kind": "component",
+										"component": "compartment-health",
+										"label": "Compartments",
+										"min_height": 180,
+										"height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "team-roster",
+										"kind": "component",
+										"component": "team-roster",
+										"label": "Repair and Medical teams",
+										"min_height": 180
+									}
+								],
+								"min_width": 320
+							}
+						]
 					},
 					{
 						"id": "personnel",
 						"kind": "component",
 						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Personnel"
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations"
 					}
 				]
 			},
@@ -64794,7 +64841,9 @@
 						"kind": "component",
 						"component": "conversation-list",
 						"label": "Conversations",
-						"min_width": 220
+						"min_width": 220,
+						"stretch": 0,
+						"width": 260
 					},
 					{
 						"id": "conversation",
@@ -64806,7 +64855,7 @@
 								"kind": "component",
 								"component": "conversation-header",
 								"label": "Participants",
-								"min_height": 64,
+								"min_height": 110,
 								"stretch": 0
 							},
 							{
@@ -64814,7 +64863,7 @@
 								"kind": "component",
 								"component": "conversation-history",
 								"label": "History",
-								"min_height": 180,
+								"min_height": 120,
 								"stretch": 3
 							},
 							{
@@ -64822,7 +64871,7 @@
 								"kind": "component",
 								"component": "conversation-incoming",
 								"label": "Incoming",
-								"min_height": 44,
+								"min_height": 16,
 								"stretch": 0
 							},
 							{
@@ -64830,14 +64879,14 @@
 								"kind": "component",
 								"component": "conversation-replies",
 								"label": "Replies",
-								"min_height": 72
+								"min_height": 44
 							},
 							{
 								"id": "compose",
 								"kind": "component",
 								"component": "conversation-compose",
 								"label": "Message",
-								"min_height": 56,
+								"min_height": 52,
 								"stretch": 0
 							}
 						],
@@ -65018,80 +65067,12 @@
 		{
 			"schema": 1,
 			"root": {
-				"id": "console",
-				"kind": "row",
-				"label": "Console",
-				"children": [
-					{
-						"id": "instruments",
-						"kind": "instruments",
-						"label": "Instruments",
-						"children": [
-							{
-								"id": "map",
-								"kind": "component",
-								"component": "navigation",
-								"label": "Navigation map",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 1000,
-									"height": 1000
-								},
-								"min_width": 280,
-								"min_height": 280
-							},
-							{
-								"id": "objectives",
-								"kind": "component",
-								"component": "objectives",
-								"label": "Ship objectives",
-								"rect": {
-									"x": 0,
-									"y": 0,
-									"width": 300,
-									"height": 200
-								},
-								"min_width": 160,
-								"min_height": 72
-							}
-						],
-						"min_width": 640,
-						"min_height": 480,
-						"stretch": 3
-					},
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
-			},
-			"compact": {
-				"id": "compact",
-				"kind": "tabs",
-				"label": "Console pages",
-				"children": [
-					{
-						"id": "map",
-						"kind": "component",
-						"component": "navigation",
-						"label": "Navigation map",
-						"min_width": 280,
-						"min_height": 280
-					},
-					{
-						"id": "objectives",
-						"kind": "component",
-						"component": "objectives",
-						"label": "Ship objectives",
-						"min_width": 160,
-						"min_height": 72
-					},
-					{
-						"id": "operations",
-						"group": "phoenix-base.group.operations"
-					}
-				]
+				"id": "navigation",
+				"kind": "component",
+				"component": "navigation",
+				"label": "Navigation",
+				"min_width": 400,
+				"min_height": 300
 			},
 			"id": "base.console.navigation.layout"
 		},
@@ -65367,9 +65348,34 @@
 				"children": [
 					{
 						"id": "main",
-						"kind": "row",
 						"label": "Helm",
+						"kind": "row",
 						"children": [
+							{
+								"id": "watch",
+								"kind": "column",
+								"children": [
+									{
+										"id": "weapons",
+										"kind": "component",
+										"component": "weapons",
+										"label": "Weapons",
+										"min_height": 100,
+										"height": 0,
+										"stretch": 2
+									},
+									{
+										"id": "target-info",
+										"kind": "component",
+										"component": "target-info",
+										"label": "Selected target",
+										"min_height": 100
+									}
+								],
+								"min_width": 220,
+								"width": 300,
+								"stretch": 0
+							},
 							{
 								"id": "instruments",
 								"kind": "instruments",
@@ -65381,9 +65387,9 @@
 										"component": "radar",
 										"label": "Combat radar",
 										"rect": {
-											"x": 240,
+											"x": 0,
 											"y": 0,
-											"width": 600,
+											"width": 780,
 											"height": 1000
 										},
 										"min_width": 280,
@@ -65396,27 +65402,13 @@
 										"component": "throttle",
 										"label": "Speed",
 										"rect": {
-											"x": 850,
-											"y": 100,
-											"width": 150,
-											"height": 800
+											"x": 800,
+											"y": 50,
+											"width": 190,
+											"height": 900
 										},
 										"min_width": 72,
 										"min_height": 240
-									},
-									{
-										"id": "heading",
-										"kind": "component",
-										"component": "heading",
-										"label": "Heading",
-										"rect": {
-											"x": 0,
-											"y": 850,
-											"width": 220,
-											"height": 150
-										},
-										"min_width": 160,
-										"min_height": 72
 									},
 									{
 										"id": "manual",
@@ -65431,61 +65423,23 @@
 										}
 									}
 								],
-								"min_width": 640,
-								"min_height": 480,
+								"min_width": 440,
+								"min_height": 300,
 								"stretch": 3
-							},
-							{
-								"id": "target-weapons",
-								"kind": "column",
-								"label": "Target and weapons",
-								"min_width": 320,
-								"children": [
-									{
-										"id": "readouts",
-										"kind": "component",
-										"component": "readouts",
-										"label": "Target data",
-										"min_width": 320,
-										"min_height": 170,
-										"height": 200,
-										"stretch": 0
-									},
-									{
-										"id": "controls",
-										"kind": "component",
-										"component": "controls",
-										"label": "Weapons and flight",
-										"min_width": 320,
-										"min_height": 280
-									}
-								]
 							}
 						]
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "personnel",
-						"kind": "component",
-						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "away",
 						"kind": "component",
 						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Away missions"
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel"
 					}
 				]
 			},
@@ -65496,9 +65450,34 @@
 				"children": [
 					{
 						"id": "main",
-						"kind": "row",
 						"label": "Helm",
+						"kind": "row",
 						"children": [
+							{
+								"id": "watch",
+								"kind": "column",
+								"children": [
+									{
+										"id": "weapons",
+										"kind": "component",
+										"component": "weapons",
+										"label": "Weapons",
+										"min_height": 100,
+										"height": 0,
+										"stretch": 2
+									},
+									{
+										"id": "target-info",
+										"kind": "component",
+										"component": "target-info",
+										"label": "Selected target",
+										"min_height": 100
+									}
+								],
+								"min_width": 220,
+								"width": 300,
+								"stretch": 0
+							},
 							{
 								"id": "instruments",
 								"kind": "instruments",
@@ -65510,9 +65489,9 @@
 										"component": "radar",
 										"label": "Combat radar",
 										"rect": {
-											"x": 240,
+											"x": 0,
 											"y": 0,
-											"width": 600,
+											"width": 780,
 											"height": 1000
 										},
 										"min_width": 280,
@@ -65525,27 +65504,13 @@
 										"component": "throttle",
 										"label": "Speed",
 										"rect": {
-											"x": 850,
-											"y": 100,
-											"width": 150,
-											"height": 800
+											"x": 800,
+											"y": 50,
+											"width": 190,
+											"height": 900
 										},
 										"min_width": 72,
 										"min_height": 240
-									},
-									{
-										"id": "heading",
-										"kind": "component",
-										"component": "heading",
-										"label": "Heading",
-										"rect": {
-											"x": 0,
-											"y": 850,
-											"width": 220,
-											"height": 150
-										},
-										"min_width": 160,
-										"min_height": 72
 									},
 									{
 										"id": "manual",
@@ -65560,61 +65525,23 @@
 										}
 									}
 								],
-								"min_width": 640,
-								"min_height": 480,
+								"min_width": 440,
+								"min_height": 300,
 								"stretch": 3
-							},
-							{
-								"id": "target-weapons",
-								"kind": "column",
-								"label": "Target and weapons",
-								"min_width": 320,
-								"children": [
-									{
-										"id": "readouts",
-										"kind": "component",
-										"component": "readouts",
-										"label": "Target data",
-										"min_width": 320,
-										"min_height": 170,
-										"height": 200,
-										"stretch": 0
-									},
-									{
-										"id": "controls",
-										"kind": "component",
-										"component": "controls",
-										"label": "Weapons and flight",
-										"min_width": 320,
-										"min_height": 280
-									}
-								]
 							}
 						]
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "personnel",
-						"kind": "component",
-						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
 					},
 					{
 						"id": "away",
 						"kind": "component",
 						"component": "away",
-						"label": "Away missions",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Away missions"
+					},
+					{
+						"id": "personnel",
+						"kind": "component",
+						"component": "personnel",
+						"label": "Personnel"
 					}
 				]
 			},
@@ -65688,44 +65615,109 @@
 				"label": "Station pages",
 				"children": [
 					{
-						"id": "power",
-						"kind": "component",
-						"component": "power",
-						"label": "Power",
-						"min_width": 320,
-						"min_height": 240
+						"id": "support",
+						"kind": "row",
+						"label": "Support",
+						"children": [
+							{
+								"id": "mission",
+								"kind": "column",
+								"children": [
+									{
+										"id": "objectives",
+										"kind": "component",
+										"component": "objectives",
+										"label": "Objectives"
+									},
+									{
+										"id": "ftl-controls",
+										"kind": "component",
+										"component": "ftl-controls",
+										"label": "FTL"
+									}
+								]
+							},
+							{
+								"id": "ship",
+								"kind": "column",
+								"children": [
+									{
+										"id": "viewscreen-controls",
+										"kind": "component",
+										"component": "viewscreen-controls",
+										"label": "Viewscreen",
+										"height": 210,
+										"min_height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "alert-controls",
+										"kind": "component",
+										"component": "alert-controls",
+										"label": "Alert",
+										"height": 140,
+										"min_height": 140,
+										"stretch": 0
+									},
+									{
+										"id": "shield-display",
+										"kind": "component",
+										"component": "shield-display",
+										"label": "Shields",
+										"min_height": 150
+									}
+								]
+							}
+						]
 					},
 					{
-						"id": "repair",
-						"kind": "component",
-						"component": "repair",
-						"label": "Repair",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "operations",
-						"kind": "component",
-						"component": "operations",
-						"label": "Operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
+						"id": "engineering",
+						"kind": "row",
+						"label": "Engineering",
+						"children": [
+							{
+								"id": "power",
+								"kind": "component",
+								"component": "power",
+								"label": "Power",
+								"min_width": 360
+							},
+							{
+								"id": "crew",
+								"kind": "column",
+								"children": [
+									{
+										"id": "compartment-health",
+										"kind": "component",
+										"component": "compartment-health",
+										"label": "Compartments",
+										"min_height": 180,
+										"height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "team-roster",
+										"kind": "component",
+										"component": "team-roster",
+										"label": "Repair and Medical teams",
+										"min_height": 180
+									}
+								],
+								"min_width": 320
+							}
+						]
 					},
 					{
 						"id": "personnel",
 						"kind": "component",
 						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Personnel"
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations"
 					}
 				]
 			},
@@ -65736,44 +65728,109 @@
 				"label": "Station pages",
 				"children": [
 					{
-						"id": "power",
-						"kind": "component",
-						"component": "power",
-						"label": "Power",
-						"min_width": 320,
-						"min_height": 240
+						"id": "support",
+						"kind": "row",
+						"label": "Support",
+						"children": [
+							{
+								"id": "mission",
+								"kind": "column",
+								"children": [
+									{
+										"id": "objectives",
+										"kind": "component",
+										"component": "objectives",
+										"label": "Objectives"
+									},
+									{
+										"id": "ftl-controls",
+										"kind": "component",
+										"component": "ftl-controls",
+										"label": "FTL"
+									}
+								]
+							},
+							{
+								"id": "ship",
+								"kind": "column",
+								"children": [
+									{
+										"id": "viewscreen-controls",
+										"kind": "component",
+										"component": "viewscreen-controls",
+										"label": "Viewscreen",
+										"height": 210,
+										"min_height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "alert-controls",
+										"kind": "component",
+										"component": "alert-controls",
+										"label": "Alert",
+										"height": 140,
+										"min_height": 140,
+										"stretch": 0
+									},
+									{
+										"id": "shield-display",
+										"kind": "component",
+										"component": "shield-display",
+										"label": "Shields",
+										"min_height": 150
+									}
+								]
+							}
+						]
 					},
 					{
-						"id": "repair",
-						"kind": "component",
-						"component": "repair",
-						"label": "Repair",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "operations",
-						"kind": "component",
-						"component": "operations",
-						"label": "Operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
+						"id": "engineering",
+						"kind": "row",
+						"label": "Engineering",
+						"children": [
+							{
+								"id": "power",
+								"kind": "component",
+								"component": "power",
+								"label": "Power",
+								"min_width": 360
+							},
+							{
+								"id": "crew",
+								"kind": "column",
+								"children": [
+									{
+										"id": "compartment-health",
+										"kind": "component",
+										"component": "compartment-health",
+										"label": "Compartments",
+										"min_height": 180,
+										"height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "team-roster",
+										"kind": "component",
+										"component": "team-roster",
+										"label": "Repair and Medical teams",
+										"min_height": 180
+									}
+								],
+								"min_width": 320
+							}
+						]
 					},
 					{
 						"id": "personnel",
 						"kind": "component",
 						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Personnel"
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations"
 					}
 				]
 			}
@@ -66436,44 +66493,109 @@
 				"label": "Station pages",
 				"children": [
 					{
-						"id": "power",
-						"kind": "component",
-						"component": "power",
-						"label": "Power",
-						"min_width": 320,
-						"min_height": 240
+						"id": "support",
+						"kind": "row",
+						"label": "Support",
+						"children": [
+							{
+								"id": "mission",
+								"kind": "column",
+								"children": [
+									{
+										"id": "objectives",
+										"kind": "component",
+										"component": "objectives",
+										"label": "Objectives"
+									},
+									{
+										"id": "ftl-controls",
+										"kind": "component",
+										"component": "ftl-controls",
+										"label": "FTL"
+									}
+								]
+							},
+							{
+								"id": "ship",
+								"kind": "column",
+								"children": [
+									{
+										"id": "viewscreen-controls",
+										"kind": "component",
+										"component": "viewscreen-controls",
+										"label": "Viewscreen",
+										"height": 210,
+										"min_height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "alert-controls",
+										"kind": "component",
+										"component": "alert-controls",
+										"label": "Alert",
+										"height": 140,
+										"min_height": 140,
+										"stretch": 0
+									},
+									{
+										"id": "shield-display",
+										"kind": "component",
+										"component": "shield-display",
+										"label": "Shields",
+										"min_height": 150
+									}
+								]
+							}
+						]
 					},
 					{
-						"id": "repair",
-						"kind": "component",
-						"component": "repair",
-						"label": "Repair",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "operations",
-						"kind": "component",
-						"component": "operations",
-						"label": "Operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
+						"id": "engineering",
+						"kind": "row",
+						"label": "Engineering",
+						"children": [
+							{
+								"id": "power",
+								"kind": "component",
+								"component": "power",
+								"label": "Power",
+								"min_width": 360
+							},
+							{
+								"id": "crew",
+								"kind": "column",
+								"children": [
+									{
+										"id": "compartment-health",
+										"kind": "component",
+										"component": "compartment-health",
+										"label": "Compartments",
+										"min_height": 180,
+										"height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "team-roster",
+										"kind": "component",
+										"component": "team-roster",
+										"label": "Repair and Medical teams",
+										"min_height": 180
+									}
+								],
+								"min_width": 320
+							}
+						]
 					},
 					{
 						"id": "personnel",
 						"kind": "component",
 						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Personnel"
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations"
 					}
 				]
 			},
@@ -66484,44 +66606,109 @@
 				"label": "Station pages",
 				"children": [
 					{
-						"id": "power",
-						"kind": "component",
-						"component": "power",
-						"label": "Power",
-						"min_width": 320,
-						"min_height": 240
+						"id": "support",
+						"kind": "row",
+						"label": "Support",
+						"children": [
+							{
+								"id": "mission",
+								"kind": "column",
+								"children": [
+									{
+										"id": "objectives",
+										"kind": "component",
+										"component": "objectives",
+										"label": "Objectives"
+									},
+									{
+										"id": "ftl-controls",
+										"kind": "component",
+										"component": "ftl-controls",
+										"label": "FTL"
+									}
+								]
+							},
+							{
+								"id": "ship",
+								"kind": "column",
+								"children": [
+									{
+										"id": "viewscreen-controls",
+										"kind": "component",
+										"component": "viewscreen-controls",
+										"label": "Viewscreen",
+										"height": 210,
+										"min_height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "alert-controls",
+										"kind": "component",
+										"component": "alert-controls",
+										"label": "Alert",
+										"height": 140,
+										"min_height": 140,
+										"stretch": 0
+									},
+									{
+										"id": "shield-display",
+										"kind": "component",
+										"component": "shield-display",
+										"label": "Shields",
+										"min_height": 150
+									}
+								]
+							}
+						]
 					},
 					{
-						"id": "repair",
-						"kind": "component",
-						"component": "repair",
-						"label": "Repair",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "operations",
-						"kind": "component",
-						"component": "operations",
-						"label": "Operations",
-						"min_width": 320,
-						"min_height": 240
-					},
-					{
-						"id": "craft",
-						"kind": "component",
-						"component": "craft",
-						"label": "Flight operations",
-						"min_width": 320,
-						"min_height": 240
+						"id": "engineering",
+						"kind": "row",
+						"label": "Engineering",
+						"children": [
+							{
+								"id": "power",
+								"kind": "component",
+								"component": "power",
+								"label": "Power",
+								"min_width": 360
+							},
+							{
+								"id": "crew",
+								"kind": "column",
+								"children": [
+									{
+										"id": "compartment-health",
+										"kind": "component",
+										"component": "compartment-health",
+										"label": "Compartments",
+										"min_height": 180,
+										"height": 210,
+										"stretch": 0
+									},
+									{
+										"id": "team-roster",
+										"kind": "component",
+										"component": "team-roster",
+										"label": "Repair and Medical teams",
+										"min_height": 180
+									}
+								],
+								"min_width": 320
+							}
+						]
 					},
 					{
 						"id": "personnel",
 						"kind": "component",
 						"component": "personnel",
-						"label": "Personnel",
-						"min_width": 320,
-						"min_height": 240
+						"label": "Personnel"
+					},
+					{
+						"id": "craft",
+						"kind": "component",
+						"component": "craft",
+						"label": "Flight operations"
 					}
 				]
 			}

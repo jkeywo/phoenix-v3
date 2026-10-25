@@ -206,10 +206,26 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		if (included.insert(seat.definition).second)
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
-			for (const char *field :
-			     {"name", "description", "human_seeking", "stances", "default_stance", "command", "hide_without_ai",
-			      "viewscreen", "compact", "hud_layout", "hud_layout_overrides", "layout", "layout_overrides", "theme",
-			      "theme_overrides", "gameplay_panel", "when", "tab"})
+			for (const char *field : {"name",
+			                          "description",
+			                          "human_seeking",
+			                          "stances",
+			                          "default_stance",
+			                          "command",
+			                          "hide_without_ai",
+			                          "viewscreen",
+			                          "compact",
+			                          "hud_layout",
+			                          "hud_layout_overrides",
+			                          "layout",
+			                          "layout_overrides",
+			                          "theme",
+			                          "theme_overrides",
+			                          "gameplay_panel",
+			                          "when",
+			                          "tab",
+			                          "header",
+			                          "header_overrides"})
 				if (catalog.consoles.at(seat.definition).contains(field))
 					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
@@ -319,6 +335,20 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 			else
 				collect(console.at("layout"));
 		}
+		if (console.contains("header"))
+		{
+			const auto &header = console.at("header");
+			if (header.is_string())
+			{
+				const auto name = header.get<std::string>();
+				layouts.insert(name);
+				collect(catalog.layouts.at(name));
+			}
+			else
+				collect(header);
+		}
+		if (console.contains("header_overrides"))
+			collect(public_ui_definition(console.at("header_overrides")));
 		if (console.contains("hud_layout"))
 		{
 			const auto &hud = console.at("hud_layout");
@@ -362,7 +392,8 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 	}
 	for (auto &console : definitions["consoles"])
 	{
-		for (const char *field : {"layout", "hud_layout", "layout_overrides", "hud_layout_overrides"})
+		for (const char *field :
+		     {"layout", "hud_layout", "layout_overrides", "hud_layout_overrides", "header", "header_overrides"})
 			if (console.contains(field))
 				console[field] = public_ui_definition(console.at(field));
 		if (console.contains("theme_overrides") && console.at("theme_overrides").contains("assets"))

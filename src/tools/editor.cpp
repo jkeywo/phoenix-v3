@@ -1834,6 +1834,57 @@ bool probe_workshop_layout(unsigned stage)
 	}
 	if (stage == 17 && !console_preview_geometry().placements.empty())
 		return false;
+	if (stage == 18)
+	{
+		auto &console = editor.document.definitions()["consoles"][0];
+		console["header"] = console_ui_header_template();
+		console["header"]["root"]["gap"] = 20;
+		layout_workspace.header = true;
+		layout_workspace.sample_stars = 3;
+		editor.document.verify();
+		const auto exported = editor.document.export_pack();
+		editor.document.load_pack(exported);
+		editor.console = 0;
+		editor.selection = "Console";
+	}
+	if (stage == 19)
+	{
+		const auto &geometry = console_preview_geometry();
+		if (geometry.placements.size() != 3 || geometry.containers.empty())
+			return false;
+		for (const auto &p : geometry.placements)
+			if (!p.visible || p.bounds.width < 44 || p.bounds.height < 44)
+				return false;
+		auto &console = editor.document.definitions()["consoles"][0];
+		console["header"]["root"]["gap"] = 28;
+		const auto exported = editor.document.export_pack();
+		editor.document.load_pack(exported);
+		editor.console = 0;
+		editor.selection = "Console";
+		if (editor.document.definitions()["consoles"][0]["header"]["root"]["gap"] != 28)
+			return false;
+		layout_workspace.header = false;
+		layout_workspace.sample_state = 1;
+		editor.document.definitions()["consoles"][0]["layout"] = {
+		    {"schema", 1},
+		    {"root",
+		     {{"id", "tasks"},
+		      {"kind", "row"},
+		      {"children", Json::array({{{"id", "power"}, {"kind", "component"}, {"component", "power"}},
+		                                {{"id", "health"}, {"kind", "component"}, {"component", "compartment-health"}},
+		                                {{"id", "teams"}, {"kind", "component"}, {"component", "team-roster"}}})}}}};
+		layout_workspace.pages.clear();
+	}
+	if (stage == 20)
+	{
+		const auto &geometry = console_preview_geometry();
+		if (geometry.placements.size() != 3)
+			return false;
+		for (const auto &p : geometry.placements)
+			if (!p.visible || p.bounds.width < 100)
+				return false;
+		layout_workspace.sample_stars = 1;
+	}
 
 	return true;
 }

@@ -317,6 +317,7 @@ struct UiComponentSpec
 	std::string id, label, feature;
 };
 std::vector<UiComponentSpec> console_ui_components();
+Json console_ui_header_template();
 struct UiAvailability
 {
 	std::string profile;
@@ -343,7 +344,7 @@ struct UiNode
 struct UiLayout
 {
 	UiNode root;
-	std::optional<UiNode> compact;
+	std::optional<UiNode> compact, header;
 };
 struct UiTab
 {

@@ -4,7 +4,8 @@ Rectangle navigation_area_{};
 bool navigation_visible_ = false;
 std::string navigation_markup_, mission_outcome_;
 std::map<std::uint64_t, Vector2> navigation_contacts_, navigation_starts_;
-bool navigation_dragged_ = false;
+bool navigation_dragged_ = false, navigation_selected_ = false;
+EntityId navigation_selected_contact_ = 0;
 std::vector<Rectangle> navigation_buttons_;
 double navigation_x_ = 0, navigation_y_ = 0;
 
@@ -18,7 +19,9 @@ bool navigation_action(const std::string &action)
 	}
 	if (!navigation_visible_ || !action.starts_with("nav."))
 		return false;
-	if (action == "nav.reset")
+	if (action == "nav.map")
+		document_->GetElementById(id("nav.map"))->Focus();
+	else if (action == "nav.reset")
 		navigation_camera_.automatic = true;
 	else if (action == "nav.in")
 		navigation_camera_.zoom(.8);
@@ -34,7 +37,7 @@ bool navigation_action(const std::string &action)
 		navigation_camera_.pan(0, -80);
 	else if (action == "nav.clear")
 		model_.set_waypoint(0, 0, false);
-	else if (action == "nav.set")
+	else if (action == "nav.set" && navigation_selected_)
 		model_.set_waypoint(static_cast<std::int64_t>(navigation_x_), static_cast<std::int64_t>(navigation_y_));
 	else if (action.starts_with("nav.objective/"))
 		for (const auto &objective : model_.objectives())
@@ -90,12 +93,20 @@ bool navigation_pointer(std::uint64_t contact, float x, float y, DeviceEventKind
 			    navigation_camera_.x + (x - navigation_area_.x - navigation_area_.width / 2) * navigation_camera_.scale;
 			const double wy = navigation_camera_.y -
 			                  (y - navigation_area_.y - navigation_area_.height / 2) * navigation_camera_.scale;
-			const auto waypoint = model_.waypoint();
-			const bool clear = waypoint.value("active", false) &&
-			                   std::hypot(wx - waypoint.value("x", 0.0), wy - waypoint.value("y", 0.0)) <
-			                       navigation_camera_.scale * 12;
-			model_.set_waypoint(static_cast<std::int64_t>(std::clamp(wx, -1e9, 1e9)),
-			                    static_cast<std::int64_t>(std::clamp(wy, -1e9, 1e9)), !clear);
+			navigation_x_ = std::clamp(wx, -1e9, 1e9);
+			navigation_y_ = std::clamp(wy, -1e9, 1e9);
+			navigation_selected_ = true;
+			navigation_selected_contact_ = 0;
+			if (model_.observation())
+				for (const auto &body : model_.observation()->contacts)
+					if (std::hypot(wx - body.x, wy - body.y) <= navigation_camera_.scale * 18)
+					{
+						navigation_selected_contact_ = body.id;
+						navigation_x_ = body.x;
+						navigation_y_ = body.y;
+						break;
+					}
+			prepare_dirty_ = render_dirty_ = true;
 		}
 	}
 	if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
@@ -163,9 +174,8 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 			bottom = std::min(bottom, y - radius);
 			top = std::max(top, y + radius);
 		};
-		for (const auto &o : objectives)
-			if (o.contains("destination_x"))
-				include(o.at("destination_x"), o.at("destination_y"), o.value("radius", 0.0));
+		for (const auto &contact : model_.observation()->contacts)
+			include(contact.x, contact.y, 0);
 		const auto w = model_.waypoint();
 		if (w.value("active", false))
 			include(w.at("x"), w.at("y"), 0);
@@ -311,43 +321,33 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	}
 	else if (navigation_visible_)
 	{
-		markup = "<div id=\"navigation-canvas\" style=\"position:absolute;left:0;top:110px;width:100%;height:" +
-		         std::to_string(navigation_area_.height) + "px;\"></div><div class=\"navigation-controls\">";
-		for (const auto &[key, label] : std::vector<std::pair<std::string, std::string>>{{"in", "Zoom in"},
-		                                                                                 {"out", "Zoom out"},
-		                                                                                 {"reset", "Reset view"},
-		                                                                                 {"left", "Pan left"},
-		                                                                                 {"right", "Pan right"},
-		                                                                                 {"up", "Pan up"},
-		                                                                                 {"down", "Pan down"},
-		                                                                                 {"clear", "Clear waypoint"}})
-			markup += button("nav." + key, label);
+		markup = "<div class=\"navigation-canvas\" id=\"" + id("nav.map") +
+		         "\" tabindex=\"0\" aria-label=\"Navigation map. Arrow keys select a "
+		         "position; Page Up and Page Down zoom; Tab reaches the waypoint action.\" "
+		         "style=\"position:absolute;left:0;top:0;width:100%;height:88%;\"></div><div "
+		         "class=\"navigation-controls\" style=\"position:absolute;left:0;bottom:0;width:100%;height:12%;\">";
+		if (navigation_selected_contact_ && model_.observation())
+			for (const auto &contact : model_.observation()->contacts)
+				if (contact.id == navigation_selected_contact_)
+					markup += "<span>" +
+					          Rml::StringUtilities::EncodeRml(localise(contact.definition) + " #" +
+					                                          std::to_string(contact.id)) +
+					          "</span>";
+		if (navigation_selected_)
+		{
+			const auto waypoint = model_.waypoint();
+			const bool selected_waypoint =
+			    waypoint.value("active", false) &&
+			    std::hypot(navigation_x_ - waypoint.value("x", 0.0), navigation_y_ - waypoint.value("y", 0.0)) <=
+			        navigation_camera_.scale * 18;
+			markup += button(selected_waypoint ? "nav.clear" : "nav.set",
+			                 selected_waypoint ? "Clear waypoint" : "Set waypoint");
+		}
 		if (const auto *layout = model_.layout())
-			for (const auto &w : layout->at("widgets"))
-				if (w.at("kind") == "navigation")
-				{
-					const auto key = w.at("id").get<std::string>();
-					const bool active = model_.is_on_screen(key);
-					markup += button("on-screen/" + key, "On screen");
-					actions.back().second = localise("On screen") + ": " + localise(active ? "On" : "Off");
-				}
-
-		markup += "<br/>X (mm) <input id=\"" + id("nav.x") + "\" value=\"" +
-		          std::to_string(static_cast<std::int64_t>(navigation_x_)) + "\"/> Y (mm) <input id=\"" + id("nav.y") +
-		          "\" value=\"" + std::to_string(static_cast<std::int64_t>(navigation_y_)) + "\"/>" +
-		          button("nav.set", "Set waypoint") + "</div><div class=\"navigation-objectives\">";
-		for (const auto &o : objectives)
-			markup +=
-			    (o.contains("destination_x")
-			         ? button("nav.objective/" + std::to_string(o.at("id").get<std::uint64_t>()),
-			                  o.value("title", "Objective"))
-			         : "<p>" + Rml::StringUtilities::EncodeRml(localise(o.value("title", "Objective"))) + "</p>") +
-			    "<p>" + Rml::StringUtilities::EncodeRml(localise(o.value("description", ""))) + "</p>";
+			for (const auto &widget : layout->at("widgets"))
+				if (widget.at("kind") == "navigation")
+					markup += button("on-screen/" + widget.at("id").get<std::string>(), "On screen");
 		markup += "</div>";
-		app.screen_inputs.push_back({id("nav.x"), localise("Waypoint X in millimetres"),
-		                             std::to_string(static_cast<std::int64_t>(navigation_x_))});
-		app.screen_inputs.push_back({id("nav.y"), localise("Waypoint Y in millimetres"),
-		                             std::to_string(static_cast<std::int64_t>(navigation_y_))});
 	}
 	if (markup != navigation_markup_)
 	{
@@ -422,8 +422,10 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	}
 	if (navigation_visible_)
 	{
-		place(app, region, id("nav.x"));
-		place(app, region, id("nav.y"));
+		app.screen_controls.emplace_back(id("nav.map"),
+		                                 localise("Navigation map. Arrow keys select a position. Page Up and Page Down "
+		                                          "zoom. Tab reaches the waypoint action."));
+		place(app, region, id("nav.map"));
 	}
 }
 void draw_navigation(float ox, float oy)
@@ -434,6 +436,27 @@ void draw_navigation(float ox, float oy)
 		return;
 	const auto &view = *model_.observation();
 	draw_navigation_plot(
-	    view.own, view.regions, model_.objectives(), model_.waypoint(), navigation_camera_,
+	    view.own, view.regions, Json::array(), model_.waypoint(), navigation_camera_,
 	    {ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width, navigation_area_.height});
+	const Rectangle area{ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width,
+	                     navigation_area_.height};
+	BeginScissorMode(static_cast<int>(area.x), static_cast<int>(area.y), static_cast<int>(area.width),
+	                 static_cast<int>(area.height));
+	for (const auto &contact : view.contacts)
+	{
+		const Vector2 at{area.x + area.width / 2 +
+		                     static_cast<float>((contact.x - navigation_camera_.x) / navigation_camera_.scale),
+		                 area.y + area.height / 2 -
+		                     static_cast<float>((contact.y - navigation_camera_.y) / navigation_camera_.scale)};
+		draw_radar_body(radar_textures_, app_->session->catalog(), contact, at, 9, SKYBLUE);
+	}
+	if (navigation_selected_)
+	{
+		const Vector2 at{area.x + area.width / 2 +
+		                     static_cast<float>((navigation_x_ - navigation_camera_.x) / navigation_camera_.scale),
+		                 area.y + area.height / 2 -
+		                     static_cast<float>((navigation_y_ - navigation_camera_.y) / navigation_camera_.scale)};
+		DrawCircleLinesV(at, 14, GOLD);
+	}
+	EndScissorMode();
 }

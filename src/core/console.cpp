@@ -381,7 +381,9 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 	{
 		const auto skip = shared.size() > 8 ? shared.size() - 8 : 0;
 		for (std::size_t i = skip; i < shared.size(); ++i)
-			selected["shared"].push_back(shared[i]);
+			if (console_string(shared[i], "schema") != "phoenix.objective" &&
+			    console_string(shared[i], "schema") != "phoenix.waypoint")
+				selected["shared"].push_back(shared[i]);
 		const auto omitted = board.value("omitted", Json::object());
 		selected["omitted"]["shared"] = skip + (omitted.is_object() ? omitted.value("shared", std::size_t{0}) : 0);
 	}
@@ -413,15 +415,6 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 			                      std::to_string(contact.at("y").get<std::int64_t>()));
 		for (const auto &r : d.at("regions"))
 			rows.emplace_back("viewscreen.readout/region/" + r.at("name").get<std::string>(), localise(r.at("name")));
-		for (const auto &o : d.value("objectives", Json::array()))
-			rows.emplace_back("viewscreen.readout/objective/" + std::to_string(o.at("id").get<std::uint64_t>()),
-			                  localise(o.at("title")) + "; X " +
-			                      std::to_string(o.at("destination_x").get<std::int64_t>()) + "; Y " +
-			                      std::to_string(o.at("destination_y").get<std::int64_t>()));
-		if (const auto w = d.value("waypoint", Json::object()); w.value("active", false))
-			rows.emplace_back("viewscreen.readout/waypoint",
-			                  localise("Waypoint") + "; X " + std::to_string(w.at("x").get<std::int64_t>()) + "; Y " +
-			                      std::to_string(w.at("y").get<std::int64_t>()));
 	}
 	return rows;
 }
@@ -481,6 +474,9 @@ UiAvailability console_ui_availability(const Observation &view)
 	if (view.gameplay.value("personnel", Json::object()).value("manual", false) &&
 	    !view.gameplay.value("personnel", Json::object()).value("officers", Json::array()).empty())
 		result.features.insert("personnel");
+	for (const auto &system : view.systems)
+		if (system.kind == OperatingSystem::Dispatch && result.systems.contains(system.id))
+			result.features.insert("away");
 	for (const auto &mission : view.gameplay.value("away_missions", Json::array()))
 		if (mission.value("dispatch", false))
 			result.features.insert("away");
@@ -496,6 +492,33 @@ UiAvailability console_ui_availability(const Observation &view)
 					    (system.kind == OperatingSystem::Generator || system.kind == OperatingSystem::Distribution ||
 					     system.kind == OperatingSystem::Coolant || system.kind == OperatingSystem::Storage))
 						result.features.insert("power");
+	for (const auto &control : controls)
+	{
+		const auto action = control.value("action", "");
+		if (action == "camera_mode" || action == "camera_direction")
+			result.features.insert("camera");
+		if (action == "alert.set")
+			result.features.insert("alert");
+	}
+	for (const auto &system : view.systems)
+	{
+		if (system.kind == OperatingSystem::Weapon && result.systems.contains(system.id))
+			result.features.insert("weapons");
+		if (system.kind == OperatingSystem::Shield)
+			result.features.insert("shields");
+	}
+	if (!view.gameplay.value("ftl", Json::array()).empty())
+		result.features.insert("ftl");
+	if (!view.gameplay.value("teams", Json::array()).empty())
+		result.features.insert("teams");
+	for (const auto &extra : view.additional_consoles)
+	{
+		const auto granted = console_ui_availability(extra);
+		for (const auto &feature : granted.features)
+			if (feature == "weapons" || feature == "shields" || feature == "ftl" || feature == "camera" ||
+			    feature == "alert")
+				result.features.insert(feature);
+	}
 	return result;
 }
 void ConsoleModel::reset()

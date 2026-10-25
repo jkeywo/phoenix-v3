@@ -334,6 +334,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "throttle.hpp"
 #include "support_panels.hpp"
 #include "support_boards.hpp"
+#include "task_panels.hpp"
 #include "station_components.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
@@ -523,7 +524,8 @@ class ConsoleSurface final : public Rml::EventListener
 		controls_.emplace_back(id(action), label);
 		if (action.starts_with("on-screen/"))
 			return on_screen_markup(action);
-		return "<button id=\"" + Rml::StringUtilities::EncodeRml(id(action)) + "\">" +
+		return "<button " + std::string(action.starts_with("game.contacts/") ? "class=\"radar-contacts\" " : "") +
+		       "id=\"" + Rml::StringUtilities::EncodeRml(id(action)) + "\">" +
 		       (visual.empty() ? Rml::StringUtilities::EncodeRml(translate(label, app_->pseudo_locale))
 		                       : "<span class=\"camera-icon\">" + Rml::StringUtilities::EncodeRml(visual) + "</span>") +
 		       "</button>";
@@ -716,6 +718,20 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-card {display:block;}
 .local-settings-card > div {display:block;width:100%;}
 .local-settings-card h1,.local-settings-card h2,.local-settings-card p {display:block;width:100%;box-sizing:border-box;}
+.station-panel {box-sizing:border-box;padding:4dp;overflow:hidden;}
+.station-panel h2,.engineering-board h2 {font-size:1.05em;margin:0 0 6dp 0;}
+.task-toggles,.task-choices {display:flex;width:100%;flex-wrap:wrap;gap:6dp;}
+.task-toggles .task-button {box-sizing:border-box;width:48%;min-height:44dp;padding:5dp;margin:0;}
+.task-state-icon {pointer-events:none;display:inline-block;width:8dp;height:8dp;margin-right:5dp;border:1dp #fff0d4;border-radius:5dp;background:#f0e3c2;}
+.off .task-state-icon {background:#102027;}
+.task-button.on {background:#235b3e;border-color:#8bd5a6;}
+.task-button.off {background:#6f3030;border-color:#e4a39b;}
+.task-choices .task-button {box-sizing:border-box;width:23%;min-width:0;min-height:44dp;padding:5dp;margin:2dp;}
+.shield-sector {width:46%;border:2dp #74b5bc;border-radius:24dp;padding:8dp;box-sizing:border-box;}
+.health-row {display:inline-flex;flex-direction:column;vertical-align:top;width:48%;gap:3dp;margin:3dp 0;}
+.health-row span {width:100%;font-size:.85em;} .health-row progress {width:94%;} progress {height:12dp;width:60%;background:#24404a;}
+progress fill {background:#83be90;}
+#team-roster-panel .task-button {display:block;box-sizing:border-box;width:100%;margin:3dp 0;padding:6dp;min-height:44dp;}
 .personnel-row {display:block;width:100%;box-sizing:border-box;border-bottom:1px #526265;padding:8px;}
 .away-attention button {background:#664e27;border:2px #f2d68a;}
 .personnel-row img {width:64px;height:64px;vertical-align:middle;}
@@ -755,7 +771,7 @@ button.on-screen-active .share-live {display:block;}
 .mission-copy button {display:block;width:260px;height:54px;box-sizing:border-box;margin:22px 0 0 0;padding:12px 20px;background:#122116;border:1px #87b77b;color:#d1f9be;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
-#navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
+#navigation-layer button,#navigation-layer input,.navigation-canvas {pointer-events:auto;}
 #gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:0.7em;overflow:hidden;}
 .integrated-helm #gameplay-controls button {width:210dp;min-height:48dp;font-size:.85em;padding:6dp;margin:2dp;}
 .radar-contact {position:absolute;width:24px;height:24px;min-width:0;min-height:0;margin:0;padding:0;background:transparent;border:1px transparent;z-index:4;}
@@ -768,11 +784,11 @@ button.on-screen-active .share-live {display:block;}
 #fault-dialog p {font-size:1.1em;line-height:1.4;}
 #comms-layer {position:absolute;left:1%;top:80px;width:98%;bottom:1%;background:#102027;}
 #comms-list {position:absolute;left:0;top:0;height:100%;overflow:auto;}
-#comms-list button {display:block;width:96%;min-height:48px;margin:4px;}
+#comms-list button {display:block;box-sizing:border-box;width:100%;min-height:44dp;margin:4dp 0;}
 #comms-conversation {position:absolute;top:0;height:100%;}
 #comms-header {display:block;width:100%;height:20%;overflow:auto;}
 #comms-choices,#comms-incoming,#comms-compose {display:block;}
-#comms-header button {width:44%;min-height:44dp;box-sizing:border-box;}
+#comms-header button {width:44%;height:44dp;min-height:44dp;box-sizing:border-box;padding:4dp;margin:2dp;vertical-align:top;}
 #comms-header h3,#comms-list h3 {display:block;margin:6px 4px;font-size:1.1em;}
 #comms-history {height:52%;overflow:auto;background:#172b32;padding:8px;}
 #comms-incoming {height:30px;}
@@ -790,14 +806,23 @@ button.on-screen-active .share-live {display:block;}
 .engineering-board .power-reserves {display:flex;flex-wrap:wrap;gap:16dp;border-bottom:1dp #988b71;}
 .engineering-board .power-reserves > div {min-width:300dp;flex:1;}
 .engineering-board .power-row {display:flex;align-items:center;gap:12dp;padding:8dp 0;border-bottom:1dp #526167;}
-.engineering-board .power-name {width:22%;}
-.engineering-board .power-control {flex:1;min-width:160dp;}
+.engineering-board .power-name {width:24%;font-size:.85em;}
+.engineering-board .power-control {flex:1;min-width:90dp;}
+.engineering-board .power-control label {display:none;}
+.engineering-board .power-control span {font-size:.85em;}
+.engineering-board .power-row {gap:5dp;padding:3dp 0;font-size:.9em;}
+.engineering-board .power-row input {height:44dp;}
+.engineering-board .power-reserves {font-size:.9em;}
+.engineering-board .power-reserves h3 {font-size:1em;margin:0;}
+.engineering-board .power-reserves p {margin:0;}
 .engineering-board .power-battery {width:22%;}
 .engineering-board .repair-columns {display:flex;gap:24dp;}
 .engineering-board .repair-columns > div {flex:1;min-width:0;}
 .engineering-board .repair-columns button {display:block;width:95%;}
 #comms-choices button {display:block;width:100%;box-sizing:border-box;min-height:44dp;margin:4dp 0;}
-#comms-compose input {width:75%;height:40px;}
+#comms-compose {overflow:hidden;}
+#comms-compose input {width:75%;height:44dp;box-sizing:border-box;}
+#comms-compose button {box-sizing:border-box;min-height:44dp;height:44dp;padding:4dp 8dp;margin:0 4dp;}
 .layout-node {box-sizing:border-box;min-width:0;min-height:0;}
 #authored-body {display:none;position:absolute;left:0;right:0;top:160dp;bottom:0;overflow:auto;}
 #layout-tabs,#console-tabs {position:absolute;left:1%;right:1%;top:64dp;height:44dp;overflow-x:auto;white-space:nowrap;z-index:8;}
@@ -806,7 +831,17 @@ button.on-screen-active .share-live {display:block;}
 #layout-tabs .selected,#console-tabs .selected {border:2dp #ffe4b0;}
 .authored #authored-body,.authored #layout-tabs {display:block;}
 .authored #authored-body .widget {display:block;box-sizing:border-box;}
+.authored .legacy-tools,.authored #toolbar {display:none;}
+#authored-header {position:absolute;left:0;top:0;width:100%;height:56dp;z-index:20;}
+#authored-header h1 {font-size:1.1em;margin:0;}
+#authored-header .settings-cog {margin:0;padding:0;}
+#authored-header button {min-width:44dp;min-height:44dp;padding:4dp 8dp;margin:0 2dp;font-size:1em;}
 .authored #toolbar h1 {display:block;font-size:1em;white-space:normal;word-break:break-all;max-width:100%;}
+.authored button.on-screen {box-sizing:border-box;width:auto;height:auto;min-height:44dp;min-width:140dp;padding:6dp 10dp;background:#102027;border:1dp #988b71;}
+.authored button.on-screen .share-label {position:static;display:inline;font-size:1em;}
+.authored button.on-screen .share-caption,.authored button.on-screen .share-monitor,.authored button.on-screen .share-screw,.authored button.on-screen .share-lamp-housing {display:none;}
+.authored button.on-screen-active {background:#235b3e;border:2dp #8bd5a6;}
+.authored .radar-widget button.radar-contacts {left:auto;right:8dp;bottom:8dp;z-index:2;}
 .authored .radar-widget button.on-screen {left:8dp;top:auto;right:auto;bottom:8dp;width:auto;height:auto;min-width:140dp;min-height:44dp;padding:6dp;background:#102027;border:1dp #988b71;pointer-events:auto;}
 .authored .radar-widget button.on-screen .share-label {position:static;display:inline;left:auto;right:auto;top:auto;bottom:auto;font-size:1em;height:auto;line-height:1.2em;}
 .authored .radar-widget button.on-screen .share-caption,.authored .radar-widget button.on-screen .share-monitor,.authored .radar-widget button.on-screen .share-screw,.authored .radar-widget button.on-screen .share-lamp-housing {display:none;}
@@ -819,7 +854,7 @@ button.on-screen-active .share-live {display:block;}
 .station-page-open .local-settings-card {top:120dp;max-height:75%;}
 #station-loading {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#08131b;z-index:40;}
 #station-loading div {position:absolute;left:10%;top:35%;width:80%;padding:20dp;background:#102027;}
-</style></head><body><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
+</style></head><body><div id="authored-header"></div><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		for (const char *event : {"mouseover", "mousemove", "focus", "blur", "keydown", "keyup"})
@@ -851,10 +886,11 @@ button.on-screen-active .share-live {display:block;}
 	}
 	const UiResolved &authored_geometry() const
 	{
-		return authored_resolved_;
+		return preview_header_ ? authored_header_resolved_ : authored_resolved_;
 	}
 	void preview_pages(const Json &layout)
 	{
+		preview_header_ = layout.value("_preview_header", false);
 		if (!layout.contains("_preview_pages"))
 			return;
 		const auto hint = layout.at("_preview_pages").dump();
@@ -877,6 +913,18 @@ button.on-screen-active .share-live {display:block;}
 		if (station_loading_)
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (action == "power-details" || action == "task-detail/compartments" || action == "task-detail/objectives" ||
+		    action == "task-detail/weapons" || action == "task-detail/teams" || action == "task-detail/target")
+		{
+			support_popup_ = action == "power-details" ? "power" : action.substr(12);
+			systems_open_ = true;
+			return true;
+		}
+		if (action.starts_with("task/"))
+		{
+			const auto found = task_actions_.find(action);
+			return found != task_actions_.end() && this->action(id(found->second));
+		}
 		if (action.starts_with("popup-control/"))
 		{
 			const bool accepted = this->action(id(action.substr(14)));
@@ -1250,6 +1298,41 @@ button.on-screen-active .share-live {display:block;}
 		if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
 			prepare_dirty_ = render_urgent_ = true;
 		const auto name = event.GetTargetElement()->GetId();
+		if (event.GetType() == "keydown" && name == id("nav.map") && navigation_visible_)
+		{
+			const auto key = event.GetParameter<int>("key_identifier", 0);
+			if (key == Rml::Input::KI_LEFT || key == Rml::Input::KI_RIGHT || key == Rml::Input::KI_UP ||
+			    key == Rml::Input::KI_DOWN)
+			{
+				if (!navigation_selected_)
+				{
+					navigation_x_ = navigation_camera_.x;
+					navigation_y_ = navigation_camera_.y;
+				}
+				navigation_selected_ = true;
+				navigation_selected_contact_ = 0;
+				navigation_x_ += (key == Rml::Input::KI_LEFT    ? -40
+				                  : key == Rml::Input::KI_RIGHT ? 40
+				                                                : 0) *
+				                 navigation_camera_.scale;
+				navigation_y_ += (key == Rml::Input::KI_DOWN ? -40
+				                  : key == Rml::Input::KI_UP ? 40
+				                                             : 0) *
+				                 navigation_camera_.scale;
+			}
+			else if (key == Rml::Input::KI_PRIOR || key == Rml::Input::KI_NEXT)
+				navigation_camera_.zoom(key == Rml::Input::KI_PRIOR ? .8 : 1.25);
+			else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_SPACE)
+			{
+				navigation_selected_ = true;
+				if (auto *button = document_->GetElementById(id("nav.set")))
+					button->Focus();
+			}
+			else
+				return;
+			event.StopPropagation();
+			return;
+		}
 		if (event.GetType() == "mousescroll" && navigation_visible_ && !settings_open_)
 		{
 			const auto x = event.GetParameter<float>("mouse_x", 0), y = event.GetParameter<float>("mouse_y", 0);
@@ -1902,9 +1985,42 @@ button.on-screen-active .share-live {display:block;}
 					       (page.group.empty() || authored_pages_.at(page.group) == page.page);
 		return true;
 	}
+	bool probe_navigation(unsigned stage)
+	{
+		if (!navigation_visible_)
+			return false;
+		const auto before = model_.waypoint();
+		if (stage == 0)
+		{
+			const auto x = navigation_area_.x + navigation_area_.width * .12f,
+			           y = navigation_area_.y + navigation_area_.height * .12f;
+			pointer(9888, x, y, DeviceEventKind::Down);
+			pointer(9888, x, y, DeviceEventKind::Up);
+			return navigation_selected_ && model_.waypoint() == before;
+		}
+		const auto previous = navigation_x_;
+		document_->GetElementById(id("nav.map"))->Focus();
+		context_->ProcessKeyDown(Rml::Input::KI_RIGHT, 0);
+		context_->ProcessKeyUp(Rml::Input::KI_RIGHT, 0);
+		return navigation_selected_ && navigation_x_ != previous && model_.waypoint() == before;
+	}
 	bool probe_fit() const
 	{
 		const auto dimensions = context_->GetDimensions();
+		for (const auto &placement : authored_resolved_.placements)
+			if (placement.visible)
+				if (auto *panel = const_cast<ConsoleSurface *>(this)->authored_component(placement.component))
+				{
+					if (!placement.component.starts_with("conversation-") && placement.component != "conversations" &&
+					    (panel->GetScrollHeight() > panel->GetClientHeight() + 2 ||
+					     panel->GetScrollWidth() > panel->GetClientWidth() + 2))
+					{
+						std::cerr << "Station component overflows: " << placement.component << " "
+						          << panel->GetClientWidth() << "x" << panel->GetClientHeight() << " scroll "
+						          << panel->GetScrollWidth() << "x" << panel->GetScrollHeight() << std::endl;
+						return false;
+					}
+				}
 		for (const auto &placement : authored_resolved_.placements)
 			if (placement.visible && model_.layout())
 				for (const auto &widget : model_.layout()->at("widgets"))
@@ -2606,16 +2722,24 @@ button.on-screen-active .share-live {display:block;}
 			displayed_values_.clear();
 			controls_.clear();
 			heading_contacts_.clear();
-			std::string toolbar = "<h1>" + Rml::StringUtilities::EncodeRml(localise(title)) + "</h1>";
-			if (toolbar_enabled_ && route_ != 31 && !pregame)
+			std::string station_title = title;
+			if (const auto snapshot = app.session->console_snapshot(route_))
+				for (const auto &spec : console_specs(app, snapshot->own.definition))
+					if (spec.id == snapshot->console)
+						station_title = app.session->catalog().consoles.at(spec.definition).value("name", title);
+			std::string toolbar = "<h1 id=\"" + id("station-name") + "\">" +
+			                      Rml::StringUtilities::EncodeRml(localise(station_title)) + "</h1>";
+			if ((toolbar_enabled_ || (layout && layout->contains("layout"))) && route_ != 31 && !pregame)
 			{
 				button("settings", "Settings");
 				bool teams = false;
 				if (model_.observation())
 					for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
 						teams |= !t.at("orders").empty();
-				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" + button("systems", "Systems") +
-				           (teams && !support_active() ? button("game.teams", "Teams") : std::string{}) + "</div>";
+				if (!layout || !layout->contains("layout"))
+					toolbar += "<div class=\"legacy-tools\" style=\"position:absolute;right:0;top:0;\">" +
+					           button("systems", "Systems") +
+					           (teams && !support_active() ? button("game.teams", "Teams") : std::string{}) + "</div>";
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 			}
@@ -2706,7 +2830,8 @@ button.on-screen-active .share-live {display:block;}
 					           "\" id=\"value/" + Rml::StringUtilities::EncodeRml(key) + "\"/></div>";
 				}
 			document_->GetElementById("widgets")->SetInnerRML(pregame ? "" : widgets);
-			document_->GetElementById("toolbar")->SetProperty("display", pregame ? "none" : "block");
+			document_->GetElementById("toolbar")->SetProperty(
+			    "display", pregame || (layout && layout->contains("layout")) ? "none" : "block");
 			std::string lobby;
 			if (pregame)
 			{
@@ -3307,6 +3432,8 @@ button.on-screen-active .share-live {display:block;}
 		gameplay_identity = Json::array();
 		for (const auto &[name, text] : gameplay_readouts)
 			gameplay_identity.push_back(name);
+		const bool target_detail =
+		    helm && (inline_console_.empty() ? model_.sensor_contact() : inline_model_.sensor_contact());
 		const auto dock_control =
 		    helm ? model_.target_docking_control(inline_console_.empty() ? model_.sensor_contact()
 		                                                                 : inline_model_.sensor_contact())
@@ -3328,6 +3455,9 @@ button.on-screen-active .share-live {display:block;}
 			if (dock_control)
 				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(dock_control->id)) + "\">" +
 				          Rml::StringUtilities::EncodeRml(dock_control->label) + "</button>";
+			if (target_detail)
+				markup += "<button id=\"" + id("task-detail/target") + "\">" +
+				          Rml::StringUtilities::EncodeRml(localise("Contact details")) + "</button>";
 			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
 			document_->GetElementById("sensor-readouts")->SetInnerRML(sensor_readouts);
 			gameplay_readout_signature_ = readout_signature;
@@ -3584,6 +3714,12 @@ button.on-screen-active .share-live {display:block;}
 				if (auto *b = document_->GetElementById(name))
 				{
 					b->SetClass("on-screen", true);
+					if (layout && layout->contains("layout"))
+					{
+						property(b, "pointer-events", "auto");
+						property(b, "z-index", "10");
+					}
+
 					b->SetClass("on-screen-active", active);
 					b->SetAttribute("aria-pressed", active ? "true" : "false");
 				}
@@ -3614,6 +3750,11 @@ button.on-screen-active .share-live {display:block;}
 		}
 		for (const auto &[name, text] : gameplay_readouts)
 			place(app, region, id(name));
+		if (target_detail)
+		{
+			app.screen_controls.emplace_back(id("task-detail/target"), localise("Contact details"));
+			place(app, region, id("task-detail/target"));
+		}
 		if (dock_control)
 		{
 			app.screen_controls.emplace_back(id(dock_control->id), dock_control->label);
@@ -3675,7 +3816,7 @@ button.on-screen-active .share-live {display:block;}
 			              });
 			if (layout->contains("layout"))
 			{
-				if (auto *canvas = document_->GetElementById("navigation-canvas"); canvas && canvas->IsVisible(true))
+				if (auto *canvas = document_->GetElementById(id("nav.map")); canvas && canvas->IsVisible(true))
 				{
 					const auto at = canvas->GetAbsoluteOffset(Rml::BoxArea::Border);
 					navigation_area_ = {at.x, at.y, canvas->GetOffsetWidth(), canvas->GetOffsetHeight()};

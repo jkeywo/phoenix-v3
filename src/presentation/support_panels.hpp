@@ -37,7 +37,8 @@ void refresh_support_panels(Application &app)
 						const auto program = compile_ui_layout(app.session->catalog(), definition);
 						std::function<void(const UiNode &)> visit = [&](const UiNode &node)
 						{
-							support_layout_requested_ |= node.component == "power" || node.component == "repair";
+							support_layout_requested_ |= node.component == "power" || node.component == "repair" ||
+							                             node.component == "team-roster";
 							for (const auto &child : node.children)
 								visit(child);
 						};
@@ -67,8 +68,7 @@ void refresh_support_panels(Application &app)
 				if (widget.at("kind") == "navigation")
 					navigation = spec.id;
 			}
-			if (!found->gameplay.value("ftl", Json::array()).empty())
-				auxiliaries.insert(spec.id);
+			auxiliaries.insert(spec.id);
 		}
 	if (snapshot && panel_layout)
 		root = snapshot->console;
@@ -156,7 +156,8 @@ bool support_action(const std::string &action)
 	if (action.starts_with("support-details/"))
 	{
 		const auto detail = action.substr(16);
-		if (!station_component_active("repair") || !detail.starts_with("team/"))
+		if ((!authored_component_visible("repair") && !authored_component_visible("team-roster")) ||
+		    !detail.starts_with("team/"))
 			return false;
 		const auto teams = model_.observation()->gameplay.value("teams", Json::array());
 		if (std::none_of(teams.begin(), teams.end(),

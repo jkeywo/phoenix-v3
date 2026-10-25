@@ -3,7 +3,8 @@ UiThemeRenderer theme_renderer_;
 Json active_theme_ = Json::object();
 std::optional<UiLayout> authored_program_;
 std::set<std::string> authored_targets_;
-UiResolved authored_resolved_;
+UiResolved authored_resolved_, authored_header_resolved_;
+bool preview_header_ = false;
 std::string authored_geometry_, authored_dom_;
 struct SurfaceBrowsing
 {
@@ -69,28 +70,33 @@ std::map<std::string, std::string> authored_page_groups_;
 
 Rml::Element *authored_component(const std::string &target)
 {
-	static const std::map<std::string, std::string> panels = {{"power", "power-panel"},
-	                                                          {"repair", "repair-panel"},
-	                                                          {"operations", "operations-panel"},
-	                                                          {"docking", "docking-panel"},
-	                                                          {"craft", "craft-panel"},
-	                                                          {"personnel", "personnel-panel"},
-	                                                          {"away", "away-panel"},
-	                                                          {"gameplay", "gameplay"},
-	                                                          {"controls", "gameplay-controls"},
-	                                                          {"readouts", "gameplay-readouts"},
-	                                                          {"messages", "gameplay-messages"},
-	                                                          {"engineering", "engineering-cards"},
-	                                                          {"sensors", "sensor-panel"},
-	                                                          {"conversations", "comms-layer"},
-	                                                          {"conversation-list", "comms-list"},
-	                                                          {"conversation-history", "comms-history"},
-	                                                          {"conversation-replies", "comms-choices"},
-	                                                          {"conversation-compose", "comms-compose"},
-	                                                          {"conversation-header", "comms-header"},
-	                                                          {"conversation-incoming", "comms-incoming"},
-	                                                          {"navigation", "navigation-layer"},
-	                                                          {"manual-flight", "manual-flight"}};
+	const std::map<std::string, std::string> panels = {{"settings", id("settings")},
+	                                                   {"console-name", id("station-name")},
+	                                                   {"tabs", "console-tabs"},
+	                                                   {"weapons", "weapons-panel"},
+	                                                   {"target-info", "gameplay-readouts"},
+	                                                   {"power", "power-panel"},
+	                                                   {"repair", "repair-panel"},
+	                                                   {"operations", "operations-panel"},
+	                                                   {"docking", "docking-panel"},
+	                                                   {"craft", "craft-panel"},
+	                                                   {"personnel", "personnel-panel"},
+	                                                   {"away", "away-panel"},
+	                                                   {"gameplay", "gameplay"},
+	                                                   {"controls", "gameplay-controls"},
+	                                                   {"readouts", "gameplay-readouts"},
+	                                                   {"messages", "gameplay-messages"},
+	                                                   {"engineering", "engineering-cards"},
+	                                                   {"sensors", "sensor-panel"},
+	                                                   {"conversations", "comms-layer"},
+	                                                   {"conversation-list", "comms-list"},
+	                                                   {"conversation-history", "comms-history"},
+	                                                   {"conversation-replies", "comms-choices"},
+	                                                   {"conversation-compose", "comms-compose"},
+	                                                   {"conversation-header", "comms-header"},
+	                                                   {"conversation-incoming", "comms-incoming"},
+	                                                   {"navigation", "navigation-layer"},
+	                                                   {"manual-flight", "manual-flight"}};
 	if (!panels.contains(target) && model_.layout())
 		for (const auto &widget : model_.layout()->at("widgets"))
 			if (widget.at("id") == target)
@@ -100,6 +106,9 @@ Rml::Element *authored_component(const std::string &target)
 				if (widget.at("kind") == "navigation")
 					return document_->GetElementById("navigation-layer");
 			}
+	for (const auto &component : console_ui_components())
+		if (component.id == target && !panels.contains(target))
+			return document_->GetElementById(target + "-panel");
 	return document_->GetElementById(panels.contains(target) ? panels.at(target) : "widget/" + target);
 }
 bool authored_component_visible(const std::string &target)
@@ -343,7 +352,16 @@ void build_authored_tree(const UiNode &root)
 		return result + "</div>";
 	};
 	document_->GetElementById("authored-body")->SetInnerRML(markup(root));
-	for (const auto &placement : authored_resolved_.placements)
+	if (authored_program_ && authored_program_->header)
+	{
+		document_->GetElementById("authored-header")->SetInnerRML(markup(*authored_program_->header));
+		authored_header_resolved_ =
+		    resolve_ui_layout(UiLayout{*authored_program_->header, {}, {}}, {0, 0, 1280, 56}, 1);
+	}
+	auto placements = authored_resolved_.placements;
+	placements.insert(placements.end(), authored_header_resolved_.placements.begin(),
+	                  authored_header_resolved_.placements.end());
+	for (const auto &placement : placements)
 		if (auto *component = authored_component(placement.component))
 		{
 			authored_parents_[placement.component] = component->GetParentNode()->GetId();
@@ -570,7 +588,7 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	property(document_->GetElementById("layout-tabs"), "top",
 	         std::to_string(resolved.body.y - 48 * text_scale_ / 100.f) + "dp");
 	property(document_->GetElementById("layout-tabs"), "height", std::to_string(48 * text_scale_ / 100.f) + "dp");
-	property(document_->GetElementById("console-tabs"), "top", std::to_string(64 * text_scale_ / 100.f) + "dp");
+	property(document_->GetElementById("console-tabs"), "top", "0dp");
 	property(document_->GetElementById("console-tabs"), "height", std::to_string(48 * text_scale_ / 100.f) + "dp");
 	auto *host = document_->GetElementById("authored-body");
 	// Only hide roots not used as targets: avoid toggling a live root twice per frame.
@@ -597,6 +615,18 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 		app_->frame_metrics["console/" + std::to_string(route_) + "/" + name] = now - stage_started;
 		stage_started = now;
 	};
+	if (authored_program_->header)
+	{
+		auto *header = document_->GetElementById("authored-header");
+		property(header, "height", std::to_string(resolved.body.y) + "dp");
+		style_authored_tree(*authored_program_->header);
+		property(document_->GetElementById("console-tabs"), "text-align", "right");
+		property(document_->GetElementById("console-tabs"), "overflow", "hidden");
+		context_->Update();
+		const auto measured =
+		    std::max(resolved.body.y, header->GetOffsetHeight() / context_->GetDensityIndependentPixelRatio());
+		property(document_->GetElementById("authored-body"), "top", std::to_string(measured) + "dp");
+	}
 	style_authored_tree(resolved.root);
 	for (const auto &target : authored_targets_)
 		if (auto *component = authored_component(target); component && !targets.contains(component))
@@ -637,6 +667,31 @@ void prepare_authored_layout(const Json *layout, const ConsoleRegion &region)
 	context_->Update();
 	stage("authored-update-aspects");
 	measure_authored_geometry();
+	if (authored_program_->header)
+	{
+		authored_header_resolved_.body = {0, 0, region.width, resolved.body.y};
+		std::function<void(const UiNode &)> measure_header = [&](const UiNode &node)
+		{
+			if (auto *box = document_->GetElementById(layout_node_id(node)))
+			{
+				const auto at = box->GetAbsoluteOffset(Rml::BoxArea::Border);
+				authored_header_resolved_.containers[node.id] = {at.x, at.y, box->GetOffsetWidth(),
+				                                                 box->GetOffsetHeight()};
+			}
+			for (const auto &child : node.children)
+				measure_header(child);
+		};
+		measure_header(*authored_program_->header);
+
+		for (auto &placement : authored_header_resolved_.placements)
+			if (auto *component = authored_component(placement.component))
+			{
+				const auto at = component->GetAbsoluteOffset(Rml::BoxArea::Border);
+				placement.visible = component->IsVisible(true);
+				placement.bounds = {at.x, at.y, component->GetOffsetWidth(), component->GetOffsetHeight()};
+			}
+	}
+
 	stage("authored-geometry");
 	if (auto *focus = context_->GetFocusElement(); focus && !focus->IsVisible(true))
 		for (const auto &placement : resolved.placements)

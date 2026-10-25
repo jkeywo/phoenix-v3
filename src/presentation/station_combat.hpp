@@ -61,7 +61,7 @@ std::vector<std::pair<std::string, std::string>> helm_weapon_controls()
 				}
 	return result;
 }
-std::vector<std::pair<std::string, std::string>> helm_target_readouts()
+std::vector<std::pair<std::string, std::string>> helm_target_readouts(bool detailed = false)
 {
 	std::vector<std::pair<std::string, std::string>> result;
 	auto &target_model = inline_console_.empty() ? model_ : inline_model_;
@@ -86,12 +86,13 @@ std::vector<std::pair<std::string, std::string>> helm_target_readouts()
 			                                                                      double(contact.y - view->own.y))) /
 			                                                       1000) +
 			                                        " m");
-			result.emplace_back(
-			    "target/speed",
-			    localise("Speed") + ": " +
-			        std::to_string(static_cast<std::int64_t>(std::hypot(double(contact.vx), double(contact.vy))) /
-			                       1000) +
-			        " m/s");
+			if (detailed)
+				result.emplace_back(
+				    "target/speed",
+				    localise("Speed") + ": " +
+				        std::to_string(static_cast<std::int64_t>(std::hypot(double(contact.vx), double(contact.vy))) /
+				                       1000) +
+				        " m/s");
 			result.emplace_back("target/faction",
 			                    localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label) +
 			                        " / " + localise(contact.disposition));
@@ -109,8 +110,9 @@ std::vector<std::pair<std::string, std::string>> helm_target_readouts()
 		result.emplace_back("target/empty", localise(selected ? "Selected contact is outside positional sensor coverage"
 		                                                      : "Select a contact on the radar"));
 	for (const auto &[key, text] : target_model.gameplay_readouts())
-		if (selected && (key.starts_with("game.scan-finding/") || key.starts_with("game.scan-status/") ||
-		                 key.starts_with("game.scan-progress/")))
+		if (detailed && selected &&
+		    (key.starts_with("game.scan-finding/") || key.starts_with("game.scan-status/") ||
+		     key.starts_with("game.scan-progress/")))
 			result.emplace_back("target/" + key, text);
 	return result;
 }
@@ -145,6 +147,7 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 	const auto details = detail_model ? detail_model->system_details() : std::string{};
 	std::string markup;
 	std::vector<std::pair<std::string, std::string>> popup_readouts;
+	std::vector<PowerSetting> popup_power;
 	auto esc = [](const std::string &text)
 	{
 		return Rml::StringUtilities::EncodeRml(text);
@@ -200,6 +203,95 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 				if (state.id == system && state.kind == OperatingSystem::Team)
 					for (const auto &[action, label] : model_.asset_away_controls("team:" + system))
 						markup += add(action, label);
+	}
+	else if (systems_open_ && support_popup_ == "target")
+	{
+		markup = "<h1>" + esc(localise("Contact details")) + "</h1>";
+		for (const auto &[key, text] : helm_target_readouts(true))
+			markup += readout(key, text);
+		markup += add("systems-close", localise("Close"));
+	}
+	else if (systems_open_ && (support_popup_ == "weapons" || support_popup_ == "teams"))
+	{
+		markup = "<h1>" + esc(localise(support_popup_ == "weapons" ? "Weapons" : "Teams")) + "</h1>";
+		std::set<std::string> shown;
+		for (auto &[source, prefix] : task_sources())
+			if (source->observation())
+			{
+				const auto &view = *source->observation();
+				if (support_popup_ == "teams")
+					for (const auto &team : view.gameplay.value("teams", Json::array()))
+						if (shown.insert(team.at("id")).second)
+							markup += add(team.value("repair", false)
+							                  ? "support-details/team/" + team.at("id").get<std::string>()
+							                  : "support-details/medical",
+							              localise(engineering_name(team.at("id"))) + " — " +
+							                  localise(team.value("work", "Ready")));
+				if (support_popup_ == "weapons")
+					for (const auto &system : view.systems)
+						if (system.kind == OperatingSystem::Weapon && !shown.contains(system.id))
+							for (const auto &control : view.gameplay.value("controls", Json::array()))
+								if (control.value("action", "") == "system_enabled" &&
+								    control.value("value", -1) == (system.enabled ? 0 : 1))
+								{
+									const auto consumers = command_consumers(view, control);
+									if (std::find(consumers.begin(), consumers.end(), system.id) != consumers.end())
+									{
+										shown.insert(system.id);
+										markup += add(prefix + descriptor_action(control.at("id")),
+										              localise(engineering_name(system.id)) + " — " +
+										                  localise(system.enabled ? "On" : "Off"));
+										break;
+									}
+								}
+			}
+		markup += add("systems-close", localise("Close"));
+	}
+	else if (systems_open_ && support_popup_ == "power" && model_.observation())
+	{
+		markup = "<h1>" + esc(localise("Power details")) + "</h1><div class=\"engineering-board\">";
+		const auto power = model_.observation()->gameplay.value("power", Json::object());
+		for (const auto &row : power.value("reserves", Json::array()))
+			markup += readout("reserve/" + row.at("id").get<std::string>(), localise(engineering_name(row.at("id"))) +
+			                                                                    ": " + row.at("energy").dump() + " / " +
+			                                                                    row.at("capacity").dump());
+		for (const auto &row : power.value("groups", Json::array()))
+			markup +=
+			    readout("group/" + row.at("id").get<std::string>(),
+			            localise(engineering_name(row.at("id"))) + ": " + std::to_string(row.value("allocation", 0LL)) +
+			                " / s; " + row.at("energy").dump() + " / " + row.at("capacity").dump());
+		std::set<std::string> detail_settings;
+		for (const auto &original : power_settings(*model_.observation()))
+		{
+			auto setting = original;
+			setting.id = "power/detail/" + setting.controller + "/" + setting.channel;
+			if (!detail_settings.insert(setting.id).second)
+				continue;
+			power_controls_[setting.id] = setting;
+			popup_power.push_back(setting);
+			markup += "<label>" +
+			          esc(localise(engineering_name(setting.subject)) + " — " +
+			              localise(setting.coolant ? "Coolant" : "Power")) +
+			          "</label><input type=\"range\" id=\"" + esc(id(setting.id)) +
+			          "\" min=\"0\" max=\"100\" step=\"0.1\" value=\"0\"/>";
+		}
+		markup += "</div>" + add("systems-close", localise("Close"));
+	}
+	else if (systems_open_ && (support_popup_ == "compartments" || support_popup_ == "objectives") &&
+	         model_.observation())
+	{
+		markup = "<h1>" + esc(localise(support_popup_ == "compartments" ? "Compartments" : "Objectives")) + "</h1>";
+		if (support_popup_ == "compartments")
+			for (const auto &part :
+			     model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array()))
+				markup += readout(part.at("id"), localise(engineering_name(part.at("id"))) + ": " +
+				                                     part.at("hp").dump() + " / " + part.at("maximum").dump());
+		else
+			for (const auto &objective : model_.objectives())
+				markup += readout(std::to_string(objective.value("id", 0ULL)),
+				                  localise(objective.value("title", "")) + " — " +
+				                      localise(objective.value("description", "")));
+		markup += add("systems-close", localise("Close"));
 	}
 	else if (systems_open_ && support_popup_.starts_with("team/") && model_.observation())
 	{
@@ -330,7 +422,9 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 	{
 		elements_.clear();
 		properties_.clear();
+		syncing_values_ = true;
 		dialog->SetInnerRML(markup);
+		syncing_values_ = false;
 		fault_dialog_signature_ = markup;
 	}
 	property(dialog, "left", std::to_string(region.width * .1f) + "dp");
@@ -366,6 +460,25 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 			              return entry.id.starts_with(id(""));
 		              });
 	}
+	syncing_values_ = true;
+	for (const auto &setting : popup_power)
+	{
+		auto value = setting.value;
+		if (auto pending = power_pending_.find(setting.id);
+		    pending != power_pending_.end() && app_->session->ticks() < pending->second.until)
+			value = pending->second.value;
+		const auto percent = std::to_string(
+		    std::clamp(100.0 * (value - setting.minimum) / std::max<std::int64_t>(1, setting.maximum - setting.minimum),
+		               0.0, 100.0));
+		if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id(setting.id))))
+			if (field->GetValue() != percent)
+				field->SetValue(percent);
+		app_->screen_inputs.push_back({id(setting.id),
+		                               localise(engineering_name(setting.subject)) + " " +
+		                                   localise(setting.coolant ? "Coolant (%)" : "Power (%)"),
+		                               percent, true});
+	}
+	syncing_values_ = false;
 	for (const auto &[name, text] : popup_readouts)
 	{
 		if (auto *row = document_->GetElementById(name))
@@ -373,6 +486,10 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 		app_->screen_readouts.emplace_back(name, text);
 	}
 	context_->Update();
+	if (systems_open_ && support_popup_ == "power")
+		for (const auto &[key, setting] : power_controls_)
+			if (key.starts_with("power/detail/"))
+				place(*app_, region, id(key));
 	for (const auto &[name, label] : popup_controls_)
 	{
 		app_->screen_controls.emplace_back(name, label);

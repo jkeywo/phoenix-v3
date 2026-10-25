@@ -12,6 +12,11 @@ inline void away_assignment_cases()
 		session->tick();
 	ConsoleModel helm, support;
 	helm.refresh(session);
+	auto unrevealed = *helm.observation();
+	unrevealed.gameplay["away_missions"] = Json::array();
+	unrevealed.gameplay["profile_stars"][unrevealed.gameplay.at("profile").get<std::string>()] = 1;
+	require(console_ui_availability(unrevealed).features.contains("away"),
+	        "one-star Dispatch retains its lifecycle component before missions are revealed");
 	require(session->claim_console(2, {helm.observation()->own.id, "observer"}), "claim contributing station");
 	support.refresh(session, 2);
 	require(helm.ui_availability().features.contains("away") && !support.ui_availability().features.contains("away"),

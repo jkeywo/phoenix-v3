@@ -80,8 +80,9 @@ int main(int argc, char **argv)
 				saw_station_loading = true;
 			}
 		};
-		for (int i = 0; i < 30; ++i)
+		for (int i = 0; i < 600 && !saw_station_loading; ++i)
 			frame();
+		require(saw_station_loading, "Assigned station exposes responsive loading before readiness");
 		for (unsigned route : {3u, 4u})
 		{
 			LobbyCommand command{LobbyAction::ready};
@@ -90,7 +91,8 @@ int main(int argc, char **argv)
 		}
 		for (int i = 0; i < 1200 && !app.session->running(); ++i)
 			frame();
-		require(app.session->running(), "Lobby launches");
+		require(app.session->running(),
+		        ("Lobby launches: " + app.session->lobby().status + " / " + app.session->connection_status()).c_str());
 		app.screen = Screen::viewscreen;
 		for (int i = 0; i < 900; ++i)
 		{
@@ -126,7 +128,8 @@ int main(int argc, char **argv)
 			const auto count = std::count_if(app.screen_controls.begin(), app.screen_controls.end(),
 			                                 [&](const auto &row)
 			                                 {
-				                                 return row.first.starts_with(prefix + "game.") ||
+				                                 return row.first.starts_with(prefix + "task/") ||
+				                                        row.first.starts_with(prefix + "game.") ||
 				                                        row.first.starts_with(prefix + "inline/") ||
 				                                        row.first.starts_with(prefix + "support-");
 			                                 });
@@ -143,243 +146,148 @@ int main(int argc, char **argv)
 			require(count > 0, "Routed Console has visible gameplay controls after launch");
 			require(probe_console_fit(route), "Radar fits its own 1080p monitor beside a 4K host");
 		}
-		for (const auto &[route, tabs] :
-		     std::vector<std::pair<unsigned, std::vector<std::string>>>{{3, {"helm"}}, {4, {"comms", "support"}}})
-			for (const auto &tab : tabs)
-			{
-				require(probe_console_tab(route, "console-page/" + tab +
-				                                     (tab == "comms"     ? "/"
-				                                      : tab == "support" ? "/station.power"
-				                                                         : "/station.main")),
-				        ("Pointer switches Console tab " + tab).c_str());
+		auto frames = [&](int count = 3)
+		{
+			for (int i = 0; i < count; ++i)
 				frame();
-				frame();
-				if (route == 4 && tab == "comms")
-				{
-					require(std::none_of(app.screen_readouts.begin(), app.screen_readouts.end(),
-					                     [](const auto &row)
-					                     {
-						                     return row.first.starts_with("console/4/resource/");
-					                     }),
-					        "Comms tab excludes Support machinery readouts");
-					TakeScreenshot("build/console-transition-comms.png");
-				}
-			}
-		const auto after_tabs = app.session->console_observation(3);
-		require(after_tabs && after_tabs->requested_speed == 0, "Tab navigation does not submit a flight command");
-		auto has = [&](const std::string &id)
+		};
+		auto has = [&](const std::string &key)
 		{
 			return std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
-			                   [&](const auto &row)
+			                   [&](const auto &r)
 			                   {
-				                   return row.first == id;
+				                   return r.first == key;
 			                   });
 		};
-		auto action = [&](const std::string &id)
+		auto action = [&](const std::string &key)
 		{
-			require(invoke_navigation(app, id), ("Admit visible action " + id).c_str());
-			frame();
-			frame();
+			require(probe_console_tab(key.starts_with("console/3/") ? 3 : 4, key.substr(10)),
+			        ("Pointer action " + key).c_str());
+			frames();
 		};
-		require(has("console/4/console-page/support/station.repair"), "Support has a Repair tab");
-		require(!has("console/4/game.console/navigator") && !has("console/4/game.console/navigation"),
-		        "Remaining Console functions are integrated into Support");
-
-		auto has_readout = [&](const std::string &key)
+		auto capture = [&](const std::string &name, unsigned route)
 		{
-			return std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
-			                   [&](const auto &row)
-			                   {
-				                   return row.first == key;
-			                   });
+			auto picture = LoadImageFromScreen();
+			ImageCrop(&picture, {3840, route == 3 ? 0.f : 1080.f, 1920, 1080});
+			ExportImage(picture, ("build/compact-" + name + ".png").c_str());
+			UnloadImage(picture);
 		};
-		require(has_readout("console/4/support/power/battery") && has_readout("console/4/support/power/coolant"),
-		        "Power reserves appear at the top of the single board");
-		require(std::none_of(app.screen_inputs.begin(), app.screen_inputs.end(),
-		                     [](const auto &input)
-		                     {
-			                     return input.id.starts_with("console/4/power/");
-		                     }),
-		        "one-star automatic machinery has no unusable power or coolant sliders");
-		require(!has("console/3/console-page/helm/station.personnel") &&
-		            !has("console/4/console-page/support/station.personnel"),
-		        "one-star stations omit automated Personnel");
-		require(!has("console/4/console-page/support/station.away") &&
-		            !app.screen_action("console/4/station-page/away"),
-		        "Support has no mission lifecycle page");
-		require(!has("console/3/console-page/helm/station.operations") &&
-		            !has("console/4/console-page/support/station.operations"),
-		        "Helm and automatic Support omit Operations");
-		require(app.screen_action && !app.screen_action("console/3/station-page/logistics") &&
-		            !app.screen_action("console/4/station-page/logistics"),
-		        "Hidden Operations rejects stale navigation");
-		TakeScreenshot("build/support-power-one-star.png");
-		require(probe_console_tab(4, "console-page/support/station.repair"), "Pointer opens Repair board");
-		frame();
-		frame();
-		require(has_readout("console/4/support/repair/summary") && has_readout("console/4/support/repair/team/team-1"),
-		        "Repair board shows section damage and current team activity together");
-		TakeScreenshot("build/support-repair.png");
-		require(probe_console_tab(4, "support-details/team/team-1"), "Click team for its details");
-		frame();
-		frame();
-		require(has("console/4/systems-close"), "Team details have a close control");
-		TakeScreenshot("build/support-repair-details.png");
-		action("console/4/systems-close");
-		require(app.set_control_value && app.set_control_value("console/4/support-repair-priority", "22"),
-		        "Single Repair board submits an assisted repair priority");
-		bool prioritised = false;
-		for (int i = 0; i < 100 && !prioritised; ++i)
+		require(has("console/3/console-page/helm/station.away"),
+		        "Dispatch keeps Away Missions available at one star before reveal");
+		require(!has("console/3/console-page/helm/station.operations") && !has("console/3/console-page/tactical/"),
+		        "No redundant Helm pages");
+		require(has("console/3/task/weapons/0"), "Compact weapon toggles are visible");
+		const bool weapon_was_on = app.screen_toggles.at("console/3/task/weapons/0");
+		action("console/3/task/weapons/0");
+		frames(20);
+		require(app.screen_toggles.at("console/3/task/weapons/0") != weapon_was_on,
+		        "Weapon toggle reaches authoritative state");
+		capture("helm", 3);
+		require(probe_console_fit(3), "Helm operational components fit at 1080p");
+		action("console/3/on-screen/radar");
+		frames(20);
+		require(app.session->public_board().value("display", Json::object()).value("kind", "") == "radar",
+		        "Radar publication reaches shared viewscreen board");
+		TakeScreenshot("build/compact-shared-radar.png");
+		action("console/3/on-screen/radar");
+		frames(10);
+		require(!app.session->public_board().contains("display"), "Second activation returns viewscreen to camera");
+		for (const auto &page : {"support/station.support", "support/station.engineering", "navigation/", "comms/"})
 		{
-			frame();
-			const auto repair_view = app.session->console_observation(4);
-			for (const auto &controller : repair_view->gameplay.at("controllers"))
-				if (controller.at("id") == "repair-priority")
-					prioritised = controller.at("commands").at("system").at("value") == 22;
+			action("console/4/console-page/" + std::string(page));
+			frames(12);
+			capture(std::string(page).substr(0, std::string(page).find('/')), 4);
+			require(probe_console_fit(4), "Support operational components fit at 1080p");
+			require(std::none_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+			                     [&](const auto &r)
+			                     {
+				                     return r.first.starts_with("console/4/resource/");
+			                     }),
+			        "No generic machinery dump on task pages");
+			if (std::string(page) == "comms/")
+			{
+				std::string conversation;
+				for (const auto &[key, label] : app.screen_controls)
+					if (key.starts_with("console/4/comms/select/"))
+					{
+						conversation = key;
+						break;
+					}
+				require(!conversation.empty(), "Comms offers a permitted conversation");
+				action(conversation);
+				frames(15);
+				require(probe_console_conversation(4), "Conversation rows and text use available history width");
+				if (has("console/4/comms/screen"))
+				{
+					action("console/4/comms/screen");
+					frames(10);
+					require(app.session->public_board().at("display").at("kind") == "conversations",
+					        "Comms publishes to viewscreen");
+					action("console/4/comms/screen");
+				}
+			}
+			if (std::string(page) == "navigation/")
+			{
+				require(!has("console/4/nav.in") && !has("console/4/nav.set"),
+				        "Navigation has no zoom bank or unselected waypoint action");
+				require(probe_console_navigation(4, 0), "Selecting empty map space does not change waypoint");
+				frames();
+				action("console/4/nav.set");
+				frames(10);
+				require(has("console/4/nav.clear"), "Waypoint action becomes contextual Clear");
+				action("console/4/nav.clear");
+				frames(10);
+				require(probe_console_navigation(4, 1), "Keyboard moves selection without committing a waypoint");
+				frames();
+				action("console/4/on-screen/map");
+				frames(10);
+				require(app.session->public_board().at("display").at("kind") == "navigation",
+				        "Navigation publishes to assigned viewscreen");
+				TakeScreenshot("build/compact-shared-navigation.png");
+				action("console/4/on-screen/map");
+			}
 		}
-		require(prioritised, "Repair priority reaches authoritative state");
-		require(app.set_control_value("console/4/support-repair-priority", "0"), "Restore automatic repair priorities");
-		require(probe_console_tab(4, "console-page/support/station.power"), "Return to Power board");
-		frame();
-		frame();
+		action("console/4/console-page/support/station.engineering");
+		require(std::none_of(app.screen_inputs.begin(), app.screen_inputs.end(),
+		                     [](const auto &r)
+		                     {
+			                     return r.id.starts_with("console/4/power/");
+		                     }),
+		        "One-star power remains read-only");
 		ConsoleModel power;
 		power.refresh(app.session, 4);
-		require(power.command("preset", 2), "Select detailed Support workload");
-		for (int i = 0; i < 45; ++i)
-			frame();
-		require(std::any_of(app.screen_inputs.begin(), app.screen_inputs.end(),
-		                    [](const auto &input)
-		                    {
-			                    return input.id == "console/4/power/ftl.cooling/allocation";
-		                    }),
-		        "three-star Power board exposes a coolant slider");
-		require(app.set_control_value("console/4/power/reactor/output", "37.3"),
-		        "Power slider accepts an intermediate value");
-		for (int i = 0; i < 30; ++i)
-			frame();
+		require(power.command("preset", 2), "Select detailed Engineering");
+		frames(40);
+		require(has("console/4/power-details"), "Individual tuning is contextual");
+		require(app.set_control_value("console/4/power/weapons-distribution/allocation", "50"),
+		        "Authored power group slider admits allocation");
+		frames(20);
 		power.refresh(app.session, 4);
-		bool changed = false;
-		for (const auto &controller : power.observation()->gameplay.at("controllers"))
-			if (controller.at("id") == "reactor")
-				changed = controller.at("commands").at("output").at("value").get<std::int64_t>() > 0;
-		require(changed, "Power slider changes the authoritative reactor setting");
-		require(probe_console_tab(4, "power/reactor/output"), "Pointer operates the visible reactor slider track");
-		for (int i = 0; i < 10; ++i)
-			frame();
-		TakeScreenshot("build/support-power-three-stars.png");
-		require(probe_console_tab(4, "support-details/medical"), "Open Medical team details from Power");
-		frame();
-		frame();
-		require(std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
-		                    [](const auto &control)
-		                    {
-			                    return control.first.starts_with(
-			                        "console/4/popup-control/game.team-order/medical-team/");
-		                    }),
-		        "detailed Support retains admitted Medical orders without a readiness switch");
+		std::int64_t commanded = -1, allocated = -2;
+		for (const auto &c : power.observation()->gameplay.at("controllers"))
+			if (c.at("id") == "weapons-distribution")
+				commanded = c.at("commands").at("allocation").at("value");
+		for (const auto &g : power.observation()->gameplay.at("power").at("groups"))
+			if (g.at("id") == "combat-power.weapons")
+				allocated = g.at("allocation");
+		require(commanded == allocated && allocated > 0, "Slider changes the real authored resource group");
+		capture("engineering-detailed", 4);
+		require(probe_console_fit(4), "Detailed Engineering fits at 1080p");
+		action("console/4/task/team-roster/0");
+		require(has("console/4/systems-close"), "Team detail opens permitted activity and deployment controls");
 		action("console/4/systems-close");
-		require(power.command("preset", 0), "Restore assisted Support workload");
-		for (int i = 0; i < 30; ++i)
-			frame();
-		require(!app.set_control_value("console/4/power/ftl.cooling/allocation", "50"),
-		        "Downgrade rejects a stale coolant slider");
-		require(probe_console_tab(4, "support-navigation"), "Open Navigation details");
-		frame();
-		frame();
-		require(has("console/4/support-close-details"), "Navigation has popup close control");
-		TakeScreenshot("build/support-navigation-details.png");
-		action("console/4/settings");
-		require(!has("console/4/support-close-details"), "Settings hides Navigation popup controls");
-		action("console/4/local-settings.close");
-		require(has("console/4/support-close-details"), "Closing Settings restores Navigation details");
-		action("console/4/support-close-details");
-		TakeScreenshot("build/support-summary.png");
 		for (unsigned stage = 0; stage < 5; ++stage)
 		{
-			require(probe_console_throttle(3, stage), ("Touch throttle stage " + std::to_string(stage)).c_str());
-			for (int i = 0; i < 10; ++i)
-				frame();
+			require(probe_console_throttle(3, stage), "Touch throttle retains captured control and zero deadzone");
+			frames(10);
 		}
-		TakeScreenshot("build/console-transition-throttle-stop.png");
-		require(!has("console/3/game.console/tactical"), "No redundant Tactical tab");
-		require(!has("console/3/console-page/helm/station.docking") &&
-		            !app.screen_action("console/3/station-page/docking"),
-		        "Helm has no Docking tab or stale page action");
-		require(!has("console/4/console-page/support/station.docking"), "Support has no Docking tab");
-		require(!has("console/3/game.combat-target/2"), "No target button list");
-		auto weapon_state = [&]
-		{
-			std::map<std::string, bool> result;
-			const auto observation = app.session->console_observation(3);
-			for (const auto &extra : observation->additional_consoles)
-				for (const auto &system : extra.systems)
-					if (system.kind == OperatingSystem::Weapon)
-						result[system.id] = system.enabled;
-			return result;
-		};
-		const auto before_weapon = weapon_state();
-		std::string toggle;
-		for (const auto &[name, label] : app.screen_controls)
-			if (name.starts_with("console/3/inline/game.control/") &&
-			    (label.ends_with("Enabled") || label.ends_with("Disabled")))
-			{
-				toggle = name.substr(std::string("console/3/").size());
-				break;
-			}
-		require(!toggle.empty() && probe_console_tab(3, toggle), "Pointer toggles a weapon from Helm");
-		for (int i = 0; i < 60 && weapon_state() == before_weapon; ++i)
-			frame();
-		require(weapon_state() != before_weapon, "Weapon toggle changes authoritative tactical system state");
-		require(probe_console_tab(3, "radar-contact/2"), "Click starbase on Helm radar");
-		frame();
-		frame();
-		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
-		                    [](const auto &row)
-		                    {
-			                    return row.first == "console/3/target/name" &&
-			                           row.second.find("#2") != std::string::npos;
-		                    }),
-		        "Radar selection populates target panel");
-		TakeScreenshot("build/console-transition-target.png");
-		require(probe_console_tab(3, "systems"), "Open one Systems popup");
-		frame();
-		frame();
-		require(has("console/3/systems-close"), "System statuses have one close action");
-		TakeScreenshot("build/console-transition-systems.png");
-		action("console/3/systems-close");
-		ConsoleModel personnel_helm;
-		personnel_helm.refresh(app.session, 3);
-		require(personnel_helm.command("preset", 2), "enable manual personnel workload on Helm");
-		for (int i = 0; i < 35; ++i)
-			frame();
-		action("console/3/console-page/helm/station.personnel");
-		require(!has("console/3/local-settings.tab/display"), "Personnel excludes preference tabs");
-		require(!has("console/4/console-page/support/station.personnel") &&
-		            has("console/4/console-page/support/station.power"),
-		        "Other station retains its automatic workload while Helm manages Personnel");
-		TakeScreenshot("build/console-transition-personnel.png");
-		action("console/3/console-page/helm/station.main");
 		action("console/3/settings");
-		require(has("console/3/local-settings.larger"), "Settings opens Display after Personnel");
-		require(!has("console/3/local-settings.tab/away"), "Settings excludes gameplay tabs");
 		action("console/3/local-settings.larger");
-		TakeScreenshot("build/console-transition-settings.png");
 		action("console/3/local-settings.close");
-		if (!app.session->console_observation(3)->gameplay.value("away_missions", nlohmann::json::array()).empty())
-		{
-			action("console/3/console-page/helm/station.away");
-			TakeScreenshot("build/console-transition-away.png");
-			action("console/3/console-page/helm/station.main");
-		}
-		else
-			require(!has("console/3/console-page/helm/station.away") &&
-			            !app.screen_action("console/3/station-page/away"),
-			        "Station without missions omits Away and rejects stale navigation");
-		std::cout << "PASS mixed-resolution Courier layout, pointer tabs, no unintended motion and independent pages"
-		          << std::endl;
+		capture("helm-large-text", 3);
+		require(probe_console_fit(3), "Enlarged Helm controls fit without clipping");
 		Application cruiser;
 		cruiser.can_host = true;
-		cruiser.native_menu = false;
 		cruiser.session = make_local_session();
 		cruiser.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
 		cruiser.session->start({"base.rescue-under-threat", {{"courier", "base.cruiser"}}, "courier", "engineering"});
@@ -393,86 +301,30 @@ int main(int argc, char **argv)
 			draw_screen(cruiser);
 			EndDrawing();
 		};
-		for (int i = 0; i < 1200; ++i)
+		for (int i = 0; i < 900; ++i)
 		{
 			cruiser_frame();
 			if (std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
-			                [](const auto &row)
+			                [](const auto &r)
 			                {
-				                return row.first == "console/1/console-page/engineering/station.repair";
+				                return r.first == "console/1/console-page/engineering/station.engineering";
 			                }))
 				break;
 		}
-		TakeScreenshot("build/cruiser-power-one-star.png");
-		std::cout << "Cruiser active Console " << cruiser.session->observation()->console << ", controls "
-		          << cruiser.screen_controls.size() << std::endl;
-		require(std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
-		                    [](const auto &row)
-		                    {
-			                    return row.first == "console/1/console-page/engineering/station.repair";
-		                    }),
-		        "Cruiser Engineering uses the same single Power and Repair boards");
-		const auto low_power = cruiser.session->observation()->gameplay.at("power");
-		require(!low_power.at("groups").empty(), "Cruiser exposes actual power groups");
-		for (const auto &group : low_power.at("groups"))
-			require(std::any_of(cruiser.screen_readouts.begin(), cruiser.screen_readouts.end(),
-			                    [&](const auto &row)
-			                    {
-				                    return row.first ==
-				                           "console/1/support/power/battery/" + group.at("id").get<std::string>();
-			                    }),
-			        "lower-complexity Power board lists group reserves");
-		require(std::none_of(cruiser.screen_inputs.begin(), cruiser.screen_inputs.end(),
-		                     [](const auto &input)
-		                     {
-			                     return input.label.starts_with("Coolant");
-		                     }),
-		        "lower-complexity Cruiser hides coolant sliders");
-		TakeScreenshot("build/cruiser-power-one-star.png");
-		require(probe_console_tab(1, "console-page/engineering/station.repair"), "Open Cruiser Repair board");
-		cruiser_frame();
-		cruiser_frame();
-		require(probe_console_tab(1, "support-details/team/repair-1"), "Open a Cruiser repair team's details");
-		cruiser_frame();
-		cruiser_frame();
-		require(std::any_of(cruiser.screen_controls.begin(), cruiser.screen_controls.end(),
-		                    [](const auto &control)
-		                    {
-			                    return control.second.starts_with("Send to ");
-		                    }),
-		        "team deployment buttons identify their destination sections");
-		require(cruiser.screen_action("console/1/systems-close"), "Close Cruiser team details");
-		cruiser_frame();
-		cruiser_frame();
-		require(probe_console_tab(1, "console-page/engineering/station.power"), "Return to Cruiser Power");
-		cruiser_frame();
-		cruiser_frame();
-		ConsoleModel engineering;
-		engineering.refresh(cruiser.session);
-		require(engineering.command("preset", 2), "Select detailed Cruiser Engineering");
-		for (int i = 0; i < 30; ++i)
+		require(probe_console_tab(1, "console-page/engineering/station.engineering"),
+		        "Cruiser shares Engineering component layout");
+		for (int i = 0; i < 20; ++i)
 			cruiser_frame();
-		require(std::any_of(cruiser.screen_inputs.begin(), cruiser.screen_inputs.end(),
-		                    [](const auto &input)
-		                    {
-			                    return input.label.starts_with("Coolant");
-		                    }),
-		        "detailed Cruiser exposes permitted coolant sliders");
-		engineering.refresh(cruiser.session);
-		const auto machinery_statuses = engineering.system_statuses();
-		require(std::none_of(machinery_statuses.begin(), machinery_statuses.end(),
-		                     [](const auto &status)
-		                     {
-			                     return status.system.starts_with("repair-");
-		                     }),
-		        "team condition belongs to its roster rather than an electrical on/off status");
-		TakeScreenshot("build/cruiser-power-three-stars.png");
-		std::cout << "PASS Courier and Cruiser Power/Repair boards and complexity-dependent controls" << std::endl;
+		TakeScreenshot("build/compact-cruiser-engineering.png");
+		require(probe_console_fit(1), "Cruiser Engineering fits actual authored groups and team roster");
 		close_window();
+		std::cout << "PASS compact native stations, shared viewscreen, star controls, mixed-resolution geometry"
+		          << std::endl;
+		return 0;
 	}
 	catch (const std::exception &error)
 	{
-		std::cerr << error.what() << '\n';
+		std::cerr << error.what() << std::endl;
 		return 1;
 	}
 }

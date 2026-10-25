@@ -136,9 +136,7 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	const std::string width = "100%";
 	std::string header = "<div style=\"display:block;width:" + width + ";height:56dp;\">" +
 	                     button("comms/back", localise("Conversations")) +
-	                     button("comms/screen", localise("On screen") + ": " +
-	                                                localise(model_.is_on_screen(comms_widget_) ? "Live" : "Standby")) +
-	                     "</div>";
+	                     button("comms/screen", localise("On screen")) + "</div>";
 	if (thread)
 	{
 		header += "<div style=\"display:block;width:" + width + ";font-size:1.1em;margin:4dp 0;\">" +
@@ -247,6 +245,12 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 		place(app, region, id(key));
 	}
 	app.screen_toggles[id("comms/screen")] = model_.is_on_screen(comms_widget_);
+	if (auto *screen = document_->GetElementById(id("comms/screen")))
+	{
+		screen->SetClass("on-screen-active", model_.is_on_screen(comms_widget_));
+		screen->SetAttribute("aria-pressed", model_.is_on_screen(comms_widget_) ? "true" : "false");
+	}
+
 	if (detail_visible && !incoming.empty())
 		app.screen_readouts.emplace_back("comms-incoming", localise("Incoming message"));
 }

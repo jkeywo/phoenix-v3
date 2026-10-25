@@ -163,9 +163,48 @@ void targets(const UiNode &node, std::set<std::string> &result)
 }
 } // namespace
 
+Json console_ui_header_template()
+{
+	return Json{{"schema", 1},
+	            {"root",
+	             {{"id", "header"},
+	              {"kind", "row"},
+	              {"min_height", 56},
+	              {"gap", 8},
+	              {"padding", 4},
+	              {"children", Json::array({{{"id", "settings"},
+	                                         {"kind", "component"},
+	                                         {"component", "settings"},
+	                                         {"min_width", 56},
+	                                         {"width", 56},
+	                                         {"stretch", 0}},
+	                                        {{"id", "name"},
+	                                         {"kind", "component"},
+	                                         {"component", "console-name"},
+	                                         {"min_width", 120},
+	                                         {"width", 160},
+	                                         {"stretch", 0}},
+	                                        {{"id", "tabs"},
+	                                         {"kind", "component"},
+	                                         {"component", "tabs"},
+	                                         {"min_width", 200},
+	                                         {"stretch", 1}}})}}}};
+}
 std::vector<UiComponentSpec> console_ui_components()
 {
-	return {{"gameplay", "Operating panel", {}},
+	return {{"settings", "Settings", {}},
+	        {"console-name", "Station name", {}},
+	        {"tabs", "Station tabs", {}},
+	        {"weapons", "Weapon toggles", "weapons"},
+	        {"target-info", "Target information", {}},
+	        {"objectives", "Objectives", {}},
+	        {"viewscreen-controls", "Viewscreen cameras", "camera"},
+	        {"alert-controls", "Alert condition", "alert"},
+	        {"shield-display", "Shield diagram", "shields"},
+	        {"ftl-controls", "FTL controls", "ftl"},
+	        {"compartment-health", "Compartment health", {}},
+	        {"team-roster", "Repair and Medical teams", "teams"},
+	        {"gameplay", "Operating panel", {}},
 	        {"controls", "Controls", {}},
 	        {"readouts", "Readouts", {}},
 	        {"messages", "Messages", {}},
@@ -364,6 +403,23 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 	if (console.contains("layout_overrides"))
 		source.merge_patch(console.at("layout_overrides"));
 	auto result = compile_ui_tree(catalog, source);
+	auto header = console.value("header", console_ui_header_template());
+	if (header.is_string())
+	{
+		ui_require(catalog.layouts.contains(header.get<std::string>()), "console.header", "unresolved header layout");
+		header = catalog.layouts.at(header.get<std::string>());
+	}
+	if (console.contains("header_overrides"))
+		header.merge_patch(console.at("header_overrides"));
+	result.header = compile_ui_tree(catalog, header).root;
+	std::set<std::string> header_targets;
+	targets(*result.header, header_targets);
+	for (const auto &target : header_targets)
+		ui_require(target == "settings" || target == "console-name" || target == "tabs", "console.header",
+		           "unsupported header component " + target);
+	ui_require(header_targets == std::set<std::string>{"settings", "console-name", "tabs"}, "console.header",
+	           "requires Settings, console name and tabs");
+
 	std::set<std::string> components;
 	targets(result.root, components);
 	std::set<std::string> allowed;
@@ -413,7 +469,8 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 			condition(*result.compact);
 	}
 	for (const auto &target : components)
-		ui_require(allowed.contains(target), "console.layout", "unknown component " + target);
+		ui_require(allowed.contains(target) && !header_targets.contains(target), "console.layout",
+		           "unknown or header-only component " + target);
 	return result;
 }
 UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float text_scale,
@@ -471,9 +528,10 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 UiResolved resolve_console_ui(const UiLayout &layout, float width, float height, float text_scale,
                               const std::map<std::string, std::string> &pages, bool multiple_consoles)
 {
-	float header = (multiple_consoles ? 112.f : 64.f) * text_scale;
+	float header = layout.header ? std::max(56.f, layout.header->minimum_height) * text_scale
+	                             : (multiple_consoles ? 112.f : 64.f) * text_scale;
 	auto result = resolve_ui_layout(layout, {0, 0, width, std::max(100.f, height - header)}, text_scale, pages);
-	if (!result.pages.empty())
+	if (!layout.header && !result.pages.empty())
 	{
 		header += 48 * text_scale;
 		result = resolve_ui_layout(layout, {0, 0, width, std::max(100.f, height - header)}, text_scale, pages);

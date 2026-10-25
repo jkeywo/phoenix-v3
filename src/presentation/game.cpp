@@ -875,8 +875,18 @@ struct GameScreen::State
 					camera.x = shared.at("camera")[0];
 					camera.y = shared.at("camera")[1];
 					camera.scale = shared.at("camera")[2].get<double>() * 100 / plot.width;
-					draw_navigation_plot(own, shared.at("regions"), shared.at("objectives"), shared.at("waypoint"),
-					                     camera, plot, true);
+					draw_navigation_plot(own, shared.at("regions"), Json::array(), Json::object(), camera, plot, true);
+					BeginScissorMode(static_cast<int>(plot.x), static_cast<int>(plot.y), static_cast<int>(plot.width),
+					                 static_cast<int>(plot.height));
+					for (const auto &row : shared.at("contacts"))
+					{
+						const auto contact = display::read_body(row);
+						const Vector2 at{
+						    plot.x + plot.width / 2 + static_cast<float>((contact.x - camera.x) / camera.scale),
+						    plot.y + plot.height / 2 - static_cast<float>((contact.y - camera.y) / camera.scale)};
+						draw_radar_body(textures, app.session->catalog(), contact, at, 9, SKYBLUE);
+					}
+					EndScissorMode();
 				}
 				else
 				{
@@ -895,7 +905,7 @@ struct GameScreen::State
 					                     shared.at("widget").get<std::string>()];
 					if (!sweep)
 						sweep = std::make_unique<RadarSweep>();
-					draw_radar_plot(textures, app.session->catalog(), view, sensor, shared.at("waypoint"), *sweep,
+					draw_radar_plot(textures, app.session->catalog(), view, sensor, Json::object(), *sweep,
 					                shared.at("sweep"), {plot.x + plot.width / 2, plot.y + plot.height / 2},
 					                std::min(plot.width, plot.height) * .48f, GetTime(), app.reduced_motion);
 				}

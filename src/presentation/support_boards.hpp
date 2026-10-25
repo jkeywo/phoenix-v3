@@ -20,7 +20,7 @@ bool support_value(const std::string &name, const std::string &text)
 		const auto choice = support_choices_.find(text);
 		return choice != support_choices_.end() && model_.act(choice->second);
 	}
-	if (!authored_component_visible("power") || !name.starts_with(id("power/")))
+	if ((!authored_component_visible("power") && support_popup_ != "power") || !name.starts_with(id("power/")))
 		return false;
 	const auto found = power_controls_.find(name.substr(id("").size()));
 	if (found == power_controls_.end())
@@ -76,7 +76,7 @@ void prepare_engineering_component(const std::string &component, const ConsoleRe
 	auto slider = [&](const PowerSetting *setting, const std::string &label)
 	{
 		if (!setting)
-			return "<span>" + esc(localise("Automatic")) + "</span>";
+			return std::string{};
 		power_controls_[setting->id] = *setting;
 		return "<label for=\"" + esc(id(setting->id)) + "\">" + esc(label) + "</label><input id=\"" +
 		       esc(id(setting->id)) + "\" type=\"range\" min=\"0\" max=\"100\" step=\"0.1\" value=\"0\"/>" +
@@ -198,14 +198,25 @@ void prepare_engineering_component(const std::string &component, const ConsoleRe
 			          "</p>" + slider(setting, localise("Reactor output (%)")) + "</div>";
 		}
 		markup += "</div>";
-		const bool groups = model_.ui_availability().stars < 3 && !power.value("groups", Json::array()).empty();
+		const bool groups = !power.value("groups", Json::array()).empty();
 		markup += "<h3>" + esc(localise(groups ? "Power groups" : "Systems")) + "</h3>";
 		std::set<std::string> placed;
-		for (const auto &row : power.value(groups ? "groups" : "systems", Json::array()))
+		auto rows = power.value(groups ? "groups" : "systems", Json::array());
+		const float scale = text_scale_ / 100.f;
+		const float room = board->GetClientHeight() / context_->GetDensityIndependentPixelRatio() - 170.f * scale;
+		const auto limit =
+		    static_cast<std::size_t>(std::max(2.f, std::floor(room / ((settings.empty() ? 55.f : 80.f) * scale))));
+		std::size_t count = 0;
+		for (const auto &row : rows)
 		{
+			if (groups && !row.value("parent", "").empty())
+				continue;
+			if (count++ >= limit)
+				continue;
 			const auto key = row.at("id").get<std::string>();
-			auto *allocation = power_setting_for(settings, row, false);
-			auto *cooling = power_setting_for(settings, row, true);
+			const bool detail_only = groups && row.contains("group");
+			auto *allocation = detail_only ? nullptr : power_setting_for(settings, row, false);
+			auto *cooling = detail_only ? nullptr : power_setting_for(settings, row, true);
 			const bool shared = allocation && !placed.insert(allocation->id).second;
 			if (shared)
 				allocation = nullptr;
@@ -215,6 +226,8 @@ void prepare_engineering_component(const std::string &component, const ConsoleRe
 			          "</div><div class=\"power-control\">" +
 			          (shared ? "<span>" + esc(localise("Shared allocation")) + "</span>"
 			                  : slider(allocation, localise("Power (%)"))) +
+			          readout("support/power/allocation/" + key,
+			                  localise("Power") + ": " + std::to_string(row.value("allocation", 0LL)) + " / s") +
 			          "</div>";
 			if (cooling)
 				markup += "<div class=\"power-control\">" + slider(cooling, localise("Coolant (%)")) + "</div>";
@@ -224,38 +237,7 @@ void prepare_engineering_component(const std::string &component, const ConsoleRe
 			                      " / " + std::to_string(row.at("capacity").get<std::int64_t>())) +
 			          "</div></div>";
 		}
-		markup += "<h3>" + esc(localise("Support")) + "</h3>";
-		for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
-		{
-			const auto action = descriptor_action(descriptor.at("id"));
-			if (support_repair_control(action, descriptor) || descriptor.value("action", "") == "preset" ||
-			    descriptor.value("momentary", false))
-				continue;
-			bool power_control = false;
-			for (const auto &setting : settings)
-				power_control |= descriptor.value("controller", "") == setting.controller;
-			for (const auto &consumer : command_consumers(view, descriptor))
-				for (const auto &system : view.systems)
-					if (system.id == consumer)
-						power_control |=
-						    system.kind == OperatingSystem::Generator || system.kind == OperatingSystem::Storage ||
-						    system.kind == OperatingSystem::Distribution || system.kind == OperatingSystem::Coolant;
-			if (!power_control)
-				markup += button(action, localise(descriptor.value("label_key", descriptor.value("label", action))));
-		}
-		for (const auto &[console, source] : support_models_)
-			for (const auto &[name, label] : source->gameplay_controls())
-				if (name.starts_with("game.control/"))
-					markup += button("support-console/" + console + "/" + name, label);
-		const auto teams = view.gameplay.value("teams", Json::array());
-		if (std::any_of(teams.begin(), teams.end(),
-		                [](const Json &team)
-		                {
-			                return !team.value("repair", false) && !team.at("orders").empty();
-		                }))
-			markup += button("support-details/medical", localise("Medical and support teams"));
-		if (!support_navigation_.empty())
-			markup += button("support-navigation", localise("Navigation details"));
+		markup += button("power-details", localise("Power details"));
 	}
 	if (markup != engineering_signatures_[component])
 	{

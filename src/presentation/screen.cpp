@@ -347,6 +347,7 @@ public:
 		}
 		value.erase("_preview_pages");
 		value.erase("_preview_interact");
+		value.erase("_preview_header");
 		const auto sample_state = value.value("_preview_state", std::string("normal"));
 		value.erase("_preview_state");
 		const int stars = value.value("_preview_stars", 3);
@@ -1054,6 +1055,10 @@ bool probe_console_conversation(ConsoleId route)
 bool probe_console_throttle(ConsoleId route, unsigned stage)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_throttle(stage);
+}
+bool probe_console_navigation(ConsoleId route, unsigned stage)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_navigation(stage);
 }
 bool probe_console_fit(ConsoleId route)
 {

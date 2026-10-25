@@ -9,7 +9,8 @@ struct LayoutWorkspace
 	std::string selected, component = "gameplay", asset_name = "", asset_id = "", theme_name;
 	std::string drag_source, drag_target, drag_component;
 	int width = 1280, height = 720, text_scale = 100, serial = 1, sample_state = 0, sample_stars = 3;
-	bool interact = false, compact = false, snap = true, resizing = false, focus_canvas = false, hud = false;
+	bool interact = false, compact = false, snap = true, resizing = false, focus_canvas = false, hud = false,
+	     header = false;
 	std::map<std::string, std::string> pages;
 } layout_workspace;
 
@@ -106,8 +107,13 @@ void console_layout_workspace(Application &app)
 		ImGui::Checkbox(tool_label("Edit Viewscreen HUD").c_str(), &layout_workspace.hud);
 	else
 		layout_workspace.hud = false;
-	const char *layout_field = layout_workspace.hud ? "hud_layout" : "layout";
-	const char *override_field = layout_workspace.hud ? "hud_layout_overrides" : "layout_overrides";
+	ImGui::Checkbox(tool_label("Edit station header").c_str(), &layout_workspace.header);
+	if (layout_workspace.header && !console.contains("header"))
+		console["header"] = console_ui_header_template();
+	const char *layout_field = layout_workspace.header ? "header" : layout_workspace.hud ? "hud_layout" : "layout";
+	const char *override_field = layout_workspace.header ? "header_overrides"
+	                             : layout_workspace.hud  ? "hud_layout_overrides"
+	                                                     : "layout_overrides";
 	if (!console.contains(layout_field))
 	{
 		ImGui::TextWrapped(
@@ -229,9 +235,12 @@ void console_layout_workspace(Application &app)
 		ImGui::InputText(tool_label("Component target").c_str(), &layout_workspace.component);
 		std::vector<std::string> targets;
 		for (const auto &component : console_ui_components())
-			targets.push_back(component.id);
-		for (const auto &widget : console.at("widgets"))
-			targets.push_back(widget.at("id"));
+			if (layout_workspace.header ==
+			    (component.id == "settings" || component.id == "console-name" || component.id == "tabs"))
+				targets.push_back(component.id);
+		if (!layout_workspace.header)
+			for (const auto &widget : console.at("widgets"))
+				targets.push_back(widget.at("id"));
 		if (ImGui::BeginCombo(tool_label("Available components").c_str(), layout_workspace.component.c_str()))
 		{
 			for (const auto &target : targets)
@@ -624,6 +633,7 @@ void console_layout_workspace(Application &app)
 			sample.erase("layout_overrides");
 		}
 		ImGui::SliderInt(tool_label("Preview complexity stars").c_str(), &layout_workspace.sample_stars, 1, 3);
+		sample["_preview_header"] = layout_workspace.header;
 		sample["_preview_stars"] = layout_workspace.sample_stars;
 		sample["_preview_state"] = states[layout_workspace.sample_state];
 		sample["_preview_pages"] = layout_workspace.pages;

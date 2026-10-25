@@ -22,10 +22,11 @@ int main(int argc, char **argv)
 		phoenix::open_workshop_pack(argv[1]);
 		SetWindowSize(1600, 1000);
 		SetTargetFPS(60);
-		for (int frame = 0; frame < 600 && !WindowShouldClose(); ++frame)
+		for (int frame = 0; frame < 710 && !WindowShouldClose(); ++frame)
 		{
-			const int stages[] = {5, 30, 60, 95, 130, 165, 200, 235, 270, 305, 340, 375, 410, 445, 480, 510, 540, 575};
-			for (unsigned stage = 0; stage < 18; ++stage)
+			const int stages[] = {5,   30,  60,  95,  130, 165, 200, 235, 270, 305, 340,
+			                      375, 410, 445, 480, 510, 540, 575, 605, 635, 675};
+			for (unsigned stage = 0; stage < 21; ++stage)
 				if (frame == stages[stage] && !phoenix::probe_workshop_layout(stage))
 					throw std::runtime_error("Layout authoring probe failed at stage " + std::to_string(stage));
 			BeginDrawing();
@@ -33,7 +34,8 @@ int main(int argc, char **argv)
 			phoenix::draw_workshop(app);
 			EndDrawing();
 			if (frame == 20 || frame == 80 || frame == 115 || frame == 150 || frame == 185 || frame == 220 ||
-			    frame == 255 || frame == 290 || frame == 325 || frame == 360 || frame == 500 || frame == 530)
+			    frame == 255 || frame == 290 || frame == 325 || frame == 360 || frame == 500 || frame == 530 ||
+			    frame == 625 || frame == 660 || frame == 700)
 				TakeScreenshot(("build/layout-workshop-" + std::to_string(frame) + ".png").c_str());
 		}
 		phoenix::end_tools();
