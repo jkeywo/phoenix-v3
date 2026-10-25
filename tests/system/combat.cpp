@@ -1604,6 +1604,21 @@ int main(int argc, char **argv)
 		}
 		{
 			auto setup = fixture();
+			setup["entities"][0]["systems"]["mount"]["bearing_mdeg"] = 180000;
+			const auto c = load(setup);
+			World fresh, resumed;
+			fresh.load(c, map);
+			const auto initial = state(fresh).at("systems").at("mount");
+			require(initial.at("heading") == 180000 && initial.at("turn_remainder") == 0,
+			        "non-forward turret starts at its authored bearing without fractional traverse");
+			resumed.restore(c, fresh.save());
+			require(resumed.save() == fresh.save(), "fresh angled turret survives the fleet setup save path");
+			advance(fresh, 5);
+			advance(resumed, 5);
+			require(resumed.save() == fresh.save(), "angled turret continuation remains deterministic");
+		}
+		{
+			auto setup = fixture();
 			setup["entities"][0]["systems"]["gun"]["bearing_mdeg"] = 30000;
 			setup["entities"][0]["systems"]["gun"]["y_mm"] = 5000;
 			setup["entities"][0]["systems"]["gun"]["arc_mdeg"] = 2000;

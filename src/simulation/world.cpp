@@ -1006,7 +1006,7 @@ struct World::Impl
 					mechanism.state = WeaponState{};
 					break;
 				case OperatingSystem::Turret:
-					mechanism.state = TurretState{0, mechanism.definition.bearing};
+					mechanism.state = TurretState{mechanism.definition.bearing, 0};
 					break;
 				case OperatingSystem::Magazine:
 					mechanism.state = MagazineState{"system:" + mechanism.definition.id};
@@ -2846,7 +2846,8 @@ void World::tick()
 		for (const auto &console : impl_->definition(id).consoles)
 		{
 			const ConsoleAddress address{id, console.id};
-			impl_->observation_snapshots.emplace(address, impl_->capture_decision_observation(address, &decision_telemetry, &decision_contacts));
+			impl_->observation_snapshots.emplace(
+			    address, impl_->capture_decision_observation(address, &decision_telemetry, &decision_contacts));
 		}
 	profile.mark("console_observation_snapshots");
 	for (const auto &[id, entity] : impl_->entities)
@@ -3305,8 +3306,9 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 {
 	auto entity = impl_->entities.at(address.ship);
 	const auto &seat = *impl_->seat(address.ship, address.console);
-	Observation result = impl_->capture_console_observation(address, impl_->knowledge.project_json(address),
-	                                                      Impl::ObservationDetail::Presentation, &impl_->presentation_telemetry, &impl_->presentation_contacts);
+	Observation result = impl_->capture_console_observation(
+	    address, impl_->knowledge.project_json(address), Impl::ObservationDetail::Presentation,
+	    &impl_->presentation_telemetry, &impl_->presentation_contacts);
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
