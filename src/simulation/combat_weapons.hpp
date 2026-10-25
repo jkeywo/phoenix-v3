@@ -70,8 +70,10 @@ std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanis
 	if (intercept && !m.get<WeaponState>().intercept)
 		return {};
 	auto aim = directed_contact(id, m.definition.id, wanted, cache, !intercept);
-	if (!aim || !intercept)
-		return aim;
+	if (!aim)
+		return {};
+	if (!intercept)
+		return aim->body.disposition == "hostile" ? aim : std::nullopt;
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();

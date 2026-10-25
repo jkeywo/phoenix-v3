@@ -258,43 +258,24 @@ Json missile_fixture(bool defence = false)
 }
 void ordnance_contracts()
 {
-	// Bearing launches use no hidden target range/altitude and acquire independently.
+	// An anonymous bearing can be selected, but cannot establish offensive authority.
 	for (bool acquire : {false, true})
 	{
 		auto source = missile_fixture();
 		auto &systems = source["entities"][0]["systems"];
 		systems["radar"]["range_mm"] = 10000;
 		systems["radar"]["long_range_mm"] = 200000;
-		systems["missile-mag"]["projectile"]["arc_height_mm"] = 0;
 		systems["missile-mag"]["projectile"]["seeker_range_mm"] = acquire ? 30000 : 1;
-		// The target is outside physical weapon reach, which must not block a bearing shot.
-		systems["launcher"]["range_mm"] = 50000;
-		const auto c = load(source);
-		World bearing;
-		bearing.load(c, "test.map");
-		claim(bearing);
-		require(bearing.observe(101)->contacts.empty() && bearing.observe(101)->bearing_contacts.size() == 2,
-		        "missile Console has only bearings");
-		submit(bearing, 101, "launcher", "target", 2);
-		advance(bearing, 1);
-		const auto first = bearing.save().at("projectiles");
-		require(first.size() == 1 && first[0].at("bearing_launch") == true &&
-		            first[0].at("initial_distance") == 50000 && first[0].at("vz") == 0,
-		        "bearing launch uses nominal weapon range and launch altitude");
-		submit(bearing, 101, "radar", "enabled", 0);
-		advance(bearing, 10);
-		World resumed;
-		resumed.restore(c, bearing.save());
-		advance(bearing, 35);
-		advance(resumed, 35);
-		require(bearing.save() == resumed.save(), "independent bearing missile resumes identically after radar loss");
-		const auto flying = bearing.save().at("projectiles");
-		if (acquire)
-			require(!flying.empty() && flying[0].at("seeker_acquired") == true,
-			        "seeker acquires without launching radar");
-		else
-			require(!flying.empty() && flying[0].at("seeker_acquired") == false,
-			        "bounded seeker cannot acquire a distant target");
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		require(world.observe(101)->contacts.empty() && world.observe(101)->bearing_contacts.size() == 2,
+		        "only anonymous bearings are permitted");
+		submit(world, 101, "launcher", "target", 2);
+		advance(world, 20);
+		require(world.save().at("projectiles").empty(),
+		        "homing launcher cannot use an unidentified bearing as fire authorisation");
 	}
 
 	{
@@ -309,9 +290,7 @@ void ordnance_contracts()
 		submit(unguided, 101, "gun", "target", 2);
 		advance(unguided, 1);
 		const auto shots = unguided.save().at("projectiles");
-		require(shots.size() == 1 && shots[0].at("bearing_launch") == true &&
-		            shots[0].at("initial_distance") == 40000 && shots[0].at("vz") == 0,
-		        "unguided gun fires along bearing without a hidden range check or vertical lead");
+		require(shots.empty(), "unguided gun preserves ammunition when selected bearing is unidentified");
 	}
 	{
 		auto source = powered_fixture();
@@ -324,7 +303,7 @@ void ordnance_contracts()
 		claim(beam);
 		submit(beam, 101, "beam", "target", 2);
 		advance(beam, 10);
-		require(hp(beam) < 20000, "beam can physically hit along anonymous bearing");
+		require(hp(beam) == 20000, "beam cannot fire against an anonymous bearing");
 	}
 
 	{
@@ -1374,6 +1353,48 @@ int main(int argc, char **argv)
 {
 	try
 	{
+
+		// Information/override selection is never an offensive-fire authorisation.
+		for (const auto *relation : {"hostile", "friendly", "neutral", "unidentified"})
+		{
+			auto source = powered_fixture();
+			add_beam(source);
+			if (std::string(relation) == "unidentified")
+				source["maps"][0]["entities"][1].erase("faction");
+			else
+				source["maps"][0]["relationships"][0]["relation"] = relation;
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			claim(world);
+			const auto initial = world.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"];
+			submit(world, 101, "gun", "target", 2);
+			submit(world, 101, "beam", "target", 2);
+			advance(world, 20);
+			const auto shots = state(world)["systems"]["gun"]["shots"].get<int>();
+			if (std::string(relation) == "hostile")
+			{
+				require(shots > 0 && hp(world) < 20000, "confirmed hostile selection permits offensive execution");
+				submit(world, 101, "radar", "enabled", 0);
+				advance(world, 2);
+				const auto stopped = state(world)["systems"]["gun"]["shots"];
+				const auto energy =
+				    world.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"];
+				advance(world, 20);
+				require(
+				    state(world)["systems"]["gun"]["shots"] == stopped &&
+				        world.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"] == energy,
+				    ("loss of permitted identification stops further launcher and beam costs: shots " + stopped.dump() +
+				     " -> " + state(world)["systems"]["gun"]["shots"].dump() + "; energy " + energy.dump() + " -> " +
+				     world.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"].dump())
+				        .c_str());
+			}
+			else
+				require(shots == 0 && hp(world) == 20000 &&
+				            world.save()["bodies"][0]["resources"]["network"]["stores"][0]["stock"]["quantities"] ==
+				                initial,
+				        "friendly, neutral and unidentified selections consume no offensive energy or ammunition");
+		}
 		repair_workload_contract();
 		host_audio_contracts();
 		{

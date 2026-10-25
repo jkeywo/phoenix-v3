@@ -121,6 +121,12 @@ inline Json combat_fixture()
 	    Json::array({{{"id", 1}, {"definition", "test.combat"}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}},
 	                 {{"id", 2}, {"definition", "test.combat"}, {"x_mm", 60000}, {"y_mm", 0}, {"heading_mdeg", 0}},
 	                 {{"id", 3}, {"definition", "test.combat"}, {"x_mm", 0}, {"y_mm", 60000}, {"heading_mdeg", 0}}});
+	source["maps"][0]["factions"] =
+	    Json::array({{{"id", "blue"}, {"label", "Blue"}}, {{"id", "red"}, {"label", "Red"}}});
+	source["maps"][0]["relationships"] = Json::array({{{"a", "blue"}, {"b", "red"}, {"relation", "hostile"}}});
+	source["maps"][0]["entities"][0]["faction"] = "blue";
+	source["maps"][0]["entities"][1]["faction"] = "red";
+	source["maps"][0]["entities"][2]["faction"] = "red";
 	return source;
 }
 } // namespace phoenix::test
