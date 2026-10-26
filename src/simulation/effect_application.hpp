@@ -44,7 +44,7 @@ static std::int64_t refresh_effect_expiry(std::int64_t previous, std::int64_t re
 	return previous < 0 || requested < 0 ? -1 : std::max(previous, requested);
 }
 void prepare_effect_application(flecs::entity ship, const EffectApplication &application, ShieldComponent *shields,
-                                PropertyEffects *properties, std::int64_t tick)
+                                PreparedPropertyEffects *properties, std::int64_t tick)
 {
 	validate_effect_identity(application.source, application.equipment,
 	                         application.kind == EffectApplicationKind::Modifier);
@@ -73,8 +73,9 @@ void prepare_effect_application(flecs::entity ship, const EffectApplication &app
 			definition = found->definition;
 		}
 		const auto &compiled = modifier_templates.at(definition);
-		if (!modifier_target_compatible(ship, application.equipment, compiled))
+		if (!modifier_target_compatible(ship, application.equipment, compiled, shields))
 			throw std::runtime_error("Incompatible modifier target");
+		properties->targets[application.equipment] = resolve_modifier_target(ship, application.equipment, shields);
 		install_modifier_grant(*properties, compiled, application.source, application.equipment, tick);
 		return;
 	}
@@ -116,7 +117,7 @@ void apply_scenario_effect(const ScenarioEffectRequest &request)
 		throw std::runtime_error("Effect target unavailable");
 	auto ship = target->second;
 	std::optional<ShieldComponent> shields;
-	std::optional<PropertyEffects> properties;
+	std::optional<PreparedPropertyEffects> properties;
 	const auto kind =
 	    request.kind == ScenarioEffectKind::Shield ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
 	if (kind == EffectApplicationKind::Shield)
@@ -129,7 +130,7 @@ void apply_scenario_effect(const ScenarioEffectRequest &request)
 	{
 		if (!ship.has<PropertyEffects>())
 			throw std::runtime_error("Incompatible modifier target");
-		properties = ship.get<PropertyEffects>();
+		properties = prepare_property_effects(ship);
 	}
 	prepare_effect_application(
 	    ship,
@@ -139,5 +140,5 @@ void apply_scenario_effect(const ScenarioEffectRequest &request)
 	if (shields)
 		ship.set<ShieldComponent>(std::move(*shields));
 	if (properties)
-		ship.set<PropertyEffects>(std::move(*properties));
+		commit_property_effects(ship, *properties);
 }

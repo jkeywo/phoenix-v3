@@ -293,6 +293,9 @@ struct World::Impl
 	std::vector<ContactEntry> contact_rows;
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
+	flecs::query<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime, const ModifierValues>
+	    modifier_query;
+	flecs::query<const StableId, const PropertyEffects> property_owners;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;
@@ -354,6 +357,15 @@ struct World::Impl
 	Impl()
 	{
 		ecs.set<Clock>({0});
+		modifier_query = ecs.query_builder<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime,
+		                                   const ModifierValues>()
+		                     .cached()
+		                     .build();
+		property_owners = ecs.query_builder<const StableId, const PropertyEffects>()
+		                      .with(flecs::Disabled)
+		                      .optional()
+		                      .cached()
+		                      .build();
 		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
 		steering_query = ecs.query_builder<const Equipment, Steering>()
 		                     .with<BasicEquipment>()
@@ -4101,8 +4113,9 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 26},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 27},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
+	result["active_effects"] = impl_->save_active_modifiers();
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	result["payload_effects"] = impl_->save_payload_effects();
 	if (impl_->display_revision)
@@ -4201,8 +4214,6 @@ Json World::save() const
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
 		if (entity.has<ShieldComponent>())
 			result["bodies"].back()["shields"] = impl_->save_shields(entity);
-		if (entity.has<PropertyEffects>())
-			result["bodies"].back()["property_effects"] = impl_->save_property_effects(entity);
 		if (const auto *d = entity.try_get<Destructible>())
 			result["bodies"].back()["destructible"] = *d;
 		if (entity.has<EntityControls>())
@@ -4259,8 +4270,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 26)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 26 required)");
+	if (saved.at("schema") != 27)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 27 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4354,8 +4365,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<ShieldComponent>())
 			candidate.impl_->restore_shields(entity, value.at("shields"));
-		if (entity.has<PropertyEffects>())
-			candidate.impl_->restore_property_effects(entity, value.at("property_effects"));
 		if (!candidate.impl_->definition(restored.id).personnel.officers.empty() && !value.contains("personnel"))
 			throw std::runtime_error("Missing saved personnel");
 		if (value.contains("personnel"))
@@ -4637,6 +4646,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			departure_reports.emplace(id, report);
 			departed_ships.insert(id);
 		}
+	candidate.impl_->restore_active_modifiers(saved.at("active_effects"));
 	candidate.impl_->restore_abilities(saved.at("abilities"), departed_ships);
 	candidate.impl_->refresh_ability_work(false);
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);

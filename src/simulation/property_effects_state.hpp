@@ -62,10 +62,53 @@ struct PropertyContribution
 	std::int64_t delta_permille = 0, expiry = -1;
 	bool maintained = false;
 };
-struct PropertyEffects
+struct ActiveEffectIdentity
+{
+	std::uint64_t id = 0;
+	EntityId owner = 0;
+	std::string source, definition;
+};
+struct EffectLifetime
+{
+	std::int64_t expiry = -1;
+};
+enum class EffectTargetKind
+{
+	Equipment,
+	Shield,
+	Entity,
+	Compartment,
+	System,
+	Ordnance
+};
+struct EffectTarget
+{
+	flecs::entity body, equipment;
+	EffectTargetKind kind = EffectTargetKind::Entity;
+	std::uint64_t contribution = 0;
+	std::string equipment_name, contribution_name;
+};
+// Transaction-only snapshot; never installed as an authoritative component.
+struct PreparedPropertyEffects
 {
 	std::uint64_t next_id = 1;
 	std::vector<PropertyContribution> contributions;
+	std::map<std::string, EffectTarget> targets;
+};
+struct PropertyValue
+{
+	PropertyKey property;
+	std::int64_t delta = 0;
+};
+struct ModifierValues
+{
+	std::vector<PropertyValue> values;
+};
+// Native owner interface and derived indexes only. Effect entities own the values.
+struct PropertyEffects
+{
+	std::uint64_t next_id = 1;
+	std::map<std::uint64_t, flecs::entity> applications;
 	mutable PropertyAggregate aggregate;
 	mutable bool aggregate_valid = false;
 };

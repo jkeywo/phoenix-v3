@@ -1,3 +1,4 @@
+#include "../support/active_effects.hpp"
 #include "../support/fixtures.hpp"
 #include "../support/model_fixture.hpp"
 #include "../support/combat_fixture.hpp"
@@ -928,7 +929,7 @@ void independent_modifier_world()
 	auto data = phoenix::test::combat_fixture();
 	data["effects"] = Json::parse(R"json([
  {"id":"test.range","kind":"modifier","duration_ticks":5,
-  "contributions":{"range":{"property":"sensors","delta_permille":250}}},
+  "contributions":{"first":{"property":"sensors","delta_permille":100},"second":{"property":"sensors","delta_permille":150}}},
  {"id":"test.incompatible","kind":"modifier","duration_ticks":5,
   "contributions":{"range":{"property":"sensors","delta_permille":1000},
                    "cycle":{"property":"cycling","delta_permille":1000}}}])json");
@@ -960,7 +961,41 @@ void independent_modifier_world()
 		check(radar != view->systems.end(), "Modifier test radar projection missing");
 		return radar->effective_range;
 	};
+	const auto body_count = world.inspect().size();
 	world.tick();
+	const auto applications = phoenix::test::modifier_applications(world.save(), 1);
+	check(applications.size() == 2 && world.inspect().size() == body_count,
+	      "Each multi-property source has one independent application and creates no scene body");
+	const auto before_invalid_restore = world.save();
+	for (const auto *mutation : {"duplicate", "owner", "equipment", "missing-owner", "extra", "old-schema"})
+	{
+		auto invalid = before_invalid_restore;
+		auto &effects = invalid["active_effects"];
+		const std::string kind = mutation;
+		if (kind == "duplicate")
+			effects["modifiers"].push_back(effects["modifiers"][0]);
+		if (kind == "owner")
+			effects["modifiers"][0]["owner"] = 999;
+		if (kind == "equipment")
+			effects["modifiers"][0]["equipment"] = "missing";
+		if (kind == "missing-owner")
+			effects["modifier_owners"].erase(0);
+		if (kind == "extra")
+			effects["modifiers"][0]["unexpected"] = 1;
+		if (kind == "old-schema")
+			invalid["schema"] = 26;
+		bool rejected = false;
+		try
+		{
+			world.restore(catalog, invalid);
+		}
+		catch (const std::exception &)
+		{
+			rejected = true;
+		}
+		check(rejected && world.save() == before_invalid_restore,
+		      "Malformed effect restoration must leave the live world unchanged");
+	}
 	check(range(world) == 300000,
 	      "Scenario modifiers did not add once, or failed multi-property apply partially committed");
 	const auto saved = world.save();
@@ -1017,13 +1052,13 @@ void modifier_target_lifetime()
 	world.load(catalog, "test.map", {});
 	world.tick();
 	const auto granted = world.save();
-	check(granted["bodies"][0]["property_effects"]["contributions"].size() == 2,
+	check(phoenix::test::modifier_applications(granted, 1).size() == 2,
 	      "Modifier could not bind to independently granted shield contributions");
 	world.tick();
 	const auto removed = world.save();
 	check(removed["bodies"][0]["shields"]["contributions"].size() == 1 &&
-	          removed["bodies"][0]["property_effects"]["contributions"].size() == 1 &&
-	          removed["bodies"][0]["property_effects"]["contributions"][0]["equipment"] == "effect:2:bubble",
+	          phoenix::test::modifier_applications(removed, 1).size() == 1 &&
+	          phoenix::test::modifier_applications(removed, 1)[0]["equipment"] == "effect:2:bubble",
 	      "Removing a shield left an orphan modifier or removed an unrelated target");
 	World resumed;
 	resumed.restore(catalog, removed);
@@ -1034,7 +1069,7 @@ void modifier_target_lifetime()
 	}
 	const auto expired = world.save();
 	check(expired["bodies"][0]["shields"]["contributions"].empty() &&
-	          expired["bodies"][0]["property_effects"]["contributions"].empty(),
+	          phoenix::test::modifier_applications(expired, 1).empty(),
 	      "Shield expiry left an orphan property target before the modifier deadline");
 	check(expired == resumed.save(), "Shield-target expiry diverged after selective-removal restore");
 	World after_expiry;

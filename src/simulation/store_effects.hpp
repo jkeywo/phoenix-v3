@@ -47,7 +47,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
                                  const std::string &original_equipment = {})
 {
 	std::map<EntityId, ShieldComponent> shields;
-	std::map<EntityId, PropertyEffects> properties;
+	std::map<EntityId, PreparedPropertyEffects> properties;
 	std::map<EntityId, AbilityRuntime> abilities;
 	std::set<EntityId> changed_inventories;
 	// Only native entry funding needs network preparation: it also changes
@@ -195,7 +195,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				}
 				const auto kind = equipment.empty() ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
 				ShieldComponent *shield = nullptr;
-				PropertyEffects *property = nullptr;
+				PreparedPropertyEffects *property = nullptr;
 				if (kind == EffectApplicationKind::Shield)
 				{
 					if (!ship.has<ShieldComponent>())
@@ -206,7 +206,12 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				{
 					if (!ship.has<PropertyEffects>())
 						throw std::runtime_error("Incompatible modifier target");
-					property = &properties.try_emplace(id, ship.get<PropertyEffects>()).first->second;
+					auto at = properties.find(id);
+					if (at == properties.end())
+						at = properties.emplace(id, prepare_property_effects(ship)).first;
+					property = &at->second;
+					if (const auto staged = shields.find(id); staged != shields.end())
+						shield = &staged->second;
 				}
 				prepare_effect_application(ship,
 				                           {kind,
@@ -248,7 +253,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	for (auto &[id, value] : shields)
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : properties)
-		entities.at(id).set<PropertyEffects>(std::move(value));
+		commit_property_effects(entities.at(id), value);
 	for (auto &[id, value] : abilities)
 	{
 		const auto &old = entities.at(id).get<AbilityRuntime>();

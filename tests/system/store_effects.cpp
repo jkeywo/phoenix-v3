@@ -1,3 +1,4 @@
+#include "../support/active_effects.hpp"
 #include "../support/assertions.hpp"
 #include "../support/combat_fixture.hpp"
 #include <algorithm>
@@ -101,7 +102,7 @@ Json ordinary_operations()
 	require(energy(world, 1) == 8 && energy(world, 2) == 1 && energy(world, 1, 1) == 0,
 	        "trusted fill/consume/add/set/transfer must share staged stock and conserve transfer quantity");
 	auto committed = world.save();
-	require(body(committed, 1).at("property_effects").at("contributions").empty(),
+	require(phoenix::test::modifier_applications(committed, 1).empty(),
 	        "failed mixed modifier/store group must commit neither modifier nor earlier stock addition");
 	const auto &receipts = committed.at("scenario").at("receipts");
 	require(receipts.size() == 2 &&

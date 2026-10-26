@@ -1,3 +1,4 @@
+#include "../support/active_effects.hpp"
 #include "../support/assertions.hpp"
 #include "../support/combat_fixture.hpp"
 #include <algorithm>
@@ -622,7 +623,7 @@ Json removal_owner_identity()
 		const auto saved = world.save();
 		for (const auto &body : saved.at("bodies"))
 			if (body.at("body").at("id") == 1)
-				return body.at("property_effects").at("contributions").size();
+				return phoenix::test::modifier_applications(saved, 1).size();
 		throw std::runtime_error("Missing mixed-grant source body");
 	};
 	require(count_modifiers(world) == 1 && has_ability(world, "temporary"),
@@ -846,7 +847,9 @@ Json temporary_grants()
 	const auto expired = world.save();
 	for (const auto &row : expired.at("bodies"))
 		if (row.at("body").at("id") == 1)
-			independent = !row.at("property_effects").at("contributions").empty();
+			independent =
+			    !phoenix::test::modifier_applications(world.save(), row.at("body").at("id").get<std::uint64_t>())
+			         .empty();
 	require(independent && !has_ability(world, "temporary"),
 	        "grant expiry withdraws the ability while its independent applied effect remains");
 	command(world, "manager", true);

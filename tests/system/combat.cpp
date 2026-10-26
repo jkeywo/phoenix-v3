@@ -1,3 +1,4 @@
+#include "../support/active_effects.hpp"
 #include "../support/assertions.hpp"
 #include "../support/stock_snapshot.hpp"
 #include "../support/controller_fixture.hpp"
@@ -532,7 +533,7 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		}
 		if (cost == 7)
 		{
-			require(target.at("property_effects").at("contributions").size() == 1,
+			require(phoenix::test::modifier_applications(saved, 2).size() == 1,
 			        "paid deferred reaction installs one timed property application");
 			World active;
 			active.restore(catalog, saved);
@@ -553,7 +554,7 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		}
 		else
 		{
-			require(target.at("property_effects").at("contributions").empty(),
+			require(phoenix::test::modifier_applications(saved, 2).empty(),
 			        "unaffordable reaction installs no partial modifier");
 			require(target.at("shields").at("contributions").size() == 1 &&
 			            target.at("shields").at("contributions")[0].at("state").at("strength") == 99,
