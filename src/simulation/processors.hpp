@@ -52,7 +52,7 @@ void prepare_processors(flecs::entity ship)
 		    equipment->entity.get<CombatMechanism>().definition.get<MagazineDefinition>().processor->id == id;
 		if (magazine_reload && duel_ended())
 			continue;
-		const auto property = magazine_reload ? "reload" : "processing";
+		const auto property = magazine_reload ? PropertyKey::reload : PropertyKey::processing;
 		const auto milli_rate = apply_property_delta(definition.work_per_second * 1000,
 		                                             property_delta(ship, definition.equipment, property) +
 		                                                 property_fault_delta(ship, definition.equipment, property),

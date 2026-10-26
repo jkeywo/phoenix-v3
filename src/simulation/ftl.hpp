@@ -296,6 +296,7 @@ bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execut
 
 void commit_departures()
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto pending = std::move(departure_requests);
 	departure_requests.clear();
 	std::sort(pending.begin(), pending.end(),

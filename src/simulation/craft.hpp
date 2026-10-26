@@ -195,6 +195,7 @@ bool torpedo_launched(flecs::entity e) const
 }
 void release_away_transport(EntityId ship, AwayMission &m)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto id = away_transport_entity(ship, m.transport);
 	if (id && id != ship)
 	{
@@ -232,6 +233,7 @@ void craft_return(flecs::entity e)
 }
 void complete_craft_recovery(EntityId craft)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &s = entities.at(craft).get_mut<CraftState>();
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
@@ -252,6 +254,7 @@ void complete_craft_recovery(EntityId craft)
 }
 void request_craft_pickup(EntityId craft)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto e = entities.at(craft);
 	auto &s = e.get_mut<CraftState>();
 	if (torpedo_launched(e))
@@ -307,6 +310,7 @@ void request_craft_pickup(EntityId craft)
 }
 void advance_craft_transport(std::size_t index, EntityId craft)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &m = away_missions[index];
 	const auto &d = away_definitions[index];
 	auto e = entities.at(craft);
@@ -452,6 +456,7 @@ void launch_craft(flecs::entity e)
 }
 void prepare_craft()
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	// This phase only queues orders; no craft has launched or moved yet. All craft
 	// using a watch can share its current permitted contacts until those orders apply.
 	std::map<ConsoleAddress, std::vector<BodyView>> watch_contacts;

@@ -15,6 +15,7 @@ bool boarding_visible(EntityId origin, EntityId target) const
 }
 void refresh_boarding_templates()
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (const auto &[origin, ship] : entities)
 	{
 		if (origin >= field_identity_base || !ship.has<EquipmentIndex>())
@@ -114,6 +115,7 @@ std::int64_t boarding_roll(EntityId target)
 }
 void boarding_casualty(EntityId ship, flecs::entity team, const BoardingEncounter &e, bool medical)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &mechanism = team.get_mut<CombatMechanism>();
 	auto &state = mechanism.get<TeamState>();
 	const auto roll = boarding_roll(ship);
@@ -155,6 +157,7 @@ void boarding_casualty(EntityId ship, flecs::entity team, const BoardingEncounte
 }
 void boarding_field_care(EntityId origin, AwayMission &mission, bool can_work)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	std::set<std::size_t> party;
 	const auto patients = clinical_patients(origin);
 	for (std::size_t i = 0; i < patients.size(); ++i)
@@ -229,6 +232,7 @@ bool boarding_defender_available(EntityId ship, flecs::entity team) const
 }
 void advance_boarding(std::size_t index)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto &d = away_definitions[index];
 	auto &m = away_missions[index];
 	auto &s = m.boarding;
@@ -293,15 +297,15 @@ void advance_boarding(std::size_t index)
 		const auto attackers = boarding_party_teams(origin, m, "security");
 		std::int64_t strength = 0;
 		for (auto a : attackers)
-			strength += team_work(entities.at(origin), a.get<CombatMechanism>(), "security", 1000);
+			strength += team_work(entities.at(origin), a.get<CombatMechanism>(), PropertyKey::security, 1000);
 		s.factors = {{"Base chance", e.success},
 		             {"Security support", (strength - 1000) * e.team_bonus / 1000},
 		             {"Defending teams", 0}};
 		s.chance = e.success + s.factors.at("Security support");
 		for (auto defender : defenders)
 		{
-			const auto penalty =
-			    team_work(entities.at(target), defender.get<CombatMechanism>(), "security", e.defender_penalty);
+			const auto penalty = team_work(entities.at(target), defender.get<CombatMechanism>(), PropertyKey::security,
+			                               e.defender_penalty);
 			s.chance -= penalty;
 			s.factors["Defending teams"] -= penalty;
 		}
@@ -367,6 +371,7 @@ void advance_boarding(std::size_t index)
 }
 bool boarding_action(std::size_t index, const std::string &action, const std::string &key)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &m = away_missions[index];
 	const auto &d = away_definitions[index];
 	auto &s = m.boarding;
@@ -495,6 +500,7 @@ void validate_boarding_state(const AwayDefinition &d, const AwayMission &m) cons
 std::map<EntityId, EntityId> captured_by;
 void capture_boarded_ship(std::size_t index, bool prize)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto &d = away_definitions[index];
 	auto &m = away_missions[index];
 	if (m.boarding.captured)

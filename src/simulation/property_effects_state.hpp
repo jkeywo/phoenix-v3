@@ -1,6 +1,60 @@
 #pragma once
 namespace phoenix
 {
+// Private numeric keys follow the compiled native property descriptor order.
+enum class PropertyKey : std::size_t
+{
+	propulsion,
+	speed,
+	turn,
+	sensors,
+	cycling,
+	traverse,
+	reload,
+	processing,
+	recharge,
+	off_recharge,
+	sustain,
+	discharge,
+	protection,
+	repair,
+	medical,
+	security,
+	comms,
+	count
+};
+inline PropertyKey property_key(std::string_view name)
+{
+	const auto &descriptors = modifier_properties();
+	for (std::size_t i = 0; i < descriptors.size(); ++i)
+		if (descriptors[i].id == name)
+			return static_cast<PropertyKey>(i);
+	throw std::runtime_error("Unknown native property");
+}
+using PropertyTotals = std::array<std::int64_t, static_cast<std::size_t>(PropertyKey::count)>;
+using PropertyAggregate = std::map<std::string, PropertyTotals>;
+struct PersonnelProperties
+{
+	std::uint64_t revision = 0;
+	PropertyAggregate values;
+};
+// Eligibility writers invalidate both before and after their operation. Reads inside
+// a mutation derive fresh values, so nested same-tick work cannot reuse stale facts.
+struct PropertyEligibilityMutation
+{
+	std::uint64_t &revision;
+	std::size_t &depth;
+	PropertyEligibilityMutation(std::uint64_t &r, std::size_t &d) : revision(r), depth(d)
+	{
+		++revision;
+		++depth;
+	}
+	~PropertyEligibilityMutation()
+	{
+		--depth;
+		++revision;
+	}
+};
 struct PropertyContribution
 {
 	std::uint64_t id = 0;
@@ -12,6 +66,8 @@ struct PropertyEffects
 {
 	std::uint64_t next_id = 1;
 	std::vector<PropertyContribution> contributions;
+	mutable PropertyAggregate aggregate;
+	mutable bool aggregate_valid = false;
 };
 // Divide before multiplying so high-resolution work quantities retain checked arithmetic.
 inline std::int64_t apply_property_delta(std::int64_t base, std::int64_t delta, std::int64_t maximum)

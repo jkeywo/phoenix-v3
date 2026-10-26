@@ -19,7 +19,7 @@ bool directed_scan_covers(EntityId ship, const std::string &id, const BodyView &
 		return false;
 	const auto &d = sensor_definition(ship, id);
 	const auto origin = sensor_origin(ship, d);
-	const auto range = effective_property(entities.at(ship), id, "sensors", mode->range);
+	const auto range = effective_property(entities.at(ship), id, PropertyKey::sensors, mode->range);
 	const auto delta = fixed::Vec{body.x, body.y} - origin;
 	const auto z = body.altitude - altitude(ship);
 	return fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z)) <= range &&
@@ -228,7 +228,8 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 	const auto child = instance(entities.at(ship), id)->entity;
 	const auto *mode = directed_mode(ship, id);
 	const bool acquiring = focused && mode && directed_enabled(entities.at(ship), child, DirectedOperationKind::Scan);
-	const auto focused_range = acquiring ? effective_property(entities.at(ship), id, "sensors", mode->range) : 0;
+	const auto focused_range =
+	    acquiring ? effective_property(entities.at(ship), id, PropertyKey::sensors, mode->range) : 0;
 	if (acquiring)
 		range = std::max(range, focused_range);
 	if (!range)

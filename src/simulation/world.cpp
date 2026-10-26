@@ -260,6 +260,9 @@ struct World::Impl
 	std::map<std::string, Json> console_layouts;
 	std::map<std::string, ShieldEffectDefinition> shield_templates;
 	std::map<std::string, ModifierEffectDefinition> modifier_templates;
+	std::uint64_t personnel_property_revision = 1;
+	std::size_t personnel_property_mutation_depth = 0;
+	mutable std::map<EntityId, PersonnelProperties> personnel_properties;
 	std::map<std::string, ShieldReactionDefinition> effect_groups;
 	std::map<std::string, AbilityGrantDefinition> ability_grant_templates;
 	SharedResourceCatalogue resource_catalogue;
@@ -1481,7 +1484,7 @@ struct World::Impl
 				return 0;
 			range = mode->range;
 		}
-		range = effective_property(entity, name, "sensors", range);
+		range = effective_property(entity, name, PropertyKey::sensors, range);
 		if (auto systems = gameplay_systems(entity); systems && systems->power)
 		{
 			const auto index = sensor->entity.get<ResourceBinding>().slot;
@@ -1677,7 +1680,7 @@ struct World::Impl
 			{
 				auto &native = child.get_mut<Steering>();
 				auto effective = native;
-				effective.rate = effective_property(ship, child.get<Equipment>().id, "turn", native.rate);
+				effective.rate = effective_property(ship, child.get<Equipment>().id, PropertyKey::turn, native.rate);
 				step_basic_steering(ship.get_mut<Pose>(), effective, 1000);
 				native.remainder = effective.remainder;
 			}
@@ -1691,8 +1694,9 @@ struct World::Impl
 				auto effective = native;
 				effective.enabled &= !structurally_disabled(ship, child.get<Equipment>().id);
 				const auto &equipment = child.get<Equipment>().id;
-				effective.acceleration = effective_property(ship, equipment, "propulsion", native.acceleration);
-				effective.max_speed = effective_property(ship, equipment, "speed", native.max_speed);
+				effective.acceleration =
+				    effective_property(ship, equipment, PropertyKey::propulsion, native.acceleration);
+				effective.max_speed = effective_property(ship, equipment, PropertyKey::speed, native.max_speed);
 				effective.speed = native.speed == native.max_speed ? effective.max_speed
 				                                                   : std::min(native.speed, effective.max_speed);
 				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), effective, 1000);
@@ -1757,12 +1761,13 @@ struct World::Impl
 		}
 		definition.boost_speed_multiplier = definition.boost_acceleration_multiplier = 1000;
 		definition.impulse_speed_multiplier = definition.impulse_acceleration_multiplier = 1000;
-		definition.maximum_speed = effective_property(ship, equipment, "speed", definition.maximum_speed, speed);
+		definition.maximum_speed =
+		    effective_property(ship, equipment, PropertyKey::speed, definition.maximum_speed, speed);
 		definition.acceleration =
-		    effective_property(ship, equipment, "propulsion", definition.acceleration, acceleration);
+		    effective_property(ship, equipment, PropertyKey::propulsion, definition.acceleration, acceleration);
 		definition.lateral_acceleration =
-		    effective_property(ship, equipment, "propulsion", definition.lateral_acceleration, acceleration);
-		definition.turn_rate = effective_property(ship, equipment, "turn", definition.turn_rate, turn);
+		    effective_property(ship, equipment, PropertyKey::propulsion, definition.lateral_acceleration, acceleration);
+		definition.turn_rate = effective_property(ship, equipment, PropertyKey::turn, definition.turn_rate, turn);
 		return definition;
 	}
 	FlightState effective_flight_state(flecs::entity child, const FlightDefinition &definition,

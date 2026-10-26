@@ -73,7 +73,8 @@ void refresh_comms(bool disclose = true)
 			    !combat_dead(entity))
 			{
 				endpoint.working = true;
-				endpoint.range = std::max(endpoint.range, effective_property(entity, fit.id, "comms", fit.maximum));
+				endpoint.range =
+				    std::max(endpoint.range, effective_property(entity, fit.id, PropertyKey::comms, fit.maximum));
 			}
 		}
 		conversations.endpoints[id] = endpoint;

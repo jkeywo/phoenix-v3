@@ -22,43 +22,64 @@ bool property_available(flecs::entity ship, const std::string &equipment) const
 	const auto fitted = instance(ship, equipment);
 	return fitted && fitted->enabled && !structurally_disabled(ship, equipment);
 }
-std::int64_t property_delta(flecs::entity ship, const std::string &equipment, const std::string &property,
+static std::int64_t aggregate_delta(const PropertyAggregate &values, const std::string &equipment, PropertyKey property,
+                                    const std::string &contribution)
+{
+	const auto read = [&](const std::string &target)
+	{
+		const auto at = values.find(target);
+		return at == values.end() ? std::int64_t{0} : at->second[static_cast<std::size_t>(property)];
+	};
+	return read(equipment) + (contribution.empty() || contribution == equipment ? 0 : read(contribution));
+}
+std::int64_t property_delta(flecs::entity ship, const std::string &equipment, PropertyKey property,
                             const std::string &contribution = {}) const
 {
 	std::int64_t delta = 0;
-	auto include = [&](const PropertyContribution &c)
-	{
-		if (c.property == property &&
-		    (c.equipment == equipment || (!contribution.empty() && c.equipment == contribution)))
-			delta += c.delta_permille;
-	};
 	if (const auto *effects = ship.try_get<PropertyEffects>())
-		for (const auto &c : effects->contributions)
-			include(c);
-	// Maintained applications are derived from current authoritative eligibility, never restored twice.
-	for (const auto &c : collect_personnel_properties(ship, equipment, contribution))
-		include(c);
-	return delta;
+	{
+		if (!effects->aggregate_valid)
+		{
+			effects->aggregate.clear();
+			for (const auto &c : effects->contributions)
+				effects->aggregate[c.equipment][static_cast<std::size_t>(property_key(c.property))] += c.delta_permille;
+			effects->aggregate_valid = true;
+		}
+		delta += aggregate_delta(effects->aggregate, equipment, property, contribution);
+	}
+	auto &maintained = personnel_properties[ship.get<StableId>().id];
+	if (maintained.revision != personnel_property_revision || personnel_property_mutation_depth)
+	{
+		maintained.values.clear();
+		for (const auto &c : collect_personnel_properties(ship))
+			maintained.values[c.equipment][static_cast<std::size_t>(property_key(c.property))] += c.delta_permille;
+		maintained.revision = personnel_property_revision;
+	}
+	return delta + aggregate_delta(maintained.values, equipment, property, contribution);
+}
+std::int64_t property_delta(flecs::entity ship, const std::string &equipment, const std::string &property,
+                            const std::string &contribution = {}) const
+{
+	return property_delta(ship, equipment, property_key(property), contribution);
+}
+std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipment, PropertyKey property) const
+{
+	return property_fault_delta(ship, equipment, modifier_properties().at(static_cast<std::size_t>(property)).id);
+}
+std::int64_t effective_property(flecs::entity ship, const std::string &equipment, PropertyKey property,
+                                std::int64_t base, std::int64_t extra_delta = 0,
+                                const std::string &contribution = {}) const
+{
+	return apply_property_delta(base,
+	                            property_delta(ship, equipment, property, contribution) +
+	                                property_fault_delta(ship, equipment, property) + extra_delta,
+	                            modifier_properties().at(static_cast<std::size_t>(property)).maximum);
 }
 std::int64_t effective_property(flecs::entity ship, const std::string &equipment, const std::string &property,
                                 std::int64_t base, std::int64_t extra_delta = 0,
                                 const std::string &contribution = {}) const
 {
-	// Physical limits match the native authored domains. Recharge queries carry
-	// milli-strength; native work retains its higher precision until each owner
-	// commits progress. Relative cycle/reload/medical/security rates use permille.
-	const auto &descriptors = modifier_properties();
-	const auto descriptor = std::find_if(descriptors.begin(), descriptors.end(),
-	                                     [&](const auto &d)
-	                                     {
-		                                     return d.id == property;
-	                                     });
-	if (descriptor == descriptors.end())
-		throw std::runtime_error("Unknown native property");
-	return apply_property_delta(base,
-	                            property_delta(ship, equipment, property, contribution) +
-	                                property_fault_delta(ship, equipment, property) + extra_delta,
-	                            descriptor->maximum);
+	return effective_property(ship, equipment, property_key(property), base, extra_delta, contribution);
 }
 
 bool modifier_target_compatible(flecs::entity ship, const std::string &equipment,
@@ -112,6 +133,7 @@ std::uint64_t install_modifier_grant(PropertyEffects &owner, const ModifierEffec
                                      const std::string &source, const std::string &equipment, std::int64_t tick)
 {
 	validate_effect_identity(source, equipment, true);
+	owner.aggregate_valid = false;
 	const auto expiry = effect_expiry(tick, definition.duration_ticks);
 	std::uint64_t existing = 0;
 	for (const auto &c : owner.contributions)
@@ -139,6 +161,7 @@ std::uint64_t install_modifier_grant(PropertyEffects &owner, const ModifierEffec
 void remove_modifier_grant(PropertyEffects &owner, const std::string &source, const std::string &equipment)
 {
 	validate_effect_identity(source, equipment, true);
+	owner.aggregate_valid = false;
 	std::erase_if(owner.contributions,
 	              [&](const auto &c)
 	              {
@@ -150,16 +173,21 @@ void step_property_effects()
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	for (const auto &[id, ship] : entities)
 		if (auto *owner = ship.try_get_mut<PropertyEffects>())
+		{
+			owner->aggregate_valid = false;
 			std::erase_if(owner->contributions,
 			              [&](const auto &c)
 			              {
 				              return c.expiry >= 0 && c.expiry <= tick;
 			              });
+		}
 }
 void prune_property_targets()
 {
 	for (const auto &[id, ship] : entities)
 		if (auto *owner = ship.try_get_mut<PropertyEffects>())
+		{
+			owner->aggregate_valid = false;
 			std::erase_if(owner->contributions,
 			              [&](const auto &c)
 			              {
@@ -167,6 +195,7 @@ void prune_property_targets()
 				              return !modifier_target_compatible(ship, c.equipment,
 				                                                 modifier_templates.at(c.definition));
 			              });
+		}
 }
 Json save_property_effects(flecs::entity ship) const
 {

@@ -147,8 +147,8 @@ std::uint64_t install_shield_grant(ShieldComponent &owner, const ShieldEffectDef
 	++owner.next_effect;
 	return id;
 }
-std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, const std::string &property,
-                             std::int64_t base, std::int64_t extra_delta = 0) const
+std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, PropertyKey property, std::int64_t base,
+                             std::int64_t extra_delta = 0) const
 {
 	return effective_property(ship, c.equipment, property, base, extra_delta,
 	                          "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name);
@@ -179,14 +179,17 @@ void request_shields(flecs::entity ship)
 					const auto &d = c.definition.shield;
 					c.operating = !duel_ended() && !structurally_disabled(ship, c.equipment);
 					const auto base = child.get<Equipment>().enabled ? d.recharge_rate : d.off_recharge_rate;
-					c.quoted_rate =
-					    std::min((d.reserve.capacity - c.state.strength) * rate * 1000,
-					             shield_property(ship, c, child.get<Equipment>().enabled ? "recharge" : "off_recharge",
-					                             base * 1000, d.recharge_modifier));
+					c.quoted_rate = std::min((d.reserve.capacity - c.state.strength) * rate * 1000,
+					                         shield_property(ship, c,
+					                                         child.get<Equipment>().enabled ? PropertyKey::recharge
+					                                                                        : PropertyKey::off_recharge,
+					                                         base * 1000, d.recharge_modifier));
 					c.protection = std::clamp<std::int64_t>(
-					    shield_property(ship, c, "protection", 1000, d.protection_modifier), 0, 1000);
-					c.quoted_sustain = shield_property(ship, c, "sustain", d.sustain_energy, d.sustain_modifier);
-					c.quoted_discharge = shield_property(ship, c, "discharge", d.discharge_rate, d.discharge_modifier);
+					    shield_property(ship, c, PropertyKey::protection, 1000, d.protection_modifier), 0, 1000);
+					c.quoted_sustain =
+					    shield_property(ship, c, PropertyKey::sustain, d.sustain_energy, d.sustain_modifier);
+					c.quoted_discharge =
+					    shield_property(ship, c, PropertyKey::discharge, d.discharge_rate, d.discharge_modifier);
 					if (c.operating)
 						energy += (child.get<Equipment>().enabled ? c.quoted_sustain : 0) +
 						          (c.state.discharge ? 0 : (c.quoted_rate * d.recharge_energy + 999) / 1000);
@@ -203,11 +206,12 @@ void actuate_shields(flecs::entity ship)
 		if (c.equipment.empty())
 		{
 			const auto &d = c.definition.shield;
-			c.quoted_rate = shield_property(ship, c, "recharge", d.recharge_rate * 1000, d.recharge_modifier);
+			c.quoted_rate =
+			    shield_property(ship, c, PropertyKey::recharge, d.recharge_rate * 1000, d.recharge_modifier);
 			c.quoted_sustain = 0;   // Independent scenario grants explicitly use the cost-free process.
 			c.quoted_discharge = 0; // No authored discharge destination exists for this process.
-			c.protection =
-			    std::clamp<std::int64_t>(shield_property(ship, c, "protection", 1000, d.protection_modifier), 0, 1000);
+			c.protection = std::clamp<std::int64_t>(
+			    shield_property(ship, c, PropertyKey::protection, 1000, d.protection_modifier), 0, 1000);
 		}
 	std::map<std::string, std::int64_t> budgets, sustains;
 	std::map<std::string, bool> paid_equipment;
@@ -315,7 +319,8 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 		{
 			auto &c = *layers[i];
 			c.protection = std::clamp<std::int64_t>(
-			    shield_property(ship, c, "protection", 1000, c.definition.shield.protection_modifier), 0, 1000);
+			    shield_property(ship, c, PropertyKey::protection, 1000, c.definition.shield.protection_modifier), 0,
+			    1000);
 			const auto &d = c.definition.shield;
 			const auto usable =
 			    std::min(c.state.strength, c.state.strength * c.state.warmup / d.warmup_ticks * c.protection / 1000);

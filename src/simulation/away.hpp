@@ -139,6 +139,7 @@ bool away_craft_reserved(EntityId craft, const std::string &except = {}) const
 }
 void return_away_escorts(AwayMission &m)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (const auto &[slot, id] : m.escorts)
 		if (entities.contains(id) && entities.at(id).get<CraftState>().phase != CraftPhase::Lost)
 			entities.at(id).get_mut<CraftState>().pending_order = "return";
@@ -237,7 +238,7 @@ bool away_has_capability(EntityId ship, const AwayMission &m, const std::string 
 					                return p.id == capability;
 				                }))
 				{
-					if (team_work(entities.at(ship), team.get<CombatMechanism>(), capability, 1000) > 0)
+					if (team_work(entities.at(ship), team.get<CombatMechanism>(), property_key(capability), 1000) > 0)
 						return true;
 				}
 				else if (team.get<CombatMechanism>().get<TeamState>().condition != "injured" ||
@@ -355,6 +356,7 @@ std::int64_t away_transfer_ticks(const AwayDefinition &d, const AwayMission &m) 
 }
 void mark_away_deployed(const AwayDefinition &definition, AwayMission &m)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	m.care.clear();
 	m.entry_compartment = 0;
 	if (m.transport == "ship")
@@ -384,6 +386,7 @@ void mark_away_deployed(const AwayDefinition &definition, AwayMission &m)
 }
 void finish_away_recovery(EntityId ship, AwayMission &m)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (const auto &[slot, asset] : m.assignments)
 		personnel_postings[ship].erase(asset);
 	for (const auto &officer : m.accompanying)
@@ -557,6 +560,7 @@ void prepare_away_officers(const ConsoleAddress &address, std::size_t index)
 }
 void prepare_away_contribution(const ConsoleAddress &a, std::size_t index)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &m = away_missions.at(index);
 	const auto &d = away_definitions.at(index);
 	if (!m.authorised_departments.contains(a.console) ||
@@ -609,6 +613,7 @@ void prepare_away_contribution(const ConsoleAddress &a, std::size_t index)
 bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false,
                   bool assisted = false)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (!c.channel.empty() || c.request_id || !c.arguments.empty() || !c.speaker_name.empty() ||
 	    !c.speaker_avatar.empty())
 		return false;
@@ -1113,6 +1118,7 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 }
 void stage_away(EntityId ship, AwayMission &m)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (m.transport.empty() || m.absent())
 		return;
 	const auto target = away_origin(ship, m.transport);
@@ -1154,6 +1160,7 @@ void stage_away(EntityId ship, AwayMission &m)
 }
 void advance_away()
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto tick = ecs.get<Clock>().tick;
 	std::map<std::pair<EntityId, std::string>, std::size_t> active;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
@@ -1334,8 +1341,9 @@ void advance_away()
 							    officer_healthy(entities.at(ship).get<PersonnelState>().officers.at(
 							        &officer - definition(ship).personnel.officers.data())))
 							{
-								officer_work += effective_property(
-								    entities.at(ship), "away:" + d.id + ":officer:" + officer.id, "repair", 1000);
+								officer_work +=
+								    effective_property(entities.at(ship), "away:" + d.id + ":officer:" + officer.id,
+								                       PropertyKey::repair, 1000);
 							}
 				const auto effort = structural_repair_work(entities.at(ship), teams);
 				// Standalone officers can perform generic work, but structural repair needs a team.
@@ -1766,6 +1774,7 @@ Json save_away() const
 }
 void restore_away(const Json &rows)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (!rows.is_array() || rows.size() != away_definitions.size())
 		throw std::runtime_error("Invalid saved away missions");
 	// Dynamic target templates can have been discovered over several spawn ticks.

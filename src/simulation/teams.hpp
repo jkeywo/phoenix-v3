@@ -20,11 +20,13 @@ const TeamOrderDefinition *team_order_definition(const CombatMechanism &m, const
 }
 void personnel_changed(EntityId ship)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &ps = entities.at(ship).get_mut<PersonnelState>();
 	++ps.revision;
 }
 void personnel_casualties(flecs::entity ship, std::size_t compartment, std::int64_t damage)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (!ship.has<PersonnelState>())
 		return;
 	const auto id = ship.get<StableId>().id;
@@ -108,8 +110,7 @@ bool team_available(const CombatMechanism &m) const
 	return !r.detained && r.condition != "lost";
 }
 // Injury output joins other comparable modifiers. Loss/detention remain hard eligibility.
-std::int64_t team_work(flecs::entity ship, const CombatMechanism &team, const std::string &property,
-                       std::int64_t base) const
+std::int64_t team_work(flecs::entity ship, const CombatMechanism &team, PropertyKey property, std::int64_t base) const
 {
 	const auto &state = team.get<TeamState>();
 	const auto equipment = away_equipment(ship.get<StableId>().id, team.definition.id);
@@ -199,6 +200,7 @@ bool team_target_eligible(EntityId ship, const TeamOrderDefinition &order, std::
 }
 bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (!c.channel.empty() || c.request_id || !c.arguments.empty() || !c.speaker_name.empty() ||
 	    !c.speaker_avatar.empty() || c.text.size() > 256 || combat_dead(entities.at(a.ship)))
 		return false;
@@ -325,7 +327,8 @@ std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::si
 void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t patient,
                    const std::string &activity)
 {
-	const auto work = team_work(entities.at(origin), team, "medical", 1000);
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
+	const auto work = team_work(entities.at(origin), team, PropertyKey::medical, 1000);
 	if (work <= 0)
 		return;
 	const auto patients = clinical_patients(target);
@@ -388,6 +391,7 @@ bool clinical_work_done(EntityId target, std::optional<std::size_t> compartment,
 }
 void step_medical_facilities()
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (const auto &[id, ship] : entities)
 	{
 		if (!ship.has<PersonnelState>() || combat_dead(ship))
@@ -419,6 +423,7 @@ void step_medical_facilities()
 }
 void step_teams()
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	std::set<std::pair<EntityId, std::size_t>> claimed;
 	for (const auto &[id, ship] : combat_rows())
 	{
@@ -692,6 +697,7 @@ bool team_map_allowed(const ConsoleAddress &a) const
 
 void advance_away_medical(std::size_t index)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &mission = away_missions[index];
 	const auto &definition_mission = away_definitions[index];
 	const auto origin = away_ship(definition_mission), target = definition_mission.target;

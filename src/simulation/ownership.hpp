@@ -41,6 +41,7 @@ void validate_personnel_postings() const
 }
 void set_operational_owner(EntityId target_id, EntityId origin_id)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto target = entities.at(target_id);
 	std::set<EntityId> obsolete_members;
 	for (auto it = departure_groups.begin(); it != departure_groups.end();)
@@ -113,6 +114,7 @@ void set_operational_owner(EntityId target_id, EntityId origin_id)
 }
 void detained_asset(EntityId ship, const std::string &asset, bool detained)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (asset.starts_with("team:"))
 		away_equipment(ship, asset.substr(5)).get_mut<CombatMechanism>().get<TeamState>().detained = detained;
 	else if (asset.starts_with("officer:"))
@@ -127,6 +129,7 @@ void detained_asset(EntityId ship, const std::string &asset, bool detained)
 }
 void capture_visitors(EntityId target, EntityId captor)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		auto &m = away_missions[i];
@@ -198,6 +201,7 @@ void free_captives(EntityId target, EntityId owner)
 }
 void claim_away_target(std::size_t index, const std::string &capability)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto &d = away_definitions[index];
 	auto &m = away_missions[index];
 	const auto ship = away_ship(d);

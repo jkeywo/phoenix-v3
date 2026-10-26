@@ -269,7 +269,7 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 			v["ammo"] = stock.quantity(stock.selected());
 			v["capacity"] = stock.selected().empty() ? 0 : stock.definition().capacity / stock.size(stock.selected());
 			v["reload_progress"] = 0;
-			v["reload_rate_permille"] = effective_property(ship, fit.id, "reload", 1000);
+			v["reload_rate_permille"] = effective_property(ship, fit.id, PropertyKey::reload, 1000);
 			v["reload_ticks"] = 0;
 			if (const auto &definition = m->definition.get<MagazineDefinition>().processor)
 			{
@@ -511,7 +511,7 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 	              [&](auto team)
 	              {
 		              return !team.template get<Equipment>().enabled ||
-		                     team_work(ship, team.template get<CombatMechanism>(), "repair", 1000) <= 0;
+		                     team_work(ship, team.template get<CombatMechanism>(), PropertyKey::repair, 1000) <= 0;
 	              });
 	std::sort(teams.begin(), teams.end(),
 	          [](auto a, auto b)
@@ -529,7 +529,7 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		const auto &d = teams[rank].get<CombatMechanism>().definition;
 		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
 			continue;
-		const auto contribution = team_work(ship, teams[rank].get<CombatMechanism>(), "repair",
+		const auto contribution = team_work(ship, teams[rank].get<CombatMechanism>(), PropertyKey::repair,
 		                                    d.get<TeamDefinition>().repair_rate * 1000000) /
 		                          (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank));
 		work += paid_structural_work(ship.get<StableId>().id, d.id, contribution);
@@ -625,8 +625,8 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
-					const auto work =
-					    team_work(ship, *m, "repair", m->definition.get<TeamDefinition>().repair_rate * 1000);
+					const auto work = team_work(ship, *m, PropertyKey::repair,
+					                            m->definition.get<TeamDefinition>().repair_rate * 1000);
 					if (work <= 0 || !pay_material_work(id, m->definition.id, "repair", f.work > 0))
 						continue;
 					f.work += work;

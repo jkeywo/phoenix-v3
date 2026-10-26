@@ -58,6 +58,7 @@ bool assisted_workload(const ConsoleAddress &address, const std::string &family)
 }
 void advance_personnel(EntityId id)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto entity = entities.at(id);
 	auto &state = entity.get_mut<PersonnelState>();
 	const auto &d = definition(id).personnel;
@@ -130,8 +131,7 @@ void advance_personnel(EntityId id)
 // Maintained applications are derived from current facts, never saved or accumulated.
 // Deployed accompaniment binds only to its actual team; standalone specialists bind to
 // the deployed repair teams or their own logical work participant.
-std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship, const std::string &equipment,
-                                                               const std::string &contribution) const
+std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship) const
 {
 	std::vector<PropertyContribution> out;
 	const auto *state = ship.try_get<PersonnelState>();
@@ -143,10 +143,6 @@ std::vector<PropertyContribution> collect_personnel_properties(flecs::entity shi
 	auto add = [&](std::size_t i, const std::string &target, const std::string &role,
 	               const std::string &property = std::string{})
 	{
-		// A property query only needs contributions to its actual target(s).
-		// Eligibility and per-target deduplication retain their original ordering.
-		if (target != equipment && (contribution.empty() || target != contribution))
-			return;
 		for (const auto &trait : d.officers[i].traits)
 			for (const auto &effect : d.traits.at(trait).effects)
 				for (const auto &c : effect.contributions)
@@ -260,6 +256,7 @@ bool auto_assign_officer(const ConsoleAddress &address, const std::string &duty_
 }
 bool personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute, bool ai = false)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (!ai && station_stars(address) < 3)
 		return false;
 	if (!command.controller.empty() || !command.channel.empty() || command.request_id || !command.arguments.empty() ||
@@ -459,6 +456,7 @@ Json personnel_board(const ConsoleAddress &address) const
 }
 void restore_personnel(EntityId id, const Json &saved)
 {
+	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto state = saved.get<PersonnelState>();
 	for (std::size_t i = 0; i < state.officers.size(); ++i)
 	{

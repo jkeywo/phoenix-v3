@@ -281,7 +281,7 @@ void prepare_weapons(flecs::entity ship)
 			const auto offset = std::clamp(combat_delta(aim - pose.heading, d.bearing), -d.arc / 2, d.arc / 2);
 			const auto desired = combat_angle(d.bearing + offset);
 			m->get<TurretState>().turn_remainder +=
-			    effective_property(ship, d.id, "traverse", d.get<TurretDefinition>().traverse);
+			    effective_property(ship, d.id, PropertyKey::traverse, d.get<TurretDefinition>().traverse);
 			const auto step = m->get<TurretState>().turn_remainder / rate;
 			m->get<TurretState>().turn_remainder %= rate;
 			const auto current = combat_delta(m->get<TurretState>().heading, d.bearing);
@@ -297,7 +297,7 @@ void prepare_weapons(flecs::entity ship)
 		{
 			const auto &d = m->definition;
 			if (m->get<WeaponState>().cooldown || !child.get<Equipment>().enabled ||
-			    effective_property(ship, d.id, "cycling", 1000) == 0 || structurally_disabled(ship, d.id) ||
+			    effective_property(ship, d.id, PropertyKey::cycling, 1000) == 0 || structurally_disabled(ship, d.id) ||
 			    directed_operation(id, d.id, DirectedOperationKind::Scan) ||
 			    directed_targeting(id, d.id) == DirectedTargetingKind::Off)
 				continue;
@@ -332,8 +332,8 @@ void prepare_weapons(flecs::entity ship)
 				prepared.ammunition = weapon_ammunition(ship, *m);
 				const auto interval =
 				    prepared.ammunition.interval ? prepared.ammunition.interval : d.ammunition().interval;
-				prepared.cycle_ticks =
-				    std::max<std::int64_t>(1, interval * 1000 / effective_property(ship, d.id, "cycling", 1000));
+				prepared.cycle_ticks = std::max<std::int64_t>(
+				    1, interval * 1000 / effective_property(ship, d.id, PropertyKey::cycling, 1000));
 				prepared.projectile = weapon_payload(ship, *m);
 				prepared.payloads = capture_directed_payloads(ship, *m, prepared.resource);
 				if (prepared.loaded)
