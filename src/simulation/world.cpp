@@ -304,6 +304,7 @@ struct World::Impl
 	std::map<std::uint64_t, flecs::entity> active_rule_index;
 	mutable std::vector<flecs::entity> active_rule_order;
 	mutable bool active_rule_order_dirty = true;
+	mutable std::optional<std::size_t> rule_clock_capacity_cache;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;

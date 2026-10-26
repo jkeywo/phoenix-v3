@@ -44,6 +44,7 @@ flecs::entity active_rule_entity(std::uint64_t id) const
 }
 void erase_active_rule_effect(flecs::entity entity)
 {
+	rule_clock_capacity_cache.reset();
 	active_rule_index.erase(entity.get<ActiveRuleEffect>().id);
 	entity.destruct();
 	active_rule_order_dirty = true;
@@ -60,6 +61,7 @@ template <typename Predicate> std::size_t erase_active_rule_effects_if(Predicate
 }
 void commit_active_rule_effects(const std::vector<ActiveRuleEffect> &prepared)
 {
+	rule_clock_capacity_cache.reset();
 	std::set<std::uint64_t> retained;
 	for (const auto &effect : prepared)
 		retained.insert(effect.id);

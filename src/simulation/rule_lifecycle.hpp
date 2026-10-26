@@ -33,6 +33,7 @@ std::vector<NativeRuleSource> lifecycle_rule_sources() const
 }
 void rebuild_rule_clock_addresses()
 {
+	rule_clock_capacity_cache.reset();
 	rule_clock_addresses.clear();
 	for (const auto &[id, ship] : entities)
 		if (const auto *runtime = ship.try_get<RuleRuntime>())
@@ -423,6 +424,7 @@ RuleExecutionState *ensure_rule_execution(const NativeRuleSource &source, const 
 	state.next = application + rule.period_ticks;
 	auto &result = clocks->emplace(key, std::move(state)).first->second;
 	rule_clock_addresses.emplace(key, address);
+	rule_clock_capacity_cache.reset();
 	return &result;
 }
 void erase_rule_execution(const std::string &key)
@@ -439,6 +441,7 @@ void erase_rule_execution(const std::string &key)
 		if (auto *runtime = owner->second.try_get_mut<RuleRuntime>())
 			runtime->executions.erase(key);
 	rule_clock_addresses.erase(found);
+	rule_clock_capacity_cache.reset();
 }
 struct FrozenRuleSourceFrame
 {

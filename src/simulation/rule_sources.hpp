@@ -60,18 +60,15 @@ bool rule_origin_live(const RuleOriginKey &key, const PreparedEffectGroup *prepa
 				return true;
 	return false;
 }
-std::string rule_origin_failure(const PreparedEffectGroup &prepared) const
+std::size_t rule_clock_capacity(const std::vector<ActiveRuleEffect> *prepared = nullptr) const
 {
+	if (!prepared && rule_clock_capacity_cache)
+		return *rule_clock_capacity_cache;
 	std::size_t clocks = 0;
 	for (const auto &[id, ship] : entities)
 		if (const auto *runtime = ship.try_get<RuleRuntime>())
-		{
 			clocks += runtime->executions.size();
-			if (clocks > rule_instance_limit)
-				return "Rule clock capacity exhausted";
-		}
-	const auto &active = prepared.active_effects ? *prepared.active_effects : active_rule_snapshot();
-	for (const auto &effect : active)
+	const auto include = [&](const ActiveRuleEffect &effect)
 	{
 		clocks += effect.clocks.size();
 		if (const auto found = periodic_templates.find(effect.definition); found != periodic_templates.end())
@@ -83,9 +80,24 @@ std::string rule_origin_failure(const PreparedEffectGroup &prepared) const
 					                        entry.second.definition == binding.rule;
 				                 }))
 					++clocks;
-		if (clocks > rule_instance_limit)
-			return "Rule clock capacity exhausted";
+	};
+	if (prepared)
+		for (const auto &effect : *prepared)
+			include(effect);
+	else
+	{
+		for (const auto &effect : active_rule_values())
+			include(effect);
+		rule_clock_capacity_cache = clocks;
 	}
+	return clocks;
+}
+std::string rule_origin_failure(const PreparedEffectGroup &prepared) const
+{
+	// Read-only validation must not materialize every condition and clock for
+	// each reaction. Staged ownership still receives a complete projected check.
+	if (rule_clock_capacity(prepared.active_effects ? &*prepared.active_effects : nullptr) > rule_instance_limit)
+		return "Rule clock capacity exhausted";
 	std::set<RuleOriginKey> keys;
 	for (const auto &[key, context] : rule_origins)
 		if (rule_origin_live(key, &prepared))
