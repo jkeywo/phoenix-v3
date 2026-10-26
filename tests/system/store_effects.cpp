@@ -395,7 +395,9 @@ int main(int argc, char **argv)
 {
 	try
 	{
-		Json trace = Json::array({ordinary_operations(), committed_stock(), staged_effect_reapplication()});
+		Json trace = Json::array({ordinary_operations(), committed_stock()});
+		for (auto &state : staged_effect_reapplication())
+			trace.push_back(std::move(state));
 		pending_receipts();
 		paid_store_aliases();
 		shared_effect_lifecycle();
