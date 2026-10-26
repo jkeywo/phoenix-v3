@@ -145,14 +145,28 @@ assert.deepEqual(
 assert.equal(verifySelection([child, zip(source)]).ok, false);
 const oldDefinitions = structuredClone(definitions);
 oldDefinitions.maps.push({ ...mission, name: "Edited optional mission" });
+const independentMission = { ...mission, id: "test.independent", name: "Edited independent mission" };
+const independent = zip({
+	"manifest.json": JSON.stringify({ schema: 1, id: "test-user-mod", parent: "test-core" }),
+	"definitions.json": JSON.stringify({ schema: 1, maps: [independentMission] }),
+});
 const migrated = verifySelection(
-	[zip(source), child, zip({ ...source, "definitions.json": JSON.stringify(oldDefinitions) })],
+	[zip(source), child, zip({ ...source, "definitions.json": JSON.stringify(oldDefinitions) }), independent],
 	"phoenix_migrate_bundled_menu",
 );
 assert.equal(migrated.ok, true);
+assert.equal(migrated.preview.length, 3);
+const migratedBase = migrated.preview.find((pack) => pack.id === "test-core");
+const migratedChild = migrated.preview.find((pack) => pack.id === "test-missions");
+const migratedIndependent = migrated.preview.find((pack) => pack.id === "test-user-mod");
+assert(migratedBase && migratedChild && migratedIndependent);
 assert.deepEqual(
-	migrated.preview[0].scenarios.map((m) => m.id),
+	migratedBase.scenarios.map((m) => m.id),
 	definitions.maps.map((m) => m.id),
 );
-assert.equal(migrated.preview[1].scenarios[0].name, "Edited optional mission");
-console.log("PASS production WASM selection metadata and combined-pack migration preserve edited missions");
+assert.equal(migratedChild.scenarios.find((m) => m.id === mission.id).name, "Optional test mission");
+assert.equal(
+	migratedIndependent.scenarios.find((m) => m.id === independentMission.id).name,
+	"Edited independent mission",
+);
+console.log("PASS production WASM bundled refresh replaces base edits and preserves independent user mods");

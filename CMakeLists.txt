@@ -783,7 +783,7 @@ if(EMSCRIPTEN)
 			"-sMODULARIZE=1"
 			"-sEXPORT_NAME=createPhoenixWorkshopTestModule"
 			"-sSTACK_SIZE=1048576"
-			"-sENVIRONMENT=worker"
+			"-sENVIRONMENT=worker,node"
 			"-sALLOW_MEMORY_GROWTH=1"
 			"-sEXIT_RUNTIME=0"
 			"-sEXPORTED_RUNTIME_METHODS=['ccall','HEAPU8']"
