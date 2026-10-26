@@ -1,6 +1,6 @@
 # Shared rules, regions and reaction consolidation
 
-26 October 2026. Approved implementation in progress, based on `b907e3a`. This is the sixth slice of the [shared gameplay engine](gameplay-engine-design.md). It follows [shared abilities](ability-migration-evidence.md); this plan does not establish delivery or acceptance.
+26 October 2026. Implemented in `84e8773` and `2cd4702`, based on `b907e3a`. This is the sixth slice of the [shared gameplay engine](gameplay-engine-design.md). It follows [shared abilities](ability-migration-evidence.md). Independent correctness and architecture reviews and the automated validation below passed; see the [implementation evidence](rules-migration-evidence.md) for executed checks and remaining manual acceptance.
 
 ## Approved result
 
