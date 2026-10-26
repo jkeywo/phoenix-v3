@@ -1199,7 +1199,8 @@ Json rich_ability_context()
 		bool modifier_on_recipient = false;
 		for (const auto &row : committed.at("bodies"))
 			if (row.at("body").at("id") == 2)
-				for (const auto &modifier : row.at("property_effects").at("contributions"))
+				for (const auto &modifier :
+				     modifier_contributions(world.save(), row.at("body").at("id").get<std::uint64_t>()))
 					modifier_on_recipient = modifier_on_recipient || modifier.at("equipment") == "radar";
 		require(modifier_on_recipient, "equipment source reference selects the matching recipient fitting while "
 		                               "retaining original source identity");

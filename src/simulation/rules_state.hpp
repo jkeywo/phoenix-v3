@@ -126,6 +126,54 @@ struct ActiveRuleEffect
 	std::map<std::string, RuleExecutionState> clocks;
 	bool operator==(const ActiveRuleEffect &) const = default;
 };
+struct ActiveRuleTarget
+{
+	flecs::entity body;
+};
+template <bool Mutable> struct ActiveRuleRange
+{
+	std::vector<flecs::entity> handles;
+	struct Iterator
+	{
+		using difference_type = std::ptrdiff_t;
+		using value_type = ActiveRuleEffect;
+		using iterator_category = std::forward_iterator_tag;
+		using reference = std::conditional_t<Mutable, ActiveRuleEffect &, const ActiveRuleEffect &>;
+		using pointer = std::conditional_t<Mutable, ActiveRuleEffect *, const ActiveRuleEffect *>;
+		std::vector<flecs::entity>::const_iterator at;
+		reference operator*() const
+		{
+			if constexpr (Mutable)
+				return at->get_mut<ActiveRuleEffect>();
+			else
+				return at->get<ActiveRuleEffect>();
+		}
+		pointer operator->() const
+		{
+			return &**this;
+		}
+		Iterator &operator++()
+		{
+			++at;
+			return *this;
+		}
+		Iterator operator++(int)
+		{
+			auto old = *this;
+			++*this;
+			return old;
+		}
+		bool operator==(const Iterator &) const = default;
+	};
+	Iterator begin() const
+	{
+		return {handles.begin()};
+	}
+	Iterator end() const
+	{
+		return {handles.end()};
+	}
+};
 struct RuleRuntime
 {
 	std::uint64_t next_generation = 1;

@@ -1,3 +1,4 @@
+#include "../support/active_effects.hpp"
 #include "../support/assertions.hpp"
 #include "../support/combat_fixture.hpp"
 #include <iostream>
@@ -211,7 +212,7 @@ std::int64_t quantity(const World &world, std::size_t index = 0, EntityId id = 1
 }
 Json contributions(const World &world, EntityId id = 1)
 {
-	return body(world, id).at("property_effects").at("contributions");
+	return modifier_contributions(world.save(), id);
 }
 Json portable(Json snapshot)
 {
@@ -656,7 +657,7 @@ Json finite_maintained_grants()
 			if (kind == "shield")
 				result = body(instance).at("shields").at("contributions");
 			else if (kind == "periodic")
-				result = saved.at("rules").at("active");
+				result = saved.at("active_effects").at("conditions");
 			else
 				for (const auto &owner : saved.at("abilities").at("ships"))
 					if (owner.at("ship") == 1)

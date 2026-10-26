@@ -110,7 +110,6 @@ bool supply_transfer(CargoDelivery &job, EntityId source, std::size_t from, Enti
 }
 void supply_return(CargoDelivery &job)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	job.phase = "returning";
 	const auto craft = entities.at(job.carrier);
 	if (craft.has<DockConnection>())
@@ -239,7 +238,6 @@ void step_supply_cargo(CargoDelivery &job)
 }
 void advance_supply_mission(std::size_t index)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &m = away_missions.at(index);
 	if (!m.supply_job)
 		return;

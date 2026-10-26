@@ -1,7 +1,109 @@
 // Native delivery and duration owners; shared rules own reactions and clocks.
 std::map<std::string, PayloadDefinition> payload_templates;
 std::map<std::string, PeriodicEffectDefinition> periodic_templates;
-std::vector<ActiveRuleEffect> active_rule_effects;
+// Active condition entities own their clocks and captured origin. Ordered handles
+// are a query-derived cache; stable effect IDs govern execution and persistence.
+const std::vector<flecs::entity> &active_rule_rows() const
+{
+	if (active_rule_order_dirty)
+	{
+		active_rule_order.clear();
+		active_rule_query.each(
+		    [&](flecs::entity e, const ActiveRuleEffect &)
+		    {
+			    active_rule_order.push_back(e);
+		    });
+		std::sort(active_rule_order.begin(), active_rule_order.end(),
+		          [](auto a, auto b)
+		          {
+			          return a.template get<ActiveRuleEffect>().id < b.template get<ActiveRuleEffect>().id;
+		          });
+		active_rule_order_dirty = false;
+	}
+	return active_rule_order;
+}
+ActiveRuleRange<true> active_rule_values()
+{
+	return {active_rule_rows()};
+}
+ActiveRuleRange<false> active_rule_values() const
+{
+	return {active_rule_rows()};
+}
+std::vector<ActiveRuleEffect> active_rule_snapshot() const
+{
+	std::vector<ActiveRuleEffect> values;
+	for (const auto &effect : active_rule_values())
+		values.push_back(effect);
+	return values;
+}
+flecs::entity active_rule_entity(std::uint64_t id) const
+{
+	const auto at = active_rule_index.find(id);
+	return at == active_rule_index.end() ? flecs::entity{} : at->second;
+}
+void erase_active_rule_effect(flecs::entity entity)
+{
+	active_rule_index.erase(entity.get<ActiveRuleEffect>().id);
+	entity.destruct();
+	active_rule_order_dirty = true;
+}
+template <typename Predicate> std::size_t erase_active_rule_effects_if(Predicate predicate)
+{
+	std::vector<flecs::entity> removed;
+	for (auto entity : active_rule_rows())
+		if (predicate(entity.get<ActiveRuleEffect>()))
+			removed.push_back(entity);
+	for (auto entity : removed)
+		erase_active_rule_effect(entity);
+	return removed.size();
+}
+void commit_active_rule_effects(const std::vector<ActiveRuleEffect> &prepared)
+{
+	std::set<std::uint64_t> retained;
+	for (const auto &effect : prepared)
+		retained.insert(effect.id);
+	erase_active_rule_effects_if(
+	    [&](const auto &effect)
+	    {
+		    return !retained.contains(effect.id);
+	    });
+	for (const auto &effect : prepared)
+		if (auto entity = active_rule_entity(effect.id))
+		{
+			if (!(entity.get<ActiveRuleEffect>() == effect))
+				entity.set<ActiveRuleEffect>(effect);
+		}
+		else
+		{
+			auto created =
+			    ecs.entity().set<ActiveRuleEffect>(effect).set<ActiveRuleTarget>({payload_target(effect.context)});
+			active_rule_index.emplace(effect.id, created);
+			active_rule_order_dirty = true;
+		}
+}
+bool active_rule_effect_exists(const std::vector<ActiveRuleEffect> *prepared, const std::string &source,
+                               EntityId target) const
+{
+	if (prepared)
+		return std::any_of(prepared->begin(), prepared->end(),
+		                   [&](const auto &effect)
+		                   {
+			                   return effect.source == source && effect.context.target == target;
+		                   });
+	for (const auto &effect : active_rule_values())
+		if (effect.source == source && effect.context.target == target)
+			return true;
+	return false;
+}
+bool active_rule_target_available(const ActiveRuleEffect &effect) const
+{
+	const auto entity = active_rule_entity(effect.id);
+	if (!entity)
+		return false;
+	const auto body = entity.get<ActiveRuleTarget>().body;
+	return body.is_alive() && payload_context_available(effect.context, body);
+}
 std::uint64_t next_rule_instance = 1;
 
 std::vector<RuleFactBinding> payload_capture_layout(const std::vector<std::string> &payloads) const
@@ -183,9 +285,9 @@ flecs::entity payload_target(const PayloadHitContext &c) const
 	const auto found = entities.find(c.target);
 	return found == entities.end() ? flecs::entity{} : found->second;
 }
-bool payload_context_available(const PayloadHitContext &c) const
+bool payload_context_available(const PayloadHitContext &c, flecs::entity resolved = {}) const
 {
-	const auto ship = payload_target(c);
+	const auto ship = resolved ? resolved : payload_target(c);
 	if (!ship || combat_dead(ship))
 		return false;
 	if (c.ordnance)

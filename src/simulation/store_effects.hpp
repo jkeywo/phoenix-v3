@@ -150,10 +150,18 @@ bool effect_group_equipment_available(EntityId ship, const std::string &equipmen
 	return fitted && fitted->entity.get<Equipment>().enabled && !structurally_disabled(entity, equipment) &&
 	       fault_effectiveness(entity, equipment) > 0;
 }
+PropertyEffects &prepare_property_owner(PreparedEffectGroup &quote, flecs::entity ship) const
+{
+	const auto id = ship.get<StableId>().id;
+	auto original = quote.original_properties.find(id);
+	if (original == quote.original_properties.end())
+		original = quote.original_properties.emplace(id, read_property_effects(ship)).first;
+	return quote.properties.try_emplace(id, original->second).first->second;
+}
 void prepare_group_modifier(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, flecs::entity ship,
                             const EffectOperation &operation, const std::string &equipment)
 {
-	if (!ship.has<PropertyEffects>() || !ship.has<StableId>())
+	if (!ship.has<PropertyEffectOwner>() || !ship.has<StableId>())
 		throw std::runtime_error("Incompatible modifier owner");
 	const auto id = ship.get<StableId>().id;
 	auto compiled = modifier_templates.at(operation.effect);
@@ -184,8 +192,7 @@ void prepare_group_modifier(PreparedEffectGroup &quote, const EffectGroupInvocat
 	}
 	const auto source = frame.source + "." + operation.grant;
 	validate_effect_identity(source, equipment, true);
-	quote.original_properties.try_emplace(id, ship.get<PropertyEffects>());
-	auto &prepared = quote.properties.try_emplace(id, ship.get<PropertyEffects>()).first->second;
+	auto &prepared = prepare_property_owner(quote, ship);
 	std::uint64_t existing = 0;
 	for (const auto &contribution : prepared.contributions)
 		if (contribution.source == source && contribution.equipment == equipment)
@@ -331,8 +338,10 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 	}
 	else if (!actor.ordnance && context.owner_effect_kind == NativeEffectKind::Modifier)
 	{
+		const auto live = property_snapshot(ship);
 		const auto *current = quote.properties.contains(actor.entity) ? &quote.properties.at(actor.entity)
-		                                                              : ship.try_get<PropertyEffects>();
+		                      : live                                  ? &*live
+		                                                              : nullptr;
 		const auto matches = [&](const auto &contribution)
 		{
 			return contribution.id == identity && contribution.source == source &&
@@ -340,8 +349,7 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 		};
 		if (current && std::any_of(current->contributions.begin(), current->contributions.end(), matches))
 		{
-			quote.original_properties.try_emplace(actor.entity, ship.get<PropertyEffects>());
-			auto &prepared = quote.properties.try_emplace(actor.entity, *current).first->second;
+			auto &prepared = prepare_property_owner(quote, ship);
 			removed = std::erase_if(prepared.contributions, matches) > 0;
 		}
 	}
@@ -369,7 +377,7 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 	}
 	else if (context.owner_effect_kind == NativeEffectKind::Periodic)
 	{
-		const auto &current = quote.active_effects ? *quote.active_effects : active_rule_effects;
+		const auto &current = quote.active_effects ? *quote.active_effects : active_rule_snapshot();
 		const auto matches = [&](const auto &effect)
 		{
 			return effect.id == identity && effect.source == source && effect.context.target == actor.entity &&
@@ -379,8 +387,8 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 		{
 			if (!quote.active_effects)
 			{
-				quote.original_active_effects = active_rule_effects;
-				quote.active_effects = active_rule_effects;
+				quote.original_active_effects = active_rule_snapshot();
+				quote.active_effects = active_rule_snapshot();
 			}
 			removed = std::erase_if(*quote.active_effects, matches) > 0;
 		}
@@ -513,18 +521,14 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const Prepare
 		}
 		else if (periodic_templates.contains(op.effect) ||
 		         (op.kind == EffectOperationKind::Remove &&
-		          std::any_of(quote.active_effects ? quote.active_effects->begin() : active_rule_effects.begin(),
-		                      quote.active_effects ? quote.active_effects->end() : active_rule_effects.end(),
-		                      [&](const auto &condition)
-		                      {
-			                      return condition.source == source + "." + op.grant && condition.context.target == id;
-		                      })))
+		          active_rule_effect_exists(quote.active_effects ? &*quote.active_effects : nullptr,
+		                                    source + "." + op.grant, id)))
 		{
 			const auto context = address;
 			if (!quote.active_effects)
 			{
-				quote.original_active_effects = active_rule_effects;
-				quote.active_effects = active_rule_effects;
+				quote.original_active_effects = active_rule_snapshot();
+				quote.active_effects = active_rule_snapshot();
 			}
 			prepare_active_rule_effect(*quote.active_effects, quote.next_active, op, source + "." + op.grant, attacker,
 			                           context, source, original_equipment,
@@ -546,10 +550,9 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const Prepare
 			}
 			else
 			{
-				if (!ship.has<PropertyEffects>())
+				if (!ship.has<PropertyEffectOwner>())
 					throw std::runtime_error("Incompatible modifier target");
-				quote.original_properties.try_emplace(id, ship.get<PropertyEffects>());
-				property = &quote.properties.try_emplace(id, ship.get<PropertyEffects>()).first->second;
+				property = &prepare_property_owner(quote, ship);
 			}
 			prepare_effect_application(ship,
 			                           {kind,
@@ -644,8 +647,8 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 		    !same_effect_shields(entities.at(id).get<ShieldComponent>(), original))
 			return true;
 	for (const auto &[id, original] : quote.original_properties)
-		if (!entities.contains(id) || !entities.at(id).has<PropertyEffects>() ||
-		    !same_effect_properties(entities.at(id).get<PropertyEffects>(), original))
+		if (!entities.contains(id) || !entities.at(id).has<PropertyEffectOwner>() ||
+		    !same_effect_properties(read_property_effects(entities.at(id)), original))
 			return true;
 	for (const auto &[id, original] : quote.original_abilities)
 		if (!entities.contains(id) || !entities.at(id).has<AbilityRuntime>() ||
@@ -653,7 +656,7 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 			return true;
 	if (quote.original_active_effects &&
 	    (next_rule_instance != quote.original_next_active ||
-	     !same_effect_active_rules(active_rule_effects, *quote.original_active_effects)))
+	     !same_effect_active_rules(active_rule_snapshot(), *quote.original_active_effects)))
 		return true;
 	for (const auto &[id, equipment] : quote.equipment)
 		if (!effect_group_equipment_available(id, equipment))
@@ -706,7 +709,7 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 	++effect_commit_epoch;
 	if (quote.active_effects)
 	{
-		active_rule_effects = std::move(*quote.active_effects);
+		commit_active_rule_effects(*quote.active_effects);
 		next_rule_instance = quote.next_active;
 	}
 	for (auto &[id, payment] : quote.payments)
@@ -717,7 +720,7 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 	for (auto &[id, value] : quote.shields)
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : quote.properties)
-		entities.at(id).set<PropertyEffects>(std::move(value));
+		commit_property_effects(entities.at(id), value);
 	for (auto &[id, value] : quote.abilities)
 	{
 		const auto &old = entities.at(id).get<AbilityRuntime>();

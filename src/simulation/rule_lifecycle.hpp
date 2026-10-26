@@ -16,7 +16,7 @@ std::vector<NativeRuleSource> lifecycle_rule_sources() const
 		auto local = rule_sources(ship);
 		sources.insert(sources.end(), std::make_move_iterator(local.begin()), std::make_move_iterator(local.end()));
 	}
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		if (effect.context.ordnance)
 		{
 			auto source = active_native_rule_source(effect);
@@ -38,7 +38,7 @@ void rebuild_rule_clock_addresses()
 		if (const auto *runtime = ship.try_get<RuleRuntime>())
 			for (const auto &[key, state] : runtime->executions)
 				rule_clock_addresses.emplace(key, RuleClockAddress{id, 0});
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		for (const auto &[key, state] : effect.clocks)
 			rule_clock_addresses.emplace(key, RuleClockAddress{0, effect.id});
 	if (rule_clock_addresses.size() > rule_instance_limit)
@@ -51,13 +51,12 @@ RuleExecutionState *find_rule_execution(const std::string &key)
 		return nullptr;
 	if (found->second.active)
 	{
-		for (auto &effect : active_rule_effects)
-			if (effect.id == found->second.active)
-			{
-				const auto state = effect.clocks.find(key);
-				return state == effect.clocks.end() ? nullptr : &state->second;
-			}
-		return nullptr;
+		const auto entity = active_rule_entity(found->second.active);
+		if (!entity)
+			return nullptr;
+		auto &clocks = entity.get_mut<ActiveRuleEffect>().clocks;
+		const auto state = clocks.find(key);
+		return state == clocks.end() ? nullptr : &state->second;
 	}
 	const auto owner = entities.find(found->second.ship);
 	if (owner == entities.end())
@@ -75,13 +74,12 @@ const RuleExecutionState *readonly_rule_execution(const std::string &key) const
 		return nullptr;
 	if (found->second.active)
 	{
-		for (const auto &effect : active_rule_effects)
-			if (effect.id == found->second.active)
-			{
-				const auto state = effect.clocks.find(key);
-				return state == effect.clocks.end() ? nullptr : &state->second;
-			}
-		return nullptr;
+		const auto entity = active_rule_entity(found->second.active);
+		if (!entity)
+			return nullptr;
+		const auto &clocks = entity.get<ActiveRuleEffect>().clocks;
+		const auto state = clocks.find(key);
+		return state == clocks.end() ? nullptr : &state->second;
 	}
 	const auto owner = entities.find(found->second.ship);
 	if (owner == entities.end())
@@ -113,11 +111,9 @@ bool rule_grant_available(EntityId, const std::string &source, RuleSourceAvailab
 		return false;
 	if (address->second.active)
 	{
-		for (const auto &effect : active_rule_effects)
-			if (effect.id == address->second.active)
-				return effect.expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick) &&
-				       payload_context_available(effect.context);
-		return false;
+		const auto entity = active_rule_entity(address->second.active);
+		return entity && entity.get<ActiveRuleEffect>().expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick) &&
+		       active_rule_target_available(entity.get<ActiveRuleEffect>());
 	}
 	const auto host = entities.find(address->second.ship);
 	if (host == entities.end())
@@ -254,16 +250,12 @@ bool maintained_modifier_exists(const RuleExecutionState &state, const EffectOpe
 	const auto owner = entities.find(actor.entity);
 	if (actor.ordnance || owner == entities.end())
 		return false;
-	const auto *properties = owner->second.try_get<PropertyEffects>();
+	const auto *properties = owner->second.try_get<PropertyEffectOwner>();
 	if (!properties)
 		return false;
 	const auto equipment = rule_application_equipment(state.context, operation.equipment);
-	return std::any_of(properties->contributions.begin(), properties->contributions.end(),
-	                   [&](const auto &row)
-	                   {
-		                   return row.source == state.key + "." + operation.grant &&
-		                          row.definition == operation.effect && row.equipment == equipment;
-	                   });
+	const auto at = properties->grants.find({state.key + "." + operation.grant, equipment});
+	return at != properties->grants.end() && at->second.get<ActiveEffectIdentity>().definition == operation.effect;
 }
 void withdraw_rule_grants(RuleExecutionState &state)
 {
@@ -303,15 +295,17 @@ void withdraw_rule_grants(RuleExecutionState &state)
 						                               c.equipment == equipment;
 					                        }) > 0 ||
 					          changed;
-				if (auto *properties = owner->second.try_get_mut<PropertyEffects>();
+				if (const auto *properties = owner->second.try_get<PropertyEffectOwner>();
 				    properties && modifier_templates.contains(operation.effect))
-					changed = std::erase_if(properties->contributions,
-					                        [&](const auto &c)
-					                        {
-						                        return c.source == source && c.definition == operation.effect &&
-						                               c.equipment == equipment;
-					                        }) > 0 ||
-					          changed;
+				{
+					const auto at = properties->grants.find({source, equipment});
+					if (at != properties->grants.end() &&
+					    at->second.get<ActiveEffectIdentity>().definition == operation.effect)
+					{
+						erase_modifier(at->second);
+						changed = true;
+					}
+				}
 				if (auto *abilities = owner->second.try_get_mut<AbilityRuntime>();
 				    abilities && ability_grant_templates.contains(operation.effect))
 				{
@@ -331,14 +325,14 @@ void withdraw_rule_grants(RuleExecutionState &state)
 					}
 				}
 			}
-			changed = std::erase_if(active_rule_effects,
-			                        [&](const auto &effect)
-			                        {
-				                        return periodic_templates.contains(operation.effect) &&
-				                               effect.definition == operation.effect &&
-				                               same_payload_context(effect.context, rule_hit_context(applied_actor)) &&
-				                               effect.source == source;
-			                        }) > 0 ||
+			changed = erase_active_rule_effects_if(
+			              [&](const auto &effect)
+			              {
+				              return periodic_templates.contains(operation.effect) &&
+				                     effect.definition == operation.effect &&
+				                     same_payload_context(effect.context, rule_hit_context(applied_actor)) &&
+				                     effect.source == source;
+			              }) > 0 ||
 			          changed;
 		}
 	if (abilities_changed)
@@ -391,15 +385,14 @@ RuleExecutionState *ensure_rule_execution(const NativeRuleSource &source, const 
 	RuleClockAddress address;
 	if (source.active_effect)
 	{
-		for (auto &effect : active_rule_effects)
-			if (effect.id == source.active_effect)
-			{
-				clocks = &effect.clocks;
-				address.active = effect.id;
-				if (periodic_templates.contains(effect.definition))
-					application = effect.expiry - periodic_templates.at(effect.definition).duration_ticks;
-				break;
-			}
+		if (const auto entity = active_rule_entity(source.active_effect))
+		{
+			auto &effect = entity.get_mut<ActiveRuleEffect>();
+			clocks = &effect.clocks;
+			address.active = effect.id;
+			if (periodic_templates.contains(effect.definition))
+				application = effect.expiry - periodic_templates.at(effect.definition).duration_ticks;
+		}
 	}
 	else
 	{
@@ -439,12 +432,8 @@ void erase_rule_execution(const std::string &key)
 		return;
 	if (found->second.active)
 	{
-		for (auto &effect : active_rule_effects)
-			if (effect.id == found->second.active)
-			{
-				effect.clocks.erase(key);
-				break;
-			}
+		if (const auto entity = active_rule_entity(found->second.active))
+			entity.get_mut<ActiveRuleEffect>().clocks.erase(key);
 	}
 	else if (const auto owner = entities.find(found->second.ship); owner != entities.end())
 		if (auto *runtime = owner->second.try_get_mut<RuleRuntime>())
@@ -462,7 +451,7 @@ struct FrozenRuleSourceFrame
 void discover_active_rule_clocks()
 {
 	rebuild_rule_clock_addresses();
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 	{
 		const auto source = active_native_rule_source(effect);
 		if (!source.eligible || !source.bindings)
@@ -486,31 +475,25 @@ void retire_active_rule_effects()
 {
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	std::vector<std::uint64_t> expired;
-	for (const auto &effect : active_rule_effects)
-		if (effect.expiry <= now || !payload_context_available(effect.context))
+	for (const auto &effect : active_rule_values())
+		if (effect.expiry <= now || !active_rule_target_available(effect))
 			expired.push_back(effect.id);
 	for (const auto id : expired)
 	{
-		const auto owner = std::find_if(active_rule_effects.begin(), active_rule_effects.end(),
-		                                [&](const auto &effect)
-		                                {
-			                                return effect.id == id;
-		                                });
-		if (owner == active_rule_effects.end())
+		const auto entity = active_rule_entity(id);
+		if (!entity)
 			continue;
+		const auto &owner = entity.get<ActiveRuleEffect>();
 		std::vector<RuleExecutionState> clocks;
-		for (const auto &[key, state] : owner->clocks)
+		for (const auto &[key, state] : owner.clocks)
 			clocks.push_back(state);
 		for (auto &state : clocks)
 		{
 			retire_rule_state(state, true);
 			rule_clock_addresses.erase(state.key);
 		}
-		std::erase_if(active_rule_effects,
-		              [&](const auto &effect)
-		              {
-			              return effect.id == id;
-		              });
+		if (entity.is_alive())
+			erase_active_rule_effect(entity);
 		if (effect_commit_epoch == std::numeric_limits<std::uint64_t>::max())
 			throw std::runtime_error("Effect commit epoch exhausted");
 		++effect_commit_epoch;
@@ -668,7 +651,7 @@ void prepare_rule_sources()
 				const auto failure = state->active && quote.quote.effects.operations.empty()
 				                         ? std::string{}
 				                         : execute_rule_quote(quote, state->context, state->key, true, output);
-				// Transactions can replace the active-record vector: reacquire by logical key.
+				// Transactions can replace an active effect component: reacquire by logical key.
 				state = find_rule_execution(frame.key);
 				if (!state)
 					continue;
@@ -709,7 +692,7 @@ void refresh_rule_eligibility()
 		rebuild_rule_clock_addresses();
 		const auto before_epoch = effect_commit_epoch;
 		const auto before_clocks = rule_clock_addresses.size();
-		const auto before_active = active_rule_effects.size();
+		const auto before_active = active_rule_index.size();
 		retire_active_rule_effects();
 		std::map<std::string, bool> available;
 		for (const auto &source : lifecycle_rule_sources())
@@ -735,7 +718,7 @@ void refresh_rule_eligibility()
 		}
 		rebuild_rule_clock_addresses();
 		if (before_epoch == effect_commit_epoch && before_clocks == rule_clock_addresses.size() &&
-		    before_active == active_rule_effects.size())
+		    before_active == active_rule_index.size())
 			return;
 	}
 	throw std::runtime_error("rules: native source retirement did not converge");

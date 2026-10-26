@@ -817,7 +817,8 @@ void native_damage_rule_contracts()
 		advance(world, 2);
 		const auto dead = world.save();
 		int alive_owners = 0, destroy_receipts = 0;
-		for (const auto &effect : dead.at("bodies")[1].at("property_effects").at("contributions"))
+		for (const auto &effect :
+		     modifier_contributions(dead, dead.at("bodies")[1].at("body").at("id").get<std::uint64_t>()))
 			if (effect.at("definition") == "test.early.active")
 				++alive_owners;
 		for (const auto &job : dead.at("rules").at("pending"))

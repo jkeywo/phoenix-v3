@@ -154,13 +154,13 @@ Json staged_effect_reapplication()
 		const auto &active = saved.at("active_effects");
 		require(world.save() == resumed.save(), "Ordered staged effects continue identically after restore");
 		if (fail)
-			require(active.at("modifiers").empty() && active.at("periodic").empty() &&
-			            active.at("next_periodic") == 1 && active.at("modifier_owners")[0].at("next_id") == 1,
+			require(active.at("modifiers").empty() && active.at("conditions").empty() &&
+			            active.at("next_condition") == 1 && active.at("modifier_owners")[0].at("next_id") == 1,
 			        "Failed apply/refresh/remove/reapply rolls back effects and both identity counters");
 		else
 			require(active.at("modifiers").size() == 1 && active.at("modifiers")[0].at("id") == 2 &&
-			            active.at("periodic").size() == 1 && active.at("periodic")[0].at("id") == 2 &&
-			            active.at("next_periodic") == 3 && active.at("modifier_owners")[0].at("next_id") == 3,
+			            active.at("conditions").size() == 1 && active.at("conditions")[0].at("id") == 2 &&
+			            active.at("next_condition") == 3 && active.at("modifier_owners")[0].at("next_id") == 3,
 			        "Ordered operations see prior staged changes and removal allocates a fresh application");
 		trace.push_back(saved);
 	}

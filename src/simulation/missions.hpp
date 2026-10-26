@@ -224,7 +224,6 @@ void mission_change(const std::string &key, const std::string &value, const std:
 }
 void resolve_lost_parties()
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (auto &[ship, postings] : personnel_postings)
 		for (auto it = postings.begin(); it != postings.end();)
 			if (truly_destroyed(it->second.target))

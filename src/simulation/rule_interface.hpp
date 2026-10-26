@@ -25,7 +25,7 @@ Json rules_board(const ConsoleAddress &address) const
 		for (const auto &[key, state] : runtime->executions)
 			states.emplace(std::pair{state.source_key, state.binding}, &state);
 	std::map<std::uint64_t, const ActiveRuleEffect *> active;
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		if (effect.context.target == address.ship && !effect.context.ordnance)
 			active.emplace(effect.id, &effect);
 	for (const auto &source : rule_sources(ship))

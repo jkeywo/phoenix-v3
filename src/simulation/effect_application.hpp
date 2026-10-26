@@ -37,7 +37,7 @@ static std::int64_t refresh_effect_expiry(std::int64_t previous, std::int64_t re
 	return previous < 0 || requested < 0 ? -1 : std::max(previous, requested);
 }
 void prepare_effect_application(flecs::entity ship, const EffectApplication &application, ShieldComponent *shields,
-                                PreparedPropertyEffects *properties, std::int64_t tick)
+                                PropertyEffects *properties, std::int64_t tick)
 {
 	validate_effect_identity(application.source, application.equipment,
 	                         application.kind == EffectApplicationKind::Modifier);
@@ -45,7 +45,7 @@ void prepare_effect_application(flecs::entity ship, const EffectApplication &app
 		throw std::runtime_error("Effect target unavailable");
 	if (application.kind == EffectApplicationKind::Modifier)
 	{
-		if (!properties || !ship.has<PropertyEffects>())
+		if (!properties || !ship.has<PropertyEffectOwner>())
 			throw std::runtime_error("Incompatible modifier owner");
 		if (application.operation == EffectApplicationOperation::Remove)
 		{
@@ -55,16 +55,20 @@ void prepare_effect_application(flecs::entity ship, const EffectApplication &app
 		auto definition = application.definition;
 		if (application.operation == EffectApplicationOperation::Refresh)
 		{
-			const auto found = prepared_modifier(*properties, application.source, application.equipment);
-			if (!found)
+			const auto found =
+			    std::find_if(properties->contributions.begin(), properties->contributions.end(),
+			                 [&](const auto &c)
+			                 {
+				                 return c.source == application.source && c.equipment == application.equipment;
+			                 });
+			if (found == properties->contributions.end())
 				throw std::runtime_error("Modifier grant unavailable for refresh");
-			definition = found->identity.definition;
+			definition = found->definition;
 		}
 		const auto &compiled = modifier_templates.at(definition);
-		if (!modifier_target_compatible(ship, application.equipment, compiled, shields))
+		if (!modifier_target_compatible(ship, application.equipment, compiled))
 			throw std::runtime_error("Incompatible modifier target");
-		const auto target = resolve_modifier_target(ship, application.equipment, shields);
-		install_modifier_grant(*properties, compiled, application.source, application.equipment, tick, target);
+		install_modifier_grant(*properties, compiled, application.source, application.equipment, tick);
 		return;
 	}
 	if (!shields || !ship.has<ShieldComponent>() || !application.equipment.empty())
@@ -105,7 +109,7 @@ void apply_scenario_effect(const ScenarioEffectRequest &request)
 		throw std::runtime_error("Effect target unavailable");
 	auto ship = target->second;
 	std::optional<ShieldComponent> shields;
-	std::optional<PreparedPropertyEffects> properties;
+	std::optional<PropertyEffects> properties;
 	const auto kind =
 	    request.kind == ScenarioEffectKind::Shield ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
 	if (kind == EffectApplicationKind::Shield)
@@ -116,9 +120,9 @@ void apply_scenario_effect(const ScenarioEffectRequest &request)
 	}
 	else
 	{
-		if (!ship.has<PropertyEffects>())
+		if (!ship.has<PropertyEffectOwner>())
 			throw std::runtime_error("Incompatible modifier target");
-		properties = prepare_property_effects(ship);
+		properties = read_property_effects(ship);
 	}
 	prepare_effect_application(ship,
 	                           {kind, request.operation, scenario_effect_source(request.token.instance, request.grant),

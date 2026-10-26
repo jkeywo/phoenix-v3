@@ -169,6 +169,11 @@ std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, co
 	return effective_property(ship, c.equipment, property, base, extra_delta,
 	                          "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name);
 }
+std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, PropertyKey property, std::int64_t base,
+                             std::int64_t extra_delta = 0) const
+{
+	return shield_property(ship, c, modifier_properties().at(static_cast<std::size_t>(property)).id, base, extra_delta);
+}
 void step_shield_effects()
 {
 	for (const auto &[id, ship] : combat_rows())

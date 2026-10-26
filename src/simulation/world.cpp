@@ -1,6 +1,10 @@
 module;
 #include <flecs.h>
 #include <chrono>
+#include <charconv>
+#include <iterator>
+#include <type_traits>
+#include <string_view>
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
@@ -293,6 +297,13 @@ struct World::Impl
 	std::vector<ContactEntry> contact_rows;
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
+	flecs::query<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime, const ModifierValues>
+	    modifier_query;
+	flecs::query<const StableId, const PropertyEffectOwner> property_owners;
+	flecs::query<const ActiveRuleEffect> active_rule_query;
+	std::map<std::uint64_t, flecs::entity> active_rule_index;
+	mutable std::vector<flecs::entity> active_rule_order;
+	mutable bool active_rule_order_dirty = true;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;
@@ -354,6 +365,16 @@ struct World::Impl
 	Impl()
 	{
 		ecs.set<Clock>({0});
+		modifier_query = ecs.query_builder<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime,
+		                                   const ModifierValues>()
+		                     .cached()
+		                     .build();
+		property_owners = ecs.query_builder<const StableId, const PropertyEffectOwner>()
+		                      .with(flecs::Disabled)
+		                      .optional()
+		                      .cached()
+		                      .build();
+		active_rule_query = ecs.query_builder<const ActiveRuleEffect>().cached().build();
 		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
 		steering_query = ecs.query_builder<const Equipment, Steering>()
 		                     .with<BasicEquipment>()
@@ -1083,7 +1104,7 @@ struct World::Impl
 		}
 		entity.set<EquipmentIndex>(std::move(index));
 		initialize_processors(entity, data);
-		entity.set<PropertyEffects>({});
+		entity.set<PropertyEffectOwner>({});
 		if (entity.has<ShieldComponent>())
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *m = child.try_get<CombatMechanism>();
@@ -4156,9 +4177,14 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 27},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 28},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["rules"] = impl_->save_rules();
+	result["active_effects"] = impl_->save_active_modifiers();
+	result["active_effects"]["conditions"] = result["rules"]["active"];
+	result["active_effects"]["next_condition"] = result["rules"]["next_instance"];
+	result["rules"].erase("active");
+	result["rules"].erase("next_instance");
 	if (impl_->display_revision)
 	{
 		result["display_revision"] = impl_->display_revision;
@@ -4255,8 +4281,6 @@ Json World::save() const
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
 		if (entity.has<ShieldComponent>())
 			result["bodies"].back()["shields"] = impl_->save_shields(entity);
-		if (entity.has<PropertyEffects>())
-			result["bodies"].back()["property_effects"] = impl_->save_property_effects(entity);
 		if (const auto *d = entity.try_get<Destructible>())
 			result["bodies"].back()["destructible"] = *d;
 		if (entity.has<EntityControls>())
@@ -4313,8 +4337,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 27)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 27 required)");
+	if (saved.at("schema") != 28)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 28 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4408,8 +4432,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<ShieldComponent>())
 			candidate.impl_->restore_shields(entity, value.at("shields"));
-		if (entity.has<PropertyEffects>())
-			candidate.impl_->restore_property_effects(entity, value.at("property_effects"));
 		if (!candidate.impl_->definition(restored.id).personnel.officers.empty() && !value.contains("personnel"))
 			throw std::runtime_error("Missing saved personnel");
 		if (value.contains("personnel"))
@@ -4691,6 +4713,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			departure_reports.emplace(id, report);
 			departed_ships.insert(id);
 		}
+	candidate.impl_->restore_active_modifiers(saved.at("active_effects"));
 	candidate.impl_->restore_abilities(saved.at("abilities"), departed_ships);
 	candidate.impl_->refresh_ability_work(false);
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
@@ -4700,7 +4723,12 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
-	candidate.impl_->restore_rules(saved.at("rules"));
+	auto rules = saved.at("rules");
+	if (rules.contains("active") || rules.contains("next_instance"))
+		throw std::runtime_error("Retired active rule storage");
+	rules["active"] = saved.at("active_effects").at("conditions");
+	rules["next_instance"] = saved.at("active_effects").at("next_condition");
+	candidate.impl_->restore_rules(rules);
 
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});

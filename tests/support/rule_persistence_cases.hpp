@@ -89,18 +89,17 @@ Json rule_persistence_cases()
 	reject(saved,
 	       [](Json &broken)
 	       {
-		       broken["bodies"][0]["property_effects"]["contributions"][0]["source"] = "independent.persistence";
+		       broken["active_effects"]["modifiers"][0]["source"] = "independent.persistence";
 	       });
 	reject(saved,
 	       [](Json &broken)
 	       {
-		       broken["bodies"][0]["property_effects"]["contributions"][0]["source"] =
-		           "rule." + std::string(64, 'a') + ".range";
+		       broken["active_effects"]["modifiers"][0]["source"] = "rule." + std::string(64, 'a') + ".range";
 	       });
 	reject(saved,
 	       [](Json &broken)
 	       {
-		       broken["bodies"][0]["property_effects"]["contributions"][0]["definition"] = "test.persistence.other-mod";
+		       broken["active_effects"]["modifiers"][0]["definition"] = "test.persistence.other-mod";
 	       });
 	reject(saved,
 	       [&](Json &broken)
@@ -110,7 +109,7 @@ Json rule_persistence_cases()
 	reject(saved,
 	       [](Json &broken)
 	       {
-		       broken["bodies"][0]["property_effects"]["contributions"][0]["maintained"] = false;
+		       broken["active_effects"]["modifiers"][0]["maintained"] = false;
 	       });
 	// A pending delivery carries a captured origin independently of a live firing
 	// ship. Build that legitimate saved delivery using the compiled fact layout.
@@ -203,7 +202,7 @@ Json rule_persistence_cases()
 	retiring.load(retiring_catalog, "test.map");
 	advance(retiring, 2);
 	auto death = retiring.save();
-	require(!death["bodies"][0]["property_effects"]["contributions"].empty(),
+	require(!modifier_applications(death, 1).empty(),
 	        "pending-death fixture starts with an authored officer trait contribution");
 	death["bodies"][0]["destructible"]["durability"] = 0;
 	death["bodies"][0]["destructible"]["destroyed_tick"] = death["tick"];
@@ -220,8 +219,7 @@ Json rule_persistence_cases()
 	closure_resumed.restore(retiring_catalog, closure.save());
 	advance(closure);
 	advance(closure_resumed);
-	require(closure.save() == closure_resumed.save() &&
-	            closure.save()["bodies"][0]["property_effects"]["contributions"].empty(),
+	require(closure.save() == closure_resumed.save() && modifier_applications(closure.save(), 1).empty(),
 	        "first native closure withdraws pending-death officer work without replaying activation");
 	auto already_processed = death;
 	already_processed["bodies"][0]["destructible"]["processed"] = true;

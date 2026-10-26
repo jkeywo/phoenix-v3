@@ -182,7 +182,6 @@ bool encounter_dock_order(EntityId ship, const std::string &action, EntityId tar
 }
 void apply_occupation(EntityId target, const std::vector<std::string> &occupation, bool lethal)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto e = entities.at(target);
 	for (auto child : e.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)

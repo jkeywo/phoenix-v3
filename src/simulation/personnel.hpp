@@ -132,7 +132,7 @@ std::vector<PropertyContribution> collect_personnel_properties(flecs::entity shi
                                                                const std::string &contribution) const
 {
 	std::vector<PropertyContribution> out;
-	const auto *effects = ship.try_get<PropertyEffects>();
+	const auto effects = property_snapshot(ship);
 	if (!effects || !ship.has<StableId>())
 		return out;
 	RuleSourceAvailabilityCache sources;

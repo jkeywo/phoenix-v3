@@ -40,12 +40,18 @@ bool rule_origin_live(const RuleOriginKey &key, const PreparedEffectGroup *prepa
 		for (const auto &contribution : shields->contributions)
 			if (contribution.source == source && native_rule_provenance_required(contribution.definition_id))
 				return true;
-	const auto *properties =
-	    prepared && prepared->properties.contains(id) ? &prepared->properties.at(id) : ship.try_get<PropertyEffects>();
-	if (properties)
-		for (const auto &contribution : properties->contributions)
-			if (contribution.source == source && native_rule_provenance_required(contribution.definition))
+	if (prepared && prepared->properties.contains(id))
+	{
+		for (const auto &row : prepared->properties.at(id).contributions)
+			if (row.source == source && native_rule_provenance_required(row.definition))
 				return true;
+	}
+	else if (const auto *owner = ship.try_get<PropertyEffectOwner>())
+		for (auto at = owner->grants.lower_bound({source, {}}); at != owner->grants.end() && at->first.first == source;
+		     ++at)
+			if (native_rule_provenance_required(at->second.get<ActiveEffectIdentity>().definition))
+				return true;
+
 	const auto *abilities =
 	    prepared && prepared->abilities.contains(id) ? &prepared->abilities.at(id) : ship.try_get<AbilityRuntime>();
 	if (abilities)
@@ -64,7 +70,7 @@ std::string rule_origin_failure(const PreparedEffectGroup &prepared) const
 			if (clocks > rule_instance_limit)
 				return "Rule clock capacity exhausted";
 		}
-	const auto &active = prepared.active_effects ? *prepared.active_effects : active_rule_effects;
+	const auto &active = prepared.active_effects ? *prepared.active_effects : active_rule_snapshot();
 	for (const auto &effect : active)
 	{
 		clocks += effect.clocks.size();
@@ -200,10 +206,9 @@ NativeRuleSource active_native_rule_source(const ActiveRuleEffect &effect, bool 
 	              });
 	if (const auto found = periodic_templates.find(effect.definition); found != periodic_templates.end())
 		source.bindings = &found->second.rules;
-	source.eligible =
-	    source.bindings && effect.expiry > source.context.tick &&
-	    (payload_context_available(effect.context) || (retiring && bool(payload_target(effect.context)))) &&
-	    rule_lease_available(effect.source);
+	source.eligible = source.bindings && effect.expiry > source.context.tick &&
+	                  (active_rule_target_available(effect) || (retiring && bool(payload_target(effect.context)))) &&
+	                  rule_lease_available(effect.source);
 	return source;
 }
 std::vector<NativeRuleSource> rule_sources(const RuleActor &actor, bool retiring = false) const
@@ -214,7 +219,7 @@ std::vector<NativeRuleSource> rule_sources(const RuleActor &actor, bool retiring
 		return found == entities.end() ? std::vector<NativeRuleSource>{} : rule_sources(found->second, retiring);
 	}
 	std::vector<NativeRuleSource> sources;
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		if (effect.context.ordnance && effect.context.target == actor.entity)
 		{
 			auto source = active_native_rule_source(effect, retiring);
@@ -381,16 +386,19 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 				       {id, contribution.equipment}, contribution.expiry < 0 || contribution.expiry > tick,
 				       NativeEffectKind::Shield, contribution.effect_id);
 	}
-	if (const auto *properties = ship.try_get<PropertyEffects>())
-	{
-		std::set<std::uint64_t> seen;
-		for (const auto &contribution : properties->contributions)
-			if (seen.insert(contribution.id).second)
-				native(contribution.definition, contribution.source,
-				       "modifier-effect:" + std::to_string(id) + ":" + std::to_string(contribution.id),
-				       {id, contribution.equipment}, contribution.expiry < 0 || contribution.expiry > tick,
-				       NativeEffectKind::Modifier, contribution.id);
-	}
+	if (const auto *properties = ship.try_get<PropertyEffectOwner>())
+		for (const auto &[application, effect] : properties->applications)
+		{
+			const auto &identity = effect.get<ActiveEffectIdentity>();
+			const auto bindings = native_effect_rules.find(identity.definition);
+			if (bindings == native_effect_rules.end() || bindings->second.empty())
+				continue;
+			const auto expiry = effect.get<EffectLifetime>().expiry;
+			native(identity.definition, identity.source,
+			       "modifier-effect:" + std::to_string(id) + ":" + std::to_string(application),
+			       {id, effect.get<EffectTarget>().equipment_name}, expiry < 0 || expiry > tick,
+			       NativeEffectKind::Modifier, application);
+		}
 	if (const auto *abilities = ship.try_get<AbilityRuntime>())
 		for (const auto &[key, grant] : abilities->grants)
 			if (!grant.grant_effect.empty())
@@ -404,7 +412,7 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 				       "ability-effect:" + std::to_string(id) + ":" + std::to_string(grant.generation), owner,
 				       grant.expiry < 0 || grant.expiry > tick, NativeEffectKind::Ability, grant.generation);
 			}
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		if (effect.context.target == id && !effect.context.ordnance)
 		{
 			auto source = active_native_rule_source(effect, retiring);

@@ -15,7 +15,6 @@ bool boarding_visible(EntityId origin, EntityId target) const
 }
 void refresh_boarding_templates()
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	for (const auto &[origin, ship] : entities)
 	{
 		if (origin >= field_identity_base || !ship.has<EquipmentIndex>())
@@ -115,7 +114,6 @@ std::int64_t boarding_roll(EntityId target)
 }
 void boarding_casualty(EntityId ship, flecs::entity team, const BoardingEncounter &e, bool medical)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &mechanism = team.get_mut<CombatMechanism>();
 	auto &state = mechanism.get<TeamState>();
 	const auto roll = boarding_roll(ship);
@@ -157,7 +155,6 @@ void boarding_casualty(EntityId ship, flecs::entity team, const BoardingEncounte
 }
 void boarding_field_care(EntityId origin, AwayMission &mission, bool can_work)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	std::set<std::size_t> party;
 	const auto patients = clinical_patients(origin);
 	for (std::size_t i = 0; i < patients.size(); ++i)
@@ -232,7 +229,6 @@ bool boarding_defender_available(EntityId ship, flecs::entity team) const
 }
 void advance_boarding(std::size_t index)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto &d = away_definitions[index];
 	auto &m = away_missions[index];
 	auto &s = m.boarding;
@@ -371,7 +367,6 @@ void advance_boarding(std::size_t index)
 }
 bool boarding_action(std::size_t index, const std::string &action, const std::string &key)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto &m = away_missions[index];
 	const auto &d = away_definitions[index];
 	auto &s = m.boarding;
@@ -500,7 +495,6 @@ void validate_boarding_state(const AwayDefinition &d, const AwayMission &m) cons
 std::map<EntityId, EntityId> captured_by;
 void capture_boarded_ship(std::size_t index, bool prize)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	const auto &d = away_definitions[index];
 	auto &m = away_missions[index];
 	if (m.boarding.captured)

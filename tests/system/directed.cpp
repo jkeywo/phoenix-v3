@@ -360,9 +360,9 @@ Json burning_and_continuation()
 	command(world, "target", 2);
 	command(world, "operation", 1);
 	world.tick();
-	for (int i = 0; i < 12 && world.save().at("rules").at("active").empty(); ++i)
+	for (int i = 0; i < 12 && world.save().at("active_effects").at("conditions").empty(); ++i)
 		world.tick();
-	const auto applied = world.save().at("rules").at("active");
+	const auto applied = world.save().at("active_effects").at("conditions");
 	require(!applied.empty(), "Actual penetrating hit applies a periodic condition to its struck compartment");
 	for (const auto &effect : applied)
 		require(effect.at("context").at("target") == 2 && effect.at("definition") == "test.burn",
@@ -376,7 +376,7 @@ Json burning_and_continuation()
 	for (int variant = 0; variant < 4; ++variant)
 	{
 		auto bad = good;
-		auto &active = bad["rules"]["active"];
+		auto &active = bad["active_effects"]["conditions"];
 		if (variant == 0)
 			active.push_back(active[0]);
 		else if (variant == 1)
@@ -401,7 +401,7 @@ Json burning_and_continuation()
 		        "Periodic deadlines and payload receipts resume without replay or skipped damage");
 	}
 	require(hp(world) < before, "Inflicted periodic damage continues without operating or funding its gun");
-	require(world.save().at("rules").at("active").empty(), "Expiry retires the periodic effect");
+	require(world.save().at("active_effects").at("conditions").empty(), "Expiry retires the periodic effect");
 	const auto expired_hp = hp(world);
 	ticks(world, 8);
 	require(hp(world) == expired_hp, "An expired effect cannot perform another damage tick");
@@ -501,7 +501,7 @@ Json funded_beam_and_loaded_round()
 	command(world, "target", 2);
 	command(world, "operation", 2);
 	ticks(world, 7);
-	require(world.save().at("rules").at("active").empty(),
+	require(world.save().at("active_effects").at("conditions").empty(),
 	        "A beam does not inherit Burning from a retained loaded ammunition resource");
 	World resumed;
 	resumed.restore(content, world.save());
@@ -515,12 +515,12 @@ Json funded_beam_and_loaded_round()
 	        "Partly funded beam scales its work and preserves fractional damage through restoration");
 	require(saved_ammunition(body(world), "mag") + weapon(world).at("loaded_quantity").get<std::int64_t>() == committed,
 	        "Sustained beam work preserves the preexisting loaded-round commitment without consuming ammunition");
-	require(world.save().at("rules").at("active").empty(),
+	require(world.save().at("active_effects").at("conditions").empty(),
 	        "Repeated beam contacts never invoke an unselected ammunition payload");
 	const auto beam_steps = weapon(world).at("shots").get<std::int64_t>();
 	command(world, "operation", 1);
 	ticks(world, 12);
-	require(weapon(world).at("shots") == beam_steps + 1 && !world.save().at("rules").at("active").empty(),
+	require(weapon(world).at("shots") == beam_steps + 1 && !world.save().at("active_effects").at("conditions").empty(),
 	        "Returning to launch completes normal loading and invokes the retained round's payload once");
 	return world.save();
 }
@@ -808,17 +808,17 @@ Json refresh_and_distinct_sources()
 	command(world, "target", 2);
 	command(world, "operation", 1);
 	world.tick();
-	for (int n = 0; n < 12 && world.save().at("rules").at("active").empty(); ++n)
+	for (int n = 0; n < 12 && world.save().at("active_effects").at("conditions").empty(); ++n)
 		world.tick();
 	// Native effect creation precedes its first source-reconciliation phase.
 	// Observe a real started clock before comparing refresh cadence.
 	world.tick();
-	const auto initial = world.save().at("rules").at("active");
+	const auto initial = world.save().at("active_effects").at("conditions");
 	require(!initial.empty(), "Initial periodic instance created by a real hit");
 	command(world, "target", 2, "gun", 3, 303);
 	command(world, "operation", 1, "gun", 3, 303);
 	ticks(world, 10);
-	const auto active = world.save().at("rules").at("active");
+	const auto active = world.save().at("active_effects").at("conditions");
 	for (const auto &first : initial)
 	{
 		const auto same = std::find_if(active.begin(), active.end(),
@@ -872,9 +872,9 @@ Json source_loss_and_removal()
 	command(world, "target", 2);
 	command(world, "operation", 1);
 	world.tick();
-	for (int n = 0; n < 12 && world.save().at("rules").at("active").empty(); ++n)
+	for (int n = 0; n < 12 && world.save().at("active_effects").at("conditions").empty(); ++n)
 		world.tick();
-	require(!world.save().at("rules").at("active").empty(), "Burning exists before its gun is destroyed");
+	require(!world.save().at("active_effects").at("conditions").empty(), "Burning exists before its gun is destroyed");
 	command(world, "enabled", 0);
 	command(world, "target", 1, "second", 2, 202);
 	world.tick();
@@ -903,12 +903,12 @@ Json source_loss_and_removal()
 	command(removed, "target", 2);
 	command(removed, "operation", 1);
 	removed.tick();
-	for (int n = 0; n < 12 && removed.save().at("rules").at("active").empty(); ++n)
+	for (int n = 0; n < 12 && removed.save().at("active_effects").at("conditions").empty(); ++n)
 		removed.tick();
-	require(!removed.save().at("rules").at("active").empty(), "Removal proof applies through impact");
+	require(!removed.save().at("active_effects").at("conditions").empty(), "Removal proof applies through impact");
 	command(removed, "enabled", 0);
 	ticks(removed, 5);
-	require(removed.save().at("rules").at("active").empty(),
+	require(removed.save().at("active_effects").at("conditions").empty(),
 	        "An explicit effect operation removes the condition before its expiry");
 	const auto removed_hp = hp(removed);
 	ticks(removed, 10);
@@ -937,9 +937,9 @@ Json scenario_removal()
 	command(world, "target", 2);
 	command(world, "operation", 1);
 	world.tick();
-	for (int n = 0; n < 7 && world.save().at("rules").at("active").empty(); ++n)
+	for (int n = 0; n < 7 && world.save().at("active_effects").at("conditions").empty(); ++n)
 		world.tick();
-	require(!world.save().at("rules").at("active").empty(),
+	require(!world.save().at("active_effects").at("conditions").empty(),
 	        "Impact creates condition before scheduled scenario removal");
 	command(world, "enabled", 0);
 	world.tick();
@@ -950,7 +950,7 @@ Json scenario_removal()
 		world.tick();
 		resumed.tick();
 	}
-	require(world.save() == resumed.save() && world.save().at("rules").at("active").empty(),
+	require(world.save() == resumed.save() && world.save().at("active_effects").at("conditions").empty(),
 	        "Trusted scenario removal retires another source's periodic effects deterministically");
 	const auto stopped = hp(world);
 	ticks(world, 12);
@@ -1065,10 +1065,11 @@ int main(int argc, char **argv)
 	{
 		const std::string selected = argc > 2 && std::string(argv[1]) == "--case" ? argv[2] : "";
 		const std::vector<std::string> cases{
-		    "catalogue",      "switching",         "scan-modes",    "funded-beam",      "broad-radar",
-		    "launch-funding", "launch-processor",  "loading-modes", "frozen-contact",   "inflight-source",
-		    "burning",        "refresh",           "source-loss",   "scenario-removal", "typed-hits",
-		    "blasts",         "generated-controls"};
+		    "catalogue",          "switching",        "scan-modes",        "funded-beam",
+		    "broad-radar",        "launch-funding",   "launch-processor",  "loading-modes",
+		    "frozen-contact",     "inflight-source",  "burning",           "refresh",
+		    "source-loss",        "scenario-removal", "typed-hits",        "blasts",
+		    "generated-controls", "periodic-order",   "periodic-rollback", "deferred-callback"};
 		if (!selected.empty() && std::find(cases.begin(), cases.end(), selected) == cases.end())
 			throw std::runtime_error("Unknown directed test case: " + selected);
 		const auto run = [&](const char *name, auto action)
@@ -1168,6 +1169,11 @@ int main(int argc, char **argv)
 			                       return periodic_transaction_rollback();
 		                       }))
 			trace.push_back(std::move(state));
+		trace.push_back(run("periodic-order",
+		                    []
+		                    {
+			                    return periodic_ordered_removal();
+		                    }));
 		trace.push_back(run("deferred-callback",
 		                    []
 		                    {

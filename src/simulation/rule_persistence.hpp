@@ -238,7 +238,7 @@ Json save_rules() const
 	            {"next_instance", next_rule_instance},
 	            {"pending", pending_rules},
 	            {"results", Json::array()},
-	            {"active", active_rule_effects},
+	            {"active", active_rule_snapshot()},
 	            {"ships", Json::array()},
 	            {"origins", Json::array()}};
 	for (const auto &[id, result] : rule_results)
@@ -410,7 +410,7 @@ void restore_rules(const Json &saved)
 	}
 	// Restore only derived addresses after publishing the saved native owners.
 	// World restore operates on an isolated candidate; failures discard it.
-	active_rule_effects = std::move(active);
+	commit_active_rule_effects(active);
 	rule_origins = std::move(origins);
 	for (auto &[id, runtime] : runtimes)
 		entities.at(id).set<RuleRuntime>(std::move(runtime));
@@ -470,7 +470,7 @@ void restore_rules(const Json &saved)
 	for (const auto &[id, ship] : entities)
 		for (const auto &[key, state] : ship.get<RuleRuntime>().executions)
 			validate_link(key, state, 0, id);
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		for (const auto &[key, state] : effect.clocks)
 			validate_link(key, state, effect.id);
 	for (const auto &[key, context] : rule_origins)
@@ -480,7 +480,7 @@ void restore_rules(const Json &saved)
 	for (const auto &[id, ship] : entities)
 		for (const auto &[key, state] : ship.get<RuleRuntime>().executions)
 			saved_clocks.emplace(key, &state);
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		for (const auto &[key, state] : effect.clocks)
 			saved_clocks.emplace(key, &state);
 	const auto validate_maintained_row = [&](EntityId id, const PropertyContribution &contribution)
@@ -539,7 +539,7 @@ void restore_rules(const Json &saved)
 	};
 	for (const auto &[id, ship] : entities)
 	{
-		if (const auto *properties = ship.try_get<PropertyEffects>())
+		if (const auto properties = property_snapshot(ship))
 			for (const auto &contribution : properties->contributions)
 			{
 				validate_maintained_row(id, contribution);
@@ -552,7 +552,7 @@ void restore_rules(const Json &saved)
 			for (const auto &[key, grant] : abilities->grants)
 				check_grant_clock(grant.parent);
 	}
-	for (const auto &effect : active_rule_effects)
+	for (const auto &effect : active_rule_values())
 		check_grant_clock(effect.source);
 	pending_rules = std::move(pending);
 	rule_results = std::move(results);
