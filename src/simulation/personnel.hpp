@@ -131,15 +131,15 @@ void advance_personnel(EntityId id)
 // Maintained applications are derived from current facts, never saved or accumulated.
 // Deployed accompaniment binds only to its actual team; standalone specialists bind to
 // the deployed repair teams or their own logical work participant.
-std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship) const
+PropertyAggregate collect_personnel_properties(flecs::entity ship) const
 {
-	std::vector<PropertyContribution> out;
+	PropertyAggregate out;
 	const auto *state = ship.try_get<PersonnelState>();
 	if (!state)
 		return out;
 	const auto id = ship.get<StableId>().id;
 	const auto &d = definition(id).personnel;
-	std::set<std::tuple<std::string, std::string, std::string, std::string>> seen;
+	std::set<std::tuple<std::size_t, std::string_view, std::string_view, std::string_view, PropertyTargetKey>> seen;
 	auto add = [&](std::size_t i, const std::string &target, const std::string &role,
 	               const std::string &property = std::string{})
 	{
@@ -148,18 +148,10 @@ std::vector<PropertyContribution> collect_personnel_properties(flecs::entity shi
 				for (const auto &c : effect.contributions)
 					if ((role.empty() || c.role == role) && (property.empty() || c.property == property))
 					{
-						const auto source = "officer:" + std::to_string(id) + ":" + d.officers[i].id + ":" + trait;
-						if (!seen.emplace(source, effect.id, c.name, target).second)
+						const auto key = property_target_key(ship, target);
+						if (!seen.emplace(i, trait, effect.id, c.name, key).second)
 							continue;
-						PropertyContribution contribution;
-						contribution.source = source;
-						contribution.definition = effect.id;
-						contribution.name = c.name;
-						contribution.equipment = target;
-						contribution.property = c.property;
-						contribution.delta_permille = c.delta_permille;
-						contribution.maintained = true;
-						out.push_back(std::move(contribution));
+						out[key][static_cast<std::size_t>(property_key(c.property))] += c.delta_permille;
 					}
 	};
 	for (std::size_t i = 0; i < state->officers.size(); ++i)

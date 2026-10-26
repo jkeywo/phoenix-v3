@@ -1,7 +1,7 @@
-std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipment, const std::string &property) const
+std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipment, PropertyKey property) const
 {
 	// Output faults affect native throughput, not prices, discharge conversion or speed limits.
-	if (property == "sustain" || property == "discharge" || property == "speed")
+	if (property == PropertyKey::sustain || property == PropertyKey::discharge || property == PropertyKey::speed)
 		return 0;
 	std::int64_t delta = 0;
 	if (const auto *structure = ship.try_get<CombatStructure>())
@@ -22,18 +22,42 @@ bool property_available(flecs::entity ship, const std::string &equipment) const
 	const auto fitted = instance(ship, equipment);
 	return fitted && fitted->enabled && !structurally_disabled(ship, equipment);
 }
-static std::int64_t aggregate_delta(const PropertyAggregate &values, const std::string &equipment, PropertyKey property,
-                                    const std::string &contribution)
+PropertyTargetKey property_target_key(flecs::entity ship, const std::string &name) const
 {
-	const auto read = [&](const std::string &target)
+	if (const auto *equipment = ship.try_get<EquipmentIndex>())
+		if (const auto at = equipment->by_id.find(name); at != equipment->by_id.end())
+			return {PropertyTargetKind::Equipment, at->second.id(), {}};
+	if (name.starts_with("effect:"))
+	{
+		const auto separator = name.find(':', 7);
+		std::uint64_t id = 0;
+		if (separator != std::string::npos)
+		{
+			const auto parsed = std::from_chars(name.data() + 7, name.data() + separator, id);
+			if (parsed.ec == std::errc{} && parsed.ptr == name.data() + separator)
+				return {PropertyTargetKind::Shield, id, name.substr(separator + 1)};
+		}
+	}
+	return {PropertyTargetKind::Logical, 0, name};
+}
+static PropertyTargetKey property_target_key(const EffectTarget &target)
+{
+	if (target.kind == EffectTargetKind::Equipment)
+		return {PropertyTargetKind::Equipment, target.equipment.id(), {}};
+	return {PropertyTargetKind::Shield, target.contribution, target.contribution_name};
+}
+static std::int64_t aggregate_delta(const PropertyAggregate &values, const PropertyTargetKey &equipment,
+                                    PropertyKey property, const std::optional<PropertyTargetKey> &contribution)
+{
+	const auto read = [&](const PropertyTargetKey &target)
 	{
 		const auto at = values.find(target);
 		return at == values.end() ? std::int64_t{0} : at->second[static_cast<std::size_t>(property)];
 	};
-	return read(equipment) + (contribution.empty() || contribution == equipment ? 0 : read(contribution));
+	return read(equipment) + (!contribution || *contribution == equipment ? 0 : read(*contribution));
 }
-std::int64_t property_delta(flecs::entity ship, const std::string &equipment, PropertyKey property,
-                            const std::string &contribution = {}) const
+std::int64_t property_delta(flecs::entity ship, const PropertyTargetKey &equipment, PropertyKey property,
+                            const std::optional<PropertyTargetKey> &contribution = {}) const
 {
 	std::int64_t delta = 0;
 	if (const auto *effects = ship.try_get<PropertyEffects>())
@@ -43,9 +67,8 @@ std::int64_t property_delta(flecs::entity ship, const std::string &equipment, Pr
 			effects->aggregate.clear();
 			for (const auto &[id, effect] : effects->applications)
 				for (const auto &v : effect.get<ModifierValues>().values)
-					effects
-					    ->aggregate[effect.get<EffectTarget>().equipment_name][static_cast<std::size_t>(v.property)] +=
-					    v.delta;
+					effects->aggregate[property_target_key(effect.get<EffectTarget>())]
+					                  [static_cast<std::size_t>(v.property)] += v.delta;
 			effects->aggregate_valid = true;
 		}
 		delta += aggregate_delta(effects->aggregate, equipment, property, contribution);
@@ -53,22 +76,28 @@ std::int64_t property_delta(flecs::entity ship, const std::string &equipment, Pr
 	auto &maintained = personnel_properties[ship.get<StableId>().id];
 	if (maintained.revision != personnel_property_revision || personnel_property_mutation_depth)
 	{
-		maintained.values.clear();
-		for (const auto &c : collect_personnel_properties(ship))
-			maintained.values[c.equipment][static_cast<std::size_t>(property_key(c.property))] += c.delta_permille;
+		maintained.values = collect_personnel_properties(ship);
 		maintained.revision = personnel_property_revision;
 	}
 	return delta + aggregate_delta(maintained.values, equipment, property, contribution);
+}
+std::int64_t property_delta(flecs::entity ship, const std::string &equipment, PropertyKey property,
+                            const std::string &contribution = {}) const
+{
+	return property_delta(ship, property_target_key(ship, equipment), property,
+	                      contribution.empty() ? std::optional<PropertyTargetKey>{}
+	                                           : property_target_key(ship, contribution));
 }
 std::int64_t property_delta(flecs::entity ship, const std::string &equipment, const std::string &property,
                             const std::string &contribution = {}) const
 {
 	return property_delta(ship, equipment, property_key(property), contribution);
 }
-std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipment, PropertyKey property) const
+std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipment, const std::string &property) const
 {
-	return property_fault_delta(ship, equipment, modifier_properties().at(static_cast<std::size_t>(property)).id);
+	return property_fault_delta(ship, equipment, property_key(property));
 }
+
 std::int64_t effective_property(flecs::entity ship, const std::string &equipment, PropertyKey property,
                                 std::int64_t base, std::int64_t extra_delta = 0,
                                 const std::string &contribution = {}) const

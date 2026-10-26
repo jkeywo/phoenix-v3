@@ -150,8 +150,14 @@ std::uint64_t install_shield_grant(ShieldComponent &owner, const ShieldEffectDef
 std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, PropertyKey property, std::int64_t base,
                              std::int64_t extra_delta = 0) const
 {
-	return effective_property(ship, c.equipment, property, base, extra_delta,
-	                          "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name);
+	// A granted shield's native state already supplies its typed contribution key.
+	// This avoids formatting and reparsing a synthetic equipment identity per read.
+	return apply_property_delta(
+	    base,
+	    property_delta(ship, property_target_key(ship, c.equipment), property,
+	                   PropertyTargetKey{PropertyTargetKind::Shield, c.effect_id, c.definition.name}) +
+	        property_fault_delta(ship, c.equipment, property) + extra_delta,
+	    modifier_properties().at(static_cast<std::size_t>(property)).maximum);
 }
 void step_shield_effects()
 {

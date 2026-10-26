@@ -32,7 +32,27 @@ inline PropertyKey property_key(std::string_view name)
 	throw std::runtime_error("Unknown native property");
 }
 using PropertyTotals = std::array<std::int64_t, static_cast<std::size_t>(PropertyKey::count)>;
-using PropertyAggregate = std::map<std::string, PropertyTotals>;
+enum class PropertyTargetKind
+{
+	Equipment,
+	Shield,
+	Logical
+};
+struct PropertyTargetKey
+{
+	PropertyTargetKind kind = PropertyTargetKind::Logical;
+	std::uint64_t identity = 0;
+	std::string name;
+	bool operator<(const PropertyTargetKey &other) const
+	{
+		return std::tie(kind, identity, name) < std::tie(other.kind, other.identity, other.name);
+	}
+	bool operator==(const PropertyTargetKey &other) const
+	{
+		return kind == other.kind && identity == other.identity && name == other.name;
+	}
+};
+using PropertyAggregate = std::map<PropertyTargetKey, PropertyTotals>;
 struct PersonnelProperties
 {
 	std::uint64_t revision = 0;

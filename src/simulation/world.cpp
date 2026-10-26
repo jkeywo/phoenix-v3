@@ -1,6 +1,8 @@
 module;
 #include <flecs.h>
 #include <chrono>
+#include <charconv>
+#include <string_view>
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
