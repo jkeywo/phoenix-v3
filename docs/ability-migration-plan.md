@@ -1,8 +1,8 @@
 # Shared abilities and psychic migration
 
-26 October 2026 · implementation plan; implementation is in progress. See [evidence and remaining gates](ability-migration-evidence.md).
+26 October 2026 · implemented, independently reviewed and automatically verified. See [evidence and manual acceptance boundaries](ability-migration-evidence.md).
 
-This is the fifth slice of the [shared gameplay engine](gameplay-engine-design.md), following [directed systems and payload effects](directed-systems-migration-plan.md), which is being implemented. Inspect the delivered interfaces before starting this slice. [Resource/store unification](resource-store-evidence.md) supplies shared stock accounting; the preceding directed slice supplies targeting, effect execution and periodic lifetime integration.
+This is the fifth slice of the [shared gameplay engine](gameplay-engine-design.md), following the delivered [directed systems and payload effects](directed-systems-migration-plan.md). [Resource/store unification](resource-store-evidence.md) supplies shared stock accounting; the preceding directed slice supplies targeting, effect execution and periodic lifetime integration.
 
 ## Intended result
 
@@ -134,10 +134,10 @@ Commit each verified logical step. Synthetic fixtures load through the real cata
 
 ## Completion checklist
 
-- [ ] The delivered directed/resource/effect prerequisites are reused.
-- [ ] Officer and equipment grants share activated, prepared and sustained execution.
-- [ ] Explicit exclusions reject conflicts atomically; source recovery survives reassignment and grant churn.
-- [ ] Temporary effect grants have correct refresh, expiry, removal and independent-consequence lifetimes.
-- [ ] All existing psychic powers retain native behaviour with the intentional recovery-owner change.
-- [ ] Standard human/AI controls, Personnel, Workshop, maintained content and saves are migrated.
-- [ ] Retired common psychic execution paths are removed; review findings and verification evidence are recorded.
+- [x] The delivered directed/resource/effect prerequisites are reused.
+- [x] Officer and equipment grants share activated, prepared and sustained execution.
+- [x] Explicit exclusions reject conflicts atomically; source recovery survives reassignment and grant churn.
+- [x] Temporary effect grants have correct refresh, expiry, removal and independent-consequence lifetimes.
+- [x] All existing psychic powers retain native behaviour with the intentional recovery-owner change.
+- [x] Standard human/AI controls, Personnel, Workshop, maintained content and saves are migrated.
+- [x] Retired common psychic execution paths are removed; review findings and verification evidence are recorded.
