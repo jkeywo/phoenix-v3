@@ -161,21 +161,7 @@ inline std::int64_t combat_delta(std::int64_t a, std::int64_t b)
 }
 inline std::int64_t combat_bearing(fixed::Vec v)
 {
-	if (!v.x && !v.y)
-		return 0;
-	const auto x = std::abs(v.x), y = std::abs(v.y);
-	std::int64_t lo = 0, hi = 90000;
-	while (hi - lo > 1)
-	{
-		const auto m = (lo + hi) / 2;
-		const auto d = fixed::direction(m);
-		if (d.y * x < d.x * y)
-			lo = m;
-		else
-			hi = m;
-	}
-	const auto a = (lo + hi) / 2;
-	return v.x >= 0 ? (v.y >= 0 ? a : combat_angle(-a)) : (v.y >= 0 ? 180000 - a : 180000 + a);
+	return fixed::bearing(v);
 }
 inline fixed::Vec combat_local(fixed::Vec world, const Pose &pose)
 {

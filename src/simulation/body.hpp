@@ -24,6 +24,13 @@ struct Motion
 	fixed::Vec velocity, remainder;
 	std::int64_t vertical_velocity = 0;
 };
+inline void damp_motion(Motion &motion, fixed::Vec desired, std::int64_t deceleration, std::int64_t &remainder)
+{
+	remainder += deceleration;
+	const auto step = remainder / World::ticks_per_second;
+	remainder %= World::ticks_per_second;
+	motion.velocity = fixed::damp_velocity(motion.velocity, desired, step);
+}
 struct VerticalMotion
 {
 	std::int64_t altitude = 0, velocity = 0, remainder = 0, acceleration_remainder = 0, desired = 0;
