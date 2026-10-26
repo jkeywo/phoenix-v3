@@ -527,6 +527,7 @@ class ConsoleSurface final : public Rml::EventListener
 		if (action.starts_with("on-screen/"))
 			return on_screen_markup(action);
 		return "<button " + std::string(action.starts_with("game.contacts/") ? "class=\"radar-contacts\" " : "") +
+		       (action.starts_with("camera/") ? "style=\"decorator:none;background-color:transparent\" " : "") +
 		       "id=\"" + Rml::StringUtilities::EncodeRml(id(action)) + "\">" +
 		       (visual.empty() ? Rml::StringUtilities::EncodeRml(translate(label, app_->pseudo_locale))
 		                       : "<span class=\"camera-icon\">" + Rml::StringUtilities::EncodeRml(visual) + "</span>") +

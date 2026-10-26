@@ -28,6 +28,7 @@ import phoenix.session.api;
 
 namespace phoenix
 {
+#include "tool_theme.hpp"
 namespace
 {
 #include "editor_controls.hpp"
@@ -402,7 +403,7 @@ void dust_properties(Json &map)
 		if (!shared.contains(key))
 			shared[key] = Json::object();
 		selected = &shared[key];
-		if (ImGui::Button(tool_label("Reset platform overrides").c_str()))
+		if (tool_button(tool_label("Reset platform overrides").c_str()))
 			*selected = Json::object();
 	}
 	auto &j = *selected;
@@ -434,7 +435,7 @@ void dust_properties(Json &map)
 		auto textures = j.value("textures", defaults.at("textures"));
 		auto texture = textures[i];
 		asset_picker("Mote texture", texture);
-		if (ImGui::Button(tool_label("Use bundled texture").c_str()))
+		if (tool_button(tool_label("Use bundled texture").c_str()))
 			texture = "";
 		if (texture != textures[i])
 		{
@@ -453,7 +454,7 @@ void radar_icon_picker(Json &material)
 		material["radar_sprite"] = current;
 		material.erase("radar_icon");
 	}
-	if (ImGui::Button(tool_label("Clear radar icon").c_str()))
+	if (tool_button(tool_label("Clear radar icon").c_str()))
 	{
 		material.erase("radar_sprite");
 		material.erase("radar_icon");
@@ -524,7 +525,7 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 			}
 			ImGui::PopID();
 		}
-		if (ImGui::Button(tool_label("Duplicate sprite entry").c_str()) && !sprite["entries"].empty())
+		if (tool_button(tool_label("Duplicate sprite entry").c_str()) && !sprite["entries"].empty())
 		{
 			auto entry = sprite["entries"].back();
 			entry["name"] = "entry-" + std::to_string(sprite["entries"].size() + 1);
@@ -534,7 +535,7 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 	}
 	if (!sprite.contains("frames"))
 		return;
-	if (ImGui::Button(tool_label("Use named sprite entries").c_str()))
+	if (tool_button(tool_label("Use named sprite entries").c_str()))
 	{
 		sprite["entries"] = Json::array({{{"name", "default"}, {"frames", sprite.at("frames")}}});
 		sprite.erase("frames");
@@ -577,13 +578,13 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 				real_field("Marker Y", a, "y", 0, 0, static_cast<float>(std::max(0, rect[3])));
 				integer_field("Signed layer", a, "layer");
 				real_field("Nozzle depth offset", a, "depth_offset", 0, -16, 16);
-				if (ImGui::Button(tool_label("Remove attachment").c_str()))
+				if (tool_button(tool_label("Remove attachment").c_str()))
 					remove = it.key();
 				ImGui::PopID();
 			}
 			if (!remove.empty())
 				frame["attachments"].erase(remove);
-			if (ImGui::Button(tool_label("Add engine attachment").c_str()))
+			if (tool_button(tool_label("Add engine attachment").c_str()))
 			{
 				int n = 1;
 				while (frame["attachments"].contains("engine_" + std::to_string(n)))
@@ -598,7 +599,7 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 }
 void sprite_import(Json &render)
 {
-	if (ImGui::Button(tool_label("Import sprite sidecar...").c_str()))
+	if (tool_button(tool_label("Import sprite sidecar...").c_str()))
 		request_file(editor.imports, FilePurpose::WorkshopSprite);
 	if (!editor.pending_sidecar.is_object())
 		return;
@@ -623,7 +624,7 @@ void sprite_import(Json &render)
 	if (ImGui::Checkbox(tool_label("Imported eight-direction billboard").c_str(), &eight))
 		sidecar["billboard_mode"] = eight ? "eight" : "camera";
 	real_field("Imported render scale", sidecar, "render_scale", 1, .001f, 1000000);
-	if (ImGui::Button(tool_label("Apply sprite material").c_str()))
+	if (tool_button(tool_label("Apply sprite material").c_str()))
 		attempt(
 		    [&]
 		    {
@@ -689,7 +690,7 @@ void lighting_preview()
 	ImGui::SliderFloat(tool_label("Preview motion heading").c_str(), &editor.preview_heading, 0, 359);
 	ImGui::InputFloat(tool_label("Preview X (m)").c_str(), &editor.preview_x);
 	ImGui::InputFloat(tool_label("Preview Y (m)").c_str(), &editor.preview_y);
-	if (ImGui::Button(tool_label("Reset preview motion").c_str()))
+	if (tool_button(tool_label("Reset preview motion").c_str()))
 	{
 		editor.preview_x = editor.preview_y = editor.preview_speed = 0;
 	}
@@ -913,7 +914,7 @@ void entity_properties(Json &entity)
 	if (editor.rename_from != id)
 		editor.template_id = editor.rename_from = id;
 	ImGui::InputText(tool_label("Template ID").c_str(), &editor.template_id);
-	if (ImGui::Button(tool_label("Rename template").c_str()))
+	if (tool_button(tool_label("Rename template").c_str()))
 		attempt(
 		    [&]
 		    {
@@ -925,7 +926,7 @@ void entity_properties(Json &entity)
 	if (entity.contains("extends"))
 	{
 		ImGui::TextWrapped("%s", localise("Inherited definition. Flatten before editing its resolved fields.").c_str());
-		if (ImGui::Button(tool_label("Flatten definition").c_str()))
+		if (tool_button(tool_label("Flatten definition").c_str()))
 			attempt(
 			    [&]
 			    {
@@ -962,7 +963,7 @@ void entity_properties(Json &entity)
 		if (render.contains("model"))
 		{
 			string_field("Model asset", render["model"], "asset");
-			if (ImGui::Button(tool_label("Import GLB model...").c_str()))
+			if (tool_button(tool_label("Import GLB model...").c_str()))
 				request_file(editor.imports, FilePurpose::WorkshopModel);
 			vector_edit("Model offset", render["model"], "offset", {});
 			vector_edit("Model rotation (degrees)", render["model"], "rotation", {});
@@ -985,13 +986,13 @@ void entity_properties(Json &entity)
 			ImGui::TextUnformatted(name.c_str());
 			vector_edit("Attachment position", a, "position", {});
 			vector_edit("Attachment direction", a, "direction", {0, 0, 1});
-			if (ImGui::Button(tool_label("Remove attachment").c_str()))
+			if (tool_button(tool_label("Remove attachment").c_str()))
 				remove = name;
 			ImGui::PopID();
 		}
 		if (!remove.empty())
 			render["attachments"].erase(remove);
-		if (ImGui::Button(tool_label("Add engine attachment").c_str()))
+		if (tool_button(tool_label("Add engine attachment").c_str()))
 		{
 			const auto key = "engine_" + std::to_string(render["attachments"].size() + 1);
 			render["attachments"][key] = {{"position", {0, 0, 0}}, {"direction", {0, 0, 1}}};
@@ -1092,7 +1093,7 @@ void console_editor(Application &app, bool inspector)
 	auto &consoles = editor.document.definitions()["consoles"];
 	if (!inspector)
 	{
-		if (ImGui::Button(tool_label("New console").c_str()))
+		if (tool_button(tool_label("New console").c_str()))
 		{
 			const auto prefix = editor.document.manifest().at("id").get<std::string>() + ".console";
 			std::string id;
@@ -1133,7 +1134,7 @@ void console_editor(Application &app, bool inspector)
 	if (editor.console_rename_from != console_id)
 		editor.console_id = editor.console_rename_from = console_id;
 	ImGui::InputText(tool_label("Console ID").c_str(), &editor.console_id);
-	if (ImGui::Button(tool_label("Rename console").c_str()))
+	if (tool_button(tool_label("Rename console").c_str()))
 		attempt(
 		    [&]
 		    {
@@ -1146,7 +1147,7 @@ void console_editor(Application &app, bool inspector)
 	auto &widgets = consoles[editor.console]["widgets"];
 	for (auto [kind, binding] : widget_bindings())
 	{
-		if (ImGui::Button((std::string("Add ") + kind).c_str()))
+		if (tool_button((std::string("Add ") + kind).c_str()))
 		{
 			std::string id;
 			unsigned count = 1;
@@ -1176,7 +1177,7 @@ void console_editor(Application &app, bool inspector)
 			           string_field("Semantic label", widget, "label");
 			           if (widget.at("kind") == "radar")
 			           {
-				           if (!widget.contains("sweep") && ImGui::Button(tool_label("Customize radar sweep").c_str()))
+				           if (!widget.contains("sweep") && tool_button(tool_label("Customize radar sweep").c_str()))
 					           widget["sweep"] = {{"enabled", true},
 					                              {"colour", {.1, .9, .65, .85}},
 					                              {"duration_seconds", 3.0},
@@ -1204,7 +1205,7 @@ void console_editor(Application &app, bool inspector)
 				                                (std::string(key) == "x" || std::string(key) == "y") ? 0 : 1, 1000))
 					           widget[key] = value;
 			           }
-			           const bool remove = ImGui::Button(tool_label("Delete widget").c_str());
+			           const bool remove = tool_button(tool_label("Delete widget").c_str());
 			           ImGui::TreePop();
 			           return remove;
 		           }
@@ -1258,7 +1259,7 @@ void console_editor(Application &app, bool inspector)
 void slots_editor()
 {
 	auto &slots = editor.document.map()["ship_slots"];
-	if (ImGui::Button(tool_label("Add ship slot").c_str()))
+	if (tool_button(tool_label("Add ship slot").c_str()))
 	{
 		std::string id;
 		unsigned count = 1;
@@ -1297,7 +1298,7 @@ void slots_editor()
 						           allowed.erase(found);
 				           }
 			           }
-			           const bool remove = ImGui::Button(tool_label("Remove slot").c_str());
+			           const bool remove = tool_button(tool_label("Remove slot").c_str());
 			           ImGui::TreePop();
 			           return remove;
 		           }
@@ -1330,10 +1331,10 @@ void map_view(Application &app)
 	ImGui::TextWrapped("%s: %s", localise("Editing pack").c_str(),
 	                   editor.document.manifest().at("id").get_ref<const std::string &>().c_str());
 	ImGui::BeginDisabled(editor.saving);
-	if (ImGui::Button(tool_label("Add map").c_str()))
+	if (tool_button(tool_label("Add map").c_str()))
 		attempt(add_map);
 	ImGui::SameLine();
-	if (ImGui::Button(tool_label("Save pack").c_str()))
+	if (tool_button(tool_label("Save pack").c_str()))
 		attempt(
 		    [&]
 		    {
@@ -2014,6 +2015,13 @@ void render_editor(Application &app)
 			    open_base_pack(app);
 		    });
 	}
+	if (editor.started && app.screen == Screen::workshop)
+	{
+		if (const auto catalog = editor.document.preview_ui())
+			apply_tool_theme(*catalog);
+	}
+	else if (app.session)
+		apply_tool_theme(app.session->catalog());
 	static ImVec2 dock_size{};
 	auto dock = ImGui::GetID("PhoenixDock");
 	auto *viewport = ImGui::GetMainViewport();
@@ -2510,9 +2518,9 @@ void render_editor(Application &app)
 	}
 	if (editor.selection == "Entity" && editor.selected)
 	{
-		if (ImGui::Button(tool_label("Duplicate").c_str()))
+		if (tool_button(tool_label("Duplicate").c_str()))
 			editor.document.duplicate(editor.selected);
-		if (ImGui::Button(tool_label("Delete").c_str()))
+		if (tool_button(tool_label("Delete").c_str()))
 		{
 			editor.document.erase(editor.selected);
 			editor.selected = 0;
@@ -2535,20 +2543,20 @@ void render_editor(Application &app)
 	}
 	pack_parent_properties(app);
 	ImGui::InputText(tool_label("Pack ID").c_str(), &editor.pack_name);
-	if (ImGui::Button(tool_label("Apply pack ID").c_str()))
+	if (tool_button(tool_label("Apply pack ID").c_str()))
 		attempt(
 		    [&]
 		    {
 			    editor.document.rename_pack(editor.pack_name);
 			    editor.clear_textures();
 		    });
-	if (ImGui::Button(tool_label("Import PNG").c_str()))
+	if (tool_button(tool_label("Import PNG").c_str()))
 		attempt(
 		    [&]
 		    {
 			    request_file(editor.imports, FilePurpose::WorkshopImage);
 		    });
-	if (ImGui::Button(tool_label("New entity definition").c_str()))
+	if (tool_button(tool_label("New entity definition").c_str()))
 	{
 		editor.document.create_entity();
 		editor.definition = static_cast<int>(editor.document.definitions()["entities"].size() - 1);
@@ -2574,7 +2582,7 @@ void render_editor(Application &app)
 		for (const auto &[id, entity] : editor.document.libraries().entities)
 			if (ImGui::Selectable(id.c_str(), editor.library_parent == id))
 				editor.library_parent = id;
-		if (!editor.library_parent.empty() && ImGui::Button(tool_label("Create derived entity").c_str()))
+		if (!editor.library_parent.empty() && tool_button(tool_label("Create derived entity").c_str()))
 			attempt(
 			    [&]
 			    {
@@ -2591,7 +2599,7 @@ void render_editor(Application &app)
 		auto overrides = [&](const char *kind, const auto &table)
 		{
 			for (const auto &[id, value] : table)
-				if (ImGui::Button((std::string("Override ") + kind + " / " + id).c_str()))
+				if (tool_button((std::string("Override ") + kind + " / " + id).c_str()))
 				{
 					auto &local = editor.document.definitions()[kind];
 					const bool exists = std::any_of(local.begin(), local.end(),

@@ -604,6 +604,13 @@ Json convert_console_layout(const Json &console)
 	                    {"min_height", 320}});
 	return {{"schema", 1}, {"root", {{"id", "console"}, {"kind", "row"}, {"children", children}}}};
 }
+std::vector<std::string> ui_theme_artwork_slots()
+{
+	return {"background",     "panel",           "button",          "button-hover",
+	        "button-pressed", "button-selected", "button-disabled", "tab",
+	        "tab-selected",   "field",           "slider-track",    "slider-thumb",
+	        "progress-track", "progress-fill",   "scrollbar-track", "scrollbar-thumb"};
+}
 Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json &overrides)
 {
 	Json theme = {{"schema", 1},
@@ -613,6 +620,10 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 	                {"text", "#fff0d4"},
 	                {"muted", "#b6c2c8"},
 	                {"accent", "#d6ac64"},
+	                {"positive", "#88d69b"},
+	                {"negative", "#ee8d83"},
+	                {"hover", "#ffd5a5"},
+	                {"pressed", "#d39a64"},
 	                {"focus", "#ffe4b0"},
 	                {"disabled", "#64717b"},
 	                {"error", "#f08070"},
@@ -639,8 +650,8 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 	for (const auto &[key, value] : theme.at("tokens").items())
 	{
 		static const std::set<std::string> supported = {
-		    "background", "panel",  "text",        "muted",     "accent", "focus",        "disabled",
-		    "error",      "border", "font_family", "font_size", "radius", "border_width", "gap"};
+		    "background",  "panel",     "text",   "muted",        "accent", "focus",    "disabled", "error", "border",
+		    "font_family", "font_size", "radius", "border_width", "gap",    "positive", "negative", "hover", "pressed"};
 		ui_require(supported.contains(key), "theme.tokens." + key, "unsupported visual property");
 		if (key == "font_family")
 		{
@@ -659,6 +670,16 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 			           "theme." + key, "expected #RRGGBB or #RRGGBBAA");
 		}
 	}
+	std::map<std::string, std::pair<int, int>> image_sizes;
+	auto image_size = [&](const std::string &reference)
+	{
+		if (!image_sizes.contains(reference))
+		{
+			const auto image = decode_asset_image(catalog.assets.at(reference));
+			image_sizes[reference] = {image.width, image.height};
+		}
+		return image_sizes.at(reference);
+	};
 	for (const auto &[key, value] : theme.at("assets").items())
 	{
 		ui_require(value.is_string() && catalog.assets.contains(value.get<std::string>()), "theme.assets." + key,
@@ -669,7 +690,16 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 			ui_require((ref.ends_with(".ttf") || ref.ends_with(".otf")) && bytes.size() >= 12, "theme.assets." + key,
 			           "expected font asset");
 		else
-			(void)decode_asset_image(bytes);
+			(void)image_size(ref);
+	}
+	if (theme.contains("asset_scale"))
+	{
+		ui_require(theme.at("asset_scale").is_object(), "theme.asset_scale", "expected slot object");
+		for (const auto &[slot, value] : theme.at("asset_scale").items())
+		{
+			ui_require(theme.at("assets").contains(slot), "theme.asset_scale." + slot, "requires image asset");
+			(void)ui_number(theme.at("asset_scale"), slot.c_str(), 1, .001f, 8);
+		}
 	}
 	if (theme.contains("slices"))
 	{
@@ -681,9 +711,9 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 			for (const auto &v : slices)
 				ui_require(v.is_number_integer() && v >= 0 && v <= 16384, "theme.slices",
 				           "expected nonnegative pixel insets");
-			const auto image = decode_asset_image(catalog.assets.at(theme.at("assets").at(slot).get<std::string>()));
-			ui_require(slices[1].get<int>() + slices[3].get<int>() < image.width &&
-			               slices[0].get<int>() + slices[2].get<int>() < image.height,
+			const auto image = image_size(theme.at("assets").at(slot).get<std::string>());
+			ui_require(slices[1].get<int>() + slices[3].get<int>() < image.first &&
+			               slices[0].get<int>() + slices[2].get<int>() < image.second,
 			           "theme.slices." + slot, "insets exceed image bounds");
 		}
 	}
@@ -695,6 +725,11 @@ Json public_ui_theme(const Catalog &catalog)
 	static constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	for (const auto &[slot, value] : theme.at("assets").items())
 	{
+		// The pre-launch browser shell renders only these three artwork roles.
+		// Runtime-only control skins remain in the content pack, not duplicated into launcher metadata.
+		if (slot != "background" && slot != "panel" && slot != "button" && slot != "font" &&
+		    !slot.starts_with("fallback-"))
+			continue;
 		const auto ref = value.get<std::string>();
 		const auto bytes = ref.ends_with(".ttf") || ref.ends_with(".otf")
 		                       ? catalog.assets.at(ref)

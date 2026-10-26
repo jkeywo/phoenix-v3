@@ -424,6 +424,7 @@ UiResolved resolve_console_ui(const UiLayout &, float width, float height, float
                               const std::map<std::string, std::string> &selected_pages = {},
                               bool multiple_consoles = false);
 Json convert_console_layout(const Json &console);
+std::vector<std::string> ui_theme_artwork_slots();
 Json resolved_ui_theme(const Catalog &, const std::string &id = {}, const Json &overrides = Json::object());
 Json public_ui_theme(const Catalog &);
 void verify_ui_definitions(const Catalog &);

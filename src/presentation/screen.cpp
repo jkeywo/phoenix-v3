@@ -428,6 +428,7 @@ public:
 			    {"directory", Json::array()},
 			    {"threads",
 			     Json::array({{{"id", 1},
+			                   {"prompt", 1},
 			                   {"title", "Approach clearance"},
 			                   {"unread", true},
 			                   {"text_allowed", true},

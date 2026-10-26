@@ -267,6 +267,9 @@ int main(int argc, char **argv)
 			require(app.session->lobby_command(command), "Assign Courier Console");
 		}
 		open_window();
+		// Windows constrains a decorated window to the desktop work area.
+		// Borderless spanning matches the native multi-monitor presentation.
+		SetWindowState(FLAG_WINDOW_UNDECORATED);
 		SetWindowSize(5760, 2160);
 		SetTargetFPS(60);
 		bool saw_station_loading = false;
@@ -397,6 +400,8 @@ int main(int argc, char **argv)
 		auto capture = [&](const std::string &name, unsigned route)
 		{
 			auto picture = LoadImageFromScreen();
+			require(picture.width >= 5760 && picture.height >= 2160,
+			        "Spanning capture contains the complete 4K host and both 1080p stations");
 			ImageCrop(&picture, {3840, route == 3 ? 0.f : 1080.f, 1920, 1080});
 			ExportImage(picture, ("build/compact-" + name + ".png").c_str());
 			UnloadImage(picture);

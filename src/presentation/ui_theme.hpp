@@ -64,6 +64,7 @@ public:
 		css += ".theme #gameplay,.theme #sensor-panel,.theme #comms-layer,.theme "
 		       "#settings-panel,.theme .command-card,.theme .menu-column {background-color:" +
 		       token("panel") + ";color:" + token("text") + ";}\n";
+		css += ".theme .station-panel {padding:" + std::to_string(t.at("gap").get<float>() * 2 / 3) + "dp;}\n";
 		std::set<std::string> sources;
 		for (const auto &[slot, reference] : theme.at("assets").items())
 		{
@@ -74,7 +75,8 @@ public:
 				register_theme_font(catalog.assets.at(ref), token("font_family"), slot != "font");
 				continue;
 			}
-			if (slot != "background" && slot != "panel" && slot != "button")
+			const auto slots = ui_theme_artwork_slots();
+			if (std::find(slots.begin(), slots.end(), slot) == slots.end())
 				continue;
 			const auto source = register_menu_image(catalog.assets.at(ref));
 			sources.insert(source);
@@ -90,18 +92,51 @@ public:
 				skin.right = s.at(1);
 				skin.bottom = s.at(2);
 				skin.left = s.at(3);
+				skin.scale = theme.value("asset_scale", Json::object()).value(slot, 1.f);
 				const auto name = "theme-" + slot;
 				css += skin.sprite_sheet(name, source);
 				decoration = skin.decorator(name, "dp");
 			}
-			const std::string selector =
-			    slot == "button" ? ".theme button"
-			    : slot == "background"
-			        ? ".theme #native-menu"
-			        : ".theme #gameplay,.theme .status-widget,.theme .camera_mode-widget,.theme "
-			          ".camera_direction-widget,.theme .menu-column,.theme .command-card,.theme #settings-panel";
-			css += selector + " {decorator:" + decoration + ";}\n";
+			const std::map<std::string, std::string> selectors{
+			    {"background", ".theme #native-menu"},
+			    {"panel", ".theme .station-panel,.theme .engineering-board,.theme #gameplay-readouts,.theme "
+			              "#comms-history,.theme #comms-list,.theme #sensor-panel,.theme .local-settings-card,.theme "
+			              ".command-card,.theme .menu-column"},
+			    {"button", ".theme button"},
+			    {"button-hover", ".theme button:hover,.theme button:focus,.theme button.pad-selected"},
+			    {"button-pressed", ".theme button:active"},
+			    {"button-selected",
+			     ".theme button.selected,.theme button.on,.theme button.off,.theme button.on-screen-active"},
+			    {"button-disabled", ".theme button:disabled,.theme button.disabled"},
+			    {"tab", ".theme #console-tabs button,.theme #layout-tabs button"},
+			    {"tab-selected", ".theme #console-tabs button.selected,.theme #layout-tabs button.selected"},
+			    {"field", ".theme input[type=text],.theme input[type=number],.theme select,.theme textarea"},
+			    {"slider-track", ".theme input slidertrack"},
+			    {"slider-thumb", ".theme input sliderbar"},
+			    {"progress-track", ".theme progress"},
+			    {"progress-fill", ".theme progress fill"},
+			    {"scrollbar-track", ".theme scrollbarvertical slidertrack,.theme scrollbarhorizontal slidertrack"},
+			    {"scrollbar-thumb", ".theme scrollbarvertical sliderbar,.theme scrollbarhorizontal sliderbar"}};
+			css += selectors.at(slot) + " {decorator:" + decoration + ";}\n";
 		}
+		// Tint state artwork independently of live labels and keep custom instruments intact.
+		css += ".theme button:hover,.theme button:focus {image-color:" + token("hover") + ";}\n";
+		css += ".theme button:active {image-color:" + token("pressed") + ";}\n";
+		css += ".theme button.selected,.theme button.on-screen-active,.theme #console-tabs button.selected,.theme "
+		       "#layout-tabs button.selected {image-color:" +
+		       token("accent") + ";}\n";
+		css += ".theme button.on {image-color:" + token("positive") +
+		       ";} .theme button.off {image-color:" + token("negative") + ";}\n";
+		css += ".theme button:disabled,.theme button.disabled,.theme button.disabled:hover {image-color:" +
+		       token("disabled") + ";color:" + token("disabled") + ";}\n";
+		css += ".theme .camera-choices button,.theme button.settings-cog "
+		       "{decorator:none;background-color:transparent;image-color:white;}\n";
+		css += ".theme button.settings-cog {border-width:0dp;} .theme .camera-choices button {border-width:2dp;}\n";
+		css += ".theme input sliderbar,.theme scrollbarvertical sliderbar,.theme scrollbarhorizontal sliderbar "
+		       "{image-color:" +
+		       token("accent") + ";}\n";
+		css += ".theme progress fill {image-color:" + token("positive") + ";}\n";
+		css += ".theme input.throttle slidertrack,.theme input.throttle sliderbar {decorator:none;}\n";
 		Rml::StreamMemory stream(reinterpret_cast<const Rml::byte *>(css.data()), css.size());
 		Rml::StyleSheetContainer generated;
 		if (!generated.LoadStyleSheetContainer(&stream))

@@ -1,0 +1,16 @@
+# Shared sprite theme verification
+
+The shipped pack now assigns the shared artwork slots instead of leaving its theme assets empty. Built-in ImageGen produced `content/base/assets/ui/control-bezel.png` and `panel-bezel.png` from existing UI artwork. The second sprite has a transparent centre for custom radar/map/ship content. Prompt and reference records are in `generation.json` beside the sprites.
+
+Workshop Layout properties offers named artwork slots, source-pixel nine-slice insets and display scale. RmlUi runtime/preview share state skins and tokens; Workshop/GM chrome uses the pack palette, transparent frame and button skins with standard ImGui interactions. Small tool buttons compress decorative edges to retain a clear live label. The shared asset decoder handles both source PNGs and compiled pack images. Repeated slot references share Workshop textures and image validation decodes each source only once per theme resolution.
+
+Manually invoked graphical evidence:
+
+- `build/theme-support-final.log`: 1080p Support at normal/enlarged text, camera/Condition commands, disabled Depart and compact Comms. Captures `build/support-visual-controls.png`, `build/support-visual-controls-large-text.png` and `build/support-comms-compact.png` were inspected for readable labels, transparent frames and unclipped controls.
+- `build/theme-stations-final.log`: Courier/Cruiser stations, 4K host beside 1080p surfaces, operational input, shared viewscreen, star-dependent Engineering and enlarged text. The ordinary compact-station captures were inspected. The journey now uses a borderless spanning window and rejects a capture smaller than 5760×2160 before cropping, preventing Windows work-area limits from silently producing partial station images.
+- `build/theme-workshop-final.log`: disposable layout/header editing, star/state preview changes, phone geometry and export/reopen. Captures include `build/layout-workshop-20.png`, `360.png` and `700.png` with the common `layout-workshop-` prefix. An outdated Comms sample now supplies the current prompt identity.
+- `build/theme-workshop-decoder.log` and `build/theme-workshop-native.png`: final native Workshop render after switching its image upload to the shared pack decoder.
+
+Focused controller-runtime, input/semantics and content/export tests passed 3/3 (`build/theme-regressions.log`). Synthetic theme fixtures cover every artwork role, inherited display scales, invalid scale rejection, Workshop export/reopen and restricted-client preservation. The new scale field is retained by the public UI transfer whitelist. Browser launcher syntax passed `node --check web/launcher.mjs`; its pre-launch background/panel/button subset respects artwork scale and excludes runtime-only artwork from embedded metadata.
+
+Native build/startup checks passed. VS Code still builds and launches `build/native/Release/native.exe`. A real local-profile launch refreshed its bundled base (`build/theme-installed-final.log`); the installed hash matches `Release/assets/base.zip`: `4e86040320bace6aa9b0bac12ccadd09af0f85dfdbb49dee2f06fa3abafc11b3`. The separate disabled mission mod retained its existing hash. `build/theme-installed-menu.png` was visually inspected. Physical touchscreen, screen-reader and browser graphical acceptance remain separate device checks.

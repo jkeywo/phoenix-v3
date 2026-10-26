@@ -68,6 +68,12 @@ int main()
 			console["theme"] = "test.theme";
 			definitions["themes"][0]["assets"] = {{"panel", "test-core:assets/pixel.png"}};
 			definitions["themes"][0]["slices"] = {{"panel", Json::array({0, 0, 0, 0})}};
+			for (const auto &slot : ui_theme_artwork_slots())
+			{
+				definitions["themes"][0]["assets"][slot] = "test-core:assets/pixel.png";
+				definitions["themes"][0]["slices"][slot] = {0, 0, 0, 0};
+				definitions["themes"][0]["asset_scale"][slot] = .25;
+			}
 			definitions["themes"].push_back(
 			    {{"id", "test.theme.child"}, {"extends", "test.theme"}, {"tokens", {{"text", "#eeeeee"}}}});
 			source.manifest["theme"] = "test.theme";
@@ -215,6 +221,15 @@ int main()
 			require(tabs.selected() == "c", "revoked tab selects next available authored neighbour");
 			require(resolved_ui_theme(ui_catalog, "test.theme").at("tokens").at("accent") == "#123456",
 			        "theme merges built-in defaults");
+			for (const auto &slot : ui_theme_artwork_slots())
+				require(resolved_ui_theme(ui_catalog, "test.theme.child").at("asset_scale").at(slot) == .25,
+				        "inherited theme keeps artwork density for every reusable control state");
+			rejected(
+			    [&]
+			    {
+				    (void)resolved_ui_theme(ui_catalog, "test.theme", {{"asset_scale", {{"button", 0}}}});
+			    },
+			    "outside supported range");
 			const auto ship = ui_catalog.entities.begin()->first;
 			const auto client = resolve_packs({console_assets(ui_catalog, ship)});
 			require(
@@ -256,6 +271,10 @@ int main()
 			        "layout definitions participate in ordinary Workshop history");
 			const auto reopened_ui = resolve_packs({read_pack(ui_draft.export_pack())});
 			require(reopened_ui.layouts.contains("test.layout.renamed"), "Workshop saves and reopens reusable layouts");
+			for (const auto &slot : ui_theme_artwork_slots())
+				require(reopened_ui.themes.at("test.theme").at("assets").contains(slot) &&
+				            client.themes.at("test.theme").at("asset_scale").at(slot) == .25,
+				        "Workshop export and restricted client transfer preserve all skin slots and scales");
 
 			definitions["layouts"][0]["compact"] = {
 			    {"id", "compact"}, {"kind", "component"}, {"component", "messages"}};

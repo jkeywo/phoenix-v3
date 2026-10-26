@@ -21,6 +21,7 @@ import phoenix.session.api;
 
 namespace phoenix
 {
+#include "tool_theme.hpp"
 namespace
 {
 #include "editor_controls.hpp"
@@ -95,7 +96,7 @@ struct GameplayEditor
 	}
 	bool button(const char *message) const
 	{
-		const bool pressed = ImGui::Button(label(message).c_str());
+		const bool pressed = tool_button(label(message).c_str());
 		if (controller_probe && probe_action == message)
 		{
 			probe_action.clear();

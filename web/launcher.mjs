@@ -612,6 +612,11 @@ export function themeStyles(theme) {
 	button:focus-visible,input:focus-visible,.selected {outline:2px solid ${colour("focus", "#ffe4b0")};}
 	button:disabled,input:disabled {color:${colour("disabled", "#64717b")};}
 	.error {color:${colour("error", "#f08070")};}`;
+	const numericAssetScale = (value = 1) => {
+		if (typeof value !== "number" || !Number.isFinite(value) || value < 0.001 || value > 8)
+			throw Error("Invalid theme artwork scale");
+		return value;
+	};
 	for (const [slot, source] of Object.entries(theme.asset_data || {})) {
 		if (
 			typeof source !== "string" ||
@@ -637,7 +642,7 @@ export function themeStyles(theme) {
 				slices.some((v) => !Number.isInteger(v) || v < 0 || v > 16384)
 			)
 				throw Error("Invalid nine-slice");
-			css += `${selector} {border-image-source:url("${source}");border-image-slice:${slices.join(" ")} fill;border-image-width:${slices.map((v) => `${v}px`).join(" ")};}`;
+			css += `${selector} {border-image-source:url("${source}");border-image-slice:${slices.join(" ")} fill;border-image-width:${slices.map((v) => `${v * numericAssetScale(theme.asset_scale?.[slot])}px`).join(" ")};}`;
 		} else css += `${selector} {background-image:url("${source}");background-size:cover;}`;
 	}
 	if (fallbacks.length) css += `body {font-family:${family},${fallbacks.join(",")},sans-serif;}`;

@@ -6,7 +6,7 @@ struct LayoutWorkspace
 	std::string rename_from;
 	WorkshopDefinitionKind rename_kind = WorkshopDefinitionKind::Layout;
 	std::string last_error;
-	std::string selected, component = "gameplay", asset_name = "", asset_id = "", theme_name;
+	std::string selected, component = "gameplay", asset_name = "", asset_id = "button", theme_name;
 	std::string drag_source, drag_target, drag_component;
 	int width = 1280, height = 720, text_scale = 100, serial = 1, sample_state = 0, sample_stars = 3;
 	bool interact = false, compact = false, snap = true, resizing = false, focus_canvas = false, hud = false,
@@ -119,7 +119,7 @@ void console_layout_workspace(Application &app)
 		ImGui::TextWrapped(
 		    "%s",
 		    localise("Legacy Console. Convert explicitly to edit responsive layout; bindings are preserved.").c_str());
-		if (ImGui::Button(tool_label("Create responsive layout").c_str()))
+		if (tool_button(tool_label("Create responsive layout").c_str()))
 		{
 			auto source = console;
 			if (layout_workspace.hud && console.contains("compact"))
@@ -147,7 +147,7 @@ void console_layout_workspace(Application &app)
 			ImGui::EndCombo();
 		}
 		ImGui::InputText(tool_label("Reusable asset ID").c_str(), &layout_workspace.asset_name);
-		if (console[layout_field].is_string() && ImGui::Button(tool_label("Rename layout template").c_str()))
+		if (console[layout_field].is_string() && tool_button(tool_label("Rename layout template").c_str()))
 		{
 			layout_workspace.rename_from = console[layout_field].get<std::string>();
 			layout_workspace.rename_kind = WorkshopDefinitionKind::Layout;
@@ -155,7 +155,7 @@ void console_layout_workspace(Application &app)
 		if (console[layout_field].is_string())
 		{
 			ImGui::TextWrapped("%s", localise("Referenced layout. Detach to edit a local copy.").c_str());
-			if (ImGui::Button(tool_label("Detach layout").c_str()))
+			if (tool_button(tool_label("Detach layout").c_str()))
 			{
 				auto value = catalog->layouts.at(console[layout_field].get<std::string>());
 				if (console.contains(override_field))
@@ -165,9 +165,9 @@ void console_layout_workspace(Application &app)
 				console[layout_field] = value;
 				console.erase(override_field);
 			}
-			if (!console.contains(override_field) && ImGui::Button(tool_label("Override layout locally").c_str()))
+			if (!console.contains(override_field) && tool_button(tool_label("Override layout locally").c_str()))
 				console[override_field] = catalog->layouts.at(console[layout_field].get<std::string>());
-			if (console.contains(override_field) && ImGui::Button(tool_label("Revert layout override").c_str()))
+			if (console.contains(override_field) && tool_button(tool_label("Revert layout override").c_str()))
 				console.erase(override_field);
 		}
 		const bool read_only = console[layout_field].is_string() && !console.contains(override_field);
@@ -179,7 +179,7 @@ void console_layout_workspace(Application &app)
 		ImGui::Checkbox(tool_label("Edit compact arrangement").c_str(), &layout_workspace.compact);
 		if (layout_workspace.compact && !definition.contains("compact"))
 		{
-			if (ImGui::Button(tool_label("Override compact arrangement").c_str()))
+			if (tool_button(tool_label("Override compact arrangement").c_str()))
 			{
 				definition["compact"] = definition.at("root");
 				definition["compact"]["kind"] = "tabs";
@@ -188,7 +188,7 @@ void console_layout_workspace(Application &app)
 				ImGui::TextWrapped("%s", localise("Automatic compact pages use named groups.").c_str());
 		}
 		if (layout_workspace.compact && definition.contains("compact") &&
-		    ImGui::Button(tool_label("Restore automatic compact layout").c_str()))
+		    tool_button(tool_label("Restore automatic compact layout").c_str()))
 			definition.erase("compact");
 		auto &root = definition[layout_workspace.compact && definition.contains("compact") ? "compact" : "root"];
 		layout_hierarchy(root);
@@ -214,7 +214,7 @@ void console_layout_workspace(Application &app)
 				}
 			layout_workspace.drag_source.clear();
 		}
-		if (ImGui::Button(tool_label("Save layout template").c_str()) && !layout_workspace.asset_name.empty())
+		if (tool_button(tool_label("Save layout template").c_str()) && !layout_workspace.asset_name.empty())
 		{
 			auto value = definition;
 			value["id"] = layout_workspace.asset_name;
@@ -262,7 +262,7 @@ void console_layout_workspace(Application &app)
 			}
 		}
 		for (const auto &[kind, binding] : widget_bindings())
-			if (ImGui::Button(tool_label(std::string("Create ") + kind + " widget").c_str()))
+			if (tool_button(tool_label(std::string("Create ") + kind + " widget").c_str()))
 			{
 				const auto id = std::string(kind) + std::to_string(layout_workspace.serial++);
 				console["widgets"].push_back({{"id", id},
@@ -283,7 +283,7 @@ void console_layout_workspace(Application &app)
 			}
 
 		for (const char *kind : {"component", "row", "column", "wrap", "tabs", "instruments", "cutout"})
-			if (ImGui::Button(tool_label(std::string("Add ") + kind).c_str()))
+			if (tool_button(tool_label(std::string("Add ") + kind).c_str()))
 			{
 				auto *parent = selected && selected->contains("children") ? selected : &root;
 				if (parent->contains("children"))
@@ -300,7 +300,7 @@ void console_layout_workspace(Application &app)
 			}
 		if (selected)
 		{
-			if (ImGui::Button(tool_label("Save reusable group").c_str()) && !layout_workspace.asset_name.empty())
+			if (tool_button(tool_label("Save reusable group").c_str()) && !layout_workspace.asset_name.empty())
 			{
 				auto &rows = editor.document.definitions()["ui_groups"];
 				if (!rows.is_array())
@@ -313,7 +313,7 @@ void console_layout_workspace(Application &app)
 					rows.push_back({{"id", layout_workspace.asset_name}, {"schema", 1}, {"root", *selected}});
 			}
 			for (const auto &[id, group] : catalog->ui_groups)
-				if (selected->contains("children") && ImGui::Button((localise("Insert group") + " " + id).c_str()))
+				if (selected->contains("children") && tool_button((localise("Insert group") + " " + id).c_str()))
 					(*selected)["children"].push_back(
 					    {{"id", "group" + std::to_string(layout_workspace.serial++)}, {"group", id}});
 		}
@@ -328,7 +328,7 @@ void console_layout_workspace(Application &app)
 		if (selected)
 		{
 			string_field("Panel name", *selected, "label");
-			if (ImGui::Button(tool_label("Duplicate panel").c_str()))
+			if (tool_button(tool_label("Duplicate panel").c_str()))
 			{
 				if (auto *parent = layout_find_parent(root, layout_workspace.selected))
 				{
@@ -382,7 +382,7 @@ void console_layout_workspace(Application &app)
 				}
 			}
 			for (int direction : {-1, 1})
-				if (ImGui::Button(tool_label(direction < 0 ? "Move earlier" : "Move later").c_str()))
+				if (tool_button(tool_label(direction < 0 ? "Move earlier" : "Move later").c_str()))
 				{
 					if (auto *parent = layout_find_parent(root, layout_workspace.selected))
 					{
@@ -470,29 +470,29 @@ void console_layout_workspace(Application &app)
 			}
 			if (selected->value("kind", "") == "component")
 				string_field("Binding target", *selected, "component");
-			if (selected->contains("group") && ImGui::Button(tool_label("Rename reusable group").c_str()))
+			if (selected->contains("group") && tool_button(tool_label("Rename reusable group").c_str()))
 			{
 				layout_workspace.rename_from = selected->at("group").get<std::string>();
 				layout_workspace.rename_kind = WorkshopDefinitionKind::UiGroup;
 			}
-			if (ImGui::Button(tool_label("Detach reusable group").c_str()) && selected->contains("group"))
+			if (tool_button(tool_label("Detach reusable group").c_str()) && selected->contains("group"))
 			{
 				*selected = expand_ui_groups(*catalog, *selected);
 			}
-			if (ImGui::Button(tool_label("Delete layout node").c_str()))
+			if (tool_button(tool_label("Delete layout node").c_str()))
 			{
 				layout_remove_node(root, layout_workspace.selected);
 				selected = nullptr;
 			}
 		}
-		if (ImGui::Button(tool_label("Import font").c_str()))
+		if (tool_button(tool_label("Import font").c_str()))
 			request_file(editor.imports, FilePurpose::WorkshopFont);
 		ImGui::SeparatorText(tool_label("Theme").c_str());
 		const auto current_theme = console.value("theme", std::string{});
 		if (ImGui::BeginCombo(tool_label("Console theme").c_str(),
-		                      current_theme.empty() ? "Built-in" : current_theme.c_str()))
+		                      current_theme.empty() ? "Pack default" : current_theme.c_str()))
 		{
-			if (ImGui::Selectable("Built-in"))
+			if (ImGui::Selectable("Pack default"))
 				console.erase("theme");
 			for (const auto &[id, theme] : catalog->themes)
 				if (ImGui::Selectable(id.c_str()))
@@ -500,12 +500,12 @@ void console_layout_workspace(Application &app)
 			ImGui::EndCombo();
 		}
 		ImGui::InputText(tool_label("New reusable ID").c_str(), &layout_workspace.asset_name);
-		if (!current_theme.empty() && ImGui::Button(tool_label("Rename theme").c_str()))
+		if (!current_theme.empty() && tool_button(tool_label("Rename theme").c_str()))
 		{
 			layout_workspace.rename_from = current_theme;
 			layout_workspace.rename_kind = WorkshopDefinitionKind::Theme;
 		}
-		if (ImGui::Button(tool_label("Create theme").c_str()))
+		if (tool_button(tool_label("Create theme").c_str()))
 		{
 			layout_workspace.theme_name = editor.document.manifest().at("id").get<std::string>() + ".theme" +
 			                              std::to_string(layout_workspace.serial++);
@@ -561,12 +561,21 @@ void console_layout_workspace(Application &app)
 							token.value() = value;
 					}
 				}
-				if (ImGui::Button(tool_label("Use theme for pack and menus").c_str()))
+				if (tool_button(tool_label("Use theme for pack and menus").c_str()))
 					editor.document.manifest()["theme"] = theme.at("id");
-				ImGui::InputText(tool_label("Artwork slot").c_str(), &layout_workspace.asset_id);
-				for (const char *slot : {"panel", "button"})
-					if (theme.at("assets").contains(slot))
+				if (ImGui::BeginCombo(tool_label("Artwork slot").c_str(), layout_workspace.asset_id.c_str()))
+				{
+					for (const auto &slot : ui_theme_artwork_slots())
+						if (ImGui::Selectable(slot.c_str(), layout_workspace.asset_id == slot))
+							layout_workspace.asset_id = slot;
+					ImGui::EndCombo();
+				}
+				for (const auto &slot : ui_theme_artwork_slots())
+					if (slot == layout_workspace.asset_id && theme.at("assets").contains(slot))
 					{
+						float scale = theme.value("asset_scale", Json::object()).value(slot, 1.f);
+						if (ImGui::DragFloat(tool_label(slot + " artwork scale").c_str(), &scale, .005f, .001f, 8.f))
+							theme["asset_scale"][slot] = scale;
 						bool sliced = theme.contains("slices") && theme.at("slices").contains(slot);
 						if (ImGui::Checkbox(tool_label(std::string("Nine-slice ") + slot).c_str(), &sliced))
 						{
@@ -607,14 +616,14 @@ void console_layout_workspace(Application &app)
 		for (const auto &[name, w, h] :
 		     {std::tuple{"Desktop", 1280, 720}, std::tuple{"Tablet", 1024, 768}, std::tuple{"Phone", 390, 844}})
 		{
-			if (ImGui::Button(tool_label(name).c_str()))
+			if (tool_button(tool_label(name).c_str()))
 			{
 				layout_workspace.width = w;
 				layout_workspace.height = h;
 			}
 			ImGui::SameLine();
 		}
-		if (ImGui::Button(tool_label("Rotate").c_str()))
+		if (tool_button(tool_label("Rotate").c_str()))
 			std::swap(layout_workspace.width, layout_workspace.height);
 		ImGui::SliderInt(tool_label("Preview width").c_str(), &layout_workspace.width, 240, 1920);
 		ImGui::SliderInt(tool_label("Preview height").c_str(), &layout_workspace.height, 240, 1920);
@@ -736,7 +745,7 @@ void console_layout_workspace(Application &app)
 		for (const auto &tab : resolved.pages)
 		{
 			ImGui::PushID(tab.id.c_str());
-			if (ImGui::Button(localise(tab.label).c_str()))
+			if (tool_button(localise(tab.label).c_str()))
 				layout_workspace.pages[resolved.page_groups.at(tab.id)] = tab.id;
 			ImGui::PopID();
 			ImGui::SameLine();
