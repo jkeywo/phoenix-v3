@@ -357,13 +357,55 @@ void prepare_ability_grant(AbilityRuntime &runtime, EntityId ship, const EffectO
 	g.generation = runtime.next_generation++;
 	runtime.grants.emplace(id, std::move(g));
 }
-std::string ability_apply_group(EntityId ship, const AbilityGrantState &g,
-                                const std::optional<EffectGroupDefinition> &group)
+EffectGroupInvocation ability_effect_invocation(EntityId ship, const AbilityGrantState &g,
+                                                const EffectGroupDefinition &group) const
 {
-	if (!group)
+	NativeRuleContext context;
+	context.owner = {ship};
+	if (g.source == "officer")
+		context.owner.officer = g.owner;
+	else
+		context.owner.equipment = g.owner;
+	context.source = context.instigator = context.owner;
+	context.subject = {ship};
+	context.target = {g.target ? g.target : ship};
+	context.hit = rule_hit_context(context.subject);
+	context.tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+	EffectGroupInvocation frame;
+	frame.execution = group;
+	frame.protected_ship = ship;
+	frame.attacker = context.target.entity;
+	frame.source = "ability." + std::to_string(ship) + "." + ability_recovery_key(g);
+	frame.original_equipment = context.source.equipment;
+	frame.rule_context = std::move(context);
+	// Ability content predates native damage roles: its protected/attacker
+	// aliases mean caster/selected recipient, independently of who instigated it.
+	const auto role = [](std::string &value)
+	{
+		if (value == "protected")
+			value = "subject";
+		else if (value == "attacker")
+			value = "target";
+	};
+	for (auto &operation : frame.execution.operations)
+		role(operation.target);
+	for (auto &cost : frame.execution.costs)
+		role(cost.payer);
+	return frame;
+}
+std::string ability_apply_groups(EntityId ship, const AbilityGrantState &g,
+                                 const std::optional<EffectGroupDefinition> &start,
+                                 const std::optional<EffectGroupDefinition> &activation = std::nullopt)
+{
+	std::vector<EffectGroupInvocation> frames;
+	if (start)
+		frames.push_back(ability_effect_invocation(ship, g, *start));
+	if (activation)
+		frames.push_back(ability_effect_invocation(ship, g, *activation));
+	if (frames.empty())
 		return {};
-	return execute_effect_group(*group, ship, g.target ? g.target : ship,
-	                            "ability." + std::to_string(ship) + "." + ability_recovery_key(g));
+	auto quote = prepare_effect_groups(frames);
+	return commit_effect_group(quote);
 }
 void ability_request_result(EntityId ship, const AbilityGrantState &g, bool accepted)
 {
@@ -400,7 +442,7 @@ void activate_ability(EntityId ship, const std::string &key, bool activation_com
 	if (entities.at(ship).get<AbilityRuntime>().next_activation >= 9007199254740991ULL)
 		throw std::runtime_error("Ability activation identity exhausted");
 	const auto failure =
-	    activation_committed ? std::string{} : ability_apply_group(ship, snapshot, d.activation_effect);
+	    activation_committed ? std::string{} : ability_apply_groups(ship, snapshot, d.activation_effect);
 	auto &runtime = entities.at(ship).get_mut<AbilityRuntime>();
 	const auto found = runtime.grants.find(key);
 	if (found == runtime.grants.end() || found->second.generation != snapshot.generation)
@@ -586,23 +628,10 @@ void prepare_abilities(EntityId ship)
 			continue;
 		}
 		const auto snapshot = g;
-		auto entry = d.start_effect;
-		if (!d.preparation_ticks && d.activation_effect)
-		{
-			if (!entry)
-				entry = d.activation_effect;
-			else
-			{
-				if (d.activation_effect->energy)
-					entry->payer = d.activation_effect->payer;
-				entry->energy += d.activation_effect->energy;
-				entry->operations.insert(entry->operations.end(), d.activation_effect->operations.begin(),
-				                         d.activation_effect->operations.end());
-			}
-		}
 		if (entities.at(ship).get<AbilityRuntime>().next_activation >= 9007199254740991ULL)
 			throw std::runtime_error("Ability activation identity exhausted");
-		const auto failure = ability_apply_group(ship, snapshot, entry);
+		const auto failure = ability_apply_groups(ship, snapshot, d.start_effect,
+		                                          d.preparation_ticks ? std::nullopt : d.activation_effect);
 		auto &updated = entities.at(ship).get_mut<AbilityRuntime>();
 		if (!updated.grants.contains(key) || updated.grants.at(key).generation != snapshot.generation)
 			continue;

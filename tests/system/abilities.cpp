@@ -182,11 +182,11 @@ void assign(World &world, const std::string &officer, const std::string &duty)
 	require(world.submit(101, request), "ability source reassignment admitted");
 	ticks(world);
 }
-std::int64_t quantity(const World &world, std::size_t index)
+std::int64_t quantity(const World &world, std::size_t index, EntityId actor = 1)
 {
 	const auto saved = world.save();
 	for (const auto &row : saved.at("bodies"))
-		if (row.at("body").at("id") == 1)
+		if (row.at("body").at("id") == actor)
 			return row.at("resources")
 			    .at("network")
 			    .at("stores")
@@ -194,7 +194,7 @@ std::int64_t quantity(const World &world, std::size_t index)
 			    .at("stock")
 			    .at("quantities")
 			    .value("fixture.resource.energy", std::int64_t{0});
-	throw std::runtime_error("Missing ability source stock");
+	throw std::runtime_error("Missing ability actor stock");
 }
 Json without_packs(Json saved)
 {
@@ -994,6 +994,227 @@ Json interruption_and_expiry()
 	}
 	return trace;
 }
+Json explicit_group_costs()
+{
+	Json trace = Json::array();
+	for (const auto &[prepared, stock] : std::vector<std::pair<bool, int>>{{false, 100}, {false, 6}, {true, 6}})
+	{
+		auto source = fixture();
+		source["entities"][0]["resources"]["stores"][0]["initial"] = stock;
+		source["effects"].push_back(Json::parse(R"json({"id":"test.batch.start","kind":"operations",
+            "costs":[{"payer":"source","store":"cell","resource":"fixture.resource.energy","amount":3}],
+            "operations":[{"kind":"add","target":"subject","store":"energy:marker","resource":"fixture.resource.energy","amount":1}]})json"));
+		source["effects"].push_back(Json::parse(R"json({"id":"test.batch.finish","kind":"operations",
+            "costs":[{"payer":"owner","store":"energy:cell","resource":"fixture.resource.energy","amount":4}],
+            "operations":[{"kind":"add","target":"subject","store":"energy:marker","resource":"fixture.resource.energy","amount":2}]})json"));
+		auto &ability_definition = effect(source, prepared ? "test.ability.prepared" : "test.ability.pulse");
+		ability_definition["start_effect"] = "test.batch.start";
+		ability_definition["activation_effect"] = "test.batch.finish";
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		const auto endpoint = prepared ? "equipment-prepared" : "equipment-pulse";
+		command(world, endpoint, true);
+		ticks(world);
+		if (prepared)
+			require(quantity(world, 0) == 3 && quantity(world, 1) == 1 &&
+			            ability(world, endpoint).at("phase") == "preparing",
+			        "prepared start pays its own explicit cost and consequence before a later required activation");
+		else if (stock == 100)
+			require(quantity(world, 0) == 93 && quantity(world, 1) == 3 && ability(world, endpoint).at("ready") > 0,
+			        "instant start and activation commit both explicit costs and independent outputs once");
+		else
+			require(quantity(world, 0) == 6 && quantity(world, 1) == 0 && ability(world, endpoint).at("ready") == 0,
+			        "aliases of one physical reserve share a batch balance and insufficient combined cost rolls back "
+			        "all instant work");
+		World resumed;
+		resumed.restore(catalog, world.save());
+		ticks(world, 8);
+		ticks(resumed, 8);
+		require(world.save() == resumed.save(),
+		        "explicit group payments and prepared activation outcome restore without replay");
+		if (stock == 6)
+		{
+			require(quantity(world, 0) == (prepared ? 3 : 6) && quantity(world, 1) == (prepared ? 1 : 0) &&
+			            ability(world, endpoint).at("ready") == 0,
+			        "failed required activation preserves prior preparation payments but creates no recovery or "
+			        "automatic retries");
+			const auto observed = world.observe(101);
+			for (const auto &owner : observed->gameplay.at("controllers"))
+				if (owner.at("id") == "abilities")
+					require(owner.at("commands").at(endpoint).at("accepted") == false,
+					        "combined explicit cost failure is exposed as the consumed request outcome");
+		}
+		trace.push_back(without_packs(world.save()));
+	}
+	return trace;
+}
+Json separate_group_limits()
+{
+	auto source = fixture();
+	Json operations = Json::array();
+	for (int i = 0; i < 16; ++i)
+		operations.push_back({{"kind", "add"},
+		                      {"target", "subject"},
+		                      {"store", "energy:marker"},
+		                      {"resource", "fixture.resource.energy"},
+		                      {"amount", 1}});
+	for (const auto &[id, amount] :
+	     std::vector<std::pair<std::string, int>>{{"test.limit.start", 3}, {"test.limit.finish", 4}})
+		source["effects"].push_back({{"id", id},
+		                             {"kind", "operations"},
+		                             {"operations", operations},
+		                             {"costs", Json::array({{{"payer", "source"},
+		                                                     {"store", "energy:cell"},
+		                                                     {"resource", "fixture.resource.energy"},
+		                                                     {"amount", amount}}})}});
+	effect(source, "test.ability.pulse")["start_effect"] = "test.limit.start";
+	effect(source, "test.ability.pulse")["activation_effect"] = "test.limit.finish";
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "equipment-pulse", true);
+	ticks(world);
+	require(quantity(world, 0) == 93 && quantity(world, 1) == 32,
+	        "start and activation retain their approved combined operation bound while committing one atomic batch");
+	effect(source, "test.limit.finish")["operations"].push_back(operations[0]);
+	rejects(
+	    [&]
+	    {
+		    (void)load(source);
+	    },
+	    "ability batching cannot relax the combined thirty-two operation authoring limit");
+	effect(source, "test.limit.finish")["operations"].erase(16);
+	for (int i = 16; i < 33; ++i)
+		effect(source, "test.limit.start")["operations"].push_back(operations[0]);
+	rejects(
+	    [&]
+	    {
+		    (void)load(source);
+	    },
+	    "ability batching cannot relax an individual group's native operation limit");
+	return without_packs(world.save());
+}
+Json rich_ability_context()
+{
+	Json trace = Json::array();
+	for (const auto &[officer, legacy] :
+	     std::vector<std::pair<bool, bool>>{{false, false}, {true, false}, {false, true}, {true, true}})
+	{
+		auto source = fixture();
+		const auto endpoint = officer ? "independent-officer" : "equipment-pulse";
+		auto &ship = source["entities"][0];
+		const auto recipient_channel = std::string(endpoint) + "-recipient";
+		effect(source, "test.ability.pulse")["target"] = "contact";
+		for (auto &[id, binding] : ship["ability_controls"].items())
+			if (binding.at("ability") == "test.ability.pulse")
+			{
+				const auto channel = id + "-recipient";
+				binding["target"] = channel;
+				for (auto &controller : ship["control_layout"]["controllers"])
+					if (controller.at("id") == "abilities")
+						controller["commands"].push_back({{"id", channel},
+						                                  {"action", "intent_integer"},
+						                                  {"minimum", 0},
+						                                  {"maximum", 1000000000},
+						                                  {"consumers", Json::array()}});
+			}
+		Json start_cost = {{"payer", legacy ? "protected" : "source"},
+		                   {"store", "cell"},
+		                   {"resource", "fixture.resource.energy"},
+		                   {"amount", 3}};
+		Json finish_cost = {{"payer", legacy ? "attacker" : "owner"},
+		                    {"store", "energy:cell"},
+		                    {"resource", "fixture.resource.energy"},
+		                    {"amount", 4}};
+		if (!officer)
+			start_cost["equipment"] = "$source";
+		source["effects"].push_back({{"id", "test.context.start"},
+		                             {"kind", "operations"},
+		                             {"costs", Json::array({start_cost})},
+		                             {"operations", Json::array({{{"kind", "add"},
+		                                                          {"target", legacy ? "protected" : "subject"},
+		                                                          {"store", "energy:marker"},
+		                                                          {"resource", "fixture.resource.energy"},
+		                                                          {"amount", 1}}})}});
+		source["effects"].push_back({{"id", "test.context.finish"},
+		                             {"kind", "operations"},
+		                             {"costs", Json::array({finish_cost})},
+		                             {"operations", Json::array({{{"kind", "add"},
+		                                                          {"target", legacy ? "attacker" : "target"},
+		                                                          {"store", "energy:marker"},
+		                                                          {"resource", "fixture.resource.energy"},
+		                                                          {"amount", 2}},
+		                                                         {{"kind", "apply"},
+		                                                          {"target", legacy ? "attacker" : "target"},
+		                                                          {"equipment", officer ? "radar" : "$source"},
+		                                                          {"effect", "test.ability.independent"},
+		                                                          {"grant", "context"}}})}});
+		source["effects"].push_back(Json::parse(R"json({"id":"test.context.downstream-group","kind":"operations",
+            "costs":[{"payer":"source","store":"energy:cell","resource":"fixture.resource.energy","amount":1}],
+            "operations":[{"kind":"add","target":"owner","store":"energy:marker","resource":"fixture.resource.energy","amount":1}]})json"));
+		source["effects"].push_back(Json::parse(R"json({"id":"test.context.downstream","kind":"rule","trigger":"tick",
+            "phase":"periodic","period_ticks":1,"when":{"op":"eq","args":[{"fact":"source.entity"},{"fact":"instigator.entity"}]},
+            "effect":"test.context.downstream-group"})json"));
+		effect(source, "test.ability.independent")["rules"] =
+		    Json::array({{{"id", "provenance"}, {"rule", "test.context.downstream"}}});
+		effect(source, "test.ability.pulse")["start_effect"] = "test.context.start";
+		effect(source, "test.ability.pulse")["activation_effect"] = "test.context.finish";
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		const auto observed = world.observe(101);
+		bool submitted = false;
+		for (const auto &owner : observed->gameplay.at("controllers"))
+			if (owner.at("id") == "abilities")
+				submitted = world.submit(
+				    101, OperatingCommand{1, {}, 2, {}, "abilities", recipient_channel, owner.at("generation")});
+		require(submitted, "ordinary Console selects an observed cross-ship ability recipient");
+		ticks(world);
+		command(world, endpoint, true);
+		ticks(world);
+		const auto source_paid = legacy ? 97 : 93;
+		const auto recipient_paid = legacy ? 96 : 100;
+		require(quantity(world, 0, 1) == source_paid && quantity(world, 0, 2) == recipient_paid &&
+		            quantity(world, 1, 1) == 1 && quantity(world, 1, 2) == 2,
+		        "ability source costs, caster-subject output and selected-recipient output resolve to distinct "
+		        "physical ships");
+		bool provenance = false;
+		const auto committed = world.save();
+		for (const auto &origin : committed.at("rules").at("origins"))
+			if (origin.at("target") == 2 &&
+			    origin.at("source").get<std::string>().find("ability.") != std::string::npos)
+			{
+				const auto &context = origin.at("context");
+				provenance = context.at("source").at("entity") == 1 && context.at("owner").at("entity") == 1 &&
+				             context.at("instigator").at("entity") == 1 && context.at("subject").at("entity") == 1 &&
+				             context.at("target").at("entity") == 2 &&
+				             context.at("source").at(officer ? "officer" : "equipment") == (officer ? "c" : "radar");
+			}
+		require(provenance, "downstream native effect provenance retains the performing officer or equipment and rich "
+		                    "caster/recipient roles");
+		bool modifier_on_recipient = false;
+		for (const auto &row : committed.at("bodies"))
+			if (row.at("body").at("id") == 2)
+				for (const auto &modifier : row.at("property_effects").at("contributions"))
+					modifier_on_recipient = modifier_on_recipient || modifier.at("equipment") == "radar";
+		require(modifier_on_recipient, "equipment source reference selects the matching recipient fitting while "
+		                               "retaining original source identity");
+		World resumed;
+		resumed.restore(catalog, committed);
+		ticks(world, 4);
+		ticks(resumed, 4);
+		require(world.save() == resumed.save() && quantity(world, 0, 1) < source_paid &&
+		            quantity(world, 0, 2) == recipient_paid && quantity(world, 1, 2) > 2,
+		        "independent downstream rules continue charging original source and publishing recipient output after "
+		        "exact restore");
+		trace.push_back(without_packs(world.save()));
+	}
+	return trace;
+}
 } // namespace
 int main(int argc, char **argv)
 {
@@ -1020,6 +1241,9 @@ int main(int argc, char **argv)
 		                    run("AI ability facts", ai_ability_facts),
 		                    run("partial funding", partial_funding),
 		                    run("atomic required groups", atomic_required_groups),
+		                    run("explicit group costs", explicit_group_costs),
+		                    run("ability group limits", separate_group_limits),
+		                    run("rich ability context", rich_ability_context),
 		                    run("removal owner identity", removal_owner_identity),
 		                    run("late grant replacement", late_grant_replacement),
 		                    run("temporary grants", temporary_grants),

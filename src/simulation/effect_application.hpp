@@ -6,11 +6,6 @@ enum class EffectApplicationKind
 	Modifier
 };
 using EffectApplicationOperation = ScenarioEffectOperation;
-enum class EffectSourceKind
-{
-	Scenario,
-	Reaction
-};
 struct EffectApplication
 {
 	EffectApplicationKind kind;
@@ -22,13 +17,11 @@ static void validate_effect_identity(const std::string &source, const std::strin
 	if (source.empty() || source.size() > 512 || equipment.size() > 256 || (requires_equipment && equipment.empty()))
 		throw std::runtime_error("Invalid effect application identity");
 }
-static std::string effect_source(EffectSourceKind kind, std::uint64_t owner, const std::string &grant,
-                                 const std::string &parent = {})
+static std::string scenario_effect_source(std::uint64_t owner, const std::string &grant)
 {
-	if (grant.empty() || (kind == EffectSourceKind::Reaction && parent.empty()))
+	if (grant.empty())
 		throw std::runtime_error("Invalid effect source identity");
-	auto source = std::string(kind == EffectSourceKind::Scenario ? "scenario." : "reaction.") + std::to_string(owner) +
-	              "." + (parent.empty() ? std::string{} : parent + ".") + grant;
+	auto source = "scenario." + std::to_string(owner) + "." + grant;
 	validate_effect_identity(source, {}, false);
 	return source;
 }
@@ -127,11 +120,11 @@ void apply_scenario_effect(const ScenarioEffectRequest &request)
 			throw std::runtime_error("Incompatible modifier target");
 		properties = prepare_property_effects(ship);
 	}
-	prepare_effect_application(
-	    ship,
-	    {kind, request.operation, effect_source(EffectSourceKind::Scenario, request.token.instance, request.grant),
-	     request.equipment, request.definition},
-	    shields ? &*shields : nullptr, properties ? &*properties : nullptr, ecs.get<Clock>().tick);
+	prepare_effect_application(ship,
+	                           {kind, request.operation, scenario_effect_source(request.token.instance, request.grant),
+	                            request.equipment, request.definition},
+	                           shields ? &*shields : nullptr, properties ? &*properties : nullptr,
+	                           ecs.get<Clock>().tick);
 	if (shields)
 		ship.set<ShieldComponent>(std::move(*shields));
 	if (properties)
