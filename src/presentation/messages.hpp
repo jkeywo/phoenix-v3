@@ -22,28 +22,27 @@ inline ConsoleMessageView conversation_message(const Json &message, const std::s
 		row.avatar = catalog.assets.at(portrait);
 	return row;
 }
-inline std::string markup(const ConsoleMessageView &message)
+inline std::string markup(const ConsoleMessageView &message, bool compact = false)
 {
 	const auto escape = [](const std::string &text)
 	{
 		return Rml::StringUtilities::EncodeRml(text);
 	};
 	const auto portrait = message.avatar.empty() ? asset(message.portrait) : register_menu_image(message.avatar);
-	return "<div "
-	       "style=\"display:block;position:relative;width:100%;box-sizing:border-box;min-height:64px;padding-left:72px;"
-	       "margin:12px 0;\">"
-	       "<img src=\"" +
-	       escape(portrait) +
-	       "\" style=\"display:block;position:absolute;left:0;top:0;width:56px;height:56px;\"/>"
-	       "<div style=\"display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:5px;\">" +
-	       escape(message.sender) +
-	       "</div>"
+	const std::string avatar = compact ? "48px" : "56px";
+	return "<div style=\"display:block;position:relative;width:100%;box-sizing:border-box;min-height:" +
+	       std::string(compact ? "52px;padding-left:64px;margin:4px 0;" : "64px;padding-left:72px;margin:12px 0;") +
+	       "\">" + "<img src=\"" + escape(portrait) +
+	       "\" style=\"display:block;position:absolute;left:0;top:0;width:" + avatar + ";height:" + avatar + ";\"/>" +
+	       "<div style=\"display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:" +
+	       std::string(compact ? "2px;" : "5px;") + "\">" + escape(message.sender) + "</div>" +
 	       "<div "
 	       "style=\"display:block;position:relative;width:100%;box-sizing:border-box;background:#fff7e5;color:#191919;"
-	       "border:2px #191919;"
-	       "border-radius:12px;padding:10px;\">"
-	       "<div style=\"display:block;position:absolute;left:-7px;top:12px;width:10px;height:10px;"
-	       "background:#fff7e5;border-left:2px #191919;border-bottom:2px #191919;transform:rotate(45deg);\"></div>"
+	       "border:2px #191919;border-radius:12px;padding:" +
+	       std::string(compact ? "6px;" : "10px;") + "\">" +
+	       "<div "
+	       "style=\"display:block;position:absolute;left:-7px;top:12px;width:10px;height:10px;background:#fff7e5;"
+	       "border-left:2px #191919;border-bottom:2px #191919;transform:rotate(45deg);\"></div>" +
 	       "<div class=\"message-text\" style=\"display:block;width:100%;box-sizing:border-box;font-family:Comic "
 	       "Neue;font-size:1.1em;white-space:pre-wrap;word-break:break-word;\">" +
 	       escape(message.text) + "</div></div></div>";
@@ -51,7 +50,8 @@ inline std::string markup(const ConsoleMessageView &message)
 // Keep existing rows mounted. Arriving messages neither recreate focused siblings
 // nor reset the containing history's scroll position.
 inline void refresh(Rml::ElementDocument &document, Rml::Element &panel,
-                    const std::vector<ConsoleMessageView> &messages, Application &app, const std::string &prefix = {})
+                    const std::vector<ConsoleMessageView> &messages, Application &app, const std::string &prefix = {},
+                    bool compact = false)
 {
 	panel.SetProperty("display", "block");
 	std::set<std::string> keep;
@@ -70,7 +70,7 @@ inline void refresh(Rml::ElementDocument &document, Rml::Element &panel,
 		auto presented = message;
 		if (app.session && app.session->catalog().assets.contains(message.portrait))
 			presented.avatar = app.session->catalog().assets.at(message.portrait);
-		const auto text = markup(presented);
+		const auto text = markup(presented, compact);
 		if (row->GetAttribute<std::string>("data-message", "") != text)
 		{
 			row->SetInnerRML(text);

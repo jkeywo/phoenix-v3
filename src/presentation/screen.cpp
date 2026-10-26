@@ -1084,6 +1084,10 @@ bool probe_console_navigation(ConsoleId route, unsigned stage)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_navigation(stage);
 }
+bool probe_console_support_visuals(ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_support_visuals();
+}
 bool probe_console_fit(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_fit();

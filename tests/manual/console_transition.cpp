@@ -115,6 +115,106 @@ void verify_viewscreen(const std::string &directory)
 		TakeScreenshot(("build/viewscreen-condition-" + std::to_string(width) + ".png").c_str());
 	}
 }
+void verify_support(const std::string &directory)
+{
+	Application app;
+	app.can_host = true;
+	app.session = make_local_session();
+	app.session->add_pack(read_file(directory + "/base.zip"));
+	app.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "support"});
+	app.screen = Screen::console;
+	app.console_regions = {{1, 0, 0, 1920, 1080}};
+	SetWindowSize(1920, 1080);
+	SetTargetFPS(60);
+	auto frame = [&]
+	{
+		app.session->tick();
+		BeginDrawing();
+		draw_screen(app);
+		EndDrawing();
+	};
+	for (int i = 0; i < 1200; ++i)
+	{
+		frame();
+		if (std::any_of(app.screen_inputs.begin(), app.screen_inputs.end(),
+		                [](const auto &field)
+		                {
+			                return field.id == "console/1/support-condition";
+		                }))
+			break;
+	}
+	for (int i = 0; i < 20; ++i)
+		frame();
+	TakeScreenshot("build/support-visual-initial.png");
+	require(probe_console_fit(1) && probe_console_support_visuals(1),
+	        "Support camera, condition and shield panels are rendered and fit at 1080p");
+	require(std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+	                     [](const auto &control)
+	                     {
+		                     return control.second == "All objectives";
+	                     }),
+	        "Support has no All Objectives button");
+	const auto depart = std::string("console/1/task/ftl-controls/1");
+	require(app.control_placements.contains(depart) && !app.control_placements.at(depart).enabled,
+	        "Depart is visibly and semantically disabled before charge readiness");
+	require(probe_console_tab(1, "task/ftl-controls/0"), "Prepare appears before Depart");
+	for (int i = 0; i < 10; ++i)
+		frame();
+	require(std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+	                    [](const auto &control)
+	                    {
+		                    return control.first == "console/1/task/ftl-controls/0" && control.second == "Cancel FTL";
+	                    }),
+	        "Prepare becomes Cancel while charging");
+	require(probe_console_tab(1, "task/ftl-controls/0"), "Cancel stops preparation");
+	for (int i = 0; i < 4; ++i)
+		frame();
+	require(probe_console_tab(1, "camera/camera-mode/1"), "Support reuses the ordinary camera mode widget");
+	for (int i = 0; i < 4; ++i)
+		frame();
+	require(probe_console_tab(1, "camera/camera-direction/2"), "Support reuses the ordinary camera direction widget");
+	for (int i = 0; i < 4; ++i)
+		frame();
+	ConsoleModel cameras;
+	cameras.refresh(app.session, 1);
+	require(cameras.camera().mode == 1 && cameras.camera().direction == 2,
+	        "Existing camera widgets update authoritative camera state");
+	for (const int condition : {1, 5, 3})
+	{
+		require(app.set_control_value("console/1/support-condition", std::to_string(condition)),
+		        "Condition slider uses admitted commands");
+		for (int i = 0; i < 10; ++i)
+			frame();
+		require(app.session->public_board().at("alert").at("id") == "condition-" + std::to_string(condition),
+		        "Numbered slider selects the matching authored condition");
+	}
+	TakeScreenshot("build/support-visual-controls.png");
+	require(probe_console_tab(1, "settings"), "Open Support text settings");
+	for (int i = 0; i < 3; ++i)
+		frame();
+	require(probe_console_tab(1, "local-settings.larger"), "Enlarge Support text");
+	require(probe_console_tab(1, "local-settings.close"), "Close Support text settings");
+	for (int i = 0; i < 10; ++i)
+		frame();
+	require(probe_console_fit(1) && probe_console_support_visuals(1),
+	        "Support visual controls render and fit with enlarged text");
+	TakeScreenshot("build/support-visual-controls-large-text.png");
+	require(probe_console_tab(1, "console-page/comms/"), "Open compact Comms page");
+	for (int i = 0; i < 10; ++i)
+		frame();
+	std::string conversation;
+	for (const auto &[key, label] : app.screen_controls)
+		if (key.starts_with("console/1/comms/select/"))
+		{
+			conversation = key.substr(10);
+			break;
+		}
+	require(!conversation.empty() && probe_console_tab(1, conversation), "Select a real conversation");
+	for (int i = 0; i < 15; ++i)
+		frame();
+	require(probe_console_conversation(1), "Comms history uses the available width and vertical space");
+	TakeScreenshot("build/support-comms-compact.png");
+}
 int main(int argc, char **argv)
 {
 	try
@@ -135,6 +235,14 @@ int main(int argc, char **argv)
 			verify_viewscreen(argv[1]);
 			close_window();
 			std::cout << "PASS viewscreen condition frame at 1080p and 4K" << std::endl;
+			return 0;
+		}
+		if (argc == 3 && std::string(argv[2]) == "--support-only")
+		{
+			open_window();
+			verify_support(argv[1]);
+			close_window();
+			std::cout << "PASS Support camera widgets, condition slider and ship shield diagram" << std::endl;
 			return 0;
 		}
 		Application app;

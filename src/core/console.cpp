@@ -521,6 +521,18 @@ UiAvailability console_ui_availability(const Observation &view)
 		result.features.insert("ftl");
 	if (!view.gameplay.value("teams", Json::array()).empty())
 		result.features.insert("teams");
+	const auto conversations = view.gameplay.value("conversations", Json::object());
+	for (const auto &thread : conversations.value("threads", Json::array()))
+		if (const auto selected = conversations.value("selected", std::uint64_t{0});
+		    selected && thread.value("id", std::uint64_t{0}) == selected)
+		{
+			if (!thread.value("incoming", Json::array()).empty())
+				result.features.insert("conversation-incoming");
+			if (!thread.value("choices", Json::array()).empty())
+				result.features.insert("conversation-replies");
+			if (thread.value("text_allowed", false))
+				result.features.insert("conversation-compose");
+		}
 	for (const auto &extra : view.additional_consoles)
 	{
 		const auto granted = console_ui_availability(extra);

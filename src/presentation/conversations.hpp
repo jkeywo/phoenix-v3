@@ -159,10 +159,15 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	{
 		header += "<div style=\"display:block;width:" + width + ";font-size:1.1em;margin:4dp 0;\">" +
 		          escape(localise(thread->at("title").get<std::string>())) + "</div>";
+		header += "<div style=\"display:block;width:" + width + ";\">";
+		bool first = true;
 		for (const auto &p : thread->at("members"))
-			header += "<div style=\"display:block;width:" + width + ";\">" +
-			          escape(localise(p.at("name").get<std::string>())) + " — " +
-			          escape(localise(p.at("connected").get<bool>() ? "Connected" : "Out of contact")) + "</div>";
+		{
+			header += (first ? "" : " · ") + escape(localise(p.at("name").get<std::string>())) + " — " +
+			          escape(localise(p.at("connected").get<bool>() ? "Connected" : "Out of contact"));
+			first = false;
+		}
+		header += "</div>";
 	}
 	auto *head = document_->GetElementById("comms-header");
 	if (!authored)
@@ -185,7 +190,7 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	auto *history = document_->GetElementById("comms-history");
 	const bool at_bottom = history->GetScrollTop() + history->GetClientHeight() >= history->GetScrollHeight() - 8;
 	const auto readout_count = app.screen_readouts.size();
-	message_ui::refresh(*document_, *history, messages, app, id(""));
+	message_ui::refresh(*document_, *history, messages, app, id(""), true);
 
 	if (thread)
 		for (const auto &message : thread->at("messages"))

@@ -124,6 +124,23 @@ int main(int argc, char **argv)
 				control["enabled"] = false;
 			require(console_ui_availability(unavailable) == ui.ui_availability(),
 			        "transient command readiness does not change structural UI visibility");
+			auto conversation = unavailable;
+			conversation.gameplay["conversations"] = {
+			    {"selected", 7},
+			    {"threads", Json::array({{{"id", 7},
+			                              {"incoming", Json::array({{{"name", "Operator"}}})},
+			                              {"choices", Json::array({{{"id", "reply"}}})},
+			                              {"text_allowed", true}}})}};
+			const auto occupied = console_ui_availability(conversation);
+			require(occupied.features.contains("conversation-incoming") &&
+			            occupied.features.contains("conversation-replies") &&
+			            occupied.features.contains("conversation-compose"),
+			        "selected conversation exposes only occupied optional layout slots");
+			conversation.gameplay["conversations"]["threads"][0]["incoming"] = Json::array();
+			conversation.gameplay["conversations"]["threads"][0]["choices"] = Json::array();
+			conversation.gameplay["conversations"]["threads"][0]["text_allowed"] = false;
+			require(console_ui_availability(conversation) == console_ui_availability(unavailable),
+			        "empty optional conversation slots release their authored layout space");
 		}
 
 		{

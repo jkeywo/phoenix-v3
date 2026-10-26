@@ -64898,12 +64898,30 @@
 								"children": [
 									{
 										"id": "viewscreen-controls",
-										"kind": "component",
-										"component": "viewscreen-controls",
+										"kind": "row",
 										"label": "Viewscreen",
 										"height": 210,
 										"min_height": 210,
-										"stretch": 0
+										"stretch": 0,
+										"when": {
+											"features": ["camera"]
+										},
+										"children": [
+											{
+												"id": "camera-mode",
+												"kind": "component",
+												"component": "camera-mode",
+												"label": "Camera mode",
+												"min_height": 180
+											},
+											{
+												"id": "camera-direction",
+												"kind": "component",
+												"component": "camera-direction",
+												"label": "Camera direction",
+												"min_height": 180
+											}
+										]
 									},
 									{
 										"id": "alert-controls",
@@ -65010,12 +65028,30 @@
 								"children": [
 									{
 										"id": "viewscreen-controls",
-										"kind": "component",
-										"component": "viewscreen-controls",
+										"kind": "row",
 										"label": "Viewscreen",
 										"height": 210,
 										"min_height": 210,
-										"stretch": 0
+										"stretch": 0,
+										"when": {
+											"features": ["camera"]
+										},
+										"children": [
+											{
+												"id": "camera-mode",
+												"kind": "component",
+												"component": "camera-mode",
+												"label": "Camera mode",
+												"min_height": 180
+											},
+											{
+												"id": "camera-direction",
+												"kind": "component",
+												"component": "camera-direction",
+												"label": "Camera direction",
+												"min_height": 180
+											}
+										]
 									},
 									{
 										"id": "alert-controls",
@@ -65449,6 +65485,7 @@
 					{
 						"id": "conversation",
 						"kind": "column",
+						"gap": 4,
 						"label": "Conversation",
 						"children": [
 							{
@@ -65456,7 +65493,7 @@
 								"kind": "component",
 								"component": "conversation-header",
 								"label": "Participants",
-								"min_height": 110,
+								"min_height": 126,
 								"stretch": 0
 							},
 							{
@@ -65473,14 +65510,21 @@
 								"component": "conversation-incoming",
 								"label": "Incoming",
 								"min_height": 16,
-								"stretch": 0
+								"stretch": 0,
+								"when": {
+									"features": ["conversation-incoming"]
+								}
 							},
 							{
 								"id": "replies",
 								"kind": "component",
 								"component": "conversation-replies",
 								"label": "Replies",
-								"min_height": 44
+								"min_height": 52,
+								"stretch": 0,
+								"when": {
+									"features": ["conversation-replies"]
+								}
 							},
 							{
 								"id": "compose",
@@ -65488,7 +65532,10 @@
 								"component": "conversation-compose",
 								"label": "Message",
 								"min_height": 52,
-								"stretch": 0
+								"stretch": 0,
+								"when": {
+									"features": ["conversation-compose"]
+								}
 							}
 						],
 						"min_width": 360
@@ -66248,12 +66295,30 @@
 								"children": [
 									{
 										"id": "viewscreen-controls",
-										"kind": "component",
-										"component": "viewscreen-controls",
+										"kind": "row",
 										"label": "Viewscreen",
 										"height": 210,
 										"min_height": 210,
-										"stretch": 0
+										"stretch": 0,
+										"when": {
+											"features": ["camera"]
+										},
+										"children": [
+											{
+												"id": "camera-mode",
+												"kind": "component",
+												"component": "camera-mode",
+												"label": "Camera mode",
+												"min_height": 180
+											},
+											{
+												"id": "camera-direction",
+												"kind": "component",
+												"component": "camera-direction",
+												"label": "Camera direction",
+												"min_height": 180
+											}
+										]
 									},
 									{
 										"id": "alert-controls",
@@ -66361,12 +66426,30 @@
 								"children": [
 									{
 										"id": "viewscreen-controls",
-										"kind": "component",
-										"component": "viewscreen-controls",
+										"kind": "row",
 										"label": "Viewscreen",
 										"height": 210,
 										"min_height": 210,
-										"stretch": 0
+										"stretch": 0,
+										"when": {
+											"features": ["camera"]
+										},
+										"children": [
+											{
+												"id": "camera-mode",
+												"kind": "component",
+												"component": "camera-mode",
+												"label": "Camera mode",
+												"min_height": 180
+											},
+											{
+												"id": "camera-direction",
+												"kind": "component",
+												"component": "camera-direction",
+												"label": "Camera direction",
+												"min_height": 180
+											}
+										]
 									},
 									{
 										"id": "alert-controls",
@@ -67126,12 +67209,30 @@
 								"children": [
 									{
 										"id": "viewscreen-controls",
-										"kind": "component",
-										"component": "viewscreen-controls",
+										"kind": "row",
 										"label": "Viewscreen",
 										"height": 210,
 										"min_height": 210,
-										"stretch": 0
+										"stretch": 0,
+										"when": {
+											"features": ["camera"]
+										},
+										"children": [
+											{
+												"id": "camera-mode",
+												"kind": "component",
+												"component": "camera-mode",
+												"label": "Camera mode",
+												"min_height": 180
+											},
+											{
+												"id": "camera-direction",
+												"kind": "component",
+												"component": "camera-direction",
+												"label": "Camera direction",
+												"min_height": 180
+											}
+										]
 									},
 									{
 										"id": "alert-controls",
@@ -67239,12 +67340,30 @@
 								"children": [
 									{
 										"id": "viewscreen-controls",
-										"kind": "component",
-										"component": "viewscreen-controls",
+										"kind": "row",
 										"label": "Viewscreen",
 										"height": 210,
 										"min_height": 210,
-										"stretch": 0
+										"stretch": 0,
+										"when": {
+											"features": ["camera"]
+										},
+										"children": [
+											{
+												"id": "camera-mode",
+												"kind": "component",
+												"component": "camera-mode",
+												"label": "Camera mode",
+												"min_height": 180
+											},
+											{
+												"id": "camera-direction",
+												"kind": "component",
+												"component": "camera-direction",
+												"label": "Camera direction",
+												"min_height": 180
+											}
+										]
 									},
 									{
 										"id": "alert-controls",

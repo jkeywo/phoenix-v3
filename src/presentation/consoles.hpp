@@ -501,7 +501,9 @@ class ConsoleSurface final : public Rml::EventListener
 			                                element->GetOffsetWidth(),
 			                                element->GetOffsetHeight(),
 			                                context_->GetFocusElement() == element,
-			                                true};
+			                                !element->HasAttribute("disabled") &&
+			                                    !(dynamic_cast<Rml::ElementFormControl *>(element) &&
+			                                      dynamic_cast<Rml::ElementFormControl *>(element)->IsDisabled())};
 		}
 	}
 	std::string id(const std::string &action) const
@@ -721,6 +723,7 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-card h1,.local-settings-card h2,.local-settings-card p {display:block;width:100%;box-sizing:border-box;}
 .station-panel {box-sizing:border-box;padding:4dp;overflow:hidden;}
 .station-panel h2,.engineering-board h2 {font-size:1.05em;margin:0 0 6dp 0;}
+.task-button:disabled,.task-button.disabled,.task-button.disabled:hover,.task-button.disabled:focus {background:#152128;color:#78868a;border-color:#45545a;}
 .task-toggles,.task-choices {display:flex;width:100%;flex-wrap:wrap;gap:6dp;}
 .task-toggles .task-button {box-sizing:border-box;width:48%;min-height:44dp;padding:5dp;margin:0;}
 .task-state-icon {pointer-events:none;display:inline-block;width:8dp;height:8dp;margin-right:5dp;border:1dp #fff0d4;border-radius:5dp;background:#f0e3c2;}
@@ -728,6 +731,12 @@ button.on-screen-active .share-live {display:block;}
 .task-button.on {background:#235b3e;border-color:#8bd5a6;}
 .task-button.off {background:#6f3030;border-color:#e4a39b;}
 .task-choices .task-button {box-sizing:border-box;width:23%;min-width:0;min-height:44dp;padding:5dp;margin:2dp;}
+.shield-diagram {display:block;width:100%;height:55%;min-height:80dp;}
+.condition-slider {width:94%;height:44dp;min-height:44dp;}
+.condition-slider slidertrack {height:8dp;margin-top:18dp;background:#253b43;}
+.condition-slider sliderbar {width:24dp;height:32dp;margin-top:4dp;background:#ffc16d;border:2dp #ffe4b0;}
+.condition-slider sliderarrowdec,.condition-slider sliderarrowinc {display:none;}
+.condition-ticks {display:flex;justify-content:space-between;width:94%;font-size:.85em;}
 .shield-sector {width:46%;border:2dp #74b5bc;border-radius:24dp;padding:8dp;box-sizing:border-box;}
 .health-row {display:inline-flex;flex-direction:column;vertical-align:top;width:48%;gap:3dp;margin:3dp 0;}
 .health-row span {width:100%;font-size:.85em;} .health-row progress {width:94%;} progress {height:12dp;width:60%;background:#24404a;}
@@ -822,8 +831,8 @@ progress fill {background:#83be90;}
 .engineering-board .repair-columns button {display:block;width:95%;}
 #comms-choices button {display:block;width:100%;box-sizing:border-box;min-height:44dp;margin:4dp 0;}
 #comms-compose {overflow:hidden;}
-#comms-compose input {width:75%;height:44dp;box-sizing:border-box;}
-#comms-compose button {box-sizing:border-box;min-height:44dp;height:44dp;padding:4dp 8dp;margin:0 4dp;}
+#comms-compose input {width:75%;height:44dp;box-sizing:border-box;vertical-align:top;margin:0;}
+#comms-compose button {box-sizing:border-box;min-height:44dp;height:44dp;padding:4dp 8dp;margin:0 4dp;vertical-align:top;}
 .layout-node {box-sizing:border-box;min-width:0;min-height:0;}
 #authored-body {display:none;position:absolute;left:0;right:0;top:160dp;bottom:0;overflow:auto;}
 #layout-tabs,#console-tabs {position:absolute;left:1%;right:1%;top:64dp;height:44dp;overflow-x:auto;white-space:nowrap;z-index:8;}
@@ -1435,6 +1444,16 @@ progress fill {background:#83be90;}
 		if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !std::isfinite(value))
 			return false;
 		const auto action = name.substr(id("").size());
+		if (action == "support-condition")
+		{
+			const int number = int(std::lround(value));
+			if (value != number || !condition_choices_.contains(number))
+				return false;
+			if (!this->action(id(condition_choices_.at(number))))
+				return false;
+			condition_pending_ = std::pair{number, app_->session->ticks() + 40};
+			return true;
+		}
 		if (action.starts_with("power/") || action == "support-repair-priority")
 			return support_value(name, text);
 		if (model_.manual_active() && (action.starts_with("speed/") || action.starts_with("heading/")))
@@ -1916,6 +1935,8 @@ progress fill {background:#83be90;}
 				return false;
 		const float density = context_->GetDensityIndependentPixelRatio();
 		auto *choices = document_->GetElementById("comms-choices");
+		if (history->GetClientHeight() <= choices->GetClientHeight() * 4)
+			return false;
 		Rml::ElementList replies;
 		choices->GetElementsByTagName(replies, "button");
 		for (auto *reply : replies)
@@ -2044,6 +2065,28 @@ progress fill {background:#83be90;}
 					}
 		return true;
 	}
+	bool probe_support_visuals()
+	{
+		auto *diagram = document_->GetElementById(id("shield-diagram"));
+		auto *slider = document_->GetElementById(id("support-condition"));
+		Rml::ElementList bars;
+		if (slider)
+			for (int i = 0; i < slider->GetNumChildren(true); ++i)
+				if (auto *child = slider->GetChild(i); child->GetTagName() == "sliderbar")
+					bars.push_back(child);
+		const bool valid = diagram && slider && diagram->IsVisible(true) && slider->IsVisible(true) &&
+		                   diagram->GetClientHeight() >= 80 * context_->GetDensityIndependentPixelRatio() &&
+		                   shield_ship_sprite_ && !shield_sectors_.empty() && !bars.empty() &&
+		                   bars.front()->GetOffsetWidth() > 8 && bars.front()->GetOffsetHeight() > 8;
+		if (!valid)
+			std::cout << "Support visual probe: canvas " << (diagram ? diagram->GetClientHeight() : -1) << " / density "
+			          << context_->GetDensityIndependentPixelRatio() << "; image " << bool(shield_ship_sprite_)
+			          << "; sectors " << shield_sectors_.size() << "; thumb "
+			          << (bars.empty() ? -1 : bars.front()->GetOffsetWidth()) << ","
+			          << (bars.empty() ? -1 : bars.front()->GetOffsetHeight()) << std::endl;
+		return valid;
+	}
+
 	bool probe_readout_scroll()
 	{
 		// Explicit graphical smoke: deferred text becomes current on scrolling,
@@ -2578,6 +2621,8 @@ progress fill {background:#83be90;}
 			settings_open_ = false;
 			document_->SetClass("local-settings-open", false);
 			radar_textures_.clear();
+			shield_ship_sprite_.reset();
+			shield_ship_definition_.clear();
 			radar_sweeps_.clear();
 			signature_.clear();
 			cancel_pointer();
@@ -4034,6 +4079,7 @@ progress fill {background:#83be90;}
 				      {ox + at.x - 8, oy + at.y - 8, readout->GetOffsetWidth() + 16, readout->GetOffsetHeight() + 16});
 			}
 		}
+		draw_support_shields(ox, oy);
 		draw_navigation(ox, oy);
 		EndScissorMode();
 	}

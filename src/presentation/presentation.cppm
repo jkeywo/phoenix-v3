@@ -199,6 +199,7 @@ bool probe_console_report(ConsoleId route);
 bool probe_console_readouts(ConsoleId route);
 bool probe_console_tab(ConsoleId route, const std::string &action);
 bool probe_console_fit(ConsoleId route);
+bool probe_console_support_visuals(ConsoleId route);
 bool probe_viewscreen_condition();
 bool probe_console_navigation(ConsoleId route, unsigned stage);
 bool probe_console_conversation(ConsoleId route);
