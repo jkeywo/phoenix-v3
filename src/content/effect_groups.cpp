@@ -95,9 +95,25 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 				fields.insert("equipment");
 				fields.insert("officer");
 				fields.insert("delta_permille");
+				fields.insert("role");
 				op.kind = kind == "apply" ? EffectOperationKind::Apply : EffectOperationKind::Remove;
 				if (kind == "remove")
 				{
+					fields.insert("scope");
+					op.scope = value.value("scope", std::string("local"));
+					if (op.scope != "local" && op.scope != "owner")
+						fail("remove scope must be local or owner");
+					if (op.scope == "owner")
+					{
+						if (!value.contains("target"))
+							op.target = "owner";
+						if (op.target != "owner")
+							fail("owner-scoped removal requires owner target");
+						for (const auto *field :
+						     {"grant", "effect", "equipment", "officer", "all_sources", "delta_permille", "role"})
+							if (value.contains(field))
+								fail("owner-scoped removal omits named grant/effect/source filters");
+					}
 					fields.insert("all_sources");
 					op.all_sources = value.value("all_sources", false);
 					if (op.all_sources)
@@ -117,7 +133,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 					fail("ability source must bind one valid officer or equipment");
 				if (op.all_sources && (!op.equipment.empty() || !op.officer.empty()))
 					fail("all_sources removal targets the entity, not equipment");
-				if ((!op.all_sources && !valid_identifier(op.grant)) ||
+				if ((!op.all_sources && op.scope != "owner" && !valid_identifier(op.grant)) ||
 				    (!op.equipment.empty() && op.equipment != "$hit" && op.equipment != "$owner" &&
 				     op.equipment != "$source" && op.equipment != "$target" && !valid_identifier(op.equipment)))
 					fail("invalid grant or equipment binding");
@@ -128,6 +144,20 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 					if (!catalog.effects.contains(op.effect))
 						fail("unknown effect " + op.effect);
 					const auto effect_kind = catalog.effects.at(op.effect).value("kind", std::string{});
+					op.role = value.value("role", std::string{});
+					if (value.contains("role") &&
+					    (effect_kind != "modifier" ||
+					     (!op.role.empty() && op.role != "$role" && !valid_identifier(op.role))))
+						fail("role requires a modifier apply and a valid role or $role");
+					if (!op.role.empty() && op.role != "$role")
+					{
+						const auto modifier = compile_modifier_effect(catalog, op.effect);
+						bool found = false;
+						for (const auto &contribution : modifier.contributions)
+							found = found || contribution.role == op.role;
+						if (!found)
+							fail("modifier role selects no contribution");
+					}
 					if (value.contains("delta_permille"))
 					{
 						const auto &delta = value.at("delta_permille");
@@ -148,8 +178,8 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 					else if (!op.officer.empty() || (effect_kind == "modifier") != !op.equipment.empty())
 						fail("modifier needs equipment; shield and periodic omit source bindings");
 				}
-				else if (value.contains("delta_permille"))
-					fail("delta_permille requires a modifier apply");
+				else if (value.contains("delta_permille") || value.contains("role"))
+					fail("delta_permille and role require a modifier apply");
 			}
 			else
 			{
@@ -197,7 +227,10 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 }
 EffectGroupDefinition compile_effect_group(const Catalog &catalog, const std::string &id)
 {
-	const auto &definition = catalog.effects.at(id);
+	const auto found = catalog.effects.find(id);
+	if (found == catalog.effects.end())
+		throw std::runtime_error("effects." + id + ": unknown operations effect reference");
+	const auto &definition = found->second;
 	if (definition.value("kind", std::string{}) != "operations")
 		throw std::runtime_error(id + ": expected operations effect");
 	Json group = definition;
@@ -206,7 +239,7 @@ EffectGroupDefinition compile_effect_group(const Catalog &catalog, const std::st
 	if (group.contains("operations") && group.at("operations").is_array())
 		for (auto &operation : group["operations"])
 			if (operation.is_object() && !operation.contains("target"))
-				operation["target"] = "protected";
+				operation["target"] = operation.value("scope", std::string("local")) == "owner" ? "owner" : "protected";
 	return compile_effect_operations(catalog, group, id);
 }
 } // namespace phoenix

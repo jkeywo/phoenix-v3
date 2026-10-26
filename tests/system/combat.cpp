@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 import phoenix.simulation;
@@ -435,9 +436,12 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		submit(world, 101, "beam", "target", 2);
 		world.tick();
 		const auto saved = world.save();
-		const auto &pending = saved.at("shield_reactions").at("pending");
-		require(pending.size() == 2 && pending[0].at("group") == 0 && pending[1].at("group") == 1,
-		        "post_damage retains its saved group index after authored reactions");
+		const auto &pending = saved.at("rules").at("pending");
+		const auto bindings = compile_shield_effect(catalog, "test.mixed-reactions").contributions.at(0).shield.rules;
+		require(pending.size() == 2 && bindings.size() == 2 && pending[0].at("rule") == bindings[0].rule &&
+		            pending[1].at("rule") == bindings[1].rule && pending[0].at("id") != pending[1].at("id") &&
+		            !pending[0].at("source_key").get<std::string>().empty(),
+		        "authored shield rules retain distinct stable job and source identities across save");
 		World resumed;
 		resumed.restore(catalog, saved);
 		for (auto *w : {&world, &resumed})
@@ -447,7 +451,7 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		}
 		require(world.save() == resumed.save() &&
 		            world.save().at("bodies")[0].at("shields").at("contributions")[0].at("state").at("strength") == 93,
-		        "authored and shorthand reactions both execute once after restoring their pending groups");
+		        "authored shield rules both execute once after restoring their pending jobs");
 	}
 	{
 		auto source = powered_fixture();
@@ -472,7 +476,7 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		const auto &contributions = saved.at("bodies")[1].at("shields").at("contributions");
 		require(contributions[0].at("state").at("strength") == 100 && contributions[1].at("state").at("strength") == 1,
 		        "pre-negation transforms presented damage before reserve limiting");
-		require(saved.at("shield_reactions").at("pending").empty() && hp(world) == 20000,
+		require(saved.at("rules").at("pending").empty() && hp(world) == 20000,
 		        "negated incoming damage neither leaks to hull nor invokes an unreached layer");
 	}
 	for (const auto cost : {7, 1000000000})
@@ -505,11 +509,10 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		submit(world, 101, "beam", "target", 2);
 		world.tick();
 		const auto pending = world.save();
-		require(pending.at("shield_reactions").at("pending").size() == 1,
-		        "reached shield produces one deferred reaction group");
-		const auto &event = pending.at("shield_reactions").at("pending")[0];
-		require(event.at("presented") == 1 && event.at("absorbed") == 1 && event.at("strength") == 99 &&
-		            event.at("attacker") == 1,
+		require(pending.at("rules").at("pending").size() == 1, "reached shield produces one deferred reaction group");
+		const auto &event = pending.at("rules").at("pending")[0];
+		require(event.at("context").at("presented") == 1 && event.at("context").at("absorbed") == 1 &&
+		            event.at("context").at("strength") == 99 && event.at("context").at("instigator").at("entity") == 1,
 		        "queued reaction captures committed per-contribution result");
 		World resumed;
 		resumed.restore(catalog, pending);
@@ -539,8 +542,8 @@ void shield_reaction_contracts(Json *trace = nullptr)
 			active.restore(catalog, saved);
 			require(active.save() == saved, "active reaction modifier restores without duplication");
 			require(target.at("shields").at("contributions").size() == 2,
-			        ("paid reaction atomically applies reusable grant: " + saved.at("shield_reactions").dump() +
-			         " target " + target.at("resources").dump() + " shields " + target.at("shields").dump())
+			        ("paid reaction atomically applies reusable grant: " + saved.at("rules").dump() + " target " +
+			         target.at("resources").dump() + " shields " + target.at("shields").dump())
 			            .c_str());
 			require(attacker.at("shields").at("contributions")[0].at("state").at("strength") == 90,
 			        "paid reaction secondary damage resolves in next scheduled phase");
@@ -568,6 +571,385 @@ void shield_reaction_contracts(Json *trace = nullptr)
 			                    .at("fixture.resource.energy") == 100000,
 			        "unaffordable reaction neither spends nor damages");
 		}
+	}
+}
+void native_damage_rule_contracts()
+{
+	const auto marker_store = [](Json &source)
+	{
+		source["entities"][0]["resources"]["stores"].push_back(
+		    {{"id", "marker"}, {"capacity", 1000}, {"initial", 0}, {"charge_rate", 1000}, {"discharge_rate", 1000}});
+	};
+	const auto quantity = [](const Json &saved, const char *store, int body_index = 1)
+	{
+		const auto index = std::string(store) == "cell" ? 0 : 1;
+		return saved.at("bodies")
+		    .at(body_index)
+		    .at("resources")
+		    .at("network")
+		    .at("stores")
+		    .at(index)
+		    .at("stock")
+		    .at("quantities")
+		    .value("fixture.resource.energy", std::int64_t{0});
+	};
+	{
+		auto source = powered_fixture();
+		add_beam(source, 200);
+		marker_store(source);
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.native.gift","kind":"shield","contributions":{"new":{"capacity":500,"initial":500,
+            "recharge_per_second":0,"off_recharge_per_second":0,"sustain_energy_per_second":0,"warmup_ticks":1}}},
+          {"id":"test.native.paid-op","kind":"operations",
+            "costs":[{"payer":"protected","store":"energy:cell","resource":"fixture.resource.energy","amount":7}],
+            "operations":[{"kind":"apply","target":"protected","effect":"test.native.gift","grant":"gift"}]},
+          {"id":"test.native.failed-op","kind":"operations",
+            "costs":[{"payer":"protected","store":"energy:cell","resource":"fixture.resource.energy","amount":1000000000}],
+            "operations":[{"kind":"add","target":"protected","store":"energy:marker","resource":"fixture.resource.energy","amount":100}]},
+          {"id":"test.native.mark-op","kind":"operations","operations":[
+            {"kind":"add","target":"protected","store":"energy:marker","resource":"fixture.resource.energy","amount":1}]},
+          {"id":"test.native.paid-pre","kind":"rule","trigger":"pre_shield_damage","effect":"test.native.paid-op","damage_permille":{"value":0,"unit":"permille"}},
+          {"id":"test.native.failed-pre","kind":"rule","trigger":"pre_shield_damage","effect":"test.native.failed-op","damage_permille":{"value":0,"unit":"permille"}},
+          {"id":"test.native.post-shield","kind":"rule","trigger":"post_shield_damage","effect":"test.native.mark-op"},
+          {"id":"test.native.unreached","kind":"rule","trigger":"post_shield_damage","effect":"test.native.mark-op"},
+          {"id":"test.native.post-entity","kind":"rule","trigger":"post_entity_damage","effect":"test.native.mark-op"},
+          {"id":"test.native.layers","kind":"shield","contributions":{
+            "a-weak":{"capacity":1,"initial":1,"recharge_per_second":0,"off_recharge_per_second":0,
+              "sustain_energy_per_second":0,"warmup_ticks":1,"layer":0,
+              "rules":[{"id":"pre","rule":"test.native.paid-pre"},{"id":"post","rule":"test.native.post-shield"}]},
+            "b-peer":{"capacity":100,"initial":100,"recharge_per_second":0,"off_recharge_per_second":0,
+              "sustain_energy_per_second":0,"warmup_ticks":1,"layer":0,
+              "rules":[{"id":"pre","rule":"test.native.failed-pre"},{"id":"post","rule":"test.native.post-shield"}]},
+            "c-inner":{"capacity":100,"initial":100,"recharge_per_second":0,"off_recharge_per_second":0,
+              "sustain_energy_per_second":0,"warmup_ticks":1,"layer":1,
+              "rules":[{"id":"post","rule":"test.native.unreached"}]}}}
+        ])json");
+		source["entities"][0]["rules"] = Json::array({{{"id", "entity-post"}, {"rule", "test.native.post-entity"}}});
+		add_fit(source, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"shield_effect", "test.native.layers"},
+		         {"power_store", "cell"}},
+		        {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto saved = world.save();
+		const auto &contributions = saved.at("bodies")[1].at("shields").at("contributions");
+		std::map<std::string, std::int64_t> strengths;
+		for (const auto &entry : contributions)
+			strengths.emplace(entry.at("name").get<std::string>(), entry.at("state").at("strength"));
+		require(strengths.at("a-weak") == 1 && strengths.at("b-peer") == 95 && strengths.at("c-inner") == 100 &&
+		            strengths.at("new") == 500 && hp(world) == 20000,
+		        "paid pre-cancellation and failed peer fallback recompute equal shares without using newly installed "
+		        "reserves");
+		require(quantity(saved, "cell") == 99993 && quantity(saved, "marker") == 0,
+		        "requoting a failed peer pays the successful frozen pre-work exactly once and leaks no partial failure "
+		        "operation");
+		int shield_posts = 0, entity_posts = 0;
+		for (const auto &job : saved.at("rules").at("pending"))
+		{
+			const auto rule = job.at("rule").get<std::string>();
+			const auto &context = job.at("context");
+			require(rule != "test.native.unreached", "unreached layers produce no damage hook");
+			if (rule == "test.native.post-shield")
+			{
+				++shield_posts;
+				require(context.at("presented") == 5 && context.at("absorbed") == context.at("modified"),
+				        "post shield contexts expose their actual final assigned and absorbed shares");
+			}
+			if (rule == "test.native.post-entity")
+			{
+				++entity_posts;
+				require(context.at("inflicted") == 5,
+				        "pre topology additions do not hide actual entity damage in reserve balance differences");
+			}
+		}
+		require(shield_posts == 2 && entity_posts == 1,
+		        "each reached contribution and native entity emits one deferred post hook");
+		World resumed;
+		resumed.restore(catalog, saved);
+		for (auto *current : {&world, &resumed})
+		{
+			submit(*current, 101, "beam", "target", 0);
+			current->tick();
+		}
+		require(world.save() == resumed.save() && quantity(world.save(), "marker") == 3 &&
+		            quantity(world.save(), "cell") == 99993,
+		        "frozen pre topology and deferred post receipts continue exactly once across restore");
+	}
+	for (const int factor : {500, 0})
+	{
+		auto source = powered_fixture();
+		add_beam(source, 200);
+		marker_store(source);
+		// This beam enters aft; put the fault-bearing mechanism in its actual
+		// reached compartment rather than relying on untouched fore equipment.
+		source["entities"][0]["systems"]["gun"]["compartment"] = "aft";
+		source["entities"][0]["systems"]["gun"]["faults"] = Json::array({{{"id", "impact"},
+		                                                                  {"symptom", "Impact"},
+		                                                                  {"diagnosis", "Impact fault"},
+		                                                                  {"chance_permille", 1000},
+		                                                                  {"damage_threshold", 1}}});
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.native.mark-op","kind":"operations","operations":[
+            {"kind":"add","target":"protected","store":"energy:marker","resource":"fixture.resource.energy","amount":1}]},
+          {"id":"test.native.pre-compartment","kind":"rule","trigger":"pre_compartment_damage","damage_permille":{"value":500,"unit":"permille"}},
+          {"id":"test.native.pre-system","kind":"rule","trigger":"pre_system_damage","damage_permille":{"value":0,"unit":"permille"}},
+          {"id":"test.native.post-compartment","kind":"rule","trigger":"post_compartment_damage","effect":"test.native.mark-op"},
+          {"id":"test.native.post-system","kind":"rule","trigger":"post_system_damage","effect":"test.native.mark-op"}
+        ])json");
+		source["effects"][1]["damage_permille"]["value"] = factor;
+		source["entities"][0]["rules"] = Json::array();
+		for (const auto *name : {"pre-compartment", "pre-system", "post-compartment", "post-system"})
+			source["entities"][0]["rules"].push_back({{"id", name}, {"rule", "test.native." + std::string(name)}});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto saved = world.save();
+		require(hp(world) == 20000 - (factor ? 5 : 0) &&
+		            !state(world, 2).at("faults").at("gun")[0].at("active").get<bool>(),
+		        "compartment scaling/cancellation and system cancellation alter their own native damage stages");
+		int compartments = 0, systems = 0;
+		for (const auto &job : saved.at("rules").at("pending"))
+		{
+			if (job.at("rule") == "test.native.post-compartment")
+			{
+				++compartments;
+				require(job.at("context").at("presented") == 10 &&
+				            job.at("context").at("inflicted") == (factor ? 5 : 0),
+				        "post compartment hooks capture actual committed damage even when cancelled");
+			}
+			if (job.at("rule") == "test.native.post-system")
+			{
+				++systems;
+				require(job.at("context").at("presented") == 5 && job.at("context").at("modified") == 0 &&
+				            job.at("context").at("inflicted") == 0,
+				        "post system hooks capture a reached but cancelled fault hit");
+			}
+		}
+		require(compartments == 1 && systems == (factor ? 1 : 0),
+		        ("cancelled compartment damage does not reach native system faults: factor=" + std::to_string(factor) +
+		         " compartments=" + std::to_string(compartments) + " systems=" + std::to_string(systems))
+		            .c_str());
+	}
+	{
+		auto source = powered_fixture();
+		add_beam(source, 200);
+		marker_store(source);
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.native.destroy-op","kind":"operations","operations":[
+            {"kind":"add","target":"source","store":"energy:marker","resource":"fixture.resource.energy","amount":1}]},
+          {"id":"test.native.destroy","kind":"rule","trigger":"destroy","effect":"test.native.destroy-op"}
+        ])json");
+		source["entities"][0]["rules"] = Json::array({{{"id", "body-death"}, {"rule", "test.native.destroy"}}});
+		source["entities"][0]["systems"]["radar"]["rules"] =
+		    Json::array({{{"id", "equipment-death"}, {"rule", "test.native.destroy"}}});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		world.tick();
+		auto weakened = world.save();
+		// The incoming beam crosses aft before fore. Leave exactly one native
+		// hull point there, with fore already disabled, to produce a lethal hit.
+		weakened["bodies"][1]["combat"]["compartments"][0]["hp"] = 0;
+		weakened["bodies"][1]["combat"]["compartments"][0]["disabled"] = true;
+		weakened["bodies"][1]["combat"]["compartments"][1]["hp"] = 1;
+		weakened["bodies"][1]["combat"]["compartments"][1]["disabled"] = false;
+		world.restore(catalog, weakened);
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto dead = world.save();
+		require(hp(world) == 0 && dead.at("bodies")[1].at("destructible").at("processed").get<bool>() &&
+		            dead.at("rules").at("pending").size() == 2,
+		        "native retirement emits body and equipment destruction bindings despite lethal source ineligibility");
+		for (const auto &job : dead.at("rules").at("pending"))
+			require(job.at("rule") == "test.native.destroy" && job.at("context").at("subject").at("entity") == 2 &&
+			            job.at("context").at("instigator").at("entity") == 2,
+			        "destruction receipts retain the native retired subject and explicit self instigator");
+		World resumed;
+		resumed.restore(catalog, dead);
+		advance(world, 2);
+		advance(resumed, 2);
+		require(
+		    world.save() == resumed.save() && world.save().at("rules").at("pending").empty() &&
+		        world.save().at("rules").at("results").size() == 2,
+		    "persisted native processed state prevents duplicate destruction delivery after checkpoint continuation");
+	}
+	{
+		auto source = powered_fixture();
+		marker_store(source);
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.early.destroy-op","kind":"operations","operations":[
+            {"kind":"add","target":"source","store":"energy:marker","resource":"fixture.resource.energy","amount":1}]},
+          {"id":"test.early.destroy","kind":"rule","trigger":"destroy","effect":"test.early.destroy-op"},
+          {"id":"test.early.active","kind":"modifier","contributions":{"scan":{"property":"sensors","delta_permille":100}},
+            "rules":[{"id":"destroy","rule":"test.early.destroy"}]},
+          {"id":"test.early.apply","kind":"operations","operations":[
+            {"kind":"apply","target":"subject","equipment":"radar","effect":"test.early.active","grant":"active"}]},
+          {"id":"test.early.maintain","kind":"rule","trigger":"maintain","phase":"maintained",
+            "when":{"fact":"source.eligible"},"effect":"test.early.apply"},
+          {"id":"test.early.kill-op","kind":"operations","operations":[{"kind":"damage","target":"subject","damage":1000}]},
+          {"id":"test.early.kill","kind":"rule","trigger":"tick","phase":"periodic","period_ticks":2,"effect":"test.early.kill-op",
+            "when":{"op":"eq","args":[{"fact":"tick"},{"value":2,"unit":"ticks"}]}}
+        ])json");
+		source["entities"][0]["rules"] = Json::array(
+		    {{{"id", "maintain"}, {"rule", "test.early.maintain"}}, {{"id", "kill"}, {"rule", "test.early.kill"}}});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		world.tick();
+		auto weakened = world.save();
+		weakened["bodies"][1]["combat"]["compartments"][0]["hp"] = 1;
+		weakened["bodies"][1]["combat"]["compartments"][0]["disabled"] = false;
+		weakened["bodies"][1]["combat"]["compartments"][1]["hp"] = 0;
+		weakened["bodies"][1]["combat"]["compartments"][1]["disabled"] = true;
+		world.restore(catalog, weakened);
+		advance(world, 2);
+		const auto dead = world.save();
+		int alive_owners = 0, destroy_receipts = 0;
+		for (const auto &effect : dead.at("bodies")[1].at("property_effects").at("contributions"))
+			if (effect.at("definition") == "test.early.active")
+				++alive_owners;
+		for (const auto &job : dead.at("rules").at("pending"))
+			if (job.at("rule") == "test.early.destroy" && job.at("context").at("subject").at("entity") == 2)
+				++destroy_receipts;
+		require(hp(world) == 0 && alive_owners == 0 && destroy_receipts == 1 &&
+		            dead.at("bodies")[1].at("destructible").at("rule_notified").get<bool>(),
+		        "first native death freezes maintained active-owner destruction before its phase-boundary withdrawal");
+		World resumed;
+		resumed.restore(catalog, dead);
+		advance(world, 2);
+		advance(resumed, 2);
+		require(world.save() == resumed.save() && world.save().at("rules").at("pending").empty(),
+		        "retired active-owner destruction notification persists exactly once after the owner and granting rule "
+		        "disappear");
+	}
+	{
+		auto source = powered_fixture();
+		add_beam(source, 200);
+		marker_store(source);
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.origin.remove-op","kind":"operations","operations":[{"kind":"remove","target":"owner","scope":"owner"}]},
+          {"id":"test.origin.source-op","kind":"operations","operations":[
+            {"kind":"add","target":"source","store":"energy:marker","resource":"fixture.resource.energy","amount":7}]},
+          {"id":"test.origin.pre","kind":"rule","trigger":"pre_shield_damage","effect":"test.origin.remove-op",
+            "when":{"op":"eq","args":[{"fact":"owner.property","property":"protection"},{"value":1000,"unit":"relative_permille"}]}},
+          {"id":"test.origin.post","kind":"rule","trigger":"post_shield_damage","effect":"test.origin.source-op"},
+          {"id":"test.origin.shield","kind":"shield","contributions":{"main":{"capacity":100,"initial":100,
+            "recharge_per_second":0,"off_recharge_per_second":0,"sustain_energy_per_second":0,"warmup_ticks":1,
+            "rules":[{"id":"pre","rule":"test.origin.pre"},{"id":"post","rule":"test.origin.post"}]}}},
+          {"id":"test.origin.grant","kind":"operations","operations":[
+            {"kind":"apply","target":"protected","effect":"test.origin.shield","grant":"shield"}]}
+        ])json");
+		source["trees"].push_back(
+		    Json::parse(R"json({"id":"test.origin.grant-tree","context":"scenario","initial":"apply",
+          "states":[{"id":"apply","entry":[{"action":"apply_effect_group","arguments":[
+            {"type":"entity","id":2},{"type":"entity","id":1},"test.origin.grant"]}]}]})json"));
+		source["maps"][0]["scenario"] = {{"tree", "test.origin.grant-tree"}};
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		advance(world, 3);
+		require(world.save().at("bodies")[1].at("shields").at("contributions").size() == 1,
+		        "caster grants an independently sourced shield to the protected victim");
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto removed = world.save();
+		require(removed.at("bodies")[1].at("shields").at("contributions").empty(),
+		        "pre hook removes its own native shield and permits provenance pruning");
+		int posts = 0;
+		for (const auto &job : removed.at("rules").at("pending"))
+			if (job.at("rule") == "test.origin.post")
+			{
+				++posts;
+				require(job.at("context").at("source").at("entity") == 1 &&
+				            job.at("context").at("owner").at("entity") == 2,
+				        "post hook retains the original caster after pre removal prunes the native origin map");
+			}
+		require(posts == 1, "removed reached shield emits its one frozen post hook");
+		World resumed;
+		resumed.restore(catalog, removed);
+		for (auto *current : {&world, &resumed})
+		{
+			submit(*current, 101, "beam", "target", 0);
+			current->tick();
+		}
+		require(
+		    world.save() == resumed.save() && quantity(world.save(), "marker", 0) == 7 &&
+		        quantity(world.save(), "marker", 1) == 0,
+		    "deferred post work changes the caster's store exactly once while the victim's store remains untouched");
+	}
+	{
+		auto source = powered_fixture();
+		source["effects"] = Json::parse(R"json([
+          {"id":"test.unknown.secondary","kind":"operations","operations":[
+            {"kind":"damage","target":"attacker","damage":1}]},
+          {"id":"test.unknown.pre","kind":"rule","trigger":"pre_shield_damage","effect":"test.unknown.secondary"},
+          {"id":"test.unknown.shield","kind":"shield","contributions":{"main":{"capacity":100,"initial":100,
+            "recharge_per_second":0,"off_recharge_per_second":0,"sustain_energy_per_second":0,"warmup_ticks":1,
+            "rules":[{"id":"pre","rule":"test.unknown.pre"}]}}},
+          {"id":"test.unknown.apply","kind":"operations","operations":[
+            {"kind":"apply","target":"subject","effect":"test.unknown.shield","grant":"shield"}]},
+          {"id":"test.unknown.enter","kind":"rule","trigger":"enter","effect":"test.unknown.apply"},
+          {"id":"test.unknown.incoming","kind":"operations","operations":[
+            {"kind":"damage","target":"protected","damage":10}]}
+        ])json");
+		const auto &victim = source.at("maps")[0].at("entities")[1];
+		source["maps"][0]["regions"] =
+		    Json::array({{{"id", "unknown-origin"},
+		                  {"shape", "circle"},
+		                  {"x_mm", victim.at("x_mm")},
+		                  {"y_mm", victim.at("y_mm")},
+		                  {"radius_mm", 3000},
+		                  {"rules", Json::array({{{"id", "enter"}, {"rule", "test.unknown.enter"}}})}}});
+		source["trees"].push_back(
+		    Json::parse(R"json({"id":"test.unknown.hit-tree","context":"scenario","initial":"wait",
+          "states":[{"id":"wait","transitions":[{"target":"hit","conditions":[
+            {"left":{"observation":"tick"},"op":"ge","right":2}]}]},
+          {"id":"hit","entry":[{"action":"apply_effect_group","arguments":[
+            {"type":"entity","id":2},{"type":"entity","id":1},"test.unknown.incoming"]}]}]})json"));
+		source["maps"][0]["scenario"] = {{"tree", "test.unknown.hit-tree"}};
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		advance(world, 3);
+		const auto pending = world.save();
+		require(pending.at("bodies")[1].at("shields").at("contributions").size() == 1 &&
+		            pending.at("bodies")[1].at("shields").at("contributions")[0].at("state").at("strength") == 90,
+		        "native initial region entry grants only the victim a shield before the ordinary scenario hit");
+		int secondary = 0;
+		for (const auto &job : pending.at("rules").at("pending"))
+			if (job.at("rule") == "" && job.at("damage") == 1)
+			{
+				++secondary;
+				const auto &context = job.at("context");
+				require(context.at("source").at("entity") == 0 && context.at("instigator").at("entity") == 1 &&
+				            context.at("region") == "unknown-origin" && context.at("target").at("entity") == 1 &&
+				            context.at("hit").at("target") == 1,
+				        "queued pre-shield secondary damage preserves explicit unknown region source and actual "
+				        "instigator");
+			}
+		require(secondary == 1 && hp(world, 1) == 20000,
+		        "region-origin secondary damage remains deferred without inventing a caster or applying damage early");
+		World resumed;
+		resumed.restore(catalog, pending);
+		advance(world, 2);
+		advance(resumed, 2);
+		require(world.save() == resumed.save() && hp(world, 1) == 19999 &&
+		            world.save().at("rules").at("pending").empty(),
+		        "unknown-source damage delivers once after restore through the native damage path without source "
+		        "authentication");
 	}
 }
 void stock_binding_contracts()
@@ -1354,6 +1736,12 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && std::string(argv[1]) == "--native-damage-rules")
+		{
+			native_damage_rule_contracts();
+			std::cout << "Native damage rule contracts passed\n";
+			return 0;
+		}
 
 		// Information/override selection is never an offensive-fire authorisation.
 		for (const auto *relation : {"hostile", "friendly", "neutral", "unidentified"})
@@ -2068,6 +2456,7 @@ int main(int argc, char **argv)
 		property_rate_contracts();
 		effects_contracts();
 		shield_reaction_contracts();
+		native_damage_rule_contracts();
 		std::cout << "Combat system contracts passed\n";
 		return 0;
 	}

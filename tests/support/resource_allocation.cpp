@@ -4,6 +4,8 @@ module;
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <limits>
+#include <array>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -15,6 +17,7 @@ module;
 module phoenix.simulation;
 import phoenix.content;
 #include "../../src/simulation/gameplay_resources.hpp"
+#include "../../src/simulation/rule_work.hpp"
 
 extern "C" void resource_allocation_lifecycle(const phoenix::Catalog &catalog)
 {
@@ -78,8 +81,14 @@ extern "C" void resource_allocation_lifecycle(const phoenix::Catalog &catalog)
 	        "prepared electrical allocation cannot overwrite a later common stock mutation");
 }
 
+namespace phoenix
+{
+void rule_work_contracts();
+}
+
 extern "C" void named_resource_allocation_contracts(const phoenix::Catalog &catalog)
 {
+	phoenix::rule_work_contracts();
 	using namespace phoenix;
 	const auto require = [](bool condition, const char *message)
 	{
@@ -162,3 +171,82 @@ extern "C" void named_resource_allocation_contracts(const phoenix::Catalog &cata
 	require(withdrawn.network.stores().at(store).energy() == 0 && withdrawn.network.stores().at(store).heat == 1,
 	        "withdrawn named work never consumes stock or adds heat");
 }
+
+namespace phoenix
+{
+void rule_work_contracts()
+{
+	const auto require = [](bool condition, const char *message)
+	{
+		if (!condition)
+			throw std::runtime_error(message);
+	};
+	std::array<RuleWorkInput, 2> inputs{{{100, 0, 100000, 0, true, false}, {200, 0, 0, 1, false, false}}};
+	const auto partial = quote_rule_work(inputs, true);
+	require(partial.output == 100 && partial.shortage && partial.debits == std::vector<std::int64_t>{0, 1} &&
+	            partial.credits == std::vector<std::int64_t>{90000, 0},
+	        "mixed bundle output follows its least funded input and retains paid electrical surplus");
+	inputs[0].credit = partial.credits[0];
+	inputs[0].purchased = 0;
+	const auto next = quote_rule_work(inputs, true);
+	require(next.output == 100 && next.credits[0] == 80000 && next.debits[0] == 0 && next.debits[1] == 1,
+	        "subsequent work consumes existing electrical entitlement without a second electrical charge");
+	inputs[0].credit = 7;
+	inputs[0].purchased = 100000;
+	inputs[1].credit = 9;
+	const auto pause = quote_rule_work(inputs, false);
+	require(pause.output == 0 && pause.shortage && pause.debits == std::vector<std::int64_t>{0, 0} &&
+	            pause.credits == std::vector<std::int64_t>{7, 9},
+	        "full-policy shortage preserves only original credits and requires rejecting the electrical quote");
+	std::array<RuleWorkInput, 1> small{{{1, 0, 0, 1, false, false}}};
+	const auto prepaid = quote_rule_work(small, true);
+	require(prepaid.output == 1000 && prepaid.debits[0] == 1 && prepaid.credits[0] == 19000,
+	        "fractional material work prepays one whole physical resource before producing output");
+	small[0].credit = prepaid.credits[0];
+	small[0].available = 0;
+	for (int tick = 0; tick < 19; ++tick)
+	{
+		const auto paid = quote_rule_work(small, true);
+		require(paid.output == 1000 && paid.debits[0] == 0, "prepaid work funds exact subsequent ticks");
+		small[0].credit = paid.credits[0];
+	}
+	const auto empty = quote_rule_work(small, true);
+	require(small[0].credit == 0 && empty.output == 0 && empty.debits[0] == 0 && empty.shortage,
+	        "exhausted prepayment cannot produce an unpaid zero-due pulse");
+	small[0] = {1, 0, 0, 0, true, false};
+	require(quote_rule_work(small, true).output == 0, "unfunded electrical work never emits a free pulse");
+	small[0] = {3, 0, 1999, 0, true, false};
+	const auto rounded = quote_rule_work(small, true);
+	require(rounded.output == 666 && rounded.credits[0] == 1,
+	        "proportional output floors to whole permille and preserves the exact work residue");
+	small[0] = {100, 5, 20000, 0, true, true};
+	const auto blocked = quote_rule_work(small, true);
+	require(blocked.output == 0 && blocked.credits[0] == 20005 && blocked.shortage,
+	        "blocked proportional work retains actual payment without executing output");
+	small[0] = {0, 5, 0, 0, true, true};
+	require(quote_rule_work(small, true).output == 1000 && quote_rule_work({}, false).output == 1000,
+	        "zero-rate and cost-free work do not create artificial funding dependencies");
+	small[0] = {resource_limit, 0, 0, resource_limit, false, false};
+	const auto bounded = quote_rule_work(small, true);
+	require(bounded.output == 1000 && bounded.debits[0] == resource_limit / 20 && bounded.credits[0] == 0,
+	        "maximum native resource quantities retain exact fixed-point work arithmetic");
+	for (const auto malformed :
+	     std::array<RuleWorkInput, 4>{{{-1, 0, 0, 0, false, false},
+	                                   {1, 0, 1, 1, false, false},
+	                                   {1, std::numeric_limits<std::int64_t>::max(), 1, 0, true, false},
+	                                   {1, std::numeric_limits<std::int64_t>::max(), 0, resource_limit, false, false}}})
+	{
+		small[0] = malformed;
+		bool refused = false;
+		try
+		{
+			(void)quote_rule_work(small, true);
+		}
+		catch (const std::runtime_error &)
+		{
+			refused = true;
+		}
+		require(refused, "malformed or overflowing work inputs reject before any payment");
+	}
+}
+} // namespace phoenix

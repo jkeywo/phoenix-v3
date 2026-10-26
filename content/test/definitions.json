@@ -7958,7 +7958,12 @@
 					{
 						"id": "repair",
 						"label": "Repair expertise",
-						"effects": ["test.modifier.repair.p100"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "test.modifier.repair.p100.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -8966,7 +8971,12 @@
 					{
 						"id": "repair",
 						"label": "Repair expertise",
-						"effects": ["test.modifier.repair.p100"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "test.modifier.repair.p100.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -20798,6 +20808,27 @@
 			"kind": "directed_mode",
 			"range_mm": 300000,
 			"energy_per_second": 0
+		},
+		{
+			"id": "test.modifier.repair.p100.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "test.modifier.repair.p100",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "test.modifier.repair.p100.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "test.modifier.repair.p100.officer-apply"
 		}
 	],
 	"resources": [

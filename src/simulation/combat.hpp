@@ -11,6 +11,7 @@ struct Destructible
 	DestructionDefinition definition;
 	std::int64_t durability = 0, destroyed_tick = -1;
 	bool processed = false;
+	bool rule_notified = false;
 };
 struct BlastVisual
 {
@@ -87,15 +88,6 @@ struct ShieldComponent
 	std::vector<ShieldContribution> contributions;
 	std::uint64_t next_effect = 1;
 };
-struct ShieldReaction
-{
-	std::uint64_t id = 0, due = 0, hit = 0, effect = 0;
-	EntityId attacker = 0, protected_ship = 0;
-	std::string contribution, source, definition;
-	std::size_t group = 0;
-	std::int64_t presented = 0, modified = 0, negated = 0, absorbed = 0, residual = 0, strength = 0;
-	EffectGroupDefinition execution;
-};
 struct ShieldBindingState
 {
 };
@@ -134,6 +126,8 @@ struct Projectile
 	std::set<EntityId> shield_hits;
 	std::set<std::uint64_t> missile_hits;
 	std::map<EntityId, std::string> decks;
+	std::vector<RuleCapturedFact> rule_captures;
+	std::vector<RuleCapturedFact> destruction_rule_captures;
 };
 // Material cost is integrated in millimetres, preserving fractional work across crossings/ticks.
 inline std::int64_t deposit_material(Projectile &p, std::int64_t distance, std::int64_t resistance)

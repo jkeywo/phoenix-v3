@@ -1,6 +1,7 @@
 module;
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <array>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -28,6 +29,12 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 }
 PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity,
                                       const DirectedCatalog &directed_catalog)
+{
+	const auto rules = compile_entity_rule_scope(catalog, entity);
+	return compile_personnel(catalog, entity, directed_catalog, rules);
+}
+PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity,
+                                      const DirectedCatalog &directed_catalog, const RulesCatalog &rules)
 {
 	PersonnelDefinition out;
 	const auto &hull = catalog.entities.at(entity);
@@ -83,7 +90,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		out.departments.push_back(d);
 	}
 	fail(out.departments.size() <= 32, "too many departments");
-	const auto combat = compile_combat(catalog, entity, directed_catalog);
+	const auto combat = compile_combat(catalog, entity, directed_catalog, rules);
 	if (combat)
 	{
 		for (const auto &c : combat->compartments)
@@ -118,22 +125,37 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	for (const auto &v : data.at("traits"))
 	{
 		OfficerTrait t{identifier(v.at("id")), text(v.at("label")), {}};
-		fail(!v.contains("bonuses"), "trait bonuses are replaced by effect references");
-		const auto refs = v.value("effects", Json::array());
-		fail(refs.is_array() && refs.size() <= 64, "invalid trait effect references");
-		std::set<std::string> unique;
+		fail(!v.contains("bonuses") && !v.contains("effects"), "trait bonuses/effects are replaced by rule references");
+		static constexpr std::array allowed{RuleTrigger::Maintain};
+		t.rules = compile_rule_bindings(rules, v.value("rules", Json::array()),
+		                                entity + ".personnel.traits." + t.id + ".rules", allowed);
 		std::size_t contribution_count = 0;
-		for (const auto &ref : refs)
+		for (const auto &binding : t.rules)
 		{
-			const auto id = identifier(ref);
-			fail(unique.insert(id).second, "duplicate trait effect reference");
-			auto effect = compile_modifier_effect(catalog, id);
-			fail(effect.duration_ticks == 0, "officer effects are maintained and cannot declare a duration");
-			contribution_count += effect.contributions.size();
-			fail(contribution_count <= 256, "trait exceeds 256 modifier contributions");
-			for (const auto &contribution : effect.contributions)
-				role_properties[contribution.role].insert(contribution.property);
-			t.effects.push_back(std::move(effect));
+			fail(binding.equipment.empty() && binding.officer.empty(),
+			     "trait rule targets are bound by native duty roles");
+			const auto &rule = rules.at(binding.rule);
+			fail(rule.phase == RulePhase::Maintained, "officer trait rules must be maintained");
+			for (const auto &operation : rule.effects.operations)
+			{
+				fail(operation.kind == EffectOperationKind::Apply &&
+				         catalog.effects.at(operation.effect).value("kind", std::string{}) == "modifier",
+				     "officer traits require maintained modifier applies");
+				auto effect = compile_modifier_effect(catalog, operation.effect);
+				if (!operation.role.empty() && operation.role != "$role")
+					std::erase_if(effect.contributions,
+					              [&](const auto &contribution)
+					              {
+						              return contribution.role != operation.role;
+					              });
+				fail(!effect.contributions.empty(), "trait modifier role selects no contributions");
+				fail(effect.duration_ticks == 0, "officer effects are maintained and cannot declare a duration");
+				contribution_count += effect.contributions.size();
+				fail(contribution_count <= 256, "trait exceeds 256 modifier contributions");
+				for (const auto &contribution : effect.contributions)
+					role_properties[contribution.role].insert(contribution.property);
+				t.effects.push_back(std::move(effect));
+			}
 		}
 		fail(out.traits.emplace(t.id, t).second, "duplicate trait");
 	}

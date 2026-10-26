@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -96,62 +97,68 @@ std::vector<std::string> compile_payloads(const Catalog &catalog, const Json &re
 }
 PayloadDefinition compile_payload(const Catalog &catalog, const std::string &id)
 {
+	const auto rules = compile_bound_rules(catalog, directed_effect(catalog, id, "payload"));
+	return compile_payload(catalog, id, rules);
+}
+PayloadDefinition compile_payload(const Catalog &catalog, const std::string &id, const RulesCatalog &rules)
+{
 	const auto &j = directed_effect(catalog, id, "payload");
-	directed_fields(j, {"bindings"}, id);
-	const auto &bindings = j.at("bindings");
-	directed_require(bindings.is_array() && !bindings.empty() && bindings.size() <= 32, id, "expected 1..32 bindings");
+	if (j.contains("bindings"))
+		throw std::runtime_error(id + ".bindings: replaced by shared rule bindings in rules");
+	directed_fields(j, {"rules"}, id);
 	PayloadDefinition result{id, {}};
-	std::set<std::string> seen;
-	for (const auto &value : bindings)
+	static constexpr std::array allowed{RuleTrigger::PostShieldDamage, RuleTrigger::PostCompartmentDamage,
+	                                    RuleTrigger::PostSystemDamage, RuleTrigger::PostEntityDamage};
+	result.rules = compile_rule_bindings(rules, j.value("rules", Json::array()), id + ".rules", allowed);
+	directed_require(!result.rules.empty(), id, "payload requires rule bindings");
+	for (const auto &binding : result.rules)
 	{
-		directed_fields(value, {"outcome", "positive_damage", "effect"}, id);
-		PayloadBindingDefinition binding;
-		binding.id = value.value("id", std::string{});
-		directed_require(valid_identifier(binding.id) && seen.insert(binding.id).second, id,
-		                 "invalid binding identity");
-		const auto outcome = value.value("outcome", std::string{});
-		if (outcome == "shield")
-			binding.outcome = PayloadOutcomeKind::Shield;
-		else if (outcome == "compartment")
-			binding.outcome = PayloadOutcomeKind::Compartment;
-		else if (outcome == "system")
-			binding.outcome = PayloadOutcomeKind::System;
-		else if (outcome == "entity")
-			binding.outcome = PayloadOutcomeKind::Entity;
-		else
-			directed_require(false, id, "unsupported hit outcome");
-		binding.positive_damage = value.value("positive_damage", true);
-		binding.reaction = compile_effect_group(catalog, value.at("effect").get<std::string>());
-		for (const auto &operation : binding.reaction.operations)
+		const auto &rule = rules.at(binding.rule);
+		directed_require(rule.phase == RulePhase::Instant, id, "payload outcome requires instant phase");
+		for (const auto &operation : rule.effects.operations)
 		{
 			if (operation.equipment == "$hit")
-				directed_require(binding.outcome == PayloadOutcomeKind::System ||
-				                     binding.outcome == PayloadOutcomeKind::Shield,
+				directed_require(rule.trigger == RuleTrigger::PostSystemDamage ||
+				                     rule.trigger == RuleTrigger::PostShieldDamage,
 				                 id, "$hit equipment requires a system or shield binding");
 			if (operation.kind == EffectOperationKind::Apply &&
 			    catalog.effects.at(operation.effect).value("kind", std::string{}) == "periodic")
-				directed_require(binding.outcome == PayloadOutcomeKind::Compartment, id,
+				directed_require(rule.trigger == RuleTrigger::PostCompartmentDamage, id,
 				                 "periodic damage conditions require a compartment outcome");
 		}
-		result.bindings.push_back(std::move(binding));
 	}
 	return result;
 }
 PeriodicEffectDefinition compile_periodic_effect(const Catalog &catalog, const std::string &id)
 {
+	const auto rules = compile_bound_rules(catalog, directed_effect(catalog, id, "periodic"));
+	return compile_periodic_effect(catalog, id, rules);
+}
+PeriodicEffectDefinition compile_periodic_effect(const Catalog &catalog, const std::string &id,
+                                                 const RulesCatalog &rules)
+{
 	const auto &j = directed_effect(catalog, id, "periodic");
-	directed_fields(j, {"duration_ticks", "period_ticks", "effect"}, id);
+	if (j.contains("period_ticks") || j.contains("effect"))
+		throw std::runtime_error(id + ": period_ticks/effect replaced by shared rules with per-rule cadence");
+	directed_fields(j, {"duration_ticks", "rules"}, id);
 	PeriodicEffectDefinition result;
 	result.id = id;
 	result.duration_ticks = directed_amount(j, "duration_ticks", 0, 1, 1000000, id);
-	result.period_ticks = directed_amount(j, "period_ticks", 0, 1, result.duration_ticks, id);
-	result.reaction = compile_effect_group(catalog, j.at("effect").get<std::string>());
-	for (const auto &op : result.reaction.operations)
+	static constexpr std::array allowed{RuleTrigger::Tick};
+	result.rules = compile_rule_bindings(rules, j.value("rules", Json::array()), id + ".rules", allowed);
+	directed_require(!result.rules.empty(), id, "periodic effect requires rule bindings");
+	for (const auto &binding : result.rules)
 	{
-		directed_require(op.equipment != "$hit", id, "periodic compartment has no equipment hit binding");
-		if (op.kind == EffectOperationKind::Apply)
-			directed_require(catalog.effects.at(op.effect).value("kind", std::string{}) != "periodic", id,
-			                 "periodic reactions cannot spawn periodic conditions");
+		const auto &rule = rules.at(binding.rule);
+		directed_require(rule.phase == RulePhase::Periodic && rule.period_ticks <= result.duration_ticks, id,
+		                 "periodic effect requires periodic rules within its lifetime");
+		for (const auto &op : rule.effects.operations)
+		{
+			directed_require(op.equipment != "$hit", id, "periodic compartment has no equipment hit binding");
+			if (op.kind == EffectOperationKind::Apply)
+				directed_require(catalog.effects.at(op.effect).value("kind", std::string{}) != "periodic", id,
+				                 "periodic reactions cannot spawn periodic conditions");
+		}
 	}
 	return result;
 }

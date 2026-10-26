@@ -128,6 +128,8 @@ std::string ability_blocker(EntityId ship, const AbilityControlDefinition &c, co
 {
 	if (!ability_source_exists(ship, g.source, g.owner) || departed(ship) || combat_dead(entities.at(ship)))
 		return "Ability source unavailable";
+	if (!g.parent.empty() && !rule_grant_available(ship, g.parent))
+		return "Ability grant source unavailable";
 	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	if (g.source == "officer")
 	{

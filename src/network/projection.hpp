@@ -3,6 +3,7 @@
 #include "../core/personnel_projection.hpp"
 #include "../core/psychic_projection.hpp"
 #include "../core/ability_projection.hpp"
+#include "../core/rules_projection.hpp"
 #include "../core/away_projection.hpp"
 #include "../core/team_projection.hpp"
 #include "../core/craft_projection.hpp"
@@ -60,6 +61,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["psychic"] = psychic_projection::board(source.at("psychic"));
 	if (source.contains("abilities"))
 		result["abilities"] = ability_projection::board(source.at("abilities"));
+	if (source.contains("rules"))
+		result["rules"] = rules_projection::board(source.at("rules"));
 	if (source.contains("sensors"))
 		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("directed"))
@@ -424,6 +427,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		result.gameplay["psychic"] = psychic_projection::board(result.gameplay.at("psychic"));
 	if (result.gameplay.contains("abilities"))
 		result.gameplay["abilities"] = ability_projection::board(result.gameplay.at("abilities"));
+	if (result.gameplay.contains("rules"))
+		result.gameplay["rules"] = rules_projection::board(result.gameplay.at("rules"));
 	if (result.gameplay.contains("sensors"))
 		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("directed"))

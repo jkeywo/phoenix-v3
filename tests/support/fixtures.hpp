@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 import phoenix.content;
 #include "directed_materialisation.hpp"
+#include "rule_materialisation.hpp"
 namespace phoenix::test
 {
 // Legacy shorthand is confined to synthetic fixture construction. Production packs
@@ -238,6 +239,7 @@ inline PackDraft fixture_pack(const Bytes &definitions, const std::string &id)
 				materialise(child);
 	};
 	materialise(authored);
+	materialise_fixture_rules(authored);
 	pack.files["definitions.json"] = json_bytes(authored);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 	return pack;

@@ -90,8 +90,9 @@ void directed_template_roundtrip()
 	reopened.load_pack(document.export_pack());
 	const auto result = reopened.verify();
 	require(compile_directed(result, "test.controllable").at("scanner").modes.size() == 2 &&
-	            compile_payload(result, "test.payload").bindings.size() == 1 &&
-	            compile_periodic_effect(result, "test.burning").period_ticks == 5,
+	            compile_payload(result, "test.payload").rules.size() == 1 &&
+	            compile_rule(result, compile_periodic_effect(result, "test.burning").rules.at(0).rule).period_ticks ==
+	                5,
 	        "Workshop export and reopen preserve directed, payload and periodic catalogue contracts");
 }
 } // namespace

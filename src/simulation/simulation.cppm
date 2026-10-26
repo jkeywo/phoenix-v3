@@ -59,6 +59,7 @@ public:
 	void restore(const Catalog &content, const Json &saved);
 
 private:
+	void load_impl(const Catalog &, const std::string &, const std::map<std::string, std::string> &, bool restoring);
 	Observation observe_at(std::uint64_t claimant, const ConsoleAddress &) const;
 	struct Impl;
 	std::unique_ptr<Impl> impl_;

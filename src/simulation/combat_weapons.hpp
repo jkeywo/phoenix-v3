@@ -336,6 +336,8 @@ void prepare_weapons(flecs::entity ship)
 				    1, interval * 1000 / effective_property(ship, d.id, PropertyKey::cycling, 1000));
 				prepared.projectile = weapon_payload(ship, *m);
 				prepared.payloads = capture_directed_payloads(ship, *m, prepared.resource);
+				(void)payload_capture_layout(prepared.payloads);
+				(void)payload_capture_layout(prepared.projectile.destruction.payloads);
 				if (prepared.loaded)
 				{
 					if (m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine ||
@@ -350,6 +352,11 @@ void prepare_weapons(flecs::entity ship)
 					prepared.stock_claim = true;
 				}
 				++planned_projectiles;
+			}
+			else
+			{
+				prepared.payloads = capture_directed_payloads(ship, *m, {});
+				(void)payload_capture_layout(prepared.payloads);
 			}
 			directed_operations.emplace(std::pair{id, d.id}, std::move(prepared));
 			m->get<WeaponState>().ready = true;
@@ -423,6 +430,9 @@ void fire_weapons(flecs::entity ship)
 				    p.id = next_projectile++;
 				    p.source = id;
 				    p.weapon = d.id;
+				    p.rule_captures = capture_payload_rule_facts(id, d.id, p.payloads);
+				    p.destruction_rule_captures =
+				        capture_payload_rule_facts(id, d.id, p.definition.destruction.payloads);
 				    p.target = directed_target(ship.get<StableId>().id, d.id);
 				    p.position = origin;
 				    p.altitude = altitude(id);

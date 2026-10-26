@@ -44,9 +44,15 @@ A native source binds templates using entries of this form:
 
 The source determines which triggers it supports and supplies its context. Binding IDs are unique within that source and form part of the execution identity. A binding may select one `equipment` or `officer`; omitting both selects the native event subject. All listed tags must match. A source accepts at most 64 bindings, each with at most 32 distinct tags. Tags follow existing actor tags: nonempty strings of at most 128 bytes.
 
+Bindings live in `entities[*].rules`, `systems[*].rules`, personnel `officers[*].rules` and `traits[*].rules`. Active shield, modifier and ability-grant templates may also own `rules`; their existing native state owns the lifetime. Trait rules must be maintained modifier applications. Their property/role metadata still validates native duty bindings, qualification and equipment capabilities; there is no second executable trait-buff path.
+
+Shield contribution `rules` accept pre/post shield-damage rules in the instant phase. The retired `reactions`, `pre_damage_permille` and `post_damage` contribution fields fail verification. Payload templates use `rules` instead of `bindings`: the rule's post-damage trigger selects shield, compartment, system or entity outcomes. Preserve the old positive-damage filter explicitly with `event.absorbed > 0` for shields and `event.inflicted > 0` for other outcomes. A payload rule may deliberately omit that condition for effect-only contact.
+
+Periodic condition templates contain `duration_ticks` and `rules`. Each binding refers to a periodic `tick` rule; its `period_ticks` sets that rule's cadence and cannot exceed the condition lifetime. The former periodic template `period_ticks` and `effect` fields fail verification. Periodic compartment conditions have no `$hit` equipment and cannot spawn another periodic condition.
+
 ## Triggers and phases
 
-`trigger` defaults to `activate`. Supported names are `activate`, `deactivate`, `tick`, `enter`, `exit`, `occupancy`, `maintain`, `pre_shield_damage`, `post_shield_damage`, `pre_compartment_damage`, `post_compartment_damage`, `pre_system_damage`, `post_system_damage` and `destroy`. A binding must use a trigger supported by its native source.
+`trigger` defaults to `activate`. Supported names are `activate`, `deactivate`, `tick`, `enter`, `exit`, `occupancy`, `maintain`, `pre_shield_damage`, `post_shield_damage`, `pre_compartment_damage`, `post_compartment_damage`, `pre_system_damage`, `post_system_damage`, `post_entity_damage` and `destroy`. Entity damage preserves native aggregate ship, ordnance and destructible hit outcomes; it is distinct from destruction. A binding must use a trigger supported by its native source.
 
 `phase` defaults to `instant`:
 
@@ -77,7 +83,7 @@ The native adapter freezes facts for the scheduled execution. Projectile adapter
 | `event.presented`                                                     | Integer, `damage`               | Pre/post damage                          |
 | `event.strength`                                                      | Integer, `strength`             | Pre/post shield damage                   |
 | `event.modified`, `event.negated`, `event.absorbed`, `event.residual` | Integer, `damage`               | Post shield damage                       |
-| `event.inflicted`                                                     | Integer, `damage`               | Post compartment/system damage           |
+| `event.inflicted`                                                     | Integer, `damage`               | Post compartment/system/entity damage    |
 
 Examples:
 
@@ -89,7 +95,7 @@ Examples:
 { "fact": "target.resource", "store": "magazine", "resource": "test.ammo" }
 ```
 
-Property facts use the existing supported native property descriptors and their units. They do not expose arbitrary C++ fields or create mutable properties. Equipment-sensitive facts resolve the equipment supplied by the role's native source or binding.
+Property facts use the existing supported native property descriptors and their units. They do not expose arbitrary C++ fields or create mutable properties. Equipment-sensitive facts resolve the equipment supplied by the role's native source or binding. `enabled` reads the native control flag; `eligible` also includes native structural, duty and location restrictions. Per-role `output` reads that actor's last completed native resource phase, independently of this rule's own upkeep lease. It is zero for disabled or blocked equipment; eligible actors without a powered equipment operation report full output.
 
 Unavailable event fields, unknown properties and unknown resources fail compilation. A missing runtime role/fact remains missing; use `present` where absence is an intended condition. Missing numeric facts cannot silently become zero.
 
@@ -156,6 +162,18 @@ An operations template supplies the fixed operation kinds, resources, grants and
 
 The same optional literal `delta_permille` is accepted directly on a modifier apply operation. Equipment bindings on operations may use `$owner`, `$source`, `$target` or `$hit` where the native context provides them. Other equipment bindings name an actual equipment ID.
 
+Modifier apply operations may declare `role`. An omitted or empty role applies all template contributions. An explicit role selects that template's matching contribution roles; `$role` selects the native role supplied by the adapter. Duty-officer applications use `equipment: "$target"` and `role: "$role"` so one multi-role template can apply to the correct systems through native duty bindings. Role filtering happens before target compatibility and application, through the same transaction used by other modifier grants.
+
+A local `remove` identifies a grant created by that rule execution, preserving independent binding identities. An active native effect can instead remove its own logical application explicitly:
+
+```json
+{ "kind": "remove", "target": "owner", "scope": "owner" }
+```
+
+Owner scope omits `grant`, `effect`, `equipment`, `officer` and `all_sources`. It uses the native owner's frozen application identity, rather than an originating gun's identity or another binding's grant namespace. Equipment, officer, region and projectile payload sources have no implicit native effect application; owner removal fails if no actual owning native application exists. Local scope remains the default.
+
+That identity includes the native effect kind and instance ID as well as its host and grant provenance. Reusing a grant name on another system or hit context does not make that sibling application an owner-removal target.
+
 `energy` optionally computes an existing operations group's entry energy charge, in `energy` units, from 0 to 1,000,000,000. It requires that group's explicit equipment `payer`.
 
 ## Required costs and ongoing funding
@@ -201,8 +219,26 @@ Funding has 1–32 required rate entries. Each `per_second` expression uses its 
 
 `pause` preserves owned state while withholding unpaid output. `stop` withdraws grants and requires a fresh eligibility transition before automatic restart. `proportional` is supported only for maintained rules whose operations all apply modifiers: native deltas, or explicit overrides, scale once by the funded output. Shields, ability grants, damage and other consequences do not acquire proportional semantics merely by choosing that policy.
 
+Periodic conditions filter scheduled occurrences without restarting the ordinary cadence: an unmatched due occurrence advances the clock once, and a later true condition retains that calendar. Rearming a rule stopped by shortage starts a new full period. Neither case produces catch-up bursts.
+
+A funded maintained rule with an entry charge pays that charge and installs its owned native applications once, with zero operational output until its first paid lease. Failed entry payment does not start recurring upkeep purchases. Its reserve and finite expiry begin at that successful activation. Without an entry charge, installation may wait for the first positive paid lease. Subsequent maintenance never repeats entry charges, refreshes finite lifetimes or recreates an externally removed application. It only updates supported values on existing modifier contributions. A changed resolved target withdraws the previous application and starts a fresh application on the new target.
+
+Electrical entry payment also requires the native reserve's available operating budget. A newly loaded reserve has no fabricated discharge allowance: maintained startup can wait until ordinary resource phases establish an available payment frontier, even when stored energy already covers the entry amount.
+
 ## Scheduling and continuation
 
 Native adapters preserve their phase order and original damage/geometry contracts. Context is frozen for its scheduled phase. Pre-damage preparation must commit once before native sharing; repeated quotes do not replay rule evaluation or payment. Secondary damage remains scheduled. Work created while draining a phase cannot recursively execute within that drain.
 
 Continuation stores identities, clocks, captured facts, pending executions and funding remainders. It does not duplicate native reserves or infer new activations on restore. Region restore preserves membership without replaying entry. Despawn retires membership without inventing a movement exit. The migration advances the world/session schema; incompatible saves require a new game.
+
+Modifier continuation stores actual live deltas and lifetime ownership, including scaled or explicitly overridden values and native role-filtered subsets. Independent applications retain their existing 8192-row capacity. Maintained applications have a separate bounded capacity derived from the shared clock, operation and template-row limits, so formerly derived officer buffs do not consume the independent-application allowance.
+
+## Native timing and continuation
+
+Initial maintained source contributions are materialized when a new world is loaded; restoring a world installs its saved contributions and clocks without executing them again. An upkeep payment at tick N buys maintained output for the next native phase, N+1. Current native prices and values remain fixed between allocation quotation and actuation. Pause keeps the same contribution and reserve identities; stop requires a new authored/native eligibility transition before restarting.
+
+Region enter/exit events follow ordered intervals of the actual movement segment and drain after motion in the same tick. Maintained occupancy follows the sampled endpoint. Initial and newly spawned occupants emit one entry; restoring membership emits none. Periodic clocks advance once per due evaluation and do not catch up in a burst.
+
+Damage post hooks, payload reactions, destruction rules and secondary damage use the shared bounded queue. Native destruction's existing processed flag emits its rules once. Its event instigator is the destroyed native actor; it does not invent killer attribution. Impact and missile destruction payloads retain separate source-fact snapshots captured at launch. Entity explosions capture their own context at native destruction.
+
+World and portable session saves use schema 27. They retain rule-owned clocks, credits, next-phase leases, membership, launch context, pending jobs and bounded receipts. Retired shield/payload/periodic execution records are no longer accepted.

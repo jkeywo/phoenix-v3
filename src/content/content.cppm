@@ -30,6 +30,9 @@ struct DirectedDefinition;
 struct AbilityCatalog;
 struct PersonnelDefinition;
 struct ControllableLayout;
+struct RuleDefinition;
+struct RuleBinding;
+using RulesCatalog = std::map<std::string, RuleDefinition>;
 using SharedAbilityCatalog = std::shared_ptr<const AbilityCatalog>;
 // A caller-owned immutable compilation scope, shared by native fitting adapters.
 using DirectedCatalog = std::map<std::string, std::map<std::string, DirectedDefinition>>;
@@ -849,6 +852,7 @@ struct OfficerTrait
 {
 	std::string id, label;
 	std::vector<ModifierEffectDefinition> effects;
+	std::vector<RuleBinding> rules;
 };
 struct PersonnelDepartment
 {
@@ -954,6 +958,8 @@ struct EffectOperation
 	bool all_sources = false;
 	std::string officer;
 	std::optional<std::int64_t> delta_permille;
+	std::string role;
+	std::string scope = "local";
 };
 struct EffectCostDefinition
 {
@@ -989,6 +995,7 @@ enum class RuleTrigger
 	PostCompartmentDamage,
 	PreSystemDamage,
 	PostSystemDamage,
+	PostEntityDamage,
 	Destroy
 };
 enum class RuleRole
@@ -1084,6 +1091,7 @@ struct RuleFundingDefinition
 struct RuleDefinition
 {
 	std::string id;
+	std::string label;
 	RuleTrigger trigger = RuleTrigger::Activate;
 	RulePhase phase = RulePhase::Instant;
 	std::vector<RuleFactBinding> facts;
@@ -1106,15 +1114,47 @@ struct RuleContext
 {
 	std::vector<state_tree::Value> facts;
 };
-using RulesCatalog = std::map<std::string, RuleDefinition>;
+struct SourceRuleDefinitionSet
+{
+	std::vector<RuleBinding> entity;
+	std::map<std::string, std::vector<RuleBinding>> equipment, officers;
+};
+struct PreparedRuleQuote
+{
+	EffectGroupDefinition effects;
+	std::int64_t damage_permille = 1000;
+	std::vector<EffectCostDefinition> upkeep;
+};
+enum class RuleEvaluationStatus
+{
+	Ready,
+	Unmatched,
+	Invalid
+};
+struct RuleEvaluation
+{
+	RuleEvaluationStatus status = RuleEvaluationStatus::Invalid;
+	PreparedRuleQuote quote;
+};
 inline constexpr std::size_t rule_expression_node_limit = 256;
 inline constexpr std::size_t rule_binding_limit = 64;
 RuleDefinition compile_rule(const Catalog &, const std::string &);
 RulesCatalog compile_rule_catalog(const Catalog &);
+RulesCatalog compile_bound_rules(const Catalog &, const Json &);
+RulesCatalog compile_entity_rule_scope(const Catalog &, const std::string &);
 std::vector<RuleBinding> compile_rule_bindings(const RulesCatalog &, const Json &, const std::string &,
                                                std::span<const RuleTrigger> allowed = {});
 bool evaluate_rule_expression(const RuleExpression &, const RuleContext &, state_tree::Value &);
 std::optional<EffectGroupDefinition> materialize_rule(const RuleDefinition &, const RuleContext &);
+RuleEvaluation evaluate_rule(const RuleDefinition &, const RuleContext &);
+SourceRuleDefinitionSet compile_source_rules(const Catalog &, const std::string &, const RulesCatalog &);
+SourceRuleDefinitionSet compile_source_rules(const Catalog &, const std::string &);
+std::map<std::string, std::vector<RuleBinding>> compile_effect_rules(const Catalog &, const RulesCatalog &);
+std::map<std::string, std::vector<RuleBinding>> compile_region_rules(const Catalog &, const Json &,
+                                                                     const RulesCatalog &);
+void compile_effect(const Catalog &, const std::string &, const RulesCatalog &);
+PersonnelDefinition compile_personnel(const Catalog &, const std::string &, const DirectedCatalog &,
+                                      const RulesCatalog &);
 struct AbilityExclusionDefinition
 {
 	std::string id, scope = "source";
@@ -1174,26 +1214,21 @@ enum class PayloadOutcomeKind
 	System,
 	Entity
 };
-struct PayloadBindingDefinition
-{
-	std::string id;
-	PayloadOutcomeKind outcome = PayloadOutcomeKind::Entity;
-	bool positive_damage = true;
-	EffectGroupDefinition reaction;
-};
 struct PayloadDefinition
 {
 	std::string id;
-	std::vector<PayloadBindingDefinition> bindings;
+	std::vector<RuleBinding> rules;
 };
 struct PeriodicEffectDefinition
 {
 	std::string id;
-	std::int64_t duration_ticks = 1, period_ticks = 1;
-	EffectGroupDefinition reaction;
+	std::int64_t duration_ticks = 1;
+	std::vector<RuleBinding> rules;
 };
 PayloadDefinition compile_payload(const Catalog &, const std::string &);
 PeriodicEffectDefinition compile_periodic_effect(const Catalog &, const std::string &);
+PayloadDefinition compile_payload(const Catalog &, const std::string &, const RulesCatalog &);
+PeriodicEffectDefinition compile_periodic_effect(const Catalog &, const std::string &, const RulesCatalog &);
 std::vector<std::string> compile_payloads(const Catalog &, const Json &, const std::string &);
 struct DestructionDefinition
 {
@@ -1310,8 +1345,7 @@ struct ShieldDefinition
 	AudioClip audio;
 	float audio_peak_gain = .8f, audio_decay = 1.5f;
 	std::int64_t audio_threshold = 1, audio_full_damage = 30;
-	std::vector<EffectGroupDefinition> reactions;
-	std::int64_t pre_damage_permille = 1000;
+	std::vector<RuleBinding> rules;
 	std::int64_t recharge_modifier = 0, sustain_modifier = 0, discharge_modifier = 0, protection_modifier = 0;
 	ReserveDefinition reserve;
 	std::int64_t sustain_energy = 0, recharge_energy = 1, recharge_rate = 0, off_recharge_rate = 0;
@@ -1329,6 +1363,7 @@ struct ShieldEffectDefinition
 	std::vector<ShieldContributionDefinition> contributions;
 };
 ShieldEffectDefinition compile_shield_effect(const Catalog &, const std::string &);
+ShieldEffectDefinition compile_shield_effect(const Catalog &, const std::string &, const RulesCatalog &);
 struct CombatSystemDefinition
 {
 	std::string shield_effect;
@@ -1401,6 +1436,8 @@ struct CombatDefinition
 };
 std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity);
 std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity, const DirectedCatalog &);
+std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &, const DirectedCatalog &,
+                                               const RulesCatalog &);
 DestructionDefinition compile_destruction(const Json &, const Catalog &, const std::string &path);
 struct FittedSystemSpec
 {

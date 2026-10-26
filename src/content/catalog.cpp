@@ -453,11 +453,12 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	(void)compile_resource_catalog(result);
 	(void)compile_recipe_catalog(result);
 	(void)compile_ability_catalog(result);
-	(void)compile_rule_catalog(result);
+	const auto rules_catalog = compile_rule_catalog(result);
+	(void)compile_effect_rules(result, rules_catalog);
 	for (const auto &[id, effect] : result.effects)
 		if (const auto kind = effect.value("kind", std::string{});
 		    kind != "ability" && kind != "psychic" && kind != "rule")
-			compile_effect(result, id);
+			compile_effect(result, id, rules_catalog);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
 	resolve_equipment(result);
@@ -683,7 +684,8 @@ namespace
 void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog)
 {
 	const auto ability_catalog = compile_ability_catalog(catalog);
-	(void)compile_rule_catalog(catalog);
+	const auto rules_catalog = compile_rule_catalog(catalog);
+	(void)compile_effect_rules(catalog, rules_catalog);
 	std::map<std::string, ControllableLayout> ability_layouts;
 	verify_ui_definitions(catalog);
 	if (catalog.selection && (!catalog.layouts.empty() || !catalog.ui_groups.empty() || !catalog.themes.empty() ||
@@ -694,7 +696,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	for (const auto &[id, effect] : catalog.effects)
 		if (const auto kind = effect.value("kind", std::string{});
 		    kind != "ability" && kind != "psychic" && kind != "rule")
-			compile_effect(catalog, id);
+			compile_effect(catalog, id, rules_catalog);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
@@ -926,7 +928,8 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		(void)compile_transport(catalog, id, directed_catalog);
 		(void)compile_craft(catalog, id);
 		(void)compile_craft_bays(catalog, id, directed_catalog);
-		(void)compile_combat(catalog, id, directed_catalog);
+		(void)compile_combat(catalog, id, directed_catalog, rules_catalog);
+		(void)compile_source_rules(catalog, id, rules_catalog);
 		(void)compile_ship_audio(catalog, id);
 		if (entity.contains("destruction"))
 			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
@@ -953,7 +956,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		(void)compile_bridge(catalog, id);
-		const auto personnel = compile_personnel(catalog, id, directed_catalog);
+		const auto personnel = compile_personnel(catalog, id, directed_catalog, rules_catalog);
 		const auto &layout = ability_layouts.at(id);
 		const auto psychic = compile_psychic(catalog, id, ability_catalog, personnel, layout);
 		(void)compile_abilities(catalog, id, ability_catalog, personnel, layout, psychic);
@@ -1034,6 +1037,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	}
 	for (const auto &[id, map] : catalog.maps)
 	{
+		(void)compile_region_rules(catalog, map, rules_catalog);
 		if (catalog.scenarios.contains(id))
 		{
 			std::size_t fog_count = 0;

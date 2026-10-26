@@ -1,0 +1,132 @@
+#pragma once
+namespace phoenix
+{
+// A quote owns its native copies and the addresses staged by StockTransaction.
+// Moving a std::map preserves those addresses; copying this aggregate would not.
+struct PreparedEffectPayment
+{
+	ResourceNetwork network;
+	std::uint64_t revision = 0;
+	std::vector<std::uint64_t> stores, coolant;
+	explicit PreparedEffectPayment(const ResourceNetwork &original) : network(original), revision(original.revision())
+	{
+		for (const auto &store : original.stores())
+			stores.push_back(store.stock.revision());
+		for (const auto &source : original.coolant_sources())
+			coolant.push_back(source.stock.revision());
+	}
+};
+struct EffectGroupInvocation
+{
+	EffectGroupDefinition execution;
+	EntityId protected_ship = 0, attacker = 0;
+	std::string source, original_equipment;
+	std::optional<PayloadHitContext> hit_context;
+	std::optional<NativeRuleContext> rule_context;
+	std::int64_t output_permille = 1000;
+	bool maintained = false;
+};
+struct PreparedEffectDamage
+{
+	EntityId target = 0;
+	std::int64_t amount = 0;
+	bool outcome = false;
+	PayloadHitContext context;
+	std::size_t invocation = 0;
+};
+struct PreparedEffectTarget
+{
+	EntityId target = 0;
+	bool outcome = false, ordnance = false;
+};
+struct PreparedEffectGroup
+{
+	std::vector<EffectGroupInvocation> invocations;
+	std::size_t failed_invocation = static_cast<std::size_t>(-1);
+	std::string failure;
+	std::int64_t tick = 0;
+	std::uint64_t epoch = 0, next_active = 0, original_next_active = 0;
+	bool consumed = false, defer_damage = false;
+	std::map<EntityId, ShieldComponent> shields, original_shields;
+	std::map<EntityId, PropertyEffects> properties, original_properties;
+	std::map<EntityId, AbilityRuntime> abilities, original_abilities;
+	std::map<EntityId, PreparedEffectPayment> payments;
+	std::set<EntityId> changed_inventories;
+	std::vector<PreparedEffectTarget> targets;
+	std::vector<std::pair<EntityId, std::string>> equipment;
+	std::vector<PreparedEffectDamage> damages;
+	std::optional<std::vector<ActiveRuleEffect>> active_effects, original_active_effects;
+	StockTransaction stocks;
+	PreparedEffectGroup() = default;
+	PreparedEffectGroup(const PreparedEffectGroup &) = delete;
+	PreparedEffectGroup &operator=(const PreparedEffectGroup &) = delete;
+	PreparedEffectGroup(PreparedEffectGroup &&) = default;
+	PreparedEffectGroup &operator=(PreparedEffectGroup &&) = default;
+};
+
+inline bool same_effect_properties(const PropertyEffects &a, const PropertyEffects &b)
+{
+	if (a.next_id != b.next_id || a.contributions.size() != b.contributions.size())
+		return false;
+	for (std::size_t i = 0; i < a.contributions.size(); ++i)
+	{
+		const auto &x = a.contributions[i];
+		const auto &y = b.contributions[i];
+		if (std::tie(x.id, x.source, x.definition, x.name, x.equipment, x.property, x.delta_permille, x.expiry,
+		             x.maintained) != std::tie(y.id, y.source, y.definition, y.name, y.equipment, y.property,
+		                                       y.delta_permille, y.expiry, y.maintained))
+			return false;
+	}
+	return true;
+}
+inline bool same_effect_shields(const ShieldComponent &a, const ShieldComponent &b)
+{
+	if (a.next_effect != b.next_effect || a.contributions.size() != b.contributions.size())
+		return false;
+	for (std::size_t i = 0; i < a.contributions.size(); ++i)
+	{
+		const auto &x = a.contributions[i];
+		const auto &y = b.contributions[i];
+		// Definitions are immutable during a running game. Grant identities bind
+		// their copied definition; native work changes only the fields below.
+		if (std::tie(x.effect_id, x.source, x.equipment, x.definition_id, x.expiry, x.operating, x.quoted_rate,
+		             x.quoted_sustain, x.quoted_discharge, x.protection, x.state.strength, x.state.warmup,
+		             x.state.recharge_remainder, x.state.discharge_remainder, x.state.discharge_credit,
+		             x.state.discharge) != std::tie(y.effect_id, y.source, y.equipment, y.definition_id, y.expiry,
+		                                            y.operating, y.quoted_rate, y.quoted_sustain, y.quoted_discharge,
+		                                            y.protection, y.state.strength, y.state.warmup,
+		                                            y.state.recharge_remainder, y.state.discharge_remainder,
+		                                            y.state.discharge_credit, y.state.discharge))
+			return false;
+	}
+	return true;
+}
+inline bool same_effect_abilities(const AbilityRuntime &a, const AbilityRuntime &b)
+{
+	if (a.next_generation != b.next_generation || a.next_activation != b.next_activation || a.recovery != b.recovery ||
+	    a.grants.size() != b.grants.size())
+		return false;
+	auto i = a.grants.begin();
+	auto j = b.grants.begin();
+	for (; i != a.grants.end(); ++i, ++j)
+	{
+		const auto &x = i->second;
+		const auto &y = j->second;
+		if (i->first != j->first ||
+		    std::tie(x.id, x.definition, x.source, x.owner, x.parent, x.grant_effect, x.control, x.apparatus, x.phase,
+		             x.resume_phase, x.target, x.generation, x.activation, x.request_id, x.expiry, x.progress, x.aim_x,
+		             x.aim_y, x.requested, x.funding_blocked, x.output_permille, x.funding_permille, x.fault_permille,
+		             x.blocker) != std::tie(y.id, y.definition, y.source, y.owner, y.parent, y.grant_effect, y.control,
+		                                    y.apparatus, y.phase, y.resume_phase, y.target, y.generation, y.activation,
+		                                    y.request_id, y.expiry, y.progress, y.aim_x, y.aim_y, y.requested,
+		                                    y.funding_blocked, y.output_permille, y.funding_permille, y.fault_permille,
+		                                    y.blocker))
+			return false;
+	}
+	return true;
+}
+inline bool same_effect_active_rules(const std::vector<ActiveRuleEffect> &a, const std::vector<ActiveRuleEffect> &b)
+{
+	return a == b;
+}
+} // namespace phoenix

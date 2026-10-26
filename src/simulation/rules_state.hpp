@@ -6,14 +6,21 @@ struct RuleActor
 {
 	EntityId entity = 0;
 	std::string equipment, officer;
+	bool ordnance = false;
+	PayloadOutcomeKind kind = PayloadOutcomeKind::Entity;
+	std::int64_t compartment = -1;
+	std::uint64_t contribution = 0;
+	std::string contribution_name;
 	bool operator==(const RuleActor &) const = default;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RuleActor, entity, equipment, officer)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RuleActor, entity, equipment, officer, ordnance, kind, compartment, contribution,
+                                   contribution_name)
 
 struct RuleCapturedFact
 {
 	RuleFactBinding fact;
 	state_tree::Value value;
+	bool operator==(const RuleCapturedFact &) const = default;
 };
 inline void to_json(Json &out, const RuleCapturedFact &capture)
 {
@@ -38,14 +45,26 @@ inline void from_json(const Json &in, RuleCapturedFact &capture)
 
 // A producer freezes event facts here. Only a projectile launch captures origin
 // properties; ordinary defensive and maintained rules read their current host.
+enum class NativeEffectKind
+{
+	None,
+	Shield,
+	Modifier,
+	Ability,
+	Periodic
+};
 struct NativeRuleContext
 {
 	RuleActor owner, source, instigator, subject, target;
 	PayloadHitContext hit;
-	std::string property_role;
+	std::string property_role, property_filter, region, owner_grant;
+	NativeEffectKind owner_effect_kind = NativeEffectKind::None;
+	std::uint64_t owner_effect_id = 0;
+	bool capture_owner = false;
 	std::int64_t tick = 0, elapsed = 0, presented = 0, modified = 0, negated = 0, absorbed = 0, residual = 0,
 	             strength = 0, inflicted = 0, output = 1000;
 	std::vector<RuleCapturedFact> captured;
+	bool operator==(const NativeRuleContext &) const = default;
 };
 
 enum class RuleOwnerKind
@@ -56,6 +75,18 @@ enum class RuleOwnerKind
 	Effect,
 	Shield
 };
+// Ephemeral adapter view. The pointed-to bindings belong to the immutable
+// compiled catalogue; the native object remains the lifetime authority.
+struct NativeRuleSource
+{
+	RuleOwnerKind kind = RuleOwnerKind::Equipment;
+	std::string key;
+	RuleActor owner;
+	NativeRuleContext context;
+	const std::vector<RuleBinding> *bindings = nullptr;
+	bool eligible = false;
+	std::uint64_t active_effect = 0;
+};
 // These credits represent already consumed resources buying unfinished work.
 // They cannot be spent as stock, transferred, or refunded on rule removal.
 struct RuleWorkCredit
@@ -63,6 +94,7 @@ struct RuleWorkCredit
 	EntityId payer = 0;
 	std::string store, resource;
 	std::int64_t prepaid = 0;
+	bool operator==(const RuleWorkCredit &) const = default;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RuleWorkCredit, payer, store, resource, prepaid)
 
@@ -70,14 +102,29 @@ struct RuleExecutionState
 {
 	std::string key, definition, binding, source_key;
 	RuleOwnerKind owner_kind = RuleOwnerKind::Equipment;
-	NativeRuleContext context;
+	NativeRuleContext context, applied_context;
 	std::uint64_t generation = 0;
 	std::int64_t started = 0, next = 0, last = -1;
+	// Paid work leases the next native phase, so prices/rates cannot change
+	// between resource quotation and physical actuation.
+	std::int64_t lease_tick = -1, lease_permille = 0;
+	std::int64_t stop_tick = -1;
 	bool eligible = false, active = false, stopped = false;
 	std::vector<RuleWorkCredit> credits;
-	// Derived from this tick's frozen quote/allocation, never another stock ledger.
+	// Last applied native-phase output, retained across a phase-boundary save.
 	std::int64_t output = 0;
 	std::string blocker;
+	bool operator==(const RuleExecutionState &) const = default;
+};
+struct ActiveRuleEffect
+{
+	std::uint64_t id = 0;
+	std::string source, definition, group_source;
+	PayloadHitContext context;
+	NativeRuleContext origin;
+	std::int64_t expiry = 0;
+	std::map<std::string, RuleExecutionState> clocks;
+	bool operator==(const ActiveRuleEffect &) const = default;
 };
 struct RuleRuntime
 {
@@ -91,7 +138,9 @@ enum class RuleEventPhase
 {
 	Payload,
 	Shield,
-	Region
+	Region,
+	Source,
+	Periodic
 };
 struct PendingRuleExecution
 {
@@ -99,6 +148,7 @@ struct PendingRuleExecution
 	std::int64_t due = 0;
 	RuleEventPhase phase = RuleEventPhase::Payload;
 	std::string rule, source_key;
+	std::int64_t damage = 0;
 	NativeRuleContext context;
 };
 inline constexpr std::size_t rule_instance_limit = 8192, rule_pending_limit = 8192;

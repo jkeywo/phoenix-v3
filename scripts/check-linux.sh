@@ -6,7 +6,7 @@ cd "$repo"
 ctest --test-dir build/linux --output-on-failure
 ./build/linux/native --build-check
 ./build/linux/phoenix_simulation_tests --trace > build/linux/continuation.trace
-for supply_case in logistics docking cargo processors store_effects directed abilities; do
+for supply_case in logistics docking cargo processors store_effects directed abilities rules; do
     "./build/linux/phoenix_${supply_case}_tests" --trace > "build/linux/${supply_case}-continuation.trace"
 done
 

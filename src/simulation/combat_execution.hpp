@@ -64,41 +64,59 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 	       s->compartments.at(s->definition.compartment_ids.at(at->second)).disabled;
 }
 void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amount,
-                   const Projectile *payload = nullptr)
+                   const Projectile *payload = nullptr, const NativeRuleContext *origin = nullptr,
+                   const std::vector<NativeRuleSource> *sources = nullptr, std::int64_t *native_inflicted = nullptr)
 {
-	auto &s = ship.get_mut<CombatStructure>();
+	const auto local_sources = sources ? std::vector<NativeRuleSource>{} : rule_sources(ship);
+	if (!sources)
+		sources = &local_sources;
 	if (combat_dead(ship))
 		return;
+	auto context = damage_rule_context(
+	    {ship.get<StableId>().id, PayloadOutcomeKind::Compartment, static_cast<std::int64_t>(compartment)}, amount, 0,
+	    payload, origin);
+	if (amount > 0)
+		amount = apply_pre_damage_rules(ship, RuleTrigger::PreCompartmentDamage, context, sources);
+	auto &s = ship.get_mut<CombatStructure>();
 	const auto actual = std::min(amount, s.compartments.at(compartment).hp);
+	if (native_inflicted)
+		*native_inflicted += actual;
 	if (payload)
-		queue_payload_outcome(
-		    *payload,
-		    {ship.get<StableId>().id, PayloadOutcomeKind::Compartment, static_cast<std::int64_t>(compartment)}, actual);
-	if (amount <= 0)
-		return;
-	personnel_casualties(ship, compartment, amount);
-	std::vector<std::string> affected;
-	damage_faults(ship, compartment, amount, payload ? &affected : nullptr);
-	if (payload)
-		for (const auto &equipment : affected)
-			queue_payload_outcome(*payload,
-			                      {ship.get<StableId>().id, PayloadOutcomeKind::System,
-			                       static_cast<std::int64_t>(compartment), equipment},
-			                      actual);
-	auto &c = s.compartments.at(compartment);
-	c.hp = std::max<std::int64_t>(0, c.hp - amount);
-	if (!c.hp)
-		c.disabled = true;
-	if (std::all_of(s.compartments.begin(), s.compartments.end(),
-	                [](const auto &v)
-	                {
-		                return v.hp == 0;
-	                }))
+		queue_payload_outcome(*payload, context.hit, actual);
+	if (amount > 0)
 	{
-		ship.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-		ship.get_mut<Motion>().velocity = {};
+		personnel_casualties(ship, compartment, amount);
+		std::vector<std::string> affected;
+		damage_faults(ship, compartment, amount, payload ? &affected : nullptr, {}, &context, sources);
+		if (payload)
+			for (const auto &equipment : affected)
+				queue_payload_outcome(*payload,
+				                      {ship.get<StableId>().id, PayloadOutcomeKind::System,
+				                       static_cast<std::int64_t>(compartment), equipment},
+				                      actual);
+		auto &c = s.compartments.at(compartment);
+		c.hp = std::max<std::int64_t>(0, c.hp - amount);
+		if (!c.hp)
+			c.disabled = true;
+		if (std::all_of(s.compartments.begin(), s.compartments.end(),
+		                [](const auto &v)
+		                {
+			                return v.hp == 0;
+		                }))
+		{
+			ship.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+			emit_native_destroy_rules(ship, {ship.get<StableId>().id}, sources);
+			ship.get_mut<Motion>().velocity = {};
+		}
+	}
+	if (context.presented > 0)
+	{
+		context.inflicted = actual;
+		context.residual = amount - actual;
+		emit_damage_rules(ship, RuleTrigger::PostCompartmentDamage, context, nullptr, sources);
 	}
 }
+
 bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute)
 {
 	auto &m = child.get_mut<CombatMechanism>();
@@ -349,29 +367,34 @@ void actuate_combat(flecs::entity ship)
 
 void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec end)
 {
+	const auto sources = rule_sources(ship);
 	auto &s = ship.get_mut<CombatStructure>();
 	if (combat_dead(ship))
 		return;
 	const auto id = ship.get<StableId>().id;
 	const bool first_contact = p.shield_hits.insert(id).second;
-	const auto integrity = [&]()
+	std::int64_t native_inflicted = 0;
+	const auto presented = p.damage;
+	const auto finish_entity_hit = [&]()
 	{
-		std::int64_t total = 0;
-		for (const auto &c : s.compartments)
-			total += c.hp;
-		if (const auto *shields = ship.try_get<ShieldComponent>())
-			for (const auto &c : shields->contributions)
-				total += c.state.strength;
-		return total;
+		const auto actual = native_inflicted;
+		if (first_contact)
+			queue_payload_outcome(p, {id}, actual);
+		if (first_contact || actual)
+		{
+			auto context = damage_rule_context({id}, presented, p.source, &p);
+			context.inflicted = actual;
+			context.residual = std::max<std::int64_t>(0, presented - actual);
+			emit_damage_rules(ship, RuleTrigger::PostEntityDamage, context, nullptr, &sources);
+		}
 	};
-	const auto before = integrity();
 	if (first_contact)
 		p.damage = absorb_shields(ship, p.heading, p.damage, p.definition.shield_bypass,
-		                          p.continuous ? &p.bypass_remainder : nullptr, p.source, &p);
+		                          p.continuous ? &p.bypass_remainder : nullptr, p.source, &p, nullptr, &sources,
+		                          &native_inflicted);
 	if (!p.damage)
 	{
-		if (first_contact)
-			queue_payload_outcome(p, {id}, before - integrity());
+		finish_entity_hit();
 		// Effect-only contact delivers entity bindings without inventing penetration.
 		if (!p.definition.damage)
 			p.life = 0;
@@ -422,10 +445,9 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 		auto &c = s.compartments[line.index];
 		const auto distance = length * (line.to - line.from) / 1000000;
 		const auto deposit = deposit_material(p, distance, d.resistance * c.hp / d.maximum);
-		combat_damage(ship, line.index, deposit, &p);
+		combat_damage(ship, line.index, deposit, &p, nullptr, &sources, &native_inflicted);
 	}
-	if (first_contact)
-		queue_payload_outcome(p, {id}, before - integrity());
+	finish_entity_hit();
 }
 #include "combat_ordnance.hpp"
 std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size_t from, std::size_t to,
@@ -676,7 +698,9 @@ void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, con
 					nearest = i;
 				}
 			}
-			combat_damage(ship, nearest, damage);
+			NativeRuleContext origin;
+			origin.source = origin.instigator = RuleActor{id == a ? b : a};
+			combat_damage(ship, nearest, damage, nullptr, &origin);
 		}
 }
 bool repair_team_present(flecs::entity ship, std::size_t compartment) const
@@ -1171,6 +1195,8 @@ Json save_projectiles() const
 		               {"source", p.source},
 		               {"weapon", p.weapon},
 		               {"payloads", p.payloads},
+		               {"rule_captures", p.rule_captures},
+		               {"destruction_rule_captures", p.destruction_rule_captures},
 		               {"position", p.position},
 		               {"velocity", p.velocity},
 		               {"remainder", p.remainder},
@@ -1192,6 +1218,7 @@ Json save_projectiles() const
 		               {"vz", p.vz},
 		               {"z_remainder", p.z_remainder},
 		               {"durability", particle.get<Destructible>().durability},
+		               {"rule_notified", particle.get<Destructible>().rule_notified},
 		               {"age", p.age},
 		               {"initial_distance", p.initial_distance},
 		               {"base_heading", p.base_heading},
@@ -1228,6 +1255,11 @@ void restore_projectiles(const Json &saved)
 					throw std::runtime_error("Invalid captured payload identity");
 		};
 		validate_payloads(p.payloads);
+		for (const auto *field : {"rule_captures", "destruction_rule_captures"})
+			if (!v.at(field).is_array() || v.at(field).size() > rule_expression_node_limit)
+				throw std::runtime_error("Invalid projectile capture roster");
+		p.rule_captures = v.at("rule_captures").get<std::vector<RuleCapturedFact>>();
+		validate_rule_captures(p.rule_captures, p.payloads);
 		p.position = v.at("position").get<fixed::Vec>();
 		p.velocity = v.at("velocity").get<fixed::Vec>();
 		p.remainder = v.at("remainder").get<fixed::Vec>();
@@ -1241,6 +1273,8 @@ void restore_projectiles(const Json &saved)
 		p.definition = v.at("definition").get<ProjectileDefinition>();
 		validate_payloads(p.definition.payloads);
 		validate_payloads(p.definition.destruction.payloads);
+		p.destruction_rule_captures = v.at("destruction_rule_captures").get<std::vector<RuleCapturedFact>>();
+		validate_rule_captures(p.destruction_rule_captures, p.definition.destruction.payloads);
 		p.target = v.at("target").get<decltype(p.target)>();
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
 		p.launch_altitude =
@@ -1255,6 +1289,11 @@ void restore_projectiles(const Json &saved)
 		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
 		const auto durability =
 		    checked_integer(v.at("durability"), 0, p.definition.durability, "projectile.durability");
+		if (!v.at("rule_notified").is_boolean())
+			throw std::runtime_error("Invalid projectile destruction notification");
+		const auto notified = v.at("rule_notified").get<bool>();
+		if (notified && durability > 0)
+			throw std::runtime_error("Living projectile has a destruction notification");
 		p.age = v.at("age").get<decltype(p.age)>();
 		p.initial_distance = v.at("initial_distance").get<decltype(p.initial_distance)>();
 		p.base_heading = v.at("base_heading").get<decltype(p.base_heading)>();
@@ -1283,7 +1322,11 @@ void restore_projectiles(const Json &saved)
 				                 return c.deck == deck;
 			                 }))
 				throw std::runtime_error("Invalid projectile deck selection");
-		ecs.entity().set<Projectile>(p).set<Destructible>({p.definition.destruction, durability});
+		Destructible native{p.definition.destruction, durability};
+		native.rule_notified = notified;
+		if (notified)
+			native.destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+		ecs.entity().set<Projectile>(p).set<Destructible>(std::move(native));
 	}
 }
 

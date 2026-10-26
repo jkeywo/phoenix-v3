@@ -1,5 +1,39 @@
 std::vector<BlastVisual> blast_visuals;
 std::uint64_t next_blast = 1;
+// Run after shared rule/payload catalogues and native fittings are compiled,
+// before admitting gameplay. Destruction must never discover an oversized
+// launch-capture layout after native damage has already committed.
+void validate_native_payload_layouts() const
+{
+	const auto projectile = [&](const ProjectileDefinition &definition)
+	{
+		(void)payload_capture_layout(definition.payloads);
+		(void)payload_capture_layout(definition.destruction.payloads);
+	};
+	for (const auto &[id, definition] : definitions)
+	{
+		if (definition.destruction)
+			(void)payload_capture_layout(definition.destruction->payloads);
+		if (definition.combat)
+		{
+			(void)payload_capture_layout(definition.combat->destruction.payloads);
+			for (const auto &system : definition.combat->systems)
+			{
+				if (system.kind == OperatingSystem::Weapon || system.kind == OperatingSystem::Magazine)
+					projectile(system.ammunition().projectile);
+				if (system.kind == OperatingSystem::Magazine)
+					for (const auto &[resource, ammunition] : system.get<MagazineDefinition>().ammunition_profiles)
+						projectile(ammunition.projectile);
+			}
+		}
+		for (const auto &[equipment, directed] : definition.directed)
+			for (const auto &mode : directed.modes)
+			{
+				projectile(mode.ammunition.projectile);
+				(void)payload_capture_layout(mode.payloads);
+			}
+	}
+}
 std::optional<std::int64_t> volume_hit(fixed::Vec a, fixed::Vec b, std::int64_t za, std::int64_t zb,
                                        CollisionBody target, fixed::Vec target_start, std::int64_t tz_start,
                                        std::int64_t tz_end, std::int64_t half_height, std::int64_t radius = 1) const
@@ -82,7 +116,7 @@ BlastExposure blast_exposure(fixed::Vec origin, std::int64_t altitude, flecs::en
 	        static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + dz * dz)))};
 }
 void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefinition &d, EntityId source = 0,
-                const std::string &weapon = {})
+                const std::string &weapon = {}, const std::vector<RuleCapturedFact> *origin_captures = nullptr)
 {
 	if (!d.visual.empty() || !d.sound.empty())
 	{
@@ -92,6 +126,7 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 	}
 	if ((!d.damage && d.payloads.empty()) || !d.radius)
 		return;
+	const auto captures = origin_captures ? *origin_captures : capture_payload_rule_facts(source, weapon, d.payloads);
 	for (const auto &[id, ship] : combat_rows())
 	{
 		if (combat_dead(ship))
@@ -105,6 +140,7 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 		effect.source = source;
 		effect.weapon = weapon;
 		effect.payloads = d.payloads;
+		effect.rule_captures = captures;
 		effect.heading = combat_bearing(centre - origin);
 		effect.damage = d.damage * (d.radius - distance) / d.radius;
 		effect.penetration = 1000000;
@@ -126,14 +162,15 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 			    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(planar * planar + dz * dz)));
 			if (distance < d.radius && !blast_occluded(origin, altitude, p.position, p.altitude, 0))
 			{
-				auto &durability = row.get_mut<Destructible>().durability;
-				const auto amount = std::min(durability, d.damage * (d.radius - distance) / d.radius);
-				durability -= amount;
 				Projectile payload;
 				payload.source = source;
 				payload.weapon = weapon;
 				payload.payloads = d.payloads;
-				queue_payload_outcome(payload, {p.id, PayloadOutcomeKind::Entity, -1, {}, 0, {}, true}, amount);
+				payload.rule_captures = captures;
+				const PayloadHitContext hit{p.id, PayloadOutcomeKind::Entity, -1, {}, 0, {}, true};
+				const auto amount =
+				    damage_native_durability(row, d.damage * (d.radius - distance) / d.radius, hit, nullptr, &payload);
+				queue_payload_outcome(payload, hit, amount);
 			}
 		}
 	bodies.each(
@@ -146,17 +183,39 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 		    const auto distance = exposure.distance;
 		    if (distance < d.radius && !blast_occluded(origin, altitude, exposure.point, exposure.altitude, id.id))
 		    {
-			    const auto amount = std::min(v->durability, d.damage * (d.radius - distance) / d.radius);
-			    v->durability -= amount;
 			    Projectile payload;
 			    payload.source = source;
 			    payload.weapon = weapon;
 			    payload.payloads = d.payloads;
+			    payload.rule_captures = captures;
+			    const auto amount = damage_native_durability(e, d.damage * (d.radius - distance) / d.radius, {id.id},
+			                                                 nullptr, &payload);
 			    queue_payload_outcome(payload, {id.id}, amount);
-			    if (!v->durability)
-				    v->destroyed_tick = ecs.get<Clock>().tick;
 		    }
 	    });
+}
+void emit_native_destroy_rules(flecs::entity object, const RuleActor &actor,
+                               const std::vector<NativeRuleSource> *snapshot = nullptr)
+{
+	auto *native = object.try_get_mut<Destructible>();
+	if (!native || native->rule_notified)
+		return;
+	const auto sources = snapshot ? std::vector<NativeRuleSource>{} : rule_sources(object, true);
+	// Notification belongs to first native death, independently of later blast
+	// resolution. Queue-pressure failure is still a once-only delivered receipt.
+	native->rule_notified = true;
+	auto event = damage_rule_context(rule_hit_context(actor), 0);
+	// Native destruction has no persisted killer-credit field. Its instigator
+	// is the retiring native actor; each source view retains its own provenance.
+	event.instigator = actor;
+	visit_damage_rule_bindings(
+	    object, RuleTrigger::Destroy, event, nullptr,
+	    [&](const auto &source, const auto &rule, const auto &context)
+	    {
+		    (void)enqueue_rule(rule.id, source, context, RuleEventPhase::Payload,
+		                       static_cast<std::int64_t>(ecs.get<Clock>().tick) + 1);
+	    },
+	    snapshot ? snapshot : &sources);
 }
 void destroy_missile(flecs::entity row, bool warhead)
 {
@@ -166,8 +225,10 @@ void destroy_missile(flecs::entity row, bool warhead)
 	auto &component = row.get_mut<Destructible>();
 	if (component.processed)
 		return;
-	component.processed = true;
+	const auto sources = rule_sources(row, true);
 	component.destroyed_tick = ecs.get<Clock>().tick;
+	emit_native_destroy_rules(row, {p.id, {}, {}, true}, &sources);
+	component.processed = true;
 	p.life = 0;
 	component.durability = 0;
 	p.random = p.random * 6364136223846793005ULL + 1;
@@ -182,7 +243,8 @@ void destroy_missile(flecs::entity row, bool warhead)
 		effect.payloads = p.payloads;
 	}
 	if ((p.random >> 16) % 1000 < static_cast<std::uint64_t>(effect.chance))
-		emit_blast(p.position, p.altitude, effect, p.source, p.weapon);
+		emit_blast(p.position, p.altitude, effect, p.source, p.weapon,
+		           warhead ? &p.rule_captures : &p.destruction_rule_captures);
 }
 void resolve_destructions()
 {
@@ -197,6 +259,7 @@ void resolve_destructions()
 			{
 				if (d->destroyed_tick < 0)
 					continue;
+				emit_native_destroy_rules(e, {id});
 				d->processed = true;
 				changed = true;
 				const auto roll =
@@ -281,6 +344,7 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 		ghost_damage(ship.get<StableId>().id, origin, m.get<WeaponState>().beam_end, from_z,
 		             from_z + (end_z - from_z) * std::min(nearest, fixed::unit) / fixed::unit);
 	const auto payloads = capture_directed_payloads(ship, m, {});
+	const auto captures = capture_payload_rule_facts(ship.get<StableId>().id, d.id, payloads);
 	if (!victim || (!damage && payloads.empty()))
 		return;
 	auto target = entities.at(victim);
@@ -290,6 +354,7 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 		p.source = ship.get<StableId>().id;
 		p.weapon = d.id;
 		p.payloads = payloads;
+		p.rule_captures = captures;
 		p.damage = damage;
 		p.continuous = true;
 		p.bypass_remainder = m.get<WeaponState>().bypass_remainder;
@@ -305,10 +370,9 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 		payload.source = ship.get<StableId>().id;
 		payload.weapon = d.id;
 		payload.payloads = payloads;
-		queue_payload_outcome(payload, {victim}, std::min(v->durability, damage));
-		v->durability = std::max<std::int64_t>(0, v->durability - damage);
-		if (!v->durability)
-			v->destroyed_tick = ecs.get<Clock>().tick;
+		payload.rule_captures = captures;
+		const auto actual = damage_native_durability(target, damage, {victim}, nullptr, &payload);
+		queue_payload_outcome(payload, {victim}, actual);
 	}
 }
 void advance_ordnance(Projectile &p)
@@ -520,10 +584,9 @@ void step_ordnance()
 				    fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(relative, relative) + dz * dz)));
 				const auto distance = path * std::max<std::int64_t>(0, exit - hit.time) / fixed::unit;
 				const auto deposited = deposit_material(p, distance, m.definition.resistance);
-				queue_payload_outcome(p, {m.id, PayloadOutcomeKind::Entity, -1, {}, 0, {}, true},
-				                      std::min(deposited, hit.entity.get<Destructible>().durability));
-				hit.entity.get_mut<Destructible>().durability =
-				    std::max<std::int64_t>(0, hit.entity.get_mut<Destructible>().durability - deposited);
+				const PayloadHitContext context{m.id, PayloadOutcomeKind::Entity, -1, {}, 0, {}, true};
+				const auto actual = damage_native_durability(hit.entity, deposited, context, nullptr, &p);
+				queue_payload_outcome(p, context, actual);
 				if (!p.definition.damage)
 					p.life = 0;
 			}
@@ -537,10 +600,8 @@ void step_ordnance()
 			{
 				if (auto *d = hit.entity.try_get_mut<Destructible>(); d && d->durability > 0)
 				{
-					queue_payload_outcome(p, {hit.id}, std::min(d->durability, p.damage));
-					d->durability = std::max<std::int64_t>(0, d->durability - p.damage);
-					if (!d->durability)
-						d->destroyed_tick = ecs.get<Clock>().tick;
+					const auto actual = damage_native_durability(hit.entity, p.damage, {hit.id}, nullptr, &p);
+					queue_payload_outcome(p, {hit.id}, actual);
 				}
 				p.damage = 0;
 				p.penetration = 0;

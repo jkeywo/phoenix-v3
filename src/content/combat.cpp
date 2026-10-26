@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <map>
@@ -75,7 +76,7 @@ ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const s
 		throw std::runtime_error(path + ".kind: expected modifier effect");
 	for (const auto &[key, value] : effect.items())
 		if (key != "id" && key != "kind" && key != "contributions" && key != "extends" && key != "name" &&
-		    key != "duration_ticks")
+		    key != "duration_ticks" && key != "rules")
 			throw std::runtime_error(path + "." + key + ": unsupported effect field");
 	const auto duration = effect.value("duration_ticks", Json(0));
 	if (!duration.is_number_integer() || duration < 0 || duration > 1000000)
@@ -108,6 +109,14 @@ ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const s
 }
 void compile_effect(const Catalog &catalog, const std::string &id)
 {
+	const auto found = catalog.effects.find(id);
+	if (found == catalog.effects.end())
+		throw std::runtime_error("effects." + id + ": unknown effect reference");
+	const auto rules = compile_bound_rules(catalog, found->second);
+	compile_effect(catalog, id, rules);
+}
+void compile_effect(const Catalog &catalog, const std::string &id, const RulesCatalog &rules)
+{
 	const auto &effect = catalog.effects.at(id);
 	if (effect.value("kind", std::string{}) == "modifier")
 		(void)compile_modifier_effect(catalog, id);
@@ -118,9 +127,9 @@ void compile_effect(const Catalog &catalog, const std::string &id)
 	else if (effect.value("kind", std::string{}) == "targeting_policy")
 		(void)compile_targeting_policy(catalog, id);
 	else if (effect.value("kind", std::string{}) == "payload")
-		(void)compile_payload(catalog, id);
+		(void)compile_payload(catalog, id, rules);
 	else if (effect.value("kind", std::string{}) == "periodic")
-		(void)compile_periodic_effect(catalog, id);
+		(void)compile_periodic_effect(catalog, id, rules);
 	else if (effect.value("kind", std::string{}) == "ability")
 		(void)compile_ability(catalog, id);
 	else if (effect.value("kind", std::string{}) == "psychic")
@@ -130,9 +139,17 @@ void compile_effect(const Catalog &catalog, const std::string &id)
 	else if (effect.value("kind", std::string{}) == "rule")
 		(void)compile_rule(catalog, id);
 	else
-		(void)compile_shield_effect(catalog, id);
+		(void)compile_shield_effect(catalog, id, rules);
 }
 ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id)
+{
+	const auto found = catalog.effects.find(id);
+	if (found == catalog.effects.end())
+		throw std::runtime_error("effects." + id + ": unknown effect reference");
+	const auto rules = compile_bound_rules(catalog, found->second);
+	return compile_shield_effect(catalog, id, rules);
+}
+ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id, const RulesCatalog &rules)
 {
 	const auto path = "effects." + id;
 	const auto found = catalog.effects.find(id);
@@ -143,7 +160,7 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 		throw std::runtime_error(path + ".kind: unsupported effect kind");
 	for (const auto &[key, value] : effect.items())
 		if (key != "id" && key != "kind" && key != "contributions" && key != "extends" && key != "name" &&
-		    key != "duration_ticks")
+		    key != "duration_ticks" && key != "rules")
 			throw std::runtime_error(path + "." + key + ": unsupported effect field");
 	if (effect.contains("duration_ticks") && (!effect.at("duration_ticks").is_number_integer() ||
 	                                          effect.at("duration_ticks") < 0 || effect.at("duration_ticks") > 1000000))
@@ -170,14 +187,16 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 		                                          "layer",
 		                                          "discharge_per_second",
 		                                          "discharge_efficiency_permille",
-		                                          "pre_damage_permille",
-		                                          "post_damage",
-		                                          "reactions",
+		                                          "rules",
 		                                          "modifiers",
 		                                          "audio"};
 		for (const auto &[key, item] : value.items())
+		{
+			if (key == "pre_damage_permille" || key == "post_damage" || key == "reactions")
+				throw std::runtime_error(at + "." + key + ": replaced by shared rule bindings in rules");
 			if (!fields.contains(key))
 				throw std::runtime_error(at + "." + key + ": unsupported shield field");
+		}
 		auto n = [&](const char *key, std::int64_t fallback, std::int64_t minimum, std::int64_t maximum)
 		{
 			if (!value.contains(key))
@@ -233,25 +252,11 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 			}
 		}
 
-		if (value.contains("reactions"))
-		{
-			const auto &groups = value.at("reactions");
-			if (!groups.is_array() || groups.size() > 32)
-				throw std::runtime_error(at + ".reactions: expected bounded array");
-			for (const auto &group : groups)
-			{
-				d.reactions.push_back(compile_effect_operations(catalog, group, at + ".reactions"));
-			}
-		}
-
-		d.pre_damage_permille = n("pre_damage_permille", 1000, 0, 1000);
-		if (const auto damage = n("post_damage", 0, 0, 1000000))
-		{
-			// Keep shorthand last: existing saves identify this group after authored reactions.
-			EffectGroupDefinition reaction;
-			reaction.operations.push_back({EffectOperationKind::Damage, "attacker", {}, {}, {}, damage});
-			d.reactions.push_back(std::move(reaction));
-		}
+		static constexpr std::array allowed{RuleTrigger::PreShieldDamage, RuleTrigger::PostShieldDamage};
+		d.rules = compile_rule_bindings(rules, value.value("rules", Json::array()), at + ".rules", allowed);
+		for (const auto &binding : d.rules)
+			if (rules.at(binding.rule).phase != RulePhase::Instant)
+				throw std::runtime_error(at + ".rules: damage hooks require instant phase");
 		d.reserve.capacity = n("capacity", 1, 1, 1000000);
 		d.reserve.initial = n("initial", d.reserve.capacity, 0, d.reserve.capacity);
 		d.sustain_energy = n("sustain_energy_per_second", 1, 0, 1000000000);
@@ -374,6 +379,12 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 }
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,
                                                const DirectedCatalog &directed_catalog)
+{
+	const auto rules = compile_entity_rule_scope(catalog, name);
+	return compile_combat(catalog, name, directed_catalog, rules);
+}
+std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,
+                                               const DirectedCatalog &directed_catalog, const RulesCatalog &rules)
 {
 	const auto &entity = catalog.entities.at(name);
 	if (catalog.presentation)
@@ -566,7 +577,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			if (v.contains("shield_effect"))
 			{
 				s.shield_effect = v.at("shield_effect").get<std::string>();
-				s.shield_definition = compile_shield_effect(catalog, s.shield_effect);
+				s.shield_definition = compile_shield_effect(catalog, s.shield_effect, rules);
 				s.get<ShieldDefinition>() = s.shield_definition.contributions.front().shield;
 				s.bearing = s.shield_definition.contributions.front().bearing;
 				s.arc = s.shield_definition.contributions.front().arc;

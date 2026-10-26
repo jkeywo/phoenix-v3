@@ -23,6 +23,7 @@ namespace
 import phoenix.input;
 import phoenix.navigation;
 import phoenix.console;
+#include "../../src/core/rules_projection.hpp"
 
 using namespace phoenix;
 using phoenix::test::require;
@@ -95,6 +96,47 @@ int main()
 	try
 	{
 		{
+			const Json row{{"id", "equipment:engine:cooling"},
+			               {"rule", "test.cooling"},
+			               {"label", "rule.label"},
+			               {"source_kind", "equipment"},
+			               {"equipment", "engine"},
+			               {"phase", "active"},
+			               {"output", 750},
+			               {"blocker", ""}};
+			auto extra = row;
+			extra["target"] = 999;
+			extra["facts"] = {{"hidden", 42}};
+			extra["origin"] = "hidden-source";
+			require(rules_projection::board(Json::array({extra})) == Json::array({row}),
+			        "Rule publication retains only public metadata, never captured targets, facts or provenance");
+			for (const auto &field : {"phase", "output", "id", "blocker", "source_kind"})
+			{
+				auto invalid = row;
+				if (std::string(field) == "phase")
+					invalid[field] = "secret-phase";
+				else if (std::string(field) == "output")
+					invalid[field] = 1001;
+				else if (std::string(field) == "blocker")
+					invalid[field] = "Secret target failed its private condition";
+				else if (std::string(field) == "source_kind")
+					invalid[field] = "secret-kind";
+				else
+					invalid[field] = "";
+				bool refused = false;
+				try
+				{
+					(void)rules_projection::board(Json::array({invalid}));
+				}
+				catch (const std::exception &)
+				{
+					refused = true;
+				}
+				require(refused, "Malformed rule status is refused before publication");
+			}
+			require(rules_projection::board(Json::array()).empty(), "No rule rows require no placeholder status");
+		}
+		{
 			auto session = std::make_shared<InferenceView>();
 			PackDraft pack;
 			pack.manifest = {{"schema", 1}, {"id", "ui-routing"}};
@@ -162,7 +204,13 @@ int main()
 			    Json{{"schema", 1},
 			         {"languages",
 			          {{"en", {{"ability.label", "Emergency shield"}, {"Activate ability", "Activate ability"}}},
-			           {"test", {{"ability.label", "Bouclier"}, {"Activate ability", "Activer"}}}}}});
+			           {"test",
+			            {{"ability.label", "Bouclier"},
+			             {"Activate ability", "Activer"},
+			             {"rule.label", "Refroidissement"},
+			             {"paused", "En pause"},
+			             {"Rule output", "Puissance"},
+			             {"Rule funding unavailable", "Financement indisponible"}}}}}});
 			select_language("test");
 			session->projection->gameplay["controls"].push_back({{"id", "ability-localisation"},
 			                                                     {"label", "Activate ability"},
@@ -179,6 +227,26 @@ int main()
 				                    return control.second == "Bouclier [1]: Activer";
 			                    }),
 			        "Ability controls translate their label key before formatting the target and action");
+			session->projection->gameplay["rules"] = Json::array({{{"id", "rule-localisation"},
+			                                                       {"rule", "test.cooling"},
+			                                                       {"label", "rule.label"},
+			                                                       {"source_kind", "equipment"},
+			                                                       {"equipment", "engine"},
+			                                                       {"phase", "paused"},
+			                                                       {"output", 750},
+			                                                       {"blocker", "funding"}}});
+			model.refresh(session);
+			const auto rule_rows = model.gameplay_readouts();
+			require(std::any_of(rule_rows.begin(), rule_rows.end(),
+			                    [](const auto &row)
+			                    {
+				                    return row.first.starts_with("game.rule/") &&
+				                           row.second ==
+				                               "Refroidissement; En pause; Puissance 75%; Financement indisponible";
+			                    }),
+			        "Automatic rule readouts localize authored labels, phases, output and generic blockers");
+			require(model.gameplay_controls() == translated_controls,
+			        "Automatic rule status does not create operation controls");
 			select_language("en");
 		}
 		{

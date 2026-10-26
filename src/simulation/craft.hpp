@@ -548,8 +548,10 @@ void prepare_craft()
 			{
 				if (auto *body = e.try_get_mut<Destructible>())
 				{
+					const auto sources = rule_sources(e, true);
 					body->durability = 0;
 					body->destroyed_tick = ecs.get<Clock>().tick;
+					emit_native_destroy_rules(e, {id}, &sources);
 					body->processed = true;
 				}
 				if (auto *structure = e.try_get_mut<CombatStructure>())

@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -70,6 +71,7 @@ RuleTrigger trigger(const std::string &name, const std::string &at)
 	    {"post_compartment_damage", RuleTrigger::PostCompartmentDamage},
 	    {"pre_system_damage", RuleTrigger::PreSystemDamage},
 	    {"post_system_damage", RuleTrigger::PostSystemDamage},
+	    {"post_entity_damage", RuleTrigger::PostEntityDamage},
 	    {"destroy", RuleTrigger::Destroy}};
 	const auto found = names.find(name);
 	if (found == names.end())
@@ -84,7 +86,7 @@ bool pre_damage(RuleTrigger t)
 bool post_damage(RuleTrigger t)
 {
 	return t == RuleTrigger::PostShieldDamage || t == RuleTrigger::PostCompartmentDamage ||
-	       t == RuleTrigger::PostSystemDamage;
+	       t == RuleTrigger::PostSystemDamage || t == RuleTrigger::PostEntityDamage;
 }
 struct TypedNode
 {
@@ -417,14 +419,17 @@ bool evaluate_rule_expression(const RuleExpression &expression, const RuleContex
 			values.push_back(context.facts[node.fact]);
 			continue;
 		}
-		std::vector<Value> args;
-		args.reserve(node.args.size());
+		if (node.args.size() > 32)
+			return false;
+		std::array<const Value *, 32> argument_buffer;
+		std::size_t count = 0;
 		for (const auto index : node.args)
 		{
 			if (index >= values.size())
 				return false;
-			args.push_back(values[index]);
+			argument_buffer[count++] = &values[index];
 		}
+		const std::span<const Value *const> args(argument_buffer.data(), count);
 		if (args.empty())
 			return false;
 		Value value;
@@ -432,45 +437,45 @@ bool evaluate_rule_expression(const RuleExpression &expression, const RuleContex
 		{
 			if (args.size() != 1)
 				return false;
-			value = Value::boolean(args[0].type != Type::Missing);
+			value = Value::boolean(args[0]->type != Type::Missing);
 		}
 		else if (node.op == Op::All || node.op == Op::Any || node.op == Op::Not)
 		{
 			bool b = node.op == Op::All;
 			for (const auto &a : args)
 			{
-				if (a.type != Type::Boolean)
+				if (a->type != Type::Boolean)
 					return false;
 				if (node.op == Op::All)
-					b = b && a.number;
+					b = b && a->number;
 				else if (node.op == Op::Any)
-					b = b || a.number;
+					b = b || a->number;
 			}
 			if (node.op == Op::Not)
 			{
 				if (args.size() != 1)
 					return false;
-				b = !args[0].number;
+				b = !args[0]->number;
 			}
 			value = Value::boolean(b);
 		}
 		else if (node.op >= Op::Equal && node.op <= Op::GreaterEqual)
 		{
-			if (args.size() != 2 || args[0].type != args[1].type)
+			if (args.size() != 2 || args[0]->type != args[1]->type)
 				return false;
 			const auto comparison =
 			    static_cast<state_tree::Compare>(static_cast<int>(node.op) - static_cast<int>(Op::Equal));
-			value = Value::boolean(state_tree::compare_values(args[0], comparison, args[1]));
+			value = Value::boolean(state_tree::compare_values(*args[0], comparison, *args[1]));
 		}
 		else
 		{
 			for (const auto &a : args)
-				if (a.type != Type::Integer)
+				if (a->type != Type::Integer)
 					return false;
 			if (args.size() < 2)
 				return false;
-			auto n = args[0].number;
-			const auto b = args[1].number;
+			auto n = args[0]->number;
+			const auto b = args[1]->number;
 			if (node.op == Op::Add)
 			{
 				if (!checked_add(n, b, n))
@@ -496,7 +501,7 @@ bool evaluate_rule_expression(const RuleExpression &expression, const RuleContex
 			}
 			else if (node.op == Op::Ratio)
 			{
-				if (args.size() != 3 || !checked_multiply(n, args[2].number, n) || !b ||
+				if (args.size() != 3 || !checked_multiply(n, args[2]->number, n) || !b ||
 				    (n == std::numeric_limits<std::int64_t>::min() && b == -1))
 					return false;
 				n /= b;
@@ -504,13 +509,13 @@ bool evaluate_rule_expression(const RuleExpression &expression, const RuleContex
 			else if (node.op == Op::Min || node.op == Op::Max)
 			{
 				for (const auto &a : args)
-					n = node.op == Op::Min ? std::min(n, a.number) : std::max(n, a.number);
+					n = node.op == Op::Min ? std::min(n, a->number) : std::max(n, a->number);
 			}
 			else if (node.op == Op::Clamp)
 			{
-				if (args.size() != 3 || b > args[2].number)
+				if (args.size() != 3 || b > args[2]->number)
 					return false;
-				n = std::clamp(n, b, args[2].number);
+				n = std::clamp(n, b, args[2]->number);
 			}
 			else
 				return false;
@@ -536,6 +541,9 @@ try
 	       at);
 	RuleDefinition result;
 	result.id = id;
+	result.label = value.value("label", id);
+	if (result.label.empty() || result.label.size() > 512)
+		rule_fail(at + ".label", "expected 1..512 characters");
 	result.trigger = trigger(value.value("trigger", std::string("activate")), at);
 	const auto phase = value.value("phase", std::string("instant"));
 	if (phase == "instant")
@@ -553,6 +561,9 @@ try
 		rule_fail(at, "maintained phase requires maintain trigger");
 	if (result.trigger == RuleTrigger::Maintain && result.phase != RulePhase::Maintained)
 		rule_fail(at, "maintain trigger requires maintained phase");
+	const bool clock_trigger = result.trigger == RuleTrigger::Tick || result.trigger == RuleTrigger::Occupancy;
+	if (clock_trigger != (result.phase == RulePhase::Periodic))
+		rule_fail(at, "tick/occupancy triggers require periodic phase; other triggers use instant or maintained phase");
 	const auto effect = value.value("effect", std::string{});
 	if (!effect.empty())
 		result.effects = compile_effect_group(catalog, effect);
@@ -692,6 +703,62 @@ RulesCatalog compile_rule_catalog(const Catalog &catalog)
 			result.emplace(id, compile_rule(catalog, id));
 	return result;
 }
+RulesCatalog compile_bound_rules(const Catalog &catalog, const Json &source)
+{
+	RulesCatalog result;
+	std::vector<std::pair<const Json *, std::size_t>> pending{{&source, 0}};
+	std::size_t visited = 0;
+	while (!pending.empty())
+	{
+		const auto [value, depth] = pending.back();
+		pending.pop_back();
+		if (depth > 64 || ++visited > 1000000)
+			rule_fail("rules", "source definition exceeds bounded compilation scan");
+		if (value->is_object())
+		{
+			if (value->contains("rules"))
+			{
+				const auto &bindings = value->at("rules");
+				if (!bindings.is_array())
+					rule_fail("rules", "expected binding array");
+				for (const auto &binding : bindings)
+				{
+					if (!binding.is_object() || !binding.contains("rule") || !binding.at("rule").is_string())
+						rule_fail("rules", "expected rule reference");
+					const auto id = binding.at("rule").get<std::string>();
+					if (!result.contains(id))
+						result.emplace(id, compile_rule(catalog, id));
+				}
+			}
+			for (const auto &[key, item] : value->items())
+				if (key != "rules" && (item.is_object() || item.is_array()))
+					pending.push_back({&item, depth + 1});
+		}
+		else if (value->is_array())
+			for (const auto &item : *value)
+				if (item.is_object() || item.is_array())
+					pending.push_back({&item, depth + 1});
+	}
+	return result;
+}
+RulesCatalog compile_entity_rule_scope(const Catalog &catalog, const std::string &entity)
+{
+	const auto &definition = catalog.entities.at(entity);
+	auto result = compile_bound_rules(catalog, definition);
+	if (definition.contains("systems"))
+		for (const auto &[id, system] : definition.at("systems").items())
+			if (system.contains("shield_effect") && system.at("shield_effect").is_string())
+			{
+				const auto effect = system.at("shield_effect").get<std::string>();
+				const auto found = catalog.effects.find(effect);
+				if (found != catalog.effects.end())
+				{
+					auto bindings = compile_bound_rules(catalog, found->second);
+					result.merge(bindings);
+				}
+			}
+	return result;
+}
 std::vector<RuleBinding> compile_rule_bindings(const RulesCatalog &catalog, const Json &value, const std::string &at,
                                                std::span<const RuleTrigger> allowed)
 try
@@ -740,7 +807,7 @@ catch (const Json::exception &error)
 {
 	rule_fail(at, std::string("invalid rule binding: ") + error.what());
 }
-std::optional<EffectGroupDefinition> materialize_rule(const RuleDefinition &rule, const RuleContext &context)
+RuleEvaluation evaluate_rule(const RuleDefinition &rule, const RuleContext &context)
 {
 	if (context.facts.size() != rule.facts.size())
 		return {};
@@ -748,9 +815,16 @@ std::optional<EffectGroupDefinition> materialize_rule(const RuleDefinition &rule
 		if (context.facts[i].type != rule.facts[i].type && context.facts[i].type != Type::Missing)
 			return {};
 	Value value;
-	if (rule.condition && (!evaluate_rule_expression(*rule.condition, context, value) || !value.number))
-		return {};
-	auto result = rule.effects;
+	if (rule.condition)
+	{
+		if (!evaluate_rule_expression(*rule.condition, context, value))
+			return {};
+		if (!value.number)
+			return {RuleEvaluationStatus::Unmatched, {}};
+	}
+	RuleEvaluation evaluation;
+	auto &result = evaluation.quote.effects;
+	result = rule.effects;
 	static const std::map<RuleRole, std::string> roles{
 	    {RuleRole::Owner, "owner"},        {RuleRole::Source, "source"}, {RuleRole::Instigator, "instigator"},
 	    {RuleRole::Subject, "subject"},    {RuleRole::Target, "target"}, {RuleRole::Attacker, "attacker"},
@@ -793,9 +867,129 @@ std::optional<EffectGroupDefinition> materialize_rule(const RuleDefinition &rule
 			result.operations[index].delta_permille = value.number;
 		}
 	}
-	if (rule.damage_permille &&
-	    (!evaluate_rule_expression(*rule.damage_permille, context, value) || value.number < 0 || value.number > 1000))
+	if (rule.damage_permille)
+	{
+		if (!evaluate_rule_expression(*rule.damage_permille, context, value) || value.number < 0 || value.number > 1000)
+			return {};
+		evaluation.quote.damage_permille = value.number;
+	}
+	if (rule.funding)
+		for (const auto &cost : rule.funding->costs)
+		{
+			if (!evaluate_rule_expression(cost.amount, context, value) || value.number < 0 ||
+			    value.number > resource_limit)
+				return {};
+			evaluation.quote.upkeep.push_back(
+			    {roles.at(cost.payer), cost.equipment, cost.store, cost.resource, value.number});
+		}
+	evaluation.status = RuleEvaluationStatus::Ready;
+	return evaluation;
+}
+std::optional<EffectGroupDefinition> materialize_rule(const RuleDefinition &rule, const RuleContext &context)
+{
+	auto result = evaluate_rule(rule, context);
+	if (result.status != RuleEvaluationStatus::Ready)
 		return {};
+	return std::move(result.quote.effects);
+}
+SourceRuleDefinitionSet compile_source_rules(const Catalog &catalog, const std::string &entity)
+{
+	const auto rules = compile_entity_rule_scope(catalog, entity);
+	return compile_source_rules(catalog, entity, rules);
+}
+SourceRuleDefinitionSet compile_source_rules(const Catalog &catalog, const std::string &entity,
+                                             const RulesCatalog &rules)
+{
+	SourceRuleDefinitionSet result;
+	const auto &definition = catalog.entities.at(entity);
+	static constexpr std::array allowed{RuleTrigger::Activate,
+	                                    RuleTrigger::Deactivate,
+	                                    RuleTrigger::Tick,
+	                                    RuleTrigger::Maintain,
+	                                    RuleTrigger::Destroy,
+	                                    RuleTrigger::PreShieldDamage,
+	                                    RuleTrigger::PostShieldDamage,
+	                                    RuleTrigger::PreCompartmentDamage,
+	                                    RuleTrigger::PostCompartmentDamage,
+	                                    RuleTrigger::PreSystemDamage,
+	                                    RuleTrigger::PostSystemDamage,
+	                                    RuleTrigger::PostEntityDamage};
+	result.entity = compile_rule_bindings(rules, definition.value("rules", Json::array()),
+	                                      "entities." + entity + ".rules", allowed);
+	if (definition.contains("systems"))
+		for (const auto &[id, system] : definition.at("systems").items())
+			if (system.contains("rules"))
+				result.equipment.emplace(id, compile_rule_bindings(rules, system.at("rules"),
+				                                                   "entities." + entity + ".systems." + id + ".rules",
+				                                                   allowed));
+	if (definition.contains("personnel") && !definition.at("personnel").is_null())
+		for (const auto &officer : definition.at("personnel").at("officers"))
+			if (officer.contains("rules"))
+			{
+				const auto id = officer.at("id").get<std::string>();
+				result.officers.emplace(
+				    id, compile_rule_bindings(rules, officer.at("rules"),
+				                              "entities." + entity + ".personnel.officers." + id + ".rules", allowed));
+			}
+	return result;
+}
+std::map<std::string, std::vector<RuleBinding>> compile_effect_rules(const Catalog &catalog, const RulesCatalog &rules)
+{
+	std::map<std::string, std::vector<RuleBinding>> result;
+	static constexpr std::array allowed{RuleTrigger::Activate,
+	                                    RuleTrigger::Deactivate,
+	                                    RuleTrigger::Tick,
+	                                    RuleTrigger::Maintain,
+	                                    RuleTrigger::Destroy,
+	                                    RuleTrigger::PreShieldDamage,
+	                                    RuleTrigger::PostShieldDamage,
+	                                    RuleTrigger::PreCompartmentDamage,
+	                                    RuleTrigger::PostCompartmentDamage,
+	                                    RuleTrigger::PreSystemDamage,
+	                                    RuleTrigger::PostSystemDamage,
+	                                    RuleTrigger::PostEntityDamage};
+	for (const auto &[id, effect] : catalog.effects)
+		if (effect.contains("rules"))
+		{
+			const auto kind = effect.value("kind", std::string{});
+			if (kind != "shield" && kind != "modifier" && kind != "periodic" && kind != "ability_grant" &&
+			    kind != "payload")
+				rule_fail("effects." + id + ".rules", "this template has no native binding owner");
+			// Payload/periodic adapters already own their binding list and native cadence.
+			if (kind == "payload" || kind == "periodic")
+				continue;
+			result.emplace(id, compile_rule_bindings(rules, effect.at("rules"), "effects." + id + ".rules", allowed));
+		}
+	return result;
+}
+std::map<std::string, std::vector<RuleBinding>> compile_region_rules(const Catalog &, const Json &map,
+                                                                     const RulesCatalog &rules)
+{
+	std::map<std::string, std::vector<RuleBinding>> result;
+	const auto &source = map.contains("scenario") ? map.at("scenario") : map;
+	const auto regions = map.contains("regions") ? map.at("regions") : source.value("regions", Json::array());
+	const auto at = "maps." + map.value("id", std::string("map")) + ".regions";
+	if (!regions.is_array() || regions.size() > 256)
+		rule_fail(at, "expected at most 256 regions");
+	for (const auto &region : regions)
+	{
+		if (!region.is_object())
+			rule_fail(at, "expected region object");
+		const auto id = region.value("id", std::string{});
+		if (!valid_identifier(id) || result.contains(id))
+			rule_fail(at, "invalid or duplicate region identity");
+		auto bindings = compile_rule_bindings(rules, region.value("rules", Json::array()), at + "." + id + ".rules");
+		for (const auto &binding : bindings)
+		{
+			const auto &rule = rules.at(binding.rule);
+			if ((rule.trigger == RuleTrigger::Enter || rule.trigger == RuleTrigger::Exit) &&
+			    rule.phase != RulePhase::Instant)
+				rule_fail(at + "." + id, "entry/exit rules require instant phase");
+			if (rule.trigger == RuleTrigger::Occupancy && rule.phase != RulePhase::Periodic)
+				rule_fail(at + "." + id, "occupancy rules require periodic phase");
+		}
+		result.emplace(id, std::move(bindings));
+	}
 	return result;
 }
 } // namespace phoenix

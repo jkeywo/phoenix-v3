@@ -2,6 +2,14 @@
 	"schema": 1,
 	"languages": {
 		"en": {
+			"Rule output": "Rule output",
+			"Rule conditions unmet": "Rule conditions unmet",
+			"Rule source unavailable": "Rule source unavailable",
+			"Rule funding unavailable": "Rule funding unavailable",
+			"Rule value unavailable": "Rule value unavailable",
+			"Rule target unavailable": "Rule target unavailable",
+			"Rule stopped": "Rule stopped",
+			"stopped": "Stopped",
 			"Stop ability": "Stop ability",
 			"Cancel ability preparation": "Cancel ability preparation",
 			"Ability control bindings": "Ability control bindings",

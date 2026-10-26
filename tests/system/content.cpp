@@ -463,32 +463,33 @@ int main()
 			    },
 			    "unknown effect");
 			{
-				auto invalid = effects;
-				auto &arc = invalid.effects.at("test.shield-effect")["contributions"]["fore"];
-				arc["reactions"] =
-				    Json::array({{{"operations", Json::array({{{"kind", "remove"}, {"grant", "x"}, {"damage", 1}}})}}});
+				const Json invalid_remove = {
+				    {"operations", Json::array({{{"kind", "remove"}, {"grant", "x"}, {"damage", 1}}})}};
 				rejected(
 				    [&]
 				    {
-					    compile_shield_effect(invalid, "test.shield-effect");
+					    compile_effect_operations(effects, invalid_remove, "test.invalid-group");
 				    },
 				    "unsupported remove field damage");
-				arc["reactions"] = Json::array({{{"operations", Json::array({{{"kind", "damage"}, {"damage", 1}},
-				                                                             {{"kind", "remove"}, {"grant", "x"}}})}}});
+				const Json invalid_order = {{"operations", Json::array({{{"kind", "damage"}, {"damage", 1}},
+				                                                        {{"kind", "remove"}, {"grant", "x"}}})}};
 				rejected(
 				    [&]
 				    {
-					    compile_shield_effect(invalid, "test.shield-effect");
+					    compile_effect_operations(effects, invalid_order, "test.invalid-group");
 				    },
 				    "prepared operations must precede damage");
-				arc.erase("reactions");
-				arc["pre_damage_permille"] = 1001;
-				rejected(
-				    [&]
-				    {
-					    compile_shield_effect(invalid, "test.shield-effect");
-				    },
-				    "outside supported bounds");
+				for (const auto *retired : {"pre_damage_permille", "post_damage", "reactions"})
+				{
+					auto invalid = effects;
+					invalid.effects.at("test.shield-effect")["contributions"]["fore"][retired] = 1;
+					rejected(
+					    [&]
+					    {
+						    compile_shield_effect(invalid, "test.shield-effect");
+					    },
+					    "replaced by shared rule bindings");
+				}
 			}
 		}
 
@@ -584,7 +585,7 @@ int main()
 				    {
 					    compile_personnel(invalid, "test.controllable");
 				    },
-				    "replaced by effect references");
+				    "replaced by rule references");
 				invalid = effects;
 				invalid.effects["test.drive-effect"]["contributions"]["speed"]["delta_permille"] = 100001;
 				rejected(

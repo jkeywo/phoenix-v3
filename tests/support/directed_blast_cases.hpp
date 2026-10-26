@@ -37,6 +37,8 @@ Json directed_blast_cases()
 		const auto fire = source["entities"][0]["systems"]["gun"]["directed"]["modes"][1].get<std::string>();
 		auto &mode = directed_effect(source, fire);
 		mode["fire_ticks"] = 1000;
+		mode["range_mm"] = 200000;
+		directed_effect(source, "test.directed.scan")["range_mm"] = 1000;
 		mode["payloads"] = {"test.blast.impact"};
 		mode["projectile"] = {{"visual", "test.visual"},
 		                      {"speed_mm_s", 20000},
@@ -59,6 +61,17 @@ Json directed_blast_cases()
 		if (variant == 1)
 		{
 			auto defence_mode = mode;
+			source["effects"].push_back(
+			    Json::parse(R"json({"id":"test.blast.destroy-capture-group","kind":"operations",
+                "operations":[{"kind":"add","target":"subject","store":"energy:marker","resource":"test.blast-marker","amount":0}]})json"));
+			source["effects"].push_back(Json::parse(R"json({"id":"test.blast.destroy-capture-rule","kind":"rule",
+                "trigger":"post_entity_damage","effect":"test.blast.destroy-capture-group",
+                "values":{"0":{"amount":{"op":"ratio","args":[
+                    {"fact":"source.property","property":"sensors"},{"value":200000,"unit":"mm"},
+                    {"value":10,"unit":"resource:test.blast-marker"}]}}}})json"));
+			auto &destruction_payload = directed_effect(source, "test.blast.shotdown");
+			destruction_payload.erase("bindings");
+			destruction_payload["rules"] = Json::array({{{"id", "mark"}, {"rule", "test.blast.destroy-capture-rule"}}});
 			defence_mode["id"] = "test.blast.defence-mode";
 			defence_mode["payloads"] = Json::array();
 			defence_mode["projectile"] = {{"visual", "test.visual"}, {"speed_mm_s", 1000000}, {"lifetime_ticks", 20},
@@ -107,6 +120,12 @@ Json directed_blast_cases()
 		if (variant == 1)
 		{
 			ticks(world, 15); // Let the target missile clear its own hull before interception.
+			require(directed(world).at("operating_mode") == 0,
+			        "destruction capture source changes its live native range before missile interception");
+			const auto captured_flight = world.save();
+			world.restore(content, captured_flight);
+			require(world.save() == captured_flight,
+			        "destruction-specific launch captures survive an in-flight production restore");
 			command(world, "target", 1, "gun", 2, 202);
 			command(world, "operation", 1, "gun", 2, 202);
 			world.tick();
@@ -134,8 +153,9 @@ Json directed_blast_cases()
 		}
 		else if (variant == 1)
 		{
-			require(marker(2) == 10 && marker(1) == 10, "Physical shootdown executes the separate destruction payload "
-			                                            "exactly once, without its impact payload");
+			require(marker(2) == 10 && marker(1) == 10,
+			        "Physical shootdown executes the separate destruction payload "
+			        "exactly once using its launch-captured range despite the later source mode change");
 			require(hp(world, 2) == 20000,
 			        "Missile destruction damage retains its independent no-bypass shielding rules");
 		}
@@ -163,8 +183,30 @@ Json directed_inflight_source_loss()
 	directed_burning(source, 3, 80);
 	const auto fire = source["entities"][0]["systems"]["gun"]["directed"]["modes"][1].get<std::string>();
 	directed_effect(source, fire)["fire_ticks"] = 1000;
+	directed_effect(source, fire)["range_mm"] = 200000;
+	directed_effect(source, "test.directed.scan")["range_mm"] = 1000;
 	directed_effect(source, fire)["projectile"]["speed_mm_s"] = 20000;
 	directed_effect(source, fire)["projectile"]["lifetime_ticks"] = 200;
+	source["resources"].push_back({{"id", "fixture.resource.energy"},
+	                               {"label", "Capture marker"},
+	                               {"tags", {"energy"}},
+	                               {"sizes", {{"energy", 1}}}});
+	source["entities"][0]["resources"] = {{"stores", Json::array({{{"id", "captured"},
+	                                                               {"resource", "fixture.resource.energy"},
+	                                                               {"capacity", 1000},
+	                                                               {"initial", 0},
+	                                                               {"charge_rate", 1000},
+	                                                               {"discharge_rate", 1000}}})}};
+	source["effects"].push_back(Json::parse(R"json({"id":"test.capture.group","kind":"operations","operations":[
+        {"kind":"add","target":"subject","store":"energy:captured","resource":"fixture.resource.energy","amount":0}]})json"));
+	source["effects"].push_back(Json::parse(R"json({"id":"test.capture.rule","kind":"rule",
+        "trigger":"post_entity_damage","effect":"test.capture.group","values":{"0":{"amount":{"op":"ratio","args":[
+          {"fact":"source.property","property":"sensors"}, {"value":200000,"unit":"mm"},
+          {"value":10,"unit":"resource:fixture.resource.energy"}]}}}})json"));
+	source["effects"].push_back({{"id", "test.capture.payload"},
+	                             {"kind", "payload"},
+	                             {"rules", Json::array({{{"id", "capture"}, {"rule", "test.capture.rule"}}})}});
+	directed_effect(source, fire)["payloads"] = {"test.capture.payload"};
 	auto fragile = source["entities"][0];
 	fragile["id"] = "test.inflight.fragile";
 	for (auto &compartment : fragile["combat"]["decks"][0]["compartments"])
@@ -187,9 +229,12 @@ Json directed_inflight_source_loss()
 	for (int n = 0; n < 12 && weapon(world).at("shots") == 0; ++n)
 		world.tick();
 	require(weapon(world).at("shots") == 1, "Slow projectile commits its ammunition and payload before source loss");
+	command(world, "operation", 0);
 	command(world, "enabled", 0);
 	command(world, "target", 1, "second", 2, 202);
 	world.tick();
+	require(directed(world).at("operating_mode") == 0,
+	        "source switches to a different native range after its projectile commits");
 	for (int n = 0; n < 35 && hp(world, 1) > 0; ++n)
 		world.tick();
 	require(hp(world, 1) == 0, "Native counterfire destroys the original gun's ship before impact");
@@ -240,9 +285,9 @@ Json directed_inflight_source_loss()
 		resumed.tick();
 		const auto snapshot = world.save();
 		require(snapshot == resumed.save(), "In-flight captured work continues identically without a live source");
-		for (const auto &effect : snapshot.at("active_effects").at("periodic"))
-			if (effect.at("original_source") == 1 && effect.at("original_equipment") == "gun" &&
-			    effect.at("context").at("target") == 2)
+		for (const auto &effect : snapshot.at("rules").at("active"))
+			if (effect.at("origin").at("source").at("entity") == 1 &&
+			    effect.at("origin").at("source").at("equipment") == "gun" && effect.at("context").at("target") == 2)
 				inflicted = true;
 		if (inflicted)
 			break;
@@ -254,5 +299,14 @@ Json directed_inflight_source_loss()
 	ticks(resumed, 7);
 	require(hp(world, 2) < before && world.save() == resumed.save(),
 	        "The late inflicted condition performs independent periodic damage and retains exact continuation");
+	require(
+	    body(world, 2)
+	            .at("resources")
+	            .at("network")
+	            .at("stores")[0]
+	            .at("stock")
+	            .at("quantities")
+	            .value("fixture.resource.energy", std::int64_t{0}) == 10,
+	    "late native payload uses the launch-captured range despite a subsequent mode change and source destruction");
 	return world.save();
 }

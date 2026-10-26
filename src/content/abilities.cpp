@@ -220,7 +220,7 @@ AbilityGrantDefinition compile_ability_grant(const Catalog &catalog, const std::
 {
 	const auto &value = ability_template(catalog, id, "ability_grant");
 	const auto path = "effects." + id;
-	ability_fields(value, {"id", "kind", "name", "label", "extends", "ability", "duration_ticks"}, path);
+	ability_fields(value, {"id", "kind", "name", "label", "extends", "ability", "duration_ticks", "rules"}, path);
 	AbilityGrantDefinition result;
 	result.ability = value.value("ability", std::string{});
 	(void)ability_template(catalog, result.ability, "ability");

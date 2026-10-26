@@ -522,42 +522,82 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -14671,62 +14711,112 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "navigator",
 						"label": "Guild navigator",
-						"effects": []
+						"rules": []
 					},
 					{
 						"id": "medical",
 						"label": "Clinical specialist",
-						"effects": ["base.modifier.medical.p250"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.medical.p250.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "security",
 						"label": "Boarding veteran",
-						"effects": ["base.modifier.security.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.security.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "quartermaster",
 						"label": "Quartermaster",
-						"effects": []
+						"rules": []
 					}
 				],
 				"facilities": [
@@ -21735,42 +21825,82 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -23529,42 +23659,82 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -28606,57 +28776,107 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "navigator",
 						"label": "Guild navigator",
-						"effects": []
+						"rules": []
 					},
 					{
 						"id": "medical",
 						"label": "Clinical specialist",
-						"effects": ["base.modifier.medical.p250"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.medical.p250.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "security",
 						"label": "Boarding veteran",
-						"effects": ["base.modifier.security.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.security.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -31131,42 +31351,82 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -34376,42 +34636,82 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -35613,42 +35913,82 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"effects": ["base.modifier.propulsion.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.propulsion.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"effects": ["base.modifier.sensors.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.sensors.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"effects": ["base.modifier.cycling.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.cycling.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"effects": ["base.modifier.traverse.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.traverse.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"effects": ["base.modifier.reload.p150"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.reload.p150.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"effects": ["base.modifier.recharge.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.recharge.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"effects": ["base.modifier.repair.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.repair.p200.officer-rule"
+							}
+						]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"effects": ["base.modifier.comms.p200"]
+						"rules": [
+							{
+								"id": "buff-0",
+								"rule": "base.modifier.comms.p200.officer-rule"
+							}
+						]
 					}
 				],
 				"duties": [
@@ -63461,6 +63801,216 @@
 			"shortage": "proportional",
 			"psychic_effect": "base.psychic.veil",
 			"require_healthy": true
+		},
+		{
+			"id": "base.modifier.propulsion.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.propulsion.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.propulsion.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.propulsion.p200.officer-apply"
+		},
+		{
+			"id": "base.modifier.sensors.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.sensors.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.sensors.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.sensors.p200.officer-apply"
+		},
+		{
+			"id": "base.modifier.cycling.p150.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.cycling.p150",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.cycling.p150.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.cycling.p150.officer-apply"
+		},
+		{
+			"id": "base.modifier.traverse.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.traverse.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.traverse.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.traverse.p200.officer-apply"
+		},
+		{
+			"id": "base.modifier.reload.p150.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.reload.p150",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.reload.p150.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.reload.p150.officer-apply"
+		},
+		{
+			"id": "base.modifier.recharge.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.recharge.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.recharge.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.recharge.p200.officer-apply"
+		},
+		{
+			"id": "base.modifier.repair.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.repair.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.repair.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.repair.p200.officer-apply"
+		},
+		{
+			"id": "base.modifier.comms.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.comms.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.comms.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.comms.p200.officer-apply"
+		},
+		{
+			"id": "base.modifier.medical.p250.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.medical.p250",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.medical.p250.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.medical.p250.officer-apply"
+		},
+		{
+			"id": "base.modifier.security.p200.officer-apply",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "apply",
+					"target": "target",
+					"equipment": "$target",
+					"role": "$role",
+					"effect": "base.modifier.security.p200",
+					"grant": "buff"
+				}
+			]
+		},
+		{
+			"id": "base.modifier.security.p200.officer-rule",
+			"kind": "rule",
+			"trigger": "maintain",
+			"phase": "maintained",
+			"effect": "base.modifier.security.p200.officer-apply"
 		}
 	],
 	"resources": [

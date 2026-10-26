@@ -55,6 +55,7 @@ public:
 	ShipResourceAllocation &operator=(const ShipResourceAllocation &) = delete;
 	const std::vector<SystemResourceGrant> &grants() const;
 	const std::map<std::string, SystemResourceGrant> &named_grants() const;
+	ResourceNetwork &prepared_network();
 	void commit();
 
 private:

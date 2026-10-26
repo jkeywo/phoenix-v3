@@ -47,6 +47,8 @@ import phoenix.gameplay_scenario;
 #include "sensors_state.hpp"
 #include "psychic_state.hpp"
 #include "abilities_state.hpp"
+#include "effect_transaction.hpp"
+#include "rule_work.hpp"
 #include "../core/display_projection.hpp"
 #include "../core/ftl_projection.hpp"
 
@@ -85,7 +87,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination
                                                 medical_compartment)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
                                    discharge_credit, discharge)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed, rule_notified)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BlastVisual, id, position, altitude, tick, definition, kind, bearing, arc)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
@@ -159,6 +161,7 @@ struct CompiledDefinition
 	PersonnelDefinition personnel;
 	PsychicDefinition psychic;
 	AbilityDefinitionSet abilities;
+	SourceRuleDefinitionSet rules;
 	std::vector<BoardingDefinition> boarding;
 	std::map<std::string, std::vector<std::string>> boarding_docking_ports;
 	TransportDefinition transport;
@@ -265,9 +268,7 @@ struct World::Impl
 	std::map<std::string, EffectGroupDefinition> effect_groups;
 	std::map<std::string, AbilityGrantDefinition> ability_grant_templates;
 	SharedResourceCatalogue resource_catalogue;
-	std::vector<ShieldReaction> shield_reactions;
-	std::map<std::uint64_t, std::string> shield_reaction_results;
-	std::uint64_t next_shield_hit = 1, next_shield_reaction = 1;
+	std::uint64_t next_shield_hit = 1;
 	std::map<std::string, std::vector<std::string>> camera_widgets;
 	std::string map;
 	FactionCatalog factions;
@@ -573,6 +574,8 @@ struct World::Impl
 	{
 		const auto content = convert_controller_content(source, directed_catalog);
 		const auto ability_catalog = compile_ability_catalog(content);
+		rule_templates = compile_rule_catalog(content);
+		native_effect_rules = compile_effect_rules(content, rule_templates);
 		console_layouts = content.consoles;
 		resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
 		for (const auto &[id, effect] : content.effects)
@@ -581,11 +584,11 @@ struct World::Impl
 			else if (effect.at("kind") == "operations")
 				effect_groups.emplace(id, compile_effect_group(content, id));
 			else if (effect.at("kind") == "shield")
-				shield_templates.emplace(id, compile_shield_effect(content, id));
+				shield_templates.emplace(id, compile_shield_effect(content, id, rule_templates));
 			else if (effect.at("kind") == "payload")
-				payload_templates.emplace(id, compile_payload(content, id));
+				payload_templates.emplace(id, compile_payload(content, id, rule_templates));
 			else if (effect.at("kind") == "periodic")
-				periodic_templates.emplace(id, compile_periodic_effect(content, id));
+				periodic_templates.emplace(id, compile_periodic_effect(content, id, rule_templates));
 			else if (effect.at("kind") == "ability_grant")
 				ability_grant_templates.emplace(id, compile_ability_grant(content, id));
 		packs = content.ordered_packs;
@@ -604,7 +607,7 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
-			result.combat = compile_combat(content, name, directed_catalog);
+			result.combat = compile_combat(content, name, directed_catalog, rule_templates);
 			if (result.combat)
 				result.destruction = result.combat->destruction;
 			if (definition.contains("destruction"))
@@ -618,7 +621,8 @@ struct World::Impl
 				throw std::runtime_error("Invalid entity durability/vertical extent");
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
-			result.personnel = compile_personnel(content, name, directed_catalog);
+			result.personnel = compile_personnel(content, name, directed_catalog, rule_templates);
+			result.rules = compile_source_rules(content, name, rule_templates);
 			const auto ability_layout = compile_controllable_layout(content, name);
 			result.psychic = compile_psychic(content, name, ability_catalog, result.personnel, ability_layout);
 			result.abilities =
@@ -2044,9 +2048,16 @@ struct World::Impl
 #include "abilities.hpp"
 #include "ability_interface.hpp"
 #include "effect_queue.hpp"
+#include "rules.hpp"
+#include "rule_sources.hpp"
 #include "payload_effects.hpp"
+#include "effect_damage.hpp"
+#include "rule_funding.hpp"
+#include "rule_lifecycle.hpp"
+#include "region_rules.hpp"
+#include "rule_persistence.hpp"
+#include "rule_interface.hpp"
 #include "processors.hpp"
-#include "shield_reactions.hpp"
 	void run_advanced_equipment()
 	{
 		std::vector<std::pair<EntityId, flecs::entity>> ships;
@@ -2062,6 +2073,8 @@ struct World::Impl
 		          });
 		for (const auto &[id, ship] : ships)
 		{
+			if (auto *power = ship.try_get_mut<ShipResources>())
+				clear_named_requests(*power);
 			prepare_abilities(id);
 			const auto restrictions = flight_restrictions(id);
 			prepare_combat(ship);
@@ -2074,63 +2087,84 @@ struct World::Impl
 				prepare_ftl(ship);
 			reserve_paid_modifiers(ship, restrictions);
 			request_processor_resources(ship);
-			std::optional<ShipResourceAllocation> allocation;
-			if (auto *power = ship.try_get_mut<ShipResources>())
-			{
-				std::vector<std::size_t> unavailable;
-				for (auto child : ship.get<EquipmentIndex>().values)
-					if (structurally_disabled(ship, child.get<Equipment>().id) ||
-					    boarding_inhibited(id, child.get<Equipment>().id))
-						unavailable.push_back(child.get<ResourceBinding>().slot);
-				allocation.emplace(*power, unavailable);
-				// A launch is indivisible: its continuous and discrete costs must both
-				// qualify. Requote from the unchanged network after removing failed
-				// launch intents, so an abandoned shot spends neither energy nor heat.
-				// Every pass removes an intent; native budgets and ordering stay intact.
-				for (;;)
+		}
+		request_rule_upkeep();
+		std::map<EntityId, std::optional<ShipResourceAllocation>> allocations;
+		for (;;)
+		{
+			allocations.clear();
+			for (const auto &[id, ship] : ships)
+				if (auto *power = ship.try_get_mut<ShipResources>())
 				{
-					bool removed = reject_unfunded_abilities(ship, *allocation);
+					std::vector<std::size_t> unavailable;
 					for (auto child : ship.get<EquipmentIndex>().values)
+						if (structurally_disabled(ship, child.get<Equipment>().id) ||
+						    boarding_inhibited(id, child.get<Equipment>().id))
+							unavailable.push_back(child.get<ResourceBinding>().slot);
+					allocations[id].emplace(*power, unavailable);
+				}
+			bool removed = false;
+			for (const auto &[id, ship] : ships)
+			{
+				auto &allocation = allocations[id];
+				auto *power = ship.try_get_mut<ShipResources>();
+				if (!allocation)
+					continue;
+				removed = reject_unfunded_abilities(ship, *allocation) || removed;
+				for (auto child : ship.get<EquipmentIndex>().values)
+				{
+					const auto &equipment = child.get<Equipment>();
+					if (!child.has<DirectedRuntime>() ||
+					    !directed_operation(id, equipment.id, DirectedOperationKind::Launch))
+						continue;
+					const auto slot = child.get<ResourceBinding>().slot;
+					const auto &grant = allocation->grants().at(slot);
+					if (power->requests.at(slot).discrete &&
+					    (grant.blocked || grant.supply_permille < 1000 ||
+					     (power->definition.systems.at(slot).discrete_energy && !grant.discrete_paid)))
 					{
-						const auto &equipment = child.get<Equipment>();
-						if (!child.has<DirectedRuntime>() ||
-						    !directed_operation(id, equipment.id, DirectedOperationKind::Launch))
-							continue;
-						const auto slot = child.get<ResourceBinding>().slot;
-						const auto &grant = allocation->grants().at(slot);
-						if (power->requests.at(slot).discrete &&
-						    (grant.blocked || grant.supply_permille < 1000 ||
-						     (power->definition.systems.at(slot).discrete_energy && !grant.discrete_paid)))
+						child.get_mut<CombatMechanism>().get<WeaponState>().ready = false;
+						auto &state = child.get_mut<DirectedRuntime>();
+						state.ready = false;
+						state.blocker = "Insufficient operating power";
+						auto &request = power->requests.at(slot);
+						request.discrete = false;
+						request.discrete_amount = 0;
+						request.extra_rate -= directed_mode(id, equipment.id)->energy_per_second;
+						auto &operation = directed_operations.at({id, equipment.id});
+						if (operation.stock_claim)
 						{
-							child.get_mut<CombatMechanism>().get<WeaponState>().ready = false;
-							auto &state = child.get_mut<DirectedRuntime>();
-							state.ready = false;
-							state.blocker = "Insufficient operating power";
-							auto &request = power->requests.at(slot);
-							request.discrete = false;
-							request.discrete_amount = 0;
-							request.extra_rate -= directed_mode(id, equipment.id)->energy_per_second;
-							auto &operation = directed_operations.at({id, equipment.id});
-							if (operation.stock_claim)
-							{
-								const auto magazine = instance(ship, operation.magazine)->entity;
-								auto &stock =
-								    physical_stock(ship, magazine.get<CombatMechanism>().get<MagazineState>().stock);
-								stock.release_stock("directed-launch:" + equipment.id);
-								operation.stock_claim = false;
-							}
-							removed = true;
+							const auto magazine = instance(ship, operation.magazine)->entity;
+							auto &stock =
+							    physical_stock(ship, magazine.get<CombatMechanism>().get<MagazineState>().stock);
+							stock.release_stock("directed-launch:" + equipment.id);
+							operation.stock_claim = false;
 						}
+						removed = true;
 					}
-					if (!removed)
-						break;
-					retry_blocked_processors(ship);
-					allocation.emplace(*power, unavailable);
 				}
 			}
-			prepare_paid_modifiers(ship, restrictions, allocation ? &*allocation : nullptr);
+			removed = prepare_rule_upkeep_payments(allocations) || removed;
+			if (!removed)
+				break;
+			for (const auto &[id, ship] : ships)
+				retry_blocked_processors(ship);
+		}
+		// No native allocation is committed until every dependent upkeep quote is final.
+		if (!commit_rule_upkeep_stocks())
+			throw std::logic_error("rules: prepared upkeep changed before commit");
+		for (const auto &[id, ship] : ships)
+		{
+			auto &allocation = allocations[id];
+			prepare_paid_modifiers(ship, flight_restrictions(id), allocation ? &*allocation : nullptr);
+		}
+		for (auto &[id, allocation] : allocations)
 			if (allocation)
 				allocation->commit();
+		finish_rule_upkeep();
+		for (const auto &[id, ship] : ships)
+		{
+			const auto restrictions = flight_restrictions(id);
 			actuate_processors(ship);
 			actuate_combat(ship);
 			if (!definition(id).ftl.empty())
@@ -2533,6 +2567,11 @@ World::World() : impl_(std::make_unique<Impl>())
 World::~World() = default;
 void World::load(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships)
 {
+	load_impl(source, map, ships, false);
+}
+void World::load_impl(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships,
+                      bool restoring)
+{
 	const auto content = prepared_catalog(source);
 	if (content.presentation)
 		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
@@ -2553,6 +2592,8 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	for (const auto &slot : data.at("ship_slots"))
 		slot_names.push_back(slot.at("id"));
 	candidate->regions = compile_scenario(data, entity_names, slot_names).regions;
+	candidate->region_rule_bindings = compile_region_rules(content, data, candidate->rule_templates);
+	candidate->validate_native_payload_layouts();
 	candidate->field_seed = asteroid_map_seed(map);
 	EntityId next = 1;
 	for (const auto &instance : data.at("entities"))
@@ -2619,6 +2660,11 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 		candidate->conversation_instance = candidate->scenario->runtime().create_instance("world-events");
 	candidate->away_missions.resize(candidate->away_definitions.size());
 	candidate->refresh_boarding_templates();
+	if (!restoring)
+	{
+		candidate->initialise_rule_membership();
+		candidate->prepare_rule_sources();
+	}
 	candidate->refresh_comms();
 	candidate->update_craft_reports();
 	candidate->stream_fields();
@@ -2918,6 +2964,9 @@ void World::tick()
 	profile.mark("controllers");
 	impl_->commit_departures();
 	impl_->apply_structural_disablement();
+	impl_->initialise_rule_membership();
+	impl_->prepare_rule_sources();
+	impl_->step_rule_events(RuleEventPhase::Source);
 	impl_->capture_dock_propulsion();
 	impl_->run_basic_steering();
 	impl_->run_basic_engines();
@@ -2929,6 +2978,7 @@ void World::tick()
 				impl_->knowledge.ingest_telemetry(id, fit.id, impl_->telemetry(id, fit.ordinal), ticks());
 			}
 	impl_->run_advanced_equipment();
+	impl_->refresh_rule_eligibility();
 	profile.mark("equipment");
 	impl_->adjust_dock_propulsion();
 	impl_->step_vertical();
@@ -2948,10 +2998,15 @@ void World::tick()
 	impl_->resolve_collisions.run();
 	profile.mark("logistics_motion_collision");
 	impl_->step_docking();
-	impl_->step_payload_effects();
-	impl_->step_shield_reactions();
+	impl_->step_region_rules();
+	impl_->refresh_rule_eligibility();
+	impl_->step_rule_clocks();
+	impl_->step_rule_events(RuleEventPhase::Periodic);
+	impl_->step_rule_events(RuleEventPhase::Payload);
+	impl_->step_rule_events(RuleEventPhase::Shield);
 	impl_->step_ordnance();
 	impl_->resolve_destructions();
+	impl_->refresh_rule_eligibility();
 	impl_->resolve_lost_parties();
 	impl_->step_teams();
 	impl_->step_repairs();
@@ -2996,6 +3051,7 @@ void World::tick()
 	impl_->update_mission_facts();
 	impl_->finalise_destroyed_missions();
 	impl_->prune_property_targets();
+	impl_->refresh_rule_eligibility();
 	profile.mark("missions_comms_away_sensors");
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
@@ -3350,6 +3406,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["personnel"] = impl_->personnel_board(address);
 	result.gameplay["psychic"] = impl_->psychic_board(address);
 	result.gameplay["abilities"] = impl_->ability_board(address);
+	if (auto rules = impl_->rules_board(address); !rules.empty())
+		result.gameplay["rules"] = std::move(rules);
 	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["craft"] = impl_->craft_board(address);
@@ -4098,10 +4156,9 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 26},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 27},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
-	result["shield_reactions"] = impl_->save_shield_reactions();
-	result["payload_effects"] = impl_->save_payload_effects();
+	result["rules"] = impl_->save_rules();
 	if (impl_->display_revision)
 	{
 		result["display_revision"] = impl_->display_revision;
@@ -4256,8 +4313,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 26)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 26 required)");
+	if (saved.at("schema") != 27)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 27 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4268,7 +4325,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		if (mission.value("craft", EntityId{0}) || mission.value("returning_without_delivery", false))
 			throw std::runtime_error("Legacy physical-craft commitment requires a new game");
 	World candidate;
-	candidate.load(content, saved.at("map"), saved.at("ships").get<std::map<std::string, std::string>>());
+	candidate.load_impl(content, saved.at("map"), saved.at("ships").get<std::map<std::string, std::string>>(), true);
 	for (auto &[id, rock] : candidate.impl_->field_rocks)
 		candidate.impl_->unload_rock(rock);
 	candidate.impl_->field_rocks.clear();
@@ -4333,7 +4390,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			if (Json(d.definition) != Json(entity.get<Destructible>().definition) || d.durability < 0 ||
 			    d.durability > candidate.impl_->definitions.at(restored.definition).durability ||
 			    d.destroyed_tick < -1 || d.destroyed_tick > saved.at("tick").get<std::int64_t>() ||
-			    (d.processed && d.destroyed_tick < 0))
+			    ((d.processed || d.rule_notified) && d.destroyed_tick < 0) || (d.processed && !d.rule_notified))
 				throw std::runtime_error("Invalid destruction continuation");
 			entity.set<Destructible>(d);
 		}
@@ -4643,8 +4700,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
-	candidate.impl_->restore_shield_reactions(saved.at("shield_reactions"));
-	candidate.impl_->restore_payload_effects(saved.at("payload_effects"));
+	candidate.impl_->restore_rules(saved.at("rules"));
+
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});
 	for (const auto &[id, report] : departure_reports)

@@ -1,24 +1,38 @@
-# Shared rule migration evidence
+# Shared rules migration evidence
 
-26 October 2026. Implementation of the approved [rule migration plan](rules-migration-plan.md) is in progress, based on `b907e3a`. This record distinguishes completed foundations from the remaining runtime conversion. See [rule authoring](rules-content.md) for the schema currently compiled.
+26 October 2026. Implementation follows the [approved plan](rules-migration-plan.md), based on `b907e3a`. The foundation is committed as `84e8773`; runtime integration and final platform verification are in progress. This receipt distinguishes code delivery, executed checks and remaining manual acceptance.
 
-## Foundation
+## Implemented behavior
 
-The shared catalogue compiles typed rule expressions, native/event fact descriptors, entry costs, upkeep costs, operation value overrides and target bindings. It reuses state-tree scalar types and the existing operation transaction representation, renamed from shield-specific names to `EffectGroupDefinition`/`EffectOperation`. Materialization is all-or-nothing and rejects missing facts or invalid arithmetic. Maintained proportional execution is limited to supported scalable modifier applications.
+The mod-extensible catalogue compiles shared triggers, typed expressions, costs, operation overrides and source bindings. It reuses state-tree scalar types and the common prepared effect transaction. Unsupported phases, unavailable event fields, invalid arithmetic and retired authoring fields receive diagnostics. Shipped officer traits and synthetic fixtures use shared maintained rules.
 
-Native regions expose ordered integer segment intervals, including two annulus spans. Historical crossing/tangency and path-length rounding remain unchanged. Named electrical consumers participate in the existing per-store resource request, allocation, heat and work-credit accounting; no fabricated equipment or second balance was added. Native-first and lexical named ordering preserve conservation and exact work attribution.
+Native source owners retain lifetime authority. Logical clocks, application identities, prepaid credits and next-phase leases support overlapping maintained sources, pause, shortage-stop rearming and exact continuation. Static maintained applications are installed once; dynamic updates affect existing modifier values without refreshing finite shield, ability or periodic lifetimes. Native target changes withdraw the last successfully applied target first. Retirement closes dependent grants at phase boundaries without evaluating, activating or paying rules.
 
-An independent read-only foundation review passed the compiler/evaluator, common cost compiler, geometry extraction and named allocation/continuation paths. Runtime state declarations are scaffolding, not evidence of working rules, maintained sources, new damage hooks or region hazards.
+Ongoing costs join existing `ShipResources` allocations and `StockTransaction` staging. Electrical upkeep competes with native consumers; mixed input bundles preserve paid fractional work. Entry costs are paid once before upkeep begins, using the available native operating budget. No synthetic equipment, extra stock balance or fabricated discharge allowance was added.
 
-Native verification passes:
+Native damage geometry, bypass, equal-layer sharing and reserves remain authoritative. Reached shield, compartment and system hooks use frozen prepared batches; failed payments remove their transformations before final sharing. Post contexts contain actual outcomes, and secondary work stays scheduled. Shield post hooks retain original caster context even when a pre hook removes the contribution. Impact and missile destruction payloads capture separate source facts at launch. Native destruction notifies once at first death, independently of the existing later blast-processing phase.
 
-- `phoenix_content` compiles.
-- `phoenix_rules_tests`: real pack resolution, typed expressions/units, separate costs, immutable template overrides and atomic materialization failures.
-- `phoenix_scenario_world_tests`: native scenario journeys and ordered interval regressions; the existing deterministic field fingerprint is unchanged.
-- `phoenix_gameplay_flight_tests`: paid native flight and synthetic named-consumer conservation, discarded quote, withdrawal and restore cases.
+Regions reuse native circle, rectangle and annulus intervals. Swept crossings run in movement order, including complete transits and departures from an initial boundary. Sampled membership owns maintained occupancy. Initial and spawned occupants enter once; restore does not replay entry.
 
-The first build stalled before compilation under sandboxed MSBuild and was stopped before retrying with the local toolchain permissions. The first rule fixture referenced an undeclared energy resource; the fixture now explicitly declares it without weakening validation. Logs are in `build/rules-foundation-content-2.log`, `build/rules-foundation-native.log` and `build/rules-foundation-native-2.log`.
+World and portable session saves use schema 27. They preserve native reserves plus rule clocks, membership, actual modifier values/subsets, application ownership, captured contexts, pending jobs and bounded receipts. Malformed owner identities, credits, deadlines, captures and forged maintained rows reject atomically. A narrow identity-only fallback accepts existing officer/equipment bindings on unprocessed native hull deaths without restoring their eligibility or recreating missing effects.
 
-## Remaining work
+Workshop supports the shared authoring fields. Console status uses existing feeds and personnel departments, localized generic rows, opaque identities and bounded public blocker codes. Hidden captured facts and raw private diagnostics are excluded.
 
-Prepared generic transactions, complete damage-hook migration, common periodic scheduling, launch captures, maintained/region/officer runtime, ongoing cost bundles, Workshop/publication integration and schema-27 continuation are not yet delivered. Full native/WASM/network gates, final reviews and manual acceptance have not run for this slice. Earlier ability-migration evidence does not establish their completion.
+## Independent review and simplification
+
+Independent correctness review and subsequent re-review inspected the working tree against base `b907e3a`. All reported findings were fixed, including destruction capture/notification, aggregate entity hooks, periodic cadence and stop edges, owner identity, filtered modifier pruning, saved live values, malformed ownership, retirement closure and phase-boundary continuation. The latest review found no further actionable gaps.
+
+The separate architecture audit led to centralized canonical native-store metadata, removal of the duplicated mutable invocation copy from prepared transactions, reuse of the strict integer reader, and query-local source-availability caching. Static maintenance no longer clones and recommits native contribution rosters every tick. Native physics, resource allocation, sensing and effect lifetime owners were retained.
+
+## Verification so far
+
+- Native foundation checks passed for compiled expressions, named allocation, ordered geometry and native flight/scenario behavior.
+- The complete shared rule suite passed after the runtime conversion, including paid leases, mixed resource credits, invalid quotes, swept regions, exact owner removal, finite lifetime preservation, dependent retirement and malformed continuation.
+- Native directed, combat, personnel, psychic, ability, stock-effect, mission, interdiction, security and content suites have passed during integration.
+- Threaded WebAssembly focused compilation succeeded; the complete native and threaded builds, continuation comparisons and final integration gates are running.
+
+Relevant logs include `build/rules-foundation-native-2.log`, `build/rules-runtime-native-12.log`, `build/rules-runtime-native-15.log`, `build/rules-native-gate.log` and `build/rules-threaded-full-build.log`. Earlier failed iterations remain in `build/` for diagnosis; they do not establish completion.
+
+## Remaining acceptance
+
+Finish the complete native/threaded WebAssembly gates, ordinary WebAssembly rule/reaction checks, production preflight, live-network checks and final formatting verification. GUI journeys, screen-reader operation, physical touch/gamepad devices, six-screen rendering and performance smoke acceptance remain separate from these automated checks, under the repository testing policy.

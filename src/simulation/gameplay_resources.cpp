@@ -169,6 +169,13 @@ const std::map<std::string, SystemResourceGrant> &ShipResourceAllocation::named_
 	return candidate_.named_grants;
 }
 
+ResourceNetwork &ShipResourceAllocation::prepared_network()
+{
+	if (!origin_)
+		throw std::logic_error("resources: allocation already committed");
+	return candidate_.network;
+}
+
 void ShipResourceAllocation::commit()
 {
 	if (!origin_ || origin_->network.ticks() != origin_tick_)

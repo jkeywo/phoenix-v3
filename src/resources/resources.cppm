@@ -188,6 +188,8 @@ public:
 	const std::vector<CoolingLinkState> &cooling_links() const;
 	const std::vector<ResourceStoreTelemetry> &telemetry() const;
 	std::uint64_t ticks() const;
+	// Transient mutation epoch for prepared native work; it is not saved gameplay state.
+	std::uint64_t revision() const;
 	void request_operation(ResourceIndex store, ResourceAmount energy_per_second, ResourceAmount discrete_energy = 0);
 	void set_store_enabled(ResourceIndex store, bool enabled);
 	void set_storage_limits(ResourceIndex store, ResourceAmount charge_per_second, ResourceAmount discharge_per_second);
@@ -223,7 +225,8 @@ private:
 	std::vector<ResourceStoreTelemetry> telemetry_;
 	std::vector<ResourceAmount> charge_left_, discharge_left_, link_left_, group_left_;
 	std::vector<ResourceAmount> demand_, initial_energy_, initial_heat_;
-	std::uint64_t random_ = 1, ticks_ = 0;
+	std::uint64_t random_ = 1, ticks_ = 0, revision_ = 1;
+	void changed();
 	std::uint64_t random_next();
 	bool operational(ResourceIndex store) const;
 	void add_heat(ResourceIndex store, ResourceAmount amount);

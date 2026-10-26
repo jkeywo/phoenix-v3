@@ -291,8 +291,19 @@ std::uint64_t ResourceNetwork::ticks() const
 {
 	return ticks_;
 }
+std::uint64_t ResourceNetwork::revision() const
+{
+	return revision_;
+}
+void ResourceNetwork::changed()
+{
+	if (revision_ == std::numeric_limits<std::uint64_t>::max())
+		throw std::runtime_error("Resource mutation epoch exhausted");
+	++revision_;
+}
 void ResourceNetwork::request_operation(ResourceIndex i, ResourceAmount rate, ResourceAmount discrete)
 {
+	changed();
 	bounded(rate, "operation rate");
 	bounded(discrete, "discrete energy");
 	auto &s = stores_.at(i);
@@ -301,10 +312,12 @@ void ResourceNetwork::request_operation(ResourceIndex i, ResourceAmount rate, Re
 }
 void ResourceNetwork::set_store_enabled(ResourceIndex i, bool enabled)
 {
+	changed();
 	stores_.at(i).enabled = enabled;
 }
 void ResourceNetwork::set_storage_limits(ResourceIndex i, ResourceAmount charge, ResourceAmount discharge)
 {
+	changed();
 	const auto &d = definition_.stores.at(i);
 	bounded(charge, "storage charge limit", d.charge_rate);
 	bounded(discharge, "storage discharge limit", d.discharge_rate);
@@ -313,16 +326,19 @@ void ResourceNetwork::set_storage_limits(ResourceIndex i, ResourceAmount charge,
 }
 void ResourceNetwork::set_overdrive(ResourceIndex i, bool enabled)
 {
+	changed();
 	stores_.at(i).overdrive = enabled;
 }
 void ResourceNetwork::set_thermal_override(ResourceIndex i, bool enabled)
 {
+	changed();
 	if (enabled && !definition_.stores.at(i).allows_override)
 		throw std::runtime_error("resources: unsupported thermal override");
 	stores_.at(i).thermal_override = enabled;
 }
 void ResourceNetwork::set_generator(ResourceIndex i, ResourceAmount rate, bool enabled)
 {
+	changed();
 	bounded(rate, "generator output", definition_.generators.at(i).maximum_rate);
 	auto &s = generators_.at(i);
 	s.commanded_rate = rate;
@@ -330,15 +346,18 @@ void ResourceNetwork::set_generator(ResourceIndex i, ResourceAmount rate, bool e
 }
 void ResourceNetwork::set_group_budget(ResourceIndex i, ResourceAmount rate)
 {
+	changed();
 	bounded(rate, "group budget");
 	groups_.at(i).budget_rate = rate;
 }
 void ResourceNetwork::set_link_isolated(ResourceIndex i, bool isolated)
 {
+	changed();
 	links_.at(i).isolated = isolated;
 }
 void ResourceNetwork::set_cooling(ResourceIndex i, ResourceAmount rate, bool isolated)
 {
+	changed();
 	const auto &d = definition_.cooling_links.at(i);
 	bounded(rate, "cooling allocation", d.capacity_rate);
 	ResourceAmount total = rate;
@@ -371,6 +390,7 @@ void ResourceNetwork::add_heat(ResourceIndex i, ResourceAmount heat)
 }
 void ResourceNetwork::dormant_tick()
 {
+	changed();
 	std::vector<bool> enabled;
 	for (auto &g : generators_)
 	{
@@ -387,6 +407,8 @@ void ResourceNetwork::dormant_tick()
 ResourceAmount ResourceNetwork::transfer_external(ResourceNetwork &destination, ResourceIndex source,
                                                   ResourceIndex target, ResourceAmount offered)
 {
+	changed();
+	destination.changed();
 	if (&destination == this || offered < 0 || offered > resource_limit || source >= stores_.size() ||
 	    target >= destination.stores_.size())
 		throw std::runtime_error("Invalid external resource transfer");
@@ -412,6 +434,7 @@ ResourceAmount ResourceNetwork::transfer_external(ResourceNetwork &destination, 
 }
 ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount offered)
 {
+	changed();
 	if (i >= stores_.size() || offered < 0)
 		throw std::runtime_error("Invalid external charge");
 	if (!operational(i))
@@ -444,6 +467,7 @@ void ResourceNetwork::add_consumption_heat(ResourceIndex i, ResourceAmount consu
 }
 bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 {
+	changed();
 	bounded(amount, "external operating payment");
 	if (i >= stores_.size())
 		throw std::runtime_error("Invalid external payer");
@@ -459,6 +483,7 @@ bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 }
 void ResourceNetwork::apply_operating_heat(ResourceIndex store, ResourceAmount heat)
 {
+	changed();
 	bounded(heat, "paid operating heat");
 	const auto &definition = definition_.stores.at(store);
 	add_heat(store, heat);
@@ -468,6 +493,7 @@ void ResourceNetwork::apply_operating_heat(ResourceIndex store, ResourceAmount h
 
 ResourceAmount ResourceNetwork::dissipate(ResourceIndex i, ResourceAmount amount, bool heat)
 {
+	changed();
 	if (amount < 0 || amount > resource_limit)
 		throw std::runtime_error("Invalid reserve dissipation");
 	auto &s = stores_.at(i);
@@ -481,6 +507,7 @@ ResourceAmount ResourceNetwork::dissipate(ResourceIndex i, ResourceAmount amount
 
 void ResourceNetwork::tick()
 {
+	changed();
 	++ticks_;
 	for (ResourceIndex i = 0; i < stores_.size(); ++i)
 	{
@@ -1110,6 +1137,8 @@ void ResourceNetwork::restore(const Json &j)
 		t.discrete_paid = boolean(v, "discrete_paid");
 		t.limited = boolean(v, "limited");
 	}
+	changed();
+	next.revision_ = revision_;
 	*this = std::move(next);
 }
 } // namespace phoenix

@@ -837,6 +837,7 @@ struct GameplayEditor
 		if (!ship)
 			return;
 		integer(*ship, "durability");
+		rule_bindings_fields(*ship, document);
 		integer(*ship, "half_height_mm", 5000);
 		if (ship->contains("destruction"))
 		{
@@ -922,7 +923,7 @@ struct GameplayEditor
 		integer(d, "size_mm", 100000);
 	}
 
-	void personnel(Json &ship)
+	void personnel(Json &ship, WorkshopDocument &document)
 	{
 		ScopedTree panel("Personnel and departments");
 		if (!panel)
@@ -974,12 +975,12 @@ struct GameplayEditor
 			        string(c, "to");
 			        integer(c, "ticks", 40);
 		        });
-		records(p, "traits", {{"id", "trait"}, {"label", "Expertise"}, {"effects", Json::array()}},
+		records(p, "traits", {{"id", "trait"}, {"label", "Expertise"}, {"rules", Json::array()}},
 		        [&](Json &t)
 		        {
 			        string(t, "id");
 			        string(t, "label");
-			        strings(t, "effects");
+			        rule_bindings_fields(t, document);
 		        });
 		records(p, "duties",
 		        {{"id", "duty"},
@@ -1039,6 +1040,7 @@ struct GameplayEditor
 			        string(o, "name");
 			        optional_string(o, "portrait");
 			        strings(o, "abilities");
+			        rule_bindings_fields(o, document);
 			        choice(o, "department", ids(p["departments"]));
 			        choice(o, "duty", ids(p["duties"]), true);
 			        string(o, "compartment");
@@ -1052,7 +1054,7 @@ struct GameplayEditor
 		if (!selected)
 			return;
 		auto &ship = *selected;
-		personnel(ship);
+		personnel(ship, document);
 		{
 			ScopedTree panel("Host audio");
 			if (panel)
@@ -1349,6 +1351,7 @@ struct GameplayEditor
 				if (kind.empty())
 					kind = selected_system;
 				system_details(spec, kind);
+				rule_bindings_fields(spec, document);
 				telemetry_records(spec, document);
 				scalar_map(spec, "parameters");
 				if (button("Remove System"))
@@ -2759,10 +2762,52 @@ struct GameplayEditor
 		scalar_map(processor, "inputs");
 		scalar_map(processor, "outputs");
 	}
+	void rule_bindings_fields(Json &source, WorkshopDocument &document)
+	{
+		records(source, "rules", {{"id", "rule"}, {"rule", ""}, {"target", "subject"}},
+		        [&](Json &binding)
+		        {
+			        string(binding, "id");
+			        choice(binding, "rule", document.definition_choices(WorkshopDefinitionKind::Effect));
+			        choice(binding, "target",
+			               {"owner", "source", "instigator", "subject", "target", "attacker", "protected"});
+			        optional_string(binding, "equipment");
+			        optional_string(binding, "officer");
+			        strings(binding, "tags");
+		        });
+	}
+	void rule_expression_field(Json &source, const char *key, Json initial)
+	{
+		ScopedId id(key);
+		ScopedTree panel(key);
+		if (!panel)
+			return;
+		if (!source.contains(key))
+		{
+			if (button("Add expression"))
+				source[key] = std::move(initial);
+		}
+		if (source.contains(key))
+		{
+			structure(source[key]);
+			if (button("Remove expression"))
+				source.erase(key);
+		}
+	}
 	void effect_operations_fields(Json &group, WorkshopDocument &document)
 	{
 		optional_string(group, "payer");
 		integer(group, "energy");
+		records(group, "costs", {{"payer", "target"}, {"store", ""}, {"resource", ""}, {"amount", 0}},
+		        [&](Json &cost)
+		        {
+			        choice(cost, "payer",
+			               {"owner", "source", "instigator", "subject", "target", "attacker", "protected"});
+			        optional_string(cost, "equipment");
+			        string(cost, "store");
+			        choice(cost, "resource", document.definition_choices(WorkshopDefinitionKind::Resource));
+			        integer(cost, "amount");
+		        });
 		records(group, "operations", {{"kind", "fill"}, {"target", "protected"}, {"store", ""}, {"resource", ""}},
 		        [&](Json &operation)
 		        {
@@ -2775,16 +2820,39 @@ struct GameplayEditor
 				        const auto target = operation.value("target", std::string("protected"));
 				        operation = {{"kind", kind}, {"target", target}};
 			        }
-			        choice(operation, "target", {"attacker", "protected"});
+			        choice(operation, "target",
+			               {"owner", "source", "instigator", "subject", "target", "attacker", "protected"});
 			        if (kind == "damage")
 				        integer(operation, "damage", 1);
 			        else if (kind == "apply" || kind == "remove")
 			        {
+				        if (kind == "remove")
+					        choice(operation, "scope", {"local", "owner"});
+				        if (kind == "remove" && operation.value("scope", std::string("local")) == "owner")
+				        {
+					        operation["target"] = "owner";
+					        for (const auto *field :
+					             {"grant", "effect", "equipment", "officer", "all_sources", "role", "delta_permille"})
+						        operation.erase(field);
+					        return;
+				        }
 				        string(operation, "grant");
 				        optional_string(operation, "equipment");
 				        optional_string(operation, "officer");
 				        if (kind == "apply")
+				        {
 					        choice(operation, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
+					        optional_string(operation, "role");
+					        ScopedId delta_id("delta_permille");
+					        if (operation.contains("delta_permille"))
+					        {
+						        integer(operation, "delta_permille");
+						        if (button("Use template deltas"))
+							        operation.erase("delta_permille");
+					        }
+					        else if (button("Override modifier deltas"))
+						        operation["delta_permille"] = 0;
+				        }
 			        }
 			        else
 			        {
@@ -2858,7 +2926,7 @@ struct GameplayEditor
 			    string(effect, "id");
 			    choice(effect, "kind",
 			           {"shield", "modifier", "operations", "directed_mode", "targeting_policy", "payload", "periodic",
-			            "ability", "psychic", "ability_grant"},
+			            "ability", "psychic", "ability_grant", "rule"},
 			           true);
 			    choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
 			    text("Changing template kind preserves authored fields. Verification reports fields incompatible with "
@@ -2876,6 +2944,27 @@ struct GameplayEditor
 				    catch (const std::exception &)
 				    {
 				    }
+			    }
+			    if (kind == "shield" || kind == "modifier" || kind == "ability_grant")
+				    rule_bindings_fields(effect, document);
+			    if (kind == "rule")
+			    {
+				    choice(effect, "trigger",
+				           {"activate", "deactivate", "tick", "enter", "exit", "occupancy", "maintain",
+				            "pre_shield_damage", "post_shield_damage", "pre_compartment_damage",
+				            "post_compartment_damage", "pre_system_damage", "post_system_damage", "post_entity_damage",
+				            "destroy"});
+				    choice(effect, "phase", {"instant", "periodic", "maintained"});
+				    choice(effect, "effect", document.definition_choices(WorkshopDefinitionKind::Effect), true);
+				    if (effect.value("phase", std::string("instant")) == "periodic")
+					    integer(effect, "period_ticks", 1);
+				    rule_expression_field(effect, "when", true);
+				    rule_expression_field(effect, "damage_permille", {{"value", 1000}, {"unit", "permille"}});
+				    rule_expression_field(effect, "energy", {{"value", 0}, {"unit", "energy"}});
+				    rule_expression_field(effect, "values", Json::object());
+				    rule_expression_field(effect, "costs", Json::array());
+				    rule_expression_field(effect, "funding", {{"shortage", "pause"}, {"costs", Json::array()}});
+				    return;
 			    }
 			    if (kind == "ability")
 			    {
@@ -2959,22 +3048,13 @@ struct GameplayEditor
 			    }
 			    if (kind == "payload")
 			    {
-				    records(effect, "bindings",
-				            {{"id", "hit"}, {"outcome", "compartment"}, {"positive_damage", true}, {"effect", ""}},
-				            [&](Json &binding)
-				            {
-					            string(binding, "id");
-					            choice(binding, "outcome", {"shield", "compartment", "system", "entity"});
-					            boolean(binding, "positive_damage", true);
-					            choice(binding, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
-				            });
+				    rule_bindings_fields(effect, document);
 				    return;
 			    }
 			    if (kind == "periodic")
 			    {
 				    integer(effect, "duration_ticks", 100);
-				    integer(effect, "period_ticks", 20);
-				    choice(effect, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
+				    rule_bindings_fields(effect, document);
 				    return;
 			    }
 			    if (kind == "operations")
@@ -3024,15 +3104,9 @@ struct GameplayEditor
 					          "energy_per_strength", "recharge_per_second", "off_recharge_per_second", "warmup_ticks",
 					          "discharge_per_second", "discharge_efficiency_permille"})
 						    integer(arc, key);
-					    integer(arc, "pre_damage_permille", 1000);
-					    integer(arc, "post_damage");
 					    audio_fields(arc, "audio", true);
 					    scalar_map(arc, "modifiers");
-					    records(arc, "reactions", {{"energy", 0}, {"operations", Json::array()}},
-					            [&](Json &reaction)
-					            {
-						            effect_operations_fields(reaction, document);
-					            });
+					    rule_bindings_fields(arc, document);
 					    if (button("Remove contribution"))
 						    remove = name;
 				    }
@@ -3050,6 +3124,7 @@ struct GameplayEditor
 			                "boost", "impulse", "shield", "magazine", "weapon", "turret", "team"});
 			        const auto kind = equipment_kind(document, equipment);
 			        system_details(equipment, kind);
+			        rule_bindings_fields(equipment, document);
 			        if (kind == "shield")
 				        choice(equipment, "shield_effect", document.definition_choices(WorkshopDefinitionKind::Effect));
 			        telemetry_records(equipment, document);

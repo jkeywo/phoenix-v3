@@ -58,7 +58,6 @@ bool assisted_workload(const ConsoleAddress &address, const std::string &family)
 }
 void advance_personnel(EntityId id)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto entity = entities.at(id);
 	auto &state = entity.get_mut<PersonnelState>();
 	const auto &d = definition(id).personnel;
@@ -128,70 +127,26 @@ void advance_personnel(EntityId id)
 	}
 	(void)arrived;
 }
-// Maintained applications are derived from current facts, never saved or accumulated.
-// Deployed accompaniment binds only to its actual team; standalone specialists bind to
-// the deployed repair teams or their own logical work participant.
-PropertyAggregate collect_personnel_properties(flecs::entity ship) const
+// Read model of shared maintained native grants; never evaluates traits or pays costs.
+std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship, const std::string &equipment,
+                                                               const std::string &contribution) const
 {
-	PropertyAggregate out;
-	const auto *state = ship.try_get<PersonnelState>();
-	if (!state)
+	std::vector<PropertyContribution> out;
+	const auto *effects = ship.try_get<PropertyEffects>();
+	if (!effects || !ship.has<StableId>())
 		return out;
-	const auto id = ship.get<StableId>().id;
-	const auto &d = definition(id).personnel;
-	std::set<std::tuple<std::size_t, std::string_view, std::string_view, std::string_view, PropertyTargetKey>> seen;
-	auto add = [&](std::size_t i, const std::string &target, const std::string &role,
-	               const std::string &property = std::string{})
+	RuleSourceAvailabilityCache sources;
+	for (const auto &entry : effects->contributions)
 	{
-		for (const auto &trait : d.officers[i].traits)
-			for (const auto &effect : d.traits.at(trait).effects)
-				for (const auto &c : effect.contributions)
-					if ((role.empty() || c.role == role) && (property.empty() || c.property == property))
-					{
-						const auto key = property_target_key(ship, target);
-						if (!seen.emplace(i, trait, effect.id, c.name, key).second)
-							continue;
-						out[key][static_cast<std::size_t>(property_key(c.property))] += c.delta_permille;
-					}
-	};
-	for (std::size_t i = 0; i < state->officers.size(); ++i)
-	{
-		const auto &o = state->officers[i];
-		if (!officer_healthy(o))
+		if (entry.equipment != equipment && (contribution.empty() || entry.equipment != contribution))
 			continue;
-		const auto *duty = personnel_duty(id, o.duty);
-		const bool absent = !away_officer_location(id, d.officers[i].id).empty();
-		if (o.present && duty && !absent)
-			for (const auto &[system, roles] : duty->effects)
-				for (const auto &role : roles)
-					add(i, system, role);
-		for (std::size_t mission = 0; mission < away_missions.size(); ++mission)
-		{
-			const auto &m = away_missions[mission];
-			if (away_ship(away_definitions[mission]) != id || !m.deployed())
-				continue;
-			if (duty && !duty->team.empty() &&
-			    std::find(m.accompanying.begin(), m.accompanying.end(), d.officers[i].id) != m.accompanying.end())
-				for (const auto &[slot, asset] : m.assignments)
-					if (asset == "team:" + duty->team)
-						if (const auto bindings = duty->effects.find(duty->team); bindings != duty->effects.end())
-							for (const auto &role : bindings->second)
-								add(i, duty->team, role);
-			for (const auto &[slot, asset] : m.assignments)
-				if (asset == "officer:" + d.officers[i].id)
-				{
-					add(i, "away:" + away_definitions[mission].id + ":officer:" + d.officers[i].id, {}, "repair");
-					for (const auto &[team_slot, team_asset] : m.assignments)
-						if (team_asset.starts_with("team:"))
-						{
-							const auto team = away_equipment(id, team_asset.substr(5));
-							if (team &&
-							    team.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
-							        "repair"))
-								add(i, team_asset.substr(5), {}, "repair");
-						}
-				}
-		}
+		const auto *state = readonly_rule_execution(parent_rule_execution_key(entry.source));
+		if (!state || state->owner_kind != RuleOwnerKind::Officer || !state->source_key.starts_with("trait:") ||
+		    !rule_grant_available(ship.get<StableId>().id, entry.source, &sources))
+			continue;
+		auto row = entry;
+		row.maintained = true;
+		out.push_back(std::move(row));
 	}
 	return out;
 }
@@ -248,7 +203,6 @@ bool auto_assign_officer(const ConsoleAddress &address, const std::string &duty_
 }
 bool personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute, bool ai = false)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	if (!ai && station_stars(address) < 3)
 		return false;
 	if (!command.controller.empty() || !command.channel.empty() || command.request_id || !command.arguments.empty() ||
@@ -448,7 +402,6 @@ Json personnel_board(const ConsoleAddress &address) const
 }
 void restore_personnel(EntityId id, const Json &saved)
 {
-	PropertyEligibilityMutation eligibility_change(personnel_property_revision, personnel_property_mutation_depth);
 	auto state = saved.get<PersonnelState>();
 	for (std::size_t i = 0; i < state.officers.size(); ++i)
 	{

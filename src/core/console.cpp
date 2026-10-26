@@ -2125,6 +2125,18 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			text += "; " + localise("Target") + " " + std::to_string(directed.at("target").get<EntityId>());
 		result.emplace_back("game.directed/" + directed.at("id").get<std::string>(), std::move(text));
 	}
+	for (const auto &rule : borrowed_member(observation_->gameplay, "rules", true))
+	{
+		auto text = localise(rule.at("label")) + "; " + localise(rule.at("phase")) + "; " + localise("Rule output") +
+		            " " + std::to_string(rule.at("output").get<std::int64_t>() / 10) + "%";
+		static const std::map<std::string, std::string> blockers{
+		    {"conditions", "Rule conditions unmet"}, {"source", "Rule source unavailable"},
+		    {"funding", "Rule funding unavailable"}, {"expression", "Rule value unavailable"},
+		    {"target", "Rule target unavailable"},   {"stopped", "Rule stopped"}};
+		if (const auto blocker = blockers.find(rule.at("blocker").get<std::string>()); blocker != blockers.end())
+			text += "; " + localise(blocker->second);
+		result.emplace_back("game.rule/" + console_encoded(rule.at("id").get<std::string>()), std::move(text));
+	}
 	for (const auto &ability : borrowed_member(observation_->gameplay, "abilities", true))
 	{
 		auto text = localise(ability.at("label")) + "; " + localise(ability.at("phase"));

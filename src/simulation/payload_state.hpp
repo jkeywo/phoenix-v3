@@ -11,38 +11,6 @@ struct PayloadHitContext
 	std::uint64_t contribution = 0;
 	std::string contribution_name;
 	bool ordnance = false;
-};
-struct PeriodicEffectInstance
-{
-	std::uint64_t id = 0;
-	EntityId original_source = 0;
-	std::string source, definition, group_source, original_equipment;
-	PayloadHitContext context;
-	std::int64_t expiry = 0, next = 0;
-};
-// Mutable periodic execution state; identity, lifetime and resolved target are
-// shared ECS components. PeriodicEffectInstance is the transaction/save record.
-struct PeriodicSchedule
-{
-	std::int64_t next = 0;
-	EntityId original_source = 0;
-	std::string group_source, original_equipment;
-	PayloadHitContext context;
-};
-using PeriodicGrantKey = std::tuple<std::string, std::string, EntityId, PayloadOutcomeKind, std::int64_t, std::string,
-                                    std::uint64_t, std::string, bool>;
-struct PreparedPeriodicEffects
-{
-	std::uint64_t next_id = 1;
-	std::size_t count = 0;
-	std::map<std::uint64_t, std::optional<PeriodicEffectInstance>> changes;
-};
-struct PendingPayload
-{
-	std::uint64_t id = 0;
-	EntityId original_source = 0;
-	std::string source, payload, binding, original_equipment;
-	PayloadHitContext context;
-	std::int64_t due = 0;
+	bool operator==(const PayloadHitContext &) const = default;
 };
 } // namespace phoenix
