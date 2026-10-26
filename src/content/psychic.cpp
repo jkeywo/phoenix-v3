@@ -6,9 +6,67 @@ module;
 #include <string>
 #include <stdexcept>
 #include <vector>
+#include <utility>
 module phoenix.content;
 namespace phoenix
 {
+PsychicPowerDefinition compile_psychic_effect(const Catalog &catalog, const std::string &id)
+{
+	const auto path = "effects." + id;
+	const auto at = catalog.effects.find(id);
+	if (at == catalog.effects.end() || at->second.value("kind", std::string{}) != "psychic")
+		throw std::runtime_error(path + ": expected psychic effect profile");
+	const auto &j = at->second;
+	const std::set<std::string> fields{"id",
+	                                   "kind",
+	                                   "name",
+	                                   "label",
+	                                   "extends",
+	                                   "psychic_kind",
+	                                   "strength_permille",
+	                                   "ghost_count",
+	                                   "offset_mm",
+	                                   "spacing_mm",
+	                                   "speed_mm_s",
+	                                   "acceleration_mm_s2",
+	                                   "turn_mdeg_s",
+	                                   "radius_mm",
+	                                   "scan_ticks",
+	                                   "fade_ticks",
+	                                   "apparent_class"};
+	for (const auto &[key, unused] : j.items())
+		if (!fields.contains(key))
+			throw std::runtime_error(path + "." + key + ": unsupported native psychic field");
+	const auto number = [&](const char *key, std::int64_t initial, std::int64_t lo, std::int64_t hi)
+	{
+		const auto value = j.value(key, Json(initial));
+		if (!value.is_number_integer() || value < lo || value > hi)
+			throw std::runtime_error(path + "." + key + ": invalid bounded value");
+		return value.get<std::int64_t>();
+	};
+	PsychicPowerDefinition result;
+	result.id = id;
+	result.kind = j.value("psychic_kind", std::string{});
+	result.label = j.value("label", id);
+	if ((result.kind != "cloak" && result.kind != "scramble" && result.kind != "ward") || result.label.empty() ||
+	    result.label.size() > 128)
+		throw std::runtime_error(path + ": invalid psychic kind or label");
+	result.energy = result.recovery_ticks = 0;
+	result.strength = number("strength_permille", 700, 1, 1000);
+	result.ghosts = number("ghost_count", 3, 1, 16);
+	result.offset = number("offset_mm", 20000, 1000, 10000000);
+	result.spacing = number("spacing_mm", 8000, 1000, 1000000);
+	result.speed = number("speed_mm_s", 10000, 1, 1000000);
+	result.acceleration = number("acceleration_mm_s2", 2000, 1, 1000000);
+	result.turn_rate = number("turn_mdeg_s", 10000, 1, 360000);
+	result.radius = number("radius_mm", 2000, 1, 1000000);
+	result.scan_ticks = number("scan_ticks", 100, 1, 36000);
+	result.fade_ticks = number("fade_ticks", 20, 1, 200);
+	result.apparent_class = j.value("apparent_class", std::string("Unidentified contact"));
+	if (result.apparent_class.empty() || result.apparent_class.size() > 128)
+		throw std::runtime_error(path + ".apparent_class: invalid apparent class");
+	return result;
+}
 PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity)
 {
 	const DirectedCatalog directed_catalog{{entity, compile_directed(catalog, entity)}};
@@ -32,34 +90,18 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 		fail(v.is_number_integer() && v >= lo && v <= hi, std::string("invalid ") + key);
 		return v.get<std::int64_t>();
 	};
-	const auto profiles = hull.value("psychic_powers", Json::object());
-	fail(profiles.is_object() && profiles.size() <= 32, "expected at most 32 power profiles");
-	for (const auto &[id, j] : profiles.items())
-	{
-		fail(valid_identifier(id) && j.is_object(), "invalid power profile");
-		PsychicPowerDefinition p;
-		p.id = id;
-		p.kind = j.at("kind");
-		p.label = j.at("label");
-		fail((p.kind == "cloak" || p.kind == "scramble" || p.kind == "ward") && !p.label.empty() &&
-		         p.label.size() <= 128,
-		     "unknown power or invalid label");
-		p.strength = number(j, "strength_permille", 700, 1, 1000);
-		p.energy = number(j, "energy_per_second", 100, 1, 1000000000);
-		p.recovery_ticks = number(j, "recovery_ticks", 100, 1, 36000);
-		p.ghosts = number(j, "ghost_count", 3, 1, 16);
-		p.offset = number(j, "offset_mm", 20000, 1000, 10000000);
-		p.spacing = number(j, "spacing_mm", 8000, 1000, 1000000);
-		p.speed = number(j, "speed_mm_s", 10000, 1, 1000000);
-		p.acceleration = number(j, "acceleration_mm_s2", 2000, 1, 1000000);
-		p.turn_rate = number(j, "turn_mdeg_s", 10000, 1, 360000);
-		p.radius = number(j, "radius_mm", 2000, 1, 1000000);
-		p.scan_ticks = number(j, "scan_ticks", 100, 1, 36000);
-		p.fade_ticks = number(j, "fade_ticks", 20, 1, 200);
-		p.apparent_class = j.value("apparent_class", std::string{"Unidentified contact"});
-		fail(!p.apparent_class.empty() && p.apparent_class.size() <= 128, "invalid apparent class");
-		out.powers.emplace(id, p);
-	}
+	fail(!hull.contains("psychic_powers"), "entity-local psychic_powers retired; use shared ability/effect templates");
+	for (const auto &[id, value] : catalog.effects)
+		if (value.value("kind", std::string{}) == "ability" && value.contains("psychic_effect"))
+		{
+			const auto ability = compile_ability(catalog, id);
+			auto profile = compile_psychic_effect(catalog, ability.psychic_effect);
+			profile.id = id;
+			profile.label = ability.label;
+			profile.energy = ability.energy_per_second;
+			profile.recovery_ticks = ability.recovery_ticks;
+			out.powers.emplace(id, std::move(profile));
+		}
 	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
 	const auto layout = compile_controllable_layout(catalog, entity);
 	std::set<std::string> duties;
@@ -79,7 +121,8 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 		fail(std::find(personnel.compartments.begin(), personnel.compartments.end(), c.compartment) !=
 		         personnel.compartments.end(),
 		     "unknown choir compartment");
-		c.powers = j.at("powers").get<std::set<std::string>>();
+		fail(!j.contains("powers"), "choir powers retired; use supported_abilities");
+		c.powers = j.at("supported_abilities").get<std::set<std::string>>();
 		fail(!c.powers.empty() && c.powers.size() <= 32, "choir needs compatible powers");
 		for (const auto &p : c.powers)
 			fail(out.powers.contains(p), "unknown compatible power");
@@ -89,6 +132,9 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 		{
 			ChoirSeatDefinition seat;
 			seat.duty = s.at("duty");
+			seat.ability = s.value("ability", std::string{});
+			seat.control = choir_ability_control(id, seat.duty);
+			fail(seat.ability.empty() || c.powers.contains(seat.ability), "seat ability is unsupported by apparatus");
 			fail(personnel.duty_indices.contains(seat.duty) && duties.insert(seat.duty).second,
 			     "unknown or duplicate choir seat duty");
 			const auto &d = personnel.duties.at(personnel.duty_indices.at(seat.duty));
@@ -165,13 +211,16 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 			fail(duties.contains(d.id), "unbound choir duty");
 	for (const auto &o : personnel.officers)
 	{
-		fail(o.power.empty() || out.powers.contains(o.power), "unknown officer power");
 		if (!o.duty.empty())
 		{
 			const auto &d = personnel.duties.at(personnel.duty_indices.at(o.duty));
 			if (!d.choir.empty())
-				fail(!o.power.empty() && out.choirs.at(d.choir).powers.contains(o.power),
-				     "starting officer has no compatible power");
+				fail(std::any_of(o.abilities.begin(), o.abilities.end(),
+				                 [&](const auto &ability)
+				                 {
+					                 return out.choirs.at(d.choir).powers.contains(ability);
+				                 }),
+				     "starting officer has no compatible ability");
 		}
 	}
 	return out;

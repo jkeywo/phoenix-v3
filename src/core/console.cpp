@@ -82,6 +82,18 @@ std::string console_label(const std::string &key)
 	std::replace(fallback.begin(), fallback.end(), '_', ' ');
 	return fallback;
 }
+std::string console_ability_prefix(const Json &descriptor)
+{
+	const auto key = console_string(descriptor, "ability_label");
+	if (key.empty())
+		return {};
+	auto prefix = console_label(key);
+	if (descriptor.contains("ability_target"))
+		if (const auto target = console_unsigned(descriptor.at("ability_target"));
+		    target && *target > 0 && *target <= 1000000000ULL)
+			prefix += " [" + std::to_string(*target) + "]";
+	return prefix + ": ";
+}
 std::string console_encoded(const std::string &value)
 {
 	static constexpr char hex[] = "0123456789abcdef";
@@ -1759,6 +1771,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 			projected_label = console_label(console_string(descriptor, "label"));
 		if (descriptor.value("label_value", false))
 			projected_label += " " + std::to_string(command.value);
+		projected_label = console_ability_prefix(descriptor) + projected_label;
 	}
 	if (!session->dispatch_console_command(route_, command))
 	{
@@ -1997,7 +2010,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			else
 				label += " " + std::to_string(value);
 		}
-		label = localise(descriptor.value("label_prefix", std::string{})) + label;
+		label = console_ability_prefix(descriptor) + localise(descriptor.value("label_prefix", std::string{})) + label;
 		if (descriptor.value("selected", false))
 			label += " (" + localise("Selected") + ")";
 		if (label.empty())
@@ -2111,6 +2124,22 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		if (directed.value("target", EntityId{0}))
 			text += "; " + localise("Target") + " " + std::to_string(directed.at("target").get<EntityId>());
 		result.emplace_back("game.directed/" + directed.at("id").get<std::string>(), std::move(text));
+	}
+	for (const auto &ability : borrowed_member(observation_->gameplay, "abilities", true))
+	{
+		auto text = localise(ability.at("label")) + "; " + localise(ability.at("phase"));
+		const auto preparation = ability.at("preparation_ticks").get<std::int64_t>();
+		if (preparation && (ability.at("phase") == "preparing" || ability.at("phase") == "paused"))
+			text += "; " + localise("Preparation") + " " +
+			        std::to_string(ability.at("progress").get<std::int64_t>() * 100 / (preparation * 1000)) + "%";
+		if (ability.at("ready").get<std::uint64_t>() > observation_->observed_tick)
+			text +=
+			    "; " + localise("Recovery until tick") + " " + std::to_string(ability.at("ready").get<std::uint64_t>());
+		if (!ability.at("blocker").get<std::string>().empty())
+			text += "; " + localise(ability.at("blocker"));
+		text += "; " + localise("Energy per second") + " " +
+		        std::to_string(ability.at("energy_per_second").get<std::int64_t>());
+		result.emplace_back("game.ability/" + ability.at("id").get<std::string>(), std::move(text));
 	}
 	const auto &sensors = borrowed_member(observation_->gameplay, "sensors");
 	for (const auto &b : observation_->bearing_contacts)

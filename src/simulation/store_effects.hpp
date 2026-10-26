@@ -48,6 +48,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 {
 	std::map<EntityId, ShieldComponent> shields;
 	std::map<EntityId, PropertyEffects> properties;
+	std::map<EntityId, AbilityRuntime> abilities;
 	std::set<EntityId> changed_inventories;
 	// Only native entry funding needs network preparation: it also changes
 	// discharge budgets and heat. Ordinary stock operations stage touched stores.
@@ -111,6 +112,14 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			const auto id = op.target == "attacker" ? attacker : protected_ship;
 			const bool outcome = hit_context && op.target != "attacker";
 			auto ship = owner(id, outcome);
+			const auto *ability_state = abilities.contains(id) ? &abilities.at(id) : ship.try_get<AbilityRuntime>();
+			const auto ability_owner = op.officer.empty() ? op.equipment : op.officer;
+			const auto ability_source = op.officer.empty() ? "equipment" : "officer";
+			const auto ability_grant_id =
+			    "temporary:" + source + "." + op.grant + ":" + ability_source + ":" + ability_owner;
+			const bool removing_ability = op.kind == ShieldReactionKind::Remove &&
+			                              (!op.officer.empty() || (op.effect.empty() && ability_state &&
+			                                                       ability_state->grants.contains(ability_grant_id)));
 			if (op.kind == ShieldReactionKind::Damage)
 			{
 				if (outcome)
@@ -150,6 +159,11 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				}
 				if (!valid)
 					throw std::runtime_error("Store operation cannot satisfy exact stock/capacity commitment");
+			}
+			else if (ability_grant_templates.contains(op.effect) || removing_ability)
+			{
+				auto &prepared = abilities.try_emplace(id, ship.get<AbilityRuntime>()).first->second;
+				prepare_ability_grant(prepared, id, op, source + "." + op.grant);
 			}
 			else if (periodic_templates.contains(op.effect) ||
 			         (op.kind == ShieldReactionKind::Remove &&
@@ -235,6 +249,16 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : properties)
 		entities.at(id).set<PropertyEffects>(std::move(value));
+	for (auto &[id, value] : abilities)
+	{
+		const auto &old = entities.at(id).get<AbilityRuntime>();
+		for (const auto &[key, grant] : old.grants)
+			if (!value.grants.contains(key) || value.grants.at(key).generation != grant.generation)
+				clear_retired_ability_control(id, grant, value);
+		entities.at(id).set<AbilityRuntime>(std::move(value));
+	}
+	if (!abilities.empty())
+		sync_psychic_contributions();
 	for (const auto &[id, amount, outcome] : damages)
 	{
 		auto ship = outcome ? payload_target(*hit_context) : entities.at(id);

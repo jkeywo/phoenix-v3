@@ -2,6 +2,7 @@
 #include "../core/display_projection.hpp"
 #include "../core/personnel_projection.hpp"
 #include "../core/psychic_projection.hpp"
+#include "../core/ability_projection.hpp"
 #include "../core/away_projection.hpp"
 #include "../core/team_projection.hpp"
 #include "../core/craft_projection.hpp"
@@ -57,6 +58,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["mission_report"] = ftl_projection::report(source.at("mission_report"));
 	if (source.contains("psychic"))
 		result["psychic"] = psychic_projection::board(source.at("psychic"));
+	if (source.contains("abilities"))
+		result["abilities"] = ability_projection::board(source.at("abilities"));
 	if (source.contains("sensors"))
 		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("directed"))
@@ -107,7 +110,10 @@ static inline Json bounded_gameplay(const Json &source)
 	// descriptors. Preserve that priority so truncation cannot strand control.
 	if (const auto controls = source.find("controls"); controls != source.end() && controls->is_array())
 		for (const auto &control : *controls)
+		{
+			ability_projection::validate_control(control);
 			keep("controls", control);
+		}
 	if (const auto notifications = source.find("notifications");
 	    notifications != source.end() && notifications->is_array())
 		for (auto entry = notifications->rbegin(); entry != notifications->rend(); ++entry)
@@ -406,12 +412,18 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 				throw std::runtime_error("Invalid region tag");
 	}
 	result.gameplay = value.value("gameplay", Json::object());
+	if (const auto controls = result.gameplay.find("controls");
+	    controls != result.gameplay.end() && controls->is_array())
+		for (const auto &control : *controls)
+			ability_projection::validate_control(control);
 	if (result.gameplay.contains("ftl"))
 		result.gameplay["ftl"] = ftl_projection::board(result.gameplay.at("ftl"));
 	if (result.gameplay.contains("mission_report"))
 		result.gameplay["mission_report"] = ftl_projection::report(result.gameplay.at("mission_report"));
 	if (result.gameplay.contains("psychic"))
 		result.gameplay["psychic"] = psychic_projection::board(result.gameplay.at("psychic"));
+	if (result.gameplay.contains("abilities"))
+		result.gameplay["abilities"] = ability_projection::board(result.gameplay.at("abilities"));
 	if (result.gameplay.contains("sensors"))
 		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("directed"))

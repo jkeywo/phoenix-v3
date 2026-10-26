@@ -606,12 +606,13 @@ struct GameplayEditor
 			integer(spec, "range_mm", 500000);
 			integer(spec, "arc_mdeg", 90000);
 			optional_string(spec, "planning_controller");
-			strings(spec, "powers");
+			strings(spec, "supported_abilities");
 			records(spec, "seats", {{"duty", ""}, {"console", ""}, {"controller", ""}, {"enabled", ""}, {"target", ""}},
 			        [&](Json &s)
 			        {
 				        for (const auto *k : {"duty", "console", "controller", "enabled", "target"})
 					        string(s, k);
+				        optional_string(s, "ability");
 			        });
 		}
 		if (kind == "shuttle_bay")
@@ -635,6 +636,7 @@ struct GameplayEditor
 		if (kind == "comms")
 			integer(spec, "range_mm", 1000000);
 		optional_string(spec, "compartment");
+		strings(spec, "abilities");
 		if (kind == "weapon" || kind == "turret" || kind == "shield")
 		{
 			integer(spec, "arc_mdeg", 360000);
@@ -1036,7 +1038,7 @@ struct GameplayEditor
 			        string(o, "id");
 			        string(o, "name");
 			        optional_string(o, "portrait");
-			        optional_string(o, "power");
+			        strings(o, "abilities");
 			        choice(o, "department", ids(p["departments"]));
 			        choice(o, "duty", ids(p["duties"]), true);
 			        string(o, "compartment");
@@ -1133,33 +1135,34 @@ struct GameplayEditor
 		}
 
 		{
-			ScopedTree panel("Psychic power profiles");
+			ScopedTree panel("Ability control bindings");
 			if (panel)
 			{
-				if (!ship.contains("psychic_powers"))
-					ship["psychic_powers"] = Json::object();
-				auto &powers = ship["psychic_powers"];
-				for (auto &[id, p] : powers.items())
+				if (!ship.contains("ability_controls"))
+					ship["ability_controls"] = Json::object();
+				auto &controls = ship["ability_controls"];
+				std::string remove;
+				for (auto &[id, binding] : controls.items())
 				{
-					ScopedTree profile(id.c_str());
-					if (!profile)
+					ScopedTree endpoint(id.c_str());
+					if (!endpoint)
 						continue;
-					choice(p, "kind", {"cloak", "scramble", "ward"});
-					string(p, "label");
-					integer(p, "strength_permille", 700);
-					integer(p, "energy_per_second", 100);
-					integer(p, "recovery_ticks", 100);
-					if (p.value("kind", std::string{}) == "scramble")
-					{
-						optional_string(p, "apparent_class");
-						for (const auto *k :
-						     {"ghost_count", "offset_mm", "spacing_mm", "speed_mm_s", "acceleration_mm_s2",
-						      "turn_mdeg_s", "radius_mm", "scan_ticks", "fade_ticks"})
-							integer(p, k, p.value(k, 1LL));
-					}
+					choice(binding, "source", {"officer", "duty", "equipment"});
+					string(binding, "owner");
+					choice(binding, "ability", document.definition_choices(WorkshopDefinitionKind::Effect));
+					for (const auto *key : {"console", "controller", "enabled"})
+						string(binding, key);
+					for (const auto *key : {"target", "apparatus", "planner"})
+						optional_string(binding, key);
+					if (button("Remove ability endpoint"))
+						remove = id;
 				}
-				if (button("Add psychic power"))
-					powers[fresh(powers, "power")] = {{"kind", "cloak"}, {"label", "Psychic power"}};
+				if (!remove.empty())
+					controls.erase(remove);
+				if (button("Add ability endpoint"))
+					controls[fresh(controls, "ability")] = {{"source", "equipment"}, {"owner", ""},
+					                                        {"ability", ""},         {"console", ""},
+					                                        {"controller", ""},      {"enabled", ""}};
 			}
 		}
 
@@ -2779,6 +2782,7 @@ struct GameplayEditor
 			        {
 				        string(operation, "grant");
 				        optional_string(operation, "equipment");
+				        optional_string(operation, "officer");
 				        if (kind == "apply")
 					        choice(operation, "effect", document.definition_choices(WorkshopDefinitionKind::Effect));
 			        }
@@ -2853,7 +2857,8 @@ struct GameplayEditor
 		    {
 			    string(effect, "id");
 			    choice(effect, "kind",
-			           {"shield", "modifier", "operations", "directed_mode", "targeting_policy", "payload", "periodic"},
+			           {"shield", "modifier", "operations", "directed_mode", "targeting_policy", "payload", "periodic",
+			            "ability", "psychic", "ability_grant"},
 			           true);
 			    choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
 			    text("Changing template kind preserves authored fields. Verification reports fields incompatible with "
@@ -2871,6 +2876,51 @@ struct GameplayEditor
 				    catch (const std::exception &)
 				    {
 				    }
+			    }
+			    if (kind == "ability")
+			    {
+				    string(effect, "label");
+				    boolean(effect, "sustained", false);
+				    boolean(effect, "require_healthy", true);
+				    choice(effect, "target", {"self", "contact", "ally"});
+				    choice(effect, "recovery_on", {"activation", "stop"});
+				    choice(effect, "interruption", {"cancel", "pause"});
+				    choice(effect, "shortage", {"proportional", "pause", "stop"});
+				    for (const auto *field :
+				         {"preparation_ticks", "recovery_ticks", "energy_per_second", "preparation_energy_per_second",
+				          "apparatus_recovery_ticks", "interruption_recovery_ticks"})
+					    integer(effect, field);
+				    optional_string(effect, "apparatus_recovery_key");
+				    for (const auto *field : {"start_effect", "activation_effect", "psychic_effect"})
+					    choice(effect, field, document.definition_choices(WorkshopDefinitionKind::Effect), true);
+				    records(effect, "exclusions", {{"id", "exclusive"}, {"scope", "source"}},
+				            [&](Json &exclusion)
+				            {
+					            string(exclusion, "id");
+					            choice(exclusion, "scope", {"source", "apparatus"});
+				            });
+				    return;
+			    }
+			    if (kind == "psychic")
+			    {
+				    choice(effect, "psychic_kind", {"cloak", "scramble", "ward"});
+				    optional_string(effect, "label");
+				    integer(effect, "strength_permille", 700);
+				    if (effect.value("psychic_kind", std::string{}) == "scramble")
+				    {
+					    optional_string(effect, "apparent_class");
+					    for (const auto *field :
+					         {"ghost_count", "offset_mm", "spacing_mm", "speed_mm_s", "acceleration_mm_s2",
+					          "turn_mdeg_s", "radius_mm", "scan_ticks", "fade_ticks"})
+						    integer(effect, field, effect.value(field, 1LL));
+				    }
+				    return;
+			    }
+			    if (kind == "ability_grant")
+			    {
+				    choice(effect, "ability", document.definition_choices(WorkshopDefinitionKind::Effect));
+				    integer(effect, "duration_ticks", 100);
+				    return;
 			    }
 			    if (kind == "targeting_policy")
 			    {
@@ -3317,7 +3367,7 @@ struct GameplayEditor
 				        string(binding, "channel");
 				        choice(binding, "type", {"integer", "boolean"});
 				        choice(binding, "semantics", {"setting", "request"});
-				        choice(binding, "action", {"", "destination", "follow_contact"});
+				        choice(binding, "action", {"", "destination", "follow_contact", "ability_activate"});
 				        if (binding.value("action", std::string{}).empty())
 					        binding.erase("action");
 			        });
@@ -3341,6 +3391,8 @@ struct GameplayEditor
 				        string(binding, "channel");
 				        choice(binding, "type", {"integer", "boolean"});
 			        });
+		if (editable("ability_bindings"))
+			strings(tree, "ability_bindings");
 		if (editable("contact_bindings"))
 			records(tree, "contact_bindings", {{"name", "contact"}, {"controller", ""}, {"channel", ""}},
 			        [&](Json &binding)

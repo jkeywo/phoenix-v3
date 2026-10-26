@@ -808,7 +808,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
+			"name": "Courier â€” Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -12631,7 +12631,6 @@
 					"power_store": "psychic-cell",
 					"range_mm": 2500000,
 					"arc_mdeg": 60000,
-					"powers": ["phantoms", "ward"],
 					"seats": [
 						{
 							"duty": "choir-phantoms",
@@ -12647,7 +12646,8 @@
 							"enabled": "ward-enabled",
 							"target": "ward-target"
 						}
-					]
+					],
+					"supported_abilities": ["base.ability.phantoms", "base.ability.ward"]
 				},
 				"psychic-supply": {
 					"kind": "distribution",
@@ -14607,8 +14607,8 @@
 						"department": "sciences",
 						"duty": "choir-phantoms",
 						"compartment": "bridge",
-						"power": "phantoms",
-						"traits": []
+						"traits": [],
+						"abilities": ["base.ability.phantoms"]
 					},
 					{
 						"id": "choir-ward",
@@ -14617,8 +14617,8 @@
 						"department": "sciences",
 						"duty": "choir-ward",
 						"compartment": "bridge",
-						"power": "ward",
-						"traits": []
+						"traits": [],
+						"abilities": ["base.ability.ward"]
 					},
 					{
 						"id": "repair-team-1.leader",
@@ -15999,31 +15999,6 @@
 						"emergency_damage": 20
 					}
 				]
-			},
-			"psychic_powers": {
-				"phantoms": {
-					"kind": "scramble",
-					"label": "Phantom choir",
-					"strength_permille": 650,
-					"energy_per_second": 1000,
-					"ghost_count": 4,
-					"apparent_class": "Unidentified warship",
-					"offset_mm": 350000,
-					"spacing_mm": 120000,
-					"speed_mm_s": 30000,
-					"acceleration_mm_s2": 4000,
-					"turn_mdeg_s": 4000,
-					"radius_mm": 70000,
-					"scan_ticks": 200,
-					"fade_ticks": 30,
-					"recovery_ticks": 120
-				},
-				"ward": {
-					"kind": "ward",
-					"label": "Psychic ward",
-					"strength_permille": 800,
-					"energy_per_second": 600
-				}
 			}
 		},
 		{
@@ -24017,7 +23992,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier \u00e2\u20ac\u201d Communications fit",
+			"name": "Courier â€” Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -26915,7 +26890,6 @@
 					"power_store": "veil-cell",
 					"range_mm": 2500000,
 					"arc_mdeg": 360000,
-					"powers": ["veil"],
 					"seats": [
 						{
 							"duty": "choir-veil",
@@ -26924,7 +26898,8 @@
 							"enabled": "veil-enabled",
 							"target": "veil-target"
 						}
-					]
+					],
+					"supported_abilities": ["base.ability.veil"]
 				},
 				"veil-supply": {
 					"kind": "distribution",
@@ -29325,8 +29300,8 @@
 						"department": "sciences",
 						"duty": "choir-veil",
 						"compartment": "mid-port",
-						"power": "veil",
-						"traits": []
+						"traits": [],
+						"abilities": ["base.ability.veil"]
 					}
 				],
 				"casualties": {
@@ -29389,14 +29364,6 @@
 						"emergency_damage": 20
 					}
 				]
-			},
-			"psychic_powers": {
-				"veil": {
-					"kind": "cloak",
-					"label": "Veil",
-					"strength_permille": 850,
-					"energy_per_second": 800
-				}
 			},
 			"resources": {
 				"stores": [
@@ -33585,7 +33552,7 @@
 		{
 			"id": "base.delivery-casualty",
 			"extends": "base.rescue-casualty",
-			"name": "Morrow \u2014 stranded merchant",
+			"name": "Morrow — stranded merchant",
 			"faction": "crew",
 			"systems": {
 				"comms-radio": {
@@ -36202,7 +36169,7 @@
 					"members": ["ship", "engineer"],
 					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"],
 					"start_event": "rescue.distress",
-					"title_key": "Morrow \u2014 Rescue assistance"
+					"title_key": "Morrow — Rescue assistance"
 				},
 				{
 					"id": "delivery-courier-arrival",
@@ -36345,7 +36312,7 @@
 					},
 					"members": ["ship", "engineer"],
 					"cancel_events": ["rescue.reactor-secured"],
-					"title_key": "Morrow \u2014 Reactor emergency"
+					"title_key": "Morrow — Reactor emergency"
 				}
 			],
 			"away_missions": [
@@ -37056,7 +37023,7 @@
 							{
 								"result": "taken",
 								"title_key": "Morrow taken by pirates",
-								"explanation_key": "The pirates killed Morrow\u2019s original crew and took the ship. Player personnel still aboard were captured.",
+								"explanation_key": "The pirates killed Morrow’s original crew and took the ship. Player personnel still aboard were captured.",
 								"when": {
 									"all": [
 										{
@@ -37119,7 +37086,7 @@
 									},
 									{
 										"result": "prompt",
-										"title_key": "Prompt delivery \u2014 full credit",
+										"title_key": "Prompt delivery — full credit",
 										"explanation_key": "Cairn received all perishable essentials within 10 minutes of arrival.",
 										"when": {
 											"all": [
@@ -37138,7 +37105,7 @@
 									},
 									{
 										"result": "late",
-										"title_key": "Late delivery \u2014 reduced credit",
+										"title_key": "Late delivery — reduced credit",
 										"explanation_key": "Cairn received the full consignment after 10 minutes, within the 20 minute limit.",
 										"when": {
 											"fact": "delivery-status",
@@ -37148,7 +37115,7 @@
 									},
 									{
 										"result": "expired",
-										"title_key": "Expired \u2014 delivery failed",
+										"title_key": "Expired — delivery failed",
 										"explanation_key": "The full consignment did not reach Cairn within 20 minutes. Cargo remains transferable but earns no delivery credit.",
 										"when": {
 											"fact": "delivery-status",
@@ -37170,7 +37137,7 @@
 									{
 										"result": "killed",
 										"title_key": "Original crew killed",
-										"explanation_key": "The pirates killed Morrow\u2019s original crew during their takeover. Retaking the ship does not undo those deaths.",
+										"explanation_key": "The pirates killed Morrow’s original crew during their takeover. Retaking the ship does not undo those deaths.",
 										"when": {
 											"fact": "pirate-takeover",
 											"value": true
@@ -37630,7 +37597,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"description": "Set the shipâ€™s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
 			"layout": "base.console.bridge.layout"
 		},
 		{
@@ -54729,7 +54696,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-cruiser-arrival",
@@ -54753,7 +54720,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-completed",
@@ -54777,7 +54744,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-expired",
@@ -54801,7 +54768,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-5",
@@ -54825,7 +54792,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-8",
@@ -54849,7 +54816,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-15",
@@ -54873,7 +54840,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.dialogue.rescue-delivery-reminder-18",
@@ -54897,7 +54864,7 @@
 					]
 				}
 			],
-			"title_key": "Cairn Receiving \u2014 station delivery"
+			"title_key": "Cairn Receiving — station delivery"
 		},
 		{
 			"id": "base.courier.assist.drive.direct",
@@ -55726,7 +55693,7 @@
 					"transitions": []
 				}
 			],
-			"title_key": "Morrow \u2014 Reactor emergency"
+			"title_key": "Morrow — Reactor emergency"
 		},
 		{
 			"id": "base.cruiser.assist.command.cooling.orders",
@@ -63424,6 +63391,76 @@
 				"contact_arcs": 100
 			},
 			"energy_per_second": 0
+		},
+		{
+			"label": "Phantom choir",
+			"strength_permille": 650,
+			"ghost_count": 4,
+			"apparent_class": "Unidentified warship",
+			"offset_mm": 350000,
+			"spacing_mm": 120000,
+			"speed_mm_s": 30000,
+			"acceleration_mm_s2": 4000,
+			"turn_mdeg_s": 4000,
+			"radius_mm": 70000,
+			"scan_ticks": 200,
+			"fade_ticks": 30,
+			"id": "base.psychic.phantoms",
+			"kind": "psychic",
+			"psychic_kind": "scramble"
+		},
+		{
+			"id": "base.ability.phantoms",
+			"kind": "ability",
+			"label": "Phantom choir",
+			"sustained": true,
+			"target": "contact",
+			"energy_per_second": 1000,
+			"recovery_ticks": 120,
+			"recovery_on": "stop",
+			"shortage": "proportional",
+			"psychic_effect": "base.psychic.phantoms",
+			"require_healthy": true
+		},
+		{
+			"label": "Psychic ward",
+			"strength_permille": 800,
+			"id": "base.psychic.ward",
+			"kind": "psychic",
+			"psychic_kind": "ward"
+		},
+		{
+			"id": "base.ability.ward",
+			"kind": "ability",
+			"label": "Psychic ward",
+			"sustained": true,
+			"target": "ally",
+			"energy_per_second": 600,
+			"recovery_ticks": 100,
+			"recovery_on": "stop",
+			"shortage": "proportional",
+			"psychic_effect": "base.psychic.ward",
+			"require_healthy": true
+		},
+		{
+			"label": "Veil",
+			"strength_permille": 850,
+			"id": "base.psychic.veil",
+			"kind": "psychic",
+			"psychic_kind": "cloak"
+		},
+		{
+			"id": "base.ability.veil",
+			"kind": "ability",
+			"label": "Veil",
+			"sustained": true,
+			"target": "self",
+			"energy_per_second": 800,
+			"recovery_ticks": 100,
+			"recovery_on": "stop",
+			"shortage": "proportional",
+			"psychic_effect": "base.psychic.veil",
+			"require_healthy": true
 		}
 	],
 	"resources": [

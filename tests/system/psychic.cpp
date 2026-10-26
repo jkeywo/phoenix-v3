@@ -18,7 +18,7 @@ Json fixture()
 	                                           {"charge_rate", 2000},
 	                                           {"discharge_rate", 2000},
 	                                           {"operation_heat_ppm", 100000}}})}};
-	e["psychic_powers"] = {{"cloak", {{"kind", "cloak"}, {"label", "Cloak"}, {"strength_permille", 900}}},
+	const Json profiles = {{"cloak", {{"kind", "cloak"}, {"label", "Cloak"}, {"strength_permille", 900}}},
 	                       {"scramble",
 	                        {{"kind", "scramble"},
 	                         {"label", "Ghost ships"},
@@ -30,6 +30,31 @@ Json fixture()
 	                         {"spacing_mm", 10000},
 	                         {"recovery_ticks", 5}}},
 	                       {"ward", {{"kind", "ward"}, {"label", "Ward"}, {"strength_permille", 800}}}};
+	if (!source.contains("effects"))
+		source["effects"] = Json::array();
+	for (const auto &[id, profile] : profiles.items())
+	{
+		auto native = profile;
+		const auto kind = profile.at("kind").get<std::string>();
+		native["id"] = "test.psychic." + id;
+		native["kind"] = "psychic";
+		native["psychic_kind"] = kind;
+		native.erase("recovery_ticks");
+		source["effects"].push_back(native);
+		source["effects"].push_back({{"id", "test.ability." + id},
+		                             {"kind", "ability"},
+		                             {"label", profile.at("label")},
+		                             {"sustained", true},
+		                             {"target", kind == "cloak"  ? "self"
+		                                        : kind == "ward" ? "ally"
+		                                                         : "contact"},
+		                             {"energy_per_second", 100},
+		                             {"recovery_ticks", profile.value("recovery_ticks", 100)},
+		                             {"recovery_on", "stop"},
+		                             {"shortage", "proportional"},
+		                             {"require_healthy", true},
+		                             {"psychic_effect", "test.psychic." + id}});
+	}
 	Json commands = Json::array(
 	         {{{"id", "apparatus"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"choir"}}}}),
 	     seats = Json::array();
@@ -78,12 +103,17 @@ Json fixture()
 		                                      {"department", "signals"},
 		                                      {"compartment", "fore"},
 		                                      {"duty", key},
-		                                      {"power", key},
+		                                      {"abilities", {"test.ability." + key}},
 		                                      {"traits", Json::array()}});
 	}
-	e["systems"]["choir"] = {{"kind", "psychic"},  {"compartment", "fore"}, {"power_store", "cell"},
-	                         {"range_mm", 300000}, {"arc_mdeg", 90000},     {"powers", {"cloak", "scramble", "ward"}},
-	                         {"seats", seats}};
+	e["systems"]["choir"] = {
+	    {"kind", "psychic"},
+	    {"compartment", "fore"},
+	    {"power_store", "cell"},
+	    {"range_mm", 300000},
+	    {"arc_mdeg", 90000},
+	    {"supported_abilities", {"test.ability.cloak", "test.ability.scramble", "test.ability.ward"}},
+	    {"seats", seats}};
 	e["systems"]["radar"]["capabilities"] = {{"basic_identity", 0}, {"compartment_condition", 4}};
 	for (auto &c : e["control_layout"]["controllers"])
 		if (c.at("id") == "radar")
@@ -100,6 +130,20 @@ Json fixture()
 	source["maps"][0]["entities"][2]["faction"] = "a";
 	return source;
 }
+Json &scramble_shapes(Json &choir)
+{
+	for (auto &[key, contribution] : choir["state"]["contributions"].items())
+		if (contribution.at("ability") == "test.ability.scramble")
+			return contribution["shapes"];
+	throw std::runtime_error("Missing native scramble contribution");
+}
+const Json &scramble_shapes(const Json &choir)
+{
+	for (const auto &[key, contribution] : choir.at("state").at("contributions").items())
+		if (contribution.at("ability") == "test.ability.scramble")
+			return contribution.at("shapes");
+	throw std::runtime_error("Missing native scramble contribution");
+}
 void ticks(World &w, int n = 1)
 {
 	while (n--)
@@ -112,8 +156,10 @@ void command(World &w, std::uint64_t claim, EntityId ship, const std::string &ct
 	for (const auto &c : observed->gameplay.at("controllers"))
 		if (c.at("id") == ctrl)
 		{
-			require(w.submit(claim, OperatingCommand{ship, {}, value, {}, ctrl, channel, c.at("generation")}),
-			        "admitted psychic or equipment command");
+			OperatingCommand request{ship, {}, value, {}, ctrl, channel, c.at("generation")};
+			if (c.at("commands").at(channel).at("action") == "ability_activate")
+				request.request_id = c.at("commands").at(channel).at("request_id").get<std::uint64_t>() + 1;
+			require(w.submit(claim, request), "admitted psychic or equipment command");
 			return;
 		}
 	throw std::runtime_error("missing Controller " + ctrl);
@@ -203,6 +249,192 @@ int main(int argc, char **argv)
 			require(ship.submit(101, {1, "preset", 0}), "return to protective policy");
 			ticks(ship, 3);
 			require(value("ward-target") == 1 && value("ward-enabled") == 1, "downgrade restores self-ward");
+		}
+		{
+			const auto local = load(fixture());
+			World moved;
+			moved.load(local, "test.map");
+			claim(moved);
+			ticks(moved);
+			command(moved, 101, 1, "choir", "scramble-target", 2);
+			command(moved, 101, 1, "choir", "scramble-enabled", 1);
+			ticks(moved, 3);
+			require(ghosts(moved, 102).size() == 2, "projection is live before immediate Personnel interruption");
+			OperatingCommand relieve{1, "personnel.relieve", 0, "scramble"};
+			relieve.generation = moved.observe(101)->gameplay.at("personnel").at("revision");
+			require(moved.submit(101, relieve), "queue relief of a live psychic source");
+			ticks(moved);
+			const auto interrupted = moved.save();
+			bool retained_fade = false;
+			for (const auto &reception : interrupted.at("psychic").at("receptions"))
+				if (reception.at("source") == 1 && reception.at("observer") == 2)
+				{
+					retained_fade = true;
+					require(reception.at("ended").get<std::int64_t>() >= 0,
+					        "committed source reassignment retires live reception while retaining fading evidence");
+				}
+			require(retained_fade, "interrupted projection retains dated fade state");
+			World resumed;
+			resumed.restore(local, interrupted);
+			require(resumed.save() == interrupted,
+			        "save at the first tick boundary after Personnel interruption restores exactly");
+			ticks(moved, 8);
+			ticks(resumed, 8);
+			require(resumed.save() == moved.save(),
+			        "interrupted projection fade and officer recovery continue exactly");
+		}
+		for (bool explicit_removal : {false, true})
+		{
+			auto authored = fixture();
+			auto &ship = authored["entities"][0];
+			Json temporary;
+			for (const auto &effect : authored["effects"])
+				if (effect.at("id") == "test.ability.scramble")
+					temporary = effect;
+			temporary["id"] = "test.ability.temporary-scramble";
+			temporary["label"] = "Temporary projection";
+			authored["effects"].push_back(temporary);
+			authored["effects"].push_back({{"id", "test.temporary-psychic-grant"},
+			                               {"kind", "ability_grant"},
+			                               {"ability", "test.ability.temporary-scramble"},
+			                               {"duration_ticks", explicit_removal ? 50 : 7}});
+			authored["effects"].push_back({{"id", "test.grant-psychic"},
+			                               {"kind", "operations"},
+			                               {"operations", Json::array({{{"kind", "apply"},
+			                                                            {"effect", "test.temporary-psychic-grant"},
+			                                                            {"grant", "projection"},
+			                                                            {"officer", "visitor"}}})}});
+			authored["effects"].push_back(
+			    {{"id", "test.remove-psychic"},
+			     {"kind", "operations"},
+			     {"operations", Json::array({{{"kind", "remove"}, {"grant", "projection"}, {"officer", "visitor"}}})}});
+			ship["personnel"]["officers"].push_back({{"id", "visitor"},
+			                                         {"name", "Visitor"},
+			                                         {"department", "signals"},
+			                                         {"compartment", "fore"},
+			                                         {"traits", Json::array()}});
+			ship["systems"]["choir"]["supported_abilities"].push_back("test.ability.temporary-scramble");
+			for (auto &controller : ship["control_layout"]["controllers"])
+				if (controller.at("id") == "choir")
+				{
+					controller["commands"].push_back(
+					    {{"id", "temporary-enabled"}, {"action", "intent_boolean"}, {"consumers", Json::array()}});
+					controller["commands"].push_back({{"id", "temporary-target"},
+					                                  {"action", "intent_integer"},
+					                                  {"minimum", 0},
+					                                  {"maximum", 1000000000},
+					                                  {"consumers", Json::array()}});
+				}
+			ship["ability_controls"] = {{"temporary-projection",
+			                             {{"source", "officer"},
+			                              {"owner", "visitor"},
+			                              {"ability", "test.ability.temporary-scramble"},
+			                              {"apparatus", "choir"},
+			                              {"controller", "choir"},
+			                              {"console", "drive"},
+			                              {"enabled", "temporary-enabled"},
+			                              {"target", "temporary-target"}}}};
+			Json states = Json::parse(R"json([
+ {"id":"wait","transitions":[{"target":"grant","conditions":[{"left":{"observation":"tick"},"op":"ge","right":1}]}]},
+ {"id":"grant","entry":[{"action":"apply_effect_group","arguments":[{"type":"entity","id":1},{"type":"entity","id":1},"test.grant-psychic"]}]}
+])json");
+			if (explicit_removal)
+			{
+				authored["effects"].push_back({{"id", "test.ability.psychic-manager"},
+				                               {"kind", "ability"},
+				                               {"label", "Projection manager"},
+				                               {"target", "self"},
+				                               {"preparation_ticks", 6},
+				                               {"start_effect", "test.grant-psychic"},
+				                               {"activation_effect", "test.remove-psychic"}});
+				ship["systems"]["radar"]["abilities"] = {"test.ability.psychic-manager"};
+				ship["ability_controls"]["manager"] = {
+				    {"source", "equipment"}, {"owner", "radar"},   {"ability", "test.ability.psychic-manager"},
+				    {"controller", "choir"}, {"console", "drive"}, {"enabled", "manager"}};
+				for (auto &controller : ship["control_layout"]["controllers"])
+					if (controller.at("id") == "choir")
+						controller["commands"].push_back(
+						    {{"id", "manager"}, {"action", "ability_activate"}, {"consumers", Json::array()}});
+			}
+			else
+			{
+				authored["trees"].push_back({{"id", "test.temporary-psychic"},
+				                             {"context", "scenario"},
+				                             {"initial", "wait"},
+				                             {"states", states}});
+				authored["maps"][0]["scenario"] = {{"tree", "test.temporary-psychic"}};
+			}
+			const auto local = load(authored);
+			World granted;
+			granted.load(local, "test.map");
+			claim(granted);
+			if (explicit_removal)
+				command(granted, 101, 1, "choir", "manager", 1);
+			ticks(granted, 3);
+			command(granted, 101, 1, "choir", "temporary-target", 2);
+			command(granted, 101, 1, "choir", "temporary-enabled", 1);
+			ticks(granted, 2);
+			require(ghosts(granted, 102).size() == 2,
+			        "temporary native psychic grant creates ordinary moving contacts");
+			const auto active = granted.save();
+			World resumed;
+			resumed.restore(local, active);
+			if (!explicit_removal)
+			{
+				std::uint64_t expiry = 0;
+				for (const auto &owner : active.at("abilities").at("ships"))
+					if (owner.at("ship") == 1)
+						for (const auto &[key, grant] : owner.at("state").at("grants").items())
+							if (grant.at("definition") == "test.ability.temporary-scramble")
+								expiry = grant.at("expiry").get<std::uint64_t>();
+				const auto count = static_cast<int>(expiry - active.at("tick").get<std::uint64_t>());
+				require(count > 0 && count <= 5, "temporary native grant exposes a bounded future expiry");
+				ticks(granted, count);
+				ticks(resumed, count);
+				const auto boundary = granted.save();
+				require(boundary.at("tick") == expiry, "snapshot is captured exactly at the expiry boundary");
+				World exact;
+				exact.restore(local, boundary);
+				require(exact.save() == boundary, "exact-expiry boundary snapshot restores before next-phase cleanup");
+				const auto observed = granted.observe(101);
+				for (const auto &controller : observed->gameplay.at("controllers"))
+					if (controller.at("id") == "choir")
+						require(!granted.submit(
+						            101,
+						            OperatingCommand{
+						                1, {}, 1, {}, "choir", "temporary-enabled", controller.at("generation")}),
+						        "an expired native ability cannot admit a fresh activation at the boundary");
+				const auto energy = [](const World &world) -> std::int64_t
+				{
+					const auto saved = world.save();
+					for (const auto &body : saved.at("bodies"))
+						if (body.at("body").at("id") == 1)
+							return body.at("resources")
+							    .at("network")
+							    .at("stores")[0]
+							    .at("stock")
+							    .at("quantities")
+							    .value("fixture.resource.energy", std::int64_t{0});
+					throw std::runtime_error("Missing native ability energy store");
+				};
+				const auto before_cleanup = energy(granted);
+				for (auto *run : {&granted, &resumed, &exact})
+					ticks(*run);
+				require(granted.save() == resumed.save() && granted.save() == exact.save() &&
+				            energy(granted) == before_cleanup && ghosts(granted, 102).empty(),
+				        "next-phase expiry cleanup emits no additional native work or payment after restore");
+				ticks(granted, 5 - count);
+				ticks(resumed, 5 - count);
+			}
+			else
+			{
+				ticks(granted, 6);
+				ticks(resumed, 6);
+			}
+			require(granted.save() == resumed.save() && ghosts(granted, 102).empty(),
+			        "temporary psychic expiry/removal retires native work with exact continued fading and recovery");
+			require(!granted.observe(102)->gameplay.at("psychic").at("fading").empty(),
+			        "withdrawn temporary projection retains observer-local fading evidence");
 		}
 		const auto source = fixture();
 		const auto catalog = load(source);
@@ -357,7 +589,7 @@ int main(int argc, char **argv)
 		}
 		{
 			auto duplicate_source = fixture();
-			duplicate_source["entities"][0]["personnel"]["officers"][2]["power"] = "scramble";
+			duplicate_source["entities"][0]["personnel"]["officers"][2]["abilities"] = {"test.ability.scramble"};
 			auto &e = duplicate_source["entities"][0];
 			e["systems"]["choir2"] = e["systems"]["choir"];
 			e["systems"]["choir2"]["seats"] = Json::array({e["systems"]["choir"]["seats"][2]});
@@ -591,8 +823,12 @@ int main(int argc, char **argv)
 		for (bool boundary : {false, true})
 		{
 			auto authored = fixture();
-			authored["entities"][0]["psychic_powers"]["scramble"]["speed_mm_s"] = 1001;
-			authored["entities"][0]["psychic_powers"]["scramble"]["turn_mdeg_s"] = 1;
+			for (auto &effect : authored["effects"])
+				if (effect.at("id") == "test.psychic.scramble")
+				{
+					effect["speed_mm_s"] = 1001;
+					effect["turn_mdeg_s"] = 1;
+				}
 			if (boundary)
 			{
 				authored["maps"][0]["entities"][0]["x_mm"] = 999900000;
@@ -620,7 +856,7 @@ int main(int argc, char **argv)
 			for (auto &choir : saved["psychic"]["choirs"])
 				if (choir["ship"] == 1)
 				{
-					for (auto &shape : choir["state"]["seats"][1]["shapes"])
+					for (auto &shape : scramble_shapes(choir))
 					{
 						shape["x"] = position["x"];
 						shape["y"] = position["y"];
@@ -630,7 +866,7 @@ int main(int argc, char **argv)
 						shape["my"] = -19;
 						shape["heading"] = 0;
 					}
-					shapes = choir["state"]["seats"][1]["shapes"];
+					shapes = scramble_shapes(choir);
 				}
 			for (auto &g : saved["psychic"]["receptions"])
 				if (g["source"] == 1)
@@ -646,7 +882,7 @@ int main(int argc, char **argv)
 						actual = body.at("body");
 				for (const auto &choir : next.at("psychic").at("choirs"))
 					if (choir.at("ship") == 1)
-						for (const auto &shape : choir.at("state").at("seats")[1].at("shapes"))
+						for (const auto &shape : scramble_shapes(choir))
 							require(shape.at("x") == actual.at("position").at("x") &&
 							            shape.at("y") == actual.at("position").at("y") &&
 							            shape.at("mx") == actual.at("remainder").at("x") &&

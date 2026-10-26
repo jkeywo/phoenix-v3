@@ -118,6 +118,8 @@ struct ControllerContactBinding
 	std::string name, controller, channel;
 };
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &, const Catalog &);
+std::vector<std::string> controller_ability_bindings(const Json &, const Catalog &);
+std::string choir_ability_control(const std::string &apparatus, const std::string &duty);
 std::vector<std::string> controller_message_templates(const Json &, const Catalog &);
 std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &, const Catalog &);
 enum class ControllerOwnField
@@ -211,6 +213,17 @@ enum class ControllerContactField
 	BearingMdeg,
 	Count
 };
+enum class ControllerAbilityField
+{
+	Phase,
+	Ready,
+	Preparation,
+	Recovery,
+	Output,
+	Blocked,
+	Requested,
+	Count
+};
 enum class ControllerResultField
 {
 	Available,
@@ -247,6 +260,11 @@ struct ControllerContactRead
 	ControllerContactBinding source;
 	ControllerDestinations<ControllerContactField> fields;
 };
+struct ControllerAbilityBinding
+{
+	std::string endpoint;
+	ControllerDestinations<ControllerAbilityField> fields;
+};
 struct ControllerCommandBinding
 {
 	std::string channel;
@@ -270,6 +288,7 @@ struct ControllerTreeBindings
 	std::vector<ControllerRead<ControllerCommandReadBinding>> command_reads;
 	std::vector<ControllerRead<GameplayTreeRecordBinding>> messages;
 	std::vector<ControllerContactRead> contacts;
+	std::vector<ControllerAbilityBinding> abilities;
 };
 struct BaseConfiguration
 {
@@ -775,7 +794,7 @@ struct PsychicPowerDefinition
 };
 struct ChoirSeatDefinition
 {
-	std::string duty;
+	std::string duty, ability, control;
 	std::size_t controller = 0, enabled = 0, target = 0;
 	std::optional<std::size_t> planner;
 	std::size_t planning_enabled = 0, planning_target = 0;
@@ -794,6 +813,7 @@ struct PsychicDefinition
 };
 PsychicDefinition compile_psychic(const Catalog &, const std::string &);
 PsychicDefinition compile_psychic(const Catalog &, const std::string &, const DirectedCatalog &);
+PsychicPowerDefinition compile_psychic_effect(const Catalog &, const std::string &);
 struct ModifierContributionDefinition
 {
 	std::string name, role, property;
@@ -834,8 +854,8 @@ struct PersonnelDuty
 struct OfficerDefinition
 {
 	std::string id, name, portrait, department, duty, compartment;
-	std::string condition = "healthy", power;
-	std::vector<std::string> traits;
+	std::string condition = "healthy";
+	std::vector<std::string> traits, abilities;
 };
 struct MedicalFacility
 {
@@ -924,6 +944,7 @@ struct ShieldReactionOperation
 	std::string store, resource, from_store;
 	std::int64_t amount = 0;
 	bool all_sources = false;
+	std::string officer;
 };
 struct ShieldReactionDefinition
 {
@@ -931,6 +952,46 @@ struct ShieldReactionDefinition
 	std::int64_t energy = 0;
 	std::vector<ShieldReactionOperation> operations;
 };
+struct AbilityExclusionDefinition
+{
+	std::string id, scope = "source";
+};
+struct AbilityDefinition
+{
+	std::string id, label, target = "self", recovery_on = "activation", interruption = "cancel", shortage = "pause",
+	                       psychic_effect, apparatus_recovery_key;
+	bool sustained = false, require_healthy = true;
+	std::int64_t preparation_ticks = 0, recovery_ticks = 0, energy_per_second = 0, preparation_energy_per_second = 0,
+	             apparatus_recovery_ticks = 0, interruption_recovery_ticks = 0;
+	std::optional<ShieldReactionDefinition> start_effect, activation_effect;
+	std::vector<AbilityExclusionDefinition> exclusions;
+};
+inline constexpr std::size_t ability_no_channel = static_cast<std::size_t>(-1);
+inline constexpr std::size_t ability_grant_limit = 4096;
+inline constexpr std::size_t ability_recovery_limit = 32768;
+inline constexpr std::uint64_t ability_generation_limit = 1000000000ULL;
+struct AbilityControlDefinition
+{
+	std::string id, source = "equipment", owner, ability, apparatus;
+	std::size_t controller = 0, enabled = 0, target = ability_no_channel;
+	std::optional<std::size_t> planner;
+	std::size_t planning_enabled = ability_no_channel, planning_target = ability_no_channel;
+};
+struct AbilityDefinitionSet
+{
+	std::map<std::string, AbilityDefinition> definitions;
+	std::vector<AbilityControlDefinition> controls;
+	std::map<std::string, std::vector<std::string>> equipment_grants;
+};
+struct AbilityGrantDefinition
+{
+	std::string ability;
+	std::int64_t duration_ticks = 0;
+};
+AbilityDefinition compile_ability(const Catalog &, const std::string &);
+AbilityGrantDefinition compile_ability_grant(const Catalog &, const std::string &);
+AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &);
+AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, const DirectedCatalog &);
 ShieldReactionDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
 ShieldReactionDefinition compile_effect_group(const Catalog &, const std::string &);
 enum class PayloadOutcomeKind

@@ -66,7 +66,8 @@ enum class OperatingAction
 	Altitude,
 	DirectedOperatingMode,
 	DirectedTargetingMode,
-	DirectedTarget
+	DirectedTarget,
+	AbilityActivate
 };
 enum class OperatingSystem
 {
@@ -133,6 +134,7 @@ struct OperatingActionSpec
 	bool boolean;
 	std::int64_t maximum;
 	std::int64_t minimum = 0;
+	CommandSemantics semantics = CommandSemantics::Setting;
 };
 inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::Speed, "speed_mm_s", OperatingSystem::Engine, false, 1000000000, -1000000000},
@@ -146,7 +148,8 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::ManualSteering, "manual_steering", OperatingSystem::Steering, false, 1000,
                         -1000},
     OperatingActionSpec{OperatingAction::Boost, "boost", OperatingSystem::Boost, true, 1},
-    OperatingActionSpec{OperatingAction::Impulse, "impulse", OperatingSystem::Impulse, true, 1},
+    OperatingActionSpec{OperatingAction::Impulse, "impulse", OperatingSystem::Impulse, true, 1, 0,
+                        CommandSemantics::Request},
     OperatingActionSpec{OperatingAction::MatchSpeed, "match_speed", OperatingSystem::Engine, true, 1},
     OperatingActionSpec{OperatingAction::SelectContact, "selected_contact", OperatingSystem::Engine, false, 1000000000},
     OperatingActionSpec{OperatingAction::GeneratorOutput, "generator_output", OperatingSystem::Generator, false,
@@ -180,8 +183,9 @@ inline constexpr std::array operating_actions{
                         false, 255},
     OperatingActionSpec{OperatingAction::DirectedTargetingMode, "directed_targeting_mode", OperatingSystem::Weapon,
                         false, 255},
-    OperatingActionSpec{OperatingAction::DirectedTarget, "directed_target", OperatingSystem::Weapon, false,
-                        2000000000}};
+    OperatingActionSpec{OperatingAction::DirectedTarget, "directed_target", OperatingSystem::Weapon, false, 2000000000},
+    OperatingActionSpec{OperatingAction::AbilityActivate, "ability_activate", OperatingSystem::Engine, true, 1, 0,
+                        CommandSemantics::Request}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)

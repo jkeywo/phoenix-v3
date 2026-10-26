@@ -98,7 +98,7 @@ try
 			throw 'Native FTL continuation trace failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/ftl-continuation.trace" -Value $ftlNativeTrace -Encoding utf8
-		foreach ($supplyCaseName in @('logistics', 'docking', 'cargo', 'processors', 'store_effects', 'directed'))
+		foreach ($supplyCaseName in @('logistics', 'docking', 'cargo', 'processors', 'store_effects', 'directed', 'abilities'))
 		{
 			$supplyNativeTrace = & "$repo/build/native/Release/phoenix_${supplyCaseName}_tests.exe" --trace
 			if ($LASTEXITCODE)
@@ -205,6 +205,7 @@ try
 					'phoenix_interdictions_tests.js',
 					'phoenix_sensors_tests.js',
 					'phoenix_psychic_tests.js',
+					'phoenix_abilities_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
 					'phoenix_conversation_tests.js',
@@ -258,7 +259,7 @@ try
 				throw 'Native/WASM Medical continuation differs'
 			}
 			Write-Output 'PASS native/WASM Medical continuation'
-			foreach ($supplyCaseName in @('logistics', 'docking', 'cargo', 'processors', 'store_effects', 'directed'))
+			foreach ($supplyCaseName in @('logistics', 'docking', 'cargo', 'processors', 'store_effects', 'directed', 'abilities'))
 			{
 				$supplyNativeTrace = Get-Content -LiteralPath "$repo/build/native/$supplyCaseName-continuation.trace"
 				$supplyWebTrace = & $node "phoenix_${supplyCaseName}_tests.js" --trace

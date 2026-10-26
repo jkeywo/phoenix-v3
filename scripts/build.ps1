@@ -40,7 +40,11 @@ try
 		$env:PATH = ($toolPaths + $env:PATH) -join [System.IO.Path]::PathSeparator
 	}
 	$threadedRequested = $Target -eq 'web' -and $PSBoundParameters.ContainsKey('Threaded')
-	$threadedArguments = if ($threadedRequested) { @("-DPHOENIX_BROWSER_THREADS=$(if ($Threaded) { 'ON' } else { 'OFF' })") } else { @() }
+	[string[]]$threadedArguments = @()
+	if ($threadedRequested)
+	{
+		$threadedArguments += "-DPHOENIX_BROWSER_THREADS=$(if ($Threaded) { 'ON' } else { 'OFF' })"
+	}
 	# Generated builds already rerun CMake when tracked configuration inputs change.
 	if ($Reconfigure -or $ConfigureOnly -or $threadedRequested -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))
 	{

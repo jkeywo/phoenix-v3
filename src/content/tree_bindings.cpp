@@ -328,6 +328,23 @@ std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &t
 	}
 	return result;
 }
+std::vector<std::string> controller_ability_bindings(const Json &tree, const Catalog &catalog)
+{
+	const auto bindings = resolve_tree_definition(tree, catalog).value("ability_bindings", Json::array());
+	binding_require(bindings.is_array() && bindings.size() <= 256, "Controller tree",
+	                "expected bounded ability_bindings");
+	std::vector<std::string> result;
+	std::set<std::string> seen;
+	for (const auto &binding : bindings)
+	{
+		binding_require(binding.is_string(), "Controller tree", "ability binding must name an endpoint");
+		const auto endpoint = binding.get<std::string>();
+		binding_require(valid_identifier(endpoint) && seen.insert(endpoint).second, "Controller tree",
+		                "invalid or duplicate ability endpoint binding");
+		result.push_back(endpoint);
+	}
+	return result;
+}
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &tree, const Catalog &catalog)
 {
 	const auto bindings = resolve_tree_definition(tree, catalog).value("contact_bindings", Json::array());
@@ -443,17 +460,24 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		const auto type = command.value("type", std::string("integer"));
 		binding_require(type == "integer" || type == "boolean", "Controller tree", "unsupported command type");
 		const auto kind = type == "boolean" ? Type::Boolean : Type::Integer;
-		const auto semantics = command.value("semantics", std::string("setting"));
+		const OperatingActionSpec *contract = nullptr;
+		if (command.contains("action"))
+		{
+			contract = operating_action(command.at("action").get<std::string>());
+			binding_require(contract != nullptr, "Controller tree", "unknown command action");
+		}
+		const auto intrinsic = contract && contract->semantics == CommandSemantics::Request ? "request" : "setting";
+		const auto semantics = command.value("semantics", std::string(intrinsic));
 		binding_require(semantics == "setting" || semantics == "request", "Controller tree",
 		                "unsupported command semantics");
+		binding_require(!contract || semantics == intrinsic, "Controller tree",
+		                "command semantics differ from intrinsic action");
 		const auto index = static_cast<Index>(registry.intents.size());
 		result.commands.push_back({name, add({"command." + name, kind, 4, {}})});
 		registry.intents.push_back({name, kind, 4, {}});
 		registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
-		if (command.contains("action"))
+		if (contract)
 		{
-			const auto *contract = operating_action(command.at("action").get<std::string>());
-			binding_require(contract != nullptr, "Controller tree", "unknown command action");
 			for (const auto &field : operating_arguments(contract->action))
 				registry.actions.back().arguments.push_back(Type::Integer);
 		}
@@ -464,6 +488,20 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		result.telemetry.push_back({binding, add({binding.name, binding.type, 4, {}})});
 	for (const auto &binding : controller_command_reads(tree, catalog))
 		result.command_reads.push_back({binding, add({binding.name, binding.type, 4, {}})});
+	for (const auto &endpoint : controller_ability_bindings(tree, catalog))
+	{
+		ControllerAbilityBinding binding;
+		binding.endpoint = endpoint;
+		const auto prefix = "ability." + endpoint + ".";
+		binding.fields[ControllerAbilityField::Phase] = add({prefix + "phase", Type::Text, 4, {}});
+		binding.fields[ControllerAbilityField::Ready] = add({prefix + "ready", Type::Boolean, 4, {}});
+		binding.fields[ControllerAbilityField::Preparation] = add({prefix + "preparation", Type::Integer, 4, {}});
+		binding.fields[ControllerAbilityField::Recovery] = add({prefix + "recovery", Type::Integer, 4, {}});
+		binding.fields[ControllerAbilityField::Output] = add({prefix + "output", Type::Integer, 4, {}});
+		binding.fields[ControllerAbilityField::Blocked] = add({prefix + "blocked", Type::Boolean, 4, {}});
+		binding.fields[ControllerAbilityField::Requested] = add({prefix + "requested", Type::Boolean, 4, {}});
+		result.abilities.push_back(std::move(binding));
+	}
 	const std::vector<FieldSpec> inbox{
 	    {"message.available", Type::Boolean, 4, {}},     {"message.id", Type::Message, 4, {}},
 	    {"message.source", Type::Integer, 4, {}},        {"message.source_console", Type::Console, 4, {}},

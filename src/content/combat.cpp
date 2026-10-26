@@ -121,6 +121,12 @@ void compile_effect(const Catalog &catalog, const std::string &id)
 		(void)compile_payload(catalog, id);
 	else if (effect.value("kind", std::string{}) == "periodic")
 		(void)compile_periodic_effect(catalog, id);
+	else if (effect.value("kind", std::string{}) == "ability")
+		(void)compile_ability(catalog, id);
+	else if (effect.value("kind", std::string{}) == "psychic")
+		(void)compile_psychic_effect(catalog, id);
+	else if (effect.value("kind", std::string{}) == "ability_grant")
+		(void)compile_ability_grant(catalog, id);
 	else
 		(void)compile_shield_effect(catalog, id);
 }

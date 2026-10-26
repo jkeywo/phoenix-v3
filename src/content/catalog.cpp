@@ -946,6 +946,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		(void)compile_bridge(catalog, id);
 		(void)compile_personnel(catalog, id, directed_catalog);
 		(void)compile_psychic(catalog, id, directed_catalog);
+		(void)compile_abilities(catalog, id, directed_catalog);
 		(void)compile_boarding(catalog, id, directed_catalog);
 	}
 	for (const auto &[id, console] : catalog.consoles)

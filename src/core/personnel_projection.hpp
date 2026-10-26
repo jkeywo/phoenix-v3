@@ -48,8 +48,16 @@ inline Json board(const Json &source)
 				{
 					for (const auto *field : {"name", "portrait", "duty", "destination"})
 						r[field] = text(row.at(field), 128);
-					if (row.contains("power"))
-						r["power"] = text(row.at("power"), 128);
+					r["abilities"] = Json::array();
+					if (row.contains("abilities"))
+					{
+						const auto &abilities = row.at("abilities");
+						if (!abilities.is_array() || abilities.size() > 32)
+							throw std::runtime_error("Invalid officer ability list");
+						for (const auto &ability : abilities)
+							r["abilities"].push_back(
+							    {{"id", text(ability.at("id"), 256)}, {"label", text(ability.at("label"), 512)}});
+					}
 					const auto portrait = r.at("portrait").get<std::string>();
 					if (!portrait.empty() && !portrait.starts_with("console-assets:assets/comms/"))
 						throw std::runtime_error("Invalid officer portrait");

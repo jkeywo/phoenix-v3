@@ -278,7 +278,20 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		fail(o.name.size() <= 64, "officer name too long");
 		o.department = identifier(v.at("department"));
 		o.duty = v.value("duty", std::string{});
-		o.power = v.value("power", std::string{});
+		if (v.contains("power"))
+			fail(false, "officer power is retired; use shared ability references");
+		const auto abilities = v.value("abilities", Json::array());
+		fail(abilities.is_array() && abilities.size() <= 32, "expected at most 32 officer abilities");
+		std::set<std::string> ability_ids;
+		for (const auto &ability : abilities)
+		{
+			fail(ability.is_string(), "ability reference must be a string");
+			const auto id = ability.get<std::string>();
+			fail(catalog.effects.contains(id) && catalog.effects.at(id).value("kind", std::string{}) == "ability" &&
+			         ability_ids.insert(id).second,
+			     "unknown or duplicate officer ability");
+			o.abilities.push_back(id);
+		}
 		o.compartment = identifier(v.at("compartment"));
 		o.condition = v.value("condition", std::string{"healthy"});
 		fail(o.condition == "healthy" || o.condition == "minor" || o.condition == "severe",

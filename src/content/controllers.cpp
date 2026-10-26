@@ -31,6 +31,26 @@ std::string control_name(const Json &value, const char *field, const std::string
 	                path, std::string("invalid ") + field);
 	return name;
 }
+bool ability_endpoint_owned(const Json &entity, const std::string &endpoint, const std::string &controller,
+                            const std::string &console)
+{
+	if (entity.contains("ability_controls") && entity.at("ability_controls").is_object() &&
+	    entity.at("ability_controls").contains(endpoint))
+	{
+		const auto &binding = entity.at("ability_controls").at(endpoint);
+		return binding.value("console", std::string{}) == console &&
+		       (binding.value("controller", std::string{}) == controller ||
+		        binding.value("planner", std::string{}) == controller);
+	}
+	for (const auto &[id, system] : entity.at("systems").items())
+		if (system.value("kind", id) == "psychic" && system.contains("seats"))
+			for (const auto &seat : system.at("seats"))
+				if (choir_ability_control(id, seat.value("duty", std::string{})) == endpoint &&
+				    seat.value("console", std::string{}) == console)
+					return seat.value("controller", std::string{}) == controller ||
+					       system.value("planning_controller", std::string{}) == controller;
+	return false;
+}
 bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction action)
 {
 	const auto kind = fit.kind;
@@ -58,6 +78,7 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 		return kind == OperatingSystem::Team;
 	case OperatingAction::IntentInteger:
 	case OperatingAction::IntentBoolean:
+	case OperatingAction::AbilityActivate:
 	case OperatingAction::Waypoint:
 		return false;
 	case OperatingAction::SystemEnabled:
@@ -260,8 +281,7 @@ ControllerCommandSpec command_spec(const FittedSystemSpec &fit, const OperatingA
 	result.type = action.boolean ? KnowledgeType::Boolean : KnowledgeType::Integer;
 	result.minimum = action.minimum;
 	result.maximum = action.maximum;
-	result.semantics =
-	    action.action == OperatingAction::Impulse ? CommandSemantics::Request : CommandSemantics::Setting;
+	result.semantics = action.semantics;
 	if (action.action == OperatingAction::Speed)
 		result.maximum = fit.maximum;
 	for (const auto &argument : operating_arguments(action.action))
@@ -424,8 +444,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			command.action = action->action;
 			command.physical_input = input_key(action->action);
 			command.type = action->boolean ? KnowledgeType::Boolean : KnowledgeType::Integer;
-			command.semantics =
-			    command.action == OperatingAction::Impulse ? CommandSemantics::Request : CommandSemantics::Setting;
+			command.semantics = action->semantics;
 			auto number = [&](const char *key, std::int64_t fallback)
 			{
 				if (!field.contains(key))
@@ -451,9 +470,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                where, "command arguments differ from action contract");
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where + "." + id,
 			                "initial outside command range");
-			const bool intent = command.action == OperatingAction::IntentInteger ||
-			                    command.action == OperatingAction::IntentBoolean ||
-			                    command.action == OperatingAction::Waypoint;
+			const bool intent =
+			    command.action == OperatingAction::IntentInteger || command.action == OperatingAction::IntentBoolean ||
+			    command.action == OperatingAction::AbilityActivate || command.action == OperatingAction::Waypoint;
 			control_require(!field.contains("arrival_radius_mm") || field.at("arrival_radius_mm").is_number_integer(),
 			                where, "arrival radius must be an integer");
 			command.arrival_radius = field.value("arrival_radius_mm", std::int64_t{5000});
@@ -502,8 +521,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			}
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where,
 			                "initial exceeds physical input");
-			control_require(command.semantics != CommandSemantics::Request || command.consumers.size() == 1, where,
-			                "one-shot request requires a single executor");
+			control_require(command.semantics != CommandSemantics::Request ||
+			                    command.action == OperatingAction::AbilityActivate || command.consumers.size() == 1,
+			                where, "one-shot request requires a single executor");
 			const bool held =
 			    command.action == OperatingAction::Longitudinal || command.action == OperatingAction::Lateral ||
 			    command.action == OperatingAction::ManualSteering || command.action == OperatingAction::Boost;
@@ -557,6 +577,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			}
 			controller.commands.push_back(std::move(command));
 		}
+		if (!controller.tree.empty())
+			for (const auto &endpoint : controller_ability_bindings(catalog.trees.at(controller.tree), catalog))
+				control_require(ability_endpoint_owned(entity, endpoint, controller.id, controller.console), where,
+				                "ability observation must name an owned execution/planning endpoint on this Console");
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
 		{
 			const auto seat = std::find_if(consoles.begin(), consoles.end(),
@@ -877,7 +901,7 @@ Catalog convert_controller_content(const Catalog &source, const DirectedCatalog 
 					             {"minimum", bounds.first},
 					             {"maximum", bounds.second},
 					             {"consumers", Json::array({fit.id})}};
-					if (action == OperatingAction::Impulse)
+					if (operating_action(action).semantics == CommandSemantics::Request)
 						command["semantics"] = "request";
 					std::int64_t initial = 0;
 					if (const auto capability = directed.find(fit.id); capability != directed.end())

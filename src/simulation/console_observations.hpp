@@ -300,8 +300,10 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 Observation capture_decision_observation(const ConsoleAddress &address, TelemetrySnapshot *telemetry_snapshot = nullptr,
                                          ContactSnapshot *contact_snapshot = nullptr) const
 {
-	return capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot,
-	                                   contact_snapshot);
+	auto result = capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot,
+	                                          contact_snapshot);
+	result.gameplay["ability_facts"] = ability_decision_facts(address, result);
+	return result;
 }
 // Visibility consumers use the identical Console feed/type/contact boundary,
 // without building combat and UI boards just to discard them.

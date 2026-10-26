@@ -1,6 +1,6 @@
 # Shared abilities and psychic migration
 
-24 October 2026 · implementation plan; implementation and acceptance are pending.
+26 October 2026 · implementation plan; implementation is in progress. See [evidence and remaining gates](ability-migration-evidence.md).
 
 This is the fifth slice of the [shared gameplay engine](gameplay-engine-design.md), following [directed systems and payload effects](directed-systems-migration-plan.md), which is being implemented. Inspect the delivered interfaces before starting this slice. [Resource/store unification](resource-store-evidence.md) supplies shared stock accounting; the preceding directed slice supplies targeting, effect execution and periodic lifetime integration.
 

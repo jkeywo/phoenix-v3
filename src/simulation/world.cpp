@@ -45,6 +45,7 @@ import phoenix.gameplay_scenario;
 #include "interdiction_state.hpp"
 #include "sensors_state.hpp"
 #include "psychic_state.hpp"
+#include "abilities_state.hpp"
 #include "../core/display_projection.hpp"
 #include "../core/ftl_projection.hpp"
 
@@ -159,6 +160,7 @@ struct CompiledDefinition
 	BridgeDefinition bridge;
 	PersonnelDefinition personnel;
 	PsychicDefinition psychic;
+	AbilityDefinitionSet abilities;
 	std::vector<BoardingDefinition> boarding;
 	std::map<std::string, std::vector<std::string>> boarding_docking_ports;
 	TransportDefinition transport;
@@ -263,6 +265,7 @@ struct World::Impl
 	std::map<std::string, ShieldEffectDefinition> shield_templates;
 	std::map<std::string, ModifierEffectDefinition> modifier_templates;
 	std::map<std::string, ShieldReactionDefinition> effect_groups;
+	std::map<std::string, AbilityGrantDefinition> ability_grant_templates;
 	SharedResourceCatalogue resource_catalogue;
 	std::vector<ShieldReaction> shield_reactions;
 	std::map<std::uint64_t, std::string> shield_reaction_results;
@@ -584,6 +587,8 @@ struct World::Impl
 				payload_templates.emplace(id, compile_payload(content, id));
 			else if (effect.at("kind") == "periodic")
 				periodic_templates.emplace(id, compile_periodic_effect(content, id));
+			else if (effect.at("kind") == "ability_grant")
+				ability_grant_templates.emplace(id, compile_ability_grant(content, id));
 		packs = content.ordered_packs;
 		camera_widgets.clear();
 		for (const auto &[name, layout] : content.consoles)
@@ -616,6 +621,7 @@ struct World::Impl
 			result.bridge = compile_bridge(content, name);
 			result.personnel = compile_personnel(content, name, directed_catalog);
 			result.psychic = compile_psychic(content, name, directed_catalog);
+			result.abilities = compile_abilities(content, name, directed_catalog);
 			result.boarding = compile_boarding(content, name, directed_catalog);
 			for (const auto &row : definition.value("boarding_missions", Json::array()))
 				result.boarding_docking_ports[row.at("id").get<std::string>()] =
@@ -682,6 +688,7 @@ struct World::Impl
 							brain.inbox = bindings.inbox;
 							brain.result = bindings.result;
 							brain.telemetry_reads = bindings.telemetry;
+							brain.abilities = bindings.abilities;
 							for (const auto &read : bindings.command_reads)
 							{
 								const auto &binding = read.source;
@@ -1093,10 +1100,10 @@ struct World::Impl
 			}
 		entity.set<BridgeBlackboard>(std::move(board));
 		entity.set<PersonnelState>(initial_personnel(data.personnel));
+		initialise_abilities(entity);
 		for (const auto &[choir, d] : data.psychic.choirs)
 		{
 			PsychicChoirState state;
-			state.seats.resize(d.seats.size());
 			instance(entity, choir)->entity.set<PsychicChoirState>(state);
 		}
 		if (data.craft)
@@ -2053,6 +2060,8 @@ struct World::Impl
 #include "property_effects.hpp"
 #include "effect_application.hpp"
 #include "store_effects.hpp"
+#include "abilities.hpp"
+#include "ability_interface.hpp"
 #include "effect_queue.hpp"
 #include "payload_effects.hpp"
 #include "processors.hpp"
@@ -2072,14 +2081,14 @@ struct World::Impl
 		          });
 		for (const auto &[id, ship] : ships)
 		{
-			prepare_psychic(id);
+			prepare_abilities(id);
 			const auto restrictions = flight_restrictions(id);
 			prepare_combat(ship);
 			prepare_processors(ship);
 			request_flight_resources(ship, restrictions);
 			request_combat_resources(ship);
 			request_directed_resources(ship);
-			request_psychic_resources(id);
+			request_ability_resources(id);
 			if (!definition(id).ftl.empty())
 				prepare_ftl(ship);
 			reserve_paid_modifiers(ship, restrictions);
@@ -2099,7 +2108,7 @@ struct World::Impl
 				// Every pass removes an intent; native budgets and ordering stay intact.
 				for (;;)
 				{
-					bool removed = false;
+					bool removed = reject_unfunded_abilities(ship, *allocation);
 					for (auto child : ship.get<EquipmentIndex>().values)
 					{
 						const auto &equipment = child.get<Equipment>();
@@ -2147,7 +2156,8 @@ struct World::Impl
 				actuate_ftl(ship);
 			run_equipment_actuation(id, restrictions);
 		}
-		refresh_psychic_work();
+		refresh_ability_work();
+		sync_psychic_contributions();
 	}
 	void scenario_effects()
 	{
@@ -3358,6 +3368,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 		result.gameplay["objective_board"] = impl_->objectives_board(address.ship);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
 	result.gameplay["psychic"] = impl_->psychic_board(address);
+	result.gameplay["abilities"] = impl_->ability_board(address);
 	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["craft"] = impl_->craft_board(address);
@@ -3414,7 +3425,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	if (entity.has<EntityControls>())
 	{
 		const auto &controls = entity.get<EntityControls>();
-		const auto psychic_contacts = impl_->index_psychic_contacts(result.contacts);
+		Impl::ConsoleContacts ability_contacts;
+		ability_contacts.emplace(address, result);
 		if (!impl_->definition(address.ship).console_bridge.at(seat.id).command)
 		{
 			result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;
@@ -3465,7 +3477,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					}
 					if (impl_->station_stars(address) < channel.individual_stars)
 						continue;
-					if (impl_->psychic_controls(address, controller, i, buttons, psychic_contacts))
+					if (impl_->ability_controls(address, controller, i, buttons, ability_contacts))
 						continue;
 					const auto scale = channel.action == OperatingAction::GroupAllocation
 					                       ? std::max(state.value, channel.initial)
@@ -4105,7 +4117,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 25},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 26},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	result["payload_effects"] = impl_->save_payload_effects();
@@ -4248,6 +4260,7 @@ Json World::save() const
 	result["sensors"] = impl_->save_sensors();
 	result["directed"] = impl_->save_directed();
 	result["psychic"] = impl_->save_psychic();
+	result["abilities"] = impl_->save_abilities();
 	result["sensor_discoveries"] = impl_->sensor_discoveries;
 	result["conversation_starts"] = impl_->save_conversation_starts();
 	result["projectiles"] = impl_->save_projectiles();
@@ -4262,8 +4275,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 25)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 25 required)");
+	if (saved.at("schema") != 26)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 26 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4640,6 +4653,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			departure_reports.emplace(id, report);
 			departed_ships.insert(id);
 		}
+	candidate.impl_->restore_abilities(saved.at("abilities"), departed_ships);
+	candidate.impl_->refresh_ability_work(false);
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
 	candidate.impl_->validate_directed_commitments();

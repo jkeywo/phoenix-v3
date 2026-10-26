@@ -31,33 +31,32 @@ inline void from_json(const Json &j, PsychicGhostShape &g)
 	g.acceleration_remainder = j.at("acceleration_remainder");
 	g.turn_remainder = j.at("turn_remainder");
 }
-struct PsychicSeatState
+// Native projection state. AbilityRuntime owns activation, intent, targets and recovery.
+struct PsychicContribution
 {
-	std::string officer;
-	EntityId target = 0;
+	std::string grant, ability;
 	std::int64_t aim_x = 0, aim_y = 0;
-	bool active = false;
-	std::uint64_t activation = 0, ready = 0;
+	std::uint64_t activation = 0;
 	// Derived funded work; never restored as authority.
 	std::int64_t work = 0;
 	std::vector<PsychicGhostShape> shapes;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PsychicSeatState, officer, target, aim_x, aim_y, active, activation, ready, shapes)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PsychicContribution, grant, ability, aim_x, aim_y, activation, shapes)
 struct PsychicChoirState
 {
-	std::vector<PsychicSeatState> seats;
+	std::map<std::string, PsychicContribution> contributions;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PsychicChoirState, seats)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PsychicChoirState, contributions)
 struct GhostReception
 {
 	EntityId id = 0, observer = 0, source = 0;
-	std::string choir, power;
-	std::size_t seat = 0, member = 0;
+	std::string choir, grant, power;
+	std::size_t member = 0;
 	std::uint64_t activation = 0, seen = 0;
 	std::int64_t ended = -1;
 	bool dispelled = false;
 	PsychicGhostShape last;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(GhostReception, id, observer, source, choir, power, seat, member, activation, seen,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(GhostReception, id, observer, source, choir, grant, power, member, activation, seen,
                                    ended, dispelled, last)
 } // namespace phoenix

@@ -60,6 +60,7 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 			{
 				fields.insert("grant");
 				fields.insert("equipment");
+				fields.insert("officer");
 				op.kind = kind == "apply" ? ShieldReactionKind::Apply : ShieldReactionKind::Remove;
 				if (kind == "remove")
 				{
@@ -76,7 +77,11 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 				}
 				op.grant = value.value("grant", std::string{});
 				op.equipment = value.value("equipment", std::string{});
-				if (op.all_sources && !op.equipment.empty())
+				op.officer = value.value("officer", std::string{});
+				if ((!op.officer.empty() && !valid_identifier(op.officer)) ||
+				    (!op.officer.empty() && !op.equipment.empty()))
+					fail("ability source must bind one valid officer or equipment");
+				if (op.all_sources && (!op.equipment.empty() || !op.officer.empty()))
 					fail("all_sources removal targets the entity, not equipment");
 				if ((!op.all_sources && !valid_identifier(op.grant)) ||
 				    (!op.equipment.empty() && op.equipment != "$hit" && !valid_identifier(op.equipment)))
@@ -88,10 +93,17 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 					if (!catalog.effects.contains(op.effect))
 						fail("unknown effect " + op.effect);
 					const auto effect_kind = catalog.effects.at(op.effect).value("kind", std::string{});
-					if (effect_kind != "shield" && effect_kind != "modifier" && effect_kind != "periodic")
+					if (effect_kind != "shield" && effect_kind != "modifier" && effect_kind != "periodic" &&
+					    effect_kind != "ability_grant")
 						fail("nested operation groups are unsupported");
-					if ((effect_kind == "modifier") != !op.equipment.empty())
-						fail("modifier needs equipment; shield and periodic omit it");
+					if (effect_kind == "ability_grant")
+					{
+						if (op.equipment.empty() && op.officer.empty())
+							fail("ability grant requires an officer or equipment source binding");
+						(void)compile_ability_grant(catalog, op.effect);
+					}
+					else if (!op.officer.empty() || (effect_kind == "modifier") != !op.equipment.empty())
+						fail("modifier needs equipment; shield and periodic omit source bindings");
 				}
 			}
 			else

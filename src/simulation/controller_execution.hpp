@@ -131,6 +131,61 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		values.at(*brain.logistics_revision) = Value::integer(observation.gameplay.at("logistics").at("revision"));
 	if (brain.docking_revision)
 		values.at(*brain.docking_revision) = Value::integer(observation.gameplay.at("docking").at("revision"));
+	for (const auto &binding : brain.abilities)
+	{
+		const auto endpoint =
+		    std::find_if(definition(id).abilities.controls.begin(), definition(id).abilities.controls.end(),
+		                 [&](const auto &control)
+		                 {
+			                 return control.id == binding.endpoint;
+		                 });
+		const auto &controllers = entities.at(id).get<EntityControls>().controllers;
+		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
+		if (endpoint == definition(id).abilities.controls.end() ||
+		    controllers.at(endpoint->controller).definition.console != address.console ||
+		    (endpoint->controller != owner && (!endpoint->planner || *endpoint->planner != owner)))
+			throw std::runtime_error("Controller ability observation is not owned by this endpoint");
+		std::string phase = "unavailable";
+		bool ready = false, blocked = true, requested = false;
+		std::int64_t preparation = 0, recovery = 0, output = 0;
+		const auto facts = observation.gameplay.find("ability_facts");
+		if (facts != observation.gameplay.end() && facts->contains(binding.endpoint))
+		{
+			const auto &fact = facts->at(binding.endpoint);
+			phase = fact.at("phase");
+			ready = fact.at("ready");
+			blocked = fact.at("blocked");
+			requested = fact.at("requested");
+			preparation = fact.at("preparation");
+			recovery = fact.at("recovery");
+			output = fact.at("output");
+		}
+		else if (const auto rows = observation.gameplay.find("abilities"); rows != observation.gameplay.end())
+		{
+			// Explicit debug/model requests can supply a full captured Console
+			// projection. Extract its existing facts; never read live ability state.
+			for (const auto &row : *rows)
+				if (row.at("control") == binding.endpoint)
+				{
+					phase = row.at("phase");
+					ready = phase == "ready";
+					blocked = !row.at("blocker").get<std::string>().empty();
+					requested = row.at("requested");
+					preparation = row.at("progress");
+					const auto deadline = row.at("ready").get<std::uint64_t>();
+					recovery = deadline > observation.observed_tick ? deadline - observation.observed_tick : 0;
+					output = row.at("output");
+					break;
+				}
+		}
+		values[binding.fields[ControllerAbilityField::Phase]] = Value::string(phase);
+		values[binding.fields[ControllerAbilityField::Ready]] = Value::boolean(ready);
+		values[binding.fields[ControllerAbilityField::Preparation]] = Value::integer(preparation);
+		values[binding.fields[ControllerAbilityField::Recovery]] = Value::integer(recovery);
+		values[binding.fields[ControllerAbilityField::Output]] = Value::integer(output);
+		values[binding.fields[ControllerAbilityField::Blocked]] = Value::boolean(blocked);
+		values[binding.fields[ControllerAbilityField::Requested]] = Value::boolean(requested);
+	}
 	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
 	values[brain.own[ControllerOwnField::Y]] = Value::integer(observation.own.y);
 	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
@@ -689,10 +744,19 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 				return {};
 			if (command.value < spec.minimum || command.value > spec.maximum ||
 			    (!spec.choices.empty() && !spec.choices.contains(command.value)) ||
-			    !operating_arguments_valid(spec.action, command.value, command.arguments))
+			    !(ability_channel_bound(address.ship, i, field)
+			          ? ability_generation_valid(address.ship, i, field, command.arguments)
+			          : operating_arguments_valid(spec.action, command.value, command.arguments)))
 				return {};
-			if (!psychic_channel_valid(address.ship, i, field, command.value))
+			if (!ability_command_valid(address.ship, i, field, command))
 				return {};
+			// Capture the current grant for ordinary Controller outputs too. A
+			// queued command cannot jump to a replacement grant after revocation.
+			if (command.arguments.empty())
+				for (const auto &binding : definition(address.ship).abilities.controls)
+					if (binding.controller == i && (binding.enabled == field || binding.target == field))
+						if (const auto *grant = ability_control_grant(address.ship, binding))
+							command.arguments = {static_cast<std::int64_t>(grant->generation)};
 			const auto &state = controller.commands[field];
 			if (spec.semantics == CommandSemantics::Request)
 			{
@@ -738,13 +802,17 @@ bool commit_controller(const ControllerProposal &proposal)
 	    controller.definition.id != proposal.address.controller || controller.generation != proposal.generation ||
 	    controller.human != proposal.human || proposal.channel >= controller.commands.size())
 		return false;
-	if (!psychic_channel_valid(proposal.address.entity, proposal.controller, proposal.channel, proposal.value))
+	if (!ability_channel_valid(proposal.address.entity, proposal.controller, proposal.channel, proposal.value,
+	                           proposal.request_id))
 		return false;
 	const auto &spec = controller.definition.commands[proposal.channel];
 	auto &state = controller.commands[proposal.channel];
 	if (proposal.value < spec.minimum || proposal.value > spec.maximum ||
 	    (!spec.choices.empty() && !spec.choices.contains(proposal.value)) ||
-	    !operating_arguments_valid(spec.action, proposal.value, proposal.arguments))
+	    !(ability_channel_bound(proposal.address.entity, proposal.controller, proposal.channel)
+	          ? ability_generation_valid(proposal.address.entity, proposal.controller, proposal.channel,
+	                                     proposal.arguments)
+	          : operating_arguments_valid(spec.action, proposal.value, proposal.arguments)))
 		return false;
 	if (spec.semantics == CommandSemantics::Request)
 	{
@@ -1092,6 +1160,8 @@ void consume_controller_commands(flecs::entity entity)
 		{
 			auto &value = controller.commands[i];
 			const auto &command = controller.definition.commands[i];
+			if (command.action == OperatingAction::AbilityActivate)
+				continue; // The bound ability consumes its request in the physical preparation phase.
 			if (value.consumed == value.revision)
 				continue;
 			if (command.semantics == CommandSemantics::Request && !value.request_id)
@@ -1331,7 +1401,11 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 				fail(argument.is_number_integer() && argument >= -1000000000 && argument <= 1000000000);
 				state.arguments.push_back(argument.get<std::int64_t>());
 			}
-			fail(operating_arguments_valid(spec.action, state.value, state.arguments));
+			const auto controller_index = static_cast<std::size_t>(&controller - controls.controllers.data());
+			const auto channel_index = static_cast<std::size_t>(&state - controller.commands.data());
+			fail(ability_channel_bound(entity.get<StableId>().id, controller_index, channel_index)
+			         ? (state.arguments.empty() || (state.arguments.size() == 1 && state.arguments.front() > 0))
+			         : operating_arguments_valid(spec.action, state.value, state.arguments));
 			for (const auto *key : {"revision", "consumed", "request_id"})
 				fail(value.at(key).is_number_unsigned());
 			state.revision = value.at("revision").get<std::uint64_t>();

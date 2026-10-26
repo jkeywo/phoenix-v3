@@ -41,6 +41,7 @@ struct ControllerBrain
 	std::vector<RuntimeCommandBinding> commands;
 	std::vector<RuntimeRecordRead> reads, message_reads;
 	std::vector<ControllerRead<ControllerTelemetryBinding>> telemetry_reads;
+	std::vector<ControllerAbilityBinding> abilities;
 	std::vector<RuntimeCommandRead> command_reads;
 	std::vector<RuntimeContactRead> contact_reads;
 	state_tree::Instance continuation;

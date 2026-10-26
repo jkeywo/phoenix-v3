@@ -445,8 +445,14 @@ Json personnel_board(const ConsoleAddress &address) const
 			                           {"remaining", r.remaining},
 			                           {"destination", r.edge_to < 0 ? std::string{} : d.compartments.at(r.edge_to)},
 			                           {"traits", traits}});
-			if (!o.power.empty())
-				out["officers"].back()["power"] = definition(address.ship).psychic.powers.at(o.power).label;
+			if (!o.abilities.empty())
+			{
+				Json abilities = Json::array();
+				for (const auto &ability : o.abilities)
+					abilities.push_back({{"id", ability},
+					                     {"label", definition(address.ship).abilities.definitions.at(ability).label}});
+				out["officers"].back()["abilities"] = std::move(abilities);
+			}
 		}
 	return out;
 }

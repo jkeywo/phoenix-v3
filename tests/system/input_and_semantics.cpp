@@ -158,6 +158,28 @@ int main()
 			model.refresh(session);
 			require(model.available_consoles().size() == 1 && model.observation()->console == "a",
 			        "revoked tab disappears and returns to the remaining Console");
+			configure_translations(
+			    Json{{"schema", 1},
+			         {"languages",
+			          {{"en", {{"ability.label", "Emergency shield"}, {"Activate ability", "Activate ability"}}},
+			           {"test", {{"ability.label", "Bouclier"}, {"Activate ability", "Activer"}}}}}});
+			select_language("test");
+			session->projection->gameplay["controls"].push_back({{"id", "ability-localisation"},
+			                                                     {"label", "Activate ability"},
+			                                                     {"ability_label", "ability.label"},
+			                                                     {"ability_target", 1},
+			                                                     {"action", "system_enabled"},
+			                                                     {"system", "engine"},
+			                                                     {"value", 1}});
+			model.refresh(session);
+			const auto translated_controls = model.gameplay_controls();
+			require(std::any_of(translated_controls.begin(), translated_controls.end(),
+			                    [](const auto &control)
+			                    {
+				                    return control.second == "Bouclier [1]: Activer";
+			                    }),
+			        "Ability controls translate their label key before formatting the target and action");
+			select_language("en");
 		}
 		{
 			Application app;

@@ -42,8 +42,8 @@ std::string personnel_markup(Application &app)
 					for (const auto &d : board.at("duties"))
 						if (d.at("id") == o.at("duty"))
 							label += ": " + localise(d.at("label"));
-				if (o.contains("power"))
-					label += " / " + localise(o.at("power"));
+				for (const auto &ability : o.value("abilities", Json::array()))
+					label += " / " + localise(ability.at("label"));
 				label += " / " + o.at("location").get<std::string>();
 				if (o.value("condition", std::string{"healthy"}) != "healthy")
 					label += " / " + localise(o.at("condition")) +

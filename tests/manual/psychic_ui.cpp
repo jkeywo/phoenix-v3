@@ -27,8 +27,8 @@ int main(int argc, char **argv)
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(write_pack(draft));
-		app.session->start({"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", "comms"});
-		if (!app.session->claim_console(2, {1, "tactical"}) || !app.session->claim_console(3, {1, "comms"}))
+		app.session->start({"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", "science"});
+		if (!app.session->claim_console(2, {1, "tactical"}) || !app.session->claim_console(3, {1, "science"}))
 			throw std::runtime_error("Psychic probe claims refused");
 		app.screen = Screen::console;
 		open_window();
@@ -63,14 +63,14 @@ int main(int argc, char **argv)
 		{
 			const auto o = app.session->console_observation(route);
 			for (const auto &c : o->gameplay.at("controllers"))
-				if (c.at("id") == "psychic-orders")
+				if (c.at("human") == true && c.at("commands").contains(channel))
 				{
 					if (!app.session->console_command(
-					        route, {o->own.id, {}, value, {}, "psychic-orders", channel, c.at("generation")}))
+					        route, {o->own.id, {}, value, {}, c.at("id"), channel, c.at("generation")}))
 						throw std::runtime_error("Psychic intent refused");
 					return;
 				}
-			throw std::runtime_error("Missing planning Controller");
+			throw std::runtime_error("Missing human ability Controller");
 		};
 		const auto press = [&](const std::string &label)
 		{
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 			throw std::runtime_error("Missing psychic UI control: " + label);
 		};
 		advance(5);
-		press("Thalia Venn: Enable power");
+		press("Phantom choir: Activate ability");
 		advance(5);
 		command(1, "phantoms-target", 1);
 		command(1, "phantoms-enabled", 1);
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 		                }))
 			throw std::runtime_error("Cruiser ward failed to suppress ghosts");
 		frame("psychic-choir-ward.png");
-		std::cout << "Psychic Console cloak, ghost group and ward journey passed\n";
+		std::cout << "Shared ability Console ghost group and ward journey passed\n";
 		close_window();
 		return 0;
 	}
