@@ -2877,9 +2877,14 @@ int main(int argc, char **argv)
 		navigation_board["shared"].push_back(
 		    {{"schema", "phoenix.waypoint"}, {"fields", {{"title", "HIDDEN-WAYPOINT"}}}});
 		navigation_board["objectives"] = {{{"id", 999}, {"title", "HIDDEN-OBJECTIVE"}}};
+		navigation_board["omitted"] = {{"shared", 12}, {"records", 5}};
+		for (int i = 0; i < 12; ++i)
+			navigation_board["shared"].push_back(
+			    {{"schema", "phoenix.objective"}, {"fields", {{"title", "HIDDEN-OBJECTIVE"}}}});
 		for (const auto &[id, text] : public_board_readouts(navigation_board, public_messages.ticks()))
-			require(text.find("HIDDEN-") == std::string::npos,
-			        "Viewscreen excludes objective and waypoint semantic presentation in every shared-board form");
+			require(text.find("HIDDEN-") == std::string::npos && id.find("omitted-") == std::string::npos,
+			        "Viewscreen excludes objectives, waypoints and transport/history diagnostics from gameplay "
+			        "presentation");
 		const auto board_rows = public_board_readouts(board, public_messages.ticks());
 		require(!board_rows.empty() && std::all_of(board_rows.begin(), board_rows.end(),
 		                                           [](const auto &row)

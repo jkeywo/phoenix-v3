@@ -385,7 +385,7 @@ std::vector<ConsoleMessageView> ConsoleModel::messages() const
 }
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &board, std::uint64_t now)
 {
-	Json selected{{"shared", Json::array()}, {"messages", Json::array()}, {"omitted", Json::object()}};
+	Json selected{{"shared", Json::array()}, {"messages", Json::array()}};
 	if (!board.is_object())
 		return {};
 	const auto shared = board.value("shared", Json::array());
@@ -396,8 +396,6 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 			if (console_string(shared[i], "schema") != "phoenix.objective" &&
 			    console_string(shared[i], "schema") != "phoenix.waypoint")
 				selected["shared"].push_back(shared[i]);
-		const auto omitted = board.value("omitted", Json::object());
-		selected["omitted"]["shared"] = skip + (omitted.is_object() ? omitted.value("shared", std::size_t{0}) : 0);
 	}
 
 	auto rows = board_readouts(selected, now);

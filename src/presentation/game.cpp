@@ -32,6 +32,7 @@ import phoenix.session.api;
 #include "region_markers.hpp"
 #include "navigation_camera.hpp"
 #include "map_plots.hpp"
+#include "viewscreen_geometry.hpp"
 #include "../core/display_projection.hpp"
 
 namespace phoenix
@@ -922,32 +923,40 @@ struct GameScreen::State
 			if (viewscreen_frame.id)
 			{
 				const auto rect = area();
+				const auto chrome = viewscreen_chrome(rect);
+				const auto scale = chrome.scale;
+				const float fw = static_cast<float>(viewscreen_frame.width);
+				const float fh = static_cast<float>(viewscreen_frame.height);
 				if (!app.session->public_board().value("alert", Json::object()).empty())
 				{
-					// A raised section of the bottom rail: no independent lower or left
-					// border. The main frame is drawn over these structural joints.
-					const float w = std::min(300.f, rect.width - 48.f);
-					const float y = rect.y + rect.height - 112.f;
-					DrawRectangleRec({rect.x + 24.f, y + 12.f, w - 24.f, 88.f}, {8, 13, 15, 255});
-					const float fw = static_cast<float>(viewscreen_frame.width);
-					const float fh = static_cast<float>(viewscreen_frame.height);
-					DrawTexturePro(viewscreen_frame, {112, 0, fw - 224, 40}, {rect.x + 24, y, w - 80, 20}, {0, 0}, 0,
+					// The condition label and this raised section share the same physical bounds.
+					const auto panel = chrome.condition_frame;
+					DrawRectangleRec(
+					    {panel.x, panel.y + 12 * scale, panel.width - 20 * scale, panel.height - 12 * scale},
+					    {8, 13, 15, 255});
+					DrawTexturePro(viewscreen_frame, {112, 0, fw - 224, 40},
+					               {panel.x, panel.y, panel.width - 56 * scale, 20 * scale}, {0, 0}, 0, WHITE);
+					DrawTexturePro(viewscreen_frame, {fw - 112, 0, 112, 112},
+					               {panel.x + panel.width - 56 * scale, panel.y, 56 * scale, 56 * scale}, {0, 0}, 0,
 					               WHITE);
-					DrawTexturePro(viewscreen_frame, {fw - 112, 0, 112, 112}, {rect.x + w - 56, y, 56, 56}, {0, 0}, 0,
-					               WHITE);
-					DrawTexturePro(viewscreen_frame, {fw - 40, 112, 40, fh - 224}, {rect.x + w - 20, y + 56, 20, 36},
+					DrawTexturePro(viewscreen_frame, {fw - 40, 112, 40, fh - 224},
+					               {panel.x + panel.width - 20 * scale, panel.y + 56 * scale, 20 * scale,
+					                panel.height - 56 * scale},
 					               {0, 0}, 0, WHITE);
 				}
-				// Nine-slice without filling the live view: keep corner size modest on large displays.
-				DrawTextureNPatch(
-				    viewscreen_frame,
-				    {{0, 0, static_cast<float>(viewscreen_frame.width), static_cast<float>(viewscreen_frame.height)},
-				     112,
-				     112,
-				     112,
-				     112,
-				     NPATCH_NINE_PATCH},
-				    rect, {0, 0}, 0, WHITE);
+				// Scale all eight border slices; raylib's NPatch keeps corners at source-pixel size.
+				const float sx[]{0, 112, fw - 112, fw}, sy[]{0, 112, fh - 112, fh};
+				const float dx[]{rect.x, rect.x + chrome.corner, rect.x + rect.width - chrome.corner,
+				                 rect.x + rect.width};
+				const float dy[]{rect.y, rect.y + chrome.corner, rect.y + rect.height - chrome.corner,
+				                 rect.y + rect.height};
+				for (int row = 0; row < 3; ++row)
+					for (int column = 0; column < 3; ++column)
+						if (row != 1 || column != 1)
+							DrawTexturePro(viewscreen_frame,
+							               {sx[column], sy[row], sx[column + 1] - sx[column], sy[row + 1] - sy[row]},
+							               {dx[column], dy[row], dx[column + 1] - dx[column], dy[row + 1] - dy[row]},
+							               {0, 0}, 0, WHITE);
 			}
 		}
 		else if (app.screen == Screen::console)

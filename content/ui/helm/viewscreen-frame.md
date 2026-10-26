@@ -1,6 +1,6 @@
 # Thin Viewscreen frame
 
-Generated with the built-in imagegen tool on 19 October 2026, using `helm-background-9slice.png` as a style reference. `viewscreen-frame.png` preserves the generated alpha channel; the live scene remains visible through its transparent centre. The renderer uses 112-pixel corner slices.
+Generated with the built-in imagegen tool on 19 October 2026, using `helm-background-9slice.png` as a style reference. `viewscreen-frame.png` preserves the generated alpha channel; the live scene remains visible through its transparent centre. The renderer uses 112-pixel source corner slices and scales all eight border sections with the viewscreen height. The raised bottom-left condition panel and its RmlUi label share physical geometry, including when a sidebar narrows the scene.
 
 ## Prompt
 

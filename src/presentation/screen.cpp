@@ -58,6 +58,7 @@ import phoenix.devices;
 #include "settings.hpp"
 #include "music.hpp"
 #include "alert_glow.hpp"
+#include "viewscreen_geometry.hpp"
 
 namespace phoenix
 {
@@ -795,8 +796,10 @@ void prepare_settings(Application &app)
 	                                 : app.settings_tab == "display" ? "Display"
 	                                                                 : "Session");
 }
+std::optional<Rectangle> viewscreen_condition_frame;
 void prepare_public_board(Application &app, bool visible)
 {
+	viewscreen_condition_frame.reset();
 	static std::string previous_markup;
 	const auto display = app.viewscreen_region.value_or(
 	    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
@@ -825,6 +828,7 @@ void prepare_public_board(Application &app, bool visible)
 		created->SetProperty("padding", "12dp 8dp");
 		created->SetProperty("text-align", "center");
 		created->SetProperty("font-size", "24dp");
+		created->SetProperty("line-height", "1.1");
 		created->SetProperty("box-sizing", "border-box");
 
 		condition = document->AppendChild(std::move(created));
@@ -835,10 +839,16 @@ void prepare_public_board(Application &app, bool visible)
 	{
 		const auto area = app.viewscreen_region.value_or(
 		    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
-		condition->SetProperty("left", std::to_string(area.x + 48.f * scale) + "px");
-		condition->SetProperty("top", std::to_string(area.y + area.height - 100.f * scale) + "px");
-		condition->SetProperty("width", std::to_string(std::min(230.f * scale, area.width - 96.f * scale)) + "px");
-		condition->SetProperty("min-height", "64dp");
+		const auto chrome = viewscreen_chrome({area.x, area.y, area.width, area.height});
+		viewscreen_condition_frame = chrome.condition_frame;
+		const auto bounds = chrome.condition_text;
+		condition->SetProperty("left", std::to_string(bounds.x) + "px");
+		condition->SetProperty("top", std::to_string(bounds.y) + "px");
+		condition->SetProperty("width", std::to_string(bounds.width) + "px");
+		condition->SetProperty("height", std::to_string(bounds.height) + "px");
+		condition->SetProperty("font-size", std::to_string(28 * chrome.scale) + "px");
+		condition->SetProperty("padding", std::to_string(8 * chrome.scale) + "px");
+
 		condition->SetProperty("color", alert.value("colour", "#e8f4ff"));
 		condition->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(alert.at("label"))));
 	}
@@ -1019,6 +1029,20 @@ bool probe_menu_keyboard(Application &app)
 			return false;
 	}
 	return true;
+}
+bool probe_viewscreen_condition()
+{
+	if (!viewscreen_condition_frame)
+		return false;
+	const auto frame = *viewscreen_condition_frame;
+	auto *label = document ? document->GetElementById("viewscreen.readout/alert") : nullptr;
+	if (!label || !label->IsVisible(true))
+		return false;
+	const auto at = label->GetAbsoluteOffset(Rml::BoxArea::Border);
+	return at.x >= frame.x && at.y >= frame.y && at.x + label->GetOffsetWidth() <= frame.x + frame.width &&
+	       at.y + label->GetOffsetHeight() <= frame.y + frame.height &&
+	       label->GetScrollWidth() <= label->GetClientWidth() + 1 &&
+	       label->GetScrollHeight() <= label->GetClientHeight() + 1;
 }
 bool probe_console_on_screen(ConsoleId route, const std::string &widget)
 {
@@ -1210,6 +1234,7 @@ bool graphics_has_keyboard_focus()
 }
 void draw_screen(Application &app)
 {
+	viewscreen_condition_frame.reset();
 	const auto frame_started = GetTime();
 #ifdef __EMSCRIPTEN__
 	const int width = phoenix_canvas_width(), height = phoenix_canvas_height();

@@ -79,6 +79,42 @@ void verify_planet(const std::string &directory)
 	require(probe_console_fit(1), "Selected planet details fit the Helm panel at 1080p");
 	TakeScreenshot("build/helm-planet-surface.png");
 }
+void verify_viewscreen(const std::string &directory)
+{
+	Application app;
+	app.can_host = true;
+	app.session = make_local_session();
+	app.session->add_pack(read_file(directory + "/base.zip"));
+	app.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"});
+	app.screen = Screen::viewscreen;
+	SetTargetFPS(60);
+	for (const auto width : {1920, 3840})
+	{
+		const int height = width * 9 / 16;
+		SetWindowSize(width, height);
+		app.viewscreen_region = ConsoleRegion{1, 0, 0, float(width), float(height)};
+		unsigned settled = 0;
+		for (int i = 0; i < 1200; ++i)
+		{
+			app.session->tick();
+			BeginDrawing();
+			draw_screen(app);
+			EndDrawing();
+			settled = probe_viewscreen_condition() ? settled + 1 : 0;
+			if (settled >= 20)
+				break;
+		}
+		require(settled >= 20 && probe_viewscreen_condition(),
+		        "Ship condition fits inside its physical bottom-left frame at both display resolutions");
+		require(std::none_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                     [](const auto &field)
+		                     {
+			                     return field.first.find("omitted-") != std::string::npos;
+		                     }),
+		        "Viewscreen gameplay does not expose network/history truncation diagnostics");
+		TakeScreenshot(("build/viewscreen-condition-" + std::to_string(width) + ".png").c_str());
+	}
+}
 int main(int argc, char **argv)
 {
 	try
@@ -91,6 +127,14 @@ int main(int argc, char **argv)
 			verify_planet(argv[1]);
 			close_window();
 			std::cout << "PASS near-planet Helm radar and inline contact panel" << std::endl;
+			return 0;
+		}
+		if (argc == 3 && std::string(argv[2]) == "--viewscreen-only")
+		{
+			open_window();
+			verify_viewscreen(argv[1]);
+			close_window();
+			std::cout << "PASS viewscreen condition frame at 1080p and 4K" << std::endl;
 			return 0;
 		}
 		Application app;
