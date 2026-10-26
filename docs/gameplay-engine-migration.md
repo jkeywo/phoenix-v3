@@ -72,3 +72,7 @@ These details must implement the agreed semantics. A material change to those se
 Follow the [testing policy](testing.md). Verification loads resolved production content without fixing shipped tuning values. System integration uses synthetic fixtures through the real loader and runtime. Smoke journeys remain manually triggered evidence.
 
 The first slice should demonstrate a shared template override affecting its consumers, independent contributions from two sources, removal of one contribution, appropriate shield damage behaviour, funding/lifecycle integration and native/WASM continuation. Later slices add meaningful checks for the contracts they introduce. Avoid tests that merely mirror each implementation function or freeze a shipped ship's performance.
+
+## ECS ownership follow-up - 26 October 2026
+
+The [ECS effects integration](effects-ecs.md) moves modifier applications and lasting rule conditions to Flecs entities while retaining native shield, ability and source-clock ownership. It incorporates the shared-rule and ability-execution consolidation, preserves typed transaction validation and uses world/session schema 28. That record contains the integration boundaries and executed verification; earlier slice receipts remain evidence of their own revisions.
