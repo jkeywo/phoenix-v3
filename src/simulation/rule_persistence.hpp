@@ -470,9 +470,12 @@ void restore_rules(const Json &saved)
 	for (const auto &[id, ship] : entities)
 		for (const auto &[key, state] : ship.get<RuleRuntime>().executions)
 			validate_link(key, state, 0, id);
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		for (const auto &[key, state] : effect.clocks)
 			validate_link(key, state, effect.id);
+	}
 	for (const auto &[key, context] : rule_origins)
 		if (!rule_origin_live(key))
 			throw std::runtime_error("rules: saved origin has no native lifetime owner");
@@ -480,9 +483,12 @@ void restore_rules(const Json &saved)
 	for (const auto &[id, ship] : entities)
 		for (const auto &[key, state] : ship.get<RuleRuntime>().executions)
 			saved_clocks.emplace(key, &state);
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		for (const auto &[key, state] : effect.clocks)
 			saved_clocks.emplace(key, &state);
+	}
 	const auto validate_maintained_row = [&](EntityId id, const PropertyContribution &contribution)
 	{
 		const auto found = saved_clocks.find(parent_rule_execution_key(contribution.source));
@@ -552,8 +558,11 @@ void restore_rules(const Json &saved)
 			for (const auto &[key, grant] : abilities->grants)
 				check_grant_clock(grant.parent);
 	}
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		check_grant_clock(effect.source);
+	}
 	pending_rules = std::move(pending);
 	rule_results = std::move(results);
 	next_rule_job = job_next;

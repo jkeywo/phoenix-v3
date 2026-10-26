@@ -22,19 +22,14 @@ const std::vector<flecs::entity> &active_rule_rows() const
 	}
 	return active_rule_order;
 }
-ActiveRuleRange<true> active_rule_values()
-{
-	return {active_rule_rows()};
-}
-ActiveRuleRange<false> active_rule_values() const
-{
-	return {active_rule_rows()};
-}
 std::vector<ActiveRuleEffect> active_rule_snapshot() const
 {
 	std::vector<ActiveRuleEffect> values;
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		values.push_back(effect);
+	}
 	return values;
 }
 flecs::entity active_rule_entity(std::uint64_t id) const
@@ -93,9 +88,12 @@ bool active_rule_effect_exists(const std::vector<ActiveRuleEffect> *prepared, co
 		                   {
 			                   return effect.source == source && effect.context.target == target;
 		                   });
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		if (effect.source == source && effect.context.target == target)
 			return true;
+	}
 	return false;
 }
 bool active_rule_target_available(const ActiveRuleEffect &effect) const

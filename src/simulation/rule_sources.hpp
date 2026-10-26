@@ -86,8 +86,11 @@ std::size_t rule_clock_capacity(const std::vector<ActiveRuleEffect> *prepared = 
 			include(effect);
 	else
 	{
-		for (const auto &effect : active_rule_values())
+		for (auto effect_entity : active_rule_rows())
+		{
+			const auto &effect = effect_entity.get<ActiveRuleEffect>();
 			include(effect);
+		}
 		rule_clock_capacity_cache = clocks;
 	}
 	return clocks;
@@ -231,13 +234,16 @@ std::vector<NativeRuleSource> rule_sources(const RuleActor &actor, bool retiring
 		return found == entities.end() ? std::vector<NativeRuleSource>{} : rule_sources(found->second, retiring);
 	}
 	std::vector<NativeRuleSource> sources;
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		if (effect.context.ordnance && effect.context.target == actor.entity)
 		{
 			auto source = active_native_rule_source(effect, retiring);
 			if (source.bindings && !source.bindings->empty())
 				sources.push_back(std::move(source));
 		}
+	}
 	std::sort(sources.begin(), sources.end(),
 	          [](const auto &a, const auto &b)
 	          {
@@ -424,7 +430,9 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 				       "ability-effect:" + std::to_string(id) + ":" + std::to_string(grant.generation), owner,
 				       grant.expiry < 0 || grant.expiry > tick, NativeEffectKind::Ability, grant.generation);
 			}
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		if (effect.context.target == id && !effect.context.ordnance)
 		{
 			auto source = active_native_rule_source(effect, retiring);
@@ -432,6 +440,7 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 			if (source.bindings && !source.bindings->empty())
 				result.push_back(std::move(source));
 		}
+	}
 	if (const auto *runtime = ship.try_get<RuleRuntime>())
 		for (const auto &region : runtime->regions)
 			if (const auto found = region_rule_bindings.find(region); found != region_rule_bindings.end())

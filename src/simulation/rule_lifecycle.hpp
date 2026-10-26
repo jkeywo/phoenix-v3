@@ -16,13 +16,16 @@ std::vector<NativeRuleSource> lifecycle_rule_sources() const
 		auto local = rule_sources(ship);
 		sources.insert(sources.end(), std::make_move_iterator(local.begin()), std::make_move_iterator(local.end()));
 	}
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		if (effect.context.ordnance)
 		{
 			auto source = active_native_rule_source(effect);
 			if (source.bindings && !source.bindings->empty())
 				sources.push_back(std::move(source));
 		}
+	}
 	std::sort(sources.begin(), sources.end(),
 	          [](const auto &a, const auto &b)
 	          {
@@ -39,9 +42,12 @@ void rebuild_rule_clock_addresses()
 		if (const auto *runtime = ship.try_get<RuleRuntime>())
 			for (const auto &[key, state] : runtime->executions)
 				rule_clock_addresses.emplace(key, RuleClockAddress{id, 0});
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		for (const auto &[key, state] : effect.clocks)
 			rule_clock_addresses.emplace(key, RuleClockAddress{0, effect.id});
+	}
 	if (rule_clock_addresses.size() > rule_instance_limit)
 		throw std::runtime_error("rules: execution capacity exhausted");
 }
@@ -454,8 +460,9 @@ struct FrozenRuleSourceFrame
 void discover_active_rule_clocks()
 {
 	rebuild_rule_clock_addresses();
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
 	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		const auto source = active_native_rule_source(effect);
 		if (!source.eligible || !source.bindings)
 			continue;
@@ -478,9 +485,12 @@ void retire_active_rule_effects()
 {
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	std::vector<std::uint64_t> expired;
-	for (const auto &effect : active_rule_values())
+	for (auto effect_entity : active_rule_rows())
+	{
+		const auto &effect = effect_entity.get<ActiveRuleEffect>();
 		if (effect.expiry <= now || !active_rule_target_available(effect))
 			expired.push_back(effect.id);
+	}
 	for (const auto id : expired)
 	{
 		const auto entity = active_rule_entity(id);

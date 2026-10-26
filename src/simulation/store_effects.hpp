@@ -158,6 +158,15 @@ PropertyEffects &prepare_property_owner(PreparedEffectGroup &quote, flecs::entit
 		original = quote.original_properties.emplace(id, read_property_effects(ship)).first;
 	return quote.properties.try_emplace(id, original->second).first->second;
 }
+std::vector<ActiveRuleEffect> &prepare_active_rule_owner(PreparedEffectGroup &quote) const
+{
+	if (!quote.active_effects)
+	{
+		quote.original_active_effects = active_rule_snapshot();
+		quote.active_effects = *quote.original_active_effects;
+	}
+	return *quote.active_effects;
+}
 void prepare_group_modifier(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, flecs::entity ship,
                             const EffectOperation &operation, const std::string &equipment)
 {
@@ -377,21 +386,26 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 	}
 	else if (context.owner_effect_kind == NativeEffectKind::Periodic)
 	{
-		const auto &current = quote.active_effects ? *quote.active_effects : active_rule_snapshot();
+		const ActiveRuleEffect *current = nullptr;
+		if (quote.active_effects)
+		{
+			const auto at = std::find_if(quote.active_effects->begin(), quote.active_effects->end(),
+			                             [&](const auto &effect)
+			                             {
+				                             return effect.id == identity;
+			                             });
+			if (at != quote.active_effects->end())
+				current = &*at;
+		}
+		else if (const auto entity = active_rule_entity(identity))
+			current = &entity.get<ActiveRuleEffect>();
 		const auto matches = [&](const auto &effect)
 		{
 			return effect.id == identity && effect.source == source && effect.context.target == actor.entity &&
 			       effect.context.ordnance == actor.ordnance;
 		};
-		if (std::any_of(current.begin(), current.end(), matches))
-		{
-			if (!quote.active_effects)
-			{
-				quote.original_active_effects = active_rule_snapshot();
-				quote.active_effects = active_rule_snapshot();
-			}
-			removed = std::erase_if(*quote.active_effects, matches) > 0;
-		}
+		if (current && matches(*current))
+			removed = std::erase_if(prepare_active_rule_owner(quote), matches) > 0;
 	}
 	if (!removed)
 		throw std::runtime_error("Owner native grant is no longer available");
@@ -525,14 +539,9 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const Prepare
 		                                    source + "." + op.grant, id)))
 		{
 			const auto context = address;
-			if (!quote.active_effects)
-			{
-				quote.original_active_effects = active_rule_snapshot();
-				quote.active_effects = active_rule_snapshot();
-			}
-			prepare_active_rule_effect(*quote.active_effects, quote.next_active, op, source + "." + op.grant, attacker,
-			                           context, source, original_equipment,
-			                           frame.rule_context ? &*frame.rule_context : nullptr);
+			auto &active = prepare_active_rule_owner(quote);
+			prepare_active_rule_effect(active, quote.next_active, op, source + "." + op.grant, attacker, context,
+			                           source, original_equipment, frame.rule_context ? &*frame.rule_context : nullptr);
 		}
 		else if (op.kind == EffectOperationKind::Apply && modifier_templates.contains(op.effect))
 			prepare_group_modifier(quote, frame, ship, op, op.equipment);

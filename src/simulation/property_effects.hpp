@@ -124,6 +124,16 @@ std::int64_t effective_property(flecs::entity ship, const std::string &equipment
 {
 	return effective_property(ship, equipment, property_key(property), base, extra_delta, contribution);
 }
+bool modifier_away_target_available(flecs::entity ship, const std::string &equipment) const
+{
+	const auto id = ship.get<StableId>().id;
+	for (std::size_t mission = 0; mission < away_missions.size(); ++mission)
+		if (away_ship(away_definitions[mission]) == id && away_missions[mission].deployed())
+			for (const auto &[slot, asset] : away_missions[mission].assignments)
+				if (asset.starts_with("officer:") && equipment == "away:" + away_definitions[mission].id + ":" + asset)
+					return true;
+	return false;
+}
 bool modifier_target_compatible(flecs::entity ship, const std::string &equipment,
                                 const ModifierEffectDefinition &definition) const
 {
@@ -137,14 +147,7 @@ bool modifier_target_compatible(flecs::entity ship, const std::string &equipment
 			                 return c.property == "repair";
 		                 }))
 			return false;
-		const auto id = ship.get<StableId>().id;
-		for (std::size_t mission = 0; mission < away_missions.size(); ++mission)
-			if (away_ship(away_definitions[mission]) == id && away_missions[mission].deployed())
-				for (const auto &[slot, asset] : away_missions[mission].assignments)
-					if (asset.starts_with("officer:") &&
-					    equipment == "away:" + away_definitions[mission].id + ":" + asset)
-						return true;
-		return false;
+		return modifier_away_target_available(ship, equipment);
 	}
 	if (const auto fitted = instance(ship, equipment))
 		return std::all_of(
@@ -361,27 +364,26 @@ void prune_property_targets()
 {
 	std::vector<flecs::entity> invalid;
 	modifier_query.each(
-	    [&](flecs::entity effect, const ActiveEffectIdentity &identity, const EffectTarget &target,
-	        const EffectLifetime &, const ModifierValues &values)
+	    [&](flecs::entity effect, const ActiveEffectIdentity &, const EffectTarget &target, const EffectLifetime &,
+	        const ModifierValues &)
 	    {
 		    bool available = target.body.is_alive();
 		    if (available && target.kind == EffectTargetKind::Equipment)
 			    available = target.equipment.is_alive() && target.equipment.has<Equipment>() &&
 			                target.equipment.parent() == target.body;
-		    if (available)
+		    if (available && target.kind == EffectTargetKind::Shield)
 		    {
-			    auto filtered = modifier_templates.at(identity.definition);
-			    std::set<std::string> names;
-			    for (const auto &row : values.values)
-				    names.insert(row.name);
-			    std::erase_if(filtered.contributions,
-			                  [&](const auto &row)
-			                  {
-				                  return !names.contains(row.name);
-			                  });
-			    available = filtered.contributions.size() == values.values.size() &&
-			                modifier_target_compatible(target.body, target.equipment_name, filtered);
+			    const auto *shields = target.body.try_get<ShieldComponent>();
+			    available = shields && std::any_of(shields->contributions.begin(), shields->contributions.end(),
+			                                       [&](const auto &c)
+			                                       {
+				                                       return c.effect_id == target.contribution &&
+				                                              c.definition.name == target.contribution_name;
+			                                       });
 		    }
+		    if (available && target.kind == EffectTargetKind::Logical)
+			    available = target.equipment_name.starts_with("away:") &&
+			                modifier_away_target_available(target.body, target.equipment_name);
 		    if (!available)
 			    invalid.push_back(effect);
 	    });
