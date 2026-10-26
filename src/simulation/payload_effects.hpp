@@ -2,7 +2,8 @@
 // their groups run in the next tick's scheduled-effect phase, never recursively.
 std::map<std::string, PayloadDefinition> payload_templates;
 std::map<std::string, PeriodicEffectDefinition> periodic_templates;
-std::vector<PeriodicEffectInstance> periodic_effects;
+std::map<std::uint64_t, flecs::entity>
+    periodic_index; // Derived addressed lookup, never the lifecycle iteration source.
 std::vector<PendingPayload> pending_payloads;
 std::map<std::uint64_t, std::string> payload_results;
 std::uint64_t next_periodic_instance = 1, next_payload_job = 1;
@@ -36,9 +37,9 @@ flecs::entity payload_target(const PayloadHitContext &c) const
 	const auto found = entities.find(c.target);
 	return found == entities.end() ? flecs::entity{} : found->second;
 }
-bool payload_context_available(const PayloadHitContext &c) const
+bool payload_context_available(const PayloadHitContext &c, flecs::entity resolved = {}) const
 {
-	const auto ship = payload_target(c);
+	const auto ship = resolved ? resolved : payload_target(c);
 	if (!ship || combat_dead(ship))
 		return false;
 	if (c.ordnance)
@@ -190,36 +191,119 @@ void apply_payload_damage(flecs::entity ship, std::int64_t amount, const Payload
 			d->destroyed_tick = ecs.get<Clock>().tick;
 	}
 }
+std::vector<PeriodicEffectInstance> periodic_snapshot() const
+{
+	std::vector<PeriodicEffectInstance> rows;
+	periodic_query.each(
+	    [&](const ActiveEffectIdentity &identity, const EffectTarget &, const EffectLifetime &life,
+	        const PeriodicSchedule &state)
+	    {
+		    rows.push_back({identity.id, state.original_source, identity.source, identity.definition,
+		                    state.group_source, state.original_equipment, state.context, life.expiry, state.next});
+	    });
+	std::sort(rows.begin(), rows.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
+	return rows;
+}
+EffectTarget resolve_periodic_target(const PayloadHitContext &context) const
+{
+	EffectTarget target;
+	target.body = payload_target(context);
+	target.equipment_name = context.equipment;
+	target.contribution = context.contribution;
+	target.contribution_name = context.contribution_name;
+	target.kind = context.ordnance                                  ? EffectTargetKind::Ordnance
+	              : context.kind == PayloadOutcomeKind::Shield      ? EffectTargetKind::Shield
+	              : context.kind == PayloadOutcomeKind::Compartment ? EffectTargetKind::Compartment
+	              : context.kind == PayloadOutcomeKind::System      ? EffectTargetKind::System
+	                                                                : EffectTargetKind::Entity;
+	if (target.body && target.kind == EffectTargetKind::System)
+		if (const auto fitted = instance(target.body, context.equipment))
+			target.equipment = fitted->entity;
+	return target;
+}
+void erase_periodic(flecs::entity effect)
+{
+	periodic_index.erase(effect.get<ActiveEffectIdentity>().id);
+	effect.destruct();
+}
+void commit_periodic_effects(const std::vector<PeriodicEffectInstance> &prepared)
+{
+	std::set<std::uint64_t> retained;
+	for (const auto &c : prepared)
+		retained.insert(c.id);
+	std::vector<flecs::entity> removed;
+	periodic_query.each(
+	    [&](flecs::entity effect, const ActiveEffectIdentity &identity, const EffectTarget &, const EffectLifetime &,
+	        const PeriodicSchedule &)
+	    {
+		    if (!retained.contains(identity.id))
+			    removed.push_back(effect);
+	    });
+	for (auto effect : removed)
+		erase_periodic(effect);
+	for (const auto &c : prepared)
+		if (const auto found = periodic_index.find(c.id); found != periodic_index.end())
+			found->second.set<EffectLifetime>({c.expiry});
+		else
+		{
+			auto effect = ecs.entity()
+			                  .set<ActiveEffectIdentity>({c.id, c.context.target, c.source, c.definition})
+			                  .set<EffectTarget>(resolve_periodic_target(c.context))
+			                  .set<EffectLifetime>({c.expiry})
+			                  .set<PeriodicSchedule>(
+			                      {c.next, c.original_source, c.group_source, c.original_equipment, c.context});
+			periodic_index.emplace(c.id, effect);
+		}
+}
+bool periodic_target_available(flecs::entity effect) const
+{
+	const auto target = effect.get<EffectTarget>();
+	if (!target.body.is_alive())
+		return false;
+	if (target.kind == EffectTargetKind::System && (!target.equipment.is_alive() || !target.equipment.has<Equipment>()))
+		return false;
+	return payload_context_available(effect.get<PeriodicSchedule>().context, target.body);
+}
 void step_payload_effects()
 {
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	std::erase_if(periodic_effects,
-	              [&](const auto &c)
-	              {
-		              return tick >= c.expiry || !payload_context_available(c.context);
-	              });
-	// Snapshot IDs, not instances: a prior group can explicitly remove an instance
-	// before its turn. Refresh does not change its generation or scheduled cadence.
-	std::vector<std::uint64_t> periodic_due;
-	for (const auto &c : periodic_effects)
-		if (c.next <= tick && c.next < c.expiry)
-			periodic_due.push_back(c.id);
-	std::sort(periodic_due.begin(), periodic_due.end());
-	for (auto id : periodic_due)
+	std::vector<flecs::entity> removed;
+	std::vector<std::pair<std::uint64_t, flecs::entity>> due;
+	periodic_query.each(
+	    [&](flecs::entity effect, const ActiveEffectIdentity &identity, const EffectTarget &,
+	        const EffectLifetime &life, const PeriodicSchedule &state)
+	    {
+		    if (tick >= life.expiry || !periodic_target_available(effect))
+			    removed.push_back(effect);
+		    else if (state.next <= tick && state.next < life.expiry)
+			    due.emplace_back(identity.id, effect);
+	    });
+	for (auto effect : removed)
+		erase_periodic(effect);
+	std::sort(due.begin(), due.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.first < b.first;
+	          });
+	for (const auto &[id, effect] : due)
 	{
-		const auto found = std::find_if(periodic_effects.begin(), periodic_effects.end(),
-		                                [&](const auto &c)
-		                                {
-			                                return c.id == id;
-		                                });
-		if (found == periodic_effects.end() || !payload_context_available(found->context))
+		// A prior group can remove this instance and create another entity in its
+		// slot. Flecs generations reject that stale handle before any state read.
+		if (!effect.is_alive() || !periodic_target_available(effect))
 			continue;
-		const auto captured = *found;
-		found->next = effect_expiry(found->next, periodic_templates.at(found->definition).period_ticks);
-		execute_effect_group(periodic_templates.at(captured.definition).reaction, captured.context.target,
+		const auto identity = effect.get<ActiveEffectIdentity>();
+		const auto captured = effect.get<PeriodicSchedule>();
+		effect.get_mut<PeriodicSchedule>().next =
+		    effect_expiry(captured.next, periodic_templates.at(identity.definition).period_ticks);
+		execute_effect_group(periodic_templates.at(identity.definition).reaction, captured.context.target,
 		                     captured.original_source, captured.group_source, &captured.context,
 		                     captured.original_equipment);
 	}
+
 	drain_effect_queue(pending_payloads, payload_results, draining_payloads, tick,
 	                   [&](const PendingPayload &pending)
 	                   {
@@ -239,11 +323,7 @@ void step_payload_effects()
 
 Json save_payload_effects() const
 {
-	return {{"next_instance", next_periodic_instance},
-	        {"next_job", next_payload_job},
-	        {"active", periodic_effects},
-	        {"pending", pending_payloads},
-	        {"results", payload_results}};
+	return {{"next_job", next_payload_job}, {"pending", pending_payloads}, {"results", payload_results}};
 }
 void validate_saved_payload_context(const PayloadHitContext &c, const Json &value) const
 {
@@ -293,17 +373,15 @@ void validate_saved_payload_context(const PayloadHitContext &c, const Json &valu
 		}
 	}
 }
-void restore_payload_effects(const Json &value)
+void restore_active_periodic(const Json &value)
 {
-	next_periodic_instance = checked_integer(value.at("next_instance"), 1, 9007199254740991LL, "payload.next_instance");
-	next_payload_job = checked_integer(value.at("next_job"), 1, 9007199254740991LL, "payload.next_job");
-	if (!value.at("active").is_array() || value.at("active").size() > 8192 || !value.at("pending").is_array() ||
-	    value.at("pending").size() > 8192)
-		throw std::runtime_error("Invalid payload roster");
+	if (value.size() != 4 || !value.at("periodic").is_array() || value.at("periodic").size() > 8192)
+		throw std::runtime_error("Invalid active effect roster");
+	next_periodic_instance = checked_integer(value.at("next_periodic"), 1, 9007199254740991LL, "effect.next_periodic");
 	std::vector<PeriodicEffectInstance> restored;
 	std::set<std::uint64_t> ids;
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	for (const auto &entry : value.at("active"))
+	for (const auto &entry : value.at("periodic"))
 	{
 		auto c = entry.get<PeriodicEffectInstance>();
 		c.id = checked_integer(entry.at("id"), 1, next_periodic_instance - 1, "periodic.id");
@@ -330,6 +408,16 @@ void restore_payload_effects(const Json &value)
 			throw std::runtime_error("Periodic deadline exceeds authored bounds");
 		restored.push_back(std::move(c));
 	}
+	commit_periodic_effects(restored);
+}
+void restore_payload_effects(const Json &value)
+{
+	next_payload_job = checked_integer(value.at("next_job"), 1, 9007199254740991LL, "payload.next_job");
+	if (value.size() != 3 || !value.at("pending").is_array() || value.at("pending").size() > 8192)
+		throw std::runtime_error("Invalid payload roster");
+	std::set<std::uint64_t> ids;
+	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+
 	std::vector<PendingPayload> pending;
 	ids.clear();
 	for (const auto &entry : value.at("pending"))
@@ -366,7 +454,6 @@ void restore_payload_effects(const Json &value)
 		if (ids.contains(id) || status.empty() || status.size() > 512 || !results.emplace(id, status).second)
 			throw std::runtime_error("Invalid payload receipt");
 	}
-	periodic_effects = std::move(restored);
 	pending_payloads = std::move(pending);
 	payload_results = std::move(results);
 }

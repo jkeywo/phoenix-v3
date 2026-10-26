@@ -20,6 +20,15 @@ struct PeriodicEffectInstance
 	PayloadHitContext context;
 	std::int64_t expiry = 0, next = 0;
 };
+// Mutable periodic execution state; identity, lifetime and resolved target are
+// shared ECS components. PeriodicEffectInstance is the transaction/save record.
+struct PeriodicSchedule
+{
+	std::int64_t next = 0;
+	EntityId original_source = 0;
+	std::string group_source, original_equipment;
+	PayloadHitContext context;
+};
 struct PendingPayload
 {
 	std::uint64_t id = 0;

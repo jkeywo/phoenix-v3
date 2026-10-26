@@ -33,12 +33,13 @@ Json periodic_transaction_rollback()
 		ticks(world, 6);
 		command(world, "enabled", 0);
 		world.tick();
-		const auto before = world.save().at("payload_effects");
-		require(!before.at("results").empty(), "Native payload reached its deferred transaction");
+		const auto before = world.save().at("active_effects");
+		require(!world.save().at("payload_effects").at("results").empty(),
+		        "Native payload reached its deferred transaction");
 		if (removing)
-			require(!before.at("active").empty(), "Removal rollback starts with a live periodic instance");
+			require(!before.at("periodic").empty(), "Removal rollback starts with a live periodic instance");
 		else
-			require(before.at("active").empty() && before.at("next_instance") == 1,
+			require(before.at("periodic").empty() && before.at("next_periodic") == 1,
 			        "A failed group rolls back its staged periodic instance and identity allocation");
 		World resumed;
 		resumed.restore(catalog, world.save());
@@ -47,8 +48,9 @@ Json periodic_transaction_rollback()
 			world.tick();
 			resumed.tick();
 		}
-		const auto after = world.save().at("payload_effects");
-		require(after.at("active") == before.at("active") && after.at("next_instance") == before.at("next_instance"),
+		const auto after = world.save().at("active_effects");
+		require(after.at("periodic") == before.at("periodic") &&
+		            after.at("next_periodic") == before.at("next_periodic"),
 		        "Failed periodic removal preserves the committed roster and next identity");
 		require(world.save() == resumed.save(), "Failed periodic transactions continue identically after restore");
 		trace.push_back(world.save());
@@ -90,5 +92,49 @@ Json deferred_callback_continuation()
 		require(world.save() == resumed.save(),
 		        "A chain of native reactions continues deterministically after restore");
 	}
+	return world.save();
+}
+
+Json periodic_ordered_removal()
+{
+	auto source = directed_fixture();
+	for (const auto &effect : Json::parse(R"json([
+ {"id":"test.first","kind":"periodic","duration_ticks":2,"period_ticks":1,"effect":"test.first.tick"},
+ {"id":"test.later","kind":"periodic","duration_ticks":10,"period_ticks":1,"effect":"test.later.tick"},
+ {"id":"test.replacement","kind":"modifier","duration_ticks":8,"contributions":{"range":{"property":"sensors","delta_permille":50}}},
+ {"id":"test.first.tick","kind":"operations","operations":[
+   {"kind":"remove","target":"protected","effect":"test.later","all_sources":true},
+   {"kind":"apply","target":"protected","effect":"test.replacement","equipment":"radar","grant":"replacement"}]},
+ {"id":"test.later.tick","kind":"operations","operations":[{"kind":"damage","target":"protected","damage":5}]},
+ {"id":"test.periodic.start","kind":"operations","operations":[
+   {"kind":"apply","target":"protected","effect":"test.first","grant":"first"},
+   {"kind":"apply","target":"protected","effect":"test.later","grant":"later"}]}
+ ])json"))
+		source["effects"].push_back(effect);
+	source["trees"].push_back(
+	    Json::parse(R"json({"id":"test.periodic-order.tree","context":"scenario","initial":"start",
+"states":[{"id":"start","entry":[{"action":"apply_effect_group","arguments":[{"type":"entity","id":2},{"type":"entity","id":1},"test.periodic.start"]}]}]})json"));
+	source["maps"][0]["scenario"] = {{"tree", "test.periodic-order.tree"}};
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	world.tick();
+	const auto before = world.save();
+	require(before.at("active_effects").at("periodic").size() == 2,
+	        "Two periodic applications are due in stable order");
+	const auto initial_hp = hp(world);
+	World resumed;
+	resumed.restore(catalog, before);
+	world.tick();
+	resumed.tick();
+	require(hp(world) == initial_hp && world.save() == resumed.save(),
+	        "Earlier due work removes a later instance even while creating another effect entity");
+	const auto after = world.save().at("active_effects").at("periodic");
+	require(after.size() == 1 && world.save().at("active_effects").at("modifiers").size() == 1,
+	        "A removed periodic instance cannot revive when another effect is created");
+	world.tick();
+	resumed.tick();
+	require(hp(world) == initial_hp && world.save() == resumed.save(),
+	        "Expiry removes the remaining periodic instance without executing removed work");
 	return world.save();
 }

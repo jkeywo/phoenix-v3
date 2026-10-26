@@ -296,6 +296,8 @@ struct World::Impl
 	flecs::query<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime, const ModifierValues>
 	    modifier_query;
 	flecs::query<const StableId, const PropertyEffects> property_owners;
+	flecs::query<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime, const PeriodicSchedule>
+	    periodic_query;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;
@@ -357,6 +359,10 @@ struct World::Impl
 	Impl()
 	{
 		ecs.set<Clock>({0});
+		periodic_query = ecs.query_builder<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime,
+		                                   const PeriodicSchedule>()
+		                     .cached()
+		                     .build();
 		modifier_query = ecs.query_builder<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime,
 		                                   const ModifierValues>()
 		                     .cached()
@@ -4116,6 +4122,8 @@ Json World::save() const
 	Json result{{"schema", 27},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["active_effects"] = impl_->save_active_modifiers();
+	result["active_effects"]["periodic"] = impl_->periodic_snapshot();
+	result["active_effects"]["next_periodic"] = impl_->next_periodic_instance;
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	result["payload_effects"] = impl_->save_payload_effects();
 	if (impl_->display_revision)
@@ -4657,6 +4665,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
 	candidate.impl_->restore_shield_reactions(saved.at("shield_reactions"));
+	candidate.impl_->restore_active_periodic(saved.at("active_effects"));
 	candidate.impl_->restore_payload_effects(saved.at("payload_effects"));
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});

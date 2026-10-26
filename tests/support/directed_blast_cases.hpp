@@ -240,7 +240,7 @@ Json directed_inflight_source_loss()
 		resumed.tick();
 		const auto snapshot = world.save();
 		require(snapshot == resumed.save(), "In-flight captured work continues identically without a live source");
-		for (const auto &effect : snapshot.at("payload_effects").at("active"))
+		for (const auto &effect : snapshot.at("active_effects").at("periodic"))
 			if (effect.at("original_source") == 1 && effect.at("original_equipment") == "gun" &&
 			    effect.at("context").at("target") == 2)
 				inflicted = true;

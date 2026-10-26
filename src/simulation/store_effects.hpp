@@ -61,9 +61,14 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	};
 	std::vector<PreparedDamage> damages;
 	std::optional<std::vector<PeriodicEffectInstance>> prepared_periodic;
+	std::optional<std::vector<PeriodicEffectInstance>> initial_periodic;
 	const auto periodic_roster = [&]() -> const std::vector<PeriodicEffectInstance> &
 	{
-		return prepared_periodic ? *prepared_periodic : periodic_effects;
+		if (prepared_periodic)
+			return *prepared_periodic;
+		if (!initial_periodic)
+			initial_periodic = periodic_snapshot();
+		return *initial_periodic;
 	};
 	auto prepared_next_periodic = next_periodic_instance;
 	StockTransaction stocks;
@@ -175,7 +180,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			{
 				PayloadHitContext context = outcome ? *hit_context : PayloadHitContext{id};
 				if (!prepared_periodic)
-					prepared_periodic = periodic_effects;
+					prepared_periodic = periodic_roster();
 				prepare_periodic_application(*prepared_periodic, prepared_next_periodic, op, source + "." + op.grant,
 				                             attacker, context, source, original_equipment);
 			}
@@ -242,7 +247,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	}
 	if (prepared_periodic)
 	{
-		periodic_effects = std::move(*prepared_periodic);
+		commit_periodic_effects(*prepared_periodic);
 		next_periodic_instance = prepared_next_periodic;
 	}
 	if (payment)
