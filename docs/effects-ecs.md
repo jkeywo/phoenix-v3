@@ -16,6 +16,10 @@ Native property reads use numeric property keys and aggregates indexed by equipm
 
 `PropertyEffects` is a transaction/persistence snapshot, not a live ECS component. `PropertyEffectOwner` holds allocation state and derived handle/aggregate indexes. The shared prepared effect transaction retains its original-state and epoch checks, ordered invocation batches, payments and rollback behavior. It snapshots a touched property owner once per quote. Commit updates only changed ECS values/lifetimes and invalidates numeric aggregates when their values or membership change. Filtered role/property subsets, computed values and finite maintained lifetimes remain supported.
 
+The review follow-up uses grouped `ModifierApplication` snapshots directly for preparation and restoration. It removes flat per-value ownership rows and their regrouping adapters, including an unused Personnel read adapter. Property keys are shared with the content catalogue; each descriptor explicitly identifies its key, and native descriptor lookup is independent of catalogue ordering.
+
+Read-only condition passes iterate the cached ordered handles directly. The custom const/mutable iterator and its implicit handle-vector copies are removed. Condition transaction preparation captures the original roster once and derives the staged copy from it; exact owner removal checks the existing instance index before preparing a snapshot. Target pruning checks changing equipment generations, shield contribution identities and away assignments without copying or filtering immutable modifier definitions. Static value/target compatibility remains enforced on application and restoration.
+
 Modifier expiry and target reconciliation retain their native phase boundaries. Lifecycle queries continue processing effects whose physical target is disabled. Resolved Flecs generations prevent a deleted target or condition from accidentally addressing a recycled entity. Expiry, refresh, removal and source disappearance retain their distinct contracts.
 
 The integrated shared scheduler freezes due rule evaluations before committing a batch. Removing a condition stops subsequent scheduling; it does not retract an already frozen event in that batch. New work follows the existing phase/tick scheduling rules. The regression covers removal while another effect entity is created, frozen damage executing once, and identical resumed continuation.
@@ -33,7 +37,13 @@ The `active_effects` record contains:
 
 Source rule clocks, region membership, prepaid work, provenance, pending events and receipts remain in the shared `rules` record. Active applications are not duplicated there or in body records. Flecs handles, query caches and property aggregates are rebuilt rather than serialized. Restoration validates a replacement world, including maintained-grant ownership, before replacing the live world.
 
+The review follow-up keeps schema 28 unchanged. Conditions are serialized directly into `active_effects` and validated from that location, without translating them through retired fields in `rules`.
+
 ## Verification
+
+The review simplifications are recorded in `12220bd` (condition iteration, transaction staging and dynamic target pruning) and `da8d841` (shared typed property keys, grouped modifier snapshots and direct persistence). The affected native rules, directed, store-effects, scenario-world, Personnel, abilities and combat suites passed. All 44 native integration suites, launcher checks and authored-content/build checks passed. The initial native gate passed 11 of 12 network cases; the valid-sidecar pre-game lobby case timed out waiting for approval while the WASM build ran concurrently. That exact case passed in isolation without source changes after the build completed. The final two native traces were then generated, and all 21 regenerated continuation traces matched the pre-cleanup `0dc300c` outputs exactly. Local receipts are `build/effects-simplify-native-gate.log`, `build/effects-simplify-lobby-retry.log` and `build/effects-simplify-continuation-comparison.json`.
+
+The full `./scripts/check.ps1 -Target web -Threaded` follow-up gate passed, including production launch verification, system suites and all 21 native/WASM continuation comparisons. Repository formatting and `git diff --check` passed. The WASM receipt is `build/effects-simplify-web-gate.log`. The profiling figures below remain evidence for their stated earlier revision; this cleanup does not claim new measured timings.
 
 The integrated focused native suites passed for shared rules, store effects, directed systems, abilities, Personnel and combat. They include computed/filtered maintained values, mixed prepared invocations, rollback, finite lifetimes, source loss, malformed continuation and frozen periodic batches. The scenario suite additionally passed multi-value application identity, shield-target reconciliation and atomic rejection of malformed effect rosters.
 
