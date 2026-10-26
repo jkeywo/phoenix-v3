@@ -124,7 +124,7 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 		ability_fail(path + ".preparation_energy_per_second", "preparation funding requires preparation work");
 	if (result.energy_per_second && !result.sustained)
 		ability_fail(path + ".energy_per_second", "instant ability costs belong to start/activation effects");
-	const auto effect = [&](const char *field) -> std::optional<ShieldReactionDefinition>
+	const auto effect = [&](const char *field) -> std::optional<EffectGroupDefinition>
 	{
 		if (!value.contains(field))
 			return std::nullopt;

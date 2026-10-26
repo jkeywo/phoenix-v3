@@ -127,6 +127,8 @@ void compile_effect(const Catalog &catalog, const std::string &id)
 		(void)compile_psychic_effect(catalog, id);
 	else if (effect.value("kind", std::string{}) == "ability_grant")
 		(void)compile_ability_grant(catalog, id);
+	else if (effect.value("kind", std::string{}) == "rule")
+		(void)compile_rule(catalog, id);
 	else
 		(void)compile_shield_effect(catalog, id);
 }
@@ -246,8 +248,8 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 		if (const auto damage = n("post_damage", 0, 0, 1000000))
 		{
 			// Keep shorthand last: existing saves identify this group after authored reactions.
-			ShieldReactionDefinition reaction;
-			reaction.operations.push_back({ShieldReactionKind::Damage, "attacker", {}, {}, {}, damage});
+			EffectGroupDefinition reaction;
+			reaction.operations.push_back({EffectOperationKind::Damage, "attacker", {}, {}, {}, damage});
 			d.reactions.push_back(std::move(reaction));
 		}
 		d.reserve.capacity = n("capacity", 1, 1, 1000000);

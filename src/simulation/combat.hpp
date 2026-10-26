@@ -94,7 +94,7 @@ struct ShieldReaction
 	std::string contribution, source, definition;
 	std::size_t group = 0;
 	std::int64_t presented = 0, modified = 0, negated = 0, absorbed = 0, residual = 0, strength = 0;
-	ShieldReactionDefinition execution;
+	EffectGroupDefinition execution;
 };
 struct ShieldBindingState
 {

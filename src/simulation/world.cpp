@@ -1,8 +1,6 @@
 module;
 #include <flecs.h>
 #include <chrono>
-#include <charconv>
-#include <string_view>
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
@@ -34,9 +32,10 @@ import phoenix.gameplay_scenario;
 #include "equipment.hpp"
 #include "ftl_state.hpp"
 #include "controllers.hpp"
+#include "payload_state.hpp"
+#include "rules_state.hpp"
 #include "combat.hpp"
 #include "directed_state.hpp"
-#include "payload_state.hpp"
 #include "logistics_state.hpp"
 #include "processors_state.hpp"
 #include "docking_state.hpp"
@@ -59,6 +58,7 @@ namespace phoenix
 {
 #include "tick_profile.hpp"
 #include "payload_serialization.hpp"
+#include "rules_serialization.hpp"
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockConnection, parent, port, remote_port, phase, controller, progress,
                                    relative_heading, relative_z, relative, assisted, generation, generations,
                                    guidance_step, guidance_heading)
@@ -262,10 +262,7 @@ struct World::Impl
 	std::map<std::string, Json> console_layouts;
 	std::map<std::string, ShieldEffectDefinition> shield_templates;
 	std::map<std::string, ModifierEffectDefinition> modifier_templates;
-	std::uint64_t personnel_property_revision = 1;
-	std::size_t personnel_property_mutation_depth = 0;
-	mutable std::map<EntityId, PersonnelProperties> personnel_properties;
-	std::map<std::string, ShieldReactionDefinition> effect_groups;
+	std::map<std::string, EffectGroupDefinition> effect_groups;
 	std::map<std::string, AbilityGrantDefinition> ability_grant_templates;
 	SharedResourceCatalogue resource_catalogue;
 	std::vector<ShieldReaction> shield_reactions;
@@ -295,11 +292,6 @@ struct World::Impl
 	std::vector<ContactEntry> contact_rows;
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
-	flecs::query<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime, const ModifierValues>
-	    modifier_query;
-	flecs::query<const StableId, const PropertyEffects> property_owners;
-	flecs::query<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime, const PeriodicSchedule>
-	    periodic_query;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;
@@ -361,19 +353,6 @@ struct World::Impl
 	Impl()
 	{
 		ecs.set<Clock>({0});
-		periodic_query = ecs.query_builder<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime,
-		                                   const PeriodicSchedule>()
-		                     .cached()
-		                     .build();
-		modifier_query = ecs.query_builder<const ActiveEffectIdentity, const EffectTarget, const EffectLifetime,
-		                                   const ModifierValues>()
-		                     .cached()
-		                     .build();
-		property_owners = ecs.query_builder<const StableId, const PropertyEffects>()
-		                      .with(flecs::Disabled)
-		                      .optional()
-		                      .cached()
-		                      .build();
 		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
 		steering_query = ecs.query_builder<const Equipment, Steering>()
 		                     .with<BasicEquipment>()
@@ -1504,7 +1483,7 @@ struct World::Impl
 				return 0;
 			range = mode->range;
 		}
-		range = effective_property(entity, name, PropertyKey::sensors, range);
+		range = effective_property(entity, name, "sensors", range);
 		if (auto systems = gameplay_systems(entity); systems && systems->power)
 		{
 			const auto index = sensor->entity.get<ResourceBinding>().slot;
@@ -1700,7 +1679,7 @@ struct World::Impl
 			{
 				auto &native = child.get_mut<Steering>();
 				auto effective = native;
-				effective.rate = effective_property(ship, child.get<Equipment>().id, PropertyKey::turn, native.rate);
+				effective.rate = effective_property(ship, child.get<Equipment>().id, "turn", native.rate);
 				step_basic_steering(ship.get_mut<Pose>(), effective, 1000);
 				native.remainder = effective.remainder;
 			}
@@ -1714,9 +1693,8 @@ struct World::Impl
 				auto effective = native;
 				effective.enabled &= !structurally_disabled(ship, child.get<Equipment>().id);
 				const auto &equipment = child.get<Equipment>().id;
-				effective.acceleration =
-				    effective_property(ship, equipment, PropertyKey::propulsion, native.acceleration);
-				effective.max_speed = effective_property(ship, equipment, PropertyKey::speed, native.max_speed);
+				effective.acceleration = effective_property(ship, equipment, "propulsion", native.acceleration);
+				effective.max_speed = effective_property(ship, equipment, "speed", native.max_speed);
 				effective.speed = native.speed == native.max_speed ? effective.max_speed
 				                                                   : std::min(native.speed, effective.max_speed);
 				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), effective, 1000);
@@ -1781,13 +1759,12 @@ struct World::Impl
 		}
 		definition.boost_speed_multiplier = definition.boost_acceleration_multiplier = 1000;
 		definition.impulse_speed_multiplier = definition.impulse_acceleration_multiplier = 1000;
-		definition.maximum_speed =
-		    effective_property(ship, equipment, PropertyKey::speed, definition.maximum_speed, speed);
+		definition.maximum_speed = effective_property(ship, equipment, "speed", definition.maximum_speed, speed);
 		definition.acceleration =
-		    effective_property(ship, equipment, PropertyKey::propulsion, definition.acceleration, acceleration);
+		    effective_property(ship, equipment, "propulsion", definition.acceleration, acceleration);
 		definition.lateral_acceleration =
-		    effective_property(ship, equipment, PropertyKey::propulsion, definition.lateral_acceleration, acceleration);
-		definition.turn_rate = effective_property(ship, equipment, PropertyKey::turn, definition.turn_rate, turn);
+		    effective_property(ship, equipment, "propulsion", definition.lateral_acceleration, acceleration);
+		definition.turn_rate = effective_property(ship, equipment, "turn", definition.turn_rate, turn);
 		return definition;
 	}
 	FlightState effective_flight_state(flecs::entity child, const FlightDefinition &definition,
@@ -4121,11 +4098,8 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 27},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 26},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
-	result["active_effects"] = impl_->save_active_modifiers();
-	result["active_effects"]["periodic"] = impl_->periodic_snapshot();
-	result["active_effects"]["next_periodic"] = impl_->next_periodic_instance;
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	result["payload_effects"] = impl_->save_payload_effects();
 	if (impl_->display_revision)
@@ -4224,6 +4198,8 @@ Json World::save() const
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
 		if (entity.has<ShieldComponent>())
 			result["bodies"].back()["shields"] = impl_->save_shields(entity);
+		if (entity.has<PropertyEffects>())
+			result["bodies"].back()["property_effects"] = impl_->save_property_effects(entity);
 		if (const auto *d = entity.try_get<Destructible>())
 			result["bodies"].back()["destructible"] = *d;
 		if (entity.has<EntityControls>())
@@ -4280,8 +4256,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 27)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 27 required)");
+	if (saved.at("schema") != 26)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 26 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4375,6 +4351,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<ShieldComponent>())
 			candidate.impl_->restore_shields(entity, value.at("shields"));
+		if (entity.has<PropertyEffects>())
+			candidate.impl_->restore_property_effects(entity, value.at("property_effects"));
 		if (!candidate.impl_->definition(restored.id).personnel.officers.empty() && !value.contains("personnel"))
 			throw std::runtime_error("Missing saved personnel");
 		if (value.contains("personnel"))
@@ -4656,7 +4634,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			departure_reports.emplace(id, report);
 			departed_ships.insert(id);
 		}
-	candidate.impl_->restore_active_modifiers(saved.at("active_effects"));
 	candidate.impl_->restore_abilities(saved.at("abilities"), departed_ships);
 	candidate.impl_->refresh_ability_work(false);
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
@@ -4667,7 +4644,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
 	candidate.impl_->restore_shield_reactions(saved.at("shield_reactions"));
-	candidate.impl_->restore_active_periodic(saved.at("active_effects"));
 	candidate.impl_->restore_payload_effects(saved.at("payload_effects"));
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});

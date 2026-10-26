@@ -70,6 +70,23 @@ void nebula_paths()
 	check(!scenario_contains(r, {5000, 0}) && scenario_contains(r, {7000, 0}), "annulus hole containment failed");
 	check(!scenario_crosses(r, {4500, 0}, {5500, 0}) && scenario_crosses(r, {0, 0}, {10000, 0}),
 	      "annulus swept crossing failed");
+	const auto spans = scenario_region_intervals(r, {0, 0}, {10000, 0});
+	const auto near = [](std::int64_t value, std::int64_t numerator)
+	{
+		return std::abs(value - scenario_segment_unit * numerator / 10) < scenario_segment_unit / 1000;
+	};
+	check(spans.size() == 2 && near(spans[0].begin, 2) && near(spans[0].end, 4) && near(spans[1].begin, 6) &&
+	          near(spans[1].end, 8),
+	      "annulus sweep retains both ordered occupied intervals around its hole");
+	check(scenario_region_intervals(r, {4500, 0}, {5500, 0}).empty(),
+	      "movement wholly inside the annulus hole has no occupied interval");
+	const auto stationary = scenario_region_intervals(r, {7000, 0}, {7000, 0});
+	check(stationary.size() == 1 && stationary[0].begin == 0 && stationary[0].end == scenario_segment_unit &&
+	          scenario_region_intervals(r, {5000, 0}, {5000, 0}).empty(),
+	      "stationary interval follows sampled ring membership");
+	const auto into_hole = scenario_region_intervals(r, {7000, 0}, {5000, 0});
+	check(into_hole.size() == 1 && into_hole[0].begin == 0 && into_hole[0].end < scenario_segment_unit,
+	      "annulus sweep starting inside retains exit before reaching the hole");
 	const auto path = scenario_path_length(r, {0, 0}, {10000, 0});
 	check(path >= 3998 && path <= 4002, "annulus path did not subtract the hole");
 	check(scenario_sensor_visible(definition.regions, {0, 0}, {10000, 0}, 140000) &&
@@ -89,6 +106,14 @@ void nebula_paths()
 	check(scenario_path_length(box, {0, 0}, {10000, 0}) >= 1998 &&
 	          scenario_path_length(box, {0, 0}, {10000, 0}) <= 2002,
 	      "rectangle path clipping failed");
+	const auto box_spans = scenario_region_intervals(box, {0, 0}, {10000, 0});
+	check(box_spans.size() == 1 && near(box_spans[0].begin, 4) && near(box_spans[0].end, 6),
+	      "rectangle interval retains existing clipped entry and exit");
+	auto circle = r;
+	circle.shape = ScenarioRegionShape::Circle;
+	const auto circle_spans = scenario_region_intervals(circle, {10000, 0}, {0, 0});
+	check(circle_spans.size() == 1 && near(circle_spans[0].begin, 2) && near(circle_spans[0].end, 8),
+	      "circle interval is ordered in executed movement direction");
 	World resumed;
 	resumed.restore(catalog, world.save());
 	resumed.clear_claims();

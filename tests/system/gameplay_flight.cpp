@@ -26,6 +26,7 @@ import phoenix.console_controls;
 
 using namespace phoenix;
 extern "C" void resource_allocation_lifecycle(const Catalog &);
+extern "C" void named_resource_allocation_contracts(const Catalog &);
 namespace
 {
 using phoenix::test::require;
@@ -337,6 +338,12 @@ void targeted_modifiers()
 {
 	const auto catalog = load(targeted_fixture());
 	resource_allocation_lifecycle(catalog);
+	auto named_source = targeted_fixture();
+	auto &named_store = named_source["entities"][0]["resources"]["stores"][0];
+	named_store["initial"] = 1;
+	named_store["discharge_rate"] = 20;
+	named_store["operation_heat_ppm"] = 1000000;
+	named_resource_allocation_contracts(load(named_source));
 	World boosted, ordinary;
 	boosted.load(catalog, "test.map");
 	ordinary.load(catalog, "test.map");

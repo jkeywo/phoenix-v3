@@ -210,6 +210,14 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
                                     std::span<const std::string> ship_slots = {});
 bool scenario_contains(const ScenarioRegion &region, ScenarioPoint point);
 bool scenario_crosses(const ScenarioRegion &region, ScenarioPoint from, ScenarioPoint to);
+inline constexpr std::int64_t scenario_segment_unit = 1LL << 30;
+struct ScenarioRegionInterval
+{
+	std::int64_t begin = 0, end = 0;
+};
+// Ordered Q30 spans of the executed segment; an annulus can yield two spans.
+std::vector<ScenarioRegionInterval> scenario_region_intervals(const ScenarioRegion &region, ScenarioPoint from,
+                                                              ScenarioPoint to);
 std::int64_t scenario_path_length(const ScenarioRegion &region, ScenarioPoint from, ScenarioPoint to);
 bool scenario_sensor_visible(std::span<const ScenarioRegion> regions, ScenarioPoint from, ScenarioPoint to,
                              std::int64_t range);

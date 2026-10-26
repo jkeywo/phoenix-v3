@@ -128,7 +128,7 @@ PayloadDefinition compile_payload(const Catalog &catalog, const std::string &id)
 				directed_require(binding.outcome == PayloadOutcomeKind::System ||
 				                     binding.outcome == PayloadOutcomeKind::Shield,
 				                 id, "$hit equipment requires a system or shield binding");
-			if (operation.kind == ShieldReactionKind::Apply &&
+			if (operation.kind == EffectOperationKind::Apply &&
 			    catalog.effects.at(operation.effect).value("kind", std::string{}) == "periodic")
 				directed_require(binding.outcome == PayloadOutcomeKind::Compartment, id,
 				                 "periodic damage conditions require a compartment outcome");
@@ -149,7 +149,7 @@ PeriodicEffectDefinition compile_periodic_effect(const Catalog &catalog, const s
 	for (const auto &op : result.reaction.operations)
 	{
 		directed_require(op.equipment != "$hit", id, "periodic compartment has no equipment hit binding");
-		if (op.kind == ShieldReactionKind::Apply)
+		if (op.kind == EffectOperationKind::Apply)
 			directed_require(catalog.effects.at(op.effect).value("kind", std::string{}) != "periodic", id,
 			                 "periodic reactions cannot spawn periodic conditions");
 	}

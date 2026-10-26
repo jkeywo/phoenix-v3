@@ -313,7 +313,7 @@ void clear_retired_ability_control(EntityId ship, const AbilityGrantState &remov
 		if (c.id == control)
 			reset_ability_endpoint(ship, c);
 }
-void prepare_ability_grant(AbilityRuntime &runtime, EntityId ship, const ShieldReactionOperation &operation,
+void prepare_ability_grant(AbilityRuntime &runtime, EntityId ship, const EffectOperation &operation,
                            const std::string &parent)
 {
 	const auto source = operation.officer.empty() ? "equipment" : "officer";
@@ -322,7 +322,7 @@ void prepare_ability_grant(AbilityRuntime &runtime, EntityId ship, const ShieldR
 		throw std::runtime_error("Ability grant source unavailable");
 	const auto id = "temporary:" + parent + ":" + source + ":" + owner;
 	const auto old = runtime.grants.find(id);
-	if (operation.kind == ShieldReactionKind::Remove)
+	if (operation.kind == EffectOperationKind::Remove)
 	{
 		if (old != runtime.grants.end())
 		{
@@ -356,7 +356,7 @@ void prepare_ability_grant(AbilityRuntime &runtime, EntityId ship, const ShieldR
 	runtime.grants.emplace(id, std::move(g));
 }
 std::string ability_apply_group(EntityId ship, const AbilityGrantState &g,
-                                const std::optional<ShieldReactionDefinition> &group)
+                                const std::optional<EffectGroupDefinition> &group)
 {
 	if (!group)
 		return {};

@@ -95,6 +95,29 @@ void reserve_system_resource_rate(ShipResources &ship, std::size_t system, Resou
 	                        r.discrete_amount);
 }
 
+void clear_named_requests(ShipResources &ship)
+{
+	ship.named_requests.clear();
+	ship.named_grants.clear();
+}
+
+void request_named_resource(ShipResources &ship, const std::string &key, ResourceIndex store, ResourceAmount rate)
+{
+	if (key.empty() || key.size() > 512 || store >= ship.network.stores().size() || rate < 0 || rate > resource_limit)
+		throw std::runtime_error("resources: invalid named operating request");
+	const auto old = ship.named_requests.find(key);
+	if (old != ship.named_requests.end() && old->second.store != store)
+		throw std::runtime_error("resources: named consumer changed its store during preparation");
+	if (old == ship.named_requests.end() && ship.named_requests.size() >= named_resource_consumer_limit)
+		throw std::runtime_error("resources: named consumer capacity exhausted");
+	ship.named_requests.insert_or_assign(key, NamedResourceRequest{store, rate});
+	if (!ship.named_grants.contains(key))
+	{
+		auto &grant = ship.named_grants[key];
+		grant.supply_permille = rate ? 0 : 1000;
+	}
+}
+
 ShipResourceAllocation::ShipResourceAllocation(ShipResources &origin, std::span<const std::size_t> unavailable)
     : candidate_(origin), origin_(&origin), origin_tick_(origin.network.ticks())
 {
@@ -139,6 +162,13 @@ const std::vector<SystemResourceGrant> &ShipResourceAllocation::grants() const
 	return candidate_.grants;
 }
 
+const std::map<std::string, SystemResourceGrant> &ShipResourceAllocation::named_grants() const
+{
+	if (!origin_)
+		throw std::logic_error("resources: allocation already committed");
+	return candidate_.named_grants;
+}
+
 void ShipResourceAllocation::commit()
 {
 	if (!origin_ || origin_->network.ticks() != origin_tick_)
@@ -152,6 +182,8 @@ void ShipResourceAllocation::commit()
 	origin_->network = std::move(candidate_.network);
 	origin_->requests = std::move(candidate_.requests);
 	origin_->grants = std::move(candidate_.grants);
+	origin_->named_requests = std::move(candidate_.named_requests);
+	origin_->named_grants = std::move(candidate_.named_grants);
 	origin_ = nullptr;
 }
 
@@ -250,6 +282,14 @@ void tick_ship_resources(ShipResources &ship)
 	const auto count = ship.definition.network.stores.size();
 	std::vector<ResourceAmount> rates(ship.definition.systems.size()), store_rates(count), discrete(count);
 	std::vector<std::size_t> discrete_owner(count, ship.definition.systems.size());
+	struct Consumer
+	{
+		ResourceIndex store;
+		ResourceAmount rate;
+		SystemResourceGrant *grant;
+	};
+	std::vector<Consumer> consumers;
+	consumers.reserve(ship.grants.size() + ship.named_requests.size());
 	for (std::size_t i = 0; i < ship.definition.systems.size(); ++i)
 	{
 		const auto &b = ship.definition.systems[i];
@@ -272,6 +312,17 @@ void tick_ship_resources(ShipResources &ship)
 			discrete[b.store] = action_energy;
 		}
 	}
+	for (std::size_t i = 0; i < ship.grants.size(); ++i)
+		consumers.push_back({ship.definition.systems[i].store, rates[i], &ship.grants[i]});
+	ship.named_grants.clear();
+	for (const auto &[key, request] : ship.named_requests)
+	{
+		if (request.store >= count || request.rate < 0 || request.rate > resource_limit ||
+		    store_rates[request.store] > resource_limit - request.rate)
+			throw std::runtime_error("resources: invalid named shared store request");
+		store_rates[request.store] += request.rate;
+		consumers.push_back({request.store, request.rate, &ship.named_grants[key]});
+	}
 	for (ResourceIndex i = 0; i < count; ++i)
 		ship.network.request_operation(i, store_rates[i], discrete[i]);
 	ship.network.tick();
@@ -280,37 +331,53 @@ void tick_ship_resources(ShipResources &ship)
 		const auto &t = ship.network.telemetry()[store];
 		const auto requested = std::max<ResourceAmount>(0, t.requested - discrete[store]);
 		const auto paid = std::max<ResourceAmount>(0, t.consumed - (t.discrete_paid ? discrete[store] : 0));
-		ResourceAmount assigned_request = 0, assigned_paid = 0;
-		for (std::size_t i = 0; i < ship.definition.systems.size(); ++i)
-			if (ship.definition.systems[i].store == store)
+		ResourceAmount assigned_request = 0, assigned_paid = 0, assigned_work = 0, assigned_funded = 0;
+		for (auto &consumer : consumers)
+			if (consumer.store == store)
 			{
-				auto &g = ship.grants[i];
-				g.requested = weighted_share(requested, rates[i], store_rates[store]);
+				auto &g = *consumer.grant;
+				g.requested = weighted_share(requested, consumer.rate, store_rates[store]);
+				g.work_requested = weighted_share(t.work_requested, consumer.rate, store_rates[store]);
+				g.work_funded = weighted_share(t.work_funded, consumer.rate, store_rates[store]);
 				assigned_request += g.requested;
+				assigned_work += g.work_requested;
+				assigned_funded += g.work_funded;
 			}
-		for (std::size_t i = 0; i < ship.definition.systems.size(); ++i)
-			if (ship.definition.systems[i].store == store && rates[i])
+		// Native System order precedes lexical named-consumer order for every residue.
+		for (auto &consumer : consumers)
+			if (consumer.store == store && consumer.rate)
 			{
-				auto &g = ship.grants[i];
+				auto &g = *consumer.grant;
 				if (assigned_request < requested)
 				{
 					++g.requested;
 					++assigned_request;
 				}
+				if (assigned_work < t.work_requested)
+				{
+					++g.work_requested;
+					++assigned_work;
+				}
 				g.supply_permille = static_cast<int>(weighted_share(1000, t.work_funded, t.work_requested));
 			}
-		for (std::size_t i = 0; i < ship.definition.systems.size(); ++i)
-			if (ship.definition.systems[i].store == store)
+		for (auto &consumer : consumers)
+			if (consumer.store == store && assigned_funded < t.work_funded &&
+			    consumer.grant->work_funded < consumer.grant->work_requested)
 			{
-				auto &g = ship.grants[i];
+				++consumer.grant->work_funded;
+				++assigned_funded;
+			}
+		for (auto &consumer : consumers)
+			if (consumer.store == store)
+			{
+				auto &g = *consumer.grant;
 				g.paid = weighted_share(paid, g.requested, requested);
 				assigned_paid += g.paid;
 			}
-		for (std::size_t i = 0; i < ship.definition.systems.size(); ++i)
-			if (ship.definition.systems[i].store == store && assigned_paid < paid &&
-			    ship.grants[i].paid < ship.grants[i].requested)
+		for (auto &consumer : consumers)
+			if (consumer.store == store && assigned_paid < paid && consumer.grant->paid < consumer.grant->requested)
 			{
-				++ship.grants[i].paid;
+				++consumer.grant->paid;
 				++assigned_paid;
 			}
 		if (t.discrete_paid && discrete_owner[store] < ship.grants.size())
@@ -321,10 +388,10 @@ void tick_ship_resources(ShipResources &ship)
 			ship.requests[i].discrete = false;
 		}
 	}
-	for (std::size_t i = 0; i < ship.definition.systems.size(); ++i)
+	for (auto &consumer : consumers)
 	{
-		const auto store = ship.definition.systems[i].store;
-		auto &g = ship.grants[i];
+		const auto store = consumer.store;
+		auto &g = *consumer.grant;
 		g.blocked = !store_operational(ship, store);
 		if (g.blocked)
 			g.supply_permille = 0;
@@ -425,11 +492,32 @@ Json save_ship_resources(const ShipResources &ship)
 		                        {"requested", g.requested},
 		                        {"paid", g.paid},
 		                        {"discrete_energy", g.discrete},
+		                        {"work_requested", g.work_requested},
+		                        {"work_funded", g.work_funded},
 		                        {"supply_permille", g.supply_permille},
 		                        {"overdrive_permille", g.overdrive_permille},
 		                        {"overdrive_heat_permille", g.overdrive_heat_permille},
 		                        {"discrete_paid", g.discrete_paid},
 		                        {"blocked", g.blocked}});
+	}
+	if (!ship.named_requests.empty())
+	{
+		j["named"] = Json::array();
+		for (const auto &[key, request] : ship.named_requests)
+		{
+			const auto &g = ship.named_grants.at(key);
+			j["named"].push_back({{"id", key},
+			                      {"store", ship.definition.network.stores.at(request.store).id},
+			                      {"rate", request.rate},
+			                      {"requested", g.requested},
+			                      {"paid", g.paid},
+			                      {"work_requested", g.work_requested},
+			                      {"work_funded", g.work_funded},
+			                      {"supply_permille", g.supply_permille},
+			                      {"overdrive_permille", g.overdrive_permille},
+			                      {"overdrive_heat_permille", g.overdrive_heat_permille},
+			                      {"blocked", g.blocked}});
+		}
 	}
 	return j;
 }
@@ -454,6 +542,8 @@ void restore_ship_resources(ShipResources &ship, const Json &j)
 		g.requested = adapter_amount(v, "requested", path);
 		g.paid = adapter_amount(v, "paid", path);
 		g.discrete = adapter_amount(v, "discrete_energy", path);
+		g.work_requested = adapter_amount(v, "work_requested", path, resource_limit * 10000);
+		g.work_funded = adapter_amount(v, "work_funded", path, resource_limit * 10000);
 		g.supply_permille = static_cast<int>(adapter_amount(v, "supply_permille", path, 1000));
 		g.overdrive_permille = static_cast<int>(adapter_amount(v, "overdrive_permille", path, 10000));
 		g.overdrive_heat_permille = v.contains("overdrive_heat_permille")
@@ -461,11 +551,42 @@ void restore_ship_resources(ShipResources &ship, const Json &j)
 		                                : 1000;
 		g.discrete_paid = v.at("discrete_paid").get<bool>();
 		g.blocked = v.at("blocked").get<bool>();
-		if (g.paid > g.requested || g.overdrive_permille < 1000 || g.overdrive_heat_permille < 1000 ||
+		if (g.work_funded > g.work_requested || g.paid > g.requested || g.overdrive_permille < 1000 ||
+		    g.overdrive_heat_permille < 1000 ||
 		    (g.discrete_paid &&
 		     g.discrete != (next.requests[i].discrete_amount ? next.requests[i].discrete_amount
 		                                                     : next.definition.systems[i].discrete_energy)))
 			throw std::runtime_error(path + ": invalid paid operation result");
+	}
+	if (j.contains("named"))
+	{
+		const auto &rows = j.at("named");
+		if (!rows.is_array() || rows.size() > named_resource_consumer_limit)
+			throw std::runtime_error("resources.save.named: invalid consumer roster");
+		for (const auto &v : rows)
+		{
+			const std::string path = "resources.save.named";
+			if (!v.is_object() || !v.contains("id") || !v.at("id").is_string() || !v.contains("store") ||
+			    !v.at("store").is_string())
+				throw std::runtime_error(path + ": invalid identity");
+			const auto key = v.at("id").get<std::string>();
+			const auto store = next.definition.network.store_ids.find(v.at("store").get<std::string>());
+			if (next.named_requests.contains(key) || store == next.definition.network.store_ids.end())
+				throw std::runtime_error(path + ": unknown store or duplicate consumer");
+			request_named_resource(next, key, store->second, adapter_amount(v, "rate", path));
+			auto &g = next.named_grants.at(key);
+			g.requested = adapter_amount(v, "requested", path);
+			g.paid = adapter_amount(v, "paid", path);
+			g.work_requested = adapter_amount(v, "work_requested", path, resource_limit * 10000);
+			g.work_funded = adapter_amount(v, "work_funded", path, resource_limit * 10000);
+			g.supply_permille = static_cast<int>(adapter_amount(v, "supply_permille", path, 1000));
+			g.overdrive_permille = static_cast<int>(adapter_amount(v, "overdrive_permille", path, 10000));
+			g.overdrive_heat_permille = static_cast<int>(adapter_amount(v, "overdrive_heat_permille", path, 10000));
+			g.blocked = v.at("blocked").get<bool>();
+			if (g.paid > g.requested || g.work_funded > g.work_requested || g.overdrive_permille < 1000 ||
+			    g.overdrive_heat_permille < 1000)
+				throw std::runtime_error(path + ": invalid paid operation result");
+		}
 	}
 	ship = std::move(next);
 }

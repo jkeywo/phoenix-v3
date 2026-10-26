@@ -932,7 +932,7 @@ struct CompartmentConnection
 	std::size_t from = 0, to = 0;
 	std::int64_t ticks = 1;
 };
-enum class ShieldReactionKind
+enum class EffectOperationKind
 {
 	Damage,
 	Apply,
@@ -943,9 +943,9 @@ enum class ShieldReactionKind
 	StoreFill,
 	StoreTransfer
 };
-struct ShieldReactionOperation
+struct EffectOperation
 {
-	ShieldReactionKind kind = ShieldReactionKind::Damage;
+	EffectOperationKind kind = EffectOperationKind::Damage;
 	std::string target = "attacker", effect, grant;
 	std::string equipment;
 	std::int64_t damage = 0;
@@ -953,13 +953,168 @@ struct ShieldReactionOperation
 	std::int64_t amount = 0;
 	bool all_sources = false;
 	std::string officer;
+	std::optional<std::int64_t> delta_permille;
 };
-struct ShieldReactionDefinition
+struct EffectCostDefinition
+{
+	std::string payer = "target", equipment, store, resource;
+	std::int64_t amount = 0;
+};
+struct EffectGroupDefinition
 {
 	std::string payer;
 	std::int64_t energy = 0;
-	std::vector<ShieldReactionOperation> operations;
+	std::vector<EffectOperation> operations;
+	std::vector<EffectCostDefinition> costs;
 };
+// Rules compile authored values once. Runtime adapters freeze the indexed facts before evaluation.
+enum class RulePhase
+{
+	Instant,
+	Periodic,
+	Maintained
+};
+enum class RuleTrigger
+{
+	Activate,
+	Deactivate,
+	Tick,
+	Enter,
+	Exit,
+	Occupancy,
+	Maintain,
+	PreShieldDamage,
+	PostShieldDamage,
+	PreCompartmentDamage,
+	PostCompartmentDamage,
+	PreSystemDamage,
+	PostSystemDamage,
+	Destroy
+};
+enum class RuleRole
+{
+	Owner,
+	Source,
+	Instigator,
+	Subject,
+	Target,
+	Attacker,
+	Protected
+};
+enum class RuleFactKind
+{
+	Tick,
+	Elapsed,
+	Entity,
+	Exists,
+	Enabled,
+	Eligible,
+	Heat,
+	ResourceQuantity,
+	Property,
+	PresentedDamage,
+	ModifiedDamage,
+	NegatedDamage,
+	AbsorbedDamage,
+	ResidualDamage,
+	Strength,
+	InflictedDamage,
+	Output
+};
+struct RuleFactBinding
+{
+	RuleRole role = RuleRole::Subject;
+	RuleFactKind kind = RuleFactKind::Entity;
+	std::string key, aux, unit;
+	state_tree::Type type = state_tree::Type::Integer;
+	bool operator==(const RuleFactBinding &) const = default;
+};
+enum class RuleExpressionOp
+{
+	Literal,
+	Fact,
+	All,
+	Any,
+	Not,
+	Equal,
+	NotEqual,
+	Less,
+	LessEqual,
+	Greater,
+	GreaterEqual,
+	Present,
+	Add,
+	Subtract,
+	Multiply,
+	Divide,
+	Ratio,
+	Min,
+	Max,
+	Clamp
+};
+struct RuleExpressionNode
+{
+	RuleExpressionOp op = RuleExpressionOp::Literal;
+	state_tree::Value literal;
+	std::uint32_t fact = 0;
+	std::vector<std::uint32_t> args;
+};
+struct RuleExpression
+{
+	std::vector<RuleExpressionNode> nodes;
+	std::uint32_t root = 0;
+	state_tree::Type type = state_tree::Type::Missing;
+	std::string unit;
+};
+struct RuleOperationExpressions
+{
+	std::optional<RuleExpression> damage, amount, delta_permille;
+};
+struct RuleCostDefinition
+{
+	RuleRole payer = RuleRole::Target;
+	std::string equipment, store, resource;
+	RuleExpression amount;
+};
+struct RuleFundingDefinition
+{
+	std::string shortage = "pause";
+	std::vector<RuleCostDefinition> costs;
+};
+struct RuleDefinition
+{
+	std::string id;
+	RuleTrigger trigger = RuleTrigger::Activate;
+	RulePhase phase = RulePhase::Instant;
+	std::vector<RuleFactBinding> facts;
+	std::optional<RuleExpression> condition, damage_permille, energy;
+	EffectGroupDefinition effects;
+	std::map<std::size_t, RuleOperationExpressions> values;
+	std::vector<RuleCostDefinition> costs;
+	std::int64_t period_ticks = 1;
+	std::optional<RuleFundingDefinition> funding;
+	bool scalable = false;
+};
+struct RuleBinding
+{
+	std::string id, rule;
+	RuleRole target = RuleRole::Subject;
+	std::string equipment, officer;
+	std::vector<std::string> tags;
+};
+struct RuleContext
+{
+	std::vector<state_tree::Value> facts;
+};
+using RulesCatalog = std::map<std::string, RuleDefinition>;
+inline constexpr std::size_t rule_expression_node_limit = 256;
+inline constexpr std::size_t rule_binding_limit = 64;
+RuleDefinition compile_rule(const Catalog &, const std::string &);
+RulesCatalog compile_rule_catalog(const Catalog &);
+std::vector<RuleBinding> compile_rule_bindings(const RulesCatalog &, const Json &, const std::string &,
+                                               std::span<const RuleTrigger> allowed = {});
+bool evaluate_rule_expression(const RuleExpression &, const RuleContext &, state_tree::Value &);
+std::optional<EffectGroupDefinition> materialize_rule(const RuleDefinition &, const RuleContext &);
 struct AbilityExclusionDefinition
 {
 	std::string id, scope = "source";
@@ -971,7 +1126,7 @@ struct AbilityDefinition
 	bool sustained = false, require_healthy = true;
 	std::int64_t preparation_ticks = 0, recovery_ticks = 0, energy_per_second = 0, preparation_energy_per_second = 0,
 	             apparatus_recovery_ticks = 0, interruption_recovery_ticks = 0;
-	std::optional<ShieldReactionDefinition> start_effect, activation_effect;
+	std::optional<EffectGroupDefinition> start_effect, activation_effect;
 	std::vector<AbilityExclusionDefinition> exclusions;
 };
 inline constexpr std::size_t ability_no_channel = static_cast<std::size_t>(-1);
@@ -1010,8 +1165,8 @@ AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, con
 AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, SharedAbilityCatalog,
                                        const PersonnelDefinition &, const ControllableLayout &,
                                        const PsychicDefinition &);
-ShieldReactionDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
-ShieldReactionDefinition compile_effect_group(const Catalog &, const std::string &);
+EffectGroupDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
+EffectGroupDefinition compile_effect_group(const Catalog &, const std::string &);
 enum class PayloadOutcomeKind
 {
 	Shield,
@@ -1024,7 +1179,7 @@ struct PayloadBindingDefinition
 	std::string id;
 	PayloadOutcomeKind outcome = PayloadOutcomeKind::Entity;
 	bool positive_damage = true;
-	ShieldReactionDefinition reaction;
+	EffectGroupDefinition reaction;
 };
 struct PayloadDefinition
 {
@@ -1035,7 +1190,7 @@ struct PeriodicEffectDefinition
 {
 	std::string id;
 	std::int64_t duration_ticks = 1, period_ticks = 1;
-	ShieldReactionDefinition reaction;
+	EffectGroupDefinition reaction;
 };
 PayloadDefinition compile_payload(const Catalog &, const std::string &);
 PeriodicEffectDefinition compile_periodic_effect(const Catalog &, const std::string &);
@@ -1155,7 +1310,7 @@ struct ShieldDefinition
 	AudioClip audio;
 	float audio_peak_gain = .8f, audio_decay = 1.5f;
 	std::int64_t audio_threshold = 1, audio_full_damage = 30;
-	std::vector<ShieldReactionDefinition> reactions;
+	std::vector<EffectGroupDefinition> reactions;
 	std::int64_t pre_damage_permille = 1000;
 	std::int64_t recharge_modifier = 0, sustain_modifier = 0, discharge_modifier = 0, protection_modifier = 0;
 	ReserveDefinition reserve;

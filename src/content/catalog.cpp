@@ -453,8 +453,10 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	(void)compile_resource_catalog(result);
 	(void)compile_recipe_catalog(result);
 	(void)compile_ability_catalog(result);
+	(void)compile_rule_catalog(result);
 	for (const auto &[id, effect] : result.effects)
-		if (const auto kind = effect.value("kind", std::string{}); kind != "ability" && kind != "psychic")
+		if (const auto kind = effect.value("kind", std::string{});
+		    kind != "ability" && kind != "psychic" && kind != "rule")
 			compile_effect(result, id);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
@@ -681,6 +683,7 @@ namespace
 void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog)
 {
 	const auto ability_catalog = compile_ability_catalog(catalog);
+	(void)compile_rule_catalog(catalog);
 	std::map<std::string, ControllableLayout> ability_layouts;
 	verify_ui_definitions(catalog);
 	if (catalog.selection && (!catalog.layouts.empty() || !catalog.ui_groups.empty() || !catalog.themes.empty() ||
@@ -689,7 +692,8 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	(void)compile_resource_catalog(catalog);
 	(void)compile_recipe_catalog(catalog);
 	for (const auto &[id, effect] : catalog.effects)
-		if (const auto kind = effect.value("kind", std::string{}); kind != "ability" && kind != "psychic")
+		if (const auto kind = effect.value("kind", std::string{});
+		    kind != "ability" && kind != "psychic" && kind != "rule")
 			compile_effect(catalog, id);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&

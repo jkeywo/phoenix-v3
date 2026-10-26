@@ -42,12 +42,12 @@ NamedStock named_stock(flecs::entity ship, const std::string &name, ResourceNetw
 	return {*result, physical_store};
 }
 
-std::string execute_effect_group(const ShieldReactionDefinition &execution, EntityId protected_ship, EntityId attacker,
+std::string execute_effect_group(const EffectGroupDefinition &execution, EntityId protected_ship, EntityId attacker,
                                  const std::string &source, const PayloadHitContext *hit_context = nullptr,
                                  const std::string &original_equipment = {})
 {
 	std::map<EntityId, ShieldComponent> shields;
-	std::map<EntityId, PreparedPropertyEffects> properties;
+	std::map<EntityId, PropertyEffects> properties;
 	std::map<EntityId, AbilityRuntime> abilities;
 	std::set<EntityId> changed_inventories;
 	// Only native entry funding needs network preparation: it also changes
@@ -60,7 +60,12 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		bool outcome;
 	};
 	std::vector<PreparedDamage> damages;
-	std::optional<PreparedPeriodicEffects> prepared_periodic;
+	std::optional<std::vector<PeriodicEffectInstance>> prepared_periodic;
+	const auto periodic_roster = [&]() -> const std::vector<PeriodicEffectInstance> &
+	{
+		return prepared_periodic ? *prepared_periodic : periodic_effects;
+	};
+	auto prepared_next_periodic = next_periodic_instance;
 	StockTransaction stocks;
 	const auto owner = [&](EntityId id, bool outcome = true)
 	{
@@ -112,10 +117,10 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			const auto ability_source = op.officer.empty() ? "equipment" : "officer";
 			const auto ability_grant_id =
 			    "temporary:" + source + "." + op.grant + ":" + ability_source + ":" + ability_owner;
-			const bool removing_ability = op.kind == ShieldReactionKind::Remove &&
+			const bool removing_ability = op.kind == EffectOperationKind::Remove &&
 			                              (!op.officer.empty() || (op.effect.empty() && ability_state &&
 			                                                       ability_state->grants.contains(ability_grant_id)));
-			if (op.kind == ShieldReactionKind::Damage)
+			if (op.kind == EffectOperationKind::Damage)
 			{
 				if (outcome)
 				{
@@ -126,25 +131,25 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 					throw std::runtime_error("Damage target incompatible");
 				damages.push_back({id, op.damage, outcome});
 			}
-			else if (op.kind >= ShieldReactionKind::StoreAdd)
+			else if (op.kind >= EffectOperationKind::StoreAdd)
 			{
 				auto &destination = stock(id, op.store, outcome);
 				bool valid = false;
 				switch (op.kind)
 				{
-				case ShieldReactionKind::StoreAdd:
+				case EffectOperationKind::StoreAdd:
 					valid = stocks.add(destination, op.resource, op.amount);
 					break;
-				case ShieldReactionKind::StoreConsume:
+				case EffectOperationKind::StoreConsume:
 					valid = stocks.consume(destination, op.resource, op.amount);
 					break;
-				case ShieldReactionKind::StoreSet:
+				case EffectOperationKind::StoreSet:
 					valid = stocks.set(destination, op.resource, op.amount);
 					break;
-				case ShieldReactionKind::StoreFill:
+				case EffectOperationKind::StoreFill:
 					valid = stocks.fill(destination, op.resource);
 					break;
-				case ShieldReactionKind::StoreTransfer:
+				case EffectOperationKind::StoreTransfer:
 					valid = stocks.transfer(stock(op.target == "attacker" ? protected_ship : attacker, op.from_store,
 					                              op.target == "attacker"),
 					                        destination, op.resource, op.amount);
@@ -161,15 +166,18 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				prepare_ability_grant(prepared, id, op, source + "." + op.grant);
 			}
 			else if (periodic_templates.contains(op.effect) ||
-			         (op.kind == ShieldReactionKind::Remove &&
-			          has_periodic_application(prepared_periodic ? &*prepared_periodic : nullptr,
-			                                   source + "." + op.grant, id)))
+			         (op.kind == EffectOperationKind::Remove &&
+			          std::any_of(periodic_roster().begin(), periodic_roster().end(),
+			                      [&](const auto &c)
+			                      {
+				                      return c.source == source + "." + op.grant && c.context.target == id;
+			                      })))
 			{
 				PayloadHitContext context = outcome ? *hit_context : PayloadHitContext{id};
 				if (!prepared_periodic)
-					prepared_periodic = PreparedPeriodicEffects{next_periodic_instance, periodic_index.size(), {}};
-				prepare_periodic_application(*prepared_periodic, op, source + "." + op.grant, attacker, context, source,
-				                             original_equipment);
+					prepared_periodic = periodic_effects;
+				prepare_periodic_application(*prepared_periodic, prepared_next_periodic, op, source + "." + op.grant,
+				                             attacker, context, source, original_equipment);
 			}
 			else
 			{
@@ -187,7 +195,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				}
 				const auto kind = equipment.empty() ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
 				ShieldComponent *shield = nullptr;
-				PreparedPropertyEffects *property = nullptr;
+				PropertyEffects *property = nullptr;
 				if (kind == EffectApplicationKind::Shield)
 				{
 					if (!ship.has<ShieldComponent>())
@@ -198,16 +206,11 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 				{
 					if (!ship.has<PropertyEffects>())
 						throw std::runtime_error("Incompatible modifier target");
-					auto at = properties.find(id);
-					if (at == properties.end())
-						at = properties.emplace(id, prepare_property_effects(ship)).first;
-					property = &at->second;
-					if (const auto staged = shields.find(id); staged != shields.end())
-						shield = &staged->second;
+					property = &properties.try_emplace(id, ship.get<PropertyEffects>()).first->second;
 				}
 				prepare_effect_application(ship,
 				                           {kind,
-				                            op.kind == ShieldReactionKind::Remove ? EffectApplicationOperation::Remove
+				                            op.kind == EffectOperationKind::Remove ? EffectApplicationOperation::Remove
 				                                                                  : EffectApplicationOperation::Apply,
 				                            source + "." + op.grant, equipment, op.effect},
 				                           shield, property, ecs.get<Clock>().tick);
@@ -234,7 +237,8 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	}
 	if (prepared_periodic)
 	{
-		commit_periodic_effects(*prepared_periodic);
+		periodic_effects = std::move(*prepared_periodic);
+		next_periodic_instance = prepared_next_periodic;
 	}
 	if (payment)
 		entities.at(protected_ship).get_mut<ShipResources>().network = std::move(*payment);
@@ -244,7 +248,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	for (auto &[id, value] : shields)
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : properties)
-		commit_property_effects(entities.at(id), value);
+		entities.at(id).set<PropertyEffects>(std::move(value));
 	for (auto &[id, value] : abilities)
 	{
 		const auto &old = entities.at(id).get<AbilityRuntime>();

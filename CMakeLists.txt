@@ -324,6 +324,7 @@ add_library(
 	src/content/sensors.cpp
 	src/content/psychic.cpp
 	src/content/abilities.cpp
+	src/content/rules.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
 	src/content/ui_layout.cpp
@@ -461,6 +462,7 @@ foreach(
 		sensors
 		psychic
 		abilities
+		rules
 		controller_runtime
 		combat
 )

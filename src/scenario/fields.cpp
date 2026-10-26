@@ -89,23 +89,15 @@ std::uint64_t integer_root(std::uint64_t n)
 	return result;
 }
 } // namespace
-std::int64_t scenario_path_length(const ScenarioRegion &r, ScenarioPoint a, ScenarioPoint b)
+namespace
 {
-	require(valid_point(a) && valid_point(b), "path exceeds coordinate range");
-	if (r.shape == ScenarioRegionShape::Annulus)
-	{
-		auto circle = r;
-		circle.shape = ScenarioRegionShape::Circle;
-		const auto outer = scenario_path_length(circle, a, b);
-		circle.radius = r.inner_radius;
-		return std::max<std::int64_t>(0, outer - scenario_path_length(circle, a, b));
-	}
+// Shared clipping retains the historical integer interpolation and rounding.
+std::optional<ScenarioRegionInterval> clipped_region_interval(const ScenarioRegion &r, ScenarioPoint a, ScenarioPoint b,
+                                                              std::int64_t length, bool strict = false)
+{
 	const auto dx = b.x - a.x, dy = b.y - a.y;
-	const auto length = static_cast<std::int64_t>(integer_root(dx * dx + dy * dy));
-	if (!length)
-		return 0;
 	// Q30 segment parameters keep interpolation products within signed 64 bits.
-	constexpr std::int64_t unit = 1LL << 30;
+	constexpr auto unit = scenario_segment_unit;
 	std::int64_t low = 0, high = unit;
 	if (r.shape == ScenarioRegionShape::Rectangle)
 	{
@@ -122,7 +114,7 @@ std::int64_t scenario_path_length(const ScenarioRegion &r, ScenarioPoint a, Scen
 			return low < high;
 		};
 		if (!clip(a.x, dx, r.centre.x, r.half_width) || !clip(a.y, dy, r.centre.y, r.half_height))
-			return 0;
+			return std::nullopt;
 	}
 	else
 	{
@@ -133,10 +125,14 @@ std::int64_t scenario_path_length(const ScenarioRegion &r, ScenarioPoint a, Scen
 		const auto middle = std::clamp(along * unit / length, std::int64_t{0}, unit);
 		auto inside = [&](std::int64_t t)
 		{
-			return scenario_contains(r, {a.x + dx * t / unit, a.y + dy * t / unit});
+			const ScenarioPoint point{a.x + dx * t / unit, a.y + dy * t / unit};
+			if (!strict)
+				return scenario_contains(r, point);
+			const auto x = point.x - r.centre.x, y = point.y - r.centre.y;
+			return x * x + y * y < r.radius * r.radius;
 		};
 		if (!inside(middle))
-			return 0;
+			return std::nullopt;
 		std::int64_t lo = 0, hi = middle;
 		while (lo < hi)
 		{
@@ -159,7 +155,53 @@ std::int64_t scenario_path_length(const ScenarioRegion &r, ScenarioPoint a, Scen
 		}
 		high = lo;
 	}
-	return length * (high - low) / unit;
+	return ScenarioRegionInterval{low, high};
+}
+} // namespace
+std::vector<ScenarioRegionInterval> scenario_region_intervals(const ScenarioRegion &r, ScenarioPoint a, ScenarioPoint b)
+{
+	require(valid_point(a) && valid_point(b), "path exceeds coordinate range");
+	const auto dx = b.x - a.x, dy = b.y - a.y;
+	const auto length = static_cast<std::int64_t>(integer_root(dx * dx + dy * dy));
+	if (!length)
+		return scenario_contains(r, a) ? std::vector<ScenarioRegionInterval>{{0, scenario_segment_unit}}
+		                               : std::vector<ScenarioRegionInterval>{};
+	auto outer = r;
+	if (outer.shape == ScenarioRegionShape::Annulus)
+		outer.shape = ScenarioRegionShape::Circle;
+	const auto interval = clipped_region_interval(outer, a, b, length);
+	if (!interval)
+		return {};
+	if (r.shape != ScenarioRegionShape::Annulus)
+		return {*interval};
+	outer.radius = r.inner_radius;
+	const auto hole = clipped_region_interval(outer, a, b, length, true);
+	if (!hole || hole->end <= interval->begin || hole->begin >= interval->end)
+		return {*interval};
+	std::vector<ScenarioRegionInterval> result;
+	if (interval->begin < hole->begin)
+		result.push_back({interval->begin, hole->begin});
+	if (hole->end < interval->end)
+		result.push_back({hole->end, interval->end});
+	return result;
+}
+std::int64_t scenario_path_length(const ScenarioRegion &r, ScenarioPoint a, ScenarioPoint b)
+{
+	require(valid_point(a) && valid_point(b), "path exceeds coordinate range");
+	if (r.shape == ScenarioRegionShape::Annulus)
+	{
+		auto circle = r;
+		circle.shape = ScenarioRegionShape::Circle;
+		const auto outer = scenario_path_length(circle, a, b);
+		circle.radius = r.inner_radius;
+		return std::max<std::int64_t>(0, outer - scenario_path_length(circle, a, b));
+	}
+	const auto dx = b.x - a.x, dy = b.y - a.y;
+	const auto length = static_cast<std::int64_t>(integer_root(dx * dx + dy * dy));
+	if (!length)
+		return 0;
+	const auto interval = clipped_region_interval(r, a, b, length);
+	return interval ? length * (interval->end - interval->begin) / scenario_segment_unit : 0;
 }
 bool scenario_sensor_visible(std::span<const ScenarioRegion> regions, ScenarioPoint from, ScenarioPoint to,
                              std::int64_t range)

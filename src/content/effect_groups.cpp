@@ -9,7 +9,7 @@ module phoenix.content;
 
 namespace phoenix
 {
-ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const Json &group, const std::string &at)
+EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Json &group, const std::string &at)
 {
 	const auto fail = [&](const std::string &reason)
 	{
@@ -18,9 +18,9 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 	if (!group.is_object())
 		fail("expected operations object");
 	for (const auto &[key, value] : group.items())
-		if (key != "operations" && key != "payer" && key != "energy")
+		if (key != "operations" && key != "payer" && key != "energy" && key != "costs")
 			fail("unsupported field " + key);
-	ShieldReactionDefinition result;
+	EffectGroupDefinition result;
 	result.payer = group.value("payer", std::string{});
 	const auto energy = group.value("energy", Json(0));
 	if (!energy.is_number_integer() || energy < 0 || energy > 1000000000)
@@ -28,6 +28,38 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 	result.energy = energy.get<std::int64_t>();
 	if (result.energy && !valid_identifier(result.payer))
 		fail("paid group requires equipment payer");
+	if (group.contains("costs"))
+	{
+		const auto &costs = group.at("costs");
+		if (!costs.is_array() || costs.empty() || costs.size() > 32)
+			fail("expected 1..32 explicit costs");
+		for (const auto &entry : costs)
+		{
+			if (!entry.is_object())
+				fail("expected cost object");
+			for (const auto &[key, unused] : entry.items())
+				if (key != "payer" && key != "equipment" && key != "store" && key != "resource" && key != "amount")
+					fail("unsupported cost field " + key);
+			EffectCostDefinition cost;
+			cost.payer = entry.value("payer", std::string("target"));
+			if (cost.payer != "owner" && cost.payer != "source" && cost.payer != "instigator" &&
+			    cost.payer != "subject" && cost.payer != "target" && cost.payer != "protected" &&
+			    cost.payer != "attacker")
+				fail("cost requires supported payer role");
+			cost.equipment = entry.value("equipment", std::string{});
+			cost.store = entry.value("store", std::string{});
+			cost.resource = entry.value("resource", std::string{});
+			if ((!cost.equipment.empty() && cost.equipment != "$owner" && cost.equipment != "$source" &&
+			     cost.equipment != "$target" && cost.equipment != "$hit" && !valid_identifier(cost.equipment)) ||
+			    cost.store.empty() || cost.store.size() > 256 || !catalog.resources.contains(cost.resource))
+				fail("invalid cost equipment/store/resource");
+			const auto amount = entry.value("amount", Json(-1));
+			if (!amount.is_number_integer() || amount < 0 || amount > resource_limit)
+				fail("invalid cost amount");
+			cost.amount = amount.get<std::int64_t>();
+			result.costs.push_back(std::move(cost));
+		}
+	}
 	if (!group.contains("operations") || !group.at("operations").is_array() || group.at("operations").empty() ||
 	    group.at("operations").size() > 32)
 		fail("expected 1..32 operations");
@@ -36,16 +68,17 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 	{
 		if (!value.is_object())
 			fail("expected operation object");
-		ShieldReactionOperation op;
+		EffectOperation op;
 		op.target = value.value("target", std::string("attacker"));
-		if (op.target != "protected" && op.target != "attacker")
-			fail("target must be protected or attacker");
+		if (op.target != "protected" && op.target != "attacker" && op.target != "owner" && op.target != "source" &&
+		    op.target != "instigator" && op.target != "subject" && op.target != "target")
+			fail("target must name a supported context role");
 		const auto kind = value.value("kind", std::string{});
 		std::set<std::string> fields{"kind", "target"};
 		if (kind == "damage")
 		{
 			fields.insert("damage");
-			op.kind = ShieldReactionKind::Damage;
+			op.kind = EffectOperationKind::Damage;
 			const auto amount = value.value("damage", Json(0));
 			if (!amount.is_number_integer() || amount <= 0 || amount > 1000000)
 				fail("invalid damage");
@@ -61,7 +94,8 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 				fields.insert("grant");
 				fields.insert("equipment");
 				fields.insert("officer");
-				op.kind = kind == "apply" ? ShieldReactionKind::Apply : ShieldReactionKind::Remove;
+				fields.insert("delta_permille");
+				op.kind = kind == "apply" ? EffectOperationKind::Apply : EffectOperationKind::Remove;
 				if (kind == "remove")
 				{
 					fields.insert("all_sources");
@@ -84,7 +118,8 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 				if (op.all_sources && (!op.equipment.empty() || !op.officer.empty()))
 					fail("all_sources removal targets the entity, not equipment");
 				if ((!op.all_sources && !valid_identifier(op.grant)) ||
-				    (!op.equipment.empty() && op.equipment != "$hit" && !valid_identifier(op.equipment)))
+				    (!op.equipment.empty() && op.equipment != "$hit" && op.equipment != "$owner" &&
+				     op.equipment != "$source" && op.equipment != "$target" && !valid_identifier(op.equipment)))
 					fail("invalid grant or equipment binding");
 				if (kind == "apply")
 				{
@@ -93,6 +128,14 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 					if (!catalog.effects.contains(op.effect))
 						fail("unknown effect " + op.effect);
 					const auto effect_kind = catalog.effects.at(op.effect).value("kind", std::string{});
+					if (value.contains("delta_permille"))
+					{
+						const auto &delta = value.at("delta_permille");
+						if (effect_kind != "modifier" || !delta.is_number_integer() || delta < -100000 ||
+						    delta > 100000)
+							fail("delta_permille requires a modifier apply and integer in -100000..100000");
+						op.delta_permille = delta.get<std::int64_t>();
+					}
 					if (effect_kind != "shield" && effect_kind != "modifier" && effect_kind != "periodic" &&
 					    effect_kind != "ability_grant")
 						fail("nested operation groups are unsupported");
@@ -105,21 +148,23 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 					else if (!op.officer.empty() || (effect_kind == "modifier") != !op.equipment.empty())
 						fail("modifier needs equipment; shield and periodic omit source bindings");
 				}
+				else if (value.contains("delta_permille"))
+					fail("delta_permille requires a modifier apply");
 			}
 			else
 			{
 				fields.insert("store");
 				fields.insert("resource");
 				if (kind == "add")
-					op.kind = ShieldReactionKind::StoreAdd;
+					op.kind = EffectOperationKind::StoreAdd;
 				else if (kind == "consume")
-					op.kind = ShieldReactionKind::StoreConsume;
+					op.kind = EffectOperationKind::StoreConsume;
 				else if (kind == "set")
-					op.kind = ShieldReactionKind::StoreSet;
+					op.kind = EffectOperationKind::StoreSet;
 				else if (kind == "fill")
-					op.kind = ShieldReactionKind::StoreFill;
+					op.kind = EffectOperationKind::StoreFill;
 				else if (kind == "transfer")
-					op.kind = ShieldReactionKind::StoreTransfer;
+					op.kind = EffectOperationKind::StoreTransfer;
 				else
 					fail("unsupported operation " + kind);
 				op.store = value.value("store", std::string{});
@@ -150,7 +195,7 @@ ShieldReactionDefinition compile_effect_operations(const Catalog &catalog, const
 	}
 	return result;
 }
-ShieldReactionDefinition compile_effect_group(const Catalog &catalog, const std::string &id)
+EffectGroupDefinition compile_effect_group(const Catalog &catalog, const std::string &id)
 {
 	const auto &definition = catalog.effects.at(id);
 	if (definition.value("kind", std::string{}) != "operations")
