@@ -857,7 +857,8 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
 {
 	prepare(catalog, bodies, camera, region, 0,
 	        lighting.value("environment", Json::object()).value("simulation_time", time), environment.reduced_motion);
-	draw_prepared(catalog, bodies, camera, region, lighting, time, diagnostic, surface_size, environment);
+	// Pass the default explicitly to avoid MSVC 14.44's internal compiler error at this call.
+	draw_prepared(catalog, bodies, camera, region, lighting, time, diagnostic, surface_size, environment, std::nullopt);
 }
 std::set<EntityId> SpriteScene::prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera,
                                         Rectangle region, EntityId hidden, double simulation_time, bool reduced_motion)

@@ -491,6 +491,15 @@ Json &effect(Json &source, const std::string &id)
 Json ai_ability_facts()
 {
 	auto source = fixture();
+	// Passive contacts have a default observation Console but no Controller layout.
+	// They must coexist with AI ability snapshots without requiring EntityControls.
+	source["entities"].push_back(
+	    {{"id", "test.passive-contact"},
+	     {"systems", Json::object()},
+	     {"render", {{"mode", "camera"}, {"images", {"test-core:assets/pixel.png"}}, {"scale", 1}}},
+	     {"collision", {{"shape", "circle"}, {"radius_mm", 100}, {"mass_grams", 0}}}});
+	source["maps"][0]["entities"].push_back(
+	    {{"id", 99}, {"definition", "test.passive-contact"}, {"x_mm", 5000000}, {"y_mm", 0}, {"heading_mdeg", 0}});
 	source["trees"].push_back(Json::parse(R"json({
  "id":"test.ability-policy","context":"controller","initial":"start",
  "ability_bindings":["equipment-prepared"],

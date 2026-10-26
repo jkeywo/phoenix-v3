@@ -254,6 +254,9 @@ Json ability_decision_facts(const ConsoleAddress &address, const Observation &pe
 {
 	Json result = Json::object();
 	const auto &controls = definition(address.ship).abilities.controls;
+	// Passive bodies also have observation Consoles, but no EntityControls component.
+	if (controls.empty())
+		return result;
 	const auto &controllers = entities.at(address.ship).get<EntityControls>().controllers;
 	if (std::none_of(controls.begin(), controls.end(),
 	                 [&](const auto &control)
