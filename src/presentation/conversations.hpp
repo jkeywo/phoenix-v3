@@ -25,17 +25,35 @@ bool conversation_action(const std::string &action)
 		comms_list_only_ = false;
 		return model_.conversation_action("select", std::stoull(action.substr(13)));
 	}
+	if (action.starts_with("comms/reply/"))
+	{
+		const auto route = action.substr(12);
+		const auto first = route.find('/'), second = first == std::string::npos ? first : route.find('/', first + 1);
+		if (first == std::string::npos || second == std::string::npos)
+			return false;
+		return model_.conversation_action("answer", std::stoull(route.substr(0, first)), route.substr(second + 1),
+		                                  std::stoull(route.substr(first + 1, second - first - 1)));
+	}
 	if (action.starts_with("comms/answer/"))
 		for (const auto &thread : board.value("threads", Json::array()))
 			if (thread.at("id") == board.value("selected", std::uint64_t{0}))
 				return model_.conversation_action("answer", thread.at("id"), action.substr(13), thread.at("prompt"));
 	if (action == "comms/send")
 		if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("comms/draft"))))
-			if (model_.conversation_action("text", board.value("selected", std::uint64_t{0}), field->GetValue()))
+		{
+			auto target = board.value("selected", std::uint64_t{0});
+			for (const auto &thread : board.value("threads", Json::array()))
+				if (thread.at("id") == target)
+				{
+					target = thread.value("text_conversation", Json(target)).get<std::uint64_t>();
+					break;
+				}
+			if (model_.conversation_action("text", target, field->GetValue()))
 			{
 				field->SetValue("");
 				return true;
 			}
+		}
 	return false;
 }
 void refresh_conversations(Application &app, const ConsoleRegion &region)
@@ -209,13 +227,31 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	}
 	std::string choices;
 	if (thread)
+	{
+		std::set<std::uint64_t> prompts;
 		for (const auto &c : thread->at("choices"))
+			prompts.insert(c.value("prompt", thread->at("prompt")).get<std::uint64_t>());
+		std::uint64_t previous = 0;
+		for (const auto &c : thread->at("choices"))
+		{
+			const auto prompt = c.value("prompt", thread->at("prompt")).get<std::uint64_t>();
+			if (prompts.size() > 1 && prompt != previous)
+			{
+				choices += "<h3>" + escape(localise(c.value("question", std::string{}))) + "</h3>";
+				previous = prompt;
+			}
+			const auto key = prompts.size() > 1
+			                     ? "comms/reply/" +
+			                           std::to_string(c.value("conversation", thread->at("id")).get<std::uint64_t>()) +
+			                           "/" + std::to_string(prompt) + "/" + c.at("id").get<std::string>()
+			                     : "comms/answer/" + c.at("id").get<std::string>();
 			if (c.value("enabled", true))
-				choices +=
-				    button("comms/answer/" + c.at("id").get<std::string>(), localise(c.at("text").get<std::string>()));
+				choices += button(key, localise(c.at("text").get<std::string>()));
 			else
 				choices += "<p>" + escape(localise(c.at("text")) + " — " + localise(c.value("reason", "Unavailable"))) +
 				           "</p>";
+		}
+	}
 	if (choices != comms_choice_signature_)
 	{
 		elements_.clear();

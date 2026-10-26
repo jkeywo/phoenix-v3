@@ -4,11 +4,17 @@ Comms uses a human-seeking Console, preferring the Courier's Support operator (E
 
 ## Playing
 
-Select a conversation on the left to read its transcript on the right. Hail lists discovered ships and their public character directories. A repeated hail reopens the existing direct thread. A character uses the Comms machinery of their host entity. Both endpoints require working, enabled, fully powered equipment and mutual range. Link loss queues individual recipients' messages while scripts and deadlines continue.
+Select a conversation on the left to read its transcript on the right. Hail lists discovered ships and their public character directories. Direct exchanges with the same ship share one visible conversation: hails, named officers, rescue updates and reminders appear together under the known ship name. Speakers remain individually identified. Multi-ship conferences stay separate from direct ship conversations. A character uses the Comms machinery of their host entity. Both endpoints require working, enabled, fully powered equipment and mutual range. Link loss queues individual recipients' messages while scripts and deadlines continue.
 
-Scripted answers appear below the transcript. The first admitted eligible answer wins for everyone in a group. Free text is available only when every current participant is human-operated; any NPC or AI-operated member disables the composer. Scripts control group membership; joining does not reveal earlier messages. On Screen shares the selected conversation live through the same exclusive publication mechanism as radar/navigation; it grants no controls to viewers.
+Scripted answers appear below the transcript. Each pending question keeps its own choices; the first admitted eligible answer to that question wins. When several operations ask questions, they appear together with their own reply controls. Free text uses an eligible all-human exchange with that ship; it does not become input to an NPC script. Scripts control group membership; joining does not reveal earlier messages. On Screen shares the selected conversation live through the same exclusive publication mechanism as radar/navigation; it grants no controls to viewers.
 
 Select **Comms — Local assistance** to exercise hailing, the public captain directory, a scripted engineer introduction, delayed speech and group choices. Choose Engineering, then switch to its Comms Console. The demonstration uses the unarmed Communications fit; the second Courier can be another player ship or ordinary AI. Fly outside mutual Comms range to exercise deferred delivery.
+
+## Shared ship history
+
+Grouping uses the physical participant ships, not conversation titles, officer names or faction ownership. Different ships with the same display name remain distinct. Titles use only identities already known to the viewing crew. Messages retain their original sender, portrait and global order; selecting the ship marks its visible source histories read.
+
+Authored dialogue programs retain separate bindings, timers, prompts, receipt IDs and continuation. The projected ship conversation carries bounded source IDs and per-choice conversation/prompt ownership so native, browser and remote clients route each answer to its actual operation. Conference membership and delivered-recipient checks still control visibility; joining a conference does not disclose earlier direct messages. Human text uses the writable crew channel when the selected history includes scripted NPC messages. Existing saves retain their original records; the combined view and canonical selection are rebuilt from those records without migrating or resetting them.
 
 ## Authoring
 

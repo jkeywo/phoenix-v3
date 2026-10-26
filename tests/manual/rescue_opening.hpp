@@ -582,6 +582,9 @@ int rescue_opening_smoke(const std::string &directory, bool cruiser, bool &opene
 				const auto route = cruiser ? 4u : 2u;
 				app.console_regions = {{route, 0, 0, 1280, 1080}};
 				show(route, "comms");
+				ensure(app.screen_action("console/" + std::to_string(route) + "/comms/hail/ship:1"),
+				       "Hail Morrow after its rescue call");
+				advance(50);
 				frame();
 				for (const auto &control : app.screen_controls)
 					if (control.first.starts_with("console/" + std::to_string(route) + "/comms/select/") &&

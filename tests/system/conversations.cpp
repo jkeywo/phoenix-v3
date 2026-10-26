@@ -76,10 +76,149 @@ void cancelled_station_traffic()
 	for (const auto &thread : observed->gameplay.at("conversations").at("threads"))
 		require(thread.at("messages").empty(), "Obsolete queued reminders never deliver");
 }
+
+void ship_conversation_history()
+{
+	auto source = fixture();
+	source["entities"][0]["comms"]["characters"].push_back(
+	    {{"id", "engineer"}, {"name_key", "Engineer"}, {"public", false}});
+	auto second = source["trees"].back();
+	second["id"] = "test.secondary";
+	second["title_key"] = "Separate subject";
+	second["lines"]["hello"]["text_key"] = "A second operation";
+	source["trees"].push_back(second);
+	source["maps"][0]["entities"].push_back(
+	    {{"id", 3}, {"definition", "test.controllable"}, {"x_mm", 40000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+	source["maps"][0]["conversations"] = Json::parse(R"([
+ {"id":"assistance","tree":"test.dialogue","bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"captain"}},"members":["caller","target"]},
+ {"id":"escalation","tree":"test.secondary","bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"engineer"}},"members":["caller","target"]}
+ ])");
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(1, 1, "drive"), "Claim ship conversation operator");
+	auto command =
+	    [&](const std::string &action, std::uint64_t id, const std::string &text = "", std::uint64_t prompt = 0)
+	{
+		OperatingCommand c{1, "comms." + action, static_cast<std::int64_t>(id)};
+		c.console = "drive";
+		c.controller = "comms";
+		c.text = text;
+		c.request_id = prompt;
+		const auto current = world.observe(1);
+		for (const auto &ctrl : current->gameplay.at("controllers"))
+			if (ctrl["id"] == "comms")
+				c.generation = ctrl["generation"];
+		return c;
+	};
+	for (int i = 0; i < 12; ++i)
+		world.tick();
+	require(world.submit(1, command("hail", 0, "ship:2")), "Hail the ship after its scripted assistance calls");
+	for (int i = 0; i < 12; ++i)
+		world.tick();
+	auto board = world.observe(1)->gameplay.at("conversations");
+	require(board["threads"].size() == 1,
+	        "Hail, assistance and escalation with one ship share a single visible conversation");
+	auto thread = board["threads"][0];
+	require(thread["sources"].size() == 3 && thread["choices"].size() == 6,
+	        "Independent dialogue programs and all pending questions survive grouping");
+	std::uint64_t previous = 0;
+	for (const auto &message : thread["messages"])
+	{
+		auto id = message["id"].get<std::uint64_t>();
+		require(id > previous, "Cross-operation history follows stable global message order");
+		previous = id;
+	}
+	require(world.submit(1, command("select", thread["id"])), "Select the combined ship history");
+	world.tick();
+	board = world.observe(1)->gameplay.at("conversations");
+	require(board["selected"] == thread["id"] && board["threads"][0]["unread"] == false,
+	        "Selecting the ship marks every visible source conversation read");
+	const auto remote = conversation_projection::board(board);
+	require(remote["threads"][0]["choices"] == board["threads"][0]["choices"],
+	        "Remote projection preserves prompt ownership and questions");
+	auto forged = board;
+	forged["threads"][0]["choices"][0]["conversation"] = 999999;
+	bool rejected_source = false;
+	try
+	{
+		conversation_projection::board(forged);
+	}
+	catch (const std::exception &)
+	{
+		rejected_source = true;
+	}
+	require(rejected_source, "A prompt cannot claim ownership outside its scoped source conversations");
+
+	const auto choice = board["threads"][0]["choices"][2];
+	auto answer = command("answer", thread["id"], choice["id"], choice["prompt"]);
+	require(projected_command(*world.observe(1), answer) && world.submit(1, answer),
+	        "Grouped command admission routes a non-primary question by its prompt receipt");
+	world.tick();
+	int answered = 0;
+	const auto answered_state = world.save();
+	for (const auto &raw : answered_state["conversations"]["threads"])
+		if (raw["prompt"]["answer"] != "")
+		{
+			++answered;
+			require(raw["id"] == choice["conversation"], "Only the owning operation accepts the answer");
+		}
+	require(answered == 1, "Duplicate choice names cannot answer another pending question");
+	require(world.submit(1, command("hail", 0, "ship:3")), "Hail another ship with the same display name");
+	for (int i = 0; i < 12; ++i)
+		world.tick();
+	board = world.observe(1)->gameplay.at("conversations");
+	require(board["threads"].size() == 2, "Ship identity, rather than title or character name, controls grouping");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	require(resumed.save() == world.save(), "Grouping does not rewrite dialogue continuation or receipts on restore");
+	require(resumed.observe(1).has_value(), "Restore the selected conversation station");
+	require(resumed.observe(1)->gameplay.at("conversations") == board,
+	        "Selected ship, merged history and all remaining questions survive resume");
+
+	source["maps"][0]["conversations"].push_back(Json::parse(
+	    R"({"id":"conference","title_key":"Conference","tree":"test.dialogue","bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"captain"},"peer":{"entity":3}},"members":["caller","target","peer"]})"));
+	World conference;
+	conference.load(load(source), "test.map");
+	require(conference.claim(1, 1, "drive") && conference.claim(3, 3, "drive"), "Claim both crews in a conference");
+	for (int i = 0; i < 12; ++i)
+		conference.tick();
+	require(conference.observe(1)->gameplay.at("conversations")["threads"].size() == 2,
+	        "A multi-ship conference remains separate from the direct ship conversation");
+	require(conference.observe(3)->gameplay.at("conversations")["threads"].size() == 1,
+	        "Grouping cannot disclose private ship conversations to a conference member");
+	ConversationRuntime live;
+	live.programs = catalog.conversation_programs;
+	live.participants = {{"ship:1", {"ship:1", "Crew", "", "", 1}},
+	                     {"ship:2", {"ship:2", "Target", "", "", 2}},
+	                     {"ship:2/engineer", {"ship:2/engineer", "Engineer", "", "", 2, true}}};
+	live.endpoints = {{1, {1, 0, 0, 100000, true, true}}, {2, {2, 1000, 0, 100000, true, true}}};
+	const auto scripted = live.open("test.dialogue", {{"caller", "ship:1"}, {"target", "ship:2/engineer"}},
+	                                {"ship:1", "ship:2/engineer"});
+	const auto direct = live.open("", {}, {"ship:1", "ship:2"});
+	require(live.send_text(1, scripted, "Crew text"),
+	        "A grouped selection routes human text to its writable crew channel");
+	require(live.conversations.at(scripted).messages.empty() && live.conversations.at(direct).messages.back().literal,
+	        "Crew chat does not replace or advance the scripted operation");
+	live.advance(1);
+	live.selected[1] = direct;
+	require(live.project(1)["threads"].size() == 1 && live.project(1)["selected"] == scripted,
+	        "A saved noncanonical selection resolves to the same ship conversation");
+	auto restored = live;
+	restored.restore(live.save());
+	require(restored.save() == live.save() && restored.project(1) == live.project(1),
+	        "Existing independent conversation saves need no regrouping migration");
+	auto unknown = live;
+	unknown.known[1].erase("ship:2");
+	unknown.participants.at("ship:2").name = "Undisclosed vessel identity";
+	require(unknown.project(1)["threads"][0]["title"] != "Undisclosed vessel identity",
+	        "Grouping does not disclose an unknown ship name through a known officer");
+}
 int main(int argc, char **argv)
 {
 	try
 	{
+		ship_conversation_history();
 		cancelled_station_traffic();
 		received_information_cases();
 		{

@@ -20,6 +20,26 @@ std::string ship_id(EntityId id)
 {
 	return "ship:" + std::to_string(id);
 }
+
+std::set<EntityId> conversation_hosts(const Conversation &c, const std::map<std::string, CommsParticipant> &people)
+{
+	std::set<EntityId> hosts;
+	for (const auto *members : {&c.members, &c.former})
+		for (const auto &id : *members)
+			if (people.contains(id))
+				hosts.insert(people.at(id).host);
+	return hosts;
+}
+std::string ship_thread_key(const Conversation &c, const std::map<std::string, CommsParticipant> &people)
+{
+	const auto hosts = conversation_hosts(c, people);
+	if (hosts.size() < 2)
+		return "local/" + std::to_string(c.id);
+	std::string key;
+	for (auto host : hosts)
+		key += "/" + std::to_string(host);
+	return key;
+}
 } // namespace
 void ConversationRuntime::disclose(EntityId viewer, const std::string &id)
 {
@@ -138,6 +158,22 @@ ConversationId ConversationRuntime::message(Conversation &c, const std::string &
 }
 bool ConversationRuntime::send_text(EntityId source, ConversationId id, const std::string &body, bool execute)
 {
+
+	if (conversations.contains(id) &&
+	    (!text_allowed(conversations.at(id)) || !conversations.at(id).members.contains(ship_id(source))))
+	{
+		const auto from = ship_id(source);
+		const auto &original = conversations.at(id);
+		if (!original.members.contains(from) && !original.former.contains(from))
+			return false;
+		const auto key = ship_thread_key(original, participants);
+		for (const auto &[candidate, c] : conversations)
+			if (c.members.contains(from) && text_allowed(c) && ship_thread_key(c, participants) == key)
+			{
+				id = candidate;
+				break;
+			}
+	}
 	if (!conversations.contains(id) || body.empty() || body.size() > 4096 || !text_allowed(conversations.at(id)))
 		return false;
 	auto &c = conversations.at(id);
@@ -187,6 +223,21 @@ bool ConversationRuntime::offer(ConversationId id, const std::string &prompt)
 bool ConversationRuntime::answer(EntityId source, ConversationId id, ConversationId prompt, const std::string &choice,
                                  bool execute)
 {
+
+	if (conversations.contains(id) && conversations.at(id).prompt.id != prompt)
+	{
+		const auto who = ship_id(source);
+		const auto &original = conversations.at(id);
+		if (!original.members.contains(who) && !original.former.contains(who))
+			return false;
+		const auto key = ship_thread_key(original, participants);
+		for (const auto &[candidate, c] : conversations)
+			if (c.prompt.id == prompt && ship_thread_key(c, participants) == key)
+			{
+				id = candidate;
+				break;
+			}
+	}
 	if (!conversations.contains(id))
 		return false;
 	auto &c = conversations.at(id);
@@ -478,6 +529,9 @@ Json ConversationRuntime::project(EntityId viewer) const
 						continue;
 					row["choices"].push_back(
 					    {{"id", v.id},
+					     {"conversation", c.id},
+					     {"prompt", p.id},
+					     {"question", programs.at(c.program).prompts.at(p.definition).text},
 					     {"text", v.text},
 					     {"enabled", choice_available(c, v)},
 					     {"reason", completed_choices.contains(c.id) && completed_choices.at(c.id).contains(v.id)
@@ -488,6 +542,90 @@ Json ConversationRuntime::project(EntityId viewer) const
 		}
 		out["threads"].push_back(std::move(row));
 	}
+
+	// Script instances retain their own state and prompt receipts; the crew sees one ship history.
+	std::map<std::string, std::size_t> groups;
+	std::map<std::size_t, std::set<std::string>> member_ids;
+	Json threads = Json::array();
+	const auto raw_selected = out.at("selected");
+	for (const auto &row : out["threads"])
+	{
+		const auto id = row.at("id").get<ConversationId>();
+		const auto &c = conversations.at(id);
+		const auto key = ship_thread_key(c, participants);
+		if (!groups.contains(key))
+		{
+			groups[key] = threads.size();
+			Json combined{{"id", row.at("id")}, {"title", row.at("title")}};
+			for (const auto *field : {"members", "messages", "incoming", "choices"})
+				combined[field] = Json::array();
+			combined["sources"] = Json::array();
+			combined["unread"] = combined["text_allowed"] = false;
+			combined["prompt"] = combined["text_conversation"] = 0;
+			combined["omitted_messages"] = 0;
+			combined["omitted_members"] = 0;
+			const auto hosts = conversation_hosts(c, participants);
+			if (hosts.size() == 2 && hosts.contains(viewer))
+				for (auto host : hosts)
+					if (host != viewer)
+					{
+						const auto ship = ship_id(host);
+						if (participants.contains(ship) && known.contains(viewer) && known.at(viewer).contains(ship))
+							combined["title"] = participants.at(ship).name;
+						else if (known.contains(viewer))
+							for (const auto &member : known.at(viewer))
+								if (participants.contains(member) && participants.at(member).host == host)
+								{
+									combined["title"] = participants.at(member).name;
+									break;
+								}
+					}
+			threads.push_back(std::move(combined));
+		}
+		const auto index = groups.at(key);
+		auto &combined = threads[index];
+		combined["sources"].push_back(id);
+		if (raw_selected == id)
+			out["selected"] = combined["id"];
+		for (const auto &member : row["members"])
+			if (member_ids[index].insert(member.at("id").get<std::string>()).second)
+			{
+				if (combined["members"].size() < 32)
+					combined["members"].push_back(member);
+				else
+					combined["omitted_members"] = combined["omitted_members"].get<std::size_t>() + 1;
+			}
+		for (const auto *field : {"messages", "incoming", "choices"})
+			for (const auto &item : row.at(field))
+				combined[field].push_back(item);
+		combined["unread"] = combined["unread"].get<bool>() || row["unread"].get<bool>();
+		if (!combined["text_allowed"].get<bool>() && row["text_allowed"].get<bool>())
+		{
+			combined["text_allowed"] = true;
+			combined["text_conversation"] = id;
+		}
+		if (combined["prompt"] == 0 && row["prompt"] != 0)
+			combined["prompt"] = row["prompt"];
+	}
+	for (auto &thread : threads)
+	{
+		auto &messages = thread["messages"];
+		std::sort(messages.begin(), messages.end(),
+		          [](const Json &a, const Json &b)
+		          {
+			          return a.at("id").get<ConversationId>() < b.at("id").get<ConversationId>();
+		          });
+		if (messages.size() > 4096)
+		{
+			const auto excess = messages.size() - 4096;
+			messages.erase(messages.begin(), messages.begin() + excess);
+			thread["omitted_messages"] = excess;
+		}
+		auto &incoming = thread["incoming"];
+		if (incoming.size() > 4096)
+			incoming.erase(incoming.begin(), incoming.end() - 4096);
+	}
+	out["threads"] = std::move(threads);
 	return out;
 }
 Json ConversationRuntime::save() const

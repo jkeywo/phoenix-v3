@@ -68,17 +68,20 @@ bool conversation_allowed(const Observation &view, const OperatingCommand &comma
 			if (p.at("id") == command.text && p.at("available") == true)
 				return true;
 	for (const auto &thread : board.at("threads"))
-		if (thread.at("id") == command.value)
-		{
-			if (command.action == "comms.select")
-				return command.text.empty() && !command.request_id;
-			if (command.action == "comms.text")
-				return !command.text.empty() && !command.request_id && thread.at("text_allowed") == true;
-			if (command.action == "comms.answer" && command.request_id && thread.at("prompt") == command.request_id)
-				for (const auto &choice : thread.at("choices"))
-					if (choice.at("id") == command.text && choice.value("enabled", true))
-						return true;
-		}
+	{
+		const auto sources = thread.value("sources", Json::array({thread.at("id")}));
+		const bool belongs = std::find(sources.begin(), sources.end(), Json(command.value)) != sources.end();
+		if (belongs && command.action == "comms.select")
+			return command.text.empty() && !command.request_id;
+		if (belongs && command.action == "comms.text")
+			return !command.text.empty() && !command.request_id && thread.at("text_allowed") == true;
+		if (command.action == "comms.answer" && command.request_id)
+			for (const auto &choice : thread.at("choices"))
+				if ((choice.value("conversation", thread.at("id")) == command.value || belongs) &&
+				    choice.value("prompt", thread.at("prompt")) == command.request_id &&
+				    choice.at("id") == command.text && choice.value("enabled", true))
+					return true;
+	}
 	return false;
 }
 bool consumes(const Json &owner, const std::string &system)

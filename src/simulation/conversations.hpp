@@ -170,10 +170,18 @@ bool comms_command(const ConsoleAddress &address, const OperatingCommand &comman
 				if (!execute)
 					return true;
 				conversations.selected[address.ship] = command.value;
-				for (const auto &m : c.messages)
-					if (m.delivered.contains(self))
-						conversations.read_through[address.ship][c.id] =
-						    std::max(conversations.read_through[address.ship][c.id], m.id);
+				const auto board = conversations.project(address.ship);
+				for (const auto &thread : board.at("threads"))
+					if (std::find(thread.at("sources").begin(), thread.at("sources").end(), Json(command.value)) !=
+					    thread.at("sources").end())
+					{
+						conversations.selected[address.ship] = thread.at("id");
+						for (const auto &source : thread.at("sources"))
+							for (const auto &m : conversations.conversations.at(source.get<ConversationId>()).messages)
+								if (m.delivered.contains(self))
+									conversations.read_through[address.ship][source.get<ConversationId>()] = std::max(
+									    conversations.read_through[address.ship][source.get<ConversationId>()], m.id);
+					}
 				accepted = true;
 			}
 		}

@@ -47,17 +47,38 @@ inline Json thread(const Json &v, bool shared = false, std::size_t message_limit
 	std::reverse(out["messages"].begin(), out["messages"].end());
 	if (!shared)
 	{
+		out["sources"] = Json::array();
+		const auto sources = v.value("sources", Json::array({v.at("id")}));
+		if (!sources.is_array() || sources.empty() || sources.size() > 256)
+			throw std::runtime_error("Conversation source bounds");
+		for (const auto &source : sources)
+			out["sources"].push_back(number(source, 1));
+		out["text_conversation"] = number(v.value("text_conversation", v.at("id")), 0);
+		out["omitted_members"] = number(v.value("omitted_members", Json(0)), 0);
 		out["unread"] = v.at("unread").get<bool>();
 		out["text_allowed"] = v.at("text_allowed").get<bool>();
 		out["prompt"] = number(v.at("prompt"), 0);
 		out["choices"] = Json::array();
-		if (v.at("choices").size() > 16)
+		if (v.at("choices").size() > out.at("sources").size() * 16)
 			throw std::runtime_error("Conversation choices bounds");
 		for (const auto &c : v.at("choices"))
+		{
+			const auto owner = number(c.value("conversation", v.at("id")), 1);
+			if (std::find(out["sources"].begin(), out["sources"].end(), Json(owner)) == out["sources"].end())
+				throw std::runtime_error("Conversation choice source mismatch");
 			out["choices"].push_back({{"id", text(c.at("id"))},
+			                          {"conversation", number(c.value("conversation", v.at("id")), 1)},
+			                          {"prompt", number(c.value("prompt", v.at("prompt")), 1)},
+			                          {"question", text(c.value("question", Json("")), 4096)},
 			                          {"text", text(c.at("text"), 4096)},
 			                          {"enabled", c.value("enabled", true)},
 			                          {"reason", text(c.value("reason", Json("")), 4096)}});
+		}
+		const auto text_owner = out["text_conversation"].get<std::uint64_t>();
+		if ((out["text_allowed"].get<bool>() && !text_owner) ||
+		    (text_owner &&
+		     std::find(out["sources"].begin(), out["sources"].end(), Json(text_owner)) == out["sources"].end()))
+			throw std::runtime_error("Conversation text source mismatch");
 	}
 	return out;
 }
