@@ -50,3 +50,25 @@ The now-executing preflight exposed an older fixture expectation that edited bun
 The complete `scripts/check.ps1 -Target web -Threaded` gate passes on final source revision `2fbeebd`, including production preflight, every configured WASM case and **20 exact native/WASM continuation comparisons**. This is Windows Release plus Emscripten **6.0.12**, threaded native WebAssembly exceptions/mimalloc and Node **24.19.0**. The ordinary browser deployment matrix and graphical/device/performance acceptance were not rerun.
 
 Final evidence files in the isolated build directory are `ability-final-native-gate-2.log` (43/43 native suites, with the separately retried network failures retained), `ability-network-isolated.log` (12/12), `ability-final-web-gate-3.log` (passing complete threaded gate) and `ability-format-final-2.log`. No earlier failure is relabelled as a pass. The primary checkout retains the concurrent flight work; three earlier untracked ability files were preserved under `build/ability-preintegration-20261026/` before local integration.
+
+## Ability execution consolidation — 26 October 2026
+
+A review after shared-rules delivery found that the earlier instant entry-group merge omitted the newly supported explicit activation costs. It also found that ability execution still supplied the older two-entity context, which reversed the new `source`/`target` roles for cross-ship work and lost equipment/officer provenance. These are defects in the later integration, not evidence that the preceding checks exercised those combinations.
+
+Start and activation now use separate ordered frames in the existing atomic prepared batch. Single-group prepared activation uses the same ability invocation adapter. The adapter supplies performing officer/equipment identity, caster subject and selected recipient, and translates existing `protected`/`attacker` aliases locally. Current authoring limits and stable application identities remain unchanged. The unused reaction identity branch is removed; scenario identity spelling is unchanged. No save-schema, public command or wire-format change is introduced.
+
+Synthetic production-path fixtures exercise both explicit charges, insufficient combined stock through store aliases, full rollback without recovery, prepared start retention, cross-ship roles, equipment bindings, officer provenance, downstream rules and exact continuation. They also preserve the existing combined 32-operation limit.
+
+Implementation is committed as `c3ff967`, based on shared-rules revision `7db75d0`, on `codex/shared-rules`. Independent review of that immutable revision passed with no actionable correctness, architecture or test gaps. No runtime changes followed that review.
+
+Executed validation on Windows Release and Emscripten 6.0.12 / Node 24.19.0:
+
+- Focused native ability, rule and stock-effect suites: 3/3 passed.
+- Complete `scripts/check.ps1 -Target native`: all 44 suites, the native build check, continuation generators and all 12 live-network cases passed.
+- Complete `scripts/check.ps1 -Target web -Threaded`: production preflight, all configured suites and all 21 native/WebAssembly continuation comparisons passed.
+- Ordinary WebAssembly: build check, ability, rule, stock-effect and psychic suites passed. Production launch preflight passed, and ability, rule and stock-effect continuation traces matched native exactly.
+- Repository formatting check passed: 445 C/C++, 10 CMake, 11 PowerShell and 271 web/data/document files. Final receipt edits were checked separately with Prettier.
+
+Evidence logs are `build/ability-consolidation-focused-final.log`, `build/ability-consolidation-native-gate.log`, `build/ability-consolidation-threaded-gate.log`, `build/ability-consolidation-ordinary-build.log`, `build/ability-consolidation-ordinary-gate.log` and `build/ability-consolidation-format.log`. Preliminary threaded compilation was deliberately stopped to isolate live-network checks; the final threaded gate resumed compilation and passed. That interrupted build is not counted as a passing gate.
+
+No manual GUI, screen-reader, physical-device, six-display performance, Linux or browser-storage acceptance was exercised by this consolidation. Save schema 27 remains unchanged.
