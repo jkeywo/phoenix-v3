@@ -118,6 +118,55 @@ Json ordinary_operations()
 	        "restored scenario effects cannot replay completed stock changes");
 	return world.save();
 }
+Json staged_effect_reapplication()
+{
+	Json trace = Json::array();
+	for (bool fail : {false, true})
+	{
+		auto data = source(Json::parse(R"json([
+ {"id":"test.overlay.modifier","kind":"modifier","duration_ticks":8,
+  "contributions":{"range":{"property":"sensors","delta_permille":100}}},
+ {"id":"test.overlay.periodic","kind":"periodic","duration_ticks":30,"period_ticks":10,"effect":"test.overlay.tick"},
+ {"id":"test.overlay.tick","kind":"operations","operations":[{"kind":"damage","target":"protected","damage":1}]},
+ {"id":"test.overlay","kind":"operations","operations":[
+  {"kind":"apply","target":"protected","effect":"test.overlay.modifier","equipment":"radar","grant":"modifier"},
+  {"kind":"apply","target":"protected","effect":"test.overlay.modifier","equipment":"radar","grant":"modifier"},
+  {"kind":"remove","target":"protected","equipment":"radar","grant":"modifier"},
+  {"kind":"apply","target":"protected","effect":"test.overlay.modifier","equipment":"radar","grant":"modifier"},
+  {"kind":"apply","target":"protected","effect":"test.overlay.periodic","grant":"periodic"},
+  {"kind":"apply","target":"protected","effect":"test.overlay.periodic","grant":"periodic"},
+  {"kind":"remove","target":"protected","grant":"periodic"},
+  {"kind":"apply","target":"protected","effect":"test.overlay.periodic","grant":"periodic"}]}
+ ])json"),
+		                   {"test.overlay"});
+		if (fail)
+			data["effects"].back()["operations"].push_back(
+			    {{"kind", "consume"}, {"store", "missing"}, {"resource", "fixture.resource.energy"}, {"amount", 1}});
+		const auto content = catalog(data);
+		World world;
+		world.load(content, "test.map");
+		world.tick();
+		World resumed;
+		resumed.restore(content, world.save());
+		world.tick();
+		resumed.tick();
+		const auto saved = world.save();
+		const auto &active = saved.at("active_effects");
+		require(world.save() == resumed.save(), "Ordered staged effects continue identically after restore");
+		if (fail)
+			require(active.at("modifiers").empty() && active.at("periodic").empty() &&
+			            active.at("next_periodic") == 1 && active.at("modifier_owners")[0].at("next_id") == 1,
+			        "Failed apply/refresh/remove/reapply rolls back effects and both identity counters");
+		else
+			require(active.at("modifiers").size() == 1 && active.at("modifiers")[0].at("id") == 2 &&
+			            active.at("periodic").size() == 1 && active.at("periodic")[0].at("id") == 2 &&
+			            active.at("next_periodic") == 3 && active.at("modifier_owners")[0].at("next_id") == 3,
+			        "Ordered operations see prior staged changes and removal allocates a fresh application");
+		trace.push_back(saved);
+	}
+	return trace;
+}
+
 Json committed_stock()
 {
 	auto data = source(Json::parse(R"json([
@@ -346,7 +395,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
-		Json trace = Json::array({ordinary_operations(), committed_stock()});
+		Json trace = Json::array({ordinary_operations(), committed_stock(), staged_effect_reapplication()});
 		pending_receipts();
 		paid_store_aliases();
 		shared_effect_lifecycle();

@@ -75,13 +75,6 @@ struct PropertyEligibilityMutation
 		++revision;
 	}
 };
-struct PropertyContribution
-{
-	std::uint64_t id = 0;
-	std::string source, definition, name, equipment, property;
-	std::int64_t delta_permille = 0, expiry = -1;
-	bool maintained = false;
-};
 struct ActiveEffectIdentity
 {
 	std::uint64_t id = 0;
@@ -108,12 +101,20 @@ struct EffectTarget
 	std::uint64_t contribution = 0;
 	std::string equipment_name, contribution_name;
 };
-// Transaction-only snapshot; never installed as an authoritative component.
+struct PreparedModifierApplication
+{
+	ActiveEffectIdentity identity;
+	EffectTarget target;
+	EffectLifetime lifetime;
+};
+// Sparse transaction overlay: only touched applications are copied or changed.
 struct PreparedPropertyEffects
 {
+	flecs::entity ship;
 	std::uint64_t next_id = 1;
-	std::vector<PropertyContribution> contributions;
-	std::map<std::string, EffectTarget> targets;
+	std::size_t contribution_count = 0;
+	std::map<std::uint64_t, std::optional<PreparedModifierApplication>> changes;
+	std::map<std::pair<std::string, std::string>, std::uint64_t> handles;
 };
 struct PropertyValue
 {
@@ -129,6 +130,8 @@ struct PropertyEffects
 {
 	std::uint64_t next_id = 1;
 	std::map<std::uint64_t, flecs::entity> applications;
+	std::map<std::pair<std::string, std::string>, std::uint64_t> grants;
+	std::size_t contribution_count = 0;
 	mutable PropertyAggregate aggregate;
 	mutable bool aggregate_valid = false;
 };

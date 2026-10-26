@@ -15,6 +15,9 @@ int main(int argc, char **argv)
 		if ((kind != "modifier" && kind != "periodic") || count < 1 || count > 8192)
 			throw std::runtime_error("Choose modifier|periodic and 1..8192 applications");
 		auto source = combat_fixture();
+		auto observer = controller_session_fixture()["entities"][0];
+		observer["id"] = "test.profile-ship";
+		source["entities"].push_back(observer);
 		for (auto &compartment : source["entities"][0]["combat"]["decks"][0]["compartments"])
 			compartment["hp"] = 1000000;
 		for (auto &controller : source["entities"][0]["control_layout"]["controllers"])
@@ -25,7 +28,7 @@ int main(int argc, char **argv)
 		                                  {"x_mm", 1000000},
 		                                  {"y_mm", 0},
 		                                  {"heading_mdeg", 0},
-		                                  {"allowed_ships", {"test.combat"}}}});
+		                                  {"allowed_ships", {"test.profile-ship"}}}});
 		map["scenario"] = {{"tree", "test.effects-profile"}};
 		if (kind == "modifier")
 			source["effects"].push_back(
@@ -60,7 +63,9 @@ int main(int argc, char **argv)
 				operations.push_back(op);
 			}
 			source["effects"].push_back({{"id", group}, {"kind", "operations"}, {"operations", operations}});
-			tasks.push_back({{"action", "apply_effect_group"}, {"arguments", Json::array({1, 1, group})}});
+			tasks.push_back({{"action", "apply_effect_group"},
+			                 {"arguments",
+			                  Json::array({{{"type", "entity"}, {"id", 1}}, {{"type", "entity"}, {"id", 1}}, group})}});
 		}
 		source["trees"].push_back({{"id", "test.effects-profile"},
 		                           {"context", "scenario"},

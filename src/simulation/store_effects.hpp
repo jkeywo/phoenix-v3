@@ -60,17 +60,7 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 		bool outcome;
 	};
 	std::vector<PreparedDamage> damages;
-	std::optional<std::vector<PeriodicEffectInstance>> prepared_periodic;
-	std::optional<std::vector<PeriodicEffectInstance>> initial_periodic;
-	const auto periodic_roster = [&]() -> const std::vector<PeriodicEffectInstance> &
-	{
-		if (prepared_periodic)
-			return *prepared_periodic;
-		if (!initial_periodic)
-			initial_periodic = periodic_snapshot();
-		return *initial_periodic;
-	};
-	auto prepared_next_periodic = next_periodic_instance;
+	std::optional<PreparedPeriodicEffects> prepared_periodic;
 	StockTransaction stocks;
 	const auto owner = [&](EntityId id, bool outcome = true)
 	{
@@ -172,17 +162,14 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 			}
 			else if (periodic_templates.contains(op.effect) ||
 			         (op.kind == ShieldReactionKind::Remove &&
-			          std::any_of(periodic_roster().begin(), periodic_roster().end(),
-			                      [&](const auto &c)
-			                      {
-				                      return c.source == source + "." + op.grant && c.context.target == id;
-			                      })))
+			          has_periodic_application(prepared_periodic ? &*prepared_periodic : nullptr,
+			                                   source + "." + op.grant, id)))
 			{
 				PayloadHitContext context = outcome ? *hit_context : PayloadHitContext{id};
 				if (!prepared_periodic)
-					prepared_periodic = periodic_roster();
-				prepare_periodic_application(*prepared_periodic, prepared_next_periodic, op, source + "." + op.grant,
-				                             attacker, context, source, original_equipment);
+					prepared_periodic = PreparedPeriodicEffects{next_periodic_instance, periodic_index.size(), {}};
+				prepare_periodic_application(*prepared_periodic, op, source + "." + op.grant, attacker, context, source,
+				                             original_equipment);
 			}
 			else
 			{
@@ -248,7 +235,6 @@ std::string execute_effect_group(const ShieldReactionDefinition &execution, Enti
 	if (prepared_periodic)
 	{
 		commit_periodic_effects(*prepared_periodic);
-		next_periodic_instance = prepared_next_periodic;
 	}
 	if (payment)
 		entities.at(protected_ship).get_mut<ShipResources>().network = std::move(*payment);

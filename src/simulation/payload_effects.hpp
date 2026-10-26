@@ -4,6 +4,7 @@ std::map<std::string, PayloadDefinition> payload_templates;
 std::map<std::string, PeriodicEffectDefinition> periodic_templates;
 std::map<std::uint64_t, flecs::entity>
     periodic_index; // Derived addressed lookup, never the lifecycle iteration source.
+std::map<PeriodicGrantKey, flecs::entity> periodic_grants;
 std::vector<PendingPayload> pending_payloads;
 std::map<std::uint64_t, std::string> payload_results;
 std::uint64_t next_periodic_instance = 1, next_payload_job = 1;
@@ -129,23 +130,85 @@ void queue_payload_outcome(const Projectile &projectile, const PayloadHitContext
 		}
 	}
 }
-void prepare_periodic_application(std::vector<PeriodicEffectInstance> &prepared, std::uint64_t &next,
-                                  const ShieldReactionOperation &operation, const std::string &source,
-                                  EntityId original_source, const PayloadHitContext &context,
+static PeriodicGrantKey periodic_grant_key(const std::string &source, const std::string &definition,
+                                           const PayloadHitContext &context)
+{
+	return {source,
+	        definition,
+	        context.target,
+	        context.kind,
+	        context.compartment,
+	        context.equipment,
+	        context.contribution,
+	        context.contribution_name,
+	        context.ordnance};
+}
+PeriodicEffectInstance periodic_record(flecs::entity effect) const
+{
+	const auto &identity = effect.get<ActiveEffectIdentity>();
+	const auto &state = effect.get<PeriodicSchedule>();
+	return {identity.id,        state.original_source,    identity.source, identity.definition,
+	        state.group_source, state.original_equipment, state.context,   effect.get<EffectLifetime>().expiry,
+	        state.next};
+}
+bool has_periodic_application(const PreparedPeriodicEffects *prepared, const std::string &source, EntityId target) const
+{
+	bool found = false;
+	periodic_query.each(
+	    [&](const ActiveEffectIdentity &identity, const EffectTarget &, const EffectLifetime &,
+	        const PeriodicSchedule &state)
+	    {
+		    if (identity.source == source && state.context.target == target &&
+		        (!prepared || !prepared->changes.contains(identity.id)))
+			    found = true;
+	    });
+	if (prepared)
+		for (const auto &[id, change] : prepared->changes)
+			if (change && change->source == source && change->context.target == target)
+				found = true;
+	return found;
+}
+void prepare_periodic_application(PreparedPeriodicEffects &prepared, const ShieldReactionOperation &operation,
+                                  const std::string &source, EntityId original_source, const PayloadHitContext &context,
                                   const std::string &group_source, const std::string &original_equipment)
 {
 	validate_effect_identity(source, {}, false);
-	const auto matches = [&](const auto &c)
+	const auto matches = [&](const auto &identity_source, const auto &definition, const PayloadHitContext &hit)
 	{
 		if (operation.all_sources)
-			return c.definition == operation.effect && c.context.target == context.target &&
-			       c.context.ordnance == context.ordnance;
-		return c.source == source && same_payload_context(c.context, context) &&
-		       (operation.effect.empty() || c.definition == operation.effect);
+			return definition == operation.effect && hit.target == context.target && hit.ordnance == context.ordnance;
+		return identity_source == source && same_payload_context(hit, context) &&
+		       (operation.effect.empty() || definition == operation.effect);
 	};
+	std::map<std::uint64_t, PeriodicEffectInstance> matched;
 	if (operation.kind == ShieldReactionKind::Remove)
 	{
-		std::erase_if(prepared, matches);
+		// Wildcard removals select live instances through ECS; staged changes
+		// override them without copying the untouched roster.
+		periodic_query.each(
+		    [&](flecs::entity effect, const ActiveEffectIdentity &identity, const EffectTarget &,
+		        const EffectLifetime &, const PeriodicSchedule &state)
+		    {
+			    if (!prepared.changes.contains(identity.id) &&
+			        matches(identity.source, identity.definition, state.context))
+				    matched.emplace(identity.id, periodic_record(effect));
+		    });
+	}
+	else if (const auto at = periodic_grants.find(periodic_grant_key(source, operation.effect, context));
+	         at != periodic_grants.end())
+	{
+		const auto id = at->second.get<ActiveEffectIdentity>().id;
+		if (!prepared.changes.contains(id))
+			matched.emplace(id, periodic_record(at->second));
+	}
+	for (const auto &[id, change] : prepared.changes)
+		if (change && matches(change->source, change->definition, change->context))
+			matched[id] = *change;
+	if (operation.kind == ShieldReactionKind::Remove)
+	{
+		for (const auto &[id, change] : matched)
+			prepared.changes[id] = std::nullopt;
+		prepared.count -= matched.size();
 		return;
 	}
 	if (!payload_context_available(context))
@@ -153,17 +216,28 @@ void prepare_periodic_application(std::vector<PeriodicEffectInstance> &prepared,
 	const auto &definition = periodic_templates.at(operation.effect);
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	const auto expiry = effect_expiry(tick, definition.duration_ticks);
-	const auto found = std::find_if(prepared.begin(), prepared.end(), matches);
-	if (found != prepared.end())
+	if (!matched.empty())
 	{
-		found->expiry = std::max(found->expiry, expiry);
-		return; // Preserve cadence, instance identity and already completed ticks.
+		auto refreshed = matched.begin()->second;
+		refreshed.expiry = std::max(refreshed.expiry, expiry);
+		prepared.changes[refreshed.id] = std::move(refreshed);
+		return;
 	}
-	if (prepared.size() >= 8192 || next >= 9007199254740991ULL)
+	if (prepared.count >= 8192 || prepared.next_id >= 9007199254740991ULL)
 		throw std::runtime_error("Periodic instance capacity exhausted");
-	prepared.push_back({next++, original_source, source, operation.effect, group_source, original_equipment, context,
-	                    expiry, effect_expiry(tick, definition.period_ticks)});
+	const auto id = prepared.next_id++;
+	prepared.changes[id] = PeriodicEffectInstance{id,
+	                                              original_source,
+	                                              source,
+	                                              operation.effect,
+	                                              group_source,
+	                                              original_equipment,
+	                                              context,
+	                                              expiry,
+	                                              effect_expiry(tick, definition.period_ticks)};
+	++prepared.count;
 }
+
 void apply_payload_damage(flecs::entity ship, std::int64_t amount, const PayloadHitContext &context)
 {
 	if (!payload_context_available(context) || amount <= 0)
@@ -227,29 +301,26 @@ EffectTarget resolve_periodic_target(const PayloadHitContext &context) const
 }
 void erase_periodic(flecs::entity effect)
 {
-	periodic_index.erase(effect.get<ActiveEffectIdentity>().id);
+	const auto &identity = effect.get<ActiveEffectIdentity>();
+	periodic_grants.erase(
+	    periodic_grant_key(identity.source, identity.definition, effect.get<PeriodicSchedule>().context));
+	periodic_index.erase(identity.id);
 	effect.destruct();
 }
-void commit_periodic_effects(const std::vector<PeriodicEffectInstance> &prepared)
+void commit_periodic_effects(const PreparedPeriodicEffects &prepared)
 {
-	std::set<std::uint64_t> retained;
-	for (const auto &c : prepared)
-		retained.insert(c.id);
-	std::vector<flecs::entity> removed;
-	periodic_query.each(
-	    [&](flecs::entity effect, const ActiveEffectIdentity &identity, const EffectTarget &, const EffectLifetime &,
-	        const PeriodicSchedule &)
-	    {
-		    if (!retained.contains(identity.id))
-			    removed.push_back(effect);
-	    });
-	for (auto effect : removed)
-		erase_periodic(effect);
-	for (const auto &c : prepared)
-		if (const auto found = periodic_index.find(c.id); found != periodic_index.end())
-			found->second.set<EffectLifetime>({c.expiry});
-		else
+	for (const auto &[id, change] : prepared.changes)
+		if (const auto found = periodic_index.find(id); found != periodic_index.end())
 		{
+			if (!change)
+				erase_periodic(found->second);
+			else if (found->second.get<EffectLifetime>().expiry != change->expiry)
+				found->second.set<EffectLifetime>({change->expiry});
+		}
+	for (const auto &[id, change] : prepared.changes)
+		if (change && !periodic_index.contains(id))
+		{
+			const auto &c = *change;
 			auto effect = ecs.entity()
 			                  .set<ActiveEffectIdentity>({c.id, c.context.target, c.source, c.definition})
 			                  .set<EffectTarget>(resolve_periodic_target(c.context))
@@ -257,8 +328,11 @@ void commit_periodic_effects(const std::vector<PeriodicEffectInstance> &prepared
 			                  .set<PeriodicSchedule>(
 			                      {c.next, c.original_source, c.group_source, c.original_equipment, c.context});
 			periodic_index.emplace(c.id, effect);
+			periodic_grants.emplace(periodic_grant_key(c.source, c.definition, c.context), effect);
 		}
+	next_periodic_instance = prepared.next_id;
 }
+
 bool periodic_target_available(flecs::entity effect) const
 {
 	const auto target = effect.get<EffectTarget>();
@@ -408,7 +482,10 @@ void restore_active_periodic(const Json &value)
 			throw std::runtime_error("Periodic deadline exceeds authored bounds");
 		restored.push_back(std::move(c));
 	}
-	commit_periodic_effects(restored);
+	PreparedPeriodicEffects prepared{next_periodic_instance, restored.size(), {}};
+	for (auto &c : restored)
+		prepared.changes[c.id] = std::move(c);
+	commit_periodic_effects(prepared);
 }
 void restore_payload_effects(const Json &value)
 {

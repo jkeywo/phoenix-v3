@@ -29,6 +29,14 @@ struct PeriodicSchedule
 	std::string group_source, original_equipment;
 	PayloadHitContext context;
 };
+using PeriodicGrantKey = std::tuple<std::string, std::string, EntityId, PayloadOutcomeKind, std::int64_t, std::string,
+                                    std::uint64_t, std::string, bool>;
+struct PreparedPeriodicEffects
+{
+	std::uint64_t next_id = 1;
+	std::size_t count = 0;
+	std::map<std::uint64_t, std::optional<PeriodicEffectInstance>> changes;
+};
 struct PendingPayload
 {
 	std::uint64_t id = 0;

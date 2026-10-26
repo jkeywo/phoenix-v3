@@ -62,21 +62,16 @@ void prepare_effect_application(flecs::entity ship, const EffectApplication &app
 		auto definition = application.definition;
 		if (application.operation == EffectApplicationOperation::Refresh)
 		{
-			const auto found =
-			    std::find_if(properties->contributions.begin(), properties->contributions.end(),
-			                 [&](const auto &c)
-			                 {
-				                 return c.source == application.source && c.equipment == application.equipment;
-			                 });
-			if (found == properties->contributions.end())
+			const auto found = prepared_modifier(*properties, application.source, application.equipment);
+			if (!found)
 				throw std::runtime_error("Modifier grant unavailable for refresh");
-			definition = found->definition;
+			definition = found->identity.definition;
 		}
 		const auto &compiled = modifier_templates.at(definition);
 		if (!modifier_target_compatible(ship, application.equipment, compiled, shields))
 			throw std::runtime_error("Incompatible modifier target");
-		properties->targets[application.equipment] = resolve_modifier_target(ship, application.equipment, shields);
-		install_modifier_grant(*properties, compiled, application.source, application.equipment, tick);
+		const auto target = resolve_modifier_target(ship, application.equipment, shields);
+		install_modifier_grant(*properties, compiled, application.source, application.equipment, tick, target);
 		return;
 	}
 	if (!shields || !ship.has<ShieldComponent>() || !application.equipment.empty())
