@@ -52,8 +52,6 @@ struct FlightState
 	std::int64_t follow_distance = 0, follow_speed_limit = 0;
 	std::int64_t forward_remainder = 0, lateral_remainder = 0, turn_remainder = 0;
 	std::int64_t damping_remainder = 0;
-	// Derived each tick from admitted lateral actuators, never saved or commanded here.
-	std::int64_t desired_lateral = 0;
 	int actual_longitudinal = 0, actual_lateral = 0, actual_steering = 0;
 	int steering_limit_permille = 1000;
 	std::int64_t charge_spent = 0;
@@ -104,9 +102,10 @@ struct PursuitGuidance
 	std::int64_t heading = 0, speed = 0;
 };
 // Shared velocity tracking; callers supply their positional policy and speed limit.
-PursuitGuidance pursuit_guidance(const Pose &, const Motion &, fixed::Vec desired_velocity, std::int64_t speed_limit,
+PursuitGuidance pursuit_guidance(const Pose &, fixed::Vec desired_velocity, std::int64_t speed_limit,
                                  std::int64_t fallback_heading);
-FlightDemand flight_demand(const FlightDefinition &, const FlightState &, const Pose &, const Motion &);
+FlightDemand flight_demand(const FlightDefinition &, const FlightState &, const Pose &, const Motion &,
+                           std::int64_t external_lateral = 0);
 FlightExecution step_flight(const FlightDefinition &, FlightState &, Pose &, Motion &, const FlightDemand &,
                             int paid_permille, int output_permille = 1000, int heat_permille = 1000);
 // Handover/device loss clears held inputs without reverting settings or momentum.

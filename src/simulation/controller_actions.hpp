@@ -82,11 +82,9 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		Pose own_pose;
 		own_pose.position = {observed.own.x, observed.own.y};
 		own_pose.heading = observed.own.heading;
-		Motion own_motion;
-		own_motion.velocity = {observed.own.vx, observed.own.vy};
 		const auto guidance = pursuit_guidance(
-		    own_pose, own_motion, fixed::Vec{target->vx, target->vy} + fixed::scale(fixed::normal(delta), approach),
-		    maximum, observed.own.heading);
+		    own_pose, fixed::Vec{target->vx, target->vy} + fixed::scale(fixed::normal(delta), approach), maximum,
+		    observed.own.heading);
 		facts[15] = guidance.heading;
 		facts[16] = guidance.speed;
 		facts[17] = target->altitude +

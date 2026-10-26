@@ -116,11 +116,7 @@ void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine, std::in
 	engine.forward_output = 0;
 	const auto direction = fixed::direction(pose.heading);
 	const auto desired = fixed::scale(direction, engine.speed);
-	engine.damping_remainder += engine.deceleration;
-	const auto damping = engine.damping_remainder / rate;
-	engine.damping_remainder %= rate;
-	motion.velocity =
-	    fixed::move_towards(motion.velocity, fixed::velocity_projection(motion.velocity, desired), damping);
+	damp_motion(motion, desired, engine.deceleration, engine.damping_remainder);
 	if (!engine.enabled)
 		return;
 	const auto current = fixed::dot(motion.velocity, direction) / fixed::unit;
@@ -1774,7 +1770,6 @@ struct World::Impl
 	{
 		const auto &flight = child.get<FlightRuntime>();
 		auto state = flight.state;
-		const auto ship = child.parent();
 		state.steering_limit_permille = restrictions.steering_limit;
 		if (structurally_disabled(child.parent(), child.get<Equipment>().id))
 			state.enabled = false;
@@ -1783,21 +1778,22 @@ struct World::Impl
 		state.desired_speed = state.desired_speed == flight.definition.maximum_speed
 		                          ? definition.maximum_speed
 		                          : std::min(state.desired_speed, definition.maximum_speed);
-		state.desired_lateral = 0;
-		if (definition.kind == FlightKind::Engine)
-			for (const auto other : ship.get<EquipmentIndex>().values)
-				if (other != child)
-					if (const auto *side = other.try_get<FlightRuntime>();
-					    side && side->definition.kind == FlightKind::Lateral)
-					{
-						const auto effort = side->state.lateral;
-						if (side->definition.lateral_direction && effort * side->definition.lateral_direction < 0)
-							continue;
-						const auto desired = side->definition.lateral_speed * effort / 1000;
-						if (std::abs(desired) > std::abs(state.desired_lateral))
-							state.desired_lateral = desired;
-					}
 		return state;
+	}
+	std::int64_t lateral_velocity_intent(flecs::entity ship) const
+	{
+		std::int64_t desired = 0;
+		for (const auto child : ship.get<EquipmentIndex>().values)
+			if (const auto *side = child.try_get<FlightRuntime>(); side && side->definition.kind == FlightKind::Lateral)
+			{
+				const auto effort = side->state.lateral;
+				if (side->definition.lateral_direction && effort * side->definition.lateral_direction < 0)
+					continue;
+				const auto value = side->definition.lateral_speed * effort / 1000;
+				if (std::abs(value) > std::abs(desired))
+					desired = value;
+			}
+		return desired;
 	}
 	void request_flight_resources(flecs::entity ship, FlightRestrictions restrictions)
 	{
@@ -1805,6 +1801,7 @@ struct World::Impl
 		const auto tick = ecs.get<Clock>().tick;
 		const auto &pose = ship.get<Pose>();
 		const auto &motion = ship.get<Motion>();
+		const auto lateral = lateral_velocity_intent(ship);
 		for (auto child : ordered_equipment(flight_query, id))
 		{
 			auto &flight = child.get_mut<FlightRuntime>();
@@ -1829,7 +1826,7 @@ struct World::Impl
 			guide_follow(flight.definition, flight.state, pose, motion, observed);
 			const auto effective = effective_flight_definition(child, restrictions);
 			const auto requested = effective_flight_state(child, effective, restrictions);
-			flight.demand = flight_demand(effective, requested, pose, motion);
+			flight.demand = flight_demand(effective, requested, pose, motion, lateral);
 			if (const auto *v = ship.try_get<VerticalMotion>(); v && requested.enabled &&
 			                                                    flight.definition.kind == FlightKind::Engine &&
 			                                                    (v->desired != v->altitude || v->velocity))
@@ -1920,6 +1917,7 @@ struct World::Impl
 			}
 		}
 		restrictions = flight_restrictions(id);
+		const auto lateral = lateral_velocity_intent(ship);
 		for (auto target : fittings)
 		{
 			auto &flight = target.get_mut<FlightRuntime>();
@@ -1952,7 +1950,7 @@ struct World::Impl
 			    allocation ? allocation->grants()[target.get<ResourceBinding>().slot].supply_permille : 1000;
 			definition = effective_flight_definition(target, restrictions, speed, acceleration, turn, paid);
 			const auto state = effective_flight_state(target, definition, restrictions);
-			flight.demand = flight_demand(definition, state, ship.get<Pose>(), ship.get<Motion>());
+			flight.demand = flight_demand(definition, state, ship.get<Pose>(), ship.get<Motion>(), lateral);
 		}
 	}
 	void actuate_flight(flecs::entity child, FlightRestrictions restrictions)
@@ -1962,28 +1960,6 @@ struct World::Impl
 		auto power = ship.try_get_mut<ShipResources>();
 		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
 		int paid = power ? power->grants[slot].supply_permille : 1000;
-		// A diagonal target must not obtain powered lateral movement from an
-		// unfunded or disabled lateral fitting via the longitudinal engine.
-		if (flight.definition.kind == FlightKind::Engine)
-		{
-			const auto desired_side = effective_flight_state(child, flight.definition, restrictions).desired_lateral;
-			if (desired_side)
-			{
-				int lateral_paid = 0;
-				for (const auto other : ship.get<EquipmentIndex>().values)
-					if (const auto *side = other.try_get<FlightRuntime>();
-					    side && side->definition.kind == FlightKind::Lateral && side->state.enabled &&
-					    !structurally_disabled(ship, other.get<Equipment>().id) &&
-					    side->state.lateral * desired_side > 0 &&
-					    side->definition.lateral_speed * side->state.lateral / 1000 == desired_side &&
-					    (!side->definition.lateral_direction ||
-					     side->state.lateral * side->definition.lateral_direction > 0))
-						lateral_paid =
-						    std::max(lateral_paid,
-						             power ? power->grants[other.get<ResourceBinding>().slot].supply_permille : 1000);
-				paid = std::min(paid, lateral_paid);
-			}
-		}
 		if (flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy)
 		{
 			const auto &grant = power->grants[slot];

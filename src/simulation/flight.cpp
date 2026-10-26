@@ -60,19 +60,31 @@ std::int64_t heading_difference(std::int64_t desired, std::int64_t actual)
 {
 	return (desired - actual + 540000) % 360000 - 180000;
 }
-struct FlightTargets
+std::int64_t cap_delta(std::int64_t delta, std::int64_t remaining)
 {
-	std::int64_t speed = 0, acceleration = 0, lateral_speed = 0, lateral_acceleration = 0;
-	int forward = 0, lateral = 0, steering = 0;
-	std::int64_t power = 0, heat = 0;
-	bool charging = false;
-	fixed::Vec desired_velocity;
-	std::int64_t deceleration = 0;
-};
-FlightTargets flight_targets(const FlightDefinition &def, const FlightState &state, const Pose &pose,
-                             const Motion &motion)
+	if (delta > 0)
+		return remaining > 0 ? std::min(delta, remaining) : 0;
+	if (delta < 0)
+		return remaining < 0 ? std::max(delta, remaining) : 0;
+	return 0;
+}
+void validate_motion(const Pose &pose, const Motion &motion)
 {
-	FlightTargets result;
+	if (pose.heading < 0 || pose.heading >= 360000 || motion.velocity.x < -maximum_velocity ||
+	    motion.velocity.x > maximum_velocity || motion.velocity.y < -maximum_velocity ||
+	    motion.velocity.y > maximum_velocity)
+		throw std::runtime_error("flight: pose or velocity outside supported fixed-point range");
+}
+} // namespace
+
+FlightDemand flight_demand(const FlightDefinition &def, const FlightState &state, const Pose &pose,
+                           const Motion &motion, std::int64_t external_lateral)
+{
+	FlightDemand result;
+	validate_motion(pose, motion);
+	result.heading_basis = pose.heading;
+	result.desired_heading = state.desired_heading;
+	result.turn_rate = def.turn_rate;
 	const bool primary = def.kind == FlightKind::Engine;
 	const bool impulse = state.impulse == ImpulsePhase::Active || state.external_impulse;
 	const bool boost = state.boost && state.impulse == ImpulsePhase::Idle;
@@ -81,10 +93,10 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 		if (!state.enabled)
 			return result;
 		result.charging = state.impulse == ImpulsePhase::Charging;
-		result.power = boost ? def.boost_power_rate : impulse ? def.impulse_power_rate : 0;
-		result.heat = boost ? def.boost_heat_rate : (impulse || result.charging) ? def.impulse_heat_rate : 0;
+		result.power_rate = boost ? def.boost_power_rate : impulse ? def.impulse_power_rate : 0;
+		result.heat_rate = boost ? def.boost_heat_rate : (impulse || result.charging) ? def.impulse_heat_rate : 0;
 		if (result.charging && !def.impulse_charge_energy)
-			result.power = def.impulse_charge_power_rate;
+			result.power_rate = def.impulse_charge_power_rate;
 		return result;
 	}
 	const auto current = forward_speed(pose, motion);
@@ -102,37 +114,35 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 			cap = cap * def.boost_speed_multiplier / 1000;
 			result.acceleration = result.acceleration * def.boost_acceleration_multiplier / 1000;
 		}
-		result.speed = impulse || boost ? cap
-		               : state.assisted
-		                   ? state.desired_speed
-		                   : (state.longitudinal < 0 ? def.reverse_speed : cap) * state.longitudinal / 1000;
-		const auto sign = result.speed < 0 ? -1 : 1;
+		result.target_speed = impulse || boost ? cap
+		                      : state.assisted
+		                          ? state.desired_speed
+		                          : (state.longitudinal < 0 ? def.reverse_speed : cap) * state.longitudinal / 1000;
+		const auto sign = result.target_speed < 0 ? -1 : 1;
 		result.acceleration = launch_acceleration(result.acceleration, std::max<std::int64_t>(0, current * sign), cap);
-		result.forward =
-		    result.speed ? sign * std::max(0, correction(std::abs(result.speed) - current * sign, result.acceleration))
-		                 : 0;
+		result.longitudinal =
+		    result.target_speed
+		        ? sign * std::max(0, correction(std::abs(result.target_speed) - current * sign, result.acceleration))
+		        : 0;
 	}
 	if (def.kind == FlightKind::Lateral || (primary && def.lateral_acceleration > 0))
 	{
 		result.lateral_acceleration = def.lateral_acceleration;
 		const auto requested = def.lateral_direction && state.lateral * def.lateral_direction < 0 ? 0 : state.lateral;
-		result.lateral_speed = def.lateral_speed * requested / 1000;
+		result.target_lateral_speed = def.lateral_speed * requested / 1000;
 		const auto sign = requested < 0 ? -1 : 1;
 		result.lateral =
-		    requested ? sign * std::max(0, correction((result.lateral_speed - lateral_speed(pose, motion)) * sign,
-		                                              result.lateral_acceleration))
-		              : 0;
+		    requested
+		        ? sign * std::max(0, correction((result.target_lateral_speed - lateral_speed(pose, motion)) * sign,
+		                                        result.lateral_acceleration))
+		        : 0;
 	}
 	if (primary)
 	{
-		result.desired_velocity = fixed::scale(fixed::direction(pose.heading), result.speed) +
+		result.desired_velocity = fixed::scale(fixed::direction(pose.heading), result.target_speed) +
 		                          fixed::scale(fixed::direction((pose.heading + 90000) % 360000),
-		                                       result.lateral_speed + state.desired_lateral);
+		                                       result.target_lateral_speed + external_lateral);
 		result.deceleration = def.deceleration;
-		const auto size = fixed::length(result.desired_velocity);
-		const auto along = size ? fixed::dot(motion.velocity, fixed::normal(result.desired_velocity)) / fixed::unit : 0;
-		result.forward =
-		    result.speed ? (result.speed < 0 ? -1 : 1) * std::max(0, correction(size - along, result.acceleration)) : 0;
 	}
 	if (def.kind == FlightKind::Steering || (primary && def.turn_rate > 0))
 	{
@@ -145,46 +155,30 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 	}
 	if (!state.enabled)
 	{
-		result.forward = result.lateral = result.steering = 0;
+		result.longitudinal = result.lateral = result.steering = 0;
 		return result;
 	}
-	const auto effort = std::max({std::abs(result.forward), std::abs(result.lateral), std::abs(result.steering)});
-	result.power = flight_scaled_rate(def.power_rate, effort);
-	result.heat = flight_scaled_rate(def.heat_rate, effort);
-	if (boost && result.forward)
+	const auto effort = std::max({std::abs(result.longitudinal), std::abs(result.lateral), std::abs(result.steering)});
+	result.power_rate = flight_scaled_rate(def.power_rate, effort);
+	result.heat_rate = flight_scaled_rate(def.heat_rate, effort);
+	if (boost && result.longitudinal)
 	{
-		result.power += def.boost_power_rate;
-		result.heat += def.boost_heat_rate;
+		result.power_rate += def.boost_power_rate;
+		result.heat_rate += def.boost_heat_rate;
 	}
-	if (impulse && result.forward)
+	if (impulse && result.longitudinal)
 	{
-		result.power += def.impulse_power_rate;
-		result.heat += def.impulse_heat_rate;
+		result.power_rate += def.impulse_power_rate;
+		result.heat_rate += def.impulse_heat_rate;
 	}
 	if (state.impulse == ImpulsePhase::Charging)
 	{
 		result.charging = true;
-		result.power += def.impulse_charge_power_rate;
-		result.heat += def.impulse_heat_rate;
+		result.power_rate += def.impulse_charge_power_rate;
+		result.heat_rate += def.impulse_heat_rate;
 	}
 	return result;
 }
-std::int64_t cap_delta(std::int64_t delta, std::int64_t remaining)
-{
-	if (delta > 0)
-		return remaining > 0 ? std::min(delta, remaining) : 0;
-	if (delta < 0)
-		return remaining < 0 ? std::max(delta, remaining) : 0;
-	return 0;
-}
-void validate_motion(const Pose &pose, const Motion &motion)
-{
-	if (pose.heading < 0 || pose.heading >= 360000 || motion.velocity.x < -maximum_velocity ||
-	    motion.velocity.x > maximum_velocity || motion.velocity.y < -maximum_velocity ||
-	    motion.velocity.y > maximum_velocity)
-		throw std::runtime_error("flight: pose or velocity outside supported fixed-point range");
-}
-} // namespace
 
 FlightState initial_flight(const FlightDefinition &def, const Pose &pose, const Motion &motion)
 {
@@ -397,20 +391,6 @@ void observe_flight(const FlightDefinition &def, FlightState &state, std::uint64
 	state.match_stale =
 	    !state.matched_observed || tick < state.observed_tick || tick - state.observed_tick > def.match_stale_ticks;
 }
-FlightDemand flight_demand(const FlightDefinition &def, const FlightState &state, const Pose &pose,
-                           const Motion &motion)
-{
-	validate_motion(pose, motion);
-	const auto target = flight_targets(def, state, pose, motion);
-	auto demand = FlightDemand{
-	    target.power,    target.heat,          target.forward,      target.lateral,       target.steering,
-	    target.charging, target.speed,         target.acceleration, target.lateral_speed, target.lateral_acceleration,
-	    pose.heading,    state.desired_heading};
-	demand.turn_rate = def.turn_rate;
-	demand.desired_velocity = target.desired_velocity;
-	demand.deceleration = target.deceleration;
-	return demand;
-}
 FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pose &pose, Motion &motion,
                             const FlightDemand &demand, int paid_permille, int output_permille, int heat_permille)
 {
@@ -421,21 +401,11 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	auto candidate = state;
 	auto new_pose = pose;
 	auto new_motion = motion;
-	FlightTargets target;
-	target.power = demand.power_rate;
-	target.heat = demand.heat_rate;
-	target.forward = demand.longitudinal;
-	target.lateral = demand.lateral;
-	target.steering = demand.steering;
-	target.charging = demand.charging;
-	target.speed = demand.target_speed;
-	target.acceleration = demand.acceleration;
-	target.lateral_speed = demand.target_lateral_speed;
-	target.lateral_acceleration = demand.lateral_acceleration;
+	auto target = demand;
 	if (!state.enabled)
 	{
-		target.forward = target.lateral = target.steering = 0;
-		target.power = target.heat = 0;
+		target.longitudinal = target.lateral = target.steering = 0;
+		target.power_rate = target.heat_rate = 0;
 		target.charging = false;
 	}
 	auto basis = pose;
@@ -444,37 +414,19 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	const auto start = motion.velocity;
 	const auto start_heading = pose.heading;
 	const auto forward = fixed::direction(basis.heading), lateral = fixed::direction((basis.heading + 90000) % 360000);
-	if (demand.deceleration)
+	damp_motion(new_motion, demand.desired_velocity, demand.deceleration, candidate.damping_remainder);
+	if (target.longitudinal)
 	{
-		candidate.damping_remainder += demand.deceleration;
-		const auto step = candidate.damping_remainder / flight_hz;
-		candidate.damping_remainder %= flight_hz;
-		new_motion.velocity = fixed::move_towards(
-		    new_motion.velocity, fixed::velocity_projection(new_motion.velocity, demand.desired_velocity), step);
-	}
-	if (target.forward)
-	{
-		auto change =
-		    tick_delta(target.acceleration, def.kind == FlightKind::Engine ? std::abs(target.forward) : target.forward,
-		               paid_permille, output_permille, candidate.forward_remainder);
-		if (def.kind == FlightKind::Engine)
-		{
-			const auto direction = fixed::normal(demand.desired_velocity);
-			change = cap_delta(change, fixed::length(demand.desired_velocity) -
-			                               fixed::dot(new_motion.velocity, direction) / fixed::unit);
-			new_motion.velocity = new_motion.velocity + fixed::scale(direction, change);
-		}
-		else
-		{
-			change = cap_delta(change, target.speed - forward_speed(basis, new_motion));
-			new_motion.velocity = new_motion.velocity + fixed::scale(forward, change);
-		}
+		auto change = tick_delta(target.acceleration, target.longitudinal, paid_permille, output_permille,
+		                         candidate.forward_remainder);
+		change = cap_delta(change, target.target_speed - forward_speed(basis, new_motion));
+		new_motion.velocity = new_motion.velocity + fixed::scale(forward, change);
 	}
 	if (target.lateral)
 	{
 		auto change = tick_delta(target.lateral_acceleration, target.lateral, paid_permille, output_permille,
 		                         candidate.lateral_remainder);
-		change = cap_delta(change, target.lateral_speed - lateral_speed(basis, new_motion));
+		change = cap_delta(change, target.target_lateral_speed - lateral_speed(basis, new_motion));
 		new_motion.velocity = new_motion.velocity + fixed::scale(lateral, change);
 	}
 	if (target.steering)
@@ -499,19 +451,19 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 			candidate.charge_remainder = 0;
 		}
 	}
-	candidate.actual_longitudinal = target.forward * paid_permille / 1000;
+	candidate.actual_longitudinal = target.longitudinal * paid_permille / 1000;
 	candidate.actual_lateral = target.lateral * paid_permille / 1000;
 	candidate.actual_steering = target.steering * paid_permille / 1000;
 	result.velocity_change = new_motion.velocity - start;
 	result.heading_change = heading_difference(new_pose.heading, start_heading);
-	result.power_rate =
-	    std::min(resource_limit, flight_scaled_rate(flight_scaled_rate(target.power, output_permille), paid_permille));
-	result.heat_rate =
-	    std::min(resource_limit,
-	             flight_scaled_rate(flight_scaled_rate(flight_scaled_rate(target.heat, output_permille), heat_permille),
-	                                paid_permille));
-	result.supply_limited = paid_permille < 1000 &&
-	                        (target.power || target.forward || target.lateral || target.steering || target.charging);
+	result.power_rate = std::min(
+	    resource_limit, flight_scaled_rate(flight_scaled_rate(target.power_rate, output_permille), paid_permille));
+	result.heat_rate = std::min(
+	    resource_limit,
+	    flight_scaled_rate(flight_scaled_rate(flight_scaled_rate(target.heat_rate, output_permille), heat_permille),
+	                       paid_permille));
+	result.supply_limited = paid_permille < 1000 && (target.power_rate || target.longitudinal || target.lateral ||
+	                                                 target.steering || target.charging);
 	result.match_stale = candidate.match_stale;
 	result.forward_permille = candidate.actual_longitudinal;
 	result.lateral_permille = candidate.actual_lateral;
@@ -521,38 +473,14 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	motion = new_motion;
 	return result;
 }
-PursuitGuidance pursuit_guidance(const Pose &pose, const Motion &, fixed::Vec desired, std::int64_t speed_limit,
+PursuitGuidance pursuit_guidance(const Pose &pose, fixed::Vec desired, std::int64_t speed_limit,
                                  std::int64_t fallback_heading)
 {
 	PursuitGuidance result;
 	const auto magnitude = fixed::length(desired);
 	if (magnitude > speed_limit)
 		desired = {desired.x * speed_limit / magnitude, desired.y * speed_limit / magnitude};
-	// Drift is corrected by passive damping. Steering against current velocity
-	// here would apply the old inertial correction a second time and cause orbits.
-	const auto correction_direction = desired;
-	result.heading = fallback_heading;
-	if (fixed::length(correction_direction) > 100)
-	{
-		auto direction = correction_direction;
-		std::int64_t offset = 0;
-		if (direction.y < 0)
-		{
-			direction = -direction;
-			offset = 180000;
-		}
-		std::int64_t low = 0, high = 180000;
-		while (high - low > 1)
-		{
-			const auto middle = (low + high) / 2;
-			const auto forward = fixed::direction(middle);
-			if (forward.x * direction.y - forward.y * direction.x > 0)
-				low = middle;
-			else
-				high = middle;
-		}
-		result.heading = (low + offset) % 360000;
-	}
+	result.heading = fixed::length(desired) > 100 ? fixed::bearing(desired) : fallback_heading;
 	result.speed =
 	    std::clamp(fixed::dot(desired, fixed::direction(pose.heading)) / fixed::unit, std::int64_t{0}, speed_limit);
 	return result;
@@ -562,24 +490,8 @@ void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &p
 {
 	if (state.navigating)
 	{
-		auto direction = state.destination - pose.position;
-		std::int64_t offset = 0;
-		if (direction.y < 0)
-		{
-			direction = -direction;
-			offset = 180000;
-		}
-		std::int64_t low = 0, high = 180000;
-		while (high - low > 1)
-		{
-			const auto middle = (low + high) / 2;
-			const auto forward = fixed::direction(middle);
-			if (forward.x * direction.y - forward.y * direction.x > 0)
-				low = middle;
-			else
-				high = middle;
-		}
-		state.desired_heading = direction.x || direction.y ? (low + offset) % 360000 : pose.heading;
+		const auto direction = state.destination - pose.position;
+		state.desired_heading = direction.x || direction.y ? fixed::bearing(direction) : pose.heading;
 		if (def.kind == FlightKind::Engine && !direction.x && !direction.y)
 			state.desired_speed = 0;
 		return;
@@ -602,7 +514,7 @@ void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &p
 	// A velocity target damps pursuit rather than accelerating at a moving point.
 	// Project it onto the current hull heading: turning must not create extra speed.
 	fixed::Vec desired{target.velocity.x + delta.x / 5, target.velocity.y + delta.y / 5};
-	const auto guidance = pursuit_guidance(pose, motion, desired, state.follow_speed_limit, target.heading);
+	const auto guidance = pursuit_guidance(pose, desired, state.follow_speed_limit, target.heading);
 	state.desired_heading = guidance.heading;
 	if (def.kind != FlightKind::Engine)
 		return;

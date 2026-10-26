@@ -441,14 +441,14 @@ void prepare_docking()
 		    std::min({maximum / 4, distance / 8,
 		              static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(2 * acceleration * distance)))});
 		const auto desired_velocity = parent_velocity + fixed::scale(fixed::normal(delta), approach_speed);
-		const auto guidance = pursuit_guidance(own, e.get<Motion>(), desired_velocity, maximum, desired_heading);
+		const auto guidance = pursuit_guidance(own, desired_velocity, maximum, desired_heading);
 		g.heading = guidance.heading;
 		g.speed = guidance.speed;
 		if (inertial_engine && !lateral_thrust)
 		{
 			const auto bearing = [&](fixed::Vec direction)
 			{
-				return pursuit_guidance(own, Motion{}, direction, maximum, desired_heading).heading;
+				return pursuit_guidance(own, direction, maximum, desired_heading).heading;
 			};
 			const auto angle = [](std::int64_t a, std::int64_t b)
 			{

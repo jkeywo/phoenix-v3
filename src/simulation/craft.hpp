@@ -724,8 +724,7 @@ void prepare_craft()
 			// Request a destination-relative velocity; passive damping handles drift.
 			const auto relative_speed = std::min(g.speed, std::max<std::int64_t>(0, distance - separation) / 2);
 			auto desired_velocity = target_velocity + fixed::scale(fixed::normal(delta), relative_speed);
-			const auto guidance =
-			    pursuit_guidance(e.get<Pose>(), e.get<Motion>(), desired_velocity, maximum, g.heading);
+			const auto guidance = pursuit_guidance(e.get<Pose>(), desired_velocity, maximum, g.heading);
 			g.heading = guidance.heading;
 			g.speed = guidance.speed;
 			if (distance < bay.docking_range && s.order == "return")

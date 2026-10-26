@@ -1,4 +1,7 @@
 #pragma once
+#include <cstdlib>
+#include <cstdint>
+#include <limits>
 namespace phoenix::fixed
 {
 inline constexpr std::int64_t unit = 1000000000;
@@ -53,19 +56,73 @@ inline Vec normal(Vec value)
 	auto size = length(value);
 	return size ? Vec{value.x * unit / size, value.y * unit / size} : Vec{unit, 0};
 }
+// Multiply a bounded velocity component by a fraction without a 128-bit type.
+// Ordinary ship values take the direct path; long division handles large valid
+// authored velocities identically on MSVC and WebAssembly.
+inline std::int64_t fraction_component(std::int64_t component, std::uint64_t numerator, std::uint64_t denominator)
+{
+	const auto magnitude = static_cast<std::uint64_t>(component < 0 ? -component : component);
+	if (!magnitude)
+		return 0;
+	std::uint64_t result = 0;
+	if (numerator <= std::numeric_limits<std::uint64_t>::max() / magnitude)
+		result = magnitude * numerator / denominator;
+	else
+	{
+		// Supported velocity bounds keep three times the denominator in uint64_t.
+		std::uint64_t remainder = 0, bit = 1;
+		while (bit <= magnitude / 2)
+			bit <<= 1;
+		for (; bit; bit >>= 1)
+		{
+			remainder = remainder * 2 + ((magnitude & bit) ? numerator : 0);
+			result = result * 2 + remainder / denominator;
+			remainder %= denominator;
+		}
+	}
+	return component < 0 ? -static_cast<std::int64_t>(result) : static_cast<std::int64_t>(result);
+}
 // Closest point on the finite desired-velocity segment, including a zero target.
 inline Vec velocity_projection(Vec velocity, Vec desired)
 {
-	const auto size = length(desired);
-	if (!size)
+	const auto squared = dot(desired, desired), along = dot(velocity, desired);
+	if (!squared || along <= 0)
 		return {};
-	const auto along = std::clamp<std::int64_t>(dot(velocity, normal(desired)) / unit, 0, size);
-	return along == size ? desired : scale(normal(desired), along);
+	if (along >= squared)
+		return desired;
+	return {fraction_component(desired.x, along, squared), fraction_component(desired.y, along, squared)};
 }
-inline Vec move_towards(Vec current, Vec target, std::int64_t step)
+inline Vec damp_velocity(Vec current, Vec desired, std::int64_t step)
 {
+	if (!step)
+		return current;
+	const auto target = velocity_projection(current, desired);
 	const auto delta = target - current;
-	return length(delta) <= step ? target : current + scale(normal(delta), step);
+	const auto squared = dot(delta, delta);
+	auto size = length(delta);
+	if (size * size < squared)
+		++size;
+	if (size <= step)
+		return target;
+	auto result = current + Vec{delta.x * step / size, delta.y * step / size};
+	// Component rounding must not turn passive damping into a speed increase.
+	if (dot(result, result) > dot(current, current))
+	{
+		if (result.x * result.x > current.x * current.x)
+			result.x = current.x;
+		if (result.y * result.y > current.y * current.y)
+			result.y = current.y;
+	}
+	// At sub-millimetre component steps, make one bounded lattice step that
+	// reduces speed instead of discarding the budget forever.
+	if (result.x == current.x && result.y == current.y)
+	{
+		if (target.x * target.x < current.x * current.x)
+			result.x += delta.x < 0 ? -1 : 1;
+		else if (target.y * target.y < current.y * current.y)
+			result.y += delta.y < 0 ? -1 : 1;
+	}
+	return result;
 }
 // Integer CORDIC: no platform libm, floating point, or generated trig table.
 // Heading 0 points along +X and increases counterclockwise in world space.
@@ -114,5 +171,23 @@ inline Vec direction(std::int64_t heading)
 		}
 	}
 	return {sign * x, sign * y};
+}
+inline std::int64_t bearing(Vec v)
+{
+	if (!v.x && !v.y)
+		return 0;
+	const auto x = std::abs(v.x), y = std::abs(v.y);
+	std::int64_t lo = 0, hi = 90000;
+	while (hi - lo > 1)
+	{
+		const auto m = (lo + hi) / 2;
+		const auto d = direction(m);
+		if (d.y * x < d.x * y)
+			lo = m;
+		else
+			hi = m;
+	}
+	const auto a = (lo + hi) / 2;
+	return v.x >= 0 ? (v.y >= 0 ? a : (360000 - a) % 360000) : (v.y >= 0 ? 180000 - a : 180000 + a);
 }
 } // namespace phoenix::fixed

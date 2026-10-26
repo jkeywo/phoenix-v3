@@ -1461,6 +1461,73 @@ void equipment_ordering_and_recovery()
 	require(refused && resumed.save() == live,
 	        "runtime normalization must not admit formerly unsupported legacy delegation state on restore");
 }
+void independent_velocity_axes()
+{
+	auto source = fixture();
+	source["maps"][0]["entities"].erase(1);
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "speed_mm_s", 10000, "drive");
+	command(world, "lateral_thrust", 1000, "side", 102);
+	world.tick();
+	require(body(world).vx == 200 && body(world).vy == 50,
+	        "combined intent must preserve each engine's own acceleration without adding lateral main-engine thrust");
+	command(world, "engine_enabled", 0, "drive");
+	const auto previous = body(world);
+	world.tick();
+	require(body(world).vy > previous.vy && telemetry(world, "drive", "actual_longitudinal") == 0,
+	        "a disabled main engine must not suppress a separately funded lateral engine");
+}
+void bounded_velocity_damping()
+{
+	for (const auto deceleration : {10000, 20, 1000000000})
+	{
+		const std::int64_t scale = deceleration == 1000000000 ? 100000000 : 1;
+		auto source = fixture();
+		source["maps"][0]["entities"].erase(1);
+		auto &drive = source["entities"][0]["systems"]["drive"];
+		drive["max_speed_mm_s"] = drive["reverse_speed_mm_s"] = drive["lateral_speed_mm_s"] = 10 * scale;
+		drive["acceleration_mm_s2"] = drive["lateral_acceleration_mm_s2"] =
+		    std::min<std::int64_t>(1000000000, 10000 * scale);
+		drive["deceleration_mm_s2"] = deceleration;
+		drive["power_rate"] = 20;
+		source["entities"][0]["resources"]["stores"][0]["initial"] = 1;
+		World world;
+		world.load(load(source), "test.map");
+		claim(world);
+		command(world, "speed_mm_s", -10 * scale, "drive");
+		command(world, "lateral_thrust", -800, "drive");
+		world.tick();
+		require(body(world).vx < 0 && body(world).vy < 0 && telemetry(world, "drive", "stored_energy") == 0,
+		        "synthetic diagonal launch must spend its finite powered work before damping is checked");
+		if (deceleration != 20)
+		{
+			const auto before = body(world);
+			command(world, "speed_mm_s", before.vx, "drive");
+			command(world, "lateral_thrust", -900, "drive");
+			world.tick();
+			const auto after = body(world);
+			require(after.vx * after.vx + after.vy * after.vy <= before.vx * before.vx + before.vy * before.vy,
+			        "clamped diagonal projection must not add kinetic speed when no powered work remains");
+		}
+		command(world, "speed_mm_s", 0, "drive");
+		command(world, "lateral_thrust", 0, "drive");
+		for (int i = 0; i < 40; ++i)
+		{
+			const auto before = body(world);
+			world.tick();
+			const auto after = body(world);
+			const auto dx = after.vx - before.vx, dy = after.vy - before.vy;
+			const std::int64_t limit = deceleration / World::ticks_per_second;
+			require(dx * dx + dy * dy <= limit * limit,
+			        "rounding must not exceed the authored per-tick damping budget");
+		}
+		require(body(world).vx == 0 && body(world).vy == 0,
+		        "small diagonal drift must eventually stop rather than stall below one unit per axis");
+	}
+}
 void passive_velocity_segments()
 {
 	auto source = fixture();
@@ -1546,7 +1613,8 @@ void passive_velocity_segments()
 	command(unfunded_lateral, "longitudinal_thrust", 1000, "drive");
 	command(unfunded_lateral, "lateral_thrust", 1000, "side", 102);
 	unfunded_lateral.tick();
-	require(body(unfunded_lateral).vy == 0 && telemetry(unfunded_lateral, "side", "actual_lateral", 102) == 0,
+	require(body(unfunded_lateral).vx > 0 && body(unfunded_lateral).vy == 0 &&
+	            telemetry(unfunded_lateral, "side", "actual_lateral", 102) == 0,
 	        "a combined velocity target must not obtain powered lateral movement from an unfunded lateral actuator");
 	auto boosted_source = targeted_fixture();
 	boosted_source["maps"][0]["entities"].erase(1);
@@ -1976,6 +2044,8 @@ int main()
 		disabled_cooling();
 		invalid_controller_actions();
 		equipment_ordering_and_recovery();
+		independent_velocity_axes();
+		bounded_velocity_damping();
 		passive_velocity_segments();
 		steady_throttle_heading_changes();
 		manual_console_controls();
