@@ -56,27 +56,10 @@ bool choir_assignment(EntityId ship, const OfficerDefinition &officer, const Per
 		return true;
 	const auto &compatible = definition(ship).psychic.choirs.at(duty->choir).powers;
 	return std::any_of(officer.abilities.begin(), officer.abilities.end(),
-	                   [&](const auto &ability) { return compatible.contains(ability); });
-}
-using PsychicContacts = std::map<EntityId, BodyView>;
-PsychicContacts index_psychic_contacts(const std::vector<BodyView> &contacts) const
-{
-	PsychicContacts result;
-	for (const auto &c : contacts)
-		result.emplace(c.id, c);
-	return result;
-}
-void clear_choir_intent(EntityId ship, const std::string &duty)
-{
-	stop_abilities_for_duty(ship, duty);
-	for (const auto &[id, c] : definition(ship).psychic.choirs)
-		for (const auto &b : c.seats)
-			if (b.duty == duty)
-			{
-				clear_controller_settings(ship, b.controller, {b.enabled, b.target});
-				if (b.planner)
-					clear_controller_settings(ship, *b.planner, {b.planning_enabled, b.planning_target});
-			}
+	                   [&](const auto &ability)
+	                   {
+		                   return compatible.contains(ability);
+	                   });
 }
 const AbilityGrantState *psychic_execution(EntityId ship, const PsychicContribution &contribution) const
 {
@@ -88,7 +71,7 @@ const AbilityGrantState *psychic_execution(EntityId ship, const PsychicContribut
 }
 const PsychicPowerDefinition &contribution_power(EntityId ship, const PsychicContribution &contribution) const
 {
-	return definition(ship).psychic.powers.at(contribution.ability);
+	return definition(ship).psychic.power(contribution.ability);
 }
 void refresh_psychic_work()
 {
@@ -99,8 +82,8 @@ void refresh_psychic_work()
 		{
 			const auto *execution = psychic_execution(ship, contribution);
 			contribution.work = execution && execution->phase == "active" && !departed(ship)
-			                        ? contribution_power(ship, contribution).strength * execution->funding_permille / 1000 *
-			                              execution->fault_permille / 1000
+			                        ? contribution_power(ship, contribution).strength * execution->funding_permille /
+			                              1000 * execution->fault_permille / 1000
 			                        : 0;
 			if (execution)
 			{
@@ -133,7 +116,7 @@ void sync_psychic_contributions()
 		for (const auto &[grant, execution] : runtime->grants)
 		{
 			if (execution.apparatus != apparatus || execution.phase != "active" ||
-			    !definition(ship).psychic.powers.contains(execution.definition))
+			    !definition(ship).psychic.has_power(execution.definition))
 				continue;
 			auto found = contributions.find(grant);
 			if (found != contributions.end() && found->second.activation == execution.activation)
@@ -268,7 +251,8 @@ void refresh_psychic_reception()
 					if (s.work <= strength)
 						continue;
 					const bool ward = contribution_power(ship, s).kind == "ward";
-					if (ward != wards || (ward ? execution->target != receiver : ship == receiver || s.shapes.empty()) ||
+					if (ward != wards ||
+					    (ward ? execution->target != receiver : ship == receiver || s.shapes.empty()) ||
 					    !psychic_coverage(ship, c, s, receiver))
 						continue;
 					strength = s.work;
@@ -350,7 +334,7 @@ void advance_psychic()
 							g.grant = grant;
 							g.member = n;
 							g.activation = s.activation;
-							g.power = p.id;
+							g.power = s.ability;
 							found = ghost_receptions.emplace(g.id, g).first;
 						}
 						auto &g = found->second;
@@ -367,24 +351,23 @@ void advance_psychic()
 		if (g.seen != tick && g.ended < 0)
 			g.ended = tick;
 	// Keep rejection receipts for the current activation. Old activations expire after their fade.
-	std::erase_if(
-	    ghost_receptions,
-	    [&](const auto &entry)
-	    {
-		    const auto &g = entry.second;
-		    if (!entities.contains(g.source) || !definition(g.source).psychic.choirs.contains(g.choir))
-			    return true;
-		    const auto *execution = ability_execution(g.source, g.grant);
-		    return g.ended >= 0 && tick > static_cast<std::uint64_t>(g.ended) + 200 &&
-		           (!execution || execution->activation != g.activation ||
-		            (execution->phase != "active" && execution->phase != "paused"));
-	    });
+	std::erase_if(ghost_receptions,
+	              [&](const auto &entry)
+	              {
+		              const auto &g = entry.second;
+		              if (!entities.contains(g.source) || !definition(g.source).psychic.choirs.contains(g.choir))
+			              return true;
+		              const auto *execution = ability_execution(g.source, g.grant);
+		              return g.ended >= 0 && tick > static_cast<std::uint64_t>(g.ended) + 200 &&
+		                     (!execution || execution->activation != g.activation ||
+		                      (execution->phase != "active" && execution->phase != "paused"));
+	              });
 }
 BodyView ghost_body(const GhostReception &g) const
 {
 	BodyView b;
 	b.id = g.id;
-	b.definition = definition(g.source).psychic.powers.at(g.power).apparent_class;
+	b.definition = definition(g.source).psychic.power(g.power).apparent_class;
 	b.x = g.last.pose.position.x;
 	b.y = g.last.pose.position.y;
 	b.vx = g.last.motion.velocity.x;
@@ -402,7 +385,7 @@ void ghost_damage(EntityId observer, fixed::Vec from, fixed::Vec to, std::int64_
 	for (auto &[id, g] : ghost_receptions)
 		if (g.observer == observer && ghost_live(g))
 		{
-			const auto &p = definition(g.source).psychic.powers.at(g.power);
+			const auto &p = definition(g.source).psychic.power(g.power);
 			CollisionBody body;
 			body.position = {g.last.pose.position.x, g.last.pose.position.y};
 			body.altitude = g.last.pose.altitude;
@@ -437,9 +420,10 @@ Json psychic_board(const ConsoleAddress &address) const
 			const auto contribution = execution ? native.find(execution->id) : native.end();
 			const auto &controller = entities.at(address.ship).get<EntityControls>().controllers.at(binding.controller);
 			const auto work = contribution == native.end() ? 0 : contribution->second.work;
-			const auto label = execution && definition(address.ship).psychic.powers.contains(execution->definition)
-			                       ? definition(address.ship).psychic.powers.at(execution->definition).label
-			                       : std::string{};
+			const auto label =
+			    execution && definition(address.ship).psychic.has_power(execution->definition)
+			        ? definition(address.ship).abilities.catalog->definitions.at(execution->definition).label
+			        : std::string{};
 			seats.push_back({{"duty", binding.duty},
 			                 {"officer", officer ? officer->name : ""},
 			                 {"power", label},
@@ -450,9 +434,10 @@ Json psychic_board(const ConsoleAddress &address) const
 			                 {"target", controller.commands[binding.target].value},
 			                 {"work", work},
 			                 {"ready", execution ? ability_recovery_until(address.ship, *execution) : 0},
-			                 {"blocker", !officer ? "No healthy psychic at duty"
+			                 {"blocker", !officer                                     ? "No healthy psychic at duty"
 			                             : !execution || execution->phase != "active" ? "Inactive or recovering"
-			                             : work == 0 ? "Apparatus unavailable or unpowered" : ""}});
+			                             : work == 0 ? "Apparatus unavailable or unpowered"
+			                                         : ""}});
 		}
 		if (!seats.empty())
 			out["choirs"].push_back({{"id", id}, {"seats", seats}, {"emission", emission(address.ship)}});
@@ -467,7 +452,7 @@ Json psychic_board(const ConsoleAddress &address) const
 					permitted = true;
 			if (!permitted)
 				continue;
-			const auto &p = definition(g.source).psychic.powers.at(g.power);
+			const auto &p = definition(g.source).psychic.power(g.power);
 			const auto age = static_cast<std::int64_t>(ecs.get<Clock>().tick) - g.ended;
 			if (age < p.fade_ticks)
 				out["fading"].push_back(
@@ -499,20 +484,21 @@ void restore_psychic(const Json &saved, const std::set<EntityId> &departed_ships
 		return;
 	}
 	if (!saved.is_object() || saved.value("version", 0) != 2 || !saved.at("choirs").is_array() ||
-	    !saved.at("receptions").is_array() || !saved.at("emissions").is_array() ||
-	    saved.at("choirs").size() > 2048 || saved.at("receptions").size() > 4096 ||
-	    saved.at("emissions").size() > entities.size())
+	    !saved.at("receptions").is_array() || !saved.at("emissions").is_array() || saved.at("choirs").size() > 2048 ||
+	    saved.at("receptions").size() > 4096 || saved.at("emissions").size() > entities.size())
 		throw std::runtime_error("Invalid psychic continuation; start a new session");
 	const auto shape_valid = [](const PsychicGhostShape &shape)
 	{
-		const auto in = [](std::int64_t value, std::int64_t lo, std::int64_t hi) { return value >= lo && value <= hi; };
+		const auto in = [](std::int64_t value, std::int64_t lo, std::int64_t hi)
+		{
+			return value >= lo && value <= hi;
+		};
 		return in(shape.pose.position.x, -1000000000, 1000000000) &&
-		       in(shape.pose.position.y, -1000000000, 1000000000) &&
-		       in(shape.motion.velocity.x, -1000000, 1000000) && in(shape.motion.velocity.y, -1000000, 1000000) &&
-		       in(shape.pose.altitude, -1000000, 1000000) && in(shape.pose.heading, 0, 359999) &&
-		       in(shape.motion.remainder.x, 1 - rate, rate - 1) &&
-		       in(shape.motion.remainder.y, 1 - rate, rate - 1) &&
-		       in(shape.acceleration_remainder, 0, rate - 1) && in(shape.turn_remainder, 0, rate - 1);
+		       in(shape.pose.position.y, -1000000000, 1000000000) && in(shape.motion.velocity.x, -1000000, 1000000) &&
+		       in(shape.motion.velocity.y, -1000000, 1000000) && in(shape.pose.altitude, -1000000, 1000000) &&
+		       in(shape.pose.heading, 0, 359999) && in(shape.motion.remainder.x, 1 - rate, rate - 1) &&
+		       in(shape.motion.remainder.y, 1 - rate, rate - 1) && in(shape.acceleration_remainder, 0, rate - 1) &&
+		       in(shape.turn_remainder, 0, rate - 1);
 	};
 	std::set<std::pair<EntityId, std::string>> seen;
 	for (const auto &row : saved.at("choirs"))
@@ -528,14 +514,15 @@ void restore_psychic(const Json &saved, const std::set<EntityId> &departed_ships
 		{
 			const auto *execution = psychic_execution(ship, contribution);
 			if (grant != contribution.grant || !execution || execution->apparatus != id ||
-			    !definition(ship).psychic.powers.contains(contribution.ability) || !contribution.activation ||
-			    (execution->phase != "active" && !(execution->phase == "paused" && execution->resume_phase == "active")) ||
+			    !definition(ship).psychic.has_power(contribution.ability) || !contribution.activation ||
+			    (execution->phase != "active" &&
+			     !(execution->phase == "paused" && execution->resume_phase == "active")) ||
 			    contribution.aim_x != execution->aim_x || contribution.aim_y != execution->aim_y)
 				throw std::runtime_error("Invalid psychic execution link");
 			const auto &profile = contribution_power(ship, contribution);
 			if ((profile.kind == "scramble" &&
-			     (contribution.shapes.size() != static_cast<std::size_t>(profile.ghosts) ||
-			      !execution->target || execution->target == ship)) ||
+			     (contribution.shapes.size() != static_cast<std::size_t>(profile.ghosts) || !execution->target ||
+			      execution->target == ship)) ||
 			    (profile.kind != "scramble" && !contribution.shapes.empty()))
 				throw std::runtime_error("Contradictory psychic projection");
 			for (const auto &shape : contribution.shapes)
@@ -544,8 +531,9 @@ void restore_psychic(const Json &saved, const std::set<EntityId> &departed_ships
 		}
 		if (const auto *runtime = entities.at(ship).try_get<AbilityRuntime>())
 			for (const auto &[grant, execution] : runtime->grants)
-				if (execution.apparatus == id && definition(ship).psychic.powers.contains(execution.definition) &&
-				    (execution.phase == "active" || (execution.phase == "paused" && execution.resume_phase == "active")) &&
+				if (execution.apparatus == id && definition(ship).psychic.has_power(execution.definition) &&
+				    (execution.phase == "active" ||
+				     (execution.phase == "paused" && execution.resume_phase == "active")) &&
 				    !state.contributions.contains(grant))
 					throw std::runtime_error("Missing saved psychic contribution");
 		instance(entities.at(ship), id)->entity.set<PsychicChoirState>(std::move(state));
@@ -561,25 +549,25 @@ void restore_psychic(const Json &saved, const std::set<EntityId> &departed_ships
 	for (const auto &row : saved.at("receptions"))
 	{
 		auto reception = row.get<GhostReception>();
-		const auto *runtime = entities.contains(reception.source)
-		                          ? entities.at(reception.source).try_get<AbilityRuntime>()
-		                          : nullptr;
+		const auto *runtime =
+		    entities.contains(reception.source) ? entities.at(reception.source).try_get<AbilityRuntime>() : nullptr;
 		if (Json(reception) != row || !reception.id || reception.id >= next_entity || entities.contains(reception.id) ||
 		    !entities.contains(reception.observer) || !entities.contains(reception.source) ||
-		    !definition(reception.source).psychic.choirs.contains(reception.choir) ||
-		    reception.grant.empty() || reception.grant.size() > 2048 ||
-		    !definition(reception.source).psychic.powers.contains(reception.power) ||
-		    definition(reception.source).psychic.powers.at(reception.power).kind != "scramble" ||
-		    reception.member >= static_cast<std::size_t>(definition(reception.source).psychic.powers.at(reception.power).ghosts) ||
+		    !definition(reception.source).psychic.choirs.contains(reception.choir) || reception.grant.empty() ||
+		    reception.grant.size() > 2048 || !definition(reception.source).psychic.has_power(reception.power) ||
+		    definition(reception.source).psychic.power(reception.power).kind != "scramble" ||
+		    reception.member >=
+		        static_cast<std::size_t>(definition(reception.source).psychic.power(reception.power).ghosts) ||
 		    !runtime || !reception.activation || reception.activation >= runtime->next_activation ||
 		    !shape_valid(reception.last) ||
-		    !reception_keys.emplace(reception.observer, reception.source, reception.choir, reception.grant,
-		                            reception.activation, reception.member).second ||
+		    !reception_keys
+		         .emplace(reception.observer, reception.source, reception.choir, reception.grant, reception.activation,
+		                  reception.member)
+		         .second ||
 		    reception.seen > ecs.get<Clock>().tick || reception.ended < -1 ||
 		    reception.ended > static_cast<std::int64_t>(ecs.get<Clock>().tick) ||
 		    (reception.ended >= 0 && reception.ended < static_cast<std::int64_t>(reception.seen)) ||
-		    (reception.dispelled && reception.ended < 0) ||
-		    !ghost_receptions.emplace(reception.id, reception).second)
+		    (reception.dispelled && reception.ended < 0) || !ghost_receptions.emplace(reception.id, reception).second)
 			throw std::runtime_error("Invalid saved ghost reception");
 	}
 	for (const auto &[id, reception] : ghost_receptions)
@@ -592,7 +580,8 @@ void restore_psychic(const Json &saved, const std::set<EntityId> &departed_ships
 			    found->second.activation != reception.activation || found->second.ability != reception.power ||
 			    reception.member >= found->second.shapes.size() || reception.seen != ecs.get<Clock>().tick ||
 			    Json(reception.last) != Json(found->second.shapes[reception.member]) ||
-			    strongest_scrambler(reception.observer) != std::tuple{reception.source, reception.choir, reception.grant})
+			    strongest_scrambler(reception.observer) !=
+			        std::tuple{reception.source, reception.choir, reception.grant})
 				throw std::runtime_error("Unearned live ghost reception");
 		}
 	for (const auto &row : saved.at("emissions"))

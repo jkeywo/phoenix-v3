@@ -270,7 +270,7 @@ std::int64_t ghost_scan_duration(const GhostReception &g, const SensorDefinition
 	if (!d.capabilities.contains("compartment_condition") && !d.capabilities.contains("findings"))
 		return -1;
 	return std::max(
-	    definition(g.source).psychic.powers.at(g.power).scan_ticks,
+	    definition(g.source).psychic.power(g.power).scan_ticks,
 	    d.capabilities.at(d.capabilities.contains("compartment_condition") ? "compartment_condition" : "findings"));
 }
 void publish_track_findings(EntityId ship, const std::string &id, EntityId target, const SensorTrack &track)

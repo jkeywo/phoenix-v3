@@ -2,6 +2,7 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -61,7 +62,8 @@ std::vector<std::string> ability_references(const Catalog &catalog, const Json &
 }
 } // namespace
 
-AbilityDefinition compile_ability(const Catalog &catalog, const std::string &id)
+AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::string &id,
+                                             const std::map<std::string, PsychicPowerDefinition> *profiles)
 {
 	const auto &value = ability_template(catalog, id, "ability");
 	const auto path = "effects." + id;
@@ -145,7 +147,12 @@ AbilityDefinition compile_ability(const Catalog &catalog, const std::string &id)
 	result.psychic_effect = value.value("psychic_effect", std::string{});
 	if (!result.psychic_effect.empty())
 	{
-		const auto profile = compile_psychic_effect(catalog, result.psychic_effect);
+		std::optional<PsychicPowerDefinition> standalone;
+		if (!profiles)
+			standalone = compile_psychic_effect(catalog, result.psychic_effect);
+		else if (!profiles->contains(result.psychic_effect))
+			ability_fail(path + ".psychic_effect", "unknown native psychic profile");
+		const auto &profile = profiles ? profiles->at(result.psychic_effect) : *standalone;
 		if (!result.sustained || (profile.kind == "cloak" && result.target != "self") ||
 		    (profile.kind == "ward" && result.target != "ally") ||
 		    (profile.kind == "scramble" && result.target != "contact"))
@@ -168,6 +175,40 @@ AbilityDefinition compile_ability(const Catalog &catalog, const std::string &id)
 		result.exclusions.push_back(std::move(exclusion));
 	}
 	return result;
+}
+
+AbilityDefinition compile_ability(const Catalog &catalog, const std::string &id)
+{
+	return compile_ability_definition(catalog, id, nullptr);
+}
+
+SharedAbilityCatalog compile_ability_catalog(const Catalog &catalog)
+{
+	auto compiled = std::make_shared<AbilityCatalog>();
+	for (const auto &[id, value] : catalog.effects)
+		if (value.value("kind", std::string{}) == "psychic")
+			compiled->psychic_profiles.emplace(id, compile_psychic_effect(catalog, id));
+	for (const auto &[id, value] : catalog.effects)
+		if (value.value("kind", std::string{}) == "ability")
+			compiled->definitions.emplace(id, compile_ability_definition(catalog, id, &compiled->psychic_profiles));
+	if (compiled->definitions.size() > 1024)
+		ability_fail("abilities", "at most 1024 shared abilities are supported");
+	return compiled;
+}
+
+bool PsychicDefinition::has_power(const std::string &ability) const
+{
+	if (!catalog)
+		return false;
+	const auto found = catalog->definitions.find(ability);
+	return found != catalog->definitions.end() && !found->second.psychic_effect.empty();
+}
+
+const PsychicPowerDefinition &PsychicDefinition::power(const std::string &ability) const
+{
+	if (!catalog)
+		ability_fail("psychic", "native psychic catalogue is unavailable");
+	return catalog->psychic_profiles.at(catalog->definitions.at(ability).psychic_effect);
 }
 
 std::string choir_ability_control(const std::string &apparatus, const std::string &duty)
@@ -197,18 +238,30 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string &entity,
                                        const DirectedCatalog &directed_catalog)
 {
+	const auto shared = compile_ability_catalog(catalog);
+	if (catalog.presentation)
+	{
+		AbilityDefinitionSet result;
+		result.catalog = shared;
+		return result;
+	}
+	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
+	const auto layout = compile_controllable_layout(catalog, entity);
+	const auto psychic = compile_psychic(catalog, entity, shared, personnel, layout);
+	return compile_abilities(catalog, entity, shared, personnel, layout, psychic);
+}
+AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string &entity, SharedAbilityCatalog shared,
+                                       const PersonnelDefinition &personnel, const ControllableLayout &layout,
+                                       const PsychicDefinition &psychic)
+{
 	AbilityDefinitionSet result;
+	result.catalog = std::move(shared);
+	if (!result.catalog || result.catalog != psychic.catalog)
+		ability_fail(entity + ".abilities", "native adapters require the same compiled ability catalogue");
 	if (catalog.presentation)
 		return result;
 	const auto &hull = catalog.entities.at(entity);
-	for (const auto &[id, value] : catalog.effects)
-		if (value.value("kind", std::string{}) == "ability")
-			result.definitions.emplace(id, compile_ability(catalog, id));
-	if (result.definitions.size() > 1024)
-		ability_fail(entity + ".abilities", "at most 1024 shared abilities are supported");
-	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
-	const auto layout = compile_controllable_layout(catalog, entity);
-	const auto psychic = compile_psychic(catalog, entity, directed_catalog);
+	const auto &definitions = result.catalog->definitions;
 	for (const auto &[id, system] : hull.at("systems").items())
 		if (system.contains("abilities"))
 			result.equipment_grants.emplace(
@@ -245,44 +298,30 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 		if (binding == resources->systems.end() || binding->store == no_resource)
 			ability_fail(path, "paid ability requires equipment with a native power-store binding");
 	};
-	const auto add = [&](AbilityControlDefinition binding, const Json &value, const std::string &path)
+	const auto add = [&](AbilityControlDefinition binding, const std::string &path)
 	{
 		if (!valid_identifier(binding.id) || !control_ids.insert(binding.id).second)
 			ability_fail(path, "invalid or duplicate ability endpoint");
-		const auto controller = std::find_if(layout.controllers.begin(), layout.controllers.end(),
-		                                     [&](const auto &c)
-		                                     {
-			                                     return c.id == value.at("controller").get<std::string>() &&
-			                                            c.console == value.at("console").get<std::string>();
-		                                     });
-		if (controller == layout.controllers.end())
-			ability_fail(path, "unknown Controller/Console binding");
-		binding.controller = static_cast<std::size_t>(controller - layout.controllers.begin());
-		const auto channel = [&](const Json &data, const char *key, OperatingAction action, bool optional)
+		if (binding.controller >= layout.controllers.size())
+			ability_fail(path, "unknown Controller binding");
+		const auto &controller = layout.controllers[binding.controller];
+		const auto channel = [&](std::size_t index, const char *key, OperatingAction action, bool optional)
 		{
-			if (!data.contains(key) && optional)
-				return ability_no_channel;
-			const auto name = data.at(key).get<std::string>();
-			const auto found = std::find_if(controller->commands.begin(), controller->commands.end(),
-			                                [&](const auto &command)
-			                                {
-				                                return command.id == name;
-			                                });
-			if (found == controller->commands.end() || found->action != action || found->minimum < 0 ||
-			    found->initial != 0)
+			if (optional && index == ability_no_channel)
+				return;
+			if (index >= controller.commands.size() || controller.commands[index].action != action ||
+			    controller.commands[index].minimum < 0 || controller.commands[index].initial != 0)
 				ability_fail(path + "." + key, "requires zero-initialised nonnegative intent channel");
-			const auto index = static_cast<std::size_t>(found - controller->commands.begin());
 			if (!channels.emplace(binding.controller, index).second)
 				ability_fail(path + "." + key, "ability channel has multiple physical consumers");
-			return index;
 		};
-		const auto ability = result.definitions.find(binding.ability);
-		const auto activation = ability != result.definitions.end() && !ability->second.sustained
+		const auto ability = definitions.find(binding.ability);
+		const auto activation = ability != definitions.end() && !ability->second.sustained
 		                            ? OperatingAction::AbilityActivate
 		                            : OperatingAction::IntentBoolean;
-		binding.enabled = channel(value, "enabled", activation, false);
-		binding.target = channel(value, "target", OperatingAction::IntentInteger, true);
-		if (binding.target != ability_no_channel && controller->commands[binding.target].maximum > 1000000000)
+		channel(binding.enabled, "enabled", activation, false);
+		channel(binding.target, "target", OperatingAction::IntentInteger, true);
+		if (binding.target != ability_no_channel && controller.commands[binding.target].maximum > 1000000000)
 			ability_fail(path + ".target", "target channel exceeds physical entity identity bounds");
 		const PersonnelDuty *duty = nullptr;
 		const OfficerDefinition *officer = nullptr;
@@ -314,7 +353,7 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 				ability_fail(path + ".ability", "dynamic ability selection requires a choir duty");
 			for (const auto &id : psychic.choirs.at(binding.apparatus).powers)
 			{
-				const auto &ability = result.definitions.at(id);
+				const auto &ability = definitions.at(id);
 				if (ability.energy_per_second || ability.preparation_energy_per_second)
 					require_power(binding.apparatus, path + ".apparatus");
 				for (const auto *group : {&ability.start_effect, &ability.activation_effect})
@@ -333,8 +372,8 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 		}
 		else
 		{
-			const auto found = result.definitions.find(binding.ability);
-			if (found == result.definitions.end())
+			const auto found = definitions.find(binding.ability);
+			if (found == definitions.end())
 				ability_fail(path + ".ability", "unknown ability");
 			if (found->second.target != "self" && binding.target == ability_no_channel)
 				ability_fail(path + ".target", "targeted ability requires a target channel");
@@ -375,47 +414,73 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 			const auto console = std::find_if(consoles.begin(), consoles.end(),
 			                                  [&](const auto &c)
 			                                  {
-				                                  return c.id == controller->console;
+				                                  return c.id == controller.console;
 			                                  });
 			if (dep == personnel.departments.end() || console == consoles.end() || dep->station != console->station)
 				ability_fail(path, "ability Controller belongs to another Station");
 		}
-		const auto planner_id = value.value("planner", std::string{});
-		if (!planner_id.empty())
+		if (binding.planner)
 		{
-			const auto planner = std::find_if(layout.controllers.begin(), layout.controllers.end(),
-			                                  [&](const auto &c)
-			                                  {
-				                                  return c.id == planner_id && c.console == controller->console;
-			                                  });
-			if (planner == layout.controllers.end())
+			if (*binding.planner == binding.controller || *binding.planner >= layout.controllers.size() ||
+			    layout.controllers[*binding.planner].console != controller.console)
 				ability_fail(path + ".planner", "unknown same-Console planning Controller");
-			binding.planner = static_cast<std::size_t>(planner - layout.controllers.begin());
-			const auto planned = [&](std::size_t index)
+			const auto &planner = layout.controllers[*binding.planner];
+			const auto planned = [&](std::size_t index, std::size_t planned_index)
 			{
 				if (index == ability_no_channel)
-					return ability_no_channel;
-				const auto &execution = controller->commands[index];
-				const auto planned_action = execution.action == OperatingAction::AbilityActivate
-				                                ? OperatingAction::IntentBoolean
-				                                : execution.action;
-				const auto found = std::find_if(planner->commands.begin(), planner->commands.end(),
-				                                [&](const auto &c)
-				                                {
-					                                return c.id == execution.id && c.action == planned_action &&
-					                                       c.minimum == execution.minimum &&
-					                                       c.maximum == execution.maximum && c.initial == 0;
-				                                });
-				if (found == planner->commands.end())
+				{
+					if (planned_index != ability_no_channel)
+						ability_fail(path + ".planner", "planning target has no execution target");
+					return;
+				}
+				if (planned_index >= planner.commands.size())
+					ability_fail(path + ".planner", "missing matching planning channel");
+				const auto &execution = controller.commands[index];
+				const auto &preference = planner.commands[planned_index];
+				const auto action = execution.action == OperatingAction::AbilityActivate
+				                        ? OperatingAction::IntentBoolean
+				                        : execution.action;
+				if (preference.id != execution.id || preference.action != action ||
+				    preference.minimum != execution.minimum || preference.maximum != execution.maximum ||
+				    preference.initial != 0)
 					ability_fail(path + ".planner", "planning channels must match ability intent");
-				return static_cast<std::size_t>(found - planner->commands.begin());
 			};
-			binding.planning_enabled = planned(binding.enabled);
-			binding.planning_target = planned(binding.target);
+			planned(binding.enabled, binding.planning_enabled);
+			planned(binding.target, binding.planning_target);
 		}
+		const auto apparatus =
+		    binding.apparatus.empty() && binding.source == "equipment" ? binding.owner : binding.apparatus;
+		const auto recovery_bound = [&](const std::string &ability)
+		{
+			const auto &definition = definitions.at(ability);
+			if (definition.apparatus_recovery_ticks)
+			{
+				const auto key = "apparatus:" + apparatus + ":" + definition.apparatus_recovery_key;
+				auto &bound = result.apparatus_recovery_bounds[key];
+				bound = std::max(bound, definition.apparatus_recovery_ticks);
+			}
+		};
+		if (!binding.ability.empty())
+			recovery_bound(binding.ability);
+		else
+			for (const auto &ability : psychic.choirs.at(binding.apparatus).powers)
+				recovery_bound(ability);
 		result.controls.push_back(std::move(binding));
 	};
-	const auto controls = hull.value("ability_controls", Json::object());
+	const auto channel_index = [&](std::size_t controller, const std::string &name, const std::string &path)
+	{
+		const auto &commands = layout.controllers.at(controller).commands;
+		const auto found = std::find_if(commands.begin(), commands.end(),
+		                                [&](const auto &command)
+		                                {
+			                                return command.id == name;
+		                                });
+		if (found == commands.end())
+			ability_fail(path, "unknown ability command channel");
+		return static_cast<std::size_t>(found - commands.begin());
+	};
+	const Json empty_controls = Json::object();
+	const auto &controls = hull.contains("ability_controls") ? hull.at("ability_controls") : empty_controls;
 	if (!controls.is_object() || controls.size() > 256)
 		ability_fail(entity + ".ability_controls", "expected at most 256 named endpoints");
 	for (const auto &[id, value] : controls.items())
@@ -430,26 +495,54 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 		binding.owner = value.value("owner", std::string{});
 		binding.ability = value.value("ability", std::string{});
 		binding.apparatus = value.value("apparatus", std::string{});
-		add(std::move(binding), value, path);
+		const auto controller = std::find_if(layout.controllers.begin(), layout.controllers.end(),
+		                                     [&](const auto &c)
+		                                     {
+			                                     return c.id == value.at("controller").get<std::string>() &&
+			                                            c.console == value.at("console").get<std::string>();
+		                                     });
+		if (controller == layout.controllers.end())
+			ability_fail(path, "unknown Controller/Console binding");
+		binding.controller = static_cast<std::size_t>(controller - layout.controllers.begin());
+		binding.enabled = channel_index(binding.controller, value.at("enabled").get<std::string>(), path + ".enabled");
+		if (value.contains("target"))
+			binding.target = channel_index(binding.controller, value.at("target").get<std::string>(), path + ".target");
+		const auto planner_id = value.value("planner", std::string{});
+		if (!planner_id.empty())
+		{
+			const auto planner = std::find_if(layout.controllers.begin(), layout.controllers.end(),
+			                                  [&](const auto &c)
+			                                  {
+				                                  return c.id == planner_id && c.console == controller->console;
+			                                  });
+			if (planner == layout.controllers.end())
+				ability_fail(path + ".planner", "unknown same-Console planning Controller");
+			binding.planner = static_cast<std::size_t>(planner - layout.controllers.begin());
+			binding.planning_enabled =
+			    channel_index(*binding.planner, controller->commands[binding.enabled].id, path + ".planner");
+			if (binding.target != ability_no_channel)
+				binding.planning_target =
+				    channel_index(*binding.planner, controller->commands[binding.target].id, path + ".planner");
+		}
+		add(std::move(binding), path);
 	}
 	for (const auto &[id, choir] : psychic.choirs)
 		for (std::size_t i = 0; i < choir.seats.size(); ++i)
 		{
 			const auto &seat = choir.seats[i];
-			const auto &controller = layout.controllers.at(seat.controller);
 			AbilityControlDefinition binding;
 			binding.id = seat.control;
 			binding.source = "duty";
 			binding.owner = seat.duty;
 			binding.ability = seat.ability;
 			binding.apparatus = id;
-			Json value = {{"controller", controller.id},
-			              {"console", controller.console},
-			              {"enabled", controller.commands.at(seat.enabled).id},
-			              {"target", controller.commands.at(seat.target).id}};
-			if (seat.planner)
-				value["planner"] = layout.controllers.at(*seat.planner).id;
-			add(std::move(binding), value, entity + ".systems." + id + ".seats." + std::to_string(i));
+			binding.controller = seat.controller;
+			binding.enabled = seat.enabled;
+			binding.target = seat.target;
+			binding.planner = seat.planner;
+			binding.planning_enabled = seat.planner ? seat.planning_enabled : ability_no_channel;
+			binding.planning_target = seat.planner ? seat.planning_target : ability_no_channel;
+			add(std::move(binding), entity + ".systems." + id + ".seats." + std::to_string(i));
 		}
 	if (result.controls.size() > 256)
 		ability_fail(entity + ".ability_controls", "combined endpoint limit is 256");

@@ -193,10 +193,20 @@ Only endpoints executed or planned by that Controller on its Console can be boun
 
 For an intrinsic tree write binding, `"action": "ability_activate"` supplies request semantics. When declaring only a channel name/type, include `"semantics": "request"` explicitly. A mismatched setting/request contract fails validation.
 
+## Tick phases and stable execution
+
+Controller decisions read frozen permitted facts captured before physical work. Admitted channel writes are applied before the normal ability-preparation phase; a later physical consequence cannot become an earlier observation for another Controller in that decision pass.
+
+Ability preparation processes ships by stable entity ID and existing grants by stable grant ID. It resolves expiry, cancellation, current source/target requirements and exclusions before committing a new start. Competing starts therefore have a deterministic winner; definitions do not choose a global reaction priority. A grant created by a later effect does not recursively start work inside that effect transaction.
+
+Ongoing ability demands join the apparatus's ordinary resource allocation before that allocation commits. Funded equipment work then advances preparation in milliticks. When the required work is reached, activation revalidates its requirements and commits its required effects once at that boundary. Maintained psychic contributions are synchronised from the resulting ability state; native projection movement/reception and sensing retain their scheduled phases. Secondary payload and shield reactions use their existing deferred execution phases.
+
+Restore reconstructs derived funding, output and reception winners from the saved authoritative grants and deadlines. It does not advance preparation, pay again or issue another activation. The immutable ability/native-profile catalogue is compiled for the selected content and shared by its fitted adapters; it owns no mutable execution state.
+
 ## Supported bounds and continuation
 
 Ability preparation, source recovery, interruption recovery, apparatus recovery and temporary-grant duration are bounded to 1,000,000 simulation ticks. Temporary duration must be positive. Energy rates are nonnegative integers bounded to 1,000,000,000. Source ability lists contain at most 32 distinct references, the catalogue at most 1,024 ability templates, and an entity at most 256 combined generic/choir endpoints. A tree can bind at most 256 distinct endpoint observations.
 
 Native profiles retain bounded geometry and motion: strength 1–1,000 permille, 1–16 ghosts, fade 1–200 ticks and scan duration 1–36,000 ticks. Full validation of physical profile fields occurs through the native profile compiler. These are representational/support limits, not production balance assertions.
 
-Runtime supports at most 4,096 live grants per entity and 32,768 recovery ledger entries, with bounded generation/request identities. Recovery entries remain while needed for source readiness; granting/removing an ability cannot erase the deadline. Saves retain source/grant identities, execution/preparation, request outcomes, recovery and native psychic continuation. Restoring rebuilds derived funding and reception winners without paying, activating or advancing work again. See [migration evidence](ability-migration-evidence.md) for the delivered save-schema boundary and actual verification results.
+Runtime supports at most 4,096 live grants per entity and 32,768 recovery ledger entries, with bounded generation/request identities. The combined static officer/equipment grant count is checked against that same grant limit during compilation. Recovery entries remain while needed for source readiness; granting/removing an ability cannot erase the deadline. Saves retain source/grant identities, execution/preparation, request outcomes, recovery and native psychic continuation. Restoring rebuilds derived funding and reception winners without paying, activating or advancing work again. See [migration evidence](ability-migration-evidence.md) for the delivered save-schema boundary and actual verification results.

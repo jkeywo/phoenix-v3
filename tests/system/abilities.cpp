@@ -214,6 +214,115 @@ void restore_refused(World &world, const Catalog &catalog, const Json &invalid, 
 	}
 	require(rejected && world.save() == before, "invalid ability continuation refused without replacement writes");
 }
+Json compiler_catalogue_reload()
+{
+	auto source = fixture();
+	const Json profile = {
+	    {"id", "test.psychic.compiler"}, {"kind", "psychic"}, {"psychic_kind", "cloak"}, {"strength_permille", 300}};
+	const Json definition = {{"id", "test.ability.compiler"},
+	                         {"kind", "ability"},
+	                         {"label", "Compiler cloak"},
+	                         {"sustained", true},
+	                         {"target", "self"},
+	                         {"shortage", "proportional"},
+	                         {"recovery_on", "stop"},
+	                         {"recovery_ticks", 12},
+	                         {"psychic_effect", "test.psychic.compiler"}};
+	source["effects"].push_back(profile);
+	source["effects"].push_back(definition);
+	const auto pack = read_pack(write_pack(fixture_pack(json_bytes(source), "test-core")));
+	const auto original = resolve_packs({pack});
+	const auto compiled = [](const Catalog &catalog)
+	{
+		const auto shared = compile_ability_catalog(catalog);
+		const auto directed = compile_directed_catalog(catalog);
+		const auto personnel = compile_personnel(catalog, "test.combat", directed);
+		const auto layout = compile_controllable_layout(catalog, "test.combat");
+		const auto psychic = compile_psychic(catalog, "test.combat", shared, personnel, layout);
+		const auto typed = compile_abilities(catalog, "test.combat", shared, personnel, layout, psychic);
+		const auto standalone = compile_abilities(catalog, "test.combat");
+		const auto controls = [](const AbilityDefinitionSet &set)
+		{
+			Json rows = Json::array();
+			for (const auto &control : set.controls)
+				rows.push_back({control.id, control.source, control.owner, control.ability, control.apparatus,
+				                control.controller, control.enabled, control.target});
+			return rows;
+		};
+		require(controls(typed) == controls(standalone) && typed.equipment_grants == standalone.equipment_grants,
+		        "standalone and typed ability compilation preserve controls and source grants");
+		const auto native = compile_psychic(catalog, "test.combat");
+		require(psychic.has_power("test.ability.compiler") && native.has_power("test.ability.compiler") &&
+		            psychic.power("test.ability.compiler").strength == native.power("test.ability.compiler").strength &&
+		            typed.catalog->definitions.at("test.ability.compiler").recovery_ticks ==
+		                standalone.catalog->definitions.at("test.ability.compiler").recovery_ticks,
+		        "standalone and typed compilation resolve differing ability and native profile identities");
+		return Json{{"recovery", typed.catalog->definitions.at("test.ability.compiler").recovery_ticks},
+		            {"strength", psychic.power("test.ability.compiler").strength}};
+	};
+	const auto before = compiled(original);
+	PackDraft patch;
+	patch.manifest = {{"schema", 1},
+	                  {"id", "ability-mod"},
+	                  {"dependencies", {"test-core"}},
+	                  {"overrides", {"test.psychic.compiler", "test.ability.compiler"}}};
+	auto changed_profile = profile;
+	changed_profile["strength_permille"] = 850;
+	auto changed_ability = definition;
+	changed_ability["recovery_ticks"] = 27;
+	patch.files["definitions.json"] =
+	    json_bytes({{"schema", 4}, {"effects", Json::array({changed_profile, changed_ability})}});
+	const auto replacement = resolve_packs({pack, read_pack(write_pack(patch))});
+	const auto after = compiled(replacement);
+	require(before == Json({{"recovery", 12}, {"strength", 300}}) &&
+	            after == Json({{"recovery", 27}, {"strength", 850}}) && compiled(original) == before,
+	        "authored catalogue replacement updates ability and profile without changing the original catalogue");
+	changed_ability["psychic_effect"] = "test.psychic.missing";
+	patch.files["definitions.json"] =
+	    json_bytes({{"schema", 4}, {"effects", Json::array({changed_profile, changed_ability})}});
+	bool rejected = false;
+	try
+	{
+		const auto invalid = resolve_packs({pack, read_pack(write_pack(patch))});
+		(void)compiled(invalid);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	require(rejected, "replacement catalogue cannot reuse a previously valid native profile reference");
+	return Json::array({before, after});
+}
+Json recovery_deadline_bounds()
+{
+	auto source = fixture();
+	for (auto &definition : source["effects"])
+	{
+		if (definition.at("id") == "test.ability.pulse")
+			definition["recovery_ticks"] = 3;
+		if (definition.at("id") == "test.ability.first")
+			definition["recovery_ticks"] = 1000;
+	}
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "equipment-pulse", true);
+	ticks(world);
+	auto invalid = world.save();
+	bool found = false;
+	for (auto &ship : invalid["abilities"]["ships"])
+		if (ship.at("ship") == 1)
+			for (auto &[key, deadline] : ship["state"]["recovery"].items())
+				if (key == "equipment:radar:test.ability.pulse")
+				{
+					deadline = invalid.at("tick").get<std::uint64_t>() + 4;
+					found = true;
+				}
+	require(found, "activated short ability creates its source recovery ledger entry");
+	restore_refused(world, catalog, invalid);
+	return without_packs(world.save());
+}
 Json apparatus_free_officer()
 {
 	const auto catalog = load(fixture());
@@ -898,7 +1007,9 @@ int main(int argc, char **argv)
 				throw std::runtime_error(std::string(name) + ": " + error.what());
 			}
 		};
-		const Json trace = {run("apparatus-free officer", apparatus_free_officer),
+		const Json trace = {run("compiler catalogue reload", compiler_catalogue_reload),
+		                    run("recovery deadline bounds", recovery_deadline_bounds),
+		                    run("apparatus-free officer", apparatus_free_officer),
 		                    run("request replay", request_replay),
 		                    run("preparation", prepared_and_once),
 		                    run("simultaneous starts", simultaneous_starts),

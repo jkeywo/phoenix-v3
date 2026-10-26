@@ -38,14 +38,14 @@ const AbilityDefinition &ability_definition(EntityId ship, const std::string &gr
 	const auto *execution = ability_execution(ship, grant);
 	if (!execution)
 		throw std::runtime_error("Ability grant unavailable");
-	return definition(ship).abilities.definitions.at(execution->definition);
+	return definition(ship).abilities.catalog->definitions.at(execution->definition);
 }
 std::uint64_t ability_recovery_until(EntityId ship, const AbilityGrantState &g) const
 {
 	const auto &ledger = entities.at(ship).get<AbilityRuntime>().recovery;
 	const auto at = ledger.find(ability_recovery_key(g));
 	auto until = at == ledger.end() ? 0 : at->second;
-	const auto &d = definition(ship).abilities.definitions.at(g.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	if (!d.apparatus_recovery_key.empty() && !g.apparatus.empty())
 	{
 		const auto shared = ledger.find("apparatus:" + g.apparatus + ":" + d.apparatus_recovery_key);
@@ -56,7 +56,7 @@ std::uint64_t ability_recovery_until(EntityId ship, const AbilityGrantState &g) 
 }
 const AbilityDefinition &ability_definition(EntityId ship, const AbilityGrantState &grant) const
 {
-	return definition(ship).abilities.definitions.at(grant.definition);
+	return definition(ship).abilities.catalog->definitions.at(grant.definition);
 }
 std::string ability_exclusion_key(const AbilityGrantState &g, const AbilityExclusionDefinition &e) const
 {
@@ -128,7 +128,7 @@ std::string ability_blocker(EntityId ship, const AbilityControlDefinition &c, co
 {
 	if (!ability_source_exists(ship, g.source, g.owner) || departed(ship) || combat_dead(entities.at(ship)))
 		return "Ability source unavailable";
-	const auto &d = definition(ship).abilities.definitions.at(g.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	if (g.source == "officer")
 	{
 		const auto &p = definition(ship).personnel;
@@ -161,7 +161,7 @@ std::string ability_apparatus_blocker(EntityId ship, const AbilityGrantState &g)
 }
 std::string ability_conflict(EntityId ship, const AbilityGrantState &g) const
 {
-	const auto &definitions = definition(ship).abilities.definitions;
+	const auto &definitions = definition(ship).abilities.catalog->definitions;
 	for (const auto &[key, other] : entities.at(ship).get<AbilityRuntime>().grants)
 	{
 		if (other.id == g.id || !ability_running(other))
@@ -200,7 +200,7 @@ void initialise_abilities(flecs::entity ship)
 }
 void ability_begin_recovery(EntityId ship, AbilityRuntime &runtime, const AbilityGrantState &g) const
 {
-	const auto &d = definition(ship).abilities.definitions.at(g.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	const auto tick = ecs.get<Clock>().tick;
 	if (d.recovery_ticks)
 		runtime.recovery[ability_recovery_key(g)] =
@@ -214,7 +214,7 @@ void ability_begin_recovery(EntityId ship, AbilityRuntime &runtime, const Abilit
 std::vector<std::string> ability_recovery_reservations(EntityId ship, const AbilityGrantState &g) const
 {
 	std::vector<std::string> keys;
-	const auto &d = definition(ship).abilities.definitions.at(g.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	if (d.recovery_ticks || d.interruption_recovery_ticks)
 		keys.push_back(ability_recovery_key(g));
 	if (d.apparatus_recovery_ticks && !g.apparatus.empty())
@@ -223,7 +223,7 @@ std::vector<std::string> ability_recovery_reservations(EntityId ship, const Abil
 }
 bool ability_recovery_capacity(EntityId ship, const AbilityGrantState &g) const
 {
-	const auto &d = definition(ship).abilities.definitions.at(g.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	(void)effect_expiry(ecs.get<Clock>().tick,
 	                    std::max({d.recovery_ticks, d.interruption_recovery_ticks, d.apparatus_recovery_ticks}));
 	const auto &ledger = entities.at(ship).get<AbilityRuntime>().recovery;
@@ -237,7 +237,7 @@ void stop_ability(EntityId ship, AbilityRuntime &runtime, AbilityGrantState &g)
 {
 	if (!ability_running(g))
 		return;
-	const auto &d = definition(ship).abilities.definitions.at(g.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 	const bool preparing = g.phase == "preparing" || g.resume_phase == "preparing";
 	if (preparing && d.interruption_recovery_ticks)
 	{
@@ -332,7 +332,7 @@ void prepare_ability_grant(AbilityRuntime &runtime, EntityId ship, const ShieldR
 		return;
 	}
 	const auto &definition = ability_grant_templates.at(operation.effect);
-	if (!this->definition(ship).abilities.definitions.contains(definition.ability))
+	if (!this->definition(ship).abilities.catalog->definitions.contains(definition.ability))
 		throw std::runtime_error("Ability grant definition unavailable");
 	const auto expiry = effect_expiry(ecs.get<Clock>().tick, definition.duration_ticks);
 	if (old != runtime.grants.end())
@@ -384,7 +384,7 @@ void activate_ability(EntityId ship, const std::string &key, bool activation_com
 	if (!before)
 		return;
 	const auto snapshot = *before;
-	const auto &d = definition(ship).abilities.definitions.at(snapshot.definition);
+	const auto &d = definition(ship).abilities.catalog->definitions.at(snapshot.definition);
 	ConsoleContacts contacts;
 	const auto *control = resolve_ability_control(ship, snapshot);
 	if (!control || !ability_blocker(ship, *control, snapshot, snapshot.target, contacts).empty() ||
@@ -466,7 +466,7 @@ void prepare_abilities(EntityId ship)
 			g.blocker = "No compatible ability control";
 			continue;
 		}
-		const auto &d = definition(ship).abilities.definitions.at(g.definition);
+		const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 		if (const auto *selected = ability_control_grant(ship, *c); selected && selected->id != g.id)
 		{
 			g.requested = false;
@@ -634,7 +634,7 @@ void request_ability_resources(EntityId ship)
 	for (const auto &[key, g] : entities.at(ship).get<AbilityRuntime>().grants)
 		if (ability_running(g) && ability_apparatus_blocker(ship, g).empty())
 		{
-			const auto &d = definition(ship).abilities.definitions.at(g.definition);
+			const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 			const auto preparation = g.phase == "preparing" || g.resume_phase == "preparing";
 			const auto amount = preparation ? d.preparation_energy_per_second : d.energy_per_second;
 			if (amount && !g.apparatus.empty())
@@ -665,7 +665,7 @@ bool reject_unfunded_abilities(flecs::entity ship, const ShipResourceAllocation 
 		if (!ability_running(g) || g.funding_blocked || g.apparatus.empty() ||
 		    !ability_apparatus_blocker(id, g).empty())
 			continue;
-		const auto &d = definition(id).abilities.definitions.at(g.definition);
+		const auto &d = definition(id).abilities.catalog->definitions.at(g.definition);
 		const auto amount = g.phase == "preparing" || g.resume_phase == "preparing" ? d.preparation_energy_per_second
 		                                                                            : d.energy_per_second;
 		if (!amount || d.shortage == "proportional")
@@ -702,7 +702,7 @@ void refresh_ability_work(bool advance = true)
 			g.fault_permille = 0;
 			if (!ability_running(g) || !ability_apparatus_blocker(ship, g).empty())
 				continue;
-			const auto &d = definition(ship).abilities.definitions.at(g.definition);
+			const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 			const auto preparing = g.phase == "preparing" || g.resume_phase == "preparing";
 			const auto demand = preparing ? d.preparation_energy_per_second : d.energy_per_second;
 			std::int64_t funding = demand ? 0 : 1000;

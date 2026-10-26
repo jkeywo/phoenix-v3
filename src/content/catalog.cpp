@@ -452,8 +452,10 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(result.recipes, "recipes");
 	(void)compile_resource_catalog(result);
 	(void)compile_recipe_catalog(result);
+	(void)compile_ability_catalog(result);
 	for (const auto &[id, effect] : result.effects)
-		compile_effect(result, id);
+		if (const auto kind = effect.value("kind", std::string{}); kind != "ability" && kind != "psychic")
+			compile_effect(result, id);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
 	resolve_equipment(result);
@@ -678,6 +680,8 @@ namespace
 {
 void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog)
 {
+	const auto ability_catalog = compile_ability_catalog(catalog);
+	std::map<std::string, ControllableLayout> ability_layouts;
 	verify_ui_definitions(catalog);
 	if (catalog.selection && (!catalog.layouts.empty() || !catalog.ui_groups.empty() || !catalog.themes.empty() ||
 	                          !catalog.ui_theme.empty()))
@@ -685,7 +689,8 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	(void)compile_resource_catalog(catalog);
 	(void)compile_recipe_catalog(catalog);
 	for (const auto &[id, effect] : catalog.effects)
-		compile_effect(catalog, id);
+		if (const auto kind = effect.value("kind", std::string{}); kind != "ability" && kind != "psychic")
+			compile_effect(catalog, id);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
@@ -925,7 +930,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			integer(entity, "durability", path, 0, 1000000);
 		if (entity.contains("half_height_mm"))
 			integer(entity, "half_height_mm", path, 1, 1000000);
-		(void)compile_controllable_layout(catalog, id);
+		ability_layouts.emplace(id, compile_controllable_layout(catalog, id));
 		if (entity.contains("controllers"))
 		{
 			if (!entity.contains("stations") || !entity["controllers"].is_object())
@@ -944,9 +949,10 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		(void)compile_bridge(catalog, id);
-		(void)compile_personnel(catalog, id, directed_catalog);
-		(void)compile_psychic(catalog, id, directed_catalog);
-		(void)compile_abilities(catalog, id, directed_catalog);
+		const auto personnel = compile_personnel(catalog, id, directed_catalog);
+		const auto &layout = ability_layouts.at(id);
+		const auto psychic = compile_psychic(catalog, id, ability_catalog, personnel, layout);
+		(void)compile_abilities(catalog, id, ability_catalog, personnel, layout, psychic);
 		(void)compile_boarding(catalog, id, directed_catalog);
 	}
 	for (const auto &[id, console] : catalog.consoles)

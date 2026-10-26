@@ -333,51 +333,47 @@ void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const 
 {
 	constexpr auto maximum = 9007199254740991ULL;
 	const auto tick = ecs.get<Clock>().tick;
-	if (!state.next_generation || state.next_generation > maximum || !state.next_activation ||
-	    state.next_generation > 1000000000ULL || state.next_activation > maximum || state.grants.size() > 4096 ||
-	    state.recovery.size() > 32768)
+	if (!state.next_generation || state.next_generation > ability_generation_limit || !state.next_activation ||
+	    state.next_activation > maximum || state.grants.size() > ability_grant_limit ||
+	    state.recovery.size() > ability_recovery_limit)
 		throw std::runtime_error("Invalid saved ability roster bounds");
+	const auto &abilities = definition(ship).abilities;
+	const auto &definitions = abilities.catalog->definitions;
 	std::set<std::uint64_t> generations, activations;
 	std::set<std::string> exclusions, running_sources;
-	std::set<std::string> recovery_keys;
-	std::int64_t recovery_bound = 0;
-	const auto add_recovery_keys = [&](const std::string &source, const std::string &owner)
-	{
-		for (const auto &[id, ability] : definition(ship).abilities.definitions)
-		{
-			AbilityGrantState probe;
-			probe.source = source;
-			probe.owner = owner;
-			probe.definition = id;
-			recovery_keys.insert(ability_recovery_key(probe));
-			recovery_bound =
-			    std::max(recovery_bound, std::max(ability.recovery_ticks, ability.interruption_recovery_ticks));
-		}
-	};
-	for (const auto &officer : definition(ship).personnel.officers)
-		add_recovery_keys("officer", officer.id);
-	if (const auto *equipment = entities.at(ship).try_get<EquipmentIndex>())
-		for (const auto child : equipment->values)
-			add_recovery_keys("equipment", child.get<Equipment>().id);
-	for (const auto &control : definition(ship).abilities.controls)
-	{
-		const auto apparatus =
-		    control.apparatus.empty() && control.source == "equipment" ? control.owner : control.apparatus;
-		if (!apparatus.empty())
-			for (const auto &[id, ability] : definition(ship).abilities.definitions)
-				if (!ability.apparatus_recovery_key.empty())
-				{
-					recovery_keys.insert("apparatus:" + apparatus + ":" + ability.apparatus_recovery_key);
-					recovery_bound = std::max(recovery_bound, ability.apparatus_recovery_ticks);
-				}
-	}
 	for (const auto &[key, deadline] : state.recovery)
-		if (!recovery_keys.contains(key) || deadline > maximum || deadline > tick + recovery_bound)
+	{
+		// Source and definition identifiers cannot contain ':'. Inspect actual
+		// sparse ledger entries rather than manufacturing every possible key.
+		const auto first = key.find(':'), second = first == std::string::npos ? first : key.find(':', first + 1);
+		if (key.size() > 1024 || first == std::string::npos || second == std::string::npos || first == 0 ||
+		    second == first + 1 || second + 1 == key.size() || key.find(':', second + 1) != std::string::npos)
+			throw std::runtime_error("Invalid saved ability recovery identity");
+		const auto source = key.substr(0, first), owner = key.substr(first + 1, second - first - 1),
+		           reference = key.substr(second + 1);
+		std::int64_t bound = 0;
+		if (source == "apparatus")
+		{
+			const auto authored = abilities.apparatus_recovery_bounds.find(key);
+			if (!ability_source_exists(ship, "equipment", owner) ||
+			    authored == abilities.apparatus_recovery_bounds.end())
+				throw std::runtime_error("Invalid saved apparatus recovery binding");
+			bound = authored->second;
+		}
+		else
+		{
+			const auto ability = definitions.find(reference);
+			if (!ability_source_exists(ship, source, owner) || ability == definitions.end())
+				throw std::runtime_error("Invalid saved ability recovery source");
+			bound = std::max(ability->second.recovery_ticks, ability->second.interruption_recovery_ticks);
+		}
+		if (!bound || deadline > maximum || deadline > tick + bound)
 			throw std::runtime_error("Invalid saved ability recovery owner/deadline");
+	}
 	for (const auto &[id, grant] : state.grants)
 	{
-		const auto found = definition(ship).abilities.definitions.find(grant.definition);
-		if (id != grant.id || id.empty() || id.size() > 1024 || found == definition(ship).abilities.definitions.end() ||
+		const auto found = definitions.find(grant.definition);
+		if (id != grant.id || id.empty() || id.size() > 1024 || found == definitions.end() ||
 		    !ability_source_exists(ship, grant.source, grant.owner) || !grant.generation ||
 		    grant.generation >= state.next_generation || !generations.insert(grant.generation).second ||
 		    grant.activation >= state.next_activation || grant.request_id > maximum || grant.expiry < -1 ||
@@ -477,8 +473,8 @@ void restore_abilities(const Json &saved, const std::set<EntityId> &departed_shi
 		// Replacement restore runs on a disposable candidate World. Binding
 		// resolution must see the complete restored grant roster, not the initial
 		// static-only roster (temporary grants can change a dynamic seat choice).
-		entities.at(ship).set<AbilityRuntime>(state);
-		validate_ability_runtime(ship, state, initial);
+		entities.at(ship).set<AbilityRuntime>(std::move(state));
+		validate_ability_runtime(ship, entities.at(ship).get<AbilityRuntime>(), initial);
 		for (const auto &control : definition(ship).abilities.controls)
 		{
 			const auto &commands = entities.at(ship).get<EntityControls>().controllers.at(control.controller).commands;

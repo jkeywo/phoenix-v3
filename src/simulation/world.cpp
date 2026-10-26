@@ -574,6 +574,7 @@ struct World::Impl
 	void compile(const Catalog &source, const DirectedCatalog &directed_catalog)
 	{
 		const auto content = convert_controller_content(source, directed_catalog);
+		const auto ability_catalog = compile_ability_catalog(content);
 		console_layouts = content.consoles;
 		resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
 		for (const auto &[id, effect] : content.effects)
@@ -620,8 +621,10 @@ struct World::Impl
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
 			result.personnel = compile_personnel(content, name, directed_catalog);
-			result.psychic = compile_psychic(content, name, directed_catalog);
-			result.abilities = compile_abilities(content, name, directed_catalog);
+			const auto ability_layout = compile_controllable_layout(content, name);
+			result.psychic = compile_psychic(content, name, ability_catalog, result.personnel, ability_layout);
+			result.abilities =
+			    compile_abilities(content, name, ability_catalog, result.personnel, ability_layout, result.psychic);
 			result.boarding = compile_boarding(content, name, directed_catalog);
 			for (const auto &row : definition.value("boarding_missions", Json::array()))
 				result.boarding_docking_ports[row.at("id").get<std::string>()] =
@@ -647,7 +650,7 @@ struct World::Impl
 					    compile_console_bridge(content.consoles.at(console.definition), console.definition));
 			if (definition.contains("control_layout"))
 			{
-				result.layout = compile_controllable_layout(content, name);
+				result.layout = ability_layout;
 				result.layout->converted = !source.entities.at(name).contains("control_layout");
 				for (const auto &spec : result.layout->controllers)
 				{

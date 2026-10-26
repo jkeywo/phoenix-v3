@@ -342,7 +342,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 					o.edge_to = at.edge_to;
 					o.remaining = at.remaining;
 				}
-			clear_choir_intent(address.ship, o.duty);
+			stop_abilities_for_duty(address.ship, o.duty);
 			o.present = false;
 			o.duty = next;
 		};
@@ -449,8 +449,9 @@ Json personnel_board(const ConsoleAddress &address) const
 			{
 				Json abilities = Json::array();
 				for (const auto &ability : o.abilities)
-					abilities.push_back({{"id", ability},
-					                     {"label", definition(address.ship).abilities.definitions.at(ability).label}});
+					abilities.push_back(
+					    {{"id", ability},
+					     {"label", definition(address.ship).abilities.catalog->definitions.at(ability).label}});
 				out["officers"].back()["abilities"] = std::move(abilities);
 			}
 		}

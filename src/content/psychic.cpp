@@ -51,7 +51,6 @@ PsychicPowerDefinition compile_psychic_effect(const Catalog &catalog, const std:
 	if ((result.kind != "cloak" && result.kind != "scramble" && result.kind != "ward") || result.label.empty() ||
 	    result.label.size() > 128)
 		throw std::runtime_error(path + ": invalid psychic kind or label");
-	result.energy = result.recovery_ticks = 0;
 	result.strength = number("strength_permille", 700, 1, 1000);
 	result.ghosts = number("ghost_count", 3, 1, 16);
 	result.offset = number("offset_mm", 20000, 1000, 10000000);
@@ -75,7 +74,24 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity,
                                   const DirectedCatalog &directed_catalog)
 {
+	const auto shared = compile_ability_catalog(catalog);
+	if (catalog.presentation)
+	{
+		PsychicDefinition result;
+		result.catalog = shared;
+		return result;
+	}
+	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
+	const auto layout = compile_controllable_layout(catalog, entity);
+	return compile_psychic(catalog, entity, shared, personnel, layout);
+}
+PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity, SharedAbilityCatalog shared,
+                                  const PersonnelDefinition &personnel, const ControllableLayout &layout)
+{
 	PsychicDefinition out;
+	out.catalog = std::move(shared);
+	if (!out.catalog)
+		throw std::runtime_error(entity + ".psychic: compiled ability catalogue is required");
 	if (catalog.presentation)
 		return out;
 	const auto &hull = catalog.entities.at(entity);
@@ -91,19 +107,6 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 		return v.get<std::int64_t>();
 	};
 	fail(!hull.contains("psychic_powers"), "entity-local psychic_powers retired; use shared ability/effect templates");
-	for (const auto &[id, value] : catalog.effects)
-		if (value.value("kind", std::string{}) == "ability" && value.contains("psychic_effect"))
-		{
-			const auto ability = compile_ability(catalog, id);
-			auto profile = compile_psychic_effect(catalog, ability.psychic_effect);
-			profile.id = id;
-			profile.label = ability.label;
-			profile.energy = ability.energy_per_second;
-			profile.recovery_ticks = ability.recovery_ticks;
-			out.powers.emplace(id, std::move(profile));
-		}
-	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
-	const auto layout = compile_controllable_layout(catalog, entity);
 	std::set<std::string> duties;
 	std::set<std::pair<std::size_t, std::size_t>> bound;
 	for (const auto &[id, j] : hull.at("systems").items())
@@ -125,7 +128,7 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 		c.powers = j.at("supported_abilities").get<std::set<std::string>>();
 		fail(!c.powers.empty() && c.powers.size() <= 32, "choir needs compatible powers");
 		for (const auto &p : c.powers)
-			fail(out.powers.contains(p), "unknown compatible power");
+			fail(out.has_power(p), "unknown compatible power");
 		const auto &seats = j.at("seats");
 		fail(seats.is_array() && !seats.empty() && seats.size() <= 16, "choir needs 1–16 seats");
 		for (const auto &s : seats)

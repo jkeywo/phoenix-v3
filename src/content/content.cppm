@@ -27,6 +27,10 @@ export namespace phoenix
 {
 struct Catalog;
 struct DirectedDefinition;
+struct AbilityCatalog;
+struct PersonnelDefinition;
+struct ControllableLayout;
+using SharedAbilityCatalog = std::shared_ptr<const AbilityCatalog>;
 // A caller-owned immutable compilation scope, shared by native fitting adapters.
 using DirectedCatalog = std::map<std::string, std::map<std::string, DirectedDefinition>>;
 struct FactionCatalog
@@ -788,7 +792,7 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, co
 struct PsychicPowerDefinition
 {
 	std::string id, kind, label, apparent_class = "Unidentified contact";
-	std::int64_t strength = 700, energy = 100, recovery_ticks = 100, ghosts = 3;
+	std::int64_t strength = 700, ghosts = 3;
 	std::int64_t offset = 20000, spacing = 8000, speed = 10000, acceleration = 2000, turn_rate = 10000;
 	std::int64_t radius = 2000, scan_ticks = 100, fade_ticks = 20;
 };
@@ -808,11 +812,15 @@ struct ChoirDefinition
 };
 struct PsychicDefinition
 {
-	std::map<std::string, PsychicPowerDefinition> powers;
+	SharedAbilityCatalog catalog;
 	std::map<std::string, ChoirDefinition> choirs;
+	bool has_power(const std::string &ability) const;
+	const PsychicPowerDefinition &power(const std::string &ability) const;
 };
 PsychicDefinition compile_psychic(const Catalog &, const std::string &);
 PsychicDefinition compile_psychic(const Catalog &, const std::string &, const DirectedCatalog &);
+PsychicDefinition compile_psychic(const Catalog &, const std::string &, SharedAbilityCatalog,
+                                  const PersonnelDefinition &, const ControllableLayout &);
 PsychicPowerDefinition compile_psychic_effect(const Catalog &, const std::string &);
 struct ModifierContributionDefinition
 {
@@ -979,9 +987,15 @@ struct AbilityControlDefinition
 };
 struct AbilityDefinitionSet
 {
-	std::map<std::string, AbilityDefinition> definitions;
+	SharedAbilityCatalog catalog;
 	std::vector<AbilityControlDefinition> controls;
 	std::map<std::string, std::vector<std::string>> equipment_grants;
+	std::map<std::string, std::int64_t> apparatus_recovery_bounds;
+};
+struct AbilityCatalog
+{
+	std::map<std::string, AbilityDefinition> definitions;
+	std::map<std::string, PsychicPowerDefinition> psychic_profiles;
 };
 struct AbilityGrantDefinition
 {
@@ -989,9 +1003,13 @@ struct AbilityGrantDefinition
 	std::int64_t duration_ticks = 0;
 };
 AbilityDefinition compile_ability(const Catalog &, const std::string &);
+SharedAbilityCatalog compile_ability_catalog(const Catalog &);
 AbilityGrantDefinition compile_ability_grant(const Catalog &, const std::string &);
 AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &);
 AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, const DirectedCatalog &);
+AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, SharedAbilityCatalog,
+                                       const PersonnelDefinition &, const ControllableLayout &,
+                                       const PsychicDefinition &);
 ShieldReactionDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
 ShieldReactionDefinition compile_effect_group(const Catalog &, const std::string &);
 enum class PayloadOutcomeKind
