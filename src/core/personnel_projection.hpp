@@ -48,9 +48,9 @@ inline Json board(const Json &source)
 				{
 					for (const auto *field : {"name", "portrait", "duty", "destination"})
 						r[field] = text(row.at(field), 128);
-					r["abilities"] = Json::array();
 					if (row.contains("abilities"))
 					{
+						r["abilities"] = Json::array();
 						const auto &abilities = row.at("abilities");
 						if (!abilities.is_array() || abilities.size() > 32)
 							throw std::runtime_error("Invalid officer ability list");

@@ -125,7 +125,10 @@ try
 	{
 		$nativeTrace = Get-Content -LiteralPath "$repo/build/native/continuation.trace"
 		$webOptions = @{}
-		if ($PSBoundParameters.ContainsKey('Threaded')) { $webOptions.Threaded = $Threaded }
+		if ($PSBoundParameters.ContainsKey('Threaded'))
+		{
+			$webOptions.Threaded = $Threaded
+		}
 		& "$PSScriptRoot/build.ps1" -Target web @webOptions
 		Push-Location build/web
 		try

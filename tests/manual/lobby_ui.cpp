@@ -200,8 +200,7 @@ int main(int argc, char **argv)
 			options.link.room = "smoke-" + random_token();
 			network_host = make_game_lobby(options);
 			network_host->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-			network_host->prepare_lobby(
-			    {"base.rescue-under-threat", {{"courier", "base.cruiser"}}, "courier", ""});
+			network_host->prepare_lobby({"base.rescue-under-threat", {{"courier", "base.cruiser"}}, "courier", ""});
 			LobbyCommand reserve{LobbyAction::assign_local_console, "", first.slot, "", first.id};
 			reserve.screen = 3;
 			require(network_host->lobby_command(reserve), "Native station is reserved before phone join");
