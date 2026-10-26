@@ -21,7 +21,7 @@ void prepare_task_panels(const ConsoleRegion &region)
 		std::string markup;
 		std::vector<std::pair<std::string, std::string>> buttons, readouts;
 		std::map<std::string, bool> toggles;
-		bool weapon_overflow = false;
+		std::vector<std::tuple<std::string, std::string, bool>> weapon_choices;
 		auto esc = [](const std::string &value)
 		{
 			return Rml::StringUtilities::EncodeRml(value);
@@ -76,13 +76,11 @@ void prepare_task_panels(const ConsoleRegion &region)
 							if (component == "weapons" && action.empty())
 								continue;
 							shown.insert(system.id);
-							if (component == "weapons" && shown.size() > rows * 2)
-								continue;
 							const auto label = localise(engineering_name(system.id));
 							if (component == "weapons")
 							{
 								if (!action.empty())
-									markup += button(action, label, system.enabled ? "on" : "off");
+									weapon_choices.emplace_back(action, label, system.enabled);
 							}
 							else
 							{
@@ -105,12 +103,19 @@ void prepare_task_panels(const ConsoleRegion &region)
 								          "</div>";
 							}
 						}
-			markup += "</div>";
-			if (component == "weapons" && shown.size() > rows * 2)
+			const auto weapon_row_height = std::max(50.f, 70.f * text_scale_ / 100.f);
+			auto weapon_rows =
+			    static_cast<std::size_t>(std::max(1.f, std::floor((logical_height - 50.f) / weapon_row_height)));
+			if (weapon_choices.size() > weapon_rows * 2)
+				weapon_rows = rows; // Reserve the contextual-list button only when it is needed.
+			for (std::size_t i = 0; i < std::min(weapon_choices.size(), weapon_rows * 2); ++i)
 			{
-				weapon_overflow = true;
-				markup += button("task-detail/weapons", localise("All weapons"));
+				const auto &[action, label, enabled] = weapon_choices[i];
+				markup += button(action, label, enabled ? "on" : "off");
 			}
+			markup += "</div>";
+			if (weapon_choices.size() > weapon_rows * 2)
+				markup += button("task-detail/weapons", localise("All weapons"));
 		}
 		else if (component == "objectives")
 		{
@@ -203,7 +208,7 @@ void prepare_task_panels(const ConsoleRegion &region)
 				}
 			markup += "</div>";
 		}
-		if (component == "objectives" || (component == "weapons" && !weapon_overflow))
+		if (component == "objectives")
 			markup += button("systems", localise("System status"));
 		if (station_component_markup_[component] != markup)
 		{

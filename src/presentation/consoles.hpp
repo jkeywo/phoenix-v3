@@ -631,6 +631,7 @@ scrollbarhorizontal sliderbar {min-width:32dp;background:#ccc2af;}
 .engineering-card button {width:180px;min-height:48px;box-sizing:border-box;font-size:.85em;}
 .widget {position:absolute;box-sizing:border-box;padding:8px;overflow:hidden;}
 p {display:block;word-break:break-word;font-size:.85em;margin:4px 0;}
+#gameplay-readouts p.target-motion {display:inline-block;margin-right:12dp;}
 .dial {position:absolute;left:12px;right:12px;top:48px;bottom:72px;}
 .widget button {position:absolute;bottom:8px;left:8px;}
 .radar-widget button.on-screen {position:absolute;left:auto;right:8px;}
@@ -841,6 +842,7 @@ progress fill {background:#83be90;}
 .authored button.on-screen .share-label {position:static;display:inline;font-size:1em;}
 .authored button.on-screen .share-caption,.authored button.on-screen .share-monitor,.authored button.on-screen .share-screw,.authored button.on-screen .share-lamp-housing {display:none;}
 .authored button.on-screen-active {background:#235b3e;border:2dp #8bd5a6;}
+.radar-widget button.radar-systems {opacity:1;position:absolute;left:8dp;top:8dp;bottom:auto;z-index:10;pointer-events:auto;}
 .authored .radar-widget button.radar-contacts {left:auto;right:8dp;bottom:8dp;z-index:2;}
 .authored .radar-widget button.on-screen {left:8dp;top:auto;right:auto;bottom:8dp;width:auto;height:auto;min-width:140dp;min-height:44dp;padding:6dp;background:#102027;border:1dp #988b71;pointer-events:auto;}
 .authored .radar-widget button.on-screen .share-label {position:static;display:inline;left:auto;right:auto;top:auto;bottom:auto;font-size:1em;height:auto;line-height:1.2em;}
@@ -912,7 +914,8 @@ progress fill {background:#83be90;}
 		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 		if (station_loading_)
 			return false;
-		const auto action = name.substr(prefix.size());
+		const auto action = name.substr(prefix.size()).starts_with("radar-systems/") ? std::string("systems")
+		                                                                             : name.substr(prefix.size());
 		if (action == "power-details" || action == "task-detail/compartments" || action == "task-detail/objectives" ||
 		    action == "task-detail/weapons" || action == "task-detail/teams" || action == "task-detail/target")
 		{
@@ -1685,13 +1688,20 @@ progress fill {background:#83be90;}
 									if (sensor.maximum > 0 &&
 									    std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), body.id) !=
 									        sensor.contact_ids.end() &&
-									    std::hypot(double(body.x - view.own.x), double(body.y - view.own.y)) <=
-									        sensor.maximum)
+									    radar_contact_in_range(view.own, body, sensor.maximum))
 									{
-										const Vector2 point{
+										const auto point =
+										    radar_contact_point(view.own, body, sensor.maximum, centre, radius);
+										const Vector2 body_centre{
 										    centre.x + float(double(body.x - view.own.x) / sensor.maximum) * radius,
 										    centre.y - float(double(body.y - view.own.y) / sensor.maximum) * radius};
-										const float delta = std::hypot(x - point.x, y - point.y);
+										const auto size = float(double(body.radius) / sensor.maximum) * radius;
+										const float delta =
+										    size > 12
+										        ? std::min(
+										              std::hypot(x - point.x, y - point.y),
+										              std::abs(std::hypot(x - body_centre.x, y - body_centre.y) - size))
+										        : std::hypot(x - point.x, y - point.y);
 										if (delta < distance)
 										{
 											distance = delta;
@@ -2813,7 +2823,11 @@ progress fill {background:#83be90;}
 					if (kind == "radar")
 						widgets += "<div class=\"dial\" id=\"dial/" + Rml::StringUtilities::EncodeRml(key) + "\"/>" +
 						           button("game.contacts/" + key, "Read radar contacts") +
-						           button("on-screen/" + key, "On screen");
+						           button("on-screen/" + key, "On screen") + "<button class=\"radar-systems\" id=\"" +
+						           id("radar-systems/" + key) + "\">" +
+						           Rml::StringUtilities::EncodeRml(localise("System status")) + "</button>";
+					if (kind == "radar")
+						controls_.emplace_back(id("radar-systems/" + key), "System status");
 					if (kind == "radar" && manual_toggle_ && !has_manual_toggle)
 					{
 						has_manual_toggle = true;
@@ -3022,7 +3036,7 @@ progress fill {background:#83be90;}
 		              });
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
 		if (helm)
-			readout_values_ = helm_target_readouts();
+			readout_values_ = helm_target_readouts(true);
 
 		if (model_.observation())
 			for (const auto &system : model_.observation()->systems)
@@ -3431,8 +3445,6 @@ progress fill {background:#83be90;}
 		gameplay_identity = Json::array();
 		for (const auto &[name, text] : gameplay_readouts)
 			gameplay_identity.push_back(name);
-		const bool target_detail =
-		    helm && (inline_console_.empty() ? model_.sensor_contact() : inline_model_.sensor_contact());
 		const auto dock_control =
 		    helm ? model_.target_docking_control(inline_console_.empty() ? model_.sensor_contact()
 		                                                                 : inline_model_.sensor_contact())
@@ -3448,15 +3460,13 @@ progress fill {background:#83be90;}
 				if (name.starts_with("game.objective/"))
 					continue;
 				(name.starts_with("game.scan-") ? sensor_readouts : markup) +=
-				    "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"></p>";
+				    "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"" +
+				    (name == "target/range" || name == "target/speed" ? " class=\"target-motion\"" : "") + "></p>";
 				displayed_values_.erase(name);
 			}
 			if (dock_control)
 				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(dock_control->id)) + "\">" +
 				          Rml::StringUtilities::EncodeRml(dock_control->label) + "</button>";
-			if (target_detail)
-				markup += "<button id=\"" + id("task-detail/target") + "\">" +
-				          Rml::StringUtilities::EncodeRml(localise("Contact details")) + "</button>";
 			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
 			document_->GetElementById("sensor-readouts")->SetInnerRML(sensor_readouts);
 			gameplay_readout_signature_ = readout_signature;
@@ -3749,11 +3759,6 @@ progress fill {background:#83be90;}
 		}
 		for (const auto &[name, text] : gameplay_readouts)
 			place(app, region, id(name));
-		if (target_detail)
-		{
-			app.screen_controls.emplace_back(id("task-detail/target"), localise("Contact details"));
-			place(app, region, id("task-detail/target"));
-		}
 		if (dock_control)
 		{
 			app.screen_controls.emplace_back(id(dock_control->id), dock_control->label);

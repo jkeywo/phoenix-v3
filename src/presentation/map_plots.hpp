@@ -2,6 +2,38 @@
 #include "region_markers.hpp"
 namespace phoenix
 {
+inline bool radar_contact_in_range(const BodyView &own, const BodyView &body, double range)
+{
+	return std::hypot(double(body.x - own.x), double(body.y - own.y)) <= range + body.radius;
+}
+inline Vector2 radar_contact_point(const BodyView &own, const BodyView &body, double range, Vector2 centre,
+                                   float radius)
+{
+	const auto dx = double(body.x - own.x), dy = double(body.y - own.y);
+	const auto distance = std::hypot(dx, dy);
+	const auto scale = distance > range && distance > 0 ? std::max(0.0, distance - body.radius) / distance : 1.0;
+	return {centre.x + float(dx * scale / range) * radius, centre.y - float(dy * scale / range) * radius};
+}
+inline void draw_radar_footprint(Vector2 at, float size, Vector2 centre, float radius, Color colour)
+{
+	// Clip the physical circumference to the plot, including a centre outside it.
+	for (int i = 0; i < 192; ++i)
+	{
+		const auto a = i * 2 * PI / 192, b = (i + 1) * 2 * PI / 192;
+		Vector2 from{at.x + std::cos(a) * size, at.y + std::sin(a) * size};
+		Vector2 to{at.x + std::cos(b) * size, at.y + std::sin(b) * size};
+		const double dx = to.x - from.x, dy = to.y - from.y, x = from.x - centre.x, y = from.y - centre.y;
+		const double A = dx * dx + dy * dy, B = 2 * (x * dx + y * dy), C = x * x + y * y - radius * radius;
+		const auto disc = B * B - 4 * A * C;
+		if (A < 1e-9 || disc < 0)
+			continue;
+		const auto lo = std::max(0.0, (-B - std::sqrt(disc)) / (2 * A));
+		const auto hi = std::min(1.0, (-B + std::sqrt(disc)) / (2 * A));
+		if (lo <= hi)
+			DrawLineV({from.x + float(dx * lo), from.y + float(dy * lo)},
+			          {from.x + float(dx * hi), from.y + float(dy * hi)}, colour);
+	}
+}
 inline Vector2 bearing_ring_point(Vector2 centre, float radius, std::int64_t bearing)
 {
 	const auto angle = static_cast<float>(bearing) / 1000 * DEG2RAD;
@@ -106,7 +138,14 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 	for (const auto &contact : sensing.value("contacts", Json::array()))
 		if (contact.at("id") == settings.value("sensor_contact", EntityId{0}) && contact.contains("x"))
 		{
-			const auto p = point(contact.at("x"), contact.at("y"));
+			const auto body = std::find_if(view.contacts.begin(), view.contacts.end(),
+			                               [&](const auto &value)
+			                               {
+				                               return value.id == contact.at("id");
+			                               });
+			if (body == view.contacts.end() || !radar_contact_in_range(view.own, *body, range))
+				continue;
+			const auto p = radar_contact_point(view.own, *body, range, centre, radius);
 			DrawCircleLinesV(p, 11, GOLD);
 			if (settings.value("contact_arcs", false) && contact.at("findings").contains("contact_arcs"))
 				for (const auto &arc : contact.at("findings").at("contact_arcs").at("data"))
@@ -131,12 +170,19 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 		for (const auto &contact : view.contacts)
 			if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), contact.id) !=
 			        sensor.contact_ids.end() &&
-			    std::hypot(static_cast<double>(contact.x - view.own.x), static_cast<double>(contact.y - view.own.y)) <=
-			        range)
+			    radar_contact_in_range(view.own, contact, range))
 			{
-				draw_radar_body(textures, catalog, contact, point(contact.x, contact.y), 7, SKYBLUE);
+				const auto at = radar_contact_point(view.own, contact, range, centre, radius);
+				const auto size = float(contact.radius / range) * radius;
+				if (size > 12)
+				{
+					draw_radar_footprint(point(contact.x, contact.y), size, centre, radius, SKYBLUE);
+					DrawText(localise(contact.definition).c_str(), int(at.x + 8), int(at.y + 8), 14, SKYBLUE);
+				}
+				else
+					draw_radar_body(textures, catalog, contact, at, 7, SKYBLUE);
 				if (contact.id == settings.value("sensor_contact", EntityId{0}))
-					DrawCircleLinesV(point(contact.x, contact.y), 12, GOLD);
+					DrawCircleLinesV(at, 12, GOLD);
 			}
 	draw_bearing_ring(view, sensor, centre, radius, settings.value("sensor_contact", EntityId{0}));
 	for (const auto &f : view.gameplay.value("psychic", Json::object()).value("fading", Json::array()))

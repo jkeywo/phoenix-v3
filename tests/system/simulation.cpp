@@ -714,7 +714,7 @@ int main(int argc, char **)
 		chain_data["entities"][1]["id"] = "test.anchor";
 		chain_data["entities"][1]["systems"] = Json::object();
 		chain_data["entities"][1]["collision"]["mass_grams"] = 0;
-		chain_data["entities"][0]["systems"]["radar"]["range_mm"] = 2100;
+		chain_data["entities"][0]["systems"]["radar"]["range_mm"] = 1100;
 		chain_data["maps"][0]["entities"] = Json::array(
 		    {instance(1, "test.ship", 0), instance(2, "test.anchor", -1500), instance(3, "test.ship", 2400)});
 		World chain;
@@ -735,9 +735,9 @@ int main(int argc, char **)
 		radar_data["entities"][0]["systems"]["radar"]["range_mm"] = 100000;
 		radar_data["entities"][1]["collision"]["radius_mm"] = 1;
 		radar_data["maps"][0]["entities"] =
-		    Json::array({instance(1, "test.ship", -500000), instance(2, "test.anchor", -400000),
-		                 instance(3, "test.anchor", -399999), instance(4, "test.anchor", -600000),
-		                 instance(5, "test.anchor", -600001)});
+		    Json::array({instance(1, "test.ship", -500000), instance(2, "test.anchor", -399999),
+		                 instance(3, "test.anchor", -399998), instance(4, "test.anchor", -600001),
+		                 instance(5, "test.anchor", -600002)});
 		for (int id = 6; id < 134; ++id)
 			radar_data["maps"][0]["entities"].push_back(instance(id, "test.anchor", id * 1000000));
 		auto radar_content = load(radar_data);
@@ -746,7 +746,7 @@ int main(int argc, char **)
 		indexed_radar.claim(1, 1);
 		auto visible = indexed_radar.observe(1)->contacts;
 		require(visible.size() == 2 && visible[0].id == 2 && visible[1].id == 4,
-		        "radar index must be ready on load and include exact negative-coordinate range boundaries");
+		        "radar index must be ready on load and include exact surface-range boundaries at negative coordinates");
 		indexed_radar.submit(1, {1, "speed_mm_s", 10000});
 		for (int tick = 0; tick < 8; ++tick)
 			indexed_radar.tick();

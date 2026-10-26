@@ -79,6 +79,37 @@ Json samples(const World &w, int target = 2)
 					return t.at("state").at("samples");
 	return Json::object();
 }
+void surface_contact_range()
+{
+	auto source = combat_fixture();
+	auto &radar = source["entities"][0]["systems"]["radar"];
+	radar["range_mm"] = 100000;
+	radar["shows"] = {"planet"};
+	radar["broad_capabilities"] = {{"basic_identity", 0}, {"contact_arcs", 0}, {"shield_sectors", 0}};
+	auto &planet = source["entities"][1];
+	planet["tags"] = {"planet"};
+	planet["collision"]["radius_mm"] = 50000;
+	auto &bodies = source["maps"][0]["entities"];
+	bodies[1]["definition"] = "test.visual";
+	bodies[1]["x_mm"] = 140000;
+	bodies[2]["definition"] = "test.visual";
+	bodies[2]["x_mm"] = 180000;
+	bodies[2]["y_mm"] = 0;
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(101, 1, "drive"), "claim radius-aware radar");
+	world.tick();
+	const auto view = *world.observe(101);
+	require(view.contacts.size() == 1 && view.contacts[0].id == 2 && view.contacts[0].radius == 50000,
+	        "radar detects a body's near surface beyond centre range, without revealing a farther body");
+	const auto client = resolve_packs({ship_client_assets(catalog, view.own.definition)});
+	const auto decoded = network::read_observation(network::observation_json(view), client);
+	require(decoded.contacts[0].radius == 50000, "permitted contact footprint survives restricted network projection");
+	require(projection::read_body(projection::body_json(view.contacts[0]), projection::BodyReadPolicy::SharedDisplay)
+	                .radius == 50000,
+	        "shared radar preserves the sensed footprint");
+}
 void independent_shield_scan()
 {
 	auto source = fixture();
@@ -796,6 +827,7 @@ int main(int argc, char **argv)
 			                    }),
 			        "semantic scan produces positional contact through ordinary session");
 		}
+		surface_contact_range();
 		independent_shield_scan();
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << w.save().at("sensors").dump() << '\n';

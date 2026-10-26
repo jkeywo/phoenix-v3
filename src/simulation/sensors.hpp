@@ -174,6 +174,8 @@ Json sensor_data(EntityId ship, EntityId target, const std::string &cap) const
 				                {"strength", c.state.strength},
 				                {"capacity", c.definition.shield.reserve.capacity},
 				                {"enabled", shield_available(entity, c) && c.state.warmup > 0}});
+	if (!entity.has<EquipmentIndex>())
+		return data;
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
@@ -223,7 +225,6 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 	const auto coverage = sensor_coverage(ship, id, include_outer);
 	const auto origin = coverage.origin;
 	auto range = include_outer ? coverage.outer : coverage.normal;
-	const auto position = entities.at(ship).get<Pose>().position;
 	const auto source_altitude = altitude(ship);
 	const auto child = instance(entities.at(ship), id)->entity;
 	const auto *mode = directed_mode(ship, id);
@@ -234,7 +235,7 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 		range = std::max(range, focused_range);
 	if (!range)
 		return;
-	const auto accept = [&](const BodyView &body, const auto &tags, bool apparent)
+	const auto accept = [&](BodyView body, const auto &tags, bool apparent)
 	{
 		if (body.id == ship || std::none_of(tags.begin(), tags.end(),
 		                                    [&](const auto &tag)
@@ -242,11 +243,21 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 			                                    return std::find(shows.begin(), shows.end(), tag) != shows.end();
 		                                    }))
 			return;
-		const auto delta = fixed::Vec{body.x, body.y} - position;
+		const auto delta = fixed::Vec{body.x, body.y} - origin;
 		const auto z = body.altitude - source_altitude;
-		const auto distance = fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z));
+		const auto distance =
+		    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z)));
+		if (!apparent)
+		{
+			const auto &shape = definition(body.id).collider;
+			body.radius = shape.box ? 0 : shape.radius;
+		}
+		const auto surface_distance = std::max<std::int64_t>(0, distance - body.radius);
+		const fixed::Vec surface =
+		    distance ? origin + fixed::Vec{delta.x * surface_distance / distance, delta.y * surface_distance / distance}
+		             : origin;
 		const auto visibility = apparent ? 1000 : 1000 - concealment(body.id);
-		const auto detection = sensor_contact(coverage, {body.x, body.y}, distance, visibility);
+		const auto detection = sensor_contact(coverage, surface, surface_distance, visibility);
 		const bool focused_only = detection == SensorContact::None && acquiring &&
 		                          body.id == child.get<DirectedRuntime>().target &&
 		                          distance <= focused_range * visibility / 1000 && directed_scan_covers(ship, id, body);

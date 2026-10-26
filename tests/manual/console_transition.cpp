@@ -3,6 +3,7 @@
 #include <raylib.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <string>
 import phoenix.presentation;
@@ -11,11 +12,87 @@ import phoenix.network.lobby;
 import phoenix.session.local;
 using namespace phoenix;
 using phoenix::test::require;
+void verify_planet(const std::string &directory)
+{
+	Application planet;
+	planet.can_host = true;
+	planet.session = make_local_session();
+	auto draft = read_pack(read_file(directory + "/base.zip")).draft();
+	auto definitions = parse_json(draft.files.at("definitions.json"), "near-planet graphical journey");
+	for (auto &map : definitions["maps"])
+		if (map["id"] == "base.rescue-under-threat")
+		{
+			map["ship_slots"][0]["x_mm"] = -700000;
+			map["ship_slots"][0]["y_mm"] = -1200000;
+		}
+	draft.files["definitions.json"] = json_bytes(definitions);
+	planet.session->add_pack(write_pack(draft));
+	planet.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"});
+	planet.screen = Screen::console;
+	planet.console_regions = {{1, 0, 0, 1920, 1080}};
+	auto planet_frame = [&]
+	{
+		planet.session->tick();
+		BeginDrawing();
+		draw_screen(planet);
+		EndDrawing();
+	};
+	for (int i = 0; i < 900; ++i)
+	{
+		planet_frame();
+		if (std::any_of(planet.screen_controls.begin(), planet.screen_controls.end(),
+		                [](const auto &field)
+		                {
+			                return field.first == "console/1/radar-systems/radar";
+		                }))
+			break;
+	}
+	const auto planet_view = planet.session->observation();
+	require(planet_view && std::any_of(planet_view->contacts.begin(), planet_view->contacts.end(),
+	                                   [&](const auto &body)
+	                                   {
+		                                   if (body.id != 3)
+			                                   return false;
+		                                   const auto distance = std::hypot(double(body.x - planet_view->own.x),
+		                                                                    double(body.y - planet_view->own.y));
+		                                   return std::any_of(planet_view->systems.begin(), planet_view->systems.end(),
+		                                                      [&](const auto &sensor)
+		                                                      {
+			                                                      return sensor.kind == OperatingSystem::Radar &&
+			                                                             distance > sensor.maximum &&
+			                                                             distance - body.radius < sensor.maximum &&
+			                                                             std::find(sensor.contact_ids.begin(),
+			                                                                       sensor.contact_ids.end(),
+			                                                                       body.id) != sensor.contact_ids.end();
+		                                                      });
+	                                   }),
+	        "Near-planet journey has a sensed surface with its centre outside radar range");
+	require(probe_console_tab(1, "radar-contact/3"), "Planet surface is selectable with its centre beyond radar range");
+	for (int i = 0; i < 10; ++i)
+		planet_frame();
+	require(std::any_of(planet.screen_readouts.begin(), planet.screen_readouts.end(),
+	                    [](const auto &field)
+	                    {
+		                    return field.first == "console/1/target/speed";
+	                    }),
+	        "Planet information appears directly in the contact panel");
+	require(probe_console_fit(1), "Selected planet details fit the Helm panel at 1080p");
+	TakeScreenshot("build/helm-planet-surface.png");
+}
 int main(int argc, char **argv)
 {
 	try
 	{
 		require(argc == 2 || argc == 3, "Supply the native pack directory and optional private signalling URL");
+		if (argc == 3 && std::string(argv[2]) == "--planet-only")
+		{
+			open_window();
+			SetWindowSize(1920, 1080);
+			verify_planet(argv[1]);
+			close_window();
+			std::cout << "PASS near-planet Helm radar and inline contact panel" << std::endl;
+			return 0;
+		}
 		Application app;
 		app.can_host = app.native_menu = true;
 		NetworkOptions options;
@@ -182,6 +259,20 @@ int main(int argc, char **argv)
 		frames(20);
 		require(app.screen_toggles.at("console/3/task/weapons/0") != weapon_was_on,
 		        "Weapon toggle reaches authoritative state");
+		action("console/3/radar-systems/radar");
+		require(has("console/3/systems-close"), "System status opens from beside the radar");
+		action("console/3/systems-close");
+		if (const auto view = app.session->console_snapshot(3); view && !view->contacts.empty())
+		{
+			action("console/3/radar-contact/" + std::to_string(view->contacts.front().id));
+			require(!has("console/3/task-detail/target"), "Contact details need no extra button");
+			require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+			                    [](const auto &field)
+			                    {
+				                    return field.first == "console/3/target/speed";
+			                    }),
+			        "Selected contact speed is shown directly in the Helm panel");
+		}
 		capture("helm", 3);
 		require(probe_console_fit(3), "Helm operational components fit at 1080p");
 		action("console/3/on-screen/radar");
@@ -278,7 +369,9 @@ int main(int argc, char **argv)
 		action("console/4/systems-close");
 		for (unsigned stage = 0; stage < 5; ++stage)
 		{
-			require(probe_console_throttle(3, stage), "Touch throttle retains captured control and zero deadzone");
+			require(
+			    probe_console_throttle(3, stage),
+			    ("Touch throttle retains captured control and zero deadzone, stage " + std::to_string(stage)).c_str());
 			frames(10);
 		}
 		action("console/3/settings");
@@ -317,6 +410,7 @@ int main(int argc, char **argv)
 			cruiser_frame();
 		TakeScreenshot("build/compact-cruiser-engineering.png");
 		require(probe_console_fit(1), "Cruiser Engineering fits actual authored groups and team roster");
+		verify_planet(argv[1]);
 		close_window();
 		std::cout << "PASS compact native stations, shared viewscreen, star controls, mixed-resolution geometry"
 		          << std::endl;

@@ -586,7 +586,10 @@ struct World::Impl
 					                         if (combat_dead(it.entity(row)))
 						                         continue;
 					                         contact_rows.push_back({ids[row].id, it.entity(row), poses[row].position});
-					                         contact_boxes.push_back(Bounds::around(poses[row].position, 0));
+					                         const auto &shape = definition(ids[row].id).collider;
+					                         contact_boxes.push_back(Bounds::around(
+					                             poses[row].position,
+					                             shape.box ? shape.half_width + shape.half_length : shape.radius));
 				                         }
 			                         }
 			                         contact_index.rebuild(contact_boxes);

@@ -340,6 +340,8 @@ struct BodyView
 	std::string faction, faction_label;
 	std::string disposition = "neutral";
 	std::int64_t altitude = 0, vz = 0;
+	// Sensed circular footprint, independent of identity or allegiance.
+	std::int64_t radius = 0;
 };
 struct SceneAttachment
 {

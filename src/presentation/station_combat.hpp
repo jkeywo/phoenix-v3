@@ -80,12 +80,14 @@ std::vector<std::pair<std::string, std::string>> helm_target_readouts(bool detai
 			                      ? catalog.entities.at(contact.definition).value("name", contact.definition)
 			                      : contact.definition;
 			result.emplace_back("target/name", localise(name) + " #" + std::to_string(contact.id));
-			result.emplace_back("target/range", localise("Range") + ": " +
-			                                        std::to_string(static_cast<std::int64_t>(
-			                                                           std::hypot(double(contact.x - view->own.x),
-			                                                                      double(contact.y - view->own.y))) /
-			                                                       1000) +
-			                                        " m");
+			result.emplace_back(
+			    "target/range",
+			    localise("Range") + ": " +
+			        std::to_string(static_cast<std::int64_t>(std::max(0.0, std::hypot(double(contact.x - view->own.x),
+			                                                                          double(contact.y - view->own.y)) -
+			                                                                   contact.radius)) /
+			                       1000) +
+			        " m");
 			if (detailed)
 				result.emplace_back(
 				    "target/speed",
@@ -109,8 +111,21 @@ std::vector<std::pair<std::string, std::string>> helm_target_readouts(bool detai
 	if (!found)
 		result.emplace_back("target/empty", localise(selected ? "Selected contact is outside positional sensor coverage"
 		                                                      : "Select a contact on the radar"));
+	std::vector<std::string> blocked_progress;
+	if (target_model.observation())
+		for (const auto &scanner :
+		     target_model.observation()->gameplay.value("sensors", Json::object()).value("scanners", Json::array()))
+			if (!scanner.value("blocker", std::string{}).empty())
+				blocked_progress.push_back("game.scan-progress/" + scanner.at("id").get<std::string>() + "/");
 	for (const auto &[key, text] : target_model.gameplay_readouts())
 		if (detailed && selected &&
+		    std::none_of(blocked_progress.begin(), blocked_progress.end(),
+		                 [&](const auto &prefix)
+		                 {
+			                 return key.starts_with(prefix);
+		                 }) &&
+		    !key.starts_with("game.scan-finding/" + std::to_string(selected) + "/basic_identity") &&
+		    !key.starts_with("game.scan-finding/" + std::to_string(selected) + "/contact_arcs") &&
 		    (key.starts_with("game.scan-finding/") || key.starts_with("game.scan-status/") ||
 		     key.starts_with("game.scan-progress/")))
 			result.emplace_back("target/" + key, text);
@@ -532,12 +547,10 @@ void prepare_radar_choices(const ConsoleRegion &region)
 					for (const auto &body : view.contacts)
 						if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), body.id) !=
 						        sensor.contact_ids.end() &&
-						    std::hypot(double(body.x - view.own.x), double(body.y - view.own.y)) <= sensor.maximum)
+						    radar_contact_in_range(view.own, body, sensor.maximum))
 						{
-							points.emplace_back(
-							    body.id,
-							    Vector2{centre.x + float(double(body.x - view.own.x) / sensor.maximum) * radius,
-							            centre.y - float(double(body.y - view.own.y) / sensor.maximum) * radius});
+							points.emplace_back(body.id,
+							                    radar_contact_point(view.own, body, sensor.maximum, centre, radius));
 							const auto &catalog = app_->session->catalog();
 							labels[body.id] =
 							    localise("Select target") + ": " +

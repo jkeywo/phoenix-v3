@@ -210,6 +210,9 @@ void narrow_sensor_profiles()
 void asteroid_streaming()
 {
 	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "field fixture");
+	// Streamed inert rocks have no fitted machinery; ordinary combat sensing must still be safe.
+	data["entities"][0]["systems"]["radar"]["shows"] = {"contact", "asteroid", "ship"};
+	data["entities"][0]["systems"]["radar"]["broad_capabilities"] = {{"basic_identity", 0}, {"contact_arcs", 0}};
 	const Json frame{{"name", "front"}, {"rect", {0, 0, 1, 1}}, {"pivot", {.5, .5}}};
 	const Json sprite{{"albedo", "test-core:assets/pixel.png"},
 	                  {"entries", Json::array({{{"name", "first"}, {"frames", Json::array({frame})}},
