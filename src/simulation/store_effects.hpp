@@ -202,21 +202,21 @@ void prepare_group_modifier(PreparedEffectGroup &quote, const EffectGroupInvocat
 	const auto source = frame.source + "." + operation.grant;
 	validate_effect_identity(source, equipment, true);
 	auto &prepared = prepare_property_owner(quote, ship);
-	std::uint64_t existing = 0;
-	for (const auto &contribution : prepared.contributions)
-		if (contribution.source == source && contribution.equipment == equipment)
-		{
-			if (contribution.definition != compiled.id)
-				throw std::runtime_error("Modifier grant name belongs to another definition");
-			existing = contribution.id;
-		}
-	if (!existing || !frame.maintained)
+	const auto existing = std::find_if(prepared.applications.begin(), prepared.applications.end(),
+	                                   [&](const auto &application)
+	                                   {
+		                                   return application.source == source && application.equipment == equipment;
+	                                   });
+	if (existing != prepared.applications.end() && existing->definition != compiled.id)
+		throw std::runtime_error("Modifier grant name belongs to another definition");
+	if (existing == prepared.applications.end() || !frame.maintained)
 		install_modifier_grant(prepared, compiled, source, equipment, quote.tick, frame.maintained);
-	for (auto &contribution : prepared.contributions)
-		if (contribution.source == source && contribution.equipment == equipment)
-			for (const auto &value : compiled.contributions)
-				if (contribution.name == value.name && contribution.property == value.property)
-					contribution.delta_permille = value.delta_permille;
+	for (auto &application : prepared.applications)
+		if (application.source == source && application.equipment == equipment)
+			for (auto &contribution : application.modifier.values)
+				for (const auto &value : compiled.contributions)
+					if (contribution.name == value.name && contribution.property == property_key(value.property))
+						contribution.delta = value.delta_permille;
 }
 flecs::entity watch_effect_target(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
                                   bool outcome = true, bool ordnance = false) const
@@ -347,20 +347,13 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 	}
 	else if (!actor.ordnance && context.owner_effect_kind == NativeEffectKind::Modifier)
 	{
-		const auto live = property_snapshot(ship);
-		const auto *current = quote.properties.contains(actor.entity) ? &quote.properties.at(actor.entity)
-		                      : live                                  ? &*live
-		                                                              : nullptr;
-		const auto matches = [&](const auto &contribution)
-		{
-			return contribution.id == identity && contribution.source == source &&
-			       contribution.equipment == actor.equipment;
-		};
-		if (current && std::any_of(current->contributions.begin(), current->contributions.end(), matches))
-		{
-			auto &prepared = prepare_property_owner(quote, ship);
-			removed = std::erase_if(prepared.contributions, matches) > 0;
-		}
+		auto &prepared = prepare_property_owner(quote, ship);
+		removed = std::erase_if(prepared.applications,
+		                        [&](const auto &application)
+		                        {
+			                        return application.id == identity && application.source == source &&
+			                               application.equipment == actor.equipment;
+		                        }) > 0;
 	}
 	else if (!actor.ordnance && context.owner_effect_kind == NativeEffectKind::Ability)
 	{

@@ -127,29 +127,6 @@ void advance_personnel(EntityId id)
 	}
 	(void)arrived;
 }
-// Read model of shared maintained native grants; never evaluates traits or pays costs.
-std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship, const std::string &equipment,
-                                                               const std::string &contribution) const
-{
-	std::vector<PropertyContribution> out;
-	const auto effects = property_snapshot(ship);
-	if (!effects || !ship.has<StableId>())
-		return out;
-	RuleSourceAvailabilityCache sources;
-	for (const auto &entry : effects->contributions)
-	{
-		if (entry.equipment != equipment && (contribution.empty() || entry.equipment != contribution))
-			continue;
-		const auto *state = readonly_rule_execution(parent_rule_execution_key(entry.source));
-		if (!state || state->owner_kind != RuleOwnerKind::Officer || !state->source_key.starts_with("trait:") ||
-		    !rule_grant_available(ship.get<StableId>().id, entry.source, &sources))
-			continue;
-		auto row = entry;
-		row.maintained = true;
-		out.push_back(std::move(row));
-	}
-	return out;
-}
 std::pair<std::string, std::string> officer_speaker(EntityId id, const std::string &console,
                                                     const std::string &controller) const
 {

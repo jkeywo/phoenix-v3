@@ -42,7 +42,7 @@ bool rule_origin_live(const RuleOriginKey &key, const PreparedEffectGroup *prepa
 				return true;
 	if (prepared && prepared->properties.contains(id))
 	{
-		for (const auto &row : prepared->properties.at(id).contributions)
+		for (const auto &row : prepared->properties.at(id).applications)
 			if (row.source == source && native_rule_provenance_required(row.definition))
 				return true;
 	}

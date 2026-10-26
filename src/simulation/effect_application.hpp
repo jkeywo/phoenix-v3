@@ -56,12 +56,12 @@ void prepare_effect_application(flecs::entity ship, const EffectApplication &app
 		if (application.operation == EffectApplicationOperation::Refresh)
 		{
 			const auto found =
-			    std::find_if(properties->contributions.begin(), properties->contributions.end(),
+			    std::find_if(properties->applications.begin(), properties->applications.end(),
 			                 [&](const auto &c)
 			                 {
 				                 return c.source == application.source && c.equipment == application.equipment;
 			                 });
-			if (found == properties->contributions.end())
+			if (found == properties->applications.end())
 				throw std::runtime_error("Modifier grant unavailable for refresh");
 			definition = found->definition;
 		}

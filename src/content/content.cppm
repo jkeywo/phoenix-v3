@@ -836,13 +836,37 @@ struct ModifierEffectDefinition
 	std::int64_t duration_ticks = 0;
 	std::vector<ModifierContributionDefinition> contributions;
 };
+enum class PropertyKey : std::size_t
+{
+	propulsion,
+	speed,
+	turn,
+	sensors,
+	cycling,
+	traverse,
+	reload,
+	processing,
+	recharge,
+	off_recharge,
+	sustain,
+	discharge,
+	protection,
+	repair,
+	medical,
+	security,
+	comms,
+	count
+};
 struct ModifierPropertyDescriptor
 {
+	PropertyKey key;
 	std::string id, unit;
 	std::vector<OperatingSystem> owners;
 	std::int64_t maximum = 1000000000;
 };
 const std::vector<ModifierPropertyDescriptor> &modifier_properties();
+PropertyKey property_key(std::string_view);
+const ModifierPropertyDescriptor &modifier_property(PropertyKey);
 bool known_modifier_property(std::string_view);
 bool property_compatible(std::string_view, OperatingSystem);
 std::string modifier_property_role(std::string_view);

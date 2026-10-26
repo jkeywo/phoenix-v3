@@ -66,18 +66,7 @@ struct PreparedEffectGroup
 
 inline bool same_effect_properties(const PropertyEffects &a, const PropertyEffects &b)
 {
-	if (a.next_id != b.next_id || a.contributions.size() != b.contributions.size())
-		return false;
-	for (std::size_t i = 0; i < a.contributions.size(); ++i)
-	{
-		const auto &x = a.contributions[i];
-		const auto &y = b.contributions[i];
-		if (std::tie(x.id, x.source, x.definition, x.name, x.equipment, x.property, x.delta_permille, x.expiry,
-		             x.maintained) != std::tie(y.id, y.source, y.definition, y.name, y.equipment, y.property,
-		                                       y.delta_permille, y.expiry, y.maintained))
-			return false;
-	}
-	return true;
+	return a == b;
 }
 inline bool same_effect_shields(const ShieldComponent &a, const ShieldComponent &b)
 {

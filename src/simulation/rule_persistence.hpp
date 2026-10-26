@@ -235,10 +235,8 @@ Json save_rules() const
 {
 	Json out = {{"schema", 1},
 	            {"next_job", next_rule_job},
-	            {"next_instance", next_rule_instance},
 	            {"pending", pending_rules},
 	            {"results", Json::array()},
-	            {"active", active_rule_snapshot()},
 	            {"ships", Json::array()},
 	            {"origins", Json::array()}};
 	for (const auto &[id, result] : rule_results)
@@ -254,20 +252,21 @@ Json save_rules() const
 			                          {"context", context}});
 	return out;
 }
-void restore_rules(const Json &saved)
+void restore_rules(const Json &saved, const Json &conditions, const Json &next_condition)
 {
-	rule_saved_fields(saved,
-	                  {"schema", "next_job", "next_instance", "pending", "results", "active", "ships", "origins"});
+	rule_saved_fields(saved, {"schema", "next_job", "pending", "results", "ships", "origins"});
 	if (rule_saved_integer(saved.at("schema"), 1, 1) != 1)
 		throw std::runtime_error("rules: unsupported save schema");
 	const auto job_next = static_cast<std::uint64_t>(rule_saved_integer(saved.at("next_job"), 1));
-	const auto instance_next = static_cast<std::uint64_t>(rule_saved_integer(saved.at("next_instance"), 1));
+	const auto instance_next = static_cast<std::uint64_t>(rule_saved_integer(next_condition, 1));
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	for (const auto field : {"pending", "results", "active", "ships", "origins"})
+	for (const auto field : {"pending", "results", "ships", "origins"})
 		if (!saved.at(field).is_array())
 			throw std::runtime_error("rules: saved roster is not an array");
+	if (!conditions.is_array())
+		throw std::runtime_error("rules: saved condition roster is not an array");
 	if (saved.at("pending").size() > rule_pending_limit || saved.at("results").size() > 1024 ||
-	    saved.at("active").size() > rule_instance_limit || saved.at("ships").size() != entities.size() ||
+	    conditions.size() > rule_instance_limit || saved.at("ships").size() != entities.size() ||
 	    saved.at("origins").size() > rule_origin_limit)
 		throw std::runtime_error("rules: saved roster capacity exceeded");
 	std::vector<PendingRuleExecution> pending;
@@ -331,7 +330,7 @@ void restore_rules(const Json &saved)
 			throw std::runtime_error("rules: invalid saved result");
 		results.emplace(id, text);
 	}
-	for (const auto &value : saved.at("active"))
+	for (const auto &value : conditions)
 	{
 		rule_saved_fields(value,
 		                  {"id", "source", "definition", "group_source", "context", "origin", "expiry", "clocks"});
@@ -489,7 +488,8 @@ void restore_rules(const Json &saved)
 		for (const auto &[key, state] : effect.clocks)
 			saved_clocks.emplace(key, &state);
 	}
-	const auto validate_maintained_row = [&](EntityId id, const PropertyContribution &contribution)
+	const auto validate_maintained_row =
+	    [&](EntityId id, const ModifierApplication &contribution, const PropertyValue &value)
 	{
 		const auto found = saved_clocks.find(parent_rule_execution_key(contribution.source));
 		bool matching = false;
@@ -516,8 +516,8 @@ void restore_rules(const Json &saved)
 					matching = std::any_of(definition.contributions.begin(), definition.contributions.end(),
 					                       [&](const auto &row)
 					                       {
-						                       return row.name == contribution.name &&
-						                              row.property == contribution.property &&
+						                       return row.name == value.name &&
+						                              property_key(row.property) == value.property &&
 						                              (role.empty() || row.role == role) &&
 						                              (state.applied_context.property_filter.empty() ||
 						                               row.property == state.applied_context.property_filter);
@@ -527,7 +527,7 @@ void restore_rules(const Json &saved)
 				}
 			}
 		}
-		if (contribution.maintained != matching)
+		if (contribution.modifier.maintained != matching)
 			throw std::runtime_error("rules: maintained property row has no matching saved Apply owner");
 	};
 	std::set<std::string> maintained_sources;
@@ -545,12 +545,12 @@ void restore_rules(const Json &saved)
 	};
 	for (const auto &[id, ship] : entities)
 	{
-		if (const auto properties = property_snapshot(ship))
-			for (const auto &contribution : properties->contributions)
-			{
-				validate_maintained_row(id, contribution);
-				check_grant_clock(contribution.source);
-			}
+		for (const auto &application : read_property_effects(ship).applications)
+		{
+			for (const auto &value : application.modifier.values)
+				validate_maintained_row(id, application, value);
+			check_grant_clock(application.source);
+		}
 		if (const auto *shields = ship.try_get<ShieldComponent>())
 			for (const auto &contribution : shields->contributions)
 				check_grant_clock(contribution.source);

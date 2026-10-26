@@ -4182,10 +4182,8 @@ Json World::save() const
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["rules"] = impl_->save_rules();
 	result["active_effects"] = impl_->save_active_modifiers();
-	result["active_effects"]["conditions"] = result["rules"]["active"];
-	result["active_effects"]["next_condition"] = result["rules"]["next_instance"];
-	result["rules"].erase("active");
-	result["rules"].erase("next_instance");
+	result["active_effects"]["conditions"] = impl_->active_rule_snapshot();
+	result["active_effects"]["next_condition"] = impl_->next_rule_instance;
 	if (impl_->display_revision)
 	{
 		result["display_revision"] = impl_->display_revision;
@@ -4724,12 +4722,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	candidate.impl_->restore_projectiles(saved);
-	auto rules = saved.at("rules");
-	if (rules.contains("active") || rules.contains("next_instance"))
-		throw std::runtime_error("Retired active rule storage");
-	rules["active"] = saved.at("active_effects").at("conditions");
-	rules["next_instance"] = saved.at("active_effects").at("next_condition");
-	candidate.impl_->restore_rules(rules);
+	candidate.impl_->restore_rules(saved.at("rules"), saved.at("active_effects").at("conditions"),
+	                               saved.at("active_effects").at("next_condition"));
 
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});

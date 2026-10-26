@@ -172,7 +172,7 @@ std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, co
 std::int64_t shield_property(flecs::entity ship, const ShieldContribution &c, PropertyKey property, std::int64_t base,
                              std::int64_t extra_delta = 0) const
 {
-	return shield_property(ship, c, modifier_properties().at(static_cast<std::size_t>(property)).id, base, extra_delta);
+	return shield_property(ship, c, modifier_property(property).id, base, extra_delta);
 }
 void step_shield_effects()
 {

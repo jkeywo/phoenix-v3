@@ -10,36 +10,6 @@ inline constexpr std::size_t modifier_contribution_limit =
 // arithmetic budget in addition to the full supported application roster.
 inline constexpr std::int64_t modifier_delta_limit =
     static_cast<std::int64_t>(modifier_contribution_limit) * 100000 + 1000000000000LL;
-// Private numeric keys follow the compiled native property descriptor order.
-enum class PropertyKey : std::size_t
-{
-	propulsion,
-	speed,
-	turn,
-	sensors,
-	cycling,
-	traverse,
-	reload,
-	processing,
-	recharge,
-	off_recharge,
-	sustain,
-	discharge,
-	protection,
-	repair,
-	medical,
-	security,
-	comms,
-	count
-};
-inline PropertyKey property_key(std::string_view name)
-{
-	const auto &descriptors = modifier_properties();
-	for (std::size_t i = 0; i < descriptors.size(); ++i)
-		if (descriptors[i].id == name)
-			return static_cast<PropertyKey>(i);
-	throw std::runtime_error("Unknown native property");
-}
 using PropertyTotals = std::array<std::int64_t, static_cast<std::size_t>(PropertyKey::count)>;
 enum class PropertyTargetKind
 {
@@ -62,20 +32,7 @@ struct PropertyTargetKey
 	}
 };
 using PropertyAggregate = std::map<PropertyTargetKey, PropertyTotals>;
-struct PropertyContribution
-{
-	std::uint64_t id = 0;
-	std::string source, definition, name, equipment, property;
-	std::int64_t delta_permille = 0, expiry = -1;
-	bool maintained = false;
-};
-struct PropertyEffects
-{
-	std::uint64_t next_id = 1;
-	std::vector<PropertyContribution> contributions;
-};
-// Authoritative lasting applications are ECS entities. PropertyEffects above is
-// a transaction/persistence snapshot, never a live Flecs component.
+// Authoritative applications are ECS entities; snapshots use the same grouped values.
 struct ActiveEffectIdentity
 {
 	std::uint64_t id = 0;
@@ -112,6 +69,20 @@ struct ModifierValues
 	bool maintained = false;
 	std::vector<PropertyValue> values;
 	bool operator==(const ModifierValues &) const = default;
+};
+struct ModifierApplication
+{
+	std::uint64_t id = 0;
+	std::string source, definition, equipment;
+	std::int64_t expiry = -1;
+	ModifierValues modifier;
+	bool operator==(const ModifierApplication &) const = default;
+};
+struct PropertyEffects
+{
+	std::uint64_t next_id = 1;
+	std::vector<ModifierApplication> applications;
+	bool operator==(const PropertyEffects &) const = default;
 };
 struct PropertyEffectOwner
 {
