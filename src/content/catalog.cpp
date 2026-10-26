@@ -975,6 +975,11 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			if (!widget_ids.insert(widget_id).second)
 				invalid(path + "." + widget_id, "duplicate widget id");
 			auto kind = text(widget, "kind", path + "." + widget_id);
+			if (widget.contains("selection_source") &&
+			    (kind != "radar" || !widget.at("selection_source").is_string() ||
+			     !std::set<std::string>{"tactical", "sensors", "waypoint"}.contains(
+			         widget.at("selection_source").get<std::string>())))
+				invalid(path + "." + widget_id, "selection_source requires tactical, sensors or waypoint on a radar");
 			if (widget.contains("fire_arcs") && (kind != "radar" || !widget.at("fire_arcs").is_boolean()))
 				invalid(path + "." + widget_id, "fire_arcs requires a radar boolean");
 			if (widget.contains("sweep"))

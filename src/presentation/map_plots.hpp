@@ -2,6 +2,21 @@
 #include "region_markers.hpp"
 namespace phoenix
 {
+inline Color radar_selection_colour(const Catalog &catalog, const std::string &source,
+                                    const Json &tokens = Json::object())
+{
+	const auto key = "selection_" + source;
+	const auto fallback = source == "tactical" ? "#ff6262" : source == "waypoint" ? "#ffdb55" : "#62aaff";
+	const auto pack_tokens = catalog.themes.contains(catalog.ui_theme)
+	                             ? catalog.themes.at(catalog.ui_theme).value("tokens", Json::object())
+	                             : Json::object();
+	const auto value = tokens.value(key, pack_tokens.value(key, std::string(fallback)));
+	return GetColor(static_cast<unsigned>(std::stoul(value.substr(1) + (value.size() == 7 ? "ff" : ""), nullptr, 16)));
+}
+inline void draw_radar_selection(Vector2 at, float radius, Color colour)
+{
+	DrawRing(at, radius - 1, radius + 1, 0, 360, 64, colour);
+}
 inline bool radar_contact_in_range(const BodyView &own, const BodyView &body, double range)
 {
 	return std::hypot(double(body.x - own.x), double(body.y - own.y)) <= range + body.radius;
@@ -40,7 +55,7 @@ inline Vector2 bearing_ring_point(Vector2 centre, float radius, std::int64_t bea
 	return {centre.x + std::cos(angle) * radius * 1.08f, centre.y - std::sin(angle) * radius * 1.08f};
 }
 inline void draw_bearing_ring(const Observation &view, const SystemView &sensor, Vector2 centre, float radius,
-                              EntityId selected = 0)
+                              EntityId selected = 0, Color selection_colour = SKYBLUE)
 {
 	if (!sensor.enabled)
 		return;
@@ -52,7 +67,7 @@ inline void draw_bearing_ring(const Observation &view, const SystemView &sensor,
 			auto p = bearing_ring_point(centre, radius, b.bearing_mdeg);
 			DrawCircleV(p, 5, SKYBLUE);
 			if (b.id == selected)
-				DrawCircleLinesV(p, 10, GOLD);
+				draw_radar_selection(p, 14, selection_colour);
 			DrawText(TextFormat("#%llu", static_cast<unsigned long long>(b.id)), static_cast<int>(p.x + 8),
 			         static_cast<int>(p.y - 6), 14, SKYBLUE);
 		}
@@ -67,6 +82,9 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
                             const SystemView &sensor, const Json &waypoint, RadarSweep &sweep, const Json &settings,
                             Vector2 centre, float radius, double time, bool reduced_motion)
 {
+	const auto tokens = settings.value("selection_tokens", Json::object());
+	const auto selected_colour = radar_selection_colour(catalog, settings.value("selection_source", "sensors"), tokens);
+	const auto waypoint_colour = radar_selection_colour(catalog, "waypoint", tokens);
 	DrawCircleV(centre, radius, {8, 23, 25, 150});
 	for (int ring = 1; ring <= 4; ++ring)
 		DrawCircleLinesV(centre, radius * ring / 4, {37, 77, 78, 255});
@@ -146,7 +164,7 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 			if (body == view.contacts.end() || !radar_contact_in_range(view.own, *body, range))
 				continue;
 			const auto p = radar_contact_point(view.own, *body, range, centre, radius);
-			DrawCircleLinesV(p, 11, GOLD);
+
 			if (settings.value("contact_arcs", false) && contact.at("findings").contains("contact_arcs"))
 				for (const auto &arc : contact.at("findings").at("contact_arcs").at("data"))
 					sector(p, arc.at("bearing_mdeg").get<float>() / 1000, arc.at("arc_mdeg").get<float>() / 1000, 30,
@@ -182,9 +200,9 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 				else
 					draw_radar_body(textures, catalog, contact, at, 7, SKYBLUE);
 				if (contact.id == settings.value("sensor_contact", EntityId{0}))
-					DrawCircleLinesV(at, 12, GOLD);
+					draw_radar_selection(at, 14, selected_colour);
 			}
-	draw_bearing_ring(view, sensor, centre, radius, settings.value("sensor_contact", EntityId{0}));
+	draw_bearing_ring(view, sensor, centre, radius, settings.value("sensor_contact", EntityId{0}), selected_colour);
 	for (const auto &f : view.gameplay.value("psychic", Json::object()).value("fading", Json::array()))
 	{
 		const auto &b = f.at("body");
@@ -203,17 +221,18 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 		const Vector2 p{centre.x + static_cast<float>(dx / divisor) * radius,
 		                centre.y - static_cast<float>(dy / divisor) * radius};
 		if (distance <= range)
-			DrawCircleLinesV(p, 8, GOLD);
+			draw_radar_selection(p, 14, waypoint_colour);
 		else
 		{
 			const float ux = static_cast<float>(dx / distance), uy = static_cast<float>(-dy / distance);
-			DrawLineEx(p, {p.x - ux * 15 - uy * 7, p.y - uy * 15 + ux * 7}, 3, GOLD);
-			DrawLineEx(p, {p.x - ux * 15 + uy * 7, p.y - uy * 15 - ux * 7}, 3, GOLD);
+			DrawLineEx(p, {p.x - ux * 15 - uy * 7, p.y - uy * 15 + ux * 7}, 3, waypoint_colour);
+			DrawLineEx(p, {p.x - ux * 15 + uy * 7, p.y - uy * 15 - ux * 7}, 3, waypoint_colour);
 		}
 	}
 }
 inline void draw_navigation_plot(const BodyView &own, const Json &regions, const Json &objectives, const Json &waypoint,
-                                 const NavigationCamera &camera, Rectangle area, bool overlay = false)
+                                 const NavigationCamera &camera, Rectangle area, bool overlay = false,
+                                 Color waypoint_colour = GOLD)
 {
 	BeginScissorMode(static_cast<int>(area.x), static_cast<int>(area.y), static_cast<int>(area.width),
 	                 static_cast<int>(area.height));
@@ -244,9 +263,7 @@ inline void draw_navigation_plot(const BodyView &own, const Json &regions, const
 	if (waypoint.value("active", false))
 	{
 		const auto p = point(waypoint.at("x"), waypoint.at("y"));
-		DrawCircleLinesV(p, 10, SKYBLUE);
-		DrawLineV({p.x - 14, p.y}, {p.x + 14, p.y}, SKYBLUE);
-		DrawLineV({p.x, p.y - 14}, {p.x, p.y + 14}, SKYBLUE);
+		draw_radar_selection(p, 14, waypoint_colour);
 	}
 	EndScissorMode();
 }

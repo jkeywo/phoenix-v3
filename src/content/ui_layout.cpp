@@ -620,6 +620,9 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 	                {"text", "#fff0d4"},
 	                {"muted", "#b6c2c8"},
 	                {"accent", "#d6ac64"},
+	                {"selection_tactical", "#ff6262"},
+	                {"selection_sensors", "#62aaff"},
+	                {"selection_waypoint", "#ffdb55"},
 	                {"positive", "#88d69b"},
 	                {"negative", "#ee8d83"},
 	                {"hover", "#ffd5a5"},
@@ -649,9 +652,27 @@ Json resolved_ui_theme(const Catalog &catalog, const std::string &id, const Json
 	           "theme", "expected schema 1 with tokens and assets");
 	for (const auto &[key, value] : theme.at("tokens").items())
 	{
-		static const std::set<std::string> supported = {
-		    "background",  "panel",     "text",   "muted",        "accent", "focus",    "disabled", "error", "border",
-		    "font_family", "font_size", "radius", "border_width", "gap",    "positive", "negative", "hover", "pressed"};
+		static const std::set<std::string> supported = {"background",
+		                                                "panel",
+		                                                "text",
+		                                                "muted",
+		                                                "accent",
+		                                                "focus",
+		                                                "disabled",
+		                                                "error",
+		                                                "border",
+		                                                "font_family",
+		                                                "font_size",
+		                                                "radius",
+		                                                "border_width",
+		                                                "gap",
+		                                                "positive",
+		                                                "negative",
+		                                                "hover",
+		                                                "pressed",
+		                                                "selection_tactical",
+		                                                "selection_sensors",
+		                                                "selection_waypoint"};
 		ui_require(supported.contains(key), "theme.tokens." + key, "unsupported visual property");
 		if (key == "font_family")
 		{

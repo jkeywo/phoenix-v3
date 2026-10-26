@@ -115,3 +115,9 @@ The shared slot registry contains `background`, `panel`, `button`, `button-hover
 Workshop/GM chrome follows the pack palette, frame artwork and button-state skins. Its buttons retain ordinary ImGui layout, navigation, focus and activation behavior. Console previews and gameplay use the same RmlUi theme renderer, including tabs, machinery sliders, fields, progress and scrollbars. Custom radar, flight and camera instruments retain their existing artwork. Panel frames have transparent interiors so custom map and ship drawings remain visible. Live colours and artwork survive inheritance, export/reopen and restricted Console transfer. The pre-launch browser shell uses the background/panel/button subset and the same artwork scale; runtime-only skins are not duplicated into launcher metadata.
 
 The new source sprites and generation prompts are in `content/base/assets/ui/`. Original instrument art remains in `content/ui/`.
+
+### Radar selection roles
+
+Radar widgets author `selection_source` as `tactical`, `sensors` or `waypoint` (older widgets default to `sensors`). Workshop exposes this choice beside the radar sweep settings. Theme colour tokens `selection_tactical`, `selection_sensors` and `selection_waypoint` default to red, blue and yellow respectively, and can be edited with the existing theme colour controls. Restricted client packs retain both the role and colours.
+
+Selected contacts use a hollow circle; keyboard/gamepad focus uses a slightly larger circle in the same role colour. Radar hit targets remain invisible and never acquire button artwork or a square focus frame. Bearing-only contacts use the same circle on the bearing ring. Navigation selections and active waypoint markers use the waypoint colour; selecting a contact still does not authorise offensive fire.

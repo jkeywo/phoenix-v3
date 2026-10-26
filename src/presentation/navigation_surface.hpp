@@ -437,7 +437,8 @@ void draw_navigation(float ox, float oy)
 	const auto &view = *model_.observation();
 	draw_navigation_plot(
 	    view.own, view.regions, Json::array(), model_.waypoint(), navigation_camera_,
-	    {ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width, navigation_area_.height});
+	    {ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width, navigation_area_.height}, false,
+	    radar_selection_colour(app_->session->catalog(), "waypoint", active_theme_.value("tokens", Json::object())));
 	const Rectangle area{ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width,
 	                     navigation_area_.height};
 	BeginScissorMode(static_cast<int>(area.x), static_cast<int>(area.y), static_cast<int>(area.width),
@@ -456,7 +457,9 @@ void draw_navigation(float ox, float oy)
 		                     static_cast<float>((navigation_x_ - navigation_camera_.x) / navigation_camera_.scale),
 		                 area.y + area.height / 2 -
 		                     static_cast<float>((navigation_y_ - navigation_camera_.y) / navigation_camera_.scale)};
-		DrawCircleLinesV(at, 14, GOLD);
+		draw_radar_selection(at, 14,
+		                     radar_selection_colour(app_->session->catalog(), "waypoint",
+		                                            active_theme_.value("tokens", Json::object())));
 	}
 	EndScissorMode();
 }

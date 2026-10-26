@@ -244,7 +244,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 					copy["system"] = widget.at("system");
 				if (widget.contains("sweep"))
 					copy["sweep"] = widget.at("sweep");
-				for (const auto *field : {"controller", "channel", "when"})
+				for (const auto *field : {"controller", "channel", "when", "selection_source"})
 					if (widget.contains(field))
 						copy[field] = widget.at(field);
 				layout["widgets"].push_back(std::move(copy));

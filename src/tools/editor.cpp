@@ -1177,6 +1177,14 @@ void console_editor(Application &app, bool inspector)
 			           string_field("Semantic label", widget, "label");
 			           if (widget.at("kind") == "radar")
 			           {
+				           const auto source = widget.value("selection_source", "sensors");
+				           if (ImGui::BeginCombo(tool_label("Selection source").c_str(), source.c_str()))
+				           {
+					           for (const char *role : {"tactical", "sensors", "waypoint"})
+						           if (ImGui::Selectable(role, source == role))
+							           widget["selection_source"] = role;
+					           ImGui::EndCombo();
+				           }
 				           if (!widget.contains("sweep") && tool_button(tool_label("Customize radar sweep").c_str()))
 					           widget["sweep"] = {{"enabled", true},
 					                              {"colour", {.1, .9, .65, .85}},

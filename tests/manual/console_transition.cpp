@@ -12,7 +12,7 @@ import phoenix.network.lobby;
 import phoenix.session.local;
 using namespace phoenix;
 using phoenix::test::require;
-void verify_planet(const std::string &directory)
+void verify_planet(const std::string &directory, const std::string &selection_source = {})
 {
 	Application planet;
 	planet.can_host = true;
@@ -25,6 +25,12 @@ void verify_planet(const std::string &directory)
 			map["ship_slots"][0]["x_mm"] = -700000;
 			map["ship_slots"][0]["y_mm"] = -1200000;
 		}
+	if (!selection_source.empty())
+		for (auto &console : definitions["consoles"])
+			if (console["id"] == "base.console.combat-helm")
+				for (auto &widget : console["widgets"])
+					if (widget["kind"] == "radar")
+						widget["selection_source"] = selection_source;
 	draft.files["definitions.json"] = json_bytes(definitions);
 	planet.session->add_pack(write_pack(draft));
 	planet.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"});
@@ -77,7 +83,7 @@ void verify_planet(const std::string &directory)
 	                    }),
 	        "Planet information appears directly in the contact panel");
 	require(probe_console_fit(1), "Selected planet details fit the Helm panel at 1080p");
-	TakeScreenshot("build/helm-planet-surface.png");
+	TakeScreenshot(selection_source.empty() ? "build/helm-planet-surface.png" : "build/radar-selection-sensors.png");
 }
 void verify_viewscreen(const std::string &directory)
 {
@@ -220,11 +226,11 @@ int main(int argc, char **argv)
 	try
 	{
 		require(argc == 2 || argc == 3, "Supply the native pack directory and optional private signalling URL");
-		if (argc == 3 && std::string(argv[2]) == "--planet-only")
+		if (argc == 3 && (std::string(argv[2]) == "--planet-only" || std::string(argv[2]) == "--sensors-only"))
 		{
 			open_window();
 			SetWindowSize(1920, 1080);
-			verify_planet(argv[1]);
+			verify_planet(argv[1], std::string(argv[2]) == "--sensors-only" ? "sensors" : "");
 			close_window();
 			std::cout << "PASS near-planet Helm radar and inline contact panel" << std::endl;
 			return 0;

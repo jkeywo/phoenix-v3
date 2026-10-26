@@ -356,8 +356,17 @@ void draw_pad_selection(Application &app)
 							x = r.x;
 							y = r.y;
 						}
-					DrawRectangleLinesEx(
-					    {x + offset.x, y + offset.y, element->GetOffsetWidth(), element->GetOffsetHeight()}, 3, ORANGE);
+					if (element->IsClassSet("radar-contact"))
+					{
+						const auto c = element->GetProperty<Rml::Colourb>("image-color");
+						draw_radar_selection({x + offset.x + element->GetOffsetWidth() / 2,
+						                      y + offset.y + element->GetOffsetHeight() / 2},
+						                     16, {c.red, c.green, c.blue, c.alpha});
+					}
+					else
+						DrawRectangleLinesEx(
+						    {x + offset.x, y + offset.y, element->GetOffsetWidth(), element->GetOffsetHeight()}, 3,
+						    ORANGE);
 					if (!selection.editing.empty())
 						DrawText(std::to_string(selection.pending).c_str(), static_cast<int>(x + offset.x),
 						         static_cast<int>(y + offset.y), 20, ORANGE);

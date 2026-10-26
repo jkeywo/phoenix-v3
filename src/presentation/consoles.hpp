@@ -786,7 +786,7 @@ progress fill {background:#83be90;}
 #gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:0.7em;overflow:hidden;}
 .integrated-helm #gameplay-controls button {width:210dp;min-height:48dp;font-size:.85em;padding:6dp;margin:2dp;}
 .radar-contact {position:absolute;width:24px;height:24px;min-width:0;min-height:0;margin:0;padding:0;background:transparent;border:1px transparent;z-index:4;}
-.radar-contact:focus {border-color:#ffe2a5;background:#285052;}
+.radar-contact:focus {border-color:transparent;background:transparent;}
 .support-detail-close {position:absolute;right:3%;top:112dp;min-height:44dp;z-index:75;}
 .local-settings-open .support-detail-close {visibility:hidden;}
 .support-panels .engineering-card p {min-height:0;}
@@ -3991,6 +3991,8 @@ progress fill {background:#83be90;}
 									if (w.at("id") == key)
 									{
 										settings = w.value("sweep", Json::object());
+										settings["selection_source"] = w.value("selection_source", "sensors");
+										settings["selection_tokens"] = active_theme_.value("tokens", Json::object());
 										settings["fire_arcs"] =
 										    w.value("fire_arcs", false) && model_.fire_arcs_visible();
 									}
@@ -4079,6 +4081,14 @@ progress fill {background:#83be90;}
 				image(hud("readout-panel"),
 				      {ox + at.x - 8, oy + at.y - 8, readout->GetOffsetWidth() + 16, readout->GetOffsetHeight() + 16});
 			}
+		}
+		if (auto *focus = context_->GetFocusElement();
+		    focus && focus->IsClassSet("radar-contact") && focus->IsVisible(true))
+		{
+			const auto at = focus->GetAbsoluteOffset(Rml::BoxArea::Border);
+			const auto c = focus->GetProperty<Rml::Colourb>("image-color");
+			draw_radar_selection({ox + at.x + focus->GetOffsetWidth() / 2, oy + at.y + focus->GetOffsetHeight() / 2},
+			                     16, {c.red, c.green, c.blue, c.alpha});
 		}
 		draw_support_shields(ox, oy);
 		draw_navigation(ox, oy);

@@ -568,7 +568,8 @@ void prepare_radar_choices(const ConsoleRegion &region)
 						}
 					std::string markup;
 					for (const auto &[target, point] : points)
-						markup += "<button class=\"radar-contact\" id=\"" +
+						markup += "<button class=\"radar-contact\" "
+						          "style=\"decorator:none;background:transparent;border-width:0px\" id=\"" +
 						          id("radar-contact/" + std::to_string(target)) + "\" aria-label=\"" +
 						          Rml::StringUtilities::EncodeRml(labels[target]) + "\"/>";
 					if (radar_choices_signature_ != markup || dial->GetNumChildren() != int(points.size()))
@@ -582,6 +583,12 @@ void prepare_radar_choices(const ConsoleRegion &region)
 					{
 						const auto name = id("radar-contact/" + std::to_string(target));
 						auto *button = document_->GetElementById(name);
+						const auto colour = radar_selection_colour(app_->session->catalog(),
+						                                           widget.value("selection_source", "sensors"),
+						                                           active_theme_.value("tokens", Json::object()));
+						property(
+						    button, "image-color",
+						    "#" + std::string(TextFormat("%02x%02x%02x%02x", colour.r, colour.g, colour.b, colour.a)));
 						property(button, "left", std::to_string(point.x - 12) + "px");
 						property(button, "top", std::to_string(point.y - 12) + "px");
 						app_->screen_controls.emplace_back(name, labels[target]);

@@ -66,6 +66,10 @@ int main()
 			definitions["themes"] =
 			    Json::array({{{"id", "test.theme"}, {"schema", 1}, {"tokens", {{"accent", "#123456"}}}}});
 			console["theme"] = "test.theme";
+			definitions["themes"][0]["tokens"]["selection_tactical"] = "#ab1234";
+			for (auto &widget : console["widgets"])
+				if (widget["kind"] == "radar")
+					widget["selection_source"] = "tactical";
 			definitions["themes"][0]["assets"] = {{"panel", "test-core:assets/pixel.png"}};
 			definitions["themes"][0]["slices"] = {{"panel", Json::array({0, 0, 0, 0})}};
 			for (const auto &slot : ui_theme_artwork_slots())
@@ -232,6 +236,17 @@ int main()
 			    "outside supported range");
 			const auto ship = ui_catalog.entities.begin()->first;
 			const auto client = resolve_packs({console_assets(ui_catalog, ship)});
+			require(resolved_ui_theme(client).at("tokens").at("selection_tactical") == "#ab1234",
+			        "restricted radar retains authored selection colour");
+			for (const auto &[id, definition] : client.consoles)
+				for (const auto &widget : definition.at("widgets"))
+					if (widget.at("kind") == "radar")
+						require(widget.value("selection_source", "") == "tactical",
+						        "restricted radar retains authored selection role");
+			require(resolved_ui_theme(ui_catalog).at("tokens").at("selection_sensors") == "#62aaff" &&
+			            resolved_ui_theme(ui_catalog).at("tokens").at("selection_waypoint") == "#ffdb55",
+			        "selection roles have independent editable theme defaults");
+
 			require(
 			    client.layouts.contains("test.header") &&
 			        compile_ui_layout(client, client.consoles.at(console.at("id").get<std::string>())).header->gap ==

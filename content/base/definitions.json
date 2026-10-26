@@ -37889,7 +37889,8 @@
 					"x": 220,
 					"y": 0,
 					"width": 780,
-					"height": 700
+					"height": 700,
+					"selection_source": "tactical"
 				},
 				{
 					"id": "engine",
@@ -37955,7 +37956,8 @@
 					"y": 0,
 					"width": 780,
 					"height": 700,
-					"system": "sensors.radar"
+					"system": "sensors.radar",
+					"selection_source": "tactical"
 				},
 				{
 					"id": "engine",
@@ -38079,7 +38081,8 @@
 					"y": 0,
 					"width": 1000,
 					"height": 1000,
-					"system": "sensors.radar"
+					"system": "sensors.radar",
+					"selection_source": "sensors"
 				}
 			],
 			"layout": "base.console.science.layout"
@@ -38099,7 +38102,8 @@
 					"y": 0,
 					"width": 1000,
 					"height": 1000,
-					"system": "tactical.radar"
+					"system": "tactical.radar",
+					"selection_source": "tactical"
 				}
 			],
 			"layout": "base.console.tactical.layout"
@@ -38223,7 +38227,8 @@
 					"y": 0,
 					"width": 800,
 					"height": 650,
-					"fire_arcs": true
+					"fire_arcs": true,
+					"selection_source": "tactical"
 				},
 				{
 					"id": "throttle",
@@ -38274,7 +38279,8 @@
 					"y": 0,
 					"width": 640,
 					"height": 480,
-					"fire_arcs": true
+					"fire_arcs": true,
+					"selection_source": "tactical"
 				}
 			],
 			"gameplay_panel": {
@@ -38371,7 +38377,8 @@
 					"y": 0,
 					"width": 1000,
 					"height": 1000,
-					"system": "tactical.radar"
+					"system": "tactical.radar",
+					"selection_source": "tactical"
 				}
 			],
 			"layout": "base.console.cruiser-tactical.layout"
@@ -67580,7 +67587,10 @@
 				"positive": "#88d69b",
 				"negative": "#ee8d83",
 				"hover": "#ffd5a5",
-				"pressed": "#d39a64"
+				"pressed": "#d39a64",
+				"selection_tactical": "#ff6262",
+				"selection_sensors": "#62aaff",
+				"selection_waypoint": "#ffdb55"
 			},
 			"assets": {
 				"button": "phoenix-base:assets/ui/control-bezel.png",
