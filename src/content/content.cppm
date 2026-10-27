@@ -1331,6 +1331,8 @@ SharedProcessCatalog compile_process_catalog(const Catalog &, SharedPropertyCata
 ProcessGrantDefinition compile_process_grant(const Catalog &, const std::string &);
 ProcessDefinitionSet compile_process_bindings(const Catalog &, const std::string &, SharedProcessCatalog,
                                               SharedPropertyCatalog = {});
+ProcessDefinitionSet compile_process_bindings(const Catalog &, const std::string &, SharedProcessCatalog,
+                                              const ControllableLayout &, SharedPropertyCatalog = {});
 std::vector<RuleCostDefinition> compile_rule_costs(const Catalog &, RuleDefinition &, const Json &, const std::string &,
                                                    const std::string &, SharedPropertyCatalog = {});
 void compile_rule_values(const Catalog &, RuleDefinition &, const Json &, const std::string &,

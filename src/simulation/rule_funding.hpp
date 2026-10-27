@@ -44,9 +44,6 @@ struct RuleUpkeepPlan
 };
 std::map<std::string, RuleUpkeepPlan> rule_upkeep_plans;
 std::unique_ptr<PreparedEffectGroup> rule_upkeep_effects;
-StockTransaction *rule_upkeep_stocks = nullptr;
-std::set<EntityId> rule_upkeep_inventories;
-std::map<CustomPropertyAddress, CustomPropertyState> rule_upkeep_properties, rule_upkeep_original_properties;
 std::unique_ptr<PreparedEffectGroup> process_producer_quote;
 std::map<EntityId, ResourceNetwork> process_producer_networks;
 std::map<std::pair<CustomPropertyAddress, std::string>, std::string> process_exit_failures;
@@ -55,11 +52,7 @@ bool process_funding_rejection_pending = false;
 void clear_rule_upkeep()
 {
 	rule_upkeep_plans.clear();
-	rule_upkeep_stocks = nullptr;
 	rule_upkeep_effects.reset();
-	rule_upkeep_inventories.clear();
-	rule_upkeep_properties.clear();
-	rule_upkeep_original_properties.clear();
 	process_producer_quote.reset();
 	process_producer_networks.clear();
 	process_exit_failures.clear();
@@ -166,26 +159,23 @@ void stage_process_costs(const CustomPropertyAddress &address, const ProcessStat
 }
 void append_process_fee_group(RuleUpkeepPlan &plan, const EffectGroupInvocation &initial)
 {
-	std::vector<EffectGroupInvocation> frames{initial};
 	PreparedEffectGroup scope;
-	for (std::size_t i = 0; i < frames.size(); ++i)
-	{
-		const auto frame = frames[i];
-		ProcessFeeGroup fees;
-		if (i)
-			fees.stop = std::pair{custom_property_address(frame.rule_context->owner), frame.source};
-		fees.costs = resolve_effect_costs(scope, frame);
-		if (!fees.costs.empty())
-			plan.extra_fees.push_back(std::move(fees));
-		if (plan.producer)
-			for (auto &stop : process_removal_frames(scope, frame))
-			{
-				if (frames.size() >= rule_instance_limit)
-					throw std::runtime_error("Producer lifecycle fee expansion capacity exhausted");
-				frames.push_back(std::move(stop));
-			}
-	}
+	scope.invocations.push_back(initial);
+	expand_process_effect_frames(
+	    scope,
+	    [&](std::size_t i, const EffectGroupInvocation &frame)
+	    {
+		    ProcessFeeGroup fees;
+		    if (i)
+			    fees.stop = std::pair{custom_property_address(frame.rule_context->owner), frame.source};
+		    fees.costs = resolve_effect_costs(scope, frame);
+		    if (!fees.costs.empty())
+			    plan.extra_fees.push_back(std::move(fees));
+		    return plan.producer;
+	    },
+	    "Producer lifecycle fee expansion capacity exhausted");
 }
+
 void stage_process_upkeep(const CustomPropertyAddress &address, const ProcessState &state,
                           const ProcessDefinition &definition)
 {
@@ -479,25 +469,22 @@ void prepare_producer_exit_fees(PreparedEffectGroup &quote, const RuleUpkeepPlan
 		const auto targets = quote.targets.size(), equipment = quote.equipment.size();
 		try
 		{
-			std::vector<EffectGroupInvocation> frames{process_effect_invocation(address, *state, *group)};
 			PreparedEffectGroup scope;
-			for (std::size_t i = 0; i < frames.size(); ++i)
-			{
-				const auto frame = frames[i];
-				const auto stop_key = std::pair{custom_property_address(frame.rule_context->owner), frame.source};
-				if ((i || edge == "stop") && quote.prepaid_process_stops.contains(stop_key))
-					continue;
-				const auto costs = resolve_effect_costs(quote, frame);
-				stage_effect_costs(quote, frame, costs);
-				if (i || edge == "stop")
-					quote.prepaid_process_stops.insert(stop_key);
-				for (auto &stop : process_removal_frames(scope, frame))
-				{
-					if (frames.size() >= rule_instance_limit)
-						throw std::runtime_error("Producer exit fee expansion capacity exhausted");
-					frames.push_back(std::move(stop));
-				}
-			}
+			scope.invocations.push_back(process_effect_invocation(address, *state, *group));
+			expand_process_effect_frames(
+			    scope,
+			    [&](std::size_t i, const EffectGroupInvocation &frame)
+			    {
+				    const auto stop_key = std::pair{custom_property_address(frame.rule_context->owner), frame.source};
+				    if ((i || edge == "stop") && quote.prepaid_process_stops.contains(stop_key))
+					    return false;
+				    const auto costs = resolve_effect_costs(quote, frame);
+				    stage_effect_costs(quote, frame, costs);
+				    if (i || edge == "stop")
+					    quote.prepaid_process_stops.insert(stop_key);
+				    return true;
+			    },
+			    "Producer exit fee expansion capacity exhausted");
 			quote.prepaid_process_exits.insert(key);
 		}
 		catch (const std::exception &error)
@@ -797,6 +784,7 @@ bool prepare_rule_upkeep_payments(std::map<EntityId, std::optional<ShipResourceA
 		rule_upkeep_effects->prepaid_process_stops = process_producer_quote->prepaid_process_stops;
 		rule_upkeep_effects->prepaid_process_exits = process_producer_quote->prepaid_process_exits;
 		rule_upkeep_effects->effect_failures = process_producer_quote->effect_failures;
+		rule_upkeep_effects->changed_inventories = process_producer_quote->changed_inventories;
 		rule_upkeep_effects->custom_properties = process_producer_quote->custom_properties;
 		rule_upkeep_effects->original_custom_properties = process_producer_quote->original_custom_properties;
 	}
@@ -806,16 +794,6 @@ bool prepare_rule_upkeep_payments(std::map<EntityId, std::optional<ShipResourceA
 			auto &network = allocation->prepared_network();
 			rule_upkeep_effects->payments.try_emplace(id, network, &network);
 		}
-	rule_upkeep_stocks = &rule_upkeep_effects->stocks;
-	rule_upkeep_inventories.clear();
-	rule_upkeep_properties.clear();
-	rule_upkeep_original_properties.clear();
-	if (process_producer_quote)
-	{
-		rule_upkeep_inventories = process_producer_quote->changed_inventories;
-		rule_upkeep_properties = process_producer_quote->custom_properties;
-		rule_upkeep_original_properties = process_producer_quote->original_custom_properties;
-	}
 	bool removed = false;
 	bool retired = native_requests_removed;
 	for (auto &[key, plan] : rule_upkeep_plans)
@@ -854,8 +832,7 @@ bool prepare_rule_upkeep_payments(std::map<EntityId, std::optional<ShipResourceA
 					const auto *state = custom_property_state(input.property_owner);
 					if (!state || !state->bases.contains(input.property))
 						throw std::runtime_error("rules: upkeep quantity owner unavailable");
-					rule_upkeep_original_properties.try_emplace(input.property_owner, *state);
-					auto &prepared = rule_upkeep_properties.try_emplace(input.property_owner, *state).first->second;
+					auto &prepared = prepare_custom_property_owner(*rule_upkeep_effects, input.property_owner);
 					work.available = std::get<std::int64_t>(prepared.bases.at(input.property)) -
 					                 property_catalogue->at(input.property).minimum;
 					stocks.push_back(nullptr);
@@ -865,7 +842,7 @@ bool prepare_rule_upkeep_payments(std::map<EntityId, std::optional<ShipResourceA
 					auto resolved =
 					    named_stock(entities.at(input.payer), input.store,
 					                input.network ? &rule_upkeep_effects->payments.at(input.payer).network : nullptr);
-					work.available = rule_upkeep_stocks->view(resolved.stock).available(input.resource);
+					work.available = rule_upkeep_effects->stocks.view(resolved.stock).available(input.resource);
 					stocks.push_back(&resolved.stock);
 				}
 				inputs.push_back(work);
@@ -908,15 +885,17 @@ bool prepare_rule_upkeep_payments(std::map<EntityId, std::optional<ShipResourceA
 				if (!plan.inputs[i].property.empty() && plan.payment.debits[i])
 				{
 					const auto &input = plan.inputs[i];
-					auto &value = rule_upkeep_properties.at(input.property_owner).bases.at(input.property);
+					auto &value =
+					    rule_upkeep_effects->custom_properties.at(input.property_owner).bases.at(input.property);
 					value = std::get<std::int64_t>(value) - plan.payment.debits[i];
 				}
 				else if (stocks[i] && plan.payment.debits[i])
 				{
-					if (!rule_upkeep_stocks->consume(*stocks[i], plan.inputs[i].resource, plan.payment.debits[i]))
+					if (!rule_upkeep_effects->stocks.consume(*stocks[i], plan.inputs[i].resource,
+					                                         plan.payment.debits[i]))
 						throw std::logic_error("rules: prepared upkeep stock changed");
 					if (!plan.inputs[i].network)
-						rule_upkeep_inventories.insert(plan.inputs[i].payer);
+						rule_upkeep_effects->changed_inventories.insert(plan.inputs[i].payer);
 				}
 		}
 		catch (const std::exception &error)
@@ -968,12 +947,6 @@ bool commit_rule_upkeep_stocks()
 {
 	if (!rule_upkeep_effects)
 		return false;
-	if (rule_upkeep_effects->invocations.empty())
-	{
-		rule_upkeep_effects->custom_properties = rule_upkeep_properties;
-		rule_upkeep_effects->original_custom_properties = rule_upkeep_original_properties;
-		rule_upkeep_effects->changed_inventories = rule_upkeep_inventories;
-	}
 	return commit_effect_group(*rule_upkeep_effects).empty();
 }
 // The native allocation still owns its candidate network. Work operations and
@@ -984,11 +957,7 @@ std::string append_rule_upkeep_effects(std::span<const EffectGroupInvocation> in
 {
 	if (!rule_upkeep_effects || rule_upkeep_effects->consumed)
 		return "Upkeep quote unavailable";
-	rule_upkeep_effects->custom_properties = rule_upkeep_properties;
-	rule_upkeep_effects->original_custom_properties = rule_upkeep_original_properties;
-	rule_upkeep_effects->changed_inventories = rule_upkeep_inventories;
 	*rule_upkeep_effects = prepare_effect_groups(invocations, std::move(*rule_upkeep_effects));
-	rule_upkeep_stocks = &rule_upkeep_effects->stocks;
 	failed_invocation = rule_upkeep_effects->failed_invocation;
 	return rule_upkeep_effects->failure;
 }

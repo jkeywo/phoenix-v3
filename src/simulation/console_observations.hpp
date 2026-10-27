@@ -304,7 +304,7 @@ Observation capture_decision_observation(const ConsoleAddress &address, Telemetr
 	                                          contact_snapshot);
 	result.gameplay["ability_facts"] = ability_decision_facts(address, result);
 	result.gameplay["processes"] = process_board(address, &result);
-	result.gameplay["process_facts"] = process_decision_facts(address, result);
+	result.gameplay["process_facts"] = process_decision_facts(result);
 	return result;
 }
 // Visibility consumers use the identical Console feed/type/contact boundary,

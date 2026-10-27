@@ -967,7 +967,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		const auto &layout = ability_layouts.at(id);
 		const auto psychic = compile_psychic(catalog, id, ability_catalog, personnel, layout);
 		(void)compile_abilities(catalog, id, ability_catalog, personnel, layout, psychic);
-		(void)compile_process_bindings(catalog, id, process_catalog, properties);
+		(void)compile_process_bindings(catalog, id, process_catalog, layout, properties);
 		(void)compile_boarding(catalog, id, directed_catalog, properties);
 	}
 	for (const auto &[id, console] : catalog.consoles)

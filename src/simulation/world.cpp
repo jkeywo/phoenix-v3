@@ -689,7 +689,8 @@ struct World::Impl
 			result.psychic = compile_psychic(content, name, ability_catalog, result.personnel, ability_layout);
 			result.abilities =
 			    compile_abilities(content, name, ability_catalog, result.personnel, ability_layout, result.psychic);
-			result.processes = compile_process_bindings(content, name, process_catalog, property_catalogue);
+			result.processes =
+			    compile_process_bindings(content, name, process_catalog, ability_layout, property_catalogue);
 			result.boarding = compile_boarding(content, name, directed_catalog, property_catalogue);
 			for (const auto &row : definition.value("boarding_missions", Json::array()))
 				result.boarding_docking_ports[row.at("id").get<std::string>()] =
@@ -2188,6 +2189,7 @@ struct World::Impl
 
 #include "directed.hpp"
 #include "combat_execution.hpp"
+#include "native_owner_state.hpp"
 #include "custom_properties.hpp"
 #include "property_effects.hpp"
 #include "effect_application.hpp"

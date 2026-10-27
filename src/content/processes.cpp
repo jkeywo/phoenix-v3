@@ -226,8 +226,11 @@ std::string resolve_process_native_binding(const ProcessDefinition &definition, 
 		process_fail(definition.id, "ambiguous native machinery binding; set native_id");
 	return *found->second.begin();
 }
-ProcessDefinitionSet compile_process_bindings(const Catalog &catalog, const std::string &entity,
-                                              SharedProcessCatalog processes, SharedPropertyCatalog supplied)
+namespace
+{
+ProcessDefinitionSet compile_process_bindings_impl(const Catalog &catalog, const std::string &entity,
+                                                   SharedProcessCatalog processes, SharedPropertyCatalog supplied,
+                                                   const ControllableLayout *compiled_layout)
 {
 	const auto properties = supplied ? std::move(supplied) : compile_property_catalog(catalog);
 	if (!processes)
@@ -314,7 +317,10 @@ ProcessDefinitionSet compile_process_bindings(const Catalog &catalog, const std:
 		process_fail(entity + ".process_controls", "expected bounded object");
 	if (controls.empty())
 		return out;
-	const auto layout = compile_controllable_layout(catalog, entity, properties);
+	std::optional<ControllableLayout> standalone_layout;
+	if (!compiled_layout)
+		standalone_layout = compile_controllable_layout(catalog, entity, properties);
+	const auto &layout = compiled_layout ? *compiled_layout : *standalone_layout;
 	const auto consoles = resolve_consoles(catalog, entity);
 	std::set<std::pair<std::size_t, std::size_t>> channels;
 	for (const auto &[id, value] : controls.items())
@@ -396,5 +402,17 @@ ProcessDefinitionSet compile_process_bindings(const Catalog &catalog, const std:
 		out.controls.push_back(std::move(c));
 	}
 	return out;
+}
+} // namespace
+ProcessDefinitionSet compile_process_bindings(const Catalog &catalog, const std::string &entity,
+                                              SharedProcessCatalog processes, SharedPropertyCatalog properties)
+{
+	return compile_process_bindings_impl(catalog, entity, std::move(processes), std::move(properties), nullptr);
+}
+ProcessDefinitionSet compile_process_bindings(const Catalog &catalog, const std::string &entity,
+                                              SharedProcessCatalog processes, const ControllableLayout &layout,
+                                              SharedPropertyCatalog properties)
+{
+	return compile_process_bindings_impl(catalog, entity, std::move(processes), std::move(properties), &layout);
 }
 } // namespace phoenix

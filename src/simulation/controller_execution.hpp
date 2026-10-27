@@ -257,14 +257,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 			for (const auto &row : *rows)
 				if (row.at("control") == binding.endpoint)
 				{
-					fallback = {{"phase", row.at("phase")},
-					            {"requested", row.at("requested")},
-					            {"running", row.at("phase") == "running"},
-					            {"paused", row.at("phase") == "paused"},
-					            {"blocked", !row.at("blocker").get<std::string>().empty()},
-					            {"activity", row.at("output")},
-					            {"work", row.at("work")},
-					            {"properties", row.at("properties")}};
+					fallback = process_row_decision_facts(row);
 					fact = &fallback;
 					break;
 				}

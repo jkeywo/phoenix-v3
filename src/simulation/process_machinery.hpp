@@ -132,13 +132,6 @@ std::int64_t native_process_rate(EntityId entity, std::string_view kind, const s
 	const auto view = native_process_view(entity, kind, native);
 	return view.state ? view.state->rate_permille : 0;
 }
-std::int64_t native_process_output(EntityId entity, std::string_view kind, const std::string &native) const
-{
-	const auto view = native_process_view(entity, kind, native);
-	return view.state && view.state->phase == "running" ? std::min(view.state->idle_output, view.state->work_output)
-	                                                    : 0;
-}
-
 struct ProcessMachineryQuote
 {
 	CustomPropertyAddress owner;

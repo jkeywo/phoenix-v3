@@ -2,37 +2,7 @@
 // boundary; native mechanisms remain the only owners of physical progress.
 ProcessRuntime *process_runtime(const CustomPropertyAddress &address) const
 {
-	const auto at = entities.find(address.entity);
-	if (at == entities.end())
-		return nullptr;
-	const auto ship = at->second;
-	if (!address.equipment.empty())
-	{
-		const auto *index = ship.try_get<EquipmentIndex>();
-		if (!index)
-			return nullptr;
-		const auto child = index->by_id.find(address.equipment);
-		return child == index->by_id.end() ? nullptr : child->second.try_get_mut<ProcessRuntime>();
-	}
-	if (!address.officer.empty())
-	{
-		auto *personnel = ship.try_get_mut<PersonnelState>();
-		if (!personnel)
-			return nullptr;
-		const auto &officers = definition(address.entity).personnel.officers;
-		for (std::size_t i = 0; i < officers.size(); ++i)
-			if (officers[i].id == address.officer)
-				return &personnel->officers.at(i).processes;
-		return nullptr;
-	}
-	if (address.compartment >= 0)
-	{
-		auto *structure = ship.try_get_mut<CombatStructure>();
-		return !structure || static_cast<std::size_t>(address.compartment) >= structure->compartments.size()
-		           ? nullptr
-		           : &structure->compartments[address.compartment].processes;
-	}
-	return ship.try_get_mut<ProcessRuntime>();
+	return native_owner_state(address, &OfficerState::processes, &CompartmentState::processes);
 }
 ProcessState *process_state(const CustomPropertyAddress &address, const std::string &id) const
 {
@@ -305,21 +275,6 @@ bool process_run_available(const NativeRuleContext &context) const
 	catch (const std::exception &)
 	{
 	}
-	return false;
-}
-bool process_source_available(EntityId ship, const std::string &source) const
-{
-	if (!entities.contains(ship))
-		return false;
-	for (const auto &address : custom_property_addresses(ship))
-		if (const auto *runtime = process_runtime(address))
-			for (const auto &[id, state] : runtime->processes)
-			{
-				const auto prefix = process_run_source(address, state);
-				if (source == prefix ||
-				    (source.starts_with(prefix) && source.size() > prefix.size() && source[prefix.size()] == '.'))
-					return state.admitted && state.requested && state.phase == "running" && state.idle_output > 0;
-			}
 	return false;
 }
 std::string process_exclusion_key(const CustomPropertyAddress &address,

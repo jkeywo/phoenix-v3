@@ -108,7 +108,6 @@ bool process_controls(const ConsoleAddress &address, const ConsoleControllerRunt
 		const auto *state = process_control_grant(address.ship, binding);
 		if (!state)
 			return true;
-		const auto owner = process_control_address(address.ship, binding);
 		const auto &spec = controller.definition.commands.at(channel);
 		OperatingCommand command{address.ship,
 		                         std::string(operating_action(spec.action).name),
@@ -200,7 +199,18 @@ Json process_board(const ConsoleAddress &address, const Observation *permitted =
 		}
 	return rows;
 }
-Json process_decision_facts(const ConsoleAddress &, const Observation &permitted) const
+static Json process_row_decision_facts(const Json &row)
+{
+	return {{"phase", row.at("phase")},
+	        {"requested", row.at("requested")},
+	        {"running", row.at("phase") == "running"},
+	        {"paused", row.at("phase") == "paused"},
+	        {"blocked", !row.at("blocker").get<std::string>().empty()},
+	        {"activity", row.at("output")},
+	        {"work", row.at("work")},
+	        {"properties", row.at("properties")}};
+}
+Json process_decision_facts(const Observation &permitted) const
 {
 	Json result = Json::object();
 	if (const auto rows = permitted.gameplay.find("processes"); rows != permitted.gameplay.end())
@@ -209,14 +219,7 @@ Json process_decision_facts(const ConsoleAddress &, const Observation &permitted
 			const auto endpoint = row.at("control").get<std::string>();
 			if (endpoint.empty())
 				continue;
-			result[endpoint] = {{"phase", row.at("phase")},
-			                    {"requested", row.at("requested")},
-			                    {"running", row.at("phase") == "running"},
-			                    {"paused", row.at("phase") == "paused"},
-			                    {"blocked", !row.at("blocker").get<std::string>().empty()},
-			                    {"activity", row.at("output")},
-			                    {"work", row.at("work")},
-			                    {"properties", row.at("properties")}};
+			result[endpoint] = process_row_decision_facts(row);
 		}
 	return result;
 }

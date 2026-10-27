@@ -815,13 +815,41 @@ std::vector<EffectGroupInvocation> process_removal_frames(PreparedEffectGroup &q
 	}
 	return result;
 }
+// Expansion belongs to effect preparation even when the caller only quotes
+// fees. Visit before expanding so a prepaid exit can skip its already-paid tree.
+template <typename Visit>
+void expand_process_effect_frames(PreparedEffectGroup &scope, Visit &&visit, const char *capacity_failure)
+{
+	if (scope.invocations.size() > rule_instance_limit)
+		throw std::runtime_error("Effect invocation batch capacity exhausted");
+	scope.invocation_roots.clear();
+	for (std::size_t i = 0; i < scope.invocations.size(); ++i)
+		scope.invocation_roots.push_back(i);
+	for (std::size_t i = 0; i < scope.invocations.size(); ++i)
+	{
+		scope.failed_invocation = i;
+		const auto frame = scope.invocations[i];
+		if (!visit(i, frame))
+			continue;
+		for (auto &stop : process_removal_frames(scope, frame))
+		{
+			if (scope.invocations.size() >= rule_instance_limit)
+				throw std::runtime_error(capacity_failure);
+			const auto address = custom_property_address(stop.rule_context->owner);
+			if (scope.prepaid_process_stops.contains({address, stop.source}))
+			{
+				stop.execution.energy = 0;
+				stop.execution.costs.clear();
+			}
+			scope.invocations.push_back(std::move(stop));
+			scope.invocation_roots.push_back(scope.invocation_roots.at(i));
+		}
+	}
+}
 PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation> invocations,
                                           PreparedEffectGroup quote = {})
 {
 	quote.invocations.assign(invocations.begin(), invocations.end());
-	quote.invocation_roots.clear();
-	for (std::size_t i = 0; i < quote.invocations.size(); ++i)
-		quote.invocation_roots.push_back(i);
 	for (auto &frame : quote.invocations)
 		if (!frame.hit_context && frame.rule_context && frame.rule_context->hit.target)
 			frame.hit_context = frame.rule_context->hit;
@@ -830,34 +858,21 @@ PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation>
 	quote.next_active = quote.original_next_active = next_rule_instance;
 	try
 	{
-		if (invocations.size() > rule_instance_limit)
-			throw std::runtime_error("Effect invocation batch capacity exhausted");
 		std::vector<std::vector<PreparedEffectCost>> costs;
 		costs.reserve(invocations.size());
 		// Resolve immutable addresses and create all candidate networks before
 		// staging any stock. Every alias then addresses the same transaction copy.
-		for (std::size_t i = 0; i < quote.invocations.size(); ++i)
-		{
-			quote.failed_invocation = i;
-			const auto frame = quote.invocations[i];
-			costs.push_back(resolve_effect_costs(quote, frame));
-			for (const auto &cost : costs.back())
-				if (cost.energy_store != no_resource && cost.amount)
-					quote.payments.try_emplace(cost.payer, entities.at(cost.payer).get<ShipResources>().network);
-			for (auto &stop : process_removal_frames(quote, frame))
-			{
-				if (quote.invocations.size() >= rule_instance_limit)
-					throw std::runtime_error("Process stop effect batch capacity exhausted");
-				const auto address = custom_property_address(stop.rule_context->owner);
-				if (quote.prepaid_process_stops.contains({address, stop.source}))
-				{
-					stop.execution.energy = 0;
-					stop.execution.costs.clear();
-				}
-				quote.invocations.push_back(std::move(stop));
-				quote.invocation_roots.push_back(quote.invocation_roots.at(i));
-			}
-		}
+		expand_process_effect_frames(
+		    quote,
+		    [&](std::size_t, const EffectGroupInvocation &frame)
+		    {
+			    costs.push_back(resolve_effect_costs(quote, frame));
+			    for (const auto &cost : costs.back())
+				    if (cost.energy_store != no_resource && cost.amount)
+					    quote.payments.try_emplace(cost.payer, entities.at(cost.payer).get<ShipResources>().network);
+			    return true;
+		    },
+		    "Process stop effect batch capacity exhausted");
 		prepare_thermal_networks(quote);
 		for (std::size_t i = 0; i < quote.invocations.size(); ++i)
 		{
