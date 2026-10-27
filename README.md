@@ -52,6 +52,8 @@ The [Console Controller architecture](docs/controller-architecture.md) separates
 
 [Finite job authoring](docs/finite-work-content.md) covers repair, Medical, docked servicing and FTL preparation through shared processes and native outcomes.
 
+[Final effect coverage](docs/effect-coverage-audit.md) reconciles the nine migration stages, native tree effect actions and remaining manual acceptance.
+
 The [shared gameplay engine design](docs/gameplay-engine-design.md) describes the target effect, ability, resource and template architecture across equipment, officers and scenarios. Its [migration notes](docs/gameplay-engine-migration.md) start with shields and track delivery boundaries separately from the finished design. The [ECS effects record](docs/effects-ecs.md) covers active application ownership and integration with shared rules.
 
 [Bridge Command](docs/bridge-command.md) adds authored alert conditions, AI Console stances and a compact interactive Viewscreen sidebar. Couriers default to Command beside the scene, with alert selection on Support.

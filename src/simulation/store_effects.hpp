@@ -1096,6 +1096,22 @@ std::string execute_effect_group(const EffectGroupDefinition &execution, EntityI
 	return commit_effect_group(quote);
 }
 
+// Native trees are trusted authored execution sources, not Controller commands.
+// Their saved once-task continuation owns delivery; this adapter only executes
+// the common transaction and records its bounded failure receipt.
+void execute_tree_effect(const std::string &group, const std::string &source, const NativeRuleContext &context)
+{
+	if (next_rule_job >= 9007199254740991ULL)
+		throw std::runtime_error("Effect result identity exhausted");
+	const auto found = effect_groups.find(group);
+	const auto failure = found == effect_groups.end()
+	                         ? std::string{"Unknown effect group"}
+	                         : execute_effect_group(found->second, context.subject.entity, context.instigator.entity,
+	                                                source, &context.hit, context.source.equipment, &context);
+	if (!failure.empty())
+		record_effect_result(rule_results, next_rule_job++, "failed: tree effect " + failure.substr(0, 900));
+}
+
 std::string execute_scenario_effect_group(const ScenarioEffectRequest &request)
 {
 	const auto found = effect_groups.find(request.definition);

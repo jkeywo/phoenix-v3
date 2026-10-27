@@ -122,7 +122,7 @@ A rule expresses five questions:
 
 The source, selected targets and triggering event provide typed context. Bounded expressions can use their properties to calculate conditions, costs and effect values. An effect can, for example, derive damage from source heat. Expressions compose supported behaviour; they are not an unrestricted scripting language.
 
-Compact rules handle ordinary passives and reactions. State trees handle sequencing, waiting, branching and multi-stage work. Physical, team, away and scenario trees can apply effects directly. They reuse the same execution and cost contracts as other sources.
+Compact rules handle ordinary passives and reactions. State trees handle sequencing, waiting, branching and multi-stage work. Native processes apply effects through their work and lifecycle bindings. Team, away and authoritative scenario trees can apply effect groups directly. They reuse the same execution and cost contracts as other sources. Controller trees retain their permitted command interface; arbitrary effect execution is not a Controller command.
 
 Continuous processes and activated abilities share conditions, targets, costs, properties and effects. Generation and ordinary thrust do not need to be disguised as repeated button presses. Finite jobs retain their readiness, progress, interruption and outcome semantics.
 

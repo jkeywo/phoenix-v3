@@ -21,6 +21,7 @@ state_tree::Registry team_registry()
 	r.observations.push_back({"tick", Type::Integer, 32, {}});
 	for (const auto *name : {"move", "diagnose", "repair", "treat", "stabilise", "recover", "complete"})
 		r.actions.push_back({name, 32, {}, false});
+	r.actions.push_back({"apply_effect_group", 32, {Type::Text, Type::Text}, true});
 	return r;
 }
 PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity, SharedPropertyCatalog compiled)

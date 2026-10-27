@@ -4465,7 +4465,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 31},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 32},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["custom_properties"] = impl_->save_custom_properties();
 	result["rules"] = impl_->save_rules();
@@ -4625,8 +4625,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 31)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 31 required)");
+	if (saved.at("schema") != 32)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 32 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))

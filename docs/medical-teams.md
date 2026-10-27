@@ -45,3 +45,7 @@ Initial implementation verification on 21 October 2026 (`a28218c`): all 30 Linux
 Consolidation verification on 21 October 2026: all 30 native CTest cases, native build check and production base-pack verification passed. WASM Medical, personnel, away, combat and Controller cases passed; Medical, away, combat and Controller continuation traces matched native. These cases include the execution, eligibility, duty-binding and save-migration regressions described above. Formatting checks passed. The graphical journey was not rerun for this simulation-only follow-up.
 
 Graphical journeys and actual screen-reader, touch/gamepad and multi-display acceptance remain separate evidence. Automated semantics or compilation do not establish physical-device usability.
+
+## Shared effect groups in team orders
+
+Team order trees can invoke `apply_effect_group [group, self|target]` without replacing their selected native activity. The source identifies the actual team equipment, and `target` identifies the native work ship and compartment. See the [shared contract and scope](effect-coverage-audit.md#direct-native-tree-effects). Saved once-task continuations prevent re-execution after restore; current World/session schema is 32.

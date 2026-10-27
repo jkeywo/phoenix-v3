@@ -172,14 +172,36 @@ bool patient_matches(EntityId target, std::size_t patient, const OfficerState &o
 	return true;
 }
 void step_team_order(const TeamOrderDefinition &order, state_tree::Instance &continuation, std::string &activity,
-                     bool arrived, bool work_done, bool eligible)
+                     bool arrived, bool work_done, bool eligible, EntityId origin, const std::string &team,
+                     EntityId target, std::int64_t compartment)
 {
 	using state_tree::Value;
 	const std::vector<Value> observations{Value::boolean(arrived), Value::boolean(work_done), Value::boolean(eligible),
 	                                      Value::integer(ecs.get<Clock>().tick)};
 	const auto outputs = state_tree::step(order.program, continuation, observations);
 	for (const auto &output : outputs.outputs)
-		activity = order.program.registry.actions.at(output.action).name;
+	{
+		const auto &action = order.program.registry.actions.at(output.action).name;
+		if (action != "apply_effect_group")
+		{
+			activity = action;
+			continue;
+		}
+		NativeRuleContext context;
+		context.owner = context.source = context.instigator = {origin, team};
+		context.subject = context.target = {output.arguments.at(1).text == "self" ? origin : target};
+		if (output.arguments.at(1).text == "target" && compartment >= 0)
+		{
+			context.subject.kind = context.target.kind = PayloadOutcomeKind::Compartment;
+			context.subject.compartment = context.target.compartment = compartment;
+		}
+		context.hit = rule_hit_context(context.target);
+		context.tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+		const auto scope = "team." + std::to_string(origin) + "." + team + "." + order.id + "." +
+		                   std::to_string(target) + "." + std::to_string(compartment) + ".";
+		// Effect tasks are once per activation; the saved continuation owns their fired state.
+		execute_tree_effect(output.arguments.at(0).text, tree_effect_identity(output, scope), context);
+	}
 }
 bool team_target_eligible(EntityId ship, const TeamOrderDefinition &order, std::size_t compartment) const
 {
@@ -529,7 +551,8 @@ void step_teams()
 					p.edge_to = r.edge_to;
 					p.remaining = r.travel;
 				}
-			step_team_order(*order, r.continuation, r.activity, arrived, r.work_done, eligible);
+			step_team_order(*order, r.continuation, r.activity, arrived, r.work_done, eligible, id, m->definition.id,
+			                id, r.destination);
 			if (r.activity == "complete")
 			{
 				for (auto &p : ship.get_mut<PersonnelState>().officers)
@@ -795,7 +818,8 @@ void advance_away_medical(std::size_t index)
 				care.continuation = {};
 			}
 			const bool arrived = !care.travel && (!at || care.location == static_cast<std::int64_t>(*at));
-			step_team_order(*order, care.continuation, care.activity, arrived, care.work_done, at.has_value());
+			step_team_order(*order, care.continuation, care.activity, arrived, care.work_done, at.has_value(), origin,
+			                mechanism.definition.id, target, care.location);
 			if (care.activity == "complete")
 			{
 				care.done = true;

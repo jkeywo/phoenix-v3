@@ -454,6 +454,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,
                                                const DirectedCatalog &directed_catalog, const RulesCatalog &rules)
 {
+	SharedPropertyCatalog team_effect_properties;
 	const auto &entity = catalog.entities.at(name);
 	if (catalog.presentation)
 		return {};
@@ -792,6 +793,20 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 								if (task.kind == state_tree::TaskKind::Action)
 								{
 									const auto &a = p.registry.actions.at(task.target).name;
+									if (a == "apply_effect_group")
+									{
+										if (task.arguments.size() != 2 ||
+										    task.arguments[0].source != state_tree::Source::Literal ||
+										    task.arguments[1].source != state_tree::Source::Literal)
+											fail("team effect actions require literal group and target role");
+										const auto &role = task.arguments[1].literal.text;
+										if (role != "self" && role != "target")
+											fail("team effect target must be self or target");
+										if (!team_effect_properties)
+											team_effect_properties = compile_property_catalog(catalog);
+										(void)compile_effect_group(catalog, task.arguments[0].literal.text,
+										                           team_effect_properties);
+									}
 									if (a == "repair" && !team.capabilities.contains("repair"))
 										fail("repair order requires capability");
 									if ((a == "treat" || a == "stabilise" || a == "recover") &&

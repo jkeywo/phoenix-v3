@@ -35,10 +35,101 @@ OperatingCommand order(const World &w, const std::string &action, const std::str
 }
 #include "../support/away_priority_cases.hpp"
 #include "../support/away_medical_cases.hpp"
+void away_effect_actions()
+{
+	auto source = away_fixture();
+	source["properties"] = Json::parse(R"json([
+ {"id":"test.away.events","kind":"quantity","unit":"events","default":0,"maximum":1000}
+ ])json");
+	source["entities"][0]["properties"] = {{"test.away.events", Json::object()}};
+	source["effects"] = Json::parse(R"json([
+ {"id":"test.away.base","kind":"operations","operations":[{"kind":"property_add","target":"target","property":"test.away.events","amount":7}]},
+ {"id":"test.away.add","extends":"test.away.base"},
+ {"id":"test.away.self","kind":"operations","operations":[{"kind":"property_add","target":"target","property":"test.away.events","amount":3}]},
+ {"id":"test.away.fail","kind":"operations","costs":[{"payer":"owner","property":"test.away.events","amount":100}],"operations":[{"kind":"property_add","target":"target","property":"test.away.events","amount":90}]}
+ ])json");
+	Json *tree = nullptr;
+	for (auto &definition : source["trees"])
+		if (definition.at("id") == "test.away-tree")
+			tree = &definition;
+	require(tree != nullptr, "Away synthetic tree present");
+	auto &tasks = (*tree)["states"][1]["running"] = Json::array();
+	for (const auto &[group, role] :
+	     {std::pair{"test.away.add", "target"}, {"test.away.self", "self"}, {"test.away.fail", "target"}})
+		tasks.push_back({{"action", "apply_effect_group"}, {"arguments", {group, role}}});
+	auto invalid = source;
+	for (auto &definition : invalid["trees"])
+		if (definition.at("id") == "test.away-tree")
+			definition["states"][1]["running"][0]["arguments"][0] = "test.missing";
+	rejects(
+	    [&]
+	    {
+		    (void)load(invalid);
+	    },
+	    "Away effect reference validated through production loading");
+	invalid = source;
+	for (auto &definition : invalid["trees"])
+		if (definition.at("id") == "test.away-tree")
+			definition["states"][1]["running"][0]["arguments"][1] = "hidden";
+	rejects(
+	    [&]
+	    {
+		    (void)load(invalid);
+	    },
+	    "Away effect role validated through production loading");
+	const auto resolved = load(source);
+	const auto closure = scenario_definitions(resolved, "test.map");
+	for (const auto *id : {"test.away.add", "test.away.events"})
+		require(std::find(closure.begin(), closure.end(), id) != closure.end(),
+		        "Away literal effects and transitive properties enter scenario export closure");
+	// Exported runtime definitions are resolved; inheritance has already been flattened.
+	auto pack = fixture_pack(json_bytes(source), "test-core");
+	auto exported = Json::parse(pack.files.at("definitions.json"));
+	exported["effects"] = Json::array();
+	for (const auto &id : closure)
+		if (resolved.effects.contains(id))
+			exported["effects"].push_back(resolved.effects.at(id));
+	pack.files["definitions.json"] = json_bytes(exported);
+	const auto catalog = resolve_packs({read_pack(write_pack(pack))});
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	const auto ship = *world.ship_for_slot("crew");
+	require(world.claim(101, ship, "drive") && world.claim(102, ship, "observer"), "Away effect claims");
+	ticks(world, 4);
+	require(world.submit(101, order(world, "open")), "Open away effect mission");
+	ticks(world, 1);
+	require(world.submit(102, order(world, "assign", "repair/team:team", 102)), "Assign away effect team");
+	ticks(world, 1);
+	require(world.submit(101, order(world, "transport", "transport")), "Select away effect transport");
+	ticks(world, 12);
+	require(world.submit(101, order(world, "send")), "Send away effect party");
+	ticks(world, 6);
+	const auto count = [](const World &w, EntityId entity) -> Json
+	{
+		const auto saved = w.save();
+		for (const auto &row : saved.at("custom_properties"))
+			if (row.at("entity") == entity && row.at("equipment") == "" && row.at("compartment") == -1)
+				return row.at("values").at("test.away.events");
+		throw std::runtime_error("Missing away effect counter");
+	};
+	require(count(world, 1) == 7 && count(world, ship) == 3,
+	        "Away effects bind actual destination and home source; failed group is atomic");
+	const auto saved = world.save();
+	require(saved.at("rules").at("results").size() == 1, "Away failure produces one bounded receipt");
+	World restored;
+	restored.restore(catalog, saved);
+	ticks(world, 9);
+	ticks(restored, 9);
+	require(world.save() == restored.save(), "Away effect success/failure continuation restores exactly");
+	require(count(world, 1) == 7 && count(world, ship) == 3 && world.save().at("rules").at("results").size() == 1,
+	        "Running effect tasks and failed payments do not replay after restoration");
+}
+
 int main(int argc, char **argv)
 {
 	try
 	{
+		away_effect_actions();
 		away_priority_cases();
 		away_medical_cases();
 		{

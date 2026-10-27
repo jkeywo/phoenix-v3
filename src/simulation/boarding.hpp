@@ -196,7 +196,8 @@ void boarding_field_care(EntityId origin, AwayMission &mission, bool can_work)
 			care.activity.clear();
 			care.continuation = {};
 		}
-		step_team_order(order, care.continuation, care.activity, can_work, care.work_done, selected.has_value());
+		step_team_order(order, care.continuation, care.activity, can_work, care.work_done, selected.has_value(), origin,
+		                mechanism.definition.id, origin, selected ? patients[*selected].state.location : -1);
 		if (care.activity == "complete")
 		{
 			care.done = true;

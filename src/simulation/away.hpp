@@ -1430,6 +1430,17 @@ void advance_away()
 					continue;
 				const auto &name = d.program.registry.actions.at(o.action).name;
 				const auto &arg = o.arguments.at(0);
+				if (name == "apply_effect_group")
+				{
+					NativeRuleContext context;
+					context.owner = context.source = context.instigator = {ship};
+					context.subject = context.target = {o.arguments.at(1).text == "self" ? ship : d.target};
+					context.hit = PayloadHitContext{context.target.entity};
+					context.tick = tick;
+					execute_tree_effect(
+					    arg.text, tree_effect_identity(o, "away." + d.id + "." + std::to_string(ship) + "."), context);
+					continue;
+				}
 				if (d.boarding && boarding_action(i, name, arg.text))
 					continue;
 				if (name == "work" || name == "timed_work")

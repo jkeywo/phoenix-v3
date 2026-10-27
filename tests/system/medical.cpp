@@ -213,6 +213,86 @@ void deploy_clinical_party(World &w)
 	require(w.observe(101)->gameplay.at("away_missions")[0]["phase"] == "deployed",
 	        "clinical party physically arrived");
 }
+void team_effect_actions()
+{
+	auto source = medical_fixture();
+	source["properties"] = Json::parse(R"json([
+ {"id":"test.team.events","kind":"quantity","unit":"events","default":0,"maximum":1000},
+ {"id":"test.team.fuel","kind":"quantity","unit":"fuel","default":10,"maximum":1000}
+ ])json");
+	auto &ship = source["entities"][0];
+	ship["properties"] = {{"test.team.events", Json::object()}};
+	ship["systems"]["medical"]["properties"] = {{"test.team.fuel", Json::object()}};
+	ship["combat"]["decks"][0]["compartments"][0]["properties"] = {{"test.team.events", Json::object()}};
+	source["effects"] = Json::parse(R"json([
+ {"id":"test.team.success","kind":"operations","costs":[{"payer":"source","property":"test.team.fuel","amount":2}],
+  "operations":[{"kind":"property_add","target":"target","property":"test.team.events","amount":1}]},
+ {"id":"test.team.failure","kind":"operations","costs":[{"payer":"source","property":"test.team.fuel","amount":100}],
+  "operations":[{"kind":"property_add","target":"target","property":"test.team.events","amount":100}]},
+ {"id":"test.team.target","kind":"operations","costs":[{"payer":"source","property":"test.team.fuel","amount":2}],
+  "operations":[{"kind":"property_add","target":"target","property":"test.team.events","amount":3}]}
+ ])json");
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.custom")
+		{
+			tree["states"][0].erase("transitions");
+			tree["states"][0]["running"].push_back({{"call", "test.team.effects"}});
+		}
+	source["trees"].push_back(Json::parse(R"json({"id":"test.team.effects","context":"team","initial":"apply",
+ "states":[{"id":"apply","running":[
+  {"action":"apply_effect_group","arguments":["test.team.success","self"]},
+  {"action":"apply_effect_group","arguments":["test.team.failure","self"]},
+  {"action":"apply_effect_group","arguments":["test.team.target","target"]}
+ ]}]})json"));
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(world);
+	require(world.submit(102, command(world, "order", "survey/bridge")), "start team effect order");
+	world.tick();
+	const auto value = [](const World &w, const std::string &property, const std::string &equipment = {},
+	                      std::int64_t compartment = -1)
+	{
+		const auto state = w.save();
+		for (const auto &row : state.at("custom_properties"))
+			if (row.at("entity") == 2 && row.at("equipment") == equipment && row.at("compartment") == compartment)
+				return row.at("values").at(property).get<std::int64_t>();
+		throw std::runtime_error("missing team effect property");
+	};
+	require(value(world, "test.team.events") == 1 && value(world, "test.team.fuel", "medical") == 6 &&
+	            value(world, "test.team.events", {}, 0) == 3,
+	        "referenced team effects bind source equipment and selected compartment, with atomic funding");
+	auto saved = world.save();
+	require(saved_body(saved, 2)["combat"]["systems"]["medical"]["activity"] == "move",
+	        "shared effect action preserves the native team activity");
+	require(saved.at("rules").at("results").size() == 1, "failed team effect produces one bounded failure receipt");
+	World restored;
+	restored.restore(catalog, saved);
+	ticks(world, 5);
+	ticks(restored, 5);
+	require(world.save() == restored.save() && value(world, "test.team.events") == 1 &&
+	            value(world, "test.team.fuel", "medical") == 6 && value(world, "test.team.events", {}, 0) == 3 &&
+	            world.save().at("rules").at("results").size() == 1,
+	        "successful and failed team effects do not replay during running or restoration");
+	for (const auto *invalid : {"group", "role"})
+	{
+		auto bad = source;
+		for (auto &tree : bad["trees"])
+			if (tree["id"] == "test.team.effects")
+				tree["states"][0]["running"][0]["arguments"][std::string(invalid) == "group" ? 0 : 1] = "missing";
+		bool rejected = false;
+		try
+		{
+			(void)load(bad);
+		}
+		catch (const std::exception &)
+		{
+			rejected = true;
+		}
+		require(rejected, "production loading rejects invalid team effect reference or target role");
+	}
+}
+
 void finish_clinical_order(World &w)
 {
 	for (int i = 0; i < 60; ++i)
@@ -583,6 +663,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		team_effect_actions();
 		finite_clinical_jobs();
 		property_work_regressions();
 		{

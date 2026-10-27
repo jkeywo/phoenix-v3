@@ -54,6 +54,7 @@ state_tree::Registry away_registry(const Json &tree)
 	r.actions.push_back({"work", 16, {Type::Integer}, true});
 	r.actions.push_back({"timed_work", 16, {Type::Integer}, true});
 	r.actions.push_back({"crew_deaths", 16, {Type::Integer}, true});
+	r.actions.push_back({"apply_effect_group", 16, {Type::Text, Type::Text}, true});
 	if (tree.value("boarding", false))
 	{
 		for (const auto *name : {"arrived", "encounter_done", "encounter_success"})
@@ -271,6 +272,18 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 					for (const auto &t : *tasks)
 						if (t.kind == state_tree::TaskKind::Action)
 						{
+							if (p.registry.actions.at(t.target).name == "apply_effect_group")
+							{
+								require(t.arguments.size() == 2 &&
+								            t.arguments[0].source == state_tree::Source::Literal &&
+								            t.arguments[1].source == state_tree::Source::Literal,
+								        "away effect groups require literal group and target role");
+								require(t.arguments[1].literal.text == "self" ||
+								            t.arguments[1].literal.text == "target",
+								        "away effect target must be self or target");
+								(void)compile_effect_group(catalog, t.arguments[0].literal.text, properties);
+								continue;
+							}
 							require(t.arguments.size() == 1 && t.arguments[0].source == state_tree::Source::Literal,
 							        "away actions require literal arguments");
 							if (p.registry.actions.at(t.target).name == "restore_compartment")
