@@ -118,6 +118,10 @@ try
 			menu_smoke.enabled = menu_smoke.assign_displays = menu_smoke.virtual_displays =
 			    menu_smoke.display_transition_only = true;
 		}
+		if (argument == "--lobby-monitor-list-smoke")
+		{
+			menu_smoke.enabled = menu_smoke.assign_displays = menu_smoke.display_inventory_only = true;
+		}
 		if (argument == "--lobby-displays-smoke")
 		{
 			menu_smoke.enabled = true;
@@ -535,23 +539,29 @@ try
 
 	phoenix::open_window();
 	app.host_display = GetCurrentMonitor();
-	for (int monitor = 0; monitor < GetMonitorCount() && app.native_displays.size() < 6; ++monitor)
+	auto enumerate_displays = []()
 	{
-		const auto position = GetMonitorPosition(monitor);
-		if (std::any_of(app.native_displays.begin(), app.native_displays.end(),
-		                [&](const auto &display)
-		                {
-			                const auto other = GetMonitorPosition(display.id);
-			                return other.x == position.x && other.y == position.y;
-		                }))
-			continue;
-		app.native_displays.push_back(
-		    {monitor, "Screen " + std::to_string(monitor + 1) + " (" + GetMonitorName(monitor) + ")",
-		     phoenix::native_monitor_identity(
-		         static_cast<int>(position.x), static_cast<int>(position.y),
-		         std::string(GetMonitorName(monitor)) + "/" + std::to_string(GetMonitorWidth(monitor)) + "x" +
-		             std::to_string(GetMonitorHeight(monitor)) + "/" + std::to_string(monitor))});
-	}
+		std::vector<phoenix::Application::NativeDisplay> displays;
+		for (int monitor = 0; monitor < GetMonitorCount() && displays.size() < 6; ++monitor)
+		{
+			const auto position = GetMonitorPosition(monitor);
+			if (std::any_of(displays.begin(), displays.end(),
+			                [&](const auto &display)
+			                {
+				                const auto other = GetMonitorPosition(display.id);
+				                return other.x == position.x && other.y == position.y;
+			                }))
+				continue;
+			displays.push_back(
+			    {monitor, "Screen " + std::to_string(monitor + 1) + " (" + GetMonitorName(monitor) + ")",
+			     phoenix::native_monitor_identity(
+			         static_cast<int>(position.x), static_cast<int>(position.y),
+			         std::string(GetMonitorName(monitor)) + "/" + std::to_string(GetMonitorWidth(monitor)) + "x" +
+			             std::to_string(GetMonitorHeight(monitor)) + "/" + std::to_string(monitor))});
+		}
+		return displays;
+	};
+	phoenix::update_native_displays(app, enumerate_displays());
 	bool lobby_span = false;
 	const auto apply_frame_pacing = [&]()
 	{
@@ -884,8 +894,20 @@ try
 	double previous_frame = smoke_started;
 	if (bridge_smoke_width)
 		SetWindowSize(bridge_smoke_width, bridge_smoke_height);
+	double next_display_refresh = 0;
 	while (!app.exit_requested && !phoenix::close_requested())
 	{
+		if (!menu_smoke.virtual_displays && display_layout.empty() && !span_displays &&
+		    (!app.session || !app.session->running()) && GetTime() >= next_display_refresh)
+		{
+			next_display_refresh = GetTime() + .5;
+			if (phoenix::update_native_displays(app, enumerate_displays()))
+			{
+				std::cout << "Native displays refreshed: " << app.native_displays.size() << " attached\n";
+				if (lobby_span)
+					app.apply_displays();
+			}
+		}
 		if (!performance.output.empty())
 			app.frame_metrics.clear();
 		const auto frame_started = GetTime();

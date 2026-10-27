@@ -32,6 +32,7 @@ std::vector<std::string> installed_languages();
 void remember_preferences(Application &app);
 void remember_station_display(Application &app, const std::string &console, int monitor);
 void restore_station_displays(Application &app);
+bool update_native_displays(Application &app, std::vector<Application::NativeDisplay> displays);
 void load_display_preferences(Application &app);
 std::vector<SemanticControl> navigation_controls(const Application &app, bool include_consoles = true);
 std::vector<std::pair<std::string, std::string>> settings_tabs(const Application &app);

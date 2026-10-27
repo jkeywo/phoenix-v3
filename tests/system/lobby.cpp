@@ -141,11 +141,35 @@ int main(int argc, char **argv)
 			restore_station_displays(layout);
 			require(layout.display_consoles.empty(),
 			        "A missing saved monitor never assigns the station to another display");
-			layout.native_displays.push_back({4, "Re-enumerated monitor", "monitor-a"});
-			layout.restored_display_session.reset();
+			require(update_native_displays(layout, {{0, "Host", "host"},
+			                                        {1, "Different monitor", "other"},
+			                                        {4, "Re-enumerated monitor", "monitor-a"}}),
+			        "Attaching a third display refreshes the startup-only inventory");
 			restore_station_displays(layout);
-			require(layout.display_consoles.at(4) == "main",
+			require(layout.display_consoles.contains(4) && layout.display_consoles.at(4) == "main",
 			        "Saved monitor identity restores despite a changed monitor index");
+			require(!update_native_displays(layout, layout.native_displays),
+			        "Unchanged polling does not repeat restoration");
+			layout.local_player_names[6] = "Station operator";
+			require(update_native_displays(layout,
+			                               {{0, "Host", "host"}, {2, "Other", "other"}, {5, "Moved", "monitor-a"}}) &&
+			            layout.display_consoles.at(5) == "main" &&
+			            layout.local_player_names.at(7) == "Station operator",
+			        "Monitor re-enumeration follows stable identity and preserves the operator name");
+			require(update_native_displays(layout, {{0, "Host", "host"}, {2, "Other", "other"}}) &&
+			            layout.display_consoles.empty() &&
+			            layout.remembered_station_displays.at("test.ship").contains("main"),
+			        "Disconnect releases the live route without forgetting its saved station");
+			update_native_displays(layout, {{0, "Host", "host"}, {2, "Other", "other"}, {1, "Returned", "monitor-a"}});
+			const auto reconnect_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+			while (!layout.display_consoles.contains(1) && std::chrono::steady_clock::now() < reconnect_deadline)
+			{
+				worker->poll();
+				restore_station_displays(layout);
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			require(layout.display_consoles.contains(1) && layout.display_consoles.at(1) == "main",
+			        "Reconnect retries the saved assignment without restarting the lobby");
 			LobbyCommand reserve{LobbyAction::assign_local_console, "", "test.slot", "", "main"};
 			reserve.screen = 2;
 			require(worker->lobby_command(reserve), "Reserve a synthetic local display through the worker");

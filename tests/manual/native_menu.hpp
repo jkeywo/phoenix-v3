@@ -5,11 +5,15 @@ struct NativeMenuSmoke
 	bool enabled = false, large = false, intro = false;
 	double intro_started = -1;
 	bool assign_displays = false;
-	bool virtual_displays = false;
+	bool virtual_displays = false, display_inventory_only = false;
+	std::size_t display_inventory_expected = 0;
+	bool display_inventory_stale = false;
 	bool display_transition_only = false;
 	bool preparation_captured = false, launch_captured = false;
 	void configure_displays(phoenix::Application &app)
 	{
+		if (display_inventory_only)
+			stage = 4;
 		if (!virtual_displays)
 			return;
 		if (display_transition_only)
@@ -319,7 +323,7 @@ struct NativeMenuSmoke
 				for (const auto &[id, bounds] : app.control_placements)
 					if (id.starts_with("menu.ship/") && bounds.x + bounds.width > profile->second.x)
 						throw std::runtime_error("Ship picker overlaps the profile CRT");
-			if (large)
+			if (large || display_inventory_only)
 				load_error_step = 2;
 			const auto &slot = app.session->catalog().maps.at(app.selected_scenario).at("ship_slots").at(0);
 			const auto choice = "menu.ship/" + slot.at("id").get<std::string>() + "/" +
@@ -354,12 +358,46 @@ struct NativeMenuSmoke
 			if (large)
 				complexity_step = 3;
 			const auto lobby = app.session->lobby();
+			if (display_inventory_only && !display_inventory_stale)
+			{
+				display_inventory_expected = app.native_displays.size();
+				display_inventory_stale = true;
+				if (display_inventory_expected > 2)
+				{
+					auto stale = app.native_displays;
+					stale.pop_back();
+					phoenix::update_native_displays(app, std::move(stale));
+					changed = GetTime();
+					return false;
+				}
+			}
+			if (display_inventory_only && app.native_displays.size() != display_inventory_expected)
+				return false;
 			if (assign_displays && !display_step)
 			{
 				if (app.native_displays.size() < 2 || lobby.consoles.empty())
 					throw std::runtime_error("Display smoke needs a console and two monitors; found " +
 					                         std::to_string(app.native_displays.size()) + " monitors and " +
 					                         std::to_string(lobby.consoles.size()) + " Consoles");
+				for (const auto &display : app.native_displays)
+					if (display.id != app.host_display)
+					{
+						const auto id =
+						    "menu.console-screen/" + lobby.consoles.front().id + "/" + std::to_string(display.id);
+						if (std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+						                 [&](const auto &control)
+						                 {
+							                 return control.first == id;
+						                 }))
+							throw std::runtime_error("Every attached non-host display must appear in the lobby");
+					}
+				capture("lobby-displays");
+				if (display_inventory_only)
+				{
+					std::cout << "PASS native lobby lists " << app.native_displays.size() << " attached displays and "
+					          << app.native_displays.size() - 1 << " extra-screen choices after live refresh\n";
+					return true;
+				}
 				for (const auto &display : app.native_displays)
 					if (display.id != app.host_display)
 					{
