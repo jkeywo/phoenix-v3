@@ -51,4 +51,22 @@ Launch/recovery sequencing, docking, away orchestration and full destination-bas
 
 World and portable-session schema is 32. Appending the tree action vocabulary changes continuation signatures, so schema 31 and older sessions are rejected with an explicit new-session diagnostic. No parallel compatibility runtime or duplicate mutable effect journal is added.
 
-Automated validation and independent review evidence will be recorded here after execution. Graphical journeys, actual screen-reader use, physical touch/gamepad devices, six-display performance and Linux execution remain separate acceptance work. This audit does not establish them.
+Graphical journeys, actual screen-reader use, physical touch/gamepad devices, six-display performance and Linux execution remain separate acceptance work. This audit does not establish them.
+
+## Executed verification
+
+Implementation: `fd9bfab15aeddee8817ac7aba5a381964b4efac5`, compared with audit base `f4d7fc740f7ddfbedea12d6bba87a1b6471f5d18`. Independent read-only correctness and architecture review of that immutable range reports PASS with no remaining actionable findings. No source changes followed that review.
+
+| Check                              | Result                                                                                                                                                                                                    | Local evidence                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Focused native                     | PASS: Medical and away suites, including source-equipment funding, native activity retention, selected compartments, referenced trees, resolved export/reload, atomic failure and no replay after restore | `build/effect-final-audit-focused-tests.log`                                                |
+| Complete native gate               | PASS: 46 CTest suites, 31 launcher cases, 12 live-network cases, content/build check and 23 continuation references                                                                                       | `build/effect-final-audit-native-gate.log`                                                  |
+| Complete threaded WebAssembly gate | PASS: build, system suites, production preflight and all 23 exact native/WASM continuation comparisons                                                                                                    | `build/effect-final-audit-threaded-gate.log`                                                |
+| Focused ordinary WebAssembly       | PASS: 14 suites, production launch/bundled-refresh preflight and 12 exact native/ordinary continuation comparisons                                                                                        | `build/effect-final-audit-ordinary-build.log`, `build/effect-final-audit-ordinary-gate.log` |
+| Inspectable predecessor state      | PASS for 12 fully inspectable captures: zero differences after 26 schema/signature-only changes                                                                                                           | `build/effect-final-audit-native-comparison.log`                                            |
+
+The predecessor comparison preserved all 23 earlier trace files before the gate. Twelve are fully inspectable. Eleven contain changed opaque digest lines; those digests are explicitly excluded from predecessor-equivalence claims, rather than accepted as normalized physical state. Inspectable JSON permits only World/session schema 31 to 32 and compiled continuation signature changes. Native quantities, progress, personnel and other gameplay state are not normalized. Current native/WASM comparisons use all 23 complete traces without normalization.
+
+Both complete gate commands and the ordinary runner exited successfully. Live-network timing checks ran after native compilation and before the WebAssembly builds. Earlier focused iterations caught a compile-time catalogue variable error and two export-fixture assumptions; these were corrected without disabling any check. The resolved export test uses the production ZIP reader/resolver without rerunning fixture-only shorthand generation.
+
+Standard repository formatting and whitespace checks pass; `build/effect-final-audit-final-format-check.log` records the formatting check. No graphical/device/Linux acceptance is inferred. Nothing was pushed.
