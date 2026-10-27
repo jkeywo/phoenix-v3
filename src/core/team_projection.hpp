@@ -21,6 +21,8 @@ inline Json board(const Json &source)
 		if (team.contains("work_system"))
 			t["work_system"] = text(team.at("work_system"), 128);
 
+		if (team.contains("assignment_authority"))
+			t["assignment_authority"] = team.at("assignment_authority").get<bool>();
 		if (team.contains("manual"))
 			t["manual"] = team.at("manual").get<bool>();
 		if (team.contains("patient_control"))

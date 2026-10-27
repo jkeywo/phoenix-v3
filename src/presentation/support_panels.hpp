@@ -166,6 +166,10 @@ bool support_action(const std::string &action)
 			                 return team.at("id") == detail.substr(5) && team.value("repair", false);
 		                 }))
 			return false;
+		for (const auto &team : teams)
+			if (team.at("id") == detail.substr(5) && team.value("assignment_authority", false) &&
+			    !team.value("reserved", false))
+				model_.act("game.team-order/" + team.at("id").get<std::string>() + "/auto");
 		model_.act("game.status-close");
 		support_popup_ = detail;
 		systems_open_ = true;

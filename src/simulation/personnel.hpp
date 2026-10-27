@@ -56,6 +56,10 @@ bool assisted_workload(const ConsoleAddress &address, const std::string &family)
 	return workloads.contains(address.console) && workloads.at(address.console).contains(family) &&
 	       manual_workload(address, family) && console_operator(address) != 0;
 }
+bool manual_team_destination(const ConsoleAddress &address) const
+{
+	return assisted_workload(address, "team_assignment") && station_stars(address) < 3;
+}
 void advance_personnel(EntityId id)
 {
 	auto entity = entities.at(id);

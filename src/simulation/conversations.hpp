@@ -126,7 +126,7 @@ void refresh_comms(bool disclose = true)
 		for (const auto &c : capture_console_contacts(*owner))
 			visible.insert(c.id);
 		for (const auto &[name, p] : conversations.participants)
-			if (visible.contains(p.host) && p.public_directory)
+			if (visible.contains(p.host) && p.public_directory && !p.character)
 				conversations.disclose(id, name);
 	}
 }

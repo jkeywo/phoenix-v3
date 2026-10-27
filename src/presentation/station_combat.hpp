@@ -347,6 +347,11 @@ void prepare_system_popup(const ConsoleRegion &region, const std::vector<Enginee
 					markup += readout("team/damage", localise("System damage details require a team in the section"));
 				for (const auto &[action, label] : model_.asset_away_controls("team:" + selected))
 					markup += add(action, label);
+				if (team.value("assignment_authority", false) && !team.value("reserved", false))
+					for (const auto &part : model_.team_map())
+						if (part.value("dispatch", false) && part.value("eligible", false))
+							markup += add("game.compartment/" + std::to_string(part.at("index").get<std::int64_t>()),
+							              localise("Send to") + " " + localise(engineering_name(part.at("id"))));
 				if (!team.value("reserved", false))
 					for (const auto &descriptor : view.gameplay.value("controls", Json::array()))
 					{

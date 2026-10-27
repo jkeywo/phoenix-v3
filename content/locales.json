@@ -2,6 +2,14 @@
 	"schema": 1,
 	"languages": {
 		"en": {
+			"Communications channel open.": "Communications channel open.",
+			"Who would you like to speak to?": "Who would you like to speak to?",
+			"Speak to Command.": "Speak to Command.",
+			"Speak to Engineering.": "Speak to Engineering.",
+			"End call.": "End call.",
+			"Command here. Go ahead.": "Command here. Go ahead.",
+			"Engineering here. Go ahead.": "Engineering here. Go ahead.",
+			"Channel closed.": "Channel closed.",
 			"Rule output": "Rule output",
 			"Rule conditions unmet": "Rule conditions unmet",
 			"Rule source unavailable": "Rule source unavailable",
@@ -1382,6 +1390,7 @@
 			"Port priority": "Port priority",
 			"Starboard priority": "Starboard priority",
 			"Assign medical team": "Assign medical team",
+			"Assign repair team": "Assign repair team",
 			"No published objectives": "No published objectives",
 			"Priority objective": "Priority objective",
 			"Priority selection requires an AI-operated Controller": "Priority selection requires an AI-operated Controller",

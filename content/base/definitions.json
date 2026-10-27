@@ -318,7 +318,7 @@
 					}
 				},
 				"radar": {
-					"range_mm": 500000,
+					"range_mm": 250000,
 					"long_range_mm": 1500000,
 					"directed": {
 						"modes": ["base.courier.radar.scan"],
@@ -5271,7 +5271,7 @@
 							"radar": {
 								"observation_console": "science",
 								"compartment": "sensors",
-								"range_mm": 2500000,
+								"range_mm": 1250000,
 								"long_range_mm": 7500000,
 								"shows": ["ship", "contact", "missile"],
 								"directed": {
@@ -5296,7 +5296,7 @@
 					"overrides": {
 						"systems": {
 							"radar": {
-								"range_mm": 2500000,
+								"range_mm": 1250000,
 								"long_range_mm": 7500000,
 								"observation_console": "tactical",
 								"compartment": "bridge",
@@ -26789,7 +26789,7 @@
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar",
-					"range_mm": 2500000,
+					"range_mm": 1250000,
 					"long_range_mm": 5000000,
 					"directed": {
 						"modes": ["base.rescue-courier.radar.scan"],
@@ -27514,6 +27514,7 @@
 			],
 			"control_layout": {
 				"schema": 1,
+				"manual_workloads": { "support": { "team_assignment": 1, "medical": 3 } },
 				"controllers": [
 					{
 						"id": "drive",
@@ -32150,7 +32151,7 @@
 				},
 				"radar": {
 					"kind": "radar",
-					"range_mm": 300000,
+					"range_mm": 150000,
 					"shows": ["ship"],
 					"compartment": "cabin",
 					"energy_per_second": 20,
@@ -32585,7 +32586,7 @@
 				},
 				"radar": {
 					"kind": "radar",
-					"range_mm": 2500000,
+					"range_mm": 1250000,
 					"shows": ["ship", "contact", "missile"],
 					"compartment": "hull",
 					"directed": {
@@ -32974,7 +32975,7 @@
 				},
 				"radar": {
 					"kind": "radar",
-					"range_mm": 2500000,
+					"range_mm": 1250000,
 					"shows": ["ship", "contact", "missile"],
 					"compartment": "hull",
 					"directed": {
@@ -33416,7 +33417,7 @@
 				},
 				"radar": {
 					"kind": "radar",
-					"range_mm": 2500000,
+					"range_mm": 1250000,
 					"shows": ["ship", "contact", "missile"],
 					"compartment": "hull",
 					"directed": {
@@ -33833,7 +33834,7 @@
 			"systems": {
 				"radar": {
 					"kind": "radar",
-					"range_mm": 2500000,
+					"range_mm": 1250000,
 					"shows": ["ship", "contact", "missile"],
 					"compartment": "hull",
 					"directed": {
@@ -34115,7 +34116,7 @@
 		{
 			"id": "base.delivery-casualty",
 			"extends": "base.rescue-casualty",
-			"name": "Morrow — stranded merchant",
+			"name": "Morrow",
 			"faction": "crew",
 			"systems": {
 				"comms-radio": {
@@ -36795,7 +36796,7 @@
 					"name": "Courier",
 					"mandatory": true,
 					"allowed_ships": ["base.rescue-courier", "base.cruiser"],
-					"x_mm": 0,
+					"x_mm": -1000000,
 					"y_mm": 0,
 					"heading_mdeg": 0,
 					"default_ship": "base.rescue-courier",
@@ -48190,163 +48191,77 @@
 			"lines": {
 				"greeting": {
 					"speaker": "target",
-					"text_key": "This is Captain Vale. We have a propulsion fault. Can you stand by?",
-					"delay_ticks": 20,
-					"incoming_ticks": 40
+					"text_key": "Communications channel open.",
+					"incoming_ticks": 20
 				},
-				"engineer": {
+				"command": { "speaker": "captain", "text_key": "Command here. Go ahead.", "incoming_ticks": 20 },
+				"engineering": {
 					"speaker": "engineer",
-					"text_key": "Orin here. The drive is isolated. We can hold position while you approach.",
-					"delay_ticks": 10,
-					"incoming_ticks": 40
+					"text_key": "Engineering here. Go ahead.",
+					"incoming_ticks": 20
 				},
-				"declined": {
-					"speaker": "target",
-					"text_key": "Understood. We will keep our beacon active.",
-					"incoming_ticks": 30
-				},
-				"repeat": {
-					"speaker": "target",
-					"text_key": "We are still here. Our previous arrangements stand.",
-					"incoming_ticks": 30
-				}
+				"closed": { "speaker": "target", "text_key": "Channel closed.", "incoming_ticks": 10 }
 			},
 			"prompts": {
-				"help": {
+				"contact": {
 					"speaker": "target",
-					"text_key": "Will you stand by while we assess the fault?",
+					"text_key": "Who would you like to speak to?",
 					"choices": [
-						{
-							"id": "help",
-							"text_key": "We will stand by. Put your engineer on this channel."
-						},
-						{
-							"id": "decline",
-							"text_key": "Unable to assist. Keep your beacon active."
-						}
+						{ "id": "command", "text_key": "Speak to Command." },
+						{ "id": "engineering", "text_key": "Speak to Engineering." },
+						{ "id": "close", "text_key": "End call." }
 					],
-					"ai_choice": "help",
+					"ai_choice": "close",
 					"ai_delay_ticks": 60,
 					"timeout_ticks": 600,
-					"default_choice": "decline"
+					"default_choice": "close"
 				}
 			},
 			"states": [
 				{
 					"id": "greeting",
-					"entry": [
-						{
-							"action": "say",
-							"arguments": ["greeting"]
-						}
-					],
+					"entry": [{ "action": "say", "arguments": ["greeting"] }],
 					"transitions": [
-						{
-							"target": "offer",
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 65
-								}
-							]
-						}
+						{ "target": "offer", "conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 25 }] }
 					]
 				},
 				{
 					"id": "offer",
-					"entry": [
-						{
-							"action": "offer",
-							"arguments": ["help"]
-						}
-					],
+					"entry": [{ "action": "offer", "arguments": ["contact"] }],
 					"transitions": [
 						{
-							"target": "help",
-							"conditions": [
-								{
-									"left": {
-										"observation": "answer"
-									},
-									"op": "eq",
-									"right": "help"
-								}
-							]
+							"target": "command",
+							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "command" }]
 						},
 						{
-							"target": "decline",
-							"conditions": [
-								{
-									"left": {
-										"observation": "answer"
-									},
-									"op": "eq",
-									"right": "decline"
-								}
-							]
-						}
-					]
-				},
-				{
-					"id": "help",
-					"entry": [
-						{
-							"action": "add_participant",
-							"arguments": ["engineer"]
+							"target": "engineering",
+							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "engineering" }]
 						},
 						{
-							"action": "say",
-							"arguments": ["engineer"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "repeat",
-							"conditions": [
-								{
-									"left": {
-										"observation": "hails"
-									},
-									"op": "ge",
-									"right": 2
-								}
-							]
+							"target": "close",
+							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "close" }]
 						}
 					]
 				},
 				{
-					"id": "decline",
+					"id": "command",
 					"entry": [
-						{
-							"action": "say",
-							"arguments": ["declined"]
-						}
-					],
-					"transitions": [
-						{
-							"target": "repeat",
-							"conditions": [
-								{
-									"left": {
-										"observation": "hails"
-									},
-									"op": "ge",
-									"right": 2
-								}
-							]
-						}
+						{ "action": "add_participant", "arguments": ["captain"] },
+						{ "action": "say", "arguments": ["command"] }
 					]
 				},
 				{
-					"id": "repeat",
+					"id": "engineering",
 					"entry": [
-						{
-							"action": "say",
-							"arguments": ["repeat"]
-						}
+						{ "action": "add_participant", "arguments": ["engineer"] },
+						{ "action": "say", "arguments": ["engineering"] }
+					]
+				},
+				{
+					"id": "close",
+					"entry": [
+						{ "action": "say", "arguments": ["closed"] },
+						{ "action": "finish", "arguments": ["closed"] }
 					]
 				}
 			]
@@ -61484,7 +61399,7 @@
 		{
 			"id": "base.equipment.radar",
 			"kind": "radar",
-			"range_mm": 650000,
+			"range_mm": 325000,
 			"energy_per_second": 200,
 			"power_store": "cell",
 			"records": [
@@ -61590,7 +61505,7 @@
 		{
 			"id": "base.equipment.combat-radar",
 			"kind": "radar",
-			"range_mm": 350000,
+			"range_mm": 175000,
 			"long_range_mm": 1050000,
 			"shows": ["ship", "contact", "asteroid", "missile"],
 			"compartment": "bow-starboard",
@@ -63814,7 +63729,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 650000,
+			"range_mm": 325000,
 			"energy_per_second": 0,
 			"capabilities": {
 				"basic_identity": 0,
@@ -63827,7 +63742,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 350000,
+			"range_mm": 175000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0
@@ -63852,7 +63767,7 @@
 			"operation": "launch",
 			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
 			"fire_ticks": 1,
-			"range_mm": 85000,
+			"range_mm": 42500,
 			"auto_energy_per_second": 180,
 			"discrete_energy": 2
 		},
@@ -63862,7 +63777,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 500000,
+			"range_mm": 250000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0
@@ -63880,7 +63795,7 @@
 			"operation": "launch",
 			"targeting": ["base.targeting.designated"],
 			"fire_ticks": 50,
-			"range_mm": 1800000,
+			"range_mm": 900000,
 			"discrete_energy": 200,
 			"projectile": {
 				"visual": "base.combat-projectile",
@@ -63910,7 +63825,7 @@
 			"operation": "launch",
 			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
 			"fire_ticks": 1,
-			"range_mm": 200000,
+			"range_mm": 100000,
 			"auto_energy_per_second": 180,
 			"discrete_energy": 2
 		},
@@ -63934,7 +63849,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 350000,
+			"range_mm": 175000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0,
@@ -63951,6 +63866,7 @@
 			"kind": "directed_mode",
 			"label": "Fire",
 			"operation": "launch",
+			"range_mm": 500000,
 			"targeting": ["base.targeting.designated"],
 			"fire_ticks": 25,
 			"projectile": {
@@ -63972,6 +63888,7 @@
 			"kind": "directed_mode",
 			"label": "Fire",
 			"operation": "launch",
+			"range_mm": 500000,
 			"targeting": ["base.targeting.designated"],
 			"fire_ticks": 35,
 			"projectile": {
@@ -63994,7 +63911,7 @@
 			"label": "Fire",
 			"operation": "beam",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 140000,
+			"range_mm": 70000,
 			"damage_per_second": 65,
 			"energy_per_second": 360,
 			"penetration": 1000
@@ -64022,6 +63939,7 @@
 			"kind": "directed_mode",
 			"label": "Fire",
 			"operation": "launch",
+			"range_mm": 500000,
 			"targeting": ["base.targeting.designated"],
 			"fire_ticks": 35,
 			"projectile": {
@@ -64040,7 +63958,7 @@
 			"label": "Fire",
 			"operation": "beam",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 140000,
+			"range_mm": 70000,
 			"damage_per_second": 100,
 			"energy_per_second": 360,
 			"penetration": 1000
@@ -64051,7 +63969,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 2500000,
+			"range_mm": 1250000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0,
@@ -64065,7 +63983,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 300000,
+			"range_mm": 150000,
 			"energy_per_second": 0,
 			"capabilities": {
 				"basic_identity": 0
@@ -64077,7 +63995,7 @@
 			"label": "Scan",
 			"operation": "scan",
 			"targeting": ["base.targeting.designated"],
-			"range_mm": 2500000,
+			"range_mm": 1250000,
 			"capabilities": {
 				"basic_identity": 0
 			},
@@ -64090,7 +64008,7 @@
 			"operation": "launch",
 			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
 			"fire_ticks": 4,
-			"range_mm": 200000,
+			"range_mm": 100000,
 			"auto_energy_per_second": 10,
 			"discrete_energy": 2
 		},
@@ -64108,7 +64026,7 @@
 			"id": "base.cruiser.sensors.scan",
 			"extends": "base.equipment.radar.scan",
 			"kind": "directed_mode",
-			"range_mm": 2500000,
+			"range_mm": 1250000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0,
@@ -64120,7 +64038,7 @@
 			"id": "base.cruiser.tactical.scan",
 			"extends": "base.equipment.radar.scan",
 			"kind": "directed_mode",
-			"range_mm": 2500000,
+			"range_mm": 1250000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0,
@@ -67077,13 +66995,17 @@
 										"id": "objectives",
 										"kind": "component",
 										"component": "objectives",
-										"label": "Objectives"
+										"label": "Objectives",
+										"stretch": 1
 									},
 									{
 										"id": "ftl-controls",
 										"kind": "component",
 										"component": "ftl-controls",
-										"label": "FTL"
+										"label": "FTL",
+										"height": 120,
+										"min_height": 110,
+										"stretch": 0
 									}
 								]
 							},
@@ -67208,13 +67130,17 @@
 										"id": "objectives",
 										"kind": "component",
 										"component": "objectives",
-										"label": "Objectives"
+										"label": "Objectives",
+										"stretch": 1
 									},
 									{
 										"id": "ftl-controls",
 										"kind": "component",
 										"component": "ftl-controls",
-										"label": "FTL"
+										"label": "FTL",
+										"height": 120,
+										"min_height": 110,
+										"stretch": 0
 									}
 								]
 							},

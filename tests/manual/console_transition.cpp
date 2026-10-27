@@ -175,6 +175,56 @@ void verify_support(const std::string &directory)
 	require(probe_console_tab(1, "task/ftl-controls/0"), "Cancel stops preparation");
 	for (int i = 0; i < 4; ++i)
 		frame();
+	require(app.control_placements.at("console/1/task/ftl-controls/0").y > 1080 * .7f,
+	        "Compact FTL controls remain at the bottom, leaving room for objectives");
+	require(probe_console_tab(1, "console-page/support/station.engineering"), "Open one-star Engineering");
+	for (int i = 0; i < 4; ++i)
+		frame();
+	require(probe_console_tab(1, "task/team-roster/1"), "Open assisted repair team destination controls");
+	for (int i = 0; i < 4; ++i)
+		frame();
+	TakeScreenshot("build/support-one-star-repair-destination.png");
+	require(probe_console_tab(1, "popup-control/game.compartment/1"),
+	        "Send repair team to selected compartment through its popup");
+	for (int i = 0; i < 100; ++i)
+		frame();
+	{
+		const auto observation = app.session->observation();
+		bool arrived = false;
+		for (const auto &team : observation->gameplay.at("teams"))
+			if (team.at("id") == "team-1")
+				arrived = team.at("location") == 0 && team.at("destination") == 0;
+		require(arrived, "One-star repair team physically arrives and holds its chosen compartment");
+	}
+	require(probe_console_tab(1, "systems-close"), "Close repair team popup");
+	for (int i = 0; i < 3; ++i)
+		frame();
+	require(probe_console_tab(1, "task/team-roster/0"), "Open assisted Medical destination controls");
+	for (int i = 0; i < 4; ++i)
+		frame();
+	TakeScreenshot("build/support-one-star-medical-destination.png");
+	require(probe_console_tab(1, "popup-control/game.compartment/5"),
+	        "Send Medical to selected compartment through its popup");
+	for (int i = 0; i < 130; ++i)
+		frame();
+	{
+		const auto observation = app.session->observation();
+		bool arrived = false;
+		for (const auto &team : observation->gameplay.at("teams"))
+			if (team.at("id") == "medical-team")
+			{
+				arrived = team.at("location") == 4 && team.at("assigned_compartment") == 4;
+				if (!arrived)
+					std::cerr << team.dump() << '\n';
+			}
+		require(arrived, "One-star Medical physically arrives and retains its chosen compartment");
+	}
+	require(probe_console_tab(1, "systems-close"), "Close Medical popup");
+	for (int i = 0; i < 3; ++i)
+		frame();
+	require(probe_console_tab(1, "console-page/support/station.support"), "Return to Support overview");
+	for (int i = 0; i < 4; ++i)
+		frame();
 	require(probe_console_tab(1, "camera/camera-mode/1"), "Support reuses the ordinary camera mode widget");
 	for (int i = 0; i < 4; ++i)
 		frame();

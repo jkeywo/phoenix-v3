@@ -227,10 +227,13 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	if (!fit || fit->kind != OperatingSystem::Team || enabled_system_owner(a.ship, c.system) != a ||
 	    away_reserved(a.ship, "team:" + c.system))
 		return false;
+	const bool destination_order =
+	    c.action == "team.cancel" || (c.action == "team.order" && c.text.starts_with("auto/"));
+	const bool assisted_destination = !ai && destination_order && manual_team_destination(a);
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
-		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller && ctrl.human != ai &&
-		    ctrl.generation == c.generation)
+		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
+		    (ctrl.human != ai || assisted_destination) && ctrl.generation == c.generation)
 			for (const auto &channel : ctrl.definition.commands)
 				for (auto consumer : channel.consumers)
 					if (definition(a.ship).fitted->values.at(consumer).id == c.system)
@@ -252,7 +255,9 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		const auto slash = c.text.find('/');
 		if (slash == std::string::npos)
 			return false;
-		assignment = clinical && c.text.substr(0, slash) == "auto";
+		assignment = (clinical ||
+		              (assisted_destination && m.definition.get<TeamDefinition>().capabilities.contains("repair"))) &&
+		             c.text.substr(0, slash) == "auto";
 		order = team_order_definition(m, c.text.substr(0, slash));
 		if ((!order && !assignment) || (!ai && clinical && !assignment && !manual_workload(a, "medical")))
 			return false;
@@ -310,7 +315,14 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	r.work_done = false;
 	r.destination = order || assignment ? static_cast<std::int64_t>(target) : -1;
 	r.repair_system = -1;
-	r.repair_auto = !order;
+	r.repair_auto = !order && !(assignment && !clinical);
+	if (!clinical && m.definition.get<TeamDefinition>().capabilities.contains("repair") && assisted_destination)
+	{
+		r.compartment_assignment = true;
+		r.repair_auto = false;
+		if (c.action == "team.cancel")
+			r.destination = r.travel ? r.edge_to : r.location;
+	}
 	r.continuation = {};
 	++r.revision;
 	return true;
@@ -503,10 +515,17 @@ void step_teams()
 			if (r.order.empty() && !d.capabilities.contains("repair") &&
 			    station_stars(enabled_system_owner(id, m->definition.id)) < 3)
 				r.repair_auto = true;
+			if (d.capabilities.contains("medical") && r.medical_compartment < 0 &&
+			    manual_team_destination(enabled_system_owner(id, m->definition.id)))
+				r.medical_compartment = r.travel ? r.edge_to : r.location;
+			bool advanced = false, arrived = false;
 			if (r.order.empty() && r.medical_compartment >= 0)
 			{
 				r.destination = r.medical_compartment;
-				advance_repair_team(ship, child);
+				arrived = advance_repair_team(ship, child) && r.location == r.destination;
+				advanced = true;
+				if (!arrived && !r.travel)
+					route_repair_team(ship, r, r.destination);
 			}
 			// Use the first eligible authored order: treatment can be followed by
 			// recovery without leaving a stabilised patient awaiting manual dispatch.
@@ -538,7 +557,8 @@ void step_teams()
 			const auto *order = team_order_definition(*m, r.order);
 			if (!order)
 				continue;
-			const bool arrived = advance_repair_team(ship, child) && r.destination >= 0 && r.location == r.destination;
+			if (!advanced)
+				arrived = advance_repair_team(ship, child) && r.destination >= 0 && r.location == r.destination;
 			if (r.destination >= 0 && r.location != r.destination && !r.travel)
 				route_repair_team(ship, r, r.destination);
 			const bool eligible = r.destination >= 0 && team_target_eligible(id, *order, r.destination);
@@ -703,16 +723,20 @@ Json team_board(const ConsoleAddress &a) const
 			else if (candidate.score > 0)
 				row["work"] = "Repairing hull";
 		}
-		row["manual"] = manual;
+		const bool assignment_authority =
+		    manual_team_destination(a) && (d.capabilities.contains("repair") || d.capabilities.contains("medical"));
+		row["assignment_authority"] = assignment_authority;
+		row["manual"] = manual || assignment_authority;
 		row["patient_control"] = manual_workload(a, "medical");
 		row["assigned_compartment"] = r.medical_compartment;
-		if (d.capabilities.contains("medical"))
+		if (d.capabilities.contains("medical") || assignment_authority)
 		{
-			Json assignment{{"id", "auto"},
-			                {"label", "Assign medical team"},
-			                {"icon", "medical"},
-			                {"target", "compartment"},
-			                {"targets", Json::array()}};
+			Json assignment{
+			    {"id", "auto"},
+			    {"label", d.capabilities.contains("medical") ? "Assign medical team" : "Assign repair team"},
+			    {"icon", "medical"},
+			    {"target", "compartment"},
+			    {"targets", Json::array()}};
 			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
 				assignment["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(assignment));

@@ -183,6 +183,45 @@ Json powered_fixture()
 			c["commands"][0]["initial"] = 0;
 	return s;
 }
+void compartment_passthrough_contract()
+{
+	for (const auto initial : {0, 5, 10000})
+	{
+		auto source = powered_fixture();
+		auto &projectile = source["entities"][0]["systems"]["gun"]["projectile"];
+		projectile["damage"] = 25;
+		projectile["damage_per_m"] = 10;
+		projectile["penetration"] = 1000;
+		auto target = source["entities"][0];
+		target["id"] = "test.layered-target";
+		target["combat"]["decks"][0]["compartments"][1]["initial_hp"] = initial;
+		source["entities"].push_back(target);
+		source["maps"][0]["entities"][1]["definition"] = "test.layered-target";
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		submit(world, 101, "gun", "target", 2);
+		world.tick();
+		for (int tick = 0; tick < 40 && world.save().at("projectiles").empty(); ++tick)
+			world.tick();
+		require(!world.save().at("projectiles").empty(), "Launch one physical compartment traversal shot");
+		submit(world, 101, "gun", "enabled", 0);
+		world.tick();
+		World resumed;
+		resumed.restore(catalog, world.save());
+		advance(world, 20);
+		advance(resumed, 20);
+		require(world.save() == resumed.save(), "Compartment traversal preserves in-flight save continuation");
+		const auto compartments = state(world, 2).at("compartments");
+		if (initial == 10000)
+			require(compartments[0]["hp"] == 10000 && compartments[1]["hp"] == 9975,
+			        "An intact compartment absorbs a shot whose damage it can withstand");
+		else
+			require(compartments[1]["hp"] == 0 && compartments[0]["hp"] == 10000 - (25 - initial),
+			        "Destroyed and same-shot-destroyed compartments pass unused damage to the next compartment");
+	}
+}
 void add_beam(Json &s, int damage = 20, int bypass = 0)
 {
 	add_fit(s, "beam",
@@ -1785,6 +1824,7 @@ int main(int argc, char **argv)
 				                initial,
 				        "friendly, neutral and unidentified selections consume no offensive energy or ammunition");
 		}
+		compartment_passthrough_contract();
 		repair_workload_contract();
 		host_audio_contracts();
 		{

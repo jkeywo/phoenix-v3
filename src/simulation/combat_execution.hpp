@@ -63,15 +63,16 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 	return at != s->definition.equipment_compartments.end() &&
 	       s->compartments.at(s->definition.compartment_ids.at(at->second)).disabled;
 }
-void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amount,
-                   const Projectile *payload = nullptr, const NativeRuleContext *origin = nullptr,
-                   const std::vector<NativeRuleSource> *sources = nullptr, std::int64_t *native_inflicted = nullptr)
+std::int64_t combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amount,
+                           const Projectile *payload = nullptr, const NativeRuleContext *origin = nullptr,
+                           const std::vector<NativeRuleSource> *sources = nullptr,
+                           std::int64_t *native_inflicted = nullptr)
 {
 	const auto local_sources = sources ? std::vector<NativeRuleSource>{} : rule_sources(ship);
 	if (!sources)
 		sources = &local_sources;
 	if (combat_dead(ship))
-		return;
+		return 0;
 	auto context = damage_rule_context(
 	    {ship.get<StableId>().id, PayloadOutcomeKind::Compartment, static_cast<std::int64_t>(compartment)}, amount, 0,
 	    payload, origin);
@@ -115,6 +116,9 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 		context.residual = amount - actual;
 		emit_damage_rules(ship, RuleTrigger::PostCompartmentDamage, context, nullptr, sources);
 	}
+	// Translate actual hull absorption back into the incoming projectile budget.
+	// Damage rules still see the complete presented hit exactly once.
+	return amount > 0 ? std::min(context.presented, (actual * context.presented + amount - 1) / amount) : 0;
 }
 
 bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute)
@@ -191,10 +195,19 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 				m.get<TeamState>().destination = -1;
 			if (output.value && output.value != hull)
 			{
-				m.get<TeamState>().compartment_assignment = m.definition.get<TeamDefinition>().local_repair_priority;
+				const bool assigned =
+				    manual_team_destination(enabled_system_owner(ship.get<StableId>().id, m.definition.id));
 				auto it = s.definition.equipment_compartments.begin();
 				std::advance(it, m.get<TeamState>().repair_system);
-				m.get<TeamState>().destination = s.definition.compartment_ids.at(it->second);
+				const auto target = s.definition.compartment_ids.at(it->second);
+				if (assigned && m.get<TeamState>().compartment_assignment && m.get<TeamState>().destination != target)
+					m.get<TeamState>().repair_system = -1;
+				else
+				{
+					m.get<TeamState>().compartment_assignment =
+					    assigned || m.definition.get<TeamDefinition>().local_repair_priority;
+					m.get<TeamState>().destination = target;
+				}
 			}
 		}
 		return true;
@@ -211,6 +224,16 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			return false;
 		if (execute)
 		{
+			if (output.value == 0 &&
+			    manual_team_destination(enabled_system_owner(ship.get<StableId>().id, m.definition.id)))
+			{
+				auto &team = m.get<TeamState>();
+				if (!team.compartment_assignment)
+					team.destination = team.travel ? team.edge_to : team.location;
+				team.compartment_assignment = true;
+				team.repair_auto = false;
+				return true;
+			}
 			m.get<TeamState>().destination = output.value - 1;
 			m.get<TeamState>().repair_auto = output.value == 0;
 			m.get<TeamState>().repair_system = -1;
@@ -443,9 +466,33 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 			break;
 		const auto &d = s.definition.compartments[line.index];
 		auto &c = s.compartments[line.index];
+		if (c.hp <= 0)
+			continue; // Destroyed compartments are empty traversal, not another material hit.
 		const auto distance = length * (line.to - line.from) / 1000000;
-		const auto deposit = deposit_material(p, distance, d.resistance * c.hp / d.maximum);
-		combat_damage(ship, line.index, deposit, &p, nullptr, &sources, &native_inflicted);
+		const auto resistance = std::max<std::int64_t>(1, d.resistance * c.hp / d.maximum);
+		const auto damage = p.damage, penetration = p.penetration;
+		const auto deposit_remainder = p.deposit_remainder, resistance_remainder = p.resistance_remainder;
+		const auto deposit = deposit_material(p, distance, resistance);
+		const auto absorbed = combat_damage(ship, line.index, deposit, &p, nullptr, &sources, &native_inflicted);
+		if (deposit > absorbed && ship.get<CombatStructure>().compartments.at(line.index).hp == 0)
+		{
+			// Retire only the material crossed before the compartment failed. A shot
+			// that exhausted its penetration still stops; otherwise its unused budget continues.
+			auto traversed = distance;
+			if (p.definition.deposition > 0)
+				traversed = std::min(traversed, std::max<std::int64_t>(0, absorbed * 1000 - deposit_remainder +
+				                                                              p.definition.deposition - 1) /
+				                                    p.definition.deposition);
+			if (p.penetration == 0)
+				traversed =
+				    std::min(traversed, (penetration * 1000 - resistance_remainder + resistance - 1) / resistance);
+			p.damage = damage;
+			p.penetration = penetration;
+			p.deposit_remainder = deposit_remainder;
+			p.resistance_remainder = resistance_remainder;
+			deposit_material(p, traversed, resistance);
+			p.damage = damage - absorbed;
+		}
 	}
 	finish_entity_hit();
 }

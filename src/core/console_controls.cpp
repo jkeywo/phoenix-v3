@@ -123,12 +123,15 @@ bool team_allowed(const Observation &view, const OperatingCommand &c)
 	    !c.speaker_avatar.empty())
 		return false;
 	const auto *owner = section(view, c.controller);
-	if (!owner || !owner->at("human").get<bool>() || owner->at("generation") != c.generation ||
-	    !consumes(*owner, c.system))
+	if (!owner || owner->at("generation") != c.generation || !consumes(*owner, c.system))
 		return false;
 	for (const auto &t : view.gameplay.value("teams", Json::array()))
 		if (t.at("id") == c.system && !t.at("reserved").get<bool>() && t.at("revision") == c.value)
 		{
+			if (!owner->at("human").get<bool>() &&
+			    !(t.value("assignment_authority", false) &&
+			      (c.action == "team.cancel" || (c.action == "team.order" && c.text.starts_with("auto/")))))
+				return false;
 			if (c.action == "team.cancel")
 				return c.text.empty();
 			if (c.action != "team.order")

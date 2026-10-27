@@ -29,7 +29,8 @@ std::map<std::string, std::vector<double>> samples;
 std::string output;
 bool graphics_ready = false;
 bool probe_readouts = false, readout_probe_passed = false;
-bool probe_power = false;
+bool probe_power = false, probe_contacts = false;
+nlohmann::json initial_contacts;
 bool probe_accessibility = false, accessibility_probe_passed = false;
 bool background_requested = false, probe_input = false;
 ConsoleModel input_model;
@@ -155,6 +156,8 @@ void profile_frame()
 			report["power"] = observation->gameplay.value("power", nlohmann::json::object());
 			report["combat"] = observation->gameplay.value("combat", nlohmann::json::object());
 		}
+	if (probe_contacts)
+		report["initial_contacts"] = initial_contacts;
 	for (auto &[name, values] : samples)
 	{
 		std::sort(values.begin(), values.end());
@@ -204,6 +207,7 @@ int main(int argc, char **argv)
 		probe_input = probes.find("input") != std::string::npos;
 		probe_readouts = probes.find("readouts") != std::string::npos;
 		probe_power = probes.find("power") != std::string::npos;
+		probe_contacts = probes.find("contacts") != std::string::npos;
 		probe_accessibility = probes.find("accessibility") != std::string::npos;
 		background_requested = probes.find("background") != std::string::npos;
 #if defined(__EMSCRIPTEN__) && !defined(PHOENIX_BROWSER_THREADS)
@@ -234,6 +238,20 @@ int main(int argc, char **argv)
 		app.session->add_pack(read_file(directory + "/base.zip"));
 		app.session->start({"base.rescue-under-threat", {{"courier", ship}}, "courier", seat});
 		const auto own = app.session->observation()->own.id;
+		if (probe_contacts)
+		{
+			for (int tick = 0; tick < 3; ++tick)
+			{
+				app.session->tick();
+				app.session->poll();
+			}
+			initial_contacts = {{"ships", nlohmann::json::array()}, {"bearings", nlohmann::json::array()}};
+			const auto observation = app.session->observation();
+			for (const auto &contact : observation->contacts)
+				initial_contacts["ships"].push_back({{"id", contact.id}, {"definition", contact.definition}});
+			for (const auto &contact : observation->bearing_contacts)
+				initial_contacts["bearings"].push_back(contact.id);
+		}
 		if (probes.find("power-soak") != std::string::npos)
 			for (int tick = 0; tick < 3000; ++tick)
 			{

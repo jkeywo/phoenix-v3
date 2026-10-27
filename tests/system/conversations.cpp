@@ -77,6 +77,57 @@ void cancelled_station_traffic()
 		require(thread.at("messages").empty(), "Obsolete queued reminders never deliver");
 }
 
+void contact_introductions()
+{
+	auto source = fixture();
+	auto reception = Json::parse(R"json({"id":"test.reception","context":"conversation","initial":"ask",
+ "prompts":{"contact":{"speaker":"target","text_key":"Who do you need?","timeout_ticks":100,"default_choice":"captain",
+ "choices":[{"id":"captain","text_key":"Speak to the captain"}]}},
+ "lines":{"reply":{"speaker":"captain","text_key":"Captain speaking"}},
+ "states":[{"id":"ask","entry":[{"action":"offer","arguments":["contact"]}],"transitions":[{"target":"introduce","conditions":[{"left":{"observation":"answer"},"op":"eq","right":"captain"}]}]},
+ {"id":"introduce","entry":[{"action":"add_participant","arguments":["captain"]},{"action":"say","arguments":["reply"]}]}]})json");
+	source["trees"].push_back(reception);
+	source["entities"][0]["comms"]["default_conversation"] = "test.reception";
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(1, 1, "drive"), "Claim directory caller");
+	for (int i = 0; i < 5; ++i)
+		world.tick();
+	auto command =
+	    [&](const std::string &action, std::uint64_t thread, const std::string &text, std::uint64_t prompt = 0)
+	{
+		OperatingCommand c{1, "comms." + action, static_cast<std::int64_t>(thread)};
+		c.console = "drive";
+		c.controller = "comms";
+		c.text = text;
+		c.request_id = prompt;
+		const auto observation = world.observe(1);
+		for (const auto &controller : observation->gameplay.at("controllers"))
+			if (controller.at("id") == "comms")
+				c.generation = controller.at("generation");
+		return c;
+	};
+	const auto initial = world.observe(1);
+	for (const auto &p : initial->gameplay.at("conversations").at("directory"))
+		require(p.at("id").get<std::string>().find('/') == std::string::npos,
+		        "Sensors disclose vessels, not their personnel directory");
+	require(!world.submit(1, command("hail", 0, "ship:2/captain")), "Undisclosed individual cannot be hailed directly");
+	require(world.submit(1, command("hail", 0, "ship:2")), "Call the ship before asking for an individual");
+	for (int i = 0; i < 3; ++i)
+		world.tick();
+	const auto thread = world.observe(1)->gameplay.at("conversations").at("threads")[0];
+	require(world.submit(1, command("answer", thread.at("id"), "captain", thread.at("prompt"))),
+	        "Ask reception to introduce the captain");
+	for (int i = 0; i < 3; ++i)
+		world.tick();
+	require(world.can_submit(1, command("hail", 0, "ship:2/captain")),
+	        "Conversation introduction permits later direct calls");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	require(resumed.observe(1)->gameplay.at("conversations") == world.observe(1)->gameplay.at("conversations"),
+	        "Introduced contacts persist through save and resume");
+}
 void ship_conversation_history()
 {
 	auto source = fixture();
@@ -218,6 +269,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		contact_introductions();
 		ship_conversation_history();
 		cancelled_station_traffic();
 		received_information_cases();
@@ -258,7 +310,7 @@ int main(int argc, char **argv)
 			OperatingCommand hail{1, "comms.hail", 0};
 			hail.console = "drive";
 			hail.controller = "comms";
-			hail.text = "ship:2/captain";
+			hail.text = "ship:2";
 			for (const auto &controller : view.gameplay.at("controllers"))
 				if (controller.at("id") == "comms")
 				{
@@ -336,7 +388,7 @@ int main(int argc, char **argv)
 		auto catalog = load(fixture());
 		World world;
 		world.load(catalog, "test.map");
-		require(world.claim(1, 1, "drive") && world.claim(2, 2, "drive"), "claim comms");
+		require(world.claim(1, 1, "drive"), "claim caller Comms");
 		world.tick();
 		auto cmd = [&](std::uint64_t who, const std::string &action, std::uint64_t thread, const std::string &text,
 		               std::uint64_t prompt = 0)
@@ -352,10 +404,9 @@ int main(int argc, char **argv)
 					c.generation = v.at("generation");
 			return c;
 		};
-		require(projected_command(*world.observe(1), cmd(1, "hail", 0, "ship:2/captain")),
-		        "remote hail projection admission");
+		require(projected_command(*world.observe(1), cmd(1, "hail", 0, "ship:2")), "remote hail projection admission");
 		const auto before_admission = world.observe(1)->gameplay.at("conversations");
-		require(world.submit(1, cmd(1, "hail", 0, "ship:2/captain")), "hail discovered public character");
+		require(world.submit(1, cmd(1, "hail", 0, "ship:2")), "hail discovered ship");
 		require(world.observe(1)->gameplay.at("conversations") == before_admission,
 		        "hail admission does not create or select a conversation");
 		world.tick();
@@ -384,7 +435,7 @@ int main(int argc, char **argv)
 		world.tick();
 		require(!world.submit(1, cmd(1, "answer", id, "no", thread.at("prompt"))),
 		        "resolved prompt cannot answer twice");
-		require(world.submit(1, cmd(1, "hail", 0, "ship:2/captain")), "repeat hail");
+		require(world.submit(1, cmd(1, "hail", 0, "ship:2")), "repeat hail");
 		world.tick();
 		require(view().at("threads").size() == 1, "repeat hail reopens thread");
 		if (argc > 1 && std::string(argv[1]) == "--trace")
@@ -392,6 +443,7 @@ int main(int argc, char **argv)
 			std::cout << world.save().at("conversations").dump() << '\n';
 			return 0;
 		}
+		require(world.claim(2, 2, "drive"), "Claim second human Comms after the NPC exchange");
 		// Group prompts resolve once across two human Consoles.
 		auto group_source = fixture();
 		group_source["maps"][0]["conversations"] =

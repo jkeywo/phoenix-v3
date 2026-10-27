@@ -977,7 +977,14 @@ bool commit_controller(const ControllerProposal &proposal)
 				const auto &team =
 				    entity.get<EquipmentIndex>().values.at(consumer).get<CombatMechanism>().get<TeamState>();
 				if (spec.action == OperatingAction::RepairCompartment)
-					same_effect &= team.destination == proposal.value - 1;
+				{
+					const auto system = entity.get<EquipmentIndex>().values.at(consumer).get<Equipment>().id;
+					const bool assigned =
+					    proposal.value == 0 &&
+					    manual_team_destination(enabled_system_owner(proposal.address.entity, system));
+					same_effect &= assigned ? team.compartment_assignment && !team.repair_auto
+					                        : team.destination == proposal.value - 1;
+				}
 				else
 				{
 					const auto hull = static_cast<std::int64_t>(

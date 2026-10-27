@@ -1658,7 +1658,7 @@ bool ConsoleModel::team_action(const std::string &action, const std::string &tea
 	for (const auto &t : observation_->gameplay.value("teams", Json::array()))
 		if (t.at("id") == team && !t.at("reserved").get<bool>())
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
-				if (ctrl.value("human", false))
+				if (ctrl.value("human", false) || t.value("assignment_authority", false))
 				{
 					OperatingCommand command{observation_->own.id, "team." + action, t.at("revision"), team};
 					command.text = text;

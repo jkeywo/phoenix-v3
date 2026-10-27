@@ -213,6 +213,97 @@ void deploy_clinical_party(World &w)
 	require(w.observe(101)->gameplay.at("away_missions")[0]["phase"] == "deployed",
 	        "clinical party physically arrived");
 }
+void assisted_team_destinations()
+{
+	auto source = medical_fixture();
+	auto &ship = source["entities"][0];
+	ship["personnel"]["officers"][1]["condition"] = "healthy";
+	ship["combat"]["decks"][0]["compartments"][0]["initial_hp"] = 30;
+	ship["combat"]["decks"][0]["compartments"][1]["initial_hp"] = 20;
+	auto &layout = ship["control_layout"];
+	layout["station_complexity"] = true;
+	layout["manual_workloads"] = {{"observer", {{"team_assignment", 1}, {"medical", 3}}}};
+	layout["profiles"][0]["stars"] = 1;
+	layout["profiles"][0]["consoles"]["observer"] = {{"human", Json::array()}, {"ai", {"team", "medical"}}};
+	for (auto &controller : layout["controllers"])
+		if (controller["id"] == "team")
+		{
+			controller.erase("fallback");
+			controller["tree"] = "test.local-repair";
+			controller["commands"].push_back(
+			    {{"id", "assignment"}, {"action", "repair_compartment"}, {"initial", 0}, {"consumers", {"team"}}});
+		}
+	source["trees"].push_back(Json::parse(R"json({"id":"test.local-repair","context":"controller",
+ "command_bindings":[{"channel":"assignment","action":"repair_compartment"}],"initial":"work",
+ "states":[{"id":"work","running":[{"action":"write.assignment","arguments":[0]}]}]})json"));
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(world);
+	ticks(world, 10);
+	const auto waiting = world.save();
+	auto waiting_copy = waiting;
+	require(saved_body(waiting_copy, 2)["combat"]["compartments"][0]["hp"] == 30 &&
+	            officer(world, 2, 0)["treatment"] == 0,
+	        "Occupied one-star station does not deploy repair or Medical to another room automatically");
+	auto send = [&](const std::string &team, const std::string &text)
+	{
+		const auto view = world.observe(102);
+		OperatingCommand c{2, "team.order", 0, team};
+		c.console = "observer";
+		c.controller = team;
+		c.text = text;
+		for (const auto &row : view->gameplay.at("teams"))
+			if (row.at("id") == team)
+				c.value = row.at("revision");
+		for (const auto &controller : view->gameplay.at("controllers"))
+			if (controller.at("id") == team)
+				c.generation = controller.at("generation");
+		return c;
+	};
+	const auto medical = send("medical", "auto/bridge"), repair = send("team", "auto/bridge");
+	const auto projected = network::read_observation(network::observation_json(*world.observe(102)), catalog);
+	require(
+	    projected.gameplay.at("teams") == world.observe(102)->gameplay.at("teams") &&
+	        eligible_console_command(projected, Json{{"widgets", Json::array()}}, Json::object(), medical).has_value(),
+	    "Remote one-star projection admits department destination authority on an AI team Controller");
+	require(!world.submit(102, send("medical", "treat/bridge")),
+	        "Destination authority does not grant detailed clinical orders");
+	auto foreign = repair;
+	foreign.controller = "transport";
+	require(!world.submit(102, foreign), "Another Controller cannot command the repair team");
+	require(world.submit(102, medical) && world.submit(102, repair), "Station chooses both team destinations manually");
+	world.tick();
+	require(officer(world, 2, 0)["treatment"] == 0, "Medical work waits for physical compartment arrival");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	ticks(world, 20);
+	ticks(resumed, 20);
+	require(world.save() == resumed.save(),
+	        "Manual destinations and automatic local work retain in-flight continuation");
+	auto completed = world.save();
+	require(saved_body(completed, 2)["combat"]["compartments"][0]["hp"] > 30 &&
+	            officer(world, 2, 0)["condition"] == "healthy",
+	        "Repair and Medical choose useful work automatically at the assigned compartment");
+	ticks(world, 100);
+	auto finished = world.save();
+	const auto &repair_state = saved_body(finished, 2)["combat"]["systems"]["team"];
+	require(repair_state["location"] == 0 && repair_state["destination"] == 0 &&
+	            saved_body(finished, 2)["combat"]["compartments"][1]["hp"] < 100,
+	        "A finished team stays at its manual destination instead of chasing another damaged room");
+	require(world.submit(102, send("medical", "auto/workshop")), "Reposition Medical to an empty compartment");
+	ticks(world, 20);
+	const auto repositioned = world.observe(102);
+	for (const auto &team : repositioned->gameplay.at("teams"))
+		if (team.at("id") == "medical")
+			require(team.at("location") == 1 && team.at("assigned_compartment") == 1,
+			        "Medical physically follows its destination even without a patient there");
+	require(world.submit(101, away_order(world, "open")), "Activate away work with manual onboard destinations");
+	ticks(world, 6);
+	const auto manifest = world.save().at("away_missions")[0].at("assignments");
+	require(manifest.at("repair") == "team:team" && manifest.at("medical") == "team:medical",
+	        "Manual onboard destinations preserve automatic department-owned away staffing");
+}
 void team_effect_actions()
 {
 	auto source = medical_fixture();
@@ -663,6 +754,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		assisted_team_destinations();
 		team_effect_actions();
 		finite_clinical_jobs();
 		property_work_regressions();
@@ -733,9 +825,8 @@ int main(int argc, char **argv)
 			        "Assisted Medical treats and recovers a severe casualty automatically");
 			require(assisted.submit(101, away_order(assisted, "open")), "Open assisted away mission");
 			ticks(assisted, 1);
-			require(assisted.submit(102, away_order(assisted, "assign", "medical/team:medical", 102, "medical")),
-			        "Support authorises its AI-operated Medical team's away contribution");
-			ticks(assisted, 1);
+			require(assisted.save().at("away_missions")[0].at("assignments").at("medical") == "team:medical",
+			        "AI-operated Medical supplies its department's away contribution automatically");
 		}
 		{
 			auto source = medical_fixture();

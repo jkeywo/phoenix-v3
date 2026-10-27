@@ -390,10 +390,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		                path, "unknown workload Console or Station complexity disabled");
 		for (const auto &[family, stars] : families.items())
 		{
-			control_require(
-			    (family == "craft" || family == "transport" || family == "logistics" || family == "medical") &&
-			        stars.is_number_integer() && stars >= 1 && stars <= 3,
-			    path, "invalid manual workload");
+			control_require((family == "craft" || family == "transport" || family == "logistics" ||
+			                 family == "medical" || family == "team_assignment") &&
+			                    stars.is_number_integer() && stars >= 1 && stars <= 3,
+			                path, "invalid manual workload");
 			result.manual_workloads[console][family] = stars.get<int>();
 		}
 	}

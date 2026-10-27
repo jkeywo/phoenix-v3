@@ -49,20 +49,20 @@ int main(int argc, char **argv)
 				}
 			return false;
 		};
-		if (!action("game.console/comms"))
+		if (!action("console-page/comms/"))
 			throw std::runtime_error("Comms Console switch unavailable");
 		for (int i = 0; i < 3; ++i)
 		{
 			app.session->tick();
 			frame();
 		}
-		if (!action("comms/hail/ship:1/captain"))
+		if (!action("comms/hail/ship:1"))
 		{
 			for (const auto &c : app.screen_controls)
 				std::cerr << c.first << '\n';
-			throw std::runtime_error("Public captain hail unavailable");
+			throw std::runtime_error("Ship hail unavailable");
 		}
-		for (int i = 0; i < 35; ++i)
+		for (int i = 0; i < 10; ++i)
 		{
 			app.session->tick();
 			frame();
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 		TakeScreenshot("build/comms-1080p.png");
 		if (!probe_console_conversation(1))
 			throw std::runtime_error("1080p Comms transcript does not fill its dedicated panel");
-		if (!action("comms/answer/help"))
+		if (!action("comms/answer/engineering"))
 			throw std::runtime_error("Authored response unavailable");
 		for (int i = 0; i < 80; ++i)
 		{
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 		TakeScreenshot("build/comms-viewscreen.png");
 		app.screen = Screen::console;
 		frame();
-		if (!action("game.console/comms"))
+		if (!action("console-page/comms/"))
 			throw std::runtime_error("Comms return unavailable");
 		SetWindowSize(600, 900);
 		for (int i = 0; i < 3; ++i)
