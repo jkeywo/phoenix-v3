@@ -101,8 +101,10 @@ std::string away_markup()
 		if (m.at("dispatch").get<bool>())
 		{
 			if (phase == "available")
-				html += button("open", "", "Open assignments");
-			if ((phase == "open" || phase == "recovered") && m.at("result") == "")
+				html +=
+				    button("open", "", m.value("automatic_dispatch", false) ? "Activate mission" : "Open assignments");
+			if ((phase == "recovered" || (phase == "open" && !m.value("automatic_dispatch", false))) &&
+			    m.at("result") == "")
 				html += button("send", "", "Send");
 			if (phase == "deployed")
 				html += button("recall", "", "Recall");

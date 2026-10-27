@@ -1195,10 +1195,17 @@ void advance_away()
 			for (const auto &console : definition(ship).consoles)
 			{
 				const ConsoleAddress owner{ship, console.id};
-				if (!console_operator(owner) && !m.authorised_departments.contains(console.id))
+				if (!m.authorised_departments.contains(console.id))
 					for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
 						if (controller.definition.console == console.id && !controller.human)
 						{
+							bool team_controller = false;
+							for (const auto &command : controller.definition.commands)
+								for (const auto consumer : command.consumers)
+									team_controller |=
+									    definition(ship).fitted->values.at(consumer).kind == OperatingSystem::Team;
+							if (console_operator(owner) && !team_controller)
+								continue;
 							OperatingCommand c{ship, "away.contribute", static_cast<std::int64_t>(m.revision), d.id};
 							c.controller = controller.definition.id;
 							c.generation = controller.generation;
@@ -1264,6 +1271,25 @@ void advance_away()
 		}
 		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered || m.phase == AwayPhase::Outbound)
 			stage_away(ship, m);
+		// Activating an assisted docking mission authorises its first insertion. The normal
+		// send path still checks staging, capacity, capability and the physical dock.
+		if (m.phase == AwayPhase::Open && m.transport == "ship" && !d.supply && m.outcome.empty())
+		{
+			const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
+			if (station_stars(owner) == 1)
+				for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+					if (controller.definition.console == owner.console)
+					{
+						OperatingCommand command{ship, "away.send", static_cast<std::int64_t>(m.revision), d.id};
+						command.controller = controller.definition.id;
+						command.generation = controller.generation;
+						if (away_command(owner, command, true, !controller.human, true))
+						{
+							active.try_emplace(std::pair{ship, m.transport}, i);
+							break;
+						}
+					}
+		}
 		const auto transport = away_transport_entity(ship, m.transport);
 		if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
 		    entities.at(transport).get<CraftState>().phase == CraftPhase::Docked &&
@@ -1597,6 +1623,8 @@ Json away_board(const ConsoleAddress &a) const
 		         {"accompanying", m.accompanying}};
 		row["owner"] = enabled_system_owner(a.ship, away_dispatch_system(a.ship, d.dispatch)).console;
 		row["dispatch_system"] = away_dispatch_system(a.ship, d.dispatch);
+		row["automatic_dispatch"] =
+		    !d.supply && d.allow_ship_transport && station_stars({a.ship, row.at("owner").get<std::string>()}) == 1;
 		bool owns_assets = false;
 		for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
 			if (controller.definition.console == a.console)

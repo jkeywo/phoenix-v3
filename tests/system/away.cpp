@@ -35,6 +35,101 @@ OperatingCommand order(const World &w, const std::string &action, const std::str
 }
 #include "../support/away_priority_cases.hpp"
 #include "../support/away_medical_cases.hpp"
+void assisted_docking_mission()
+{
+	auto source = away_fixture();
+	auto &hull = source["entities"][0];
+	hull["tags"] = {"ship"};
+	hull["systems"]["scan"] = {{"kind", "radar"}, {"range_mm", 100000}, {"shows", {"ship"}}, {"compartment", "bridge"}};
+	hull["control_layout"]["controllers"].push_back(
+	    {{"id", "scan"},
+	     {"console", "drive"},
+	     {"fallback", "hold"},
+	     {"commands",
+	      Json::array({{{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"scan"}}}})}});
+	hull["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("scan");
+	hull["stations"][0]["consoles"][0]["feeds"].push_back("scan");
+	hull["personnel"]["duties"].push_back({{"id", "scan"},
+	                                       {"label", "Scan"},
+	                                       {"controller", "scan"},
+	                                       {"console", "drive"},
+	                                       {"department", "navigation"},
+	                                       {"compartment", "bridge"},
+	                                       {"effects", Json::object()}});
+	hull["transport"] = {{"compartment", "bridge"}, {"capacity", 8}, {"capabilities", {"shelter"}}};
+	hull["docking"] = Json::parse(
+	    R"({"ports":[{"id":"fore","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":5000,"heading_mdeg":0,"mating_ticks":3},{"id":"aft","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":-5000,"heading_mdeg":180000,"mating_ticks":3}]})");
+	auto &layout = hull["control_layout"];
+	layout["station_complexity"] = true;
+	layout["profiles"][0]["stars"] = 3;
+	auto low = layout["profiles"][0];
+	low["id"] = "assisted";
+	low["stars"] = 1;
+	low["consoles"]["observer"]["human"] = Json::array();
+	low["consoles"]["observer"]["ai"] = {"team"};
+	layout["profiles"].push_back(low);
+	layout["default_profile"] = "assisted";
+	auto &mission = source["maps"][0]["away_missions"][0];
+	mission["allow_ship_transport"] = true;
+	mission["docking_ports"] = {"aft"};
+	mission["deployment_ticks"] = 3;
+	auto target = hull;
+	target["id"] = "test.receiving-ship";
+	target["control_layout"]["default_profile"] = "direct";
+	source["entities"].push_back(target);
+	source["maps"][0]["entities"][0]["definition"] = "test.receiving-ship";
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	const auto ship = *world.ship_for_slot("crew");
+	require(world.claim(101, ship, "drive") && world.claim(102, ship, "observer") && world.claim(103, 1, "drive"),
+	        "Claim occupied assisted watches and receiving Helm");
+	ticks(world, 4);
+	require(board(world)[0].at("automatic_dispatch") == true, "One-star docking activation is projected");
+	require(world.submit(101, order(world, "open")), "Activate assisted docking mission");
+	ticks(world, 20);
+	const auto prepared = board(world)[0];
+	require(prepared["slots"][0]["assigned"] == "team:team" && !prepared["accompanying"].empty(),
+	        "AI-operated team Controller prepares team and duty officer despite occupied Console");
+	require(prepared["phase"] == "open" && prepared["transport"] == "ship",
+	        "Activated party waits for real docking without dispatching or launching a shuttle");
+	require(network::read_observation(network::observation_json(*world.observe(101)), catalog)
+	                .gameplay.at("away_missions") == board(world),
+	        "Assisted activation survives remote projection");
+	require(world.submit(101, order(world, "cancel")), "Cancel activated mission while waiting for docking");
+	ticks(world, 10);
+	require(board(world)[0]["phase"] == "available" && board(world)[0]["slots"][0]["assigned"] == "",
+	        "Cancellation removes activation and prevents automatic redeployment");
+	require(world.submit(101, order(world, "open")), "Reactivate cancelled docking mission");
+	ticks(world, 20);
+	World resumed;
+	resumed.restore(catalog, world.save());
+	auto dock =
+	    [&](World &w, std::uint64_t route, const std::string &verb, const std::string &port, const std::string &text)
+	{
+		const auto view = *w.observe(route);
+		OperatingCommand command{view.own.id, "dock." + verb, view.gameplay.at("docking").at("revision"), port};
+		command.console = "drive";
+		command.controller = "dispatch";
+		command.text = text;
+		for (const auto &controller : view.gameplay.at("controllers"))
+			if (controller.at("id") == "dispatch")
+				command.generation = controller.at("generation");
+		return w.submit(route, command);
+	};
+	for (auto *w : {&world, &resumed})
+	{
+		require(dock(*w, 103, "accept", "aft", std::to_string(ship)), "Accept assisted docking");
+		ticks(*w, 1);
+		require(dock(*w, 101, "connect", "fore", "1/aft"), "Helm deliberately docks activated mission");
+		ticks(*w, 12);
+		require(board(*w)[0]["phase"] == "deployed", "Docking dispatches prepared one-star party without Send");
+		require(w->submit(101, order(*w, "recall")), "Helm deliberately recalls assisted party");
+		ticks(*w, 20);
+		require(board(*w)[0]["phase"] == "recovered", "Recovered party does not redeploy automatically");
+	}
+	require(world.save() == resumed.save(), "Activated docking mission resumes without repeated assignments");
+}
 void away_effect_actions()
 {
 	auto source = away_fixture();
@@ -129,6 +224,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		assisted_docking_mission();
 		away_effect_actions();
 		away_priority_cases();
 		away_medical_cases();

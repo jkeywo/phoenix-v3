@@ -4,13 +4,15 @@ Away missions use compiled state trees and real ship personnel. Dispatch coordin
 
 ## Playing the rescue
 
-Choose **Rescue under threat** and the **Courier — Rescue watch**. Helm owns Dispatch and the Navigation department; Engineering is the Support Console and owns the repair teams. The Guild navigator begins assigned to the displacement Controller and stays aboard.
+Choose **Rescue under threat** and the Courier or Cruiser. The casualty's delivered distress message reveals the away mission. Helm owns Dispatch; each contributing department retains authority over its personnel.
 
-The casualty's delivered distress message reveals the mission. Helm opens **Away missions**, opens assignments and assigns displacement. Support contributes through the team's own interface: open Repair, select the team and choose **Send on [mission]**. Its attached officer is included. Support has no Away Missions tab. At a manual Personnel workload, an optional specialist slot appears as a mission assignment against eligible officers in the roster. Automatic personnel workloads omit the Personnel tab. Personnel committed to the mission cannot be reassigned or used by another mission. Team assignments use their owning Console Controller; return from Comms to the relevant team details to contribute another repair team.
+On a one-star Courier, Helm opens **Away missions** and chooses **Activate mission**. AI-operated team Controllers prepare eligible teams and their accompanying officers, including when Support is occupied. Teams physically stage at the ship's transport compartment. Helm docks at a compatible casualty port; the first transfer proceeds automatically once staging, capacity and docking permit it. The mission's blocker explains any wait. Cancel stops the activation. Recall remains deliberate, and a recovered party requires a new dispatch.
 
-Teams walk to the displacement compartment before Send becomes executable. Dispatch sends the manifest; the transfer waits for range, power, a qualified navigator and lowered obstructing shield sectors. Shields are never lowered automatically. Transport bindings are shared, with one transfer at a time in acceptance order. Cancelling a transfer leaves the personnel at their origin and does not refund energy already consumed.
+At manual team workloads, contribute through the team's own interface: open Repair, select a team and choose **Send on [mission]**. Support has no Away Missions tab. At a manual Personnel workload, an optional specialist slot appears against eligible officers in the roster. Automatic personnel workloads omit the Personnel tab. Personnel committed to a mission cannot be reassigned or used by another mission.
 
-The away party reports through Comms and asks whether to stabilise services or prioritise propulsion. A timed default stabilises services. Repair work restores actual damaged compartments. An authored pirate arrival creates a bounded threat using the existing combat machinery. Completing repairs does not recover the team: Dispatch must recall it within displacement range. Recovery releases the manifest, preserves repairs and accumulated effort, and allows a new team to resume at the authored checkpoint.
+Other transports retain their ordinary Dispatch controls. Displacement waits for range, power, a qualified navigator and lowered obstructing shield sectors; shields are never lowered automatically. Shuttle deployment uses real carried craft. Transport bindings are shared, with one transfer at a time in acceptance order. Cancelling a transfer leaves personnel at their origin and does not refund energy already consumed.
+
+The party reports and asks for priorities through Comms; see [Rescue priorities and consequences](rescue-away-mission.md). Repair work restores actual damage. Completing work does not recover the party: Dispatch must recall it through its available transport. Recovery preserves repairs and accumulated effort, allowing a later deployment to resume at the authored checkpoint.
 
 ## Authoring contract
 
@@ -49,3 +51,11 @@ Cleanup verification on 21 October 2026, based on away mission commit `4677d5d`:
 ## Shared effect groups
 
 Away trees can invoke literal shared effect groups with `apply_effect_group [group, self|target]`; see the [final coverage and authoring contract](effect-coverage-audit.md#direct-native-tree-effects). Native mission work, deployment, transport and outcome reporting remain unchanged. The current enclosing World and portable-session schema is 32; older historical schema notes above describe earlier increments.
+
+## Assisted docking activation
+
+An occupied Console can contain AI-operated team Controllers. These Controllers authorise their own department contribution to an opened mission through ordinary `away.contribute` admission; Console occupancy does not disable team preparation. Human-operated team Controllers retain their contribution authority.
+
+For one-star Dispatch, activating a direct-docking mission selects ship transport and prepares available teams and accompanying officers. Its first insertion uses ordinary `away.send` admission once staging and physical docking permit it. Until then, the mission remains open and its normal blocker explains the wait. Cancellation returns it to available; recovered parties require a deliberate new dispatch. Shuttle launches and supply collection retain their existing explicit dispatch controls. The derived `automatic_dispatch` projection carries the same behaviour and activation label to native and remote browser Consoles; it grants no additional command authority.
+
+Verification on 27 October 2026: native and WASM away integration passed the occupied-Console AI team preparation, accompanying officer, physical docking insertion, cancellation, recall, no automatic redeployment, remote projection and save/resume checks. Existing manual ownership and transport cases passed in the same suite; native/WASM away continuation traces matched (`54d8ded4995500c72c90672a2295e673cc201f2f1021bbc71207e82c2d79fda4`). Native security/boarding integration, the native application build/check and browser server/client builds passed. This increment did not include a fresh graphical or physical-device walkthrough. Evidence is in `build/assisted-away-*.log`; graphical acceptance remains separate.

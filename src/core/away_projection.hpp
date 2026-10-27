@@ -23,6 +23,7 @@ inline Json board(const Json &rows)
 			v["accompanying"].push_back(text(o, 64));
 		v["revision"] = revision;
 		v["dispatch"] = r.at("dispatch").get<bool>();
+		v["automatic_dispatch"] = r.value("automatic_dispatch", false);
 		v["owner"] = text(r.value("owner", Json("")), 128);
 		v["dispatch_system"] = text(r.value("dispatch_system", Json("")), 128);
 		v["can_contribute"] = r.value("can_contribute", false);
