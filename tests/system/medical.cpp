@@ -470,27 +470,18 @@ void clinical_execution_regressions(Json &trace)
 		trace.push_back(away.save());
 		for (auto old : {travelling, partial})
 		{
-			auto &mission = old["away_missions"][0];
-			mission["schema"] = 4;
-			mission["care"]["medical"].erase("activity");
-			mission["care"]["medical"].erase("work_done");
-			World migrated;
-			migrated.restore(catalog, old);
-			const auto upgraded = migrated.save();
-			const auto &care = upgraded["away_missions"][0]["care"]["medical"];
-			require(upgraded["away_missions"][0]["schema"] == 11 &&
-			            care["continuation"]["instance"]["initialised"] == false &&
-			            care["location"] == mission["care"]["medical"]["location"] &&
-			            care["travel"] == mission["care"]["medical"]["travel"] &&
-			            care["edge_to"] == mission["care"]["medical"]["edge_to"] &&
-			            upgraded["away_missions"][0]["assignments"] == mission["assignments"] &&
-			            upgraded["away_missions"][0]["progress"] == mission["progress"],
-			        "schema-4 migration restarts only clinical intent, preserving route, reservation and mission work");
-			auto copy = upgraded;
-			require(saved_body(old, 1)["personnel"] == saved_body(copy, 1)["personnel"],
-			        "schema-4 migration preserves patient work");
-			ticks(migrated, 25);
-			require(officer(migrated, 1, 0)["condition"] == "healthy", "migrated entry action resumes care");
+			old["away_missions"][0]["schema"] = 4;
+			bool rejected = false;
+			try
+			{
+				World retired;
+				retired.restore(catalog, old);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "retired away clinical schema rejected without restarting patient work");
 		}
 		auto invalid = partial;
 		invalid["away_missions"][0]["care"]["medical"]["activity"] = "unknown";

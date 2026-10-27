@@ -987,19 +987,6 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 	}
 	return false;
 }
-PreparedEffectGroup reprepare_effect_group(const PreparedEffectGroup &previous)
-{
-	if (previous.consumed)
-	{
-		PreparedEffectGroup closed;
-		closed.failure = "Effect quote was already consumed";
-		closed.consumed = true;
-		return closed;
-	}
-	auto quote = prepare_effect_groups(previous.invocations);
-	quote.defer_damage = previous.defer_damage;
-	return quote;
-}
 std::string commit_effect_group(PreparedEffectGroup &quote)
 {
 	if (!quote.failure.empty())

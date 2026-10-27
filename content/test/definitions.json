@@ -21039,15 +21039,6 @@
 			"shortage": "proportional"
 		},
 		{
-			"id": "test.process.processor",
-			"kind": "process",
-			"label": "Recipe processing",
-			"family": "machinery.processor",
-			"native": "processor",
-			"requested": true,
-			"shortage": "proportional"
-		},
-		{
 			"id": "test.process.repair",
 			"kind": "process",
 			"label": "Repair work",
@@ -21062,15 +21053,6 @@
 			"label": "Medical care",
 			"family": "work.medical",
 			"native": "medical",
-			"requested": true,
-			"shortage": "proportional"
-		},
-		{
-			"id": "test.process.recovery",
-			"kind": "process",
-			"label": "Facility recovery",
-			"family": "work.recovery",
-			"native": "recovery",
 			"requested": true,
 			"shortage": "proportional"
 		},

@@ -1830,57 +1830,12 @@ void restore_away(const Json &rows)
 	for (std::size_t i = 0; i < rows.size(); ++i)
 	{
 		const auto &d = away_definitions[i];
-		const auto schema = rows[i].at("schema");
-		if ((schema != 1 && schema != 2 && schema != 3 && schema != 4 && schema != 5 && schema != 6 && schema != 7 &&
-		     schema != 8 && schema != 9 && schema != 10 && schema != 11) ||
-		    rows[i].at("id") != d.id)
-			throw std::runtime_error("Away mission identity mismatch");
-		auto record = rows[i];
-		if (schema == 1)
-			record["repair_compartment"] = record.value("repair_compartment", std::string{});
-		if (schema < 3)
-		{
-			record["ever_deployed"] =
-			    record.value("recovered", false) || record.at("phase") == "deployed" || record.at("phase") == "inbound";
-			record["participants"] = Json::array();
-			if (record.at("ever_deployed") == true)
-			{
-				for (const auto &[key, a] : record.at("assignments").items())
-					record["participants"].push_back(a);
-				for (const auto &o : record.at("accompanying"))
-					record["participants"].push_back("officer:" + o.get<std::string>());
-			}
-		}
-		if (schema < 4 || (schema < 8 && !record.contains("care")))
-			record["care"] = Json::object();
-		auto care_record = record.at("care");
+		const auto &record = rows[i];
+		if (record.at("schema") != 11)
+			throw std::runtime_error("Saved away mission schema retired; start a new session (schema 11 required)");
+		const auto &care_record = record.at("care");
 		if (!care_record.is_object() || care_record.size() > 16)
 			throw std::runtime_error("Invalid away care roster");
-		for (auto &[key, value] : record["care"].items())
-		{
-			value.erase("continuation");
-			if (schema < 5)
-			{
-				value["activity"] = "";
-				value["work_done"] = false;
-				value["done"] = false;
-			}
-		}
-		if (schema < 6)
-			record["boarding"] = BoardingState{};
-		if (schema < 7)
-		{
-			record["craft"] = 0;
-			record["returning_without_delivery"] = false;
-			record["boarding"]["assessment_message"] = 0;
-		}
-		if (schema < 8)
-		{
-			record["aboard_craft"] = record.value("aboard_craft", false);
-			record["transport_released"] = record.value("transport_released", false);
-		}
-		if (schema < 10)
-			record["entry_compartment"] = 0;
 		auto m = record.get<AwayMission>();
 		if (m.flags.size() > 64 || m.saved_progress.size() > 256 || m.crew_deaths < 0 || m.crew_deaths > 4096 ||
 		    (!m.work_capability.empty() &&
@@ -1897,8 +1852,7 @@ void restore_away(const Json &rows)
 		    (definition(d.target).combat &&
 		     m.entry_compartment >= static_cast<std::int64_t>(definition(d.target).combat->compartments.size())))
 			throw std::runtime_error("Invalid away entry compartment");
-		if ((schema == 1 && rows[i].at("deployed").get<bool>() != m.deployed()) ||
-		    (schema >= 2 && rows[i].contains("deployed")))
+		if (record.contains("deployed"))
 			throw std::runtime_error("Inconsistent saved deployment");
 		if (!m.repair_compartment.empty() && !d.repair_compartments.contains(m.repair_compartment))
 			throw std::runtime_error("Invalid saved repair target");
@@ -2026,10 +1980,7 @@ void restore_away(const Json &rows)
 				                                           return action.name == care.activity;
 			                                           }))
 				throw std::runtime_error("Invalid away clinical activity");
-			// Validate legacy tree state too, then restart only its missing retained intent.
 			care.continuation = state_tree::load(order->program, care_record.at(team).at("continuation"));
-			if (schema < 5)
-				care.continuation = {};
 		}
 		validate_boarding_state(d, m);
 		m.continuation = state_tree::load(d.program, rows[i].at("continuation"));

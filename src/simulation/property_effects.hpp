@@ -15,13 +15,6 @@ std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipme
 		}
 	return delta;
 }
-bool property_available(flecs::entity ship, const std::string &equipment) const
-{
-	if (equipment.empty() || equipment.starts_with("effect:") || equipment.starts_with("away:"))
-		return true;
-	const auto fitted = instance(ship, equipment);
-	return fitted && fitted->enabled && !structurally_disabled(ship, equipment);
-}
 PropertyTargetKey property_target_key(flecs::entity ship, const std::string &name) const
 {
 	if (const auto *equipment = ship.try_get<EquipmentIndex>())

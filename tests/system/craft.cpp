@@ -269,9 +269,13 @@ int main(int argc, char **argv)
 			}
 			require(old_bay_save["away_missions"][0]["aboard_craft"] == true,
 			        "legacy bay fixture has passengers aboard");
-			World migrated_bay;
-			migrated_bay.restore(catalog, old_bay_save);
-			require(migrated_bay.save() == w.save(), "legacy bay passengers survive combined away schema migration");
+			rejects(
+			    [&]
+			    {
+				    World retired;
+				    retired.restore(catalog, old_bay_save);
+			    },
+			    "retired away schema rejected even with valid physical craft passengers");
 		}
 		World resumed;
 		auto legacy = w.save();

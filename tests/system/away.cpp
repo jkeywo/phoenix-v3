@@ -357,15 +357,19 @@ int main(int argc, char **argv)
 		auto saved = w.save();
 		require(saved["away_missions"][0]["schema"] == 11 && !saved["away_missions"][0].contains("deployed"),
 		        "deployment is derived from the typed phase");
-		auto legacy = saved;
-		legacy["away_missions"][0]["schema"] = 1;
-		legacy["away_missions"][0]["deployed"] = false;
-		legacy["away_missions"][0].erase("repair_compartment");
-		World migrated;
-		migrated.restore(catalog, legacy);
-		require(migrated.save() == saved, "valid legacy away state migrates without changing continuation");
+		for (const auto schema : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12})
+		{
+			auto retired = saved;
+			retired["away_missions"][0]["schema"] = schema;
+			rejects(
+			    [&]
+			    {
+				    World rejected;
+				    rejected.restore(catalog, retired);
+			    },
+			    "non-current away schema rejected within a current World envelope");
+		}
 		auto invalid = saved;
-		invalid["away_missions"][0]["schema"] = 1;
 		invalid["away_missions"][0]["deployed"] = true;
 		rejects(
 		    [&]

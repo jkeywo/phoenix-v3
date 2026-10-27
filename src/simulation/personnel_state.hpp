@@ -31,18 +31,6 @@ inline bool officer_mobile(const OfficerState &o)
 	return !o.detained && (o.condition == "healthy" || o.condition == "minor");
 }
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PersonnelState, revision, officers)
-// Compiled effect definitions also supply assignment preference and deployed work adapters.
-inline std::int64_t officer_property_delta(const PersonnelDefinition &d, const OfficerDefinition &officer,
-                                           std::string_view property, std::string_view role = {})
-{
-	std::int64_t delta = 0;
-	for (const auto &trait : officer.traits)
-		for (const auto &effect : d.traits.at(trait).effects)
-			for (const auto &c : effect.contributions)
-				if (c.property == property && (role.empty() || c.role == role))
-					delta += c.delta_permille;
-	return delta;
-}
 inline PersonnelState initial_personnel(const PersonnelDefinition &d)
 {
 	PersonnelState state;

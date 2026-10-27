@@ -70,3 +70,11 @@ The predecessor comparison preserved all 23 earlier trace files before the gate.
 Both complete gate commands and the ordinary runner exited successfully. Live-network timing checks ran after native compilation and before the WebAssembly builds. Earlier focused iterations caught a compile-time catalogue variable error and two export-fixture assumptions; these were corrected without disabling any check. The resolved export test uses the production ZIP reader/resolver without rerunning fixture-only shorthand generation.
 
 Standard repository formatting and whitespace checks pass; `build/effect-final-audit-final-format-check.log` records the formatting check. No graphical/device/Linux acceptance is inferred. Nothing was pushed.
+
+## Obsolete implementation cleanup
+
+Following the coverage audit, the cleanup removes three unused helpers (`officer_property_delta`, `property_available` and `reprepare_effect_group`) and nine unreferenced development-pack process definitions: `test.process.processor`, `test.process.recovery`, and the `test3d.process` processor, repair, Medical, recovery, servicing-energy, servicing-ammunition and FTL templates. Maintained base-pack definitions and active native mechanisms remain.
+
+The away reader now accepts only the current per-mission schema 11. World/session schema remains 32: current records and continuation behavior are unchanged. The outer schema already rejects genuine historical sessions, so inner schema 1–10 reconstruction and clinical-tree restarts no longer serve a supported import path. Synthetic tests now reject those inner formats even when wrapped in a current World envelope; current travel, partial treatment and exact restore checks remain. Named scenario shield/modifier actions retain their distinct grant-refresh/removal semantics.
+
+Cleanup verification is recorded after execution; earlier evidence above applies to its named revision.
