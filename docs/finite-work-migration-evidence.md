@@ -1,6 +1,6 @@
 # Shared finite work — implementation and verification
 
-Implemented on `main` in `e7b214ba995e7ed19d076e09936894df1457fc3b`, against base `20b202e`. The [approved plan](finite-work-migration-plan.md) and [authoring contract](finite-work-content.md) describe the ninth migration. The checks below executed on that source revision; this receipt does not establish manual acceptance.
+Implemented on `main` in `e7b214ba995e7ed19d076e09936894df1457fc3b`, against base `20b202e`. The [approved plan](finite-work-migration-plan.md) and [authoring contract](finite-work-content.md) describe the ninth migration. The original migration checks below executed on that source revision; subsequent cleanup evidence names its own revision. This receipt does not establish manual acceptance.
 
 ## Delivered boundary
 
@@ -35,6 +35,21 @@ The predecessor source audit compares 378 source/support files against `20b202e`
 Independent correctness and architecture reviewers both report PASS for the immutable range `20b202e..e7b214ba995e7ed19d076e09936894df1457fc3b`. Their findings drove fixes for concurrent target identity, paid native credit ownership, true-stop/restart consistency, native funding protection and policy, actual delivery, self-removal receipts, final fractional work and live readiness. Reviewers did not rerun the gates.
 
 Standard repository formatting (`scripts/format.ps1 -Check`) and `git diff --check` pass; the complete formatting log is `build/finite-final-format-check.log`. These checks are separate from behavioral evidence. The Windows environment uses installed Node 24.13.0 through the scripts' expected SDK path and Emscripten 6.0.12. The main checkout's incomplete ignored SDK was preserved as `.tools/emsdk-before-finite`; `.tools/emsdk` reuses the complete local SDK through a junction. No tracked toolchain policy changed.
+
+## Effect code cleanup - 27 October 2026
+
+Source `bfe1deeef0bf4383c7808794c7eb2fc68de5c99a`, against `05d3ba3`, implements all four follow-up recommendations. The three credit-writeback paths share one canonical update helper, retaining their distinct funding and commit guards. Direct outcomes and finite native work share lazy scalar snapshot accessors that capture each original once and reuse prepared values. Driver selection evaluates real driver/target context without fabricated process IDs or generations; real admission retains lineage validation and rechecks eligibility after lifecycle effects. Completion has one mutable flag; schema-31 saves and observations retain `completion_delivered` as a derived alias, with contradictory aliases rejected on restore.
+
+The independent reviewer reports PASS for that immutable source range. Focused process, Medical, FTL and rule suites pass, including actual-target selection, eligible-alternate and incumbent retention, once-only entry costs, restoration and invalid completion-alias cases. Existing concurrent-patient and atomic-outcome cases retain their assertions.
+
+Final integration results on that source revision:
+
+- Complete native gate: PASS, all 46 CTest suites, 31 launcher cases, 12 live-network cases and all 23 continuation references (`build/effect-cleanup-native-gate.log`). Compilation completed before the live-network cases.
+- Exact before/after native continuation: all 23 traces match the pre-cleanup references, with zero differences and no state/value normalization (`build/effect-cleanup-native-comparison.log`; references in `build/effect-cleanup-before/`).
+- Complete threaded WebAssembly gate: PASS, full build, system suites, production launch/bundled refresh preflight and all 23 native/WASM continuation comparisons (`build/effect-cleanup-threaded-gate.log`).
+- Focused ordinary WebAssembly: PASS, 14 suites, production preflight and 12 native/ordinary continuation comparisons (`build/effect-cleanup-ordinary-build.log`, `build/effect-cleanup-ordinary-gate.log`).
+
+Schema, authored content, tuning and supported observations are unchanged. These are behavioral and continuation checks, not measured performance claims or new graphical/device acceptance. Standard formatting and whitespace checks are recorded in `build/effect-cleanup-final-format-check.log`. No source changes followed the reviewed implementation commit; the delivery record was updated afterward. Nothing was pushed.
 
 ## Acceptance limits
 
