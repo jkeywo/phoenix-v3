@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <set>
@@ -30,8 +31,9 @@ void craft_key(const std::string &key)
 }
 } // namespace
 // Compatibility is confined to authoring: legacy fittings compile to ordinary craft and bays.
-void expand_transport_fittings(Catalog &catalog)
+void expand_transport_fittings(Catalog &catalog, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<std::pair<std::string, Json>> additions;
 	for (auto &[id, entity] : catalog.entities)
 		for (auto &[key, fitting] : entity.at("systems").items())
@@ -68,7 +70,8 @@ void expand_transport_fittings(Catalog &catalog)
 						if (controller.contains("tree"))
 						{
 							const auto tree = controller.at("tree").get<std::string>();
-							const auto bindings = compile_controller_bindings(catalog.trees.at(tree), catalog);
+							const auto bindings =
+							    compile_controller_bindings(catalog.trees.at(tree), catalog, properties);
 							const auto program =
 							    state_tree::compile(catalog.trees.at(tree), bindings.registry, catalog.trees);
 							craft_require(program.states.size() == 1 && program.states[0].entry.empty() &&
@@ -146,8 +149,9 @@ TransportDefinition compile_transport(const Catalog &catalog, const std::string 
 	return compile_transport(catalog, id, directed_catalog);
 }
 TransportDefinition compile_transport(const Catalog &catalog, const std::string &id,
-                                      const DirectedCatalog &directed_catalog)
+                                      const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto &e = catalog.entities.at(id);
 	const auto j = e.value("transport", Json::object());
 	craft_require(j.is_object(), "transport must be an object");
@@ -156,7 +160,7 @@ TransportDefinition compile_transport(const Catalog &catalog, const std::string 
 	d.compartment = j.value("compartment", std::string{});
 	if (e.contains("personnel"))
 	{
-		const auto p = compile_personnel(catalog, id, directed_catalog);
+		const auto p = compile_personnel(catalog, id, directed_catalog, properties);
 		if (d.compartment.empty() && !p.compartments.empty())
 			d.compartment = p.compartments.front();
 		craft_require(d.compartment.empty() || std::find(p.compartments.begin(), p.compartments.end(), d.compartment) !=
@@ -225,8 +229,10 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 	return compile_craft_bays(catalog, id, directed_catalog);
 }
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &catalog, const std::string &id,
-                                                             const DirectedCatalog &directed_catalog)
+                                                             const DirectedCatalog &directed_catalog,
+                                                             SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::map<std::string, CraftBayDefinition> out;
 	if (catalog.presentation)
 		return out;
@@ -257,7 +263,7 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 		craft_require(initial.is_array() && initial.size() <= static_cast<std::size_t>(d.slots), "bay exceeds slots");
 		if (!catalog.presentation)
 		{
-			const auto combat = compile_combat(catalog, id, directed_catalog);
+			const auto combat = compile_combat(catalog, id, directed_catalog, properties);
 			craft_require(combat && combat->compartment_ids.contains(d.compartment),
 			              "bay requires a physical compartment");
 			if (d.charge_rate)
@@ -284,7 +290,7 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 			craft_require(source.value("kind", a.source) == "magazine", "ammunition source must be a magazine");
 			auto binding = [&](const std::string &definition, const std::string &magazine)
 			{
-				const auto logistics = compile_logistics(catalog, definition, directed_catalog);
+				const auto logistics = compile_logistics(catalog, definition, directed_catalog, properties);
 				for (std::size_t index = 0; index < logistics.stores.size(); ++index)
 					if (logistics.stores[index].system == magazine)
 						return std::pair{index, logistics.stores[index]};

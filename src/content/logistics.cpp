@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <set>
@@ -23,8 +24,10 @@ std::int64_t material_number(const Json &j, const char *key, std::int64_t fallba
 }
 } // namespace
 std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &catalog, const Json &map,
-                                                             const DirectedCatalog &directed_catalog)
+                                                             const DirectedCatalog &directed_catalog,
+                                                             SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<StartingStockDefinition> result;
 	if (catalog.presentation)
 		return result;
@@ -44,7 +47,7 @@ std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &cata
 					allowed |= ship == d.definition;
 		material_require(allowed && seen.emplace(d.slot, d.definition).second,
 		                 "starting_stocks requires a unique allowed slot/definition");
-		const auto logistics = compile_logistics(catalog, d.definition, directed_catalog);
+		const auto logistics = compile_logistics(catalog, d.definition, directed_catalog, properties);
 		const auto &stores = setup.at("stores");
 		material_require(stores.is_object() && !stores.empty() && stores.size() <= 128, "invalid starting stores");
 		for (const auto &[id, quantities] : stores.items())
@@ -78,8 +81,9 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 	return compile_logistics(catalog, id, directed_catalog);
 }
 LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string &id,
-                                      const DirectedCatalog &directed_catalog)
+                                      const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	LogisticsDefinition d;
 	const auto &e = catalog.entities.at(id);
 	if (catalog.presentation)
@@ -88,7 +92,7 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 		return d;
 	const auto &j = e.at("logistics");
 	material_require(j.is_object(), id + ": expected object");
-	const auto structure = compile_combat(catalog, id, directed_catalog);
+	const auto structure = compile_combat(catalog, id, directed_catalog, properties);
 	material_require(structure.has_value(), id + ": stores require compartments");
 	material_require(!j.contains("materials") && j.at("stores").is_array() && j.at("stores").size() <= 128 &&
 	                     j.value("consumers", Json::array()).is_array(),

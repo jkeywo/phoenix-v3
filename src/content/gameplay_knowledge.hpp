@@ -107,5 +107,5 @@ struct GameplayKnowledgeDefinitions
 	std::vector<std::string> telemetry_names;
 	std::map<std::string, std::size_t> telemetry_indices;
 };
-GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog);
+GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, SharedPropertyCatalog = {});
 } // namespace phoenix

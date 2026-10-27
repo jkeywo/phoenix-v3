@@ -328,7 +328,8 @@ std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &t
 	}
 	return result;
 }
-std::vector<std::string> controller_ability_bindings(const Json &tree, const Catalog &catalog)
+std::vector<std::string> controller_ability_bindings(const Json &tree, const Catalog &catalog,
+                                                     SharedPropertyCatalog compiled)
 {
 	const auto bindings = resolve_tree_definition(tree, catalog).value("ability_bindings", Json::array());
 	binding_require(bindings.is_array() && bindings.size() <= 256, "Controller tree",
@@ -347,7 +348,7 @@ std::vector<std::string> controller_ability_bindings(const Json &tree, const Cat
 	    resolve_tree_definition(tree, catalog).value("ability_property_bindings", Json::array());
 	binding_require(property_bindings.is_array() && property_bindings.size() <= 256, "Controller tree",
 	                "expected bounded ability_property_bindings");
-	const auto definitions = compile_property_catalog(catalog);
+	const auto definitions = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::set<std::pair<std::string, std::string>> seen_properties;
 	for (const auto &binding : property_bindings)
 	{
@@ -408,8 +409,10 @@ std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &tree
 		                "Controller tree", "message bindings select fields of the addressed inbox message");
 	return gameplay_record_bindings(source, catalog);
 }
-ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catalog &catalog)
+ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catalog &catalog,
+                                                   SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto inherited = resolve_record_bindings(tree, catalog);
 	binding_require(!inherited.context || inherited.context == state_tree::Context::Controller,
 	                "trees." + tree.value("id", std::string("<inline>")) + ".context",
@@ -510,8 +513,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		result.command_reads.push_back({binding, add({binding.name, binding.type, 4, {}})});
 	const auto property_bindings =
 	    resolve_tree_definition(tree, catalog).value("ability_property_bindings", Json::array());
-	const auto properties = compile_property_catalog(catalog);
-	for (const auto &endpoint : controller_ability_bindings(tree, catalog))
+	for (const auto &endpoint : controller_ability_bindings(tree, catalog, properties))
 	{
 		ControllerAbilityBinding binding;
 		binding.endpoint = endpoint;

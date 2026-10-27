@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <set>
@@ -14,8 +15,9 @@ std::vector<DockPortDefinition> compile_docking(const Catalog &catalog, const st
 	return compile_docking(catalog, id, directed_catalog);
 }
 std::vector<DockPortDefinition> compile_docking(const Catalog &catalog, const std::string &id,
-                                                const DirectedCatalog &directed_catalog)
+                                                const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<DockPortDefinition> out;
 	const auto &e = catalog.entities.at(id);
 	if (catalog.presentation)
@@ -27,7 +29,7 @@ std::vector<DockPortDefinition> compile_docking(const Catalog &catalog, const st
 		if (!ok)
 			throw std::runtime_error(id + ".docking: " + why);
 	};
-	const auto combat = compile_combat(catalog, id, directed_catalog);
+	const auto combat = compile_combat(catalog, id, directed_catalog, properties);
 	require(combat.has_value(), "ports require compartments");
 	const auto &rows = e.at("docking").at("ports");
 	require(rows.is_array() && rows.size() <= 16, "invalid ports");

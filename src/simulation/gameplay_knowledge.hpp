@@ -21,7 +21,7 @@ class GameplayKnowledge
 public:
 	// Compile all bindings once through resolved production definitions. configure
 	// resets running state and must run before register_ship/restore.
-	void configure(const Catalog &catalog);
+	void configure(const Catalog &catalog, SharedPropertyCatalog properties = {});
 	void register_ship(EntityId ship, const std::string &definition, KnowledgeTick tick);
 	bool contains_ship(EntityId ship) const;
 	KnowledgeId console_id(const ConsoleAddress &address) const;

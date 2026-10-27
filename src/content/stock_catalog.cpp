@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -242,8 +243,10 @@ std::vector<ProcessorDefinition> compile_processors(const Catalog &catalog, cons
 	return compile_processors(catalog, entity, directed_catalog);
 }
 std::vector<ProcessorDefinition> compile_processors(const Catalog &catalog, const std::string &entity,
-                                                    const DirectedCatalog &directed_catalog)
+                                                    const DirectedCatalog &directed_catalog,
+                                                    SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<ProcessorDefinition> result;
 	const auto &hull = catalog.entities.at(entity);
 	auto rows = hull.value("processors", Json::array());
@@ -280,7 +283,7 @@ std::vector<ProcessorDefinition> compile_processors(const Catalog &catalog, cons
 		for (const auto &[name, system] : hull.at("systems").items())
 			if (system.value("kind", std::string{}) == "magazine")
 				add_store("system:" + name, compile_stock_store(catalog, system.at("stock"), name));
-		const auto logistics = compile_logistics(catalog, entity, directed_catalog);
+		const auto logistics = compile_logistics(catalog, entity, directed_catalog, properties);
 		for (const auto &store : logistics.stores)
 		{
 			const bool magazine = !store.system.empty() && hull.at("systems").contains(store.system) &&

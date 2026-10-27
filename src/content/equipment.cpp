@@ -225,7 +225,8 @@ struct AssemblyPlacement
 	Json authored, resolved;
 	CompositionNames names;
 };
-void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std::string &path)
+void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std::string &path,
+                             SharedPropertyCatalog properties)
 {
 	if (!spec.is_object())
 		composition_error(path, "expected System object");
@@ -284,7 +285,7 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 			composition_id(reference.starts_with('$') ? reference.substr(1) : reference, path + "." + key);
 		}
 	if (kind == "shield" && spec.contains("shield_effect"))
-		compile_shield_effect(catalog, composition_text(spec, "shield_effect", path));
+		compile_shield_effect(catalog, composition_text(spec, "shield_effect", path), properties);
 	if (spec.contains("firing_audio"))
 		composition_error(path + ".firing_audio", "author firing audio on its directed operating mode");
 	if (spec.contains("controller"))
@@ -415,7 +416,8 @@ void validate_service_targets(const Json &entity, const std::map<std::string, Co
 
 namespace
 {
-void validate_assembly_definition(const Catalog &catalog, const std::string &id, const Json &assembly)
+void validate_assembly_definition(const Catalog &catalog, const std::string &id, const Json &assembly,
+                                  SharedPropertyCatalog properties)
 {
 	const auto path = "assemblies." + id;
 	if (assembly.contains("assemblies") &&
@@ -547,7 +549,7 @@ void validate_assembly_definition(const Catalog &catalog, const std::string &id,
 	for (auto it = systems.begin(); it != systems.end(); ++it)
 	{
 		auto spec = instantiate_equipment(catalog, it.value(), path + ".systems." + it.key());
-		validate_equipment_spec(catalog, spec, path + ".systems." + it.key());
+		validate_equipment_spec(catalog, spec, path + ".systems." + it.key(), properties);
 		bindings(spec, path + ".systems." + it.key());
 		fitted[it.key()] = std::move(spec);
 	}
@@ -618,8 +620,9 @@ Json authored_equipment_source(Json resolved)
 	return resolved;
 }
 
-void resolve_equipment(Catalog &catalog)
+void resolve_equipment(Catalog &catalog, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	for (const auto &[id, equipment] : catalog.equipment)
 	{
 		composition_id(id, "equipment." + id);
@@ -629,7 +632,7 @@ void resolve_equipment(Catalog &catalog)
 			composition_error("equipment." + id, "inheritance must resolve before equipment placement");
 		if (equipment.contains("template"))
 			composition_error("equipment." + id, "use extends for template inheritance");
-		validate_equipment_spec(catalog, equipment, "equipment." + id);
+		validate_equipment_spec(catalog, equipment, "equipment." + id, properties);
 	}
 	for (const auto &[id, assembly] : catalog.assemblies)
 	{
@@ -640,7 +643,7 @@ void resolve_equipment(Catalog &catalog)
 			composition_error("assemblies." + id, "inheritance must resolve before assembly placement");
 		if (assembly.contains("assemblies") && !assembly.at("assemblies").empty())
 			composition_error("assemblies." + id, "nested assemblies are unsupported; flatten the assembly explicitly");
-		validate_assembly_definition(catalog, id, assembly);
+		validate_assembly_definition(catalog, id, assembly, properties);
 	}
 	preflight_equipment(catalog);
 	auto expanded = catalog.entities;

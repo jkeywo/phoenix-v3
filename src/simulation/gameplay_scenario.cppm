@@ -77,7 +77,7 @@ struct ScenarioSituationConfiguration
 class GameplayScenarioBridge
 {
 public:
-	void load(const Catalog &catalog, const std::string &map);
+	void load(const Catalog &catalog, const std::string &map, SharedPropertyCatalog properties = {});
 	ScenarioId create_instance(std::string tree, std::string name,
 	                           std::map<std::string, ScenarioParameter> parameters = {},
 	                           ScenarioTreeSelectors selectors = {});
@@ -107,7 +107,8 @@ public:
 	const std::map<ScenarioId, ScenarioTreeController> &controllers() const;
 	Json save() const;
 	// World-owned event sources have no state-tree Controller.
-	void restore(const Catalog &catalog, const std::string &map, const Json &saved, ScenarioId event_source = 0);
+	void restore(const Catalog &catalog, const std::string &map, const Json &saved, ScenarioId event_source = 0,
+	             SharedPropertyCatalog properties = {});
 
 private:
 	ScenarioRuntime runtime_;

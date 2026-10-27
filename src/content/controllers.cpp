@@ -291,8 +291,10 @@ ControllerCommandSpec command_spec(const FittedSystemSpec &fit, const OperatingA
 }
 } // namespace
 
-ControllableLayout compile_controllable_layout(const Catalog &catalog, const std::string &entity_id)
+ControllableLayout compile_controllable_layout(const Catalog &catalog, const std::string &entity_id,
+                                               SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto &entity = catalog.entities.at(entity_id);
 	const auto path = "entities." + entity_id + ".control_layout";
 	const auto systems = resolve_systems(catalog, entity_id);
@@ -578,7 +580,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			controller.commands.push_back(std::move(command));
 		}
 		if (!controller.tree.empty())
-			for (const auto &endpoint : controller_ability_bindings(catalog.trees.at(controller.tree), catalog))
+			for (const auto &endpoint :
+			     controller_ability_bindings(catalog.trees.at(controller.tree), catalog, properties))
 				control_require(ability_endpoint_owned(entity, endpoint, controller.id, controller.console), where,
 				                "ability observation must name an owned execution/planning endpoint on this Console");
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
@@ -834,13 +837,15 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	return result;
 }
 
-Catalog convert_controller_content(const Catalog &source)
+Catalog convert_controller_content(const Catalog &source, SharedPropertyCatalog compiled)
 {
 	const auto directed_catalog = compile_directed_catalog(source);
-	return convert_controller_content(source, directed_catalog);
+	return convert_controller_content(source, directed_catalog, std::move(compiled));
 }
-Catalog convert_controller_content(const Catalog &source, const DirectedCatalog &directed_catalog)
+Catalog convert_controller_content(const Catalog &source, const DirectedCatalog &directed_catalog,
+                                   SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(source);
 	auto result = source;
 	for (auto &[id, entity] : result.entities)
 	{
@@ -856,7 +861,7 @@ Catalog convert_controller_content(const Catalog &source, const DirectedCatalog 
 			for (const auto &console : preset.at("consoles"))
 				control_require(console.value("summary_intents", Json::array()).empty(), path,
 				                "legacy summary intents require explicit Controller preference channels");
-		auto layout = compile_controllable_layout(source, id);
+		auto layout = compile_controllable_layout(source, id, properties);
 		Json rows = Json::array();
 		for (const auto &controller : layout.controllers)
 		{
@@ -981,7 +986,7 @@ Catalog convert_controller_content(const Catalog &source, const DirectedCatalog 
 		for (auto &system : entity.at("systems"))
 			system.erase("controller");
 		// Validate the generated definition through the same explicit-layout compiler.
-		(void)compile_controllable_layout(result, id);
+		(void)compile_controllable_layout(result, id, properties);
 	}
 	return result;
 }

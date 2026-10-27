@@ -586,9 +586,9 @@ bool evaluate_rule_expression(const RuleExpression &expression, const RuleContex
 }
 
 RuleExpression compile_rule_expression(const Catalog &catalog, RuleDefinition &rule, const Json &value,
-                                       const std::string &path)
+                                       const std::string &path, SharedPropertyCatalog compiled)
 {
-	return ExpressionCompiler(catalog, rule, path).compile(value);
+	return ExpressionCompiler(catalog, rule, path, std::move(compiled)).compile(value);
 }
 RuleDefinition compile_rule(const Catalog &catalog, const std::string &id, SharedPropertyCatalog compiled)
 try
@@ -630,7 +630,7 @@ try
 		rule_fail(at, "tick/occupancy triggers require periodic phase; other triggers use instant or maintained phase");
 	const auto effect = value.value("effect", std::string{});
 	if (!effect.empty())
-		result.effects = compile_effect_group(catalog, effect);
+		result.effects = compile_effect_group(catalog, effect, properties);
 	if (effect.empty() && !value.contains("damage_permille"))
 		rule_fail(at, "rule needs an effect or pending damage transformation");
 	const auto expression = [&](const Json &v, const std::string &field, Type type, const std::string &unit)
@@ -784,18 +784,18 @@ catch (const Json::exception &error)
 {
 	rule_fail("effects." + id, std::string("invalid rule authoring: ") + error.what());
 }
-RulesCatalog compile_rule_catalog(const Catalog &catalog)
+RulesCatalog compile_rule_catalog(const Catalog &catalog, SharedPropertyCatalog compiled)
 {
-	const auto properties = compile_property_catalog(catalog);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	RulesCatalog result;
 	for (const auto &[id, value] : catalog.effects)
 		if (value.value("kind", std::string{}) == "rule")
 			result.emplace(id, compile_rule(catalog, id, properties));
 	return result;
 }
-RulesCatalog compile_bound_rules(const Catalog &catalog, const Json &source)
+RulesCatalog compile_bound_rules(const Catalog &catalog, const Json &source, SharedPropertyCatalog compiled)
 {
-	const auto properties = compile_property_catalog(catalog);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	RulesCatalog result;
 	std::vector<std::pair<const Json *, std::size_t>> pending{{&source, 0}};
 	std::size_t visited = 0;
@@ -832,10 +832,12 @@ RulesCatalog compile_bound_rules(const Catalog &catalog, const Json &source)
 	}
 	return result;
 }
-RulesCatalog compile_entity_rule_scope(const Catalog &catalog, const std::string &entity)
+RulesCatalog compile_entity_rule_scope(const Catalog &catalog, const std::string &entity,
+                                       SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto &definition = catalog.entities.at(entity);
-	auto result = compile_bound_rules(catalog, definition);
+	auto result = compile_bound_rules(catalog, definition, properties);
 	if (definition.contains("systems"))
 		for (const auto &[id, system] : definition.at("systems").items())
 			if (system.contains("shield_effect") && system.at("shield_effect").is_string())
@@ -844,7 +846,7 @@ RulesCatalog compile_entity_rule_scope(const Catalog &catalog, const std::string
 				const auto found = catalog.effects.find(effect);
 				if (found != catalog.effects.end())
 				{
-					auto bindings = compile_bound_rules(catalog, found->second);
+					auto bindings = compile_bound_rules(catalog, found->second, properties);
 					result.merge(bindings);
 				}
 			}

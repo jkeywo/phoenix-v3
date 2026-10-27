@@ -275,7 +275,7 @@ std::int64_t bounded_tick(std::uint64_t value)
 }
 } // namespace
 
-void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &name)
+void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &name, SharedPropertyCatalog properties)
 {
 	scenario_require(catalog.maps.contains(name), "map does not exist " + name);
 	GameplayScenarioBridge candidate;
@@ -286,7 +286,7 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 	for (const auto &[id, tree] : catalog.trees)
 		if (catalog.tree_programs.contains(id) && catalog.tree_programs.at(id).context == state_tree::Context::Scenario)
 			candidate.record_bindings_.emplace(id, gameplay_record_bindings(tree, catalog));
-	const auto compiled_knowledge = compile_gameplay_knowledge(catalog);
+	const auto compiled_knowledge = compile_gameplay_knowledge(catalog, std::move(properties));
 	for (const auto &[hull, ship] : compiled_knowledge.ships)
 		for (const auto &console : ship.consoles)
 			candidate.reader_contracts_[hull].emplace(console.console.id, console.readers);
@@ -1051,10 +1051,12 @@ Json GameplayScenarioBridge::save() const
 	return out;
 }
 void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &map, const Json &saved,
-                                     ScenarioId event_source)
+                                     ScenarioId event_source, SharedPropertyCatalog properties)
 {
+	if (!properties)
+		properties = compile_property_catalog(catalog);
 	GameplayScenarioBridge candidate;
-	candidate.load(catalog, map);
+	candidate.load(catalog, map, properties);
 	scenario_require(saved.at("version") == 1 && saved.at("map") == map && saved.at("contract") == candidate.contract_,
 	                 "incompatible scenario adapter continuation");
 	candidate.runtime_.restore(saved.at("runtime"));
@@ -1180,7 +1182,7 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 			// Retain the existing catalogue contract: native application failures are
 			// confirmed by World, while operation groups must resolve on restore.
 			if (kind == ScenarioEffectKind::Group)
-				(void)compile_effect_group(catalog, request.definition);
+				(void)compile_effect_group(catalog, request.definition, properties);
 			scenario_require(candidate.effect_requests_.emplace(request.token, std::move(request)).second,
 			                 "duplicate pending effect request");
 		}

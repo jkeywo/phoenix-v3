@@ -72,17 +72,18 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 	return compile_psychic(catalog, entity, directed_catalog);
 }
 PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity,
-                                  const DirectedCatalog &directed_catalog)
+                                  const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
-	const auto shared = compile_ability_catalog(catalog);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
+	const auto shared = compile_ability_catalog(catalog, properties);
 	if (catalog.presentation)
 	{
 		PsychicDefinition result;
 		result.catalog = shared;
 		return result;
 	}
-	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
-	const auto layout = compile_controllable_layout(catalog, entity);
+	const auto personnel = compile_personnel(catalog, entity, directed_catalog, properties);
+	const auto layout = compile_controllable_layout(catalog, entity, properties);
 	return compile_psychic(catalog, entity, shared, personnel, layout);
 }
 PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &entity, SharedAbilityCatalog shared,

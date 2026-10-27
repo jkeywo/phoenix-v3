@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <array>
@@ -22,20 +23,23 @@ state_tree::Registry team_registry()
 		r.actions.push_back({name, 32, {}, false});
 	return r;
 }
-PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity)
+PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity, SharedPropertyCatalog compiled)
 {
 	const DirectedCatalog directed_catalog{{entity, compile_directed(catalog, entity)}};
-	return compile_personnel(catalog, entity, directed_catalog);
+	return compile_personnel(catalog, entity, directed_catalog, std::move(compiled));
 }
 PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity,
-                                      const DirectedCatalog &directed_catalog)
+                                      const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
-	const auto rules = compile_entity_rule_scope(catalog, entity);
-	return compile_personnel(catalog, entity, directed_catalog, rules);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
+	const auto rules = compile_entity_rule_scope(catalog, entity, properties);
+	return compile_personnel(catalog, entity, directed_catalog, rules, properties);
 }
 PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity,
-                                      const DirectedCatalog &directed_catalog, const RulesCatalog &rules)
+                                      const DirectedCatalog &directed_catalog, const RulesCatalog &rules,
+                                      SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	PersonnelDefinition out;
 	const auto &hull = catalog.entities.at(entity);
 	if (catalog.presentation)
@@ -55,7 +59,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	};
 	const auto &data = hull.at("personnel");
 	std::set<std::string> processor_owners;
-	for (const auto &processor : compile_processors(catalog, entity, directed_catalog))
+	for (const auto &processor : compile_processors(catalog, entity, directed_catalog, properties))
 		processor_owners.insert(processor.equipment);
 	auto identifier = [&](const Json &v)
 	{
@@ -73,7 +77,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		return s;
 	};
 	const auto seats = resolve_consoles(catalog, entity);
-	const auto layout = compile_controllable_layout(catalog, entity);
+	const auto layout = compile_controllable_layout(catalog, entity, properties);
 	const auto systems = resolve_systems(catalog, entity);
 	const auto &directed = directed_catalog.at(entity);
 	std::map<std::string, OperatingSystem> kinds;
@@ -141,7 +145,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				fail(operation.kind == EffectOperationKind::Apply &&
 				         catalog.effects.at(operation.effect).value("kind", std::string{}) == "modifier",
 				     "officer traits require maintained modifier applies");
-				auto effect = compile_modifier_effect(catalog, operation.effect);
+				auto effect = compile_modifier_effect(catalog, operation.effect, properties);
 				if (!operation.role.empty() && operation.role != "$role")
 					std::erase_if(effect.contributions,
 					              [&](const auto &contribution)

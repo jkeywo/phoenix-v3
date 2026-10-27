@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -136,9 +137,9 @@ std::map<std::string, CustomPropertyValue> compile_property_bindings(const Prope
 	}
 	return result;
 }
-void verify_property_bindings(const Catalog &catalog)
+void verify_property_bindings(const Catalog &catalog, SharedPropertyCatalog compiled)
 {
-	const auto definitions = compile_property_catalog(catalog);
+	const auto definitions = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto check = [&](const Json &owner, const std::string &path)
 	{
 		(void)compile_property_bindings(*definitions, owner, path);

@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -99,7 +100,8 @@ std::string modifier_property_role(std::string_view property)
 {
 	return std::string(property);
 }
-ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const std::string &id)
+ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const std::string &id,
+                                                 SharedPropertyCatalog compiled)
 {
 	const auto path = "effects." + id;
 	const auto found = catalog.effects.find(id);
@@ -118,7 +120,7 @@ ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const s
 	if (!effect.contains("contributions") || !effect.at("contributions").is_object() ||
 	    effect.at("contributions").empty() || effect.at("contributions").size() > 64)
 		throw std::runtime_error(path + ".contributions: expected 1..64 named contributions");
-	const auto properties = compile_property_catalog(catalog);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	ModifierEffectDefinition result{id, duration.get<std::int64_t>(), {}};
 	for (const auto &[name, value] : effect.at("contributions").items())
 	{
@@ -161,21 +163,24 @@ ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const s
 	}
 	return result;
 }
-void compile_effect(const Catalog &catalog, const std::string &id)
+void compile_effect(const Catalog &catalog, const std::string &id, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto found = catalog.effects.find(id);
 	if (found == catalog.effects.end())
 		throw std::runtime_error("effects." + id + ": unknown effect reference");
-	const auto rules = compile_bound_rules(catalog, found->second);
-	compile_effect(catalog, id, rules);
+	const auto rules = compile_bound_rules(catalog, found->second, properties);
+	compile_effect(catalog, id, rules, properties);
 }
-void compile_effect(const Catalog &catalog, const std::string &id, const RulesCatalog &rules)
+void compile_effect(const Catalog &catalog, const std::string &id, const RulesCatalog &rules,
+                    SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	const auto &effect = catalog.effects.at(id);
 	if (effect.value("kind", std::string{}) == "modifier")
-		(void)compile_modifier_effect(catalog, id);
+		(void)compile_modifier_effect(catalog, id, properties);
 	else if (effect.value("kind", std::string{}) == "operations")
-		(void)compile_effect_group(catalog, id);
+		(void)compile_effect_group(catalog, id, properties);
 	else if (effect.value("kind", std::string{}) == "directed_mode")
 		(void)compile_directed_mode(catalog, id);
 	else if (effect.value("kind", std::string{}) == "targeting_policy")
@@ -185,22 +190,23 @@ void compile_effect(const Catalog &catalog, const std::string &id, const RulesCa
 	else if (effect.value("kind", std::string{}) == "periodic")
 		(void)compile_periodic_effect(catalog, id, rules);
 	else if (effect.value("kind", std::string{}) == "ability")
-		(void)compile_ability(catalog, id);
+		(void)compile_ability(catalog, id, properties);
 	else if (effect.value("kind", std::string{}) == "psychic")
 		(void)compile_psychic_effect(catalog, id);
 	else if (effect.value("kind", std::string{}) == "ability_grant")
 		(void)compile_ability_grant(catalog, id);
 	else if (effect.value("kind", std::string{}) == "rule")
-		(void)compile_rule(catalog, id);
+		(void)compile_rule(catalog, id, properties);
 	else
 		(void)compile_shield_effect(catalog, id, rules);
 }
-ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id)
+ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id,
+                                             SharedPropertyCatalog compiled)
 {
 	const auto found = catalog.effects.find(id);
 	if (found == catalog.effects.end())
 		throw std::runtime_error("effects." + id + ": unknown effect reference");
-	const auto rules = compile_bound_rules(catalog, found->second);
+	const auto rules = compile_bound_rules(catalog, found->second, std::move(compiled));
 	return compile_shield_effect(catalog, id, rules);
 }
 ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id, const RulesCatalog &rules)
@@ -426,15 +432,17 @@ AmmunitionDefinition compile_ammunition_resource(const Catalog &catalog, const s
 		result.projectile = compile_projectile_profile(catalog, value.at("projectile"), path);
 	return result;
 }
-std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name)
+std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,
+                                               SharedPropertyCatalog compiled)
 {
 	const DirectedCatalog directed_catalog{{name, compile_directed(catalog, name)}};
-	return compile_combat(catalog, name, directed_catalog);
+	return compile_combat(catalog, name, directed_catalog, std::move(compiled));
 }
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,
-                                               const DirectedCatalog &directed_catalog)
+                                               const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
-	const auto rules = compile_entity_rule_scope(catalog, name);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
+	const auto rules = compile_entity_rule_scope(catalog, name, properties);
 	return compile_combat(catalog, name, directed_catalog, rules);
 }
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name,

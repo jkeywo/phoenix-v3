@@ -78,11 +78,11 @@ Json knowledge_registry_signature(Json value)
 }
 } // namespace
 
-void GameplayKnowledge::configure(const Catalog &catalog)
+void GameplayKnowledge::configure(const Catalog &catalog, SharedPropertyCatalog properties)
 {
 	knowledge_require(!catalog.presentation,
 	                  "restricted presentation content cannot initialise authoritative knowledge");
-	auto definitions = compile_gameplay_knowledge(catalog);
+	auto definitions = compile_gameplay_knowledge(catalog, std::move(properties));
 	GameplayKnowledge configured;
 	configured.compiled_ = std::move(definitions.knowledge);
 	configured.runtime_ = KnowledgeRuntime(configured.compiled_);

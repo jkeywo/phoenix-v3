@@ -63,7 +63,8 @@ std::vector<std::string> ability_references(const Catalog &catalog, const Json &
 } // namespace
 
 AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::string &id,
-                                             const std::map<std::string, PsychicPowerDefinition> *profiles)
+                                             const std::map<std::string, PsychicPowerDefinition> *profiles,
+                                             SharedPropertyCatalog property_catalogue)
 {
 	const auto &value = ability_template(catalog, id, "ability");
 	const auto path = "effects." + id;
@@ -110,7 +111,6 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	const auto observed = value.value("observations", Json::array());
 	if (!observed.is_array() || observed.size() > 256)
 		ability_fail(path + ".observations", "expected at most 256 property references");
-	const auto property_catalogue = compile_property_catalog(catalog);
 	std::set<std::string> observed_ids;
 	for (const auto &reference : observed)
 	{
@@ -129,8 +129,8 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	{
 		RuleDefinition requirements;
 		requirements.id = id;
-		requirements.condition =
-		    compile_rule_expression(catalog, requirements, value.at("requirements"), path + ".requirements");
+		requirements.condition = compile_rule_expression(catalog, requirements, value.at("requirements"),
+		                                                 path + ".requirements", property_catalogue);
 		if (requirements.condition->type != state_tree::Type::Boolean)
 			ability_fail(path + ".requirements", "expected Boolean expression");
 		result.requirements = std::move(requirements);
@@ -165,7 +165,7 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 			return std::nullopt;
 		if (!value.at(field).is_string())
 			ability_fail(path + "." + field, "expected operations-effect reference");
-		return compile_effect_group(catalog, value.at(field).get<std::string>());
+		return compile_effect_group(catalog, value.at(field).get<std::string>(), property_catalogue);
 	};
 	result.start_effect = effect("start_effect");
 	result.activation_effect = effect("activation_effect");
@@ -173,7 +173,8 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	{
 		if (!result.sustained && !result.preparation_ticks)
 			ability_fail(path + ".costs", "ongoing costs require preparation or sustained work");
-		result.costs = compile_effect_costs(catalog, value.at("costs"), path + ".costs", "per_second");
+		result.costs =
+		    compile_effect_costs(catalog, value.at("costs"), path + ".costs", "per_second", property_catalogue);
 	}
 	if (!result.preparation_ticks && result.start_effect && result.activation_effect)
 	{
@@ -218,20 +219,23 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	return result;
 }
 
-AbilityDefinition compile_ability(const Catalog &catalog, const std::string &id)
+AbilityDefinition compile_ability(const Catalog &catalog, const std::string &id, SharedPropertyCatalog properties)
 {
-	return compile_ability_definition(catalog, id, nullptr);
+	return compile_ability_definition(catalog, id, nullptr,
+	                                  properties ? std::move(properties) : compile_property_catalog(catalog));
 }
 
-SharedAbilityCatalog compile_ability_catalog(const Catalog &catalog)
+SharedAbilityCatalog compile_ability_catalog(const Catalog &catalog, SharedPropertyCatalog compiled_properties)
 {
+	const auto properties = compiled_properties ? std::move(compiled_properties) : compile_property_catalog(catalog);
 	auto compiled = std::make_shared<AbilityCatalog>();
 	for (const auto &[id, value] : catalog.effects)
 		if (value.value("kind", std::string{}) == "psychic")
 			compiled->psychic_profiles.emplace(id, compile_psychic_effect(catalog, id));
 	for (const auto &[id, value] : catalog.effects)
 		if (value.value("kind", std::string{}) == "ability")
-			compiled->definitions.emplace(id, compile_ability_definition(catalog, id, &compiled->psychic_profiles));
+			compiled->definitions.emplace(
+			    id, compile_ability_definition(catalog, id, &compiled->psychic_profiles, properties));
 	if (compiled->definitions.size() > 1024)
 		ability_fail("abilities", "at most 1024 shared abilities are supported");
 	return compiled;
@@ -277,17 +281,18 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 	return compile_abilities(catalog, entity, directed_catalog);
 }
 AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string &entity,
-                                       const DirectedCatalog &directed_catalog)
+                                       const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
-	const auto shared = compile_ability_catalog(catalog);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
+	const auto shared = compile_ability_catalog(catalog, properties);
 	if (catalog.presentation)
 	{
 		AbilityDefinitionSet result;
 		result.catalog = shared;
 		return result;
 	}
-	const auto personnel = compile_personnel(catalog, entity, directed_catalog);
-	const auto layout = compile_controllable_layout(catalog, entity);
+	const auto personnel = compile_personnel(catalog, entity, directed_catalog, properties);
+	const auto layout = compile_controllable_layout(catalog, entity, properties);
 	const auto psychic = compile_psychic(catalog, entity, shared, personnel, layout);
 	return compile_abilities(catalog, entity, shared, personnel, layout, psychic);
 }

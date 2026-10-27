@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
@@ -11,13 +12,13 @@ module phoenix.content;
 namespace phoenix
 {
 std::vector<EffectCostDefinition> compile_effect_costs(const Catalog &catalog, const Json &costs, const std::string &at,
-                                                       const std::string &quantity)
+                                                       const std::string &quantity, SharedPropertyCatalog compiled)
 {
 	const auto fail = [&](const std::string &why)
 	{
 		throw std::runtime_error(at + ": " + why);
 	};
-	const auto definitions = compile_property_catalog(catalog);
+	const auto definitions = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<EffectCostDefinition> result;
 	if (!costs.is_array() || costs.empty() || costs.size() > 32)
 		fail("expected 1..32 explicit costs");
@@ -58,7 +59,8 @@ std::vector<EffectCostDefinition> compile_effect_costs(const Catalog &catalog, c
 	}
 	return result;
 }
-EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Json &group, const std::string &at)
+EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Json &group, const std::string &at,
+                                                SharedPropertyCatalog compiled)
 {
 	const auto fail = [&](const std::string &reason)
 	{
@@ -69,7 +71,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 	for (const auto &[key, value] : group.items())
 		if (key != "operations" && key != "payer" && key != "energy" && key != "costs")
 			fail("unsupported field " + key);
-	const auto definitions = compile_property_catalog(catalog);
+	const auto definitions = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	EffectGroupDefinition result;
 	result.payer = group.value("payer", std::string{});
 	const auto energy = group.value("energy", Json(0));
@@ -79,7 +81,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 	if (result.energy && !valid_identifier(result.payer))
 		fail("paid group requires equipment payer");
 	if (group.contains("costs"))
-		result.costs = compile_effect_costs(catalog, group.at("costs"), at + ".costs");
+		result.costs = compile_effect_costs(catalog, group.at("costs"), at + ".costs", "amount", definitions);
 	if (!group.contains("operations") || !group.at("operations").is_array() || group.at("operations").empty() ||
 	    group.at("operations").size() > 32)
 		fail("expected 1..32 operations");
@@ -171,7 +173,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 						fail("role requires a modifier apply and a valid role or $role");
 					if (!op.role.empty() && op.role != "$role")
 					{
-						const auto modifier = compile_modifier_effect(catalog, op.effect);
+						const auto modifier = compile_modifier_effect(catalog, op.effect, definitions);
 						bool found = false;
 						for (const auto &contribution : modifier.contributions)
 							found = found || contribution.role == op.role;
@@ -197,7 +199,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 					}
 					else if (effect_kind == "modifier")
 					{
-						const auto modifier = compile_modifier_effect(catalog, op.effect);
+						const auto modifier = compile_modifier_effect(catalog, op.effect, definitions);
 						const bool native = std::any_of(modifier.contributions.begin(), modifier.contributions.end(),
 						                                [](const auto &c)
 						                                {
@@ -299,7 +301,8 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 	}
 	return result;
 }
-EffectGroupDefinition compile_effect_group(const Catalog &catalog, const std::string &id)
+EffectGroupDefinition compile_effect_group(const Catalog &catalog, const std::string &id,
+                                           SharedPropertyCatalog compiled)
 {
 	const auto found = catalog.effects.find(id);
 	if (found == catalog.effects.end())
@@ -314,6 +317,6 @@ EffectGroupDefinition compile_effect_group(const Catalog &catalog, const std::st
 		for (auto &operation : group["operations"])
 			if (operation.is_object() && !operation.contains("target"))
 				operation["target"] = operation.value("scope", std::string("local")) == "owner" ? "owner" : "protected";
-	return compile_effect_operations(catalog, group, id);
+	return compile_effect_operations(catalog, group, id, std::move(compiled));
 }
 } // namespace phoenix

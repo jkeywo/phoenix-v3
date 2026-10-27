@@ -609,20 +609,20 @@ struct World::Impl
 			            contact_index.rebuild(contact_boxes);
 		            });
 	}
-	void compile(const Catalog &source, const DirectedCatalog &directed_catalog)
+	void compile(const Catalog &source, const DirectedCatalog &directed_catalog, SharedPropertyCatalog properties)
 	{
-		const auto content = convert_controller_content(source, directed_catalog);
-		property_catalogue = compile_property_catalog(content);
-		const auto ability_catalog = compile_ability_catalog(content);
-		rule_templates = compile_rule_catalog(content);
+		property_catalogue = std::move(properties);
+		const auto content = convert_controller_content(source, directed_catalog, property_catalogue);
+		const auto ability_catalog = compile_ability_catalog(content, property_catalogue);
+		rule_templates = compile_rule_catalog(content, property_catalogue);
 		native_effect_rules = compile_effect_rules(content, rule_templates);
 		console_layouts = content.consoles;
 		resource_catalogue = share_resource_catalogue(compile_resource_catalog(content));
 		for (const auto &[id, effect] : content.effects)
 			if (effect.at("kind") == "modifier")
-				modifier_templates.emplace(id, compile_modifier_effect(content, id));
+				modifier_templates.emplace(id, compile_modifier_effect(content, id, property_catalogue));
 			else if (effect.at("kind") == "operations")
-				effect_groups.emplace(id, compile_effect_group(content, id));
+				effect_groups.emplace(id, compile_effect_group(content, id, property_catalogue));
 			else if (effect.at("kind") == "shield")
 				shield_templates.emplace(id, compile_shield_effect(content, id, rule_templates));
 			else if (effect.at("kind") == "payload")
@@ -642,7 +642,7 @@ struct World::Impl
 				    std::find(kinds.begin(), kinds.end(), kind) == kinds.end())
 					kinds.push_back(kind);
 		}
-		knowledge.configure(content);
+		knowledge.configure(content, property_catalogue);
 		gameplay = true;
 		for (const auto &[name, definition] : content.entities)
 		{
@@ -675,22 +675,22 @@ struct World::Impl
 				throw std::runtime_error("Invalid entity durability/vertical extent");
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
-			result.personnel = compile_personnel(content, name, directed_catalog, rule_templates);
+			result.personnel = compile_personnel(content, name, directed_catalog, rule_templates, property_catalogue);
 			result.rules = compile_source_rules(content, name, rule_templates);
-			const auto ability_layout = compile_controllable_layout(content, name);
+			const auto ability_layout = compile_controllable_layout(content, name, property_catalogue);
 			result.psychic = compile_psychic(content, name, ability_catalog, result.personnel, ability_layout);
 			result.abilities =
 			    compile_abilities(content, name, ability_catalog, result.personnel, ability_layout, result.psychic);
-			result.boarding = compile_boarding(content, name, directed_catalog);
+			result.boarding = compile_boarding(content, name, directed_catalog, property_catalogue);
 			for (const auto &row : definition.value("boarding_missions", Json::array()))
 				result.boarding_docking_ports[row.at("id").get<std::string>()] =
 				    row.value("docking_ports", std::vector<std::string>{});
-			result.transport = compile_transport(content, name, directed_catalog);
-			result.logistics = compile_logistics(content, name, directed_catalog);
-			result.processors = compile_processors(content, name, directed_catalog);
-			result.docking = compile_docking(content, name, directed_catalog);
+			result.transport = compile_transport(content, name, directed_catalog, property_catalogue);
+			result.logistics = compile_logistics(content, name, directed_catalog, property_catalogue);
+			result.processors = compile_processors(content, name, directed_catalog, property_catalogue);
+			result.docking = compile_docking(content, name, directed_catalog, property_catalogue);
 			result.craft = compile_craft(content, name);
-			result.craft_bays = compile_craft_bays(content, name, directed_catalog);
+			result.craft_bays = compile_craft_bays(content, name, directed_catalog, property_catalogue);
 			result.ftl = compile_ftl(content, name);
 			for (const auto &[key, s] : definition.at("systems").items())
 				if (s.value("kind", key) == "displacement" || s.value("kind", key) == "transport")
@@ -2638,14 +2638,15 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 void World::load_impl(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships,
                       bool restoring)
 {
-	const auto content = prepared_catalog(source);
+	const auto properties = compile_property_catalog(source);
+	const auto content = prepared_catalog(source, properties);
 	if (content.presentation)
 		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
 	if (!content.maps.contains(map))
 		throw std::runtime_error("Unknown map: " + map);
 	const auto directed_catalog = compile_directed_catalog(content);
 	auto candidate = std::make_unique<Impl>();
-	candidate->compile(content, directed_catalog);
+	candidate->compile(content, directed_catalog, properties);
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
@@ -2683,7 +2684,7 @@ void World::load_impl(const Catalog &source, const std::string &map, const std::
 		candidate->slot_entities[slot] = next;
 		candidate->create(next++, ship, slots.at(slot));
 	}
-	for (const auto &setup : compile_starting_stocks(content, data, directed_catalog))
+	for (const auto &setup : compile_starting_stocks(content, data, directed_catalog, candidate->property_catalogue))
 		if (ships.contains(setup.slot) && ships.at(setup.slot) == setup.definition)
 		{
 			const auto id = candidate->slot_entities.at(setup.slot);
@@ -2709,12 +2710,13 @@ void World::load_impl(const Catalog &source, const std::string &map, const std::
 	if (content.scenarios.contains(map))
 	{
 		candidate->scenario.emplace();
-		candidate->scenario->load(content, map);
+		candidate->scenario->load(content, map, candidate->property_catalogue);
 	}
 	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
-	candidate->away_definitions = compile_away(content, data, directed_catalog);
-	candidate->interdiction_definitions = compile_interdictions(content, data, directed_catalog);
+	candidate->away_definitions = compile_away(content, data, directed_catalog, candidate->property_catalogue);
+	candidate->interdiction_definitions =
+	    compile_interdictions(content, data, directed_catalog, candidate->property_catalogue);
 	candidate->interdictions.resize(candidate->interdiction_definitions.size());
 	candidate->sensor_findings = compile_sensor_findings(content, data);
 	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
@@ -4405,7 +4407,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		const auto event_source = candidate.impl_->conversation_instance;
 		if (saved.at("conversation_starts").at("instance") != event_source)
 			throw std::runtime_error("Saved scenario event source mismatch");
-		candidate.impl_->scenario->restore(content, saved.at("map"), saved.at("scenario"), event_source);
+		candidate.impl_->scenario->restore(content, saved.at("map"), saved.at("scenario"), event_source,
+		                                   candidate.impl_->property_catalogue);
 		for (const auto &[id, definition] : candidate.impl_->scenario->runtime().spawned_entities())
 			if (candidate.impl_->entities.contains(id))
 				throw std::runtime_error("Spawned identity overlaps initial entity");

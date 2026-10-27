@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <map>
@@ -69,8 +70,9 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 	return compile_away(catalog, map, directed_catalog);
 }
 std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map,
-                                         const DirectedCatalog &directed_catalog)
+                                         const DirectedCatalog &directed_catalog, SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	auto require = [](bool ok, const std::string &why)
 	{
 		if (!ok)
@@ -203,7 +205,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		if (d.supply)
 		{
 			require(!d.allow_ship_transport, "supply collection uses its shuttle slot");
-			const auto inventory = compile_logistics(catalog, target_definition, directed_catalog);
+			const auto inventory = compile_logistics(catalog, target_definition, directed_catalog, properties);
 			const auto &offer = *d.supply;
 			const auto provider = std::find_if(inventory.stores.begin(), inventory.stores.end(),
 			                                   [&](const auto &s)
@@ -220,7 +222,8 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 				if (slot.at("id") == d.slot)
 					for (const auto &ship : slot.at("allowed_ships"))
 					{
-						const auto home = compile_logistics(catalog, ship.get<std::string>(), directed_catalog);
+						const auto home =
+						    compile_logistics(catalog, ship.get<std::string>(), directed_catalog, properties);
 						const auto store = std::find_if(home.stores.begin(), home.stores.end(),
 						                                [&](const auto &s)
 						                                {
@@ -234,7 +237,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 						        "incompatible supply home store");
 					}
 		}
-		const auto ports = compile_docking(catalog, target_definition, directed_catalog);
+		const auto ports = compile_docking(catalog, target_definition, directed_catalog, properties);
 		if (d.supply)
 			require(std::any_of(ports.begin(), ports.end(),
 			                    [](const auto &port)
@@ -259,7 +262,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		require(reveal, "disclosure must name a dialogue line text_key");
 		for (const auto &[key, p] : cp.prompts)
 			require(p.timeout > 0 && !p.default_choice.empty(), "away decisions require timeout and default");
-		if (const auto combat = compile_combat(catalog, target_definition, directed_catalog))
+		if (const auto combat = compile_combat(catalog, target_definition, directed_catalog, properties))
 			d.repair_compartments = combat->compartment_ids;
 		const auto validate = [&](const auto &self, const state_tree::Program &p) -> void
 		{
@@ -334,8 +337,10 @@ std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const s
 	return compile_boarding(catalog, entity, directed_catalog);
 }
 std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const std::string &entity,
-                                                 const DirectedCatalog &directed_catalog)
+                                                 const DirectedCatalog &directed_catalog,
+                                                 SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<BoardingDefinition> out;
 	const auto &hull = catalog.entities.at(entity);
 	auto fail = [&](bool ok, const std::string &why)
@@ -347,7 +352,7 @@ std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const s
 	fail(rows.is_array() && rows.size() <= 8, "expected at most 8 templates");
 	if (rows.empty())
 		return out;
-	const auto combat = compile_combat(catalog, entity, directed_catalog);
+	const auto combat = compile_combat(catalog, entity, directed_catalog, properties);
 	fail(combat.has_value(), "boarding requires compartment structure");
 	std::set<std::string> ids;
 	for (const auto &j : rows)
@@ -358,7 +363,7 @@ std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const s
 		d.dialogue = j.at("dialogue");
 		d.entry = j.at("entry");
 		d.retain_craft = j.value("retain_craft", true);
-		const auto ports = compile_docking(catalog, entity, directed_catalog);
+		const auto ports = compile_docking(catalog, entity, directed_catalog, properties);
 		std::set<std::string> docking_ports;
 		for (const auto &port : j.value("docking_ports", std::vector<std::string>{}))
 			fail(docking_ports.insert(port).second && std::any_of(ports.begin(), ports.end(),

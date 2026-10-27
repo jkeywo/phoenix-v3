@@ -391,8 +391,10 @@ state_tree::Type system_observation_type(const std::string &name)
 	                                         "damaged",     "destroyed",      "overheated",      "ready"};
 	return flags.contains(name) ? state_tree::Type::Boolean : state_tree::Type::Integer;
 }
-GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
+GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, SharedPropertyCatalog properties)
 {
+	if (!properties)
+		properties = compile_property_catalog(catalog);
 	GameplayKnowledgeDefinitions compiled;
 	compiled.knowledge = catalog.knowledge_definition;
 	// Restricted crew presentation bundles deliberately carry no producer/schema
@@ -494,7 +496,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 		}
 		if (entity.contains("control_layout"))
 		{
-			for (const auto &controller : compile_controllable_layout(catalog, name).controllers)
+			for (const auto &controller : compile_controllable_layout(catalog, name, properties).controllers)
 				definition.controllers.emplace(controller.console + "/" + controller.id, controller.console);
 			for (const auto &system : resolve_systems(catalog, name))
 			{
@@ -765,7 +767,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 		}
 	for (const auto &[name, ship] : compiled.ships)
 		if (catalog.entities.at(name).contains("control_layout"))
-			for (const auto &controller : compile_controllable_layout(catalog, name).controllers)
+			for (const auto &controller : compile_controllable_layout(catalog, name, properties).controllers)
 			{
 				if (controller.tree.empty())
 					continue;

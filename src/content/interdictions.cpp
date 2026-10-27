@@ -1,4 +1,5 @@
 module;
+#include <utility>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <stdexcept>
@@ -27,8 +28,10 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 	return compile_interdictions(catalog, map, directed_catalog);
 }
 std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog, const Json &map,
-                                                          const DirectedCatalog &directed_catalog)
+                                                          const DirectedCatalog &directed_catalog,
+                                                          SharedPropertyCatalog compiled)
 {
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::vector<InterdictionDefinition> result;
 	std::set<std::string> ids;
 	if (!map.value("interdictions", Json::array()).is_array())
@@ -109,7 +112,7 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 		};
 		if (!d.start_event.empty() && !declared_event(d.start_event))
 			throw std::runtime_error("Undeclared interdiction start event");
-		if (compile_docking(catalog, target_hull, directed_catalog).empty() ||
+		if (compile_docking(catalog, target_hull, directed_catalog, properties).empty() ||
 		    compile_ftl(catalog, target_hull).empty())
 			throw std::runtime_error("Interdiction target requires docking and FTL");
 		const auto target_systems = resolve_systems(catalog, target_hull);
@@ -143,7 +146,7 @@ std::vector<InterdictionDefinition> compile_interdictions(const Catalog &catalog
 				if (spawn.x < -1000000000 || spawn.x > 1000000000 || spawn.y < -1000000000 || spawn.y > 1000000000 ||
 				    spawn.heading < 0 || spawn.heading >= 360000 || spawn.formation_bearing < 0 ||
 				    spawn.formation_bearing >= 360000 ||
-				    compile_docking(catalog, definition, directed_catalog).empty() ||
+				    compile_docking(catalog, definition, directed_catalog, properties).empty() ||
 				    compile_ftl(catalog, definition).empty())
 					throw std::runtime_error("Interdiction ship requires valid transform, docking and FTL");
 				const auto fits = resolve_systems(catalog, definition);

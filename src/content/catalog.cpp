@@ -304,7 +304,7 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 } // namespace
 namespace
 {
-void prepare_catalog(Catalog &catalog);
+void prepare_catalog(Catalog &catalog, SharedPropertyCatalog = {});
 struct PackView
 {
 	const Json &manifest;
@@ -452,19 +452,19 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(result.resources, "resources");
 	inherit_definitions(result.recipes, "recipes");
 	inherit_definitions(result.properties, "properties");
-	(void)compile_property_catalog(result);
+	const auto properties = compile_property_catalog(result);
 	(void)compile_resource_catalog(result);
 	(void)compile_recipe_catalog(result);
-	(void)compile_ability_catalog(result);
-	const auto rules_catalog = compile_rule_catalog(result);
+	(void)compile_ability_catalog(result, properties);
+	const auto rules_catalog = compile_rule_catalog(result, properties);
 	(void)compile_effect_rules(result, rules_catalog);
 	for (const auto &[id, effect] : result.effects)
 		if (const auto kind = effect.value("kind", std::string{});
 		    kind != "ability" && kind != "psychic" && kind != "rule")
-			compile_effect(result, id, rules_catalog);
+			compile_effect(result, id, rules_catalog, properties);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
-	resolve_equipment(result);
+	resolve_equipment(result, properties);
 	if (!result.presentation)
 	{
 		auto &roles = result.knowledge["roles"];
@@ -575,7 +575,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			}
 			result.scenarios.emplace(name, compile_scenario(map, spawnable, slots));
 		}
-	prepare_catalog(result);
+	prepare_catalog(result, properties);
 	// Public portrait bytes use opaque content addresses without exposing character directories.
 	for (const auto &[id, entity] : result.entities)
 		for (const auto &person : entity.value("comms", Json::object()).value("characters", Json::array()))
@@ -684,10 +684,11 @@ std::span<const WidgetBinding> widget_bindings()
 }
 namespace
 {
-void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog)
+void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &directed_catalog,
+                             SharedPropertyCatalog properties)
 {
-	const auto ability_catalog = compile_ability_catalog(catalog);
-	const auto rules_catalog = compile_rule_catalog(catalog);
+	const auto ability_catalog = compile_ability_catalog(catalog, properties);
+	const auto rules_catalog = compile_rule_catalog(catalog, properties);
 	(void)compile_effect_rules(catalog, rules_catalog);
 	std::map<std::string, ControllableLayout> ability_layouts;
 	verify_ui_definitions(catalog);
@@ -696,12 +697,11 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		invalid("presentation", "selection bundle cannot contain Console UI definitions");
 	(void)compile_resource_catalog(catalog);
 	(void)compile_recipe_catalog(catalog);
-	(void)compile_property_catalog(catalog);
-	verify_property_bindings(catalog);
+	verify_property_bindings(catalog, properties);
 	for (const auto &[id, effect] : catalog.effects)
 		if (const auto kind = effect.value("kind", std::string{});
 		    kind != "ability" && kind != "psychic" && kind != "rule")
-			compile_effect(catalog, id, rules_catalog);
+			compile_effect(catalog, id, rules_catalog, properties);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
@@ -711,7 +711,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	                        : catalog.entities.size() != 1)))
 		invalid("presentation", "expected one own-ship definition without maps or controllers");
 	if (!catalog.presentation)
-		(void)compile_gameplay_knowledge(catalog);
+		(void)compile_gameplay_knowledge(catalog, properties);
 	if (!catalog.loading_background.empty())
 	{
 		if (!catalog.assets.contains(catalog.loading_background))
@@ -927,12 +927,12 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id, directed_catalog);
 		(void)compile_ftl(catalog, id);
-		(void)compile_logistics(catalog, id, directed_catalog);
-		(void)compile_processors(catalog, id, directed_catalog);
-		(void)compile_docking(catalog, id, directed_catalog);
-		(void)compile_transport(catalog, id, directed_catalog);
+		(void)compile_logistics(catalog, id, directed_catalog, properties);
+		(void)compile_processors(catalog, id, directed_catalog, properties);
+		(void)compile_docking(catalog, id, directed_catalog, properties);
+		(void)compile_transport(catalog, id, directed_catalog, properties);
 		(void)compile_craft(catalog, id);
-		(void)compile_craft_bays(catalog, id, directed_catalog);
+		(void)compile_craft_bays(catalog, id, directed_catalog, properties);
 		(void)compile_combat(catalog, id, directed_catalog, rules_catalog);
 		(void)compile_source_rules(catalog, id, rules_catalog);
 		(void)compile_ship_audio(catalog, id);
@@ -942,7 +942,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 			integer(entity, "durability", path, 0, 1000000);
 		if (entity.contains("half_height_mm"))
 			integer(entity, "half_height_mm", path, 1, 1000000);
-		ability_layouts.emplace(id, compile_controllable_layout(catalog, id));
+		ability_layouts.emplace(id, compile_controllable_layout(catalog, id, properties));
 		if (entity.contains("controllers"))
 		{
 			if (!entity.contains("stations") || !entity["controllers"].is_object())
@@ -961,11 +961,11 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		(void)compile_bridge(catalog, id);
-		const auto personnel = compile_personnel(catalog, id, directed_catalog, rules_catalog);
+		const auto personnel = compile_personnel(catalog, id, directed_catalog, rules_catalog, properties);
 		const auto &layout = ability_layouts.at(id);
 		const auto psychic = compile_psychic(catalog, id, ability_catalog, personnel, layout);
 		(void)compile_abilities(catalog, id, ability_catalog, personnel, layout, psychic);
-		(void)compile_boarding(catalog, id, directed_catalog);
+		(void)compile_boarding(catalog, id, directed_catalog, properties);
 	}
 	for (const auto &[id, console] : catalog.consoles)
 	{
@@ -1228,9 +1228,10 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		}
 	}
 }
-void prepare_catalog(Catalog &catalog)
+void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 {
-	expand_transport_fittings(catalog);
+	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
+	expand_transport_fittings(catalog, properties);
 	expand_combat_policies(catalog);
 	expand_officer_policies(catalog);
 	const auto directed_catalog = compile_directed_catalog(catalog);
@@ -1254,7 +1255,7 @@ void prepare_catalog(Catalog &catalog)
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(tree), catalog.trees));
 			else if (*context == state_tree::Context::Controller)
 			{
-				auto bindings = compile_controller_bindings(tree, catalog);
+				auto bindings = compile_controller_bindings(tree, catalog, properties);
 				(void)compile_controller_actions(tree, catalog, bindings.registry);
 				(void)compile_controller_candidates(tree, catalog, bindings.registry);
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
@@ -1268,23 +1269,23 @@ void prepare_catalog(Catalog &catalog)
 			invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
 	for (const auto &[id, map] : catalog.maps)
 	{
-		verify_scenario_authoring(catalog, map, directed_catalog);
-		(void)compile_away(catalog, map, directed_catalog);
-		(void)compile_interdictions(catalog, map, directed_catalog);
-		(void)compile_starting_stocks(catalog, map, directed_catalog);
+		verify_scenario_authoring(catalog, map, directed_catalog, properties);
+		(void)compile_away(catalog, map, directed_catalog, properties);
+		(void)compile_interdictions(catalog, map, directed_catalog, properties);
+		(void)compile_starting_stocks(catalog, map, directed_catalog, properties);
 		(void)compile_sensor_findings(catalog, map);
 	}
 	verify_conversation_authoring(catalog);
 	if (!catalog.presentation)
 		for (const auto &[id, entity] : catalog.entities)
 			(void)compile_sensors(catalog, id, directed_catalog);
-	verify_prepared_catalog(catalog, directed_catalog);
+	verify_prepared_catalog(catalog, directed_catalog, properties);
 }
 } // namespace
-Catalog prepared_catalog(const Catalog &catalog)
+Catalog prepared_catalog(const Catalog &catalog, SharedPropertyCatalog properties)
 {
 	auto candidate = catalog;
-	prepare_catalog(candidate);
+	prepare_catalog(candidate, std::move(properties));
 	return candidate;
 }
 void verify_catalog(const Catalog &catalog)

@@ -26,6 +26,10 @@ export import phoenix.conversations;
 export namespace phoenix
 {
 struct Catalog;
+struct CustomPropertyDefinition;
+using PropertyCatalog = std::map<std::string, CustomPropertyDefinition>;
+using SharedPropertyCatalog = std::shared_ptr<const PropertyCatalog>;
+// Optional compiler scopes must describe the same resolved Catalog; standalone helpers compile their own scope.
 struct DirectedDefinition;
 struct AbilityCatalog;
 struct PersonnelDefinition;
@@ -95,7 +99,7 @@ private:
 // Resolution only; a root restricts traversal to its dependency closure.
 void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
 Json resolve_tree_definition(const Json &, const Catalog &);
-void resolve_equipment(Catalog &catalog);
+void resolve_equipment(Catalog &catalog, SharedPropertyCatalog = {});
 bool uses_advanced_machinery(const Catalog &, const std::string &entity);
 void verify_gameplay_fitting(const Catalog &, const std::string &);
 void verify_gameplay_fitting(const Catalog &, const std::string &, const DirectedCatalog &);
@@ -125,7 +129,7 @@ struct ControllerContactBinding
 	std::string name, controller, channel;
 };
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &, const Catalog &);
-std::vector<std::string> controller_ability_bindings(const Json &, const Catalog &);
+std::vector<std::string> controller_ability_bindings(const Json &, const Catalog &, SharedPropertyCatalog = {});
 std::string choir_ability_control(const std::string &apparatus, const std::string &duty);
 std::vector<std::string> controller_message_templates(const Json &, const Catalog &);
 std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &, const Catalog &);
@@ -451,21 +455,20 @@ struct CustomPropertyDefinition
 	CustomPropertyValue initial = std::int64_t{0};
 	std::map<std::string, std::string> choices;
 };
-using PropertyCatalog = std::map<std::string, CustomPropertyDefinition>;
-using SharedPropertyCatalog = std::shared_ptr<const PropertyCatalog>;
 SharedPropertyCatalog compile_property_catalog(const Catalog &);
 CustomPropertyValue read_custom_property_value(const CustomPropertyDefinition &, const Json &, const std::string &);
 Json custom_property_json(const CustomPropertyValue &);
 std::map<std::string, CustomPropertyValue> compile_property_bindings(const PropertyCatalog &, const Json &,
                                                                      const std::string &);
-void verify_property_bindings(const Catalog &);
+void verify_property_bindings(const Catalog &, SharedPropertyCatalog = {});
 ResourceCatalogue compile_resource_catalog(const Catalog &);
 std::map<std::string, RecipeDefinition> compile_recipe_catalog(const Catalog &);
 RecipeDefinition compile_recipe(const Catalog &, const std::string &);
 StockStoreDefinition compile_stock_store(const Catalog &, const Json &, const std::string &);
 ProcessorDefinition compile_processor(const Catalog &, const Json &, const std::string &);
 std::vector<ProcessorDefinition> compile_processors(const Catalog &, const std::string &);
-std::vector<ProcessorDefinition> compile_processors(const Catalog &, const std::string &, const DirectedCatalog &);
+std::vector<ProcessorDefinition> compile_processors(const Catalog &, const std::string &, const DirectedCatalog &,
+                                                    SharedPropertyCatalog = {});
 
 struct ModelPart
 {
@@ -480,10 +483,11 @@ struct StaticModel
 };
 StaticModel compile_model(std::span<const std::uint8_t> bytes);
 void verify_model_render(const Json &render, const Catalog &catalog, const std::string &path);
-ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &);
+ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &, SharedPropertyCatalog = {});
 void verify_conversation_authoring(const Catalog &catalog);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
-void verify_scenario_authoring(const Catalog &catalog, const Json &map, const DirectedCatalog &);
+void verify_scenario_authoring(const Catalog &catalog, const Json &map, const DirectedCatalog &,
+                               SharedPropertyCatalog = {});
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig
 {
@@ -601,7 +605,7 @@ std::vector<std::string> scenario_definitions(const Catalog &catalog, const std:
 std::vector<std::string> scenario_assets(const Catalog &catalog, const std::string &map);
 // Authoring preview only: the final draft is deliberately absent from archive identities.
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
-Catalog prepared_catalog(const Catalog &catalog);
+Catalog prepared_catalog(const Catalog &catalog, SharedPropertyCatalog = {});
 void verify_catalog(const Catalog &catalog);
 // Public setup hints for the HTML launcher. Admission/setup still verify in C++.
 Json launcher_catalog(const Catalog &catalog);
@@ -686,7 +690,8 @@ struct BoardingDefinition
 	std::map<std::string, BoardingObjective> objectives;
 };
 std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity);
-std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity, const DirectedCatalog &);
+std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity, const DirectedCatalog &,
+                                                 SharedPropertyCatalog = {});
 struct AwayCraftSlot
 {
 	std::string id, role, craft_role;
@@ -718,7 +723,8 @@ struct AwayDefinition
 };
 state_tree::Registry away_registry(const Json &tree = Json::object());
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
-std::vector<AwayDefinition> compile_away(const Catalog &, const Json &, const DirectedCatalog &);
+std::vector<AwayDefinition> compile_away(const Catalog &, const Json &, const DirectedCatalog &,
+                                         SharedPropertyCatalog = {});
 struct InterdictionShip
 {
 	std::string definition;
@@ -739,7 +745,8 @@ struct InterdictionDefinition
 };
 state_tree::Registry interdiction_registry();
 std::vector<InterdictionDefinition> compile_interdictions(const Catalog &, const Json &);
-std::vector<InterdictionDefinition> compile_interdictions(const Catalog &, const Json &, const DirectedCatalog &);
+std::vector<InterdictionDefinition> compile_interdictions(const Catalog &, const Json &, const DirectedCatalog &,
+                                                          SharedPropertyCatalog = {});
 struct MaterialDefinition
 {
 	std::string id;
@@ -768,14 +775,16 @@ struct LogisticsDefinition
 	std::vector<MaterialConsumerDefinition> consumers;
 };
 LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
-LogisticsDefinition compile_logistics(const Catalog &, const std::string &, const DirectedCatalog &);
+LogisticsDefinition compile_logistics(const Catalog &, const std::string &, const DirectedCatalog &,
+                                      SharedPropertyCatalog = {});
 // Mission setup changes physical stocks once, without changing reusable ship definitions.
 struct StartingStockDefinition
 {
 	std::string slot, definition;
 	std::map<std::string, std::map<std::string, std::int64_t>> stores;
 };
-std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &, const Json &, const DirectedCatalog &);
+std::vector<StartingStockDefinition> compile_starting_stocks(const Catalog &, const Json &, const DirectedCatalog &,
+                                                             SharedPropertyCatalog = {});
 struct DockPortDefinition
 {
 	std::string id, controller, compartment, compatibility;
@@ -784,7 +793,8 @@ struct DockPortDefinition
 	bool auto_accept_allies = false, supply = false, emergency_release = false;
 };
 std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &);
-std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &, const DirectedCatalog &);
+std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &, const DirectedCatalog &,
+                                                SharedPropertyCatalog = {});
 struct TransportDefinition
 {
 	std::string compartment;
@@ -817,13 +827,14 @@ struct CraftBayDefinition
 	std::vector<std::string> initial;
 	std::vector<CraftSupplyDefinition> ammunition;
 };
-void expand_transport_fittings(Catalog &);
+void expand_transport_fittings(Catalog &, SharedPropertyCatalog = {});
 TransportDefinition compile_transport(const Catalog &, const std::string &);
-TransportDefinition compile_transport(const Catalog &, const std::string &, const DirectedCatalog &);
+TransportDefinition compile_transport(const Catalog &, const std::string &, const DirectedCatalog &,
+                                      SharedPropertyCatalog = {});
 std::optional<CraftDefinition> compile_craft(const Catalog &, const std::string &);
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &);
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &,
-                                                             const DirectedCatalog &);
+                                                             const DirectedCatalog &, SharedPropertyCatalog = {});
 struct PsychicPowerDefinition
 {
 	std::string id, kind, label, apparent_class = "Unidentified contact";
@@ -853,7 +864,8 @@ struct PsychicDefinition
 	const PsychicPowerDefinition &power(const std::string &ability) const;
 };
 PsychicDefinition compile_psychic(const Catalog &, const std::string &);
-PsychicDefinition compile_psychic(const Catalog &, const std::string &, const DirectedCatalog &);
+PsychicDefinition compile_psychic(const Catalog &, const std::string &, const DirectedCatalog &,
+                                  SharedPropertyCatalog = {});
 PsychicDefinition compile_psychic(const Catalog &, const std::string &, SharedAbilityCatalog,
                                   const PersonnelDefinition &, const ControllableLayout &);
 PsychicPowerDefinition compile_psychic_effect(const Catalog &, const std::string &);
@@ -904,8 +916,8 @@ const ModifierPropertyDescriptor &modifier_property(PropertyKey);
 bool known_modifier_property(std::string_view);
 bool property_compatible(std::string_view, OperatingSystem);
 std::string modifier_property_role(std::string_view);
-ModifierEffectDefinition compile_modifier_effect(const Catalog &, const std::string &);
-void compile_effect(const Catalog &, const std::string &);
+ModifierEffectDefinition compile_modifier_effect(const Catalog &, const std::string &, SharedPropertyCatalog = {});
+void compile_effect(const Catalog &, const std::string &, SharedPropertyCatalog = {});
 struct OfficerTrait
 {
 	std::string id, label;
@@ -955,8 +967,9 @@ struct PersonnelDefinition
 	};
 	std::vector<Link> links;
 };
-PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity);
-PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity, const DirectedCatalog &);
+PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity, SharedPropertyCatalog = {});
+PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity, const DirectedCatalog &,
+                                      SharedPropertyCatalog = {});
 struct BridgeChoice
 {
 	std::string id, label, description;
@@ -1210,11 +1223,12 @@ struct RuleEvaluation
 };
 inline constexpr std::size_t rule_expression_node_limit = 256;
 inline constexpr std::size_t rule_binding_limit = 64;
-RuleExpression compile_rule_expression(const Catalog &, RuleDefinition &, const Json &, const std::string &);
+RuleExpression compile_rule_expression(const Catalog &, RuleDefinition &, const Json &, const std::string &,
+                                       SharedPropertyCatalog = {});
 RuleDefinition compile_rule(const Catalog &, const std::string &, SharedPropertyCatalog compiled = {});
-RulesCatalog compile_rule_catalog(const Catalog &);
-RulesCatalog compile_bound_rules(const Catalog &, const Json &);
-RulesCatalog compile_entity_rule_scope(const Catalog &, const std::string &);
+RulesCatalog compile_rule_catalog(const Catalog &, SharedPropertyCatalog = {});
+RulesCatalog compile_bound_rules(const Catalog &, const Json &, SharedPropertyCatalog = {});
+RulesCatalog compile_entity_rule_scope(const Catalog &, const std::string &, SharedPropertyCatalog = {});
 std::vector<RuleBinding> compile_rule_bindings(const RulesCatalog &, const Json &, const std::string &,
                                                std::span<const RuleTrigger> allowed = {});
 bool evaluate_rule_expression(const RuleExpression &, const RuleContext &, state_tree::Value &);
@@ -1225,9 +1239,9 @@ SourceRuleDefinitionSet compile_source_rules(const Catalog &, const std::string 
 std::map<std::string, std::vector<RuleBinding>> compile_effect_rules(const Catalog &, const RulesCatalog &);
 std::map<std::string, std::vector<RuleBinding>> compile_region_rules(const Catalog &, const Json &,
                                                                      const RulesCatalog &);
-void compile_effect(const Catalog &, const std::string &, const RulesCatalog &);
+void compile_effect(const Catalog &, const std::string &, const RulesCatalog &, SharedPropertyCatalog = {});
 PersonnelDefinition compile_personnel(const Catalog &, const std::string &, const DirectedCatalog &,
-                                      const RulesCatalog &);
+                                      const RulesCatalog &, SharedPropertyCatalog = {});
 struct AbilityExclusionDefinition
 {
 	std::string id, scope = "source";
@@ -1274,18 +1288,21 @@ struct AbilityGrantDefinition
 	std::string ability;
 	std::int64_t duration_ticks = 0;
 };
-AbilityDefinition compile_ability(const Catalog &, const std::string &);
-SharedAbilityCatalog compile_ability_catalog(const Catalog &);
+AbilityDefinition compile_ability(const Catalog &, const std::string &, SharedPropertyCatalog = {});
+SharedAbilityCatalog compile_ability_catalog(const Catalog &, SharedPropertyCatalog = {});
 AbilityGrantDefinition compile_ability_grant(const Catalog &, const std::string &);
 AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &);
-AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, const DirectedCatalog &);
+AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, const DirectedCatalog &,
+                                       SharedPropertyCatalog = {});
 AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, SharedAbilityCatalog,
                                        const PersonnelDefinition &, const ControllableLayout &,
                                        const PsychicDefinition &);
 std::vector<EffectCostDefinition> compile_effect_costs(const Catalog &, const Json &, const std::string &,
-                                                       const std::string &quantity = "amount");
-EffectGroupDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
-EffectGroupDefinition compile_effect_group(const Catalog &, const std::string &);
+                                                       const std::string &quantity = "amount",
+                                                       SharedPropertyCatalog = {});
+EffectGroupDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &,
+                                                SharedPropertyCatalog = {});
+EffectGroupDefinition compile_effect_group(const Catalog &, const std::string &, SharedPropertyCatalog = {});
 enum class PayloadOutcomeKind
 {
 	Shield,
@@ -1441,7 +1458,7 @@ struct ShieldEffectDefinition
 	std::int64_t duration_ticks = 0;
 	std::vector<ShieldContributionDefinition> contributions;
 };
-ShieldEffectDefinition compile_shield_effect(const Catalog &, const std::string &);
+ShieldEffectDefinition compile_shield_effect(const Catalog &, const std::string &, SharedPropertyCatalog = {});
 ShieldEffectDefinition compile_shield_effect(const Catalog &, const std::string &, const RulesCatalog &);
 struct CombatSystemDefinition
 {
@@ -1513,8 +1530,9 @@ struct CombatDefinition
 	std::int64_t collision_scale = 1, collision_threshold = 1000, half_height = 5000;
 	DestructionDefinition destruction;
 };
-std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity);
-std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity, const DirectedCatalog &);
+std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity, SharedPropertyCatalog = {});
+std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity, const DirectedCatalog &,
+                                               SharedPropertyCatalog = {});
 std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &, const DirectedCatalog &,
                                                const RulesCatalog &);
 DestructionDefinition compile_destruction(const Json &, const Catalog &, const std::string &path);
@@ -1596,10 +1614,10 @@ struct ControllableLayout
 	bool converted = false;
 };
 // Compiles explicit layout version 1 or converts unambiguous old ownership at the boundary.
-ControllableLayout compile_controllable_layout(const Catalog &, const std::string &entity);
+ControllableLayout compile_controllable_layout(const Catalog &, const std::string &entity, SharedPropertyCatalog = {});
 // Boundary conversion only. Unsupported decision/ownership mappings fail before runtime creation.
-Catalog convert_controller_content(const Catalog &);
-Catalog convert_controller_content(const Catalog &, const DirectedCatalog &);
+Catalog convert_controller_content(const Catalog &, SharedPropertyCatalog = {});
+Catalog convert_controller_content(const Catalog &, const DirectedCatalog &, SharedPropertyCatalog = {});
 std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
 // Includes standard capability channels and the fitted controller's inherited declarations.
 std::vector<std::string> gameplay_summary_channels(const Catalog &, const std::string &entity,
