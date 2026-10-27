@@ -37902,14 +37902,14 @@
 				{
 					"id": "isolated-drive",
 					"target_entity": 1,
-					"text_key": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
+					"text_key": "The propulsion compartment is isolated. Drive and service connections are damaged.",
 					"requires": ["findings", "compartment_condition"],
 					"scan_ticks": 300
 				},
 				{
 					"id": "reactor-warning",
 					"target_entity": 1,
-					"text_key": "Reactor containment is pre-critical. A controlled shutdown now avoids an emergency. Pass this to Comms before the away team chooses its priorities.",
+					"text_key": "Reactor containment is pre-critical and continuing to deteriorate.",
 					"requires": ["findings", "compartment_condition"],
 					"scan_ticks": 200,
 					"requires_event": "rescue.distress",
