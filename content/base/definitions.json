@@ -28470,7 +28470,7 @@
 							{
 								"id": "allocation",
 								"action": "group_allocation",
-								"initial": 3000,
+								"initial": 1400,
 								"consumers": ["weapons-distribution"]
 							}
 						]
@@ -28483,7 +28483,7 @@
 							{
 								"id": "allocation",
 								"action": "group_allocation",
-								"initial": 3000,
+								"initial": 1500,
 								"consumers": ["shields-distribution"]
 							}
 						]
@@ -62756,11 +62756,11 @@
 				"groups": [
 					{
 						"id": "weapons",
-						"budget_rate": 3000
+						"budget_rate": 1400
 					},
 					{
 						"id": "shields",
-						"budget_rate": 3000
+						"budget_rate": 1500
 					}
 				]
 			},

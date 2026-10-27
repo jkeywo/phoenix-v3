@@ -123,13 +123,20 @@ void prepare_task_panels(const ConsoleRegion &region)
 							for (const auto &system : view.systems)
 								if (system.id == shield.value("id", ""))
 									shield["enabled"] = system.enabled;
+							const auto warmup_ticks = std::max(1LL, shield.value("warmup_ticks", 1LL));
+							const auto warmup = std::clamp(shield.value("warmup", 0LL), 0LL, warmup_ticks);
+							const auto capacity = shield.value("capacity", 0LL);
+							const auto strength = shield.value("enabled", true)
+							                          ? shield.value("strength", 0LL) * warmup / warmup_ticks
+							                          : 0LL;
+							shield["active_strength"] = strength;
 							shield_sectors_.push_back(shield);
-							const auto capacity = shield.value("capacity", 0LL),
-							           strength = shield.value("strength", 0LL);
 							markup += line("sector/" + shield.at("component_id").get<std::string>(),
 							               localise(engineering_name(shield.value("id", ""))) + ": " +
 							                   std::to_string(capacity ? strength * 100 / capacity : 0) + "%" +
-							                   (shield.at("enabled").get<bool>() ? "" : " — " + localise("Off")));
+							                   (!shield.at("enabled").get<bool>() ? " — " + localise("Off")
+							                    : warmup == 0                     ? " — " + localise("Inactive")
+							                                                      : ""));
 						}
 					for (const auto &system : view.systems)
 						if (system.kind == OperatingSystem::Shield && !controlled.contains(system.id))
@@ -417,7 +424,7 @@ void draw_support_shields(float ox, float oy)
 		const float arc = shield_sectors_.size() == 2 ? 180.f : shield.value("arc_mdeg", 360000LL) / 1000.f;
 		const auto capacity = shield.value("capacity", 0LL);
 		const float fraction =
-		    capacity ? std::clamp(float(double(shield.value("strength", 0LL)) / capacity), 0.f, 1.f) : 0;
+		    capacity ? std::clamp(float(double(shield.value("active_strength", 0LL)) / capacity), 0.f, 1.f) : 0;
 		const Color colour = !shield.value("enabled", true) ? GRAY
 		                     : fraction < .25f              ? RED
 		                     : fraction < .6f               ? ORANGE

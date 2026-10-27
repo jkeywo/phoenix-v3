@@ -29,6 +29,7 @@ std::map<std::string, std::vector<double>> samples;
 std::string output;
 bool graphics_ready = false;
 bool probe_readouts = false, readout_probe_passed = false;
+bool probe_power = false;
 bool probe_accessibility = false, accessibility_probe_passed = false;
 bool background_requested = false, probe_input = false;
 ConsoleModel input_model;
@@ -148,6 +149,12 @@ void profile_frame()
 	                      {"input_samples", input_samples - capture_input_samples},
 	                      {"background", background},
 	                      {"units", "milliseconds"}};
+	if (probe_power)
+		if (const auto observation = app.session->observation())
+		{
+			report["power"] = observation->gameplay.value("power", nlohmann::json::object());
+			report["combat"] = observation->gameplay.value("combat", nlohmann::json::object());
+		}
 	for (auto &[name, values] : samples)
 	{
 		std::sort(values.begin(), values.end());
@@ -196,6 +203,7 @@ int main(int argc, char **argv)
 		const std::string probes = argc > 11 ? argv[11] : "";
 		probe_input = probes.find("input") != std::string::npos;
 		probe_readouts = probes.find("readouts") != std::string::npos;
+		probe_power = probes.find("power") != std::string::npos;
 		probe_accessibility = probes.find("accessibility") != std::string::npos;
 		background_requested = probes.find("background") != std::string::npos;
 #if defined(__EMSCRIPTEN__) && !defined(PHOENIX_BROWSER_THREADS)
@@ -226,6 +234,12 @@ int main(int argc, char **argv)
 		app.session->add_pack(read_file(directory + "/base.zip"));
 		app.session->start({"base.rescue-under-threat", {{"courier", ship}}, "courier", seat});
 		const auto own = app.session->observation()->own.id;
+		if (probes.find("power-soak") != std::string::npos)
+			for (int tick = 0; tick < 3000; ++tick)
+			{
+				app.session->tick();
+				app.session->poll();
+			}
 		if (probes.find("autonomous") != std::string::npos)
 			app.session->release_console(1);
 		if (probes.find("restored") != std::string::npos)
