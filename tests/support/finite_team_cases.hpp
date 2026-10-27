@@ -351,6 +351,89 @@ void finite_clinical_self_removal()
 	}
 }
 
+void finite_clinical_driver_selection()
+{
+	auto source = medical_fixture();
+	source["properties"] = Json::parse(R"([
+	 {"id":"test.target-eligible","kind":"flag","default":false},
+	 {"id":"test.driver-starts","kind":"quantity","unit":"count","default":0,"maximum":100},
+	 {"id":"test.native-budget","kind":"quantity","unit":"points","default":20,"maximum":20}])");
+	source["effects"].push_back(Json::parse(R"({"id":"test.selection.started","kind":"operations",
+	 "operations":[{"kind":"property_add","target":"owner","property":"test.driver-starts","amount":1}]})"));
+	source["effects"].push_back(Json::parse(R"({"id":"test.selection.enable-target","kind":"operations",
+	 "operations":[{"kind":"property_set","target":"target","property":"test.target-eligible","value":true}]})"));
+	for (const auto *id : {"first", "alternate"})
+	{
+		Json process{
+		    {"id", std::string("test.selection.") + id},
+		    {"kind", "process"},
+		    {"native", "medical"},
+		    {"entry_costs", Json::array({{{"payer", "owner"}, {"property", "test.native-budget"}, {"amount", 1}}})},
+		    {"start_effect", "test.selection.started"}};
+		if (std::string(id) == "first")
+			process["requirements"] = {{"fact", "target.property"}, {"property", "test.target-eligible"}};
+		else
+			process["work_effect"] = "test.selection.enable-target";
+		source["effects"].push_back(std::move(process));
+	}
+	auto &ship = source["entities"][0];
+	ship["systems"]["medical"]["processes"] = {{"a-first", {{"process", "test.selection.first"}}},
+	                                           {"z-alternate", {{"process", "test.selection.alternate"}}}};
+	// The source is eligible but the actual patient initially is not. Reading
+	// the unbound owner instead of the target would select the wrong driver.
+	ship["systems"]["medical"]["properties"] = {
+	    {"test.target-eligible", true}, {"test.driver-starts", 0}, {"test.native-budget", 20}};
+	ship["systems"]["medical"]["treatment_ticks"] = 100;
+	ship["personnel"]["officers"][0]["compartment"] = "workshop";
+	ship["personnel"]["officers"][0]["duty"] = "";
+	ship["personnel"]["officers"][0]["properties"] = {{"test.target-eligible", false}};
+	ship["personnel"]["officers"][1]["condition"] = "healthy";
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(world);
+	require(world.submit(102, command(world, "order", "treat/workshop/nav")),
+	        "Begin treatment with competing target-dependent process declarations");
+	world.tick();
+	const auto first = world.save();
+	const auto values = [](const Json &saved, const std::string &officer_id = std::string{})
+	{
+		for (const auto &row : saved.at("custom_properties"))
+			if (row.at("entity") == 2 && row.at("officer") == officer_id &&
+			    row.at("equipment") == (officer_id.empty() ? "medical" : "") && row.at("compartment") == -1)
+				return row.at("values");
+		throw std::runtime_error("Missing driver-selection property owner");
+	};
+	const auto episode = [](const Json &saved)
+	{
+		for (const auto &owner : saved.at("processes"))
+			if (owner.at("entity") == 2 && owner.at("equipment") == "medical")
+				for (const auto &state : owner.at("state").at("processes"))
+					if (state.at("parent_process") != "" && state.at("admitted") == true)
+						return state;
+		throw std::runtime_error("Missing admitted driver-selection episode");
+	};
+	const auto incumbent = episode(first);
+	require(incumbent.at("definition") == "test.selection.alternate" && officer(world, 2, 0)["treatment"] == 1000 &&
+	            values(first).at("test.driver-starts") == 1 && values(first).at("test.native-budget") == 19,
+	        "An ineligible earlier declaration does not shadow an eligible alternate or charge entry costs");
+	require(values(first, "nav").at("test.target-eligible") == true,
+	        "The alternate's authored work effect makes the actual patient eligible for the earlier driver");
+	World resumed;
+	resumed.restore(catalog, first);
+	ticks(world, 3);
+	ticks(resumed, 3);
+	const auto continued = world.save();
+	const auto still_active = episode(continued);
+	require(
+	    still_active.at("definition") == "test.selection.alternate" &&
+	        still_active.at("generation") == incumbent.at("generation") &&
+	        still_active.at("run") == incumbent.at("run") && officer(world, 2, 0)["treatment"] == 4000 &&
+	        values(continued).at("test.driver-starts") == 1 && values(continued).at("test.native-budget") == 19 &&
+	        continued == resumed.save(),
+	    "The admitted alternate retains its run when an earlier candidate becomes eligible, including across restore");
+}
+
 void finite_clinical_jobs()
 {
 	const auto run = [](const char *name, auto test)
@@ -364,6 +447,7 @@ void finite_clinical_jobs()
 			throw std::runtime_error(std::string(name) + ": " + error.what());
 		}
 	};
+	run("Native driver selection", finite_clinical_driver_selection);
 	run("Native self-removal", finite_clinical_self_removal);
 	run("Native contributor fraction", finite_clinical_contributor_fraction);
 	run("Native structural commitments", finite_structural_commitments);

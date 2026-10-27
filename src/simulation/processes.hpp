@@ -305,6 +305,7 @@ std::string process_conflict(const CustomPropertyAddress &address, const Process
 					for (const auto &held : ability_definition(address.entity, ability).exclusions)
 						if (process_exclusion_key(address, wanted) == ability_exclusion_key(ability, held))
 							return "Exclusive operation is busy";
+	const auto &driver = state.parent_process.empty() ? state.id : state.parent_process;
 	const auto native = definition.native == NativeProcessKind::Effects
 	                        ? std::string{}
 	                        : process_native_identity(address, state, definition);
@@ -314,7 +315,7 @@ std::string process_conflict(const CustomPropertyAddress &address, const Process
 			{
 				if ((owner == address && id == state.id) || !other.admitted)
 					continue;
-				if (owner == address && !state.parent_process.empty() && other.parent_process == state.parent_process)
+				if (owner == address && !other.parent_process.empty() && other.parent_process == driver)
 					continue;
 				const auto &other_definition = process_definition(other);
 				if (!native.empty() && other_definition.native != NativeProcessKind::Effects &&
@@ -327,12 +328,10 @@ std::string process_conflict(const CustomPropertyAddress &address, const Process
 			}
 	return {};
 }
-RuleContext process_expression_context(const CustomPropertyAddress &address, const ProcessState &state,
+RuleContext process_expression_context(const ProcessDefinition &definition, const NativeRuleContext &context,
                                        std::optional<std::int64_t> work = {},
                                        std::optional<std::int64_t> activity = {}) const
 {
-	const auto &definition = process_definition(state);
-	const auto context = process_context(address, state);
 	RuleContext frozen;
 	for (const auto &fact : definition.evaluation.facts)
 		frozen.facts.push_back(fact.kind == RuleFactKind::ProcessWork
@@ -341,6 +340,12 @@ RuleContext process_expression_context(const CustomPropertyAddress &address, con
 		                           ? (activity ? state_tree::Value::integer(*activity) : state_tree::Value{})
 		                           : read_rule_fact(fact, context));
 	return frozen;
+}
+RuleContext process_expression_context(const CustomPropertyAddress &address, const ProcessState &state,
+                                       std::optional<std::int64_t> work = {},
+                                       std::optional<std::int64_t> activity = {}) const
+{
+	return process_expression_context(process_definition(state), process_context(address, state), work, activity);
 }
 std::optional<std::int64_t> process_scale(const std::optional<RuleExpression> &expression, const RuleContext &context,
                                           std::int64_t fallback = 1000) const
@@ -389,21 +394,19 @@ bool process_owner_terminated(EntityId id) const
 	const auto *craft = found->second.try_get<CraftState>();
 	return craft && craft->phase == CraftPhase::Consumed;
 }
-std::string process_requirements(const CustomPropertyAddress &address, const ProcessState &state) const
+std::string process_eligibility(const CustomPropertyAddress &address, const ProcessState &state,
+                                const RuleActor *target = nullptr) const
 {
-	if (!state.parent_process.empty())
-	{
-		const auto *driver = process_state(address, state.parent_process);
-		if (!driver || !driver->requested || !driver->parent_process.empty() || driver->generation >= state.generation)
-			return "Process driver unavailable";
-	}
 	const auto owner = rule_entity(process_actor(address));
 	if (!owner || combat_dead(owner) || process_owner_terminated(address.entity) || !process_runtime(address))
 		return "Process owner unavailable";
 	if (!state.source.empty() && !rule_lease_available(state.source))
 		return "Process granting source unavailable";
 	const auto &definition = process_definition(state);
-	const auto context = process_expression_context(address, state);
+	auto native_context = process_context(address, state);
+	if (target)
+		native_context.subject = native_context.target = *target;
+	const auto context = process_expression_context(definition, native_context);
 	if (definition.evaluation.condition)
 	{
 		state_tree::Value value;
@@ -416,6 +419,16 @@ std::string process_requirements(const CustomPropertyAddress &address, const Pro
 		return "Invalid process arithmetic or missing fact";
 	return process_native_blocker(address, state, definition);
 }
+std::string process_requirements(const CustomPropertyAddress &address, const ProcessState &state) const
+{
+	if (!state.parent_process.empty())
+	{
+		const auto *driver = process_state(address, state.parent_process);
+		if (!driver || !driver->requested || !driver->parent_process.empty() || driver->generation >= state.generation)
+			return "Process driver unavailable";
+	}
+	return process_eligibility(address, state);
+}
 void reset_process_run_state(ProcessState &state, bool clear_request) const
 {
 	state.admitted = false;
@@ -426,7 +439,7 @@ void reset_process_run_state(ProcessState &state, bool clear_request) const
 	state.idle_credits.clear();
 	state.work_credits.clear();
 	state.work_remainder = 0;
-	state.completed = state.completion_delivered = state.ready = false;
+	state.completed = state.ready = false;
 	if (process_definition(state).native == NativeProcessKind::Effects)
 		state.progress = 0;
 }
@@ -810,7 +823,7 @@ void commit_finite_process_completion(const CustomPropertyAddress &address, cons
 	const auto frozen = *state;
 	const auto &definition = process_definition(frozen);
 	state->target = target;
-	state->completed = state->completion_delivered = true;
+	state->completed = true;
 	state->ready = true;
 	if (definition.native != NativeProcessKind::Ftl)
 	{
@@ -944,7 +957,7 @@ void validate_process_runtime(const CustomPropertyAddress &address, const Proces
 			throw std::runtime_error("Contradictory process lifecycle");
 		if (state.target.size() > 1024 || state.progress < 0 || state.progress > resource_limit ||
 		    state.required_work < 0 || state.required_work > resource_limit ||
-		    state.completed != state.completion_delivered || (state.phase == "completed" && !state.completed) ||
+		    (state.phase == "completed" && !state.completed) ||
 		    (process_catalog->at(state.definition).required_work &&
 		     (state.required_work != process_catalog->at(state.definition).required_work ||
 		      state.progress > state.required_work)))

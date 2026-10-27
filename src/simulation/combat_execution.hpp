@@ -622,7 +622,7 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		bool completed = threshold > 0 && after_progress >= threshold;
 		if (compartment >= 0)
 		{
-			auto &prepared = finite_structure_outcome(*quote, target);
+			auto &prepared = prepare_structure_outcome(quote->prepared, target);
 			const auto &definition_compartment =
 			    entities.at(target).get<CombatStructure>().definition.compartments.at(compartment);
 			native_structural_repair(prepared.compartments.at(compartment), definition_compartment, quote->work,
@@ -735,7 +735,8 @@ void step_repairs()
 					                                        required, std::min(desired, required - f.work), *costs);
 					if (!quote)
 						continue;
-					auto &prepared = finite_structure_outcome(*quote, id).faults.at(task->first).at(task->second);
+					auto &prepared =
+					    prepare_structure_outcome(quote->prepared, id).faults.at(task->first).at(task->second);
 					if (!prepared.active || d.destroys)
 						continue;
 					prepared.work += quote->work;

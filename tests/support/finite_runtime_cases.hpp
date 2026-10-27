@@ -27,6 +27,28 @@ Json finite_effect_only_jobs()
 	            property(world, "test.events") == 11 && property(world, "test.fuel") == 92,
 	        "Finite job caps the final fractional work, funds exact costs and emits completion once");
 	require(world.save() == resumed.save(), "Finite completion continues without duplicate work or consequences");
+	auto contradictory = world.save();
+	bool completion_alias_changed = false;
+	for (auto &row : contradictory["processes"])
+		if (row.at("entity") == 1 && row.at("equipment") == "" && row.at("officer") == "" &&
+		    row.at("compartment") == -1 && row.at("state").at("processes").contains("finite"))
+		{
+			row["state"]["processes"]["finite"]["completion_delivered"] = false;
+			completion_alias_changed = true;
+		}
+	require(completion_alias_changed, "Synthetic completed process exposes its schema-31 completion alias");
+	bool contradictory_alias_refused = false;
+	try
+	{
+		World invalid;
+		invalid.restore(catalog, contradictory);
+	}
+	catch (const std::exception &)
+	{
+		contradictory_alias_refused = true;
+	}
+	require(contradictory_alias_refused,
+	        "Schema-31 restore rejects a completion alias contradicting its authoritative value");
 	command(world, "processes", "finite", 0);
 	ticks(world);
 	command(world, "processes", "finite", 1);

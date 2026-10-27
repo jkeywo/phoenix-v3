@@ -278,6 +278,26 @@ bool same_rule_work_input(const RuleWorkCredit &credit, const RuleUpkeepInput &i
 	       credit.officer == input.property_owner.officer && credit.compartment == input.property_owner.compartment &&
 	       credit.unit_work == input.unit_work;
 }
+// Quote and live execution states use the same canonical credit identity and
+// payment result. Callers retain responsibility for commit eligibility.
+void apply_rule_work_credits(std::vector<RuleWorkCredit> &credits, const RuleUpkeepPlan &plan) const
+{
+	for (std::size_t i = 0; i < plan.inputs.size(); ++i)
+	{
+		const auto &input = plan.inputs[i];
+		auto credit = std::find_if(credits.begin(), credits.end(),
+		                           [&](const auto &value)
+		                           {
+			                           return same_rule_work_input(value, input);
+		                           });
+		if (credit == credits.end())
+			credits.push_back({input.payer, input.store, input.resource, plan.payment.credits[i], input.property,
+			                   input.property_owner.equipment, input.property_owner.officer,
+			                   input.property_owner.compartment, input.unit_work});
+		else
+			credit->prepaid = plan.payment.credits[i];
+	}
+}
 std::int64_t rule_upkeep_credit(const RuleUpkeepPlan &plan, const RuleUpkeepInput &input) const
 {
 	const auto found = std::find_if(plan.credits.begin(), plan.credits.end(),
@@ -1124,22 +1144,6 @@ void finish_rule_upkeep()
 			credits = &state->credits;
 		}
 		if (credits && !plan.rejected)
-		{
-			for (std::size_t i = 0; i < plan.inputs.size(); ++i)
-			{
-				const auto &input = plan.inputs[i];
-				auto credit = std::find_if(credits->begin(), credits->end(),
-				                           [&](const auto &value)
-				                           {
-					                           return same_rule_work_input(value, input);
-				                           });
-				if (credit == credits->end())
-					credits->push_back({input.payer, input.store, input.resource, plan.payment.credits[i],
-					                    input.property, input.property_owner.equipment, input.property_owner.officer,
-					                    input.property_owner.compartment, input.unit_work});
-				else
-					credit->prepaid = plan.payment.credits[i];
-			}
-		}
+			apply_rule_work_credits(*credits, plan);
 	}
 }

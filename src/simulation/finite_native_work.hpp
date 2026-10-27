@@ -41,14 +41,8 @@ NativeProcessView finite_native_driver(EntityId entity, std::string_view kind, c
 	{
 		if (target)
 		{
-			auto probe = *candidate.state;
-			probe.parent_process = probe.id;
-			probe.id = "candidate:" + probe.id;
-			probe.generation = process_runtime(candidate.owner)->next_generation;
-			probe.target = "native-work";
-			probe.origin.target = *target;
-			if (!process_requirements(candidate.owner, probe).empty() ||
-			    !process_conflict(candidate.owner, probe).empty())
+			if (!process_eligibility(candidate.owner, *candidate.state, target).empty() ||
+			    !process_conflict(candidate.owner, *candidate.state).empty())
 				continue;
 		}
 		return candidate;
@@ -111,21 +105,7 @@ std::int64_t stage_finite_native_costs(FiniteNativeWork &quote, RuleUpkeepPlan p
 	const auto frame = process_effect_invocation(quote.owner, quote.frozen, {});
 	stage_effect_costs(quote.prepared, frame, debits);
 	auto &credits = plan.process_work ? quote.frozen.work_credits : quote.frozen.idle_credits;
-	for (std::size_t i = 0; i < plan.inputs.size(); ++i)
-	{
-		const auto &input = plan.inputs[i];
-		auto found = std::find_if(credits.begin(), credits.end(),
-		                          [&](const auto &entry)
-		                          {
-			                          return same_rule_work_input(entry, input);
-		                          });
-		if (found == credits.end())
-			credits.push_back({input.payer, input.store, input.resource, plan.payment.credits[i], input.property,
-			                   input.property_owner.equipment, input.property_owner.officer,
-			                   input.property_owner.compartment, input.unit_work});
-		else
-			found->prepaid = plan.payment.credits[i];
-	}
+	apply_rule_work_credits(credits, plan);
 	quote.payments.push_back(std::move(plan));
 	return 1000;
 }
@@ -269,21 +249,7 @@ bool commit_finite_native_payment(FiniteNativeWork &quote)
 		for (const auto &plan : quote.payments)
 		{
 			auto &credits = plan.process_work ? state->work_credits : state->idle_credits;
-			for (std::size_t i = 0; i < plan.inputs.size(); ++i)
-			{
-				const auto &input = plan.inputs[i];
-				auto credit = std::find_if(credits.begin(), credits.end(),
-				                           [&](const auto &value)
-				                           {
-					                           return same_rule_work_input(value, input);
-				                           });
-				if (credit == credits.end())
-					credits.push_back({input.payer, input.store, input.resource, plan.payment.credits[i],
-					                   input.property, input.property_owner.equipment, input.property_owner.officer,
-					                   input.property_owner.compartment, input.unit_work});
-				else
-					credit->prepaid = plan.payment.credits[i];
-			}
+			apply_rule_work_credits(credits, plan);
 		}
 		(void)stage_process_funding_state(quote.owner, *state, 1000, 1000);
 		state->work_remainder = process_next_work_remainder(quote.owner, quote.frozen, quote.work);
@@ -333,27 +299,6 @@ void commit_finite_native_work(const FiniteNativeWork &quote, std::int64_t actua
 	runtime->work_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	if (completed && active)
 		commit_finite_process_completion(quote.owner, quote.frozen.id, quote.frozen.target);
-}
-
-NativeStructureOutcome &finite_structure_outcome(FiniteNativeWork &quote, EntityId target)
-{
-	const auto original = native_structure_outcome(entities.at(target).get<CombatStructure>());
-	quote.prepared.original_structures.try_emplace(target, original);
-	return quote.prepared.structures.try_emplace(target, original).first->second;
-}
-NativePatientOutcome &finite_patient_outcome(FiniteNativeWork &quote, EntityId target, std::size_t patient)
-{
-	const auto key = std::pair{target, patient};
-	const auto original = native_patient_outcome(entities.at(target).get<PersonnelState>().officers.at(patient));
-	quote.prepared.original_patients.try_emplace(key, original);
-	return quote.prepared.patients.try_emplace(key, original).first->second;
-}
-NativeTeamOutcome &finite_team_outcome(FiniteNativeWork &quote, EntityId target, const std::string &team)
-{
-	const auto key = std::pair{target, team};
-	const auto original = native_team_outcome(away_equipment(target, team).get<CombatMechanism>().get<TeamState>());
-	quote.prepared.original_clinical_teams.try_emplace(key, original);
-	return quote.prepared.clinical_teams.try_emplace(key, original).first->second;
 }
 
 void finalise_finite_native_jobs()

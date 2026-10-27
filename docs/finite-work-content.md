@@ -16,6 +16,8 @@ Finite jobs extend [machinery processes](machinery-process-content.md). They use
 
 `required_work` is a positive integer in the process's internal work units. At the default rate an effect-only process commits 1000 units per tick. The final tick is capped to remaining work; its fractional input costs and work effect are accounted through the existing shared work path. `completion_effect` references an operations template. It is supported by finite jobs and native finite adapters, not ordinary continuous machinery.
 
+The `completion_delivered` save/readout field is a derived alias of `completed`; consequence failures are reported through the existing failure receipts. Both fields retain their schema-31 representation without owning separate mutable state.
+
 Completion is once per run. A failed completion consequence commits none of its fees or operations, records failure, and leaves completed work complete. It does not retry on subsequent ticks or restoration. Starting a completed effect-only job creates a new paid run. Temporary blocking preserves the run; stopping does not refund inputs or reverse committed effects.
 
 ## Native adapters

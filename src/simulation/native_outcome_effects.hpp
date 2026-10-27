@@ -1,5 +1,42 @@
-// Included inside World::Impl. Direct outcomes share native completion helpers;
-// preparation changes scalar snapshots only and never mutates live progress.
+// Included inside World::Impl. Native work and direct outcomes share scalar
+// snapshot capture and completion helpers; preparation never mutates live state.
+NativeStructureOutcome &prepare_structure_outcome(PreparedEffectGroup &quote, EntityId target)
+{
+	if (const auto prepared = quote.structures.find(target); prepared != quote.structures.end())
+		return prepared->second;
+	auto original = quote.original_structures.find(target);
+	if (original == quote.original_structures.end())
+		original = quote.original_structures
+		               .emplace(target, native_structure_outcome(entities.at(target).get<CombatStructure>()))
+		               .first;
+	return quote.structures.emplace(target, original->second).first->second;
+}
+NativePatientOutcome &prepare_patient_outcome(PreparedEffectGroup &quote, EntityId target, std::size_t patient)
+{
+	const auto key = std::pair{target, patient};
+	if (const auto prepared = quote.patients.find(key); prepared != quote.patients.end())
+		return prepared->second;
+	auto original = quote.original_patients.find(key);
+	if (original == quote.original_patients.end())
+		original =
+		    quote.original_patients
+		        .emplace(key, native_patient_outcome(entities.at(target).get<PersonnelState>().officers.at(patient)))
+		        .first;
+	return quote.patients.emplace(key, original->second).first->second;
+}
+NativeTeamOutcome &prepare_team_outcome(PreparedEffectGroup &quote, EntityId target, const std::string &team)
+{
+	const auto key = std::pair{target, team};
+	if (const auto prepared = quote.clinical_teams.find(key); prepared != quote.clinical_teams.end())
+		return prepared->second;
+	auto original = quote.original_clinical_teams.find(key);
+	if (original == quote.original_clinical_teams.end())
+		original =
+		    quote.original_clinical_teams
+		        .emplace(key, native_team_outcome(away_equipment(target, team).get<CombatMechanism>().get<TeamState>()))
+		        .first;
+	return quote.clinical_teams.emplace(key, original->second).first->second;
+}
 void prepare_native_outcome(PreparedEffectGroup &quote, const EffectGroupInvocation &frame,
                             const EffectOperation &operation)
 {
@@ -14,9 +51,7 @@ void prepare_native_outcome(PreparedEffectGroup &quote, const EffectGroupInvocat
 		const auto *structure = ship.try_get<CombatStructure>();
 		if (!structure)
 			throw std::runtime_error("Native repair target has no structure");
-		const auto original = native_structure_outcome(*structure);
-		quote.original_structures.try_emplace(actor.entity, original);
-		auto &prepared = quote.structures.try_emplace(actor.entity, original).first->second;
+		auto &prepared = prepare_structure_outcome(quote, actor.entity);
 		if (operation.kind == EffectOperationKind::StructuralRepair)
 		{
 			std::optional<std::size_t> compartment;
@@ -73,10 +108,7 @@ void prepare_native_outcome(PreparedEffectGroup &quote, const EffectGroupInvocat
 		if (!personnel || found == definitions.end())
 			throw std::runtime_error("Unknown clinical officer");
 		const auto index = static_cast<std::size_t>(found - definitions.begin());
-		const auto key = std::pair{actor.entity, index};
-		const auto original = native_patient_outcome(personnel->officers.at(index));
-		quote.original_patients.try_emplace(key, original);
-		auto &prepared = quote.patients.try_emplace(key, original).first->second;
+		auto &prepared = prepare_patient_outcome(quote, actor.entity, index);
 		const auto changed = operation.kind == EffectOperationKind::Treat       ? native_treat_patient(prepared)
 		                     : operation.kind == EffectOperationKind::Stabilise ? native_stabilise_patient(prepared)
 		                                                                        : native_recover_patient(prepared);
@@ -90,10 +122,7 @@ void prepare_native_outcome(PreparedEffectGroup &quote, const EffectGroupInvocat
 	const auto *mechanism = fitted ? fitted->entity.try_get<CombatMechanism>() : nullptr;
 	if (!mechanism || mechanism->definition.kind != OperatingSystem::Team)
 		throw std::runtime_error("Treatment equipment is not a native team");
-	const auto key = std::pair{actor.entity, equipment};
-	const auto original = native_team_outcome(mechanism->get<TeamState>());
-	quote.original_clinical_teams.try_emplace(key, original);
-	auto &prepared = quote.clinical_teams.try_emplace(key, original).first->second;
+	auto &prepared = prepare_team_outcome(quote, actor.entity, equipment);
 	if (!native_treat_team(prepared))
 		throw std::runtime_error("Treatment team is not injured");
 }

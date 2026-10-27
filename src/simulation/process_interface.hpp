@@ -264,7 +264,7 @@ Json process_board(const ConsoleAddress &address, const Observation *permitted =
 		                {"required_work", details ? state.required_work : 0},
 		                {"completed", details && state.completed},
 		                {"ready", details && state.ready},
-		                {"completion_delivered", details && state.completion_delivered},
+		                {"completion_delivered", details && state.completed},
 		                {"properties", execution_observed_properties(process_actor(owner), spec.observations)}});
 	};
 	for (const auto &binding : definition(address.ship).processes.controls)

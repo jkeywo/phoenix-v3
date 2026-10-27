@@ -346,7 +346,7 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 		                                        std::min(desired, required - before.treatment), *costs);
 		if (!quote)
 			return;
-		auto &prepared = finite_team_outcome(*quote, target, selected.team);
+		auto &prepared = prepare_team_outcome(quote->prepared, target, selected.team);
 		if (prepared.condition != "injured")
 			return;
 		prepared.treatment += quote->work;
@@ -376,7 +376,7 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 	                               required, std::min(desired, required - before.treatment), *costs);
 	if (!quote)
 		return;
-	auto &prepared = finite_patient_outcome(*quote, target, patient);
+	auto &prepared = prepare_patient_outcome(quote->prepared, target, patient);
 	if ((clinical_activity == std::string("stabilise") && (prepared.condition != "severe" || prepared.stabilised)) ||
 	    (clinical_activity == std::string("treat") && prepared.condition != "minor"))
 		return;
@@ -445,7 +445,7 @@ void step_medical_facilities()
 					    std::min<std::int64_t>(1000, required - before.recovery), *costs);
 					if (!quote)
 						continue;
-					auto &prepared = finite_patient_outcome(*quote, id, patient);
+					auto &prepared = prepare_patient_outcome(quote->prepared, id, patient);
 					if (prepared.condition != "severe" || !prepared.stabilised || prepared.facility != facility.id)
 						continue;
 					prepared.recovery += quote->work;
