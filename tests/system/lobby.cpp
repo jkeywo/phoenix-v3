@@ -1,4 +1,5 @@
 #include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <chrono>
 #include <functional>
@@ -40,8 +41,6 @@ int main(int argc, char **argv)
 		options.link.force_relay = true;
 		options.data_location = "lobby-integration-" + random_token();
 		auto host = make_game_lobby(options, local_worker_only);
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		auto defs = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic lobby");
 		defs["schema"] = 4;
 		defs["knowledge"] = Json::parse(R"json({"roles":["crew"],"schemas":[
@@ -119,8 +118,7 @@ int main(int argc, char **argv)
 		defs["maps"][0]["ship_slots"][0]["allowed_ships"].push_back("test.delivery");
 		defs["maps"][0]["ship_briefings"] = {{"test.ship", "Routine synthetic delivery"},
 		                                     {"test.delivery", "Urgent synthetic delivery"}};
-		pack.files["definitions.json"] = json_bytes(defs);
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack = phoenix::test::fixture_pack(json_bytes(defs), "test-core");
 #ifndef __EMSCRIPTEN__
 		if (local_worker_only)
 		{
@@ -201,8 +199,7 @@ int main(int argc, char **argv)
 			auto &layout = revised["entities"][0]["control_layout"];
 			layout["profiles"][0]["id"] = "revised";
 			layout["default_profile"] = "revised";
-			auto replacement = pack;
-			replacement.files["definitions.json"] = json_bytes(revised);
+			const auto replacement = phoenix::test::fixture_pack(json_bytes(revised), "test-core");
 			content_lobby->replace_packs({write_pack(replacement)});
 			content_lobby->prepare_lobby(setup);
 			const auto seat = main_seat(content_lobby->lobby());
@@ -277,8 +274,7 @@ int main(int argc, char **argv)
 		mixed_defs["consoles"].push_back({{"id", "test.spare"}, {"name", "Spare station"}, {"widgets", Json::array()}});
 		mixed_defs["entities"][0]["stations"][0]["consoles"].push_back(
 		    {{"id", "spare"}, {"definition", "test.spare"}, {"systems", Json::array()}});
-		auto mixed_pack = pack;
-		mixed_pack.files["definitions.json"] = json_bytes(mixed_defs);
+		const auto mixed_pack = phoenix::test::fixture_pack(json_bytes(mixed_defs), "test-core");
 		if (argc == 3)
 		{
 			const auto archive = read_pack(write_pack(mixed_pack));

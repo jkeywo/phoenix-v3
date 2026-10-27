@@ -1,3 +1,4 @@
+#include "../support/fixtures.hpp"
 #include <chrono>
 #include <cstddef>
 #include <algorithm>
@@ -90,8 +91,6 @@ int fleet_journey(NetworkOptions options)
 			throw std::runtime_error(name + ": expected " + std::to_string(expected) + ", observed " +
 			                         std::to_string(actual));
 	};
-	PackDraft pack;
-	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 	auto definitions =
 	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic multi-Console fleet");
 	definitions["schema"] = 4;
@@ -209,8 +208,7 @@ int fleet_journey(NetworkOptions options)
 		slot["x_mm"] = 50000 * i;
 		definitions["maps"][0]["ship_slots"].push_back(slot);
 	}
-	pack.files["definitions.json"] = json_bytes(definitions);
-	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	const auto pack = phoenix::test::fixture_pack(json_bytes(definitions), "test-core");
 	auto source = make_host_world();
 	source->add_pack(write_pack(pack));
 	const auto bundle =
@@ -756,8 +754,6 @@ int main(int argc, char **argv)
 		auto session = host ? make_network_host(options) : make_network_client(options);
 		if (host)
 		{
-			PackDraft pack;
-			pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 			auto definitions =
 			    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic fixture");
 			large_network_knowledge(definitions);
@@ -777,8 +773,7 @@ int main(int argc, char **argv)
 				                                              {"x_mm", 1000000 + i * 5000},
 				                                              {"y_mm", 1000000},
 				                                              {"heading_mdeg", 0}});
-			pack.files["definitions.json"] = json_bytes(definitions);
-			pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+			const auto pack = phoenix::test::fixture_pack(json_bytes(definitions), "test-core");
 			session->add_pack(write_pack(pack));
 			session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		}
