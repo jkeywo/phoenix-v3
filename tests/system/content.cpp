@@ -15,16 +15,142 @@
 #include <span>
 #include <string>
 #include <vector>
+#include <variant>
 
 import phoenix.content;
 
 using namespace phoenix;
 using phoenix::test::rejected;
 using phoenix::test::require;
+namespace
+{
+void custom_property_content_contract()
+{
+	using namespace phoenix::test;
+	auto source = combat_fixture();
+	source["properties"] = Json::parse(R"json([
+  {"id":"test.charge","kind":"quantity","label":"Charge","unit":"charge","minimum":0,"maximum":100,"default":7},
+  {"id":"test.power","kind":"attribute","label":"Power","unit":"power","minimum":-100,"maximum":100,"default":-10},
+  {"id":"test.flag","kind":"flag","label":"Flag","default":false},
+  {"id":"test.state","kind":"enum","label":"State","choices":{"ready":"Ready","rest":"Rest"},"default":"ready"},
+  {"id":"test.otherstate","extends":"test.state","label":"Other state"}
+ ])json");
+	auto &ship = source["entities"][0];
+	ship["properties"] = {{"test.charge", Json::object()}, {"test.flag", true}};
+	ship["systems"]["radar"]["properties"] = {{"test.power", -25}};
+	ship["combat"]["decks"][0]["compartments"][0]["properties"] = {{"test.state", "rest"}};
+	source["effects"] = Json::parse(R"json([
+  {"id":"test.property.write","kind":"operations","costs":[{"payer":"owner","property":"test.charge","amount":2}],"operations":[{"kind":"property_set","target":"owner","property":"test.state","value":"rest"},{"kind":"property_rate","target":"owner","property":"test.charge","amount":-1,"saturate":true}]},
+  {"id":"test.property.rule","kind":"rule","trigger":"property_changed","effect":"test.property.write","when":{"op":"ne","args":[{"fact":"event.property_before","property":"test.state","view":"base"},{"fact":"event.property_after","property":"test.state","view":"base"}]}},
+  {"id":"test.property.override","kind":"modifier","contributions":{"flag":{"property":"test.flag","value":true,"priority":7},"state":{"property":"test.state","value":"rest","priority":4},"power":{"property":"test.power","delta_permille":100}}}
+ ])json");
+	const auto catalog = load(source);
+	const auto definitions = compile_property_catalog(catalog);
+	const auto closure = scenario_definitions(catalog, "test.map");
+	require(std::find(closure.begin(), closure.end(), "test.charge") != closure.end() &&
+	            std::find(closure.begin(), closure.end(), "test.state") != closure.end(),
+	        "Scenario dependencies include property catalogue referenced through owner declarations");
+	require(definitions->size() == 5 && definitions->at("test.otherstate").choices.size() == 2,
+	        "Properties inherit through production catalogue resolution");
+	const auto bindings = compile_property_bindings(*definitions, catalog.entities.at("test.combat"), "ship");
+	require(std::get<std::int64_t>(bindings.at("test.charge")) == 7 && std::get<bool>(bindings.at("test.flag")),
+	        "Explicit declarations use defaults and typed overrides");
+	require(compile_property_bindings(*definitions, Json::object(), "missing").empty(),
+	        "Absent declarations remain absent");
+	const auto modifier = compile_modifier_effect(catalog, "test.property.override");
+	require(modifier.contributions.size() == 3 && modifier.contributions[0].priority == 7,
+	        "Modifier overrides retain typed value and authored precedence");
+	auto invalid = source;
+	invalid["entities"][0]["combat"]["decks"][0]["compartments"][0]["properties"]["test.state"] = "unknown";
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "enum identifier");
+	invalid = source;
+	invalid["entities"][0]["systems"]["radar"]["properties"]["test.power"] = -101;
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "outside supported bounds");
+	invalid = source;
+	invalid["entities"][0]["properties"]["missing.property"] = 0;
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "unknown property");
+	invalid = source;
+	invalid["properties"][0]["id"] = "recharge";
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "reserved native property");
+	invalid = source;
+	invalid["effects"][2]["contributions"]["power"]["property"] = "test.charge";
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "only attributes");
+	invalid = source;
+	invalid["effects"][0]["costs"][0]["property"] = "test.flag";
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "quantity");
+	invalid = source;
+	invalid["effects"][1]["when"] = {{"op", "eq"},
+	                                 {"args", Json::array({{{"fact", "owner.property"}, {"property", "test.state"}},
+	                                                       {{"value", "ready"}, {"enum", "test.otherstate"}}})}};
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "matching types and units");
+	invalid = source;
+	invalid["effects"][1]["when"] = {
+	    {"op", "eq"}, {"args", Json::array({{{"fact", "owner.property"}, {"property", "test.state"}}, "ready"})}};
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "matching types and units");
+	invalid = source;
+	invalid["effects"][1]["trigger"] = "activate";
+	rejected(
+	    [&]
+	    {
+		    load(invalid);
+	    },
+	    "property_changed");
+	WorkshopDocument document;
+	document.load_pack(archive(source));
+	require(document.preview_definition(WorkshopDefinitionKind::Property, "test.otherstate").at("default") == "ready",
+	        "Workshop property preview shares inheritance");
+	auto &local = document.definitions()["properties"];
+	local[0]["default"] = 11;
+	const auto exported = resolve_packs({read_pack(document.export_pack())});
+	require(std::get<std::int64_t>(compile_property_catalog(exported)->at("test.charge").initial) == 11,
+	        "Workshop export preserves property authoring through production resolution");
+}
+} // namespace
 int main()
 {
 	try
 	{
+		custom_property_content_contract();
 		rejected(
 		    []
 		    {

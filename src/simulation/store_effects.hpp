@@ -200,7 +200,7 @@ void prepare_group_modifier(PreparedEffectGroup &quote, const EffectGroupInvocat
 		contribution.delta_permille = delta * frame.output_permille / 1000;
 	}
 	const auto source = frame.source + "." + operation.grant;
-	validate_effect_identity(source, equipment, true);
+	validate_effect_identity(source, equipment, false);
 	auto &prepared = prepare_property_owner(quote, ship);
 	const auto existing = std::find_if(prepared.applications.begin(), prepared.applications.end(),
 	                                   [&](const auto &application)
@@ -215,7 +215,9 @@ void prepare_group_modifier(PreparedEffectGroup &quote, const EffectGroupInvocat
 		if (application.source == source && application.equipment == equipment)
 			for (auto &contribution : application.modifier.values)
 				for (const auto &value : compiled.contributions)
-					if (contribution.name == value.name && contribution.property == property_key(value.property))
+					if (contribution.name == value.name &&
+					    (contribution.custom.empty() ? contribution.property == property_key(value.property)
+					                                 : contribution.custom == value.property))
 						contribution.delta = value.delta_permille;
 }
 flecs::entity watch_effect_target(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
@@ -237,12 +239,83 @@ StockStore &prepared_effect_stock(PreparedEffectGroup &quote, const EffectGroupI
 		quote.changed_inventories.insert(id);
 	return resolved.stock;
 }
+CustomPropertyState &prepare_custom_property_owner(PreparedEffectGroup &quote, const CustomPropertyAddress &address)
+{
+	const auto *current = custom_property_state(address);
+	if (!current)
+		throw std::runtime_error("Custom property owner unavailable");
+	quote.original_custom_properties.try_emplace(address, *current);
+	return quote.custom_properties.try_emplace(address, *current).first->second;
+}
+RuleActor effect_property_actor(const EffectGroupInvocation &frame, const RuleActor &original,
+                                const std::string &equipment, const std::string &officer) const
+{
+	auto actor = original;
+	if (!equipment.empty())
+	{
+		actor.equipment = effect_group_equipment(frame, equipment);
+		actor.officer.clear();
+		actor.compartment = -1;
+	}
+	if (!officer.empty())
+	{
+		actor.officer = officer;
+		actor.equipment.clear();
+		actor.compartment = -1;
+	}
+	return actor;
+}
+void prepare_custom_property_operation(PreparedEffectGroup &quote, const EffectGroupInvocation &frame,
+                                       const EffectOperation &op, const RuleActor &target, std::size_t index)
+{
+	const auto address = custom_property_address(effect_property_actor(frame, target, op.equipment, op.officer));
+	auto &state = prepare_custom_property_owner(quote, address);
+	const auto found = state.bases.find(op.property);
+	if (found == state.bases.end())
+		throw std::runtime_error("Custom property is not declared on target");
+	const auto &definition = property_catalogue->at(op.property);
+	if (op.kind == EffectOperationKind::PropertySet)
+	{
+		read_custom_property_value(definition, custom_property_json(op.value), "property operation");
+		found->second = op.value;
+		return;
+	}
+	if (!std::holds_alternative<std::int64_t>(found->second))
+		throw std::runtime_error("Numeric property required");
+	auto amount = op.amount;
+	if (op.kind == EffectOperationKind::PropertySubtract)
+		amount = -amount;
+	if (op.kind == EffectOperationKind::PropertyRate)
+	{
+		const auto key = custom_property_rate_key(frame, index, op.property);
+		const auto previous = key && state.remainders.contains(*key) ? state.remainders.at(*key) : 0;
+		const auto numerator = amount + previous;
+		amount = numerator / rate;
+		const auto remainder = numerator % rate;
+		if (key && remainder)
+		{
+			if (key->size() > 512 ||
+			    (!state.remainders.contains(*key) && state.remainders.size() >= custom_property_rate_limit))
+				throw std::runtime_error("Property rate identity capacity exhausted");
+			state.remainders[*key] = remainder;
+		}
+		else if (key)
+			state.remainders.erase(*key);
+	}
+	const auto base = std::get<std::int64_t>(found->second);
+	const auto next = base + amount;
+	if (!op.saturate && (next < definition.minimum || next > definition.maximum))
+		throw std::runtime_error("Property operation exceeds declared bounds");
+	found->second = std::clamp(next, definition.minimum, definition.maximum);
+}
 struct PreparedEffectCost
 {
 	EntityId payer = 0;
 	std::string store, resource;
 	std::int64_t amount = 0;
 	ResourceIndex energy_store = no_resource;
+	std::optional<CustomPropertyAddress> property_owner;
+	std::string property;
 };
 std::vector<PreparedEffectCost> resolve_effect_costs(PreparedEffectGroup &quote, const EffectGroupInvocation &frame)
 {
@@ -285,6 +358,22 @@ std::vector<PreparedEffectCost> resolve_effect_costs(PreparedEffectGroup &quote,
 			if (!effect_group_equipment_available(actor.entity, equipment))
 				throw std::runtime_error("Cost equipment unavailable");
 			quote.equipment.emplace_back(actor.entity, equipment);
+		}
+		if (!cost.property.empty())
+		{
+			const auto address = custom_property_address(effect_property_actor(frame, actor, cost.equipment, {}));
+			auto &state = prepare_custom_property_owner(quote, address);
+			const auto value = state.bases.find(cost.property);
+			if (value == state.bases.end() ||
+			    property_catalogue->at(cost.property).kind != CustomPropertyKind::Quantity)
+				throw std::runtime_error("Quantity cost property unavailable");
+			PreparedEffectCost input;
+			input.payer = actor.entity;
+			input.amount = cost.amount;
+			input.property_owner = address;
+			input.property = cost.property;
+			costs.push_back(std::move(input));
+			continue;
 		}
 		const auto resolved = named_stock(payer, cost.store);
 		const auto native = resolved.kind == NamedStockKind::Electrical ? resolved.index : no_resource;
@@ -403,8 +492,32 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 	if (!removed)
 		throw std::runtime_error("Owner native grant is no longer available");
 }
-void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const PreparedEffectCost> costs,
-                             std::size_t invocation)
+void stage_effect_costs(PreparedEffectGroup &quote, const EffectGroupInvocation &frame,
+                        std::span<const PreparedEffectCost> costs)
+{
+	for (const auto &cost : costs)
+	{
+		if (!cost.amount)
+			continue;
+		if (cost.property_owner)
+		{
+			auto &value = prepare_custom_property_owner(quote, *cost.property_owner).bases.at(cost.property);
+			auto &quantity = std::get<std::int64_t>(value);
+			if (quantity - property_catalogue->at(cost.property).minimum < cost.amount)
+				throw std::runtime_error("Required quantity payment unavailable");
+			quantity -= cost.amount;
+		}
+		else if (cost.energy_store != no_resource)
+		{
+			if (!spend_prepared_effect_energy(quote, cost))
+				throw std::runtime_error("Energy payment unavailable");
+		}
+		else if (!quote.stocks.consume(prepared_effect_stock(quote, frame, cost.payer, cost.store, false),
+		                               cost.resource, cost.amount))
+			throw std::runtime_error("Required resource payment unavailable");
+	}
+}
+void stage_effect_invocation(PreparedEffectGroup &quote, std::size_t invocation)
 {
 	const auto &frame = quote.invocations.at(invocation);
 	const auto &execution = frame.execution;
@@ -420,20 +533,10 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const Prepare
 	{
 		return prepared_effect_stock(quote, frame, id, name, outcome);
 	};
-	for (const auto &cost : costs)
-	{
-		if (!cost.amount)
-			continue;
-		if (cost.energy_store != no_resource)
-		{
-			if (!spend_prepared_effect_energy(quote, cost))
-				throw std::runtime_error("Energy payment unavailable");
-		}
-		else if (!quote.stocks.consume(stock(cost.payer, cost.store, false), cost.resource, cost.amount))
-			throw std::runtime_error("Required resource payment unavailable");
-	}
+	std::size_t operation_index = 0;
 	for (const auto &operation : execution.operations)
 	{
+		const auto current_operation = operation_index++;
 		if (operation.scope == "owner")
 		{
 			prepare_owner_effect_removal(quote, frame, operation);
@@ -469,10 +572,13 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const Prepare
 		const auto ability_source = op.officer.empty() ? "equipment" : "officer";
 		const auto ability_grant_id =
 		    "temporary:" + source + "." + op.grant + ":" + ability_source + ":" + ability_owner;
-		const bool removing_ability = op.kind == EffectOperationKind::Remove &&
-		                              (!op.officer.empty() || (op.effect.empty() && ability_state &&
-		                                                       ability_state->grants.contains(ability_grant_id)));
-		if (op.kind == EffectOperationKind::Damage)
+		const bool removing_ability =
+		    op.kind == EffectOperationKind::Remove && ability_state && ability_state->grants.contains(ability_grant_id);
+		if (op.kind >= EffectOperationKind::PropertySet)
+		{
+			prepare_custom_property_operation(quote, frame, op, actor, current_operation);
+		}
+		else if (op.kind == EffectOperationKind::Damage)
 		{
 			if (op.damage < 0 || op.damage > 1000000)
 				throw std::runtime_error("Effect damage outside supported bounds");
@@ -537,10 +643,29 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::span<const Prepare
 			                           source, original_equipment, frame.rule_context ? &*frame.rule_context : nullptr);
 		}
 		else if (op.kind == EffectOperationKind::Apply && modifier_templates.contains(op.effect))
-			prepare_group_modifier(quote, frame, ship, op, op.equipment);
+			prepare_group_modifier(quote, frame, ship, op,
+			                       op.equipment.empty()
+			                           ? custom_modifier_target(effect_property_actor(frame, actor, {}, op.officer))
+			                           : op.equipment);
 		else
 		{
-			const auto kind = op.equipment.empty() ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
+			const auto token = op.equipment.empty()
+			                       ? custom_modifier_target(effect_property_actor(frame, actor, {}, op.officer))
+			                       : op.equipment;
+			const auto &current_properties = quote.properties.contains(id)     ? quote.properties.at(id)
+			                                 : ship.has<PropertyEffectOwner>() ? read_property_effects(ship)
+			                                                                   : PropertyEffects{};
+			const bool logical_modifier =
+			    op.kind == EffectOperationKind::Remove &&
+			    std::any_of(current_properties.applications.begin(), current_properties.applications.end(),
+			                [&](const auto &application)
+			                {
+				                return application.source == source + "." + op.grant && application.equipment == token;
+			                });
+			if (logical_modifier || (op.kind == EffectOperationKind::Remove && !op.officer.empty()))
+				op.equipment = token;
+			const auto kind = (!op.equipment.empty() || logical_modifier) ? EffectApplicationKind::Modifier
+			                                                              : EffectApplicationKind::Shield;
 			ShieldComponent *shield = nullptr;
 			PropertyEffects *property = nullptr;
 			if (kind == EffectApplicationKind::Shield)
@@ -594,7 +719,12 @@ PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation>
 		for (std::size_t i = 0; i < quote.invocations.size(); ++i)
 		{
 			quote.failed_invocation = i;
-			stage_effect_invocation(quote, costs[i], i);
+			stage_effect_costs(quote, quote.invocations[i], costs[i]);
+		}
+		for (std::size_t i = 0; i < quote.invocations.size(); ++i)
+		{
+			quote.failed_invocation = i;
+			stage_effect_invocation(quote, i);
 		}
 		quote.failed_invocation = static_cast<std::size_t>(-1);
 	}
@@ -652,6 +782,12 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 		if (!entities.contains(id) || !entities.at(id).has<PropertyEffectOwner>() ||
 		    !same_effect_properties(read_property_effects(entities.at(id)), original))
 			return true;
+	for (const auto &[address, original] : quote.original_custom_properties)
+	{
+		const auto *current = custom_property_state(address);
+		if (!current || *current != original)
+			return true;
+	}
 	for (const auto &[id, original] : quote.original_abilities)
 		if (!entities.contains(id) || !entities.at(id).has<AbilityRuntime>() ||
 		    !same_effect_abilities(entities.at(id).get<AbilityRuntime>(), original))
@@ -709,11 +845,8 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 		return "Store transaction became stale";
 	quote.consumed = true;
 	++effect_commit_epoch;
-	if (quote.active_effects)
-	{
-		commit_active_rule_effects(*quote.active_effects);
-		next_rule_instance = quote.next_active;
-	}
+	begin_custom_property_batch();
+
 	for (auto &[id, payment] : quote.payments)
 		entities.at(id).get_mut<ShipResources>().network = std::move(payment.network);
 	for (auto id : quote.changed_inventories)
@@ -723,6 +856,14 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : quote.properties)
 		commit_property_effects(entities.at(id), value);
+	for (auto &[address, value] : quote.custom_properties)
+		commit_custom_property_state(address, value);
+	if (quote.active_effects)
+	{
+		commit_active_rule_effects(*quote.active_effects);
+		next_rule_instance = quote.next_active;
+	}
+	finish_custom_property_batch();
 	for (auto &[id, value] : quote.abilities)
 	{
 		const auto &old = entities.at(id).get<AbilityRuntime>();

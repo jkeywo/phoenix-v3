@@ -13,7 +13,7 @@ static std::string rule_key(const std::string &source, const std::string &bindin
 	                   std::to_string(subject.entity) + ":" + std::to_string(subject.ordnance) + ":" +
 	                   std::to_string(static_cast<int>(subject.kind)) + ":" + subject.equipment + ":" +
 	                   std::to_string(subject.compartment) + ":" + std::to_string(subject.contribution) + ":" +
-	                   subject.contribution_name;
+	                   subject.contribution_name + ":" + subject.officer;
 	return "rule." +
 	       sha256(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t *>(value.data()), value.size()));
 }
@@ -177,7 +177,7 @@ std::optional<std::int64_t> rule_native_output(const RuleActor &actor) const
 	return 1000;
 }
 std::optional<std::int64_t> rule_native_property(flecs::entity entity, const RuleActor &actor,
-                                                 const std::string &property) const
+                                                 const std::string &property, bool base_view = false) const
 {
 	if (actor.kind == PayloadOutcomeKind::Shield)
 	{
@@ -188,19 +188,25 @@ std::optional<std::int64_t> rule_native_property(flecs::entity entity, const Rul
 				{
 					const auto &native = contribution.definition.shield;
 					if (property == "recharge")
-						return shield_property(entity, contribution, property, native.recharge_rate * 1000,
-						                       native.recharge_modifier);
+						return base_view ? native.recharge_rate * 1000
+						                 : shield_property(entity, contribution, property, native.recharge_rate * 1000,
+						                                   native.recharge_modifier);
 					if (property == "off_recharge")
-						return shield_property(entity, contribution, property, native.off_recharge_rate * 1000,
-						                       native.recharge_modifier);
+						return base_view ? native.off_recharge_rate * 1000
+						                 : shield_property(entity, contribution, property,
+						                                   native.off_recharge_rate * 1000, native.recharge_modifier);
 					if (property == "sustain")
-						return shield_property(entity, contribution, property, native.sustain_energy,
-						                       native.sustain_modifier);
+						return base_view ? native.sustain_energy
+						                 : shield_property(entity, contribution, property, native.sustain_energy,
+						                                   native.sustain_modifier);
 					if (property == "discharge")
-						return shield_property(entity, contribution, property, native.discharge_rate,
-						                       native.discharge_modifier);
+						return base_view ? native.discharge_rate
+						                 : shield_property(entity, contribution, property, native.discharge_rate,
+						                                   native.discharge_modifier);
 					if (property == "protection")
-						return shield_property(entity, contribution, property, 1000, native.protection_modifier);
+						return base_view
+						           ? 1000
+						           : shield_property(entity, contribution, property, 1000, native.protection_modifier);
 					return {};
 				}
 		return {};
@@ -281,7 +287,7 @@ std::optional<std::int64_t> rule_native_property(flecs::entity entity, const Rul
 		if (!directed || !property_compatible(property, fitted->kind, *directed))
 			return {};
 	}
-	return effective_property(entity, actor.equipment, property, base);
+	return base_view ? base : effective_property(entity, actor.equipment, property, base);
 }
 state_tree::Value read_rule_fact(const RuleFactBinding &fact, const NativeRuleContext &context) const
 {
@@ -348,9 +354,18 @@ state_tree::Value read_rule_fact(const RuleFactBinding &fact, const NativeRuleCo
 				return {};
 			}
 		return {};
+	case RuleFactKind::CompletedWork:
+		if (const auto work = ability_completed_work(actor, fact.key))
+			return Value::integer(*work);
+		return {};
+	case RuleFactKind::PropertyBefore:
+	case RuleFactKind::PropertyAfter:
+		return {}; // Frozen by the successful transaction which emitted the event.
 	case RuleFactKind::Property:
+		if (property_catalogue->contains(fact.key))
+			return read_custom_property(actor, fact.key, fact.aux == "base").value_or(Value{});
 		if (entity)
-			if (const auto value = rule_native_property(entity, actor, fact.key))
+			if (const auto value = rule_native_property(entity, actor, fact.key, fact.aux == "base"))
 				return Value::integer(*value);
 		return {};
 	}
@@ -390,11 +405,18 @@ NativeRuleContext bind_rule_context(const RuleBinding &binding, NativeRuleContex
 {
 	context.target = rule_actor(context, binding.target);
 	if (!binding.equipment.empty() && binding.equipment != "$target")
-		context.target.equipment = binding.equipment == "$owner"    ? context.owner.equipment
-		                           : binding.equipment == "$source" ? context.source.equipment
-		                                                            : binding.equipment;
+	{
+		const auto equipment = binding.equipment == "$owner"    ? context.owner.equipment
+		                       : binding.equipment == "$source" ? context.source.equipment
+		                                                        : binding.equipment;
+		context.target = rule_body_actor(context.target);
+		context.target.equipment = equipment;
+	}
 	if (!binding.officer.empty())
+	{
+		context.target = rule_body_actor(context.target);
 		context.target.officer = binding.officer;
+	}
 	return context;
 }
 

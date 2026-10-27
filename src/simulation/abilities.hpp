@@ -143,6 +143,24 @@ std::string ability_blocker(EntityId ship, const AbilityControlDefinition &c, co
 					return "Officer unavailable";
 			}
 	}
+	if (d.requirements)
+	{
+		NativeRuleContext context;
+		context.owner = {ship};
+		if (g.source == "officer")
+			context.owner.officer = g.owner;
+		else
+			context.owner.equipment = g.owner;
+		context.source = context.instigator = context.owner;
+		context.subject = {ship};
+		context.target = {target ? target : ship};
+		context.tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+		state_tree::Value value;
+		if (!evaluate_rule_expression(*d.requirements->condition, freeze_rule_context(*d.requirements, context),
+		                              value) ||
+		    value.type != state_tree::Type::Boolean || !value.number)
+			return "Ability requirements unavailable";
+	}
 	const bool continuing = g.phase == "active" || (g.phase == "paused" && g.resume_phase == "active");
 	if ((!continuing && !ability_target_valid(ship, c, d, target, cache)) ||
 	    (continuing && target != ship &&
@@ -296,6 +314,7 @@ void stop_abilities_for_duty(EntityId ship, const std::string &duty)
 				g.control.clear();
 				g.apparatus.clear();
 				g.requested = false;
+				g.retained_request = false;
 			}
 	for (const auto &c : definition(ship).abilities.controls)
 		if (c.source == "duty" && c.owner == duty)
@@ -431,11 +450,20 @@ void activate_ability(EntityId ship, const std::string &key, bool activation_com
 	const auto &d = definition(ship).abilities.catalog->definitions.at(snapshot.definition);
 	ConsoleContacts contacts;
 	const auto *control = resolve_ability_control(ship, snapshot);
-	if (!control || !ability_blocker(ship, *control, snapshot, snapshot.target, contacts).empty() ||
-	    !ability_apparatus_blocker(ship, snapshot).empty())
+	const auto blocker = control ? ability_blocker(ship, *control, snapshot, snapshot.target, contacts)
+	                             : "No compatible ability control";
+	if (!control || !blocker.empty() || !ability_apparatus_blocker(ship, snapshot).empty())
 	{
 		auto &state = entities.at(ship).get_mut<AbilityRuntime>();
-		stop_ability(ship, state, state.grants.at(key));
+		auto &interrupted = state.grants.at(key);
+		if (control && d.sustained && blocker == "Ability requirements unavailable" &&
+		    entities.at(ship)
+		            .get<EntityControls>()
+		            .controllers.at(control->controller)
+		            .definition.commands.at(control->enabled)
+		            .semantics == CommandSemantics::Request)
+			interrupted.retained_request = true;
+		stop_ability(ship, state, interrupted);
 		ability_request_result(ship, snapshot, false);
 		return;
 	}
@@ -458,6 +486,7 @@ void activate_ability(EntityId ship, const std::string &key, bool activation_com
 		ability_request_result(ship, snapshot, false);
 		return;
 	}
+	g.retained_request = false;
 	g.activation = runtime.next_activation++;
 	g.phase = d.sustained ? "active" : "ready";
 	g.progress = d.preparation_ticks * 1000;
@@ -507,6 +536,7 @@ void prepare_abilities(EntityId ship)
 			stop_ability(ship, entities.at(ship).get_mut<AbilityRuntime>(), g);
 			g.control.clear();
 			g.requested = false;
+			g.retained_request = false;
 			g.blocker = "No compatible ability control";
 			continue;
 		}
@@ -535,6 +565,7 @@ void prepare_abilities(EntityId ship)
 			{
 				stop_ability(ship, entities.at(ship).get_mut<AbilityRuntime>(), g);
 				g.requested = false;
+				g.retained_request = false;
 				continue;
 			}
 			if (ability_running(g))
@@ -547,7 +578,10 @@ void prepare_abilities(EntityId ship)
 		                    : c->target == ability_no_channel
 		                        ? 0
 		                        : static_cast<EntityId>(controller.commands.at(c->target).value);
-		const bool requested = discrete ? ability_running(g) || start_request : command.value != 0;
+		if (g.retained_request && g.control != c->id)
+			g.retained_request = false;
+		const bool requested =
+		    discrete ? ability_running(g) || start_request || g.retained_request : command.value != 0;
 		if (ability_running(g) && (g.control != c->id || g.target != target || !requested))
 			stop_ability(ship, entities.at(ship).get_mut<AbilityRuntime>(), g);
 		g.control = c->id;
@@ -555,11 +589,15 @@ void prepare_abilities(EntityId ship)
 		g.requested = requested;
 		if (!requested)
 		{
+			g.retained_request = false;
 			continue;
 		}
 		g.blocker = ability_blocker(ship, *c, g, target, cache);
 		if (!g.blocker.empty())
 		{
+			g.retained_request = discrete && d.sustained && !new_request &&
+			                     (ability_running(g) || g.retained_request) &&
+			                     g.blocker == "Ability requirements unavailable";
 			stop_ability(ship, entities.at(ship).get_mut<AbilityRuntime>(), g);
 			if (new_request)
 				command.accepted = false;
@@ -595,7 +633,7 @@ void prepare_abilities(EntityId ship)
 			g.phase = g.resume_phase;
 			g.resume_phase.clear();
 		}
-		if (ability_running(g) || (discrete && !start_request))
+		if (ability_running(g) || (discrete && !start_request && !g.retained_request))
 			continue;
 		if (ability_recovery_until(ship, g) > tick)
 		{
@@ -617,7 +655,9 @@ void prepare_abilities(EntityId ship)
 			continue;
 		}
 		g.target = target;
-		g.request_id = discrete ? command.request_id : 0;
+		// Automatic retained retries have no new request receipt. Explicit starts
+		// retain their receipt through preparation so activation failure can reject it.
+		g.request_id = discrete && !g.retained_request ? command.request_id : 0;
 		if (!ability_recovery_capacity(ship, g))
 		{
 			g.blocker = "Ability recovery capacity exhausted";
@@ -643,6 +683,7 @@ void prepare_abilities(EntityId ship)
 				command.accepted = false;
 			continue;
 		}
+		started.retained_request = false;
 		started.phase = "preparing";
 		started.progress = 0;
 		for (const auto &recovery : ability_recovery_reservations(ship, started))
@@ -653,70 +694,54 @@ void prepare_abilities(EntityId ship)
 }
 void request_ability_resources(EntityId ship)
 {
-	auto *power = entities.at(ship).try_get_mut<ShipResources>();
-	if (!power)
-		return;
-	// Native choirs have no separate baseline energy use; their active ability
-	// requests replace the historical aggregate seat demand on the same slot.
-	for (const auto &[id, choir] : definition(ship).psychic.choirs)
-		if (const auto fit = instance(entities.at(ship), id); fit && fit->entity.has<ResourceBinding>())
-			request_system_resource(*power, fit->entity.get<ResourceBinding>().slot, 0, false, 0);
-	std::map<std::string, std::int64_t> demand;
-	for (const auto &[key, g] : entities.at(ship).get<AbilityRuntime>().grants)
-		if (ability_running(g) && ability_apparatus_blocker(ship, g).empty())
-		{
-			const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
-			const auto preparation = g.phase == "preparing" || g.resume_phase == "preparing";
-			const auto amount = preparation ? d.preparation_energy_per_second : d.energy_per_second;
-			if (amount && !g.apparatus.empty())
-			{
-				if (demand[g.apparatus] > resource_limit - amount)
-					throw std::runtime_error("Ability resource demand overflow");
-				demand[g.apparatus] += amount;
-			}
-		}
-	for (const auto &[apparatus, amount] : demand)
+	auto entity = entities.at(ship);
+	auto *power = entity.try_get_mut<ShipResources>();
+	// Choir apparatus has no independent operating demand. Each ability joins
+	// the shared work bundle with its own exact resource and quantity inputs.
+	if (power)
+		for (const auto &[id, choir] : definition(ship).psychic.choirs)
+			if (const auto fit = instance(entity, id); fit && fit->entity.has<ResourceBinding>())
+				request_system_resource(*power, fit->entity.get<ResourceBinding>().slot, 0, false, 0);
+	for (const auto &[key, grant] : entity.get<AbilityRuntime>().grants)
 	{
-		const auto fit = instance(entities.at(ship), apparatus);
-		if (!fit || !fit->entity.has<ResourceBinding>())
+		if (!ability_running(grant) || !ability_apparatus_blocker(ship, grant).empty())
 			continue;
-		const auto slot = fit->entity.get<ResourceBinding>().slot;
-		const auto old = power->requests.at(slot);
-		request_system_resource(*power, slot, old.duty_permille, old.discrete, old.extra_rate + amount,
-		                        old.discrete_amount);
+		const auto &ability = definition(ship).abilities.catalog->definitions.at(grant.definition);
+		auto costs = ability.costs;
+		const auto preparing = grant.phase == "preparing" || grant.resume_phase == "preparing";
+		const auto energy = preparing ? ability.preparation_energy_per_second : ability.energy_per_second;
+		if (energy)
+		{
+			const auto fit = instance(entity, grant.apparatus);
+			if (!power || !fit || !fit->entity.has<ResourceBinding>())
+				continue;
+			const auto slot = fit->entity.get<ResourceBinding>().slot;
+			const auto reserve = power->definition.systems.at(slot).store;
+			const auto &store = power->network.definition().stores.at(reserve);
+			EffectCostDefinition cost;
+			cost.payer = "subject";
+			cost.equipment = grant.apparatus;
+			cost.store = "energy:" + store.id;
+			cost.resource = store.resource;
+			cost.amount = energy;
+			costs.push_back(std::move(cost));
+		}
+		stage_ability_upkeep(ship, grant, ability, costs);
 	}
 }
-bool reject_unfunded_abilities(flecs::entity ship, const ShipResourceAllocation &allocation)
+std::optional<std::int64_t> ability_completed_work(const RuleActor &actor, const std::string &family) const
 {
-	bool removed = false;
-	const auto id = ship.get<StableId>().id;
-	auto &power = ship.get_mut<ShipResources>();
-	for (auto &[key, g] : ship.get_mut<AbilityRuntime>().grants)
-	{
-		if (!ability_running(g) || g.funding_blocked || g.apparatus.empty() ||
-		    !ability_apparatus_blocker(id, g).empty())
-			continue;
-		const auto &d = definition(id).abilities.catalog->definitions.at(g.definition);
-		const auto amount = g.phase == "preparing" || g.resume_phase == "preparing" ? d.preparation_energy_per_second
-		                                                                            : d.energy_per_second;
-		if (!amount || d.shortage == "proportional")
-			continue;
-		const auto fit = instance(ship, g.apparatus);
-		if (!fit || !fit->entity.has<ResourceBinding>())
-			continue;
-		const auto slot = fit->entity.get<ResourceBinding>().slot;
-		const auto &grant = allocation.grants().at(slot);
-		if (grant.blocked || grant.supply_permille < 1000)
-		{
-			auto &request = power.requests.at(slot);
-			if (request.extra_rate < amount)
-				throw std::runtime_error("Ability operating request lost its owner");
-			request.extra_rate -= amount;
-			g.funding_blocked = true;
-			removed = true;
-		}
-	}
-	return removed;
+	const auto entity = rule_entity(actor);
+	const auto *runtime = entity ? entity.try_get<AbilityRuntime>() : nullptr;
+	if (!runtime || runtime->work_tick != ecs.get<Clock>().tick)
+		return {};
+	std::int64_t output = 0;
+	for (const auto &work : runtime->work)
+		if ((family.empty() || family == work.family) &&
+		    (actor.officer.empty() || (work.source == "officer" && work.owner == actor.officer)) &&
+		    (actor.equipment.empty() || (work.source == "equipment" && work.owner == actor.equipment)))
+			output += work.output;
+	return output;
 }
 void refresh_ability_work(bool advance = true)
 {
@@ -725,27 +750,26 @@ void refresh_ability_work(bool advance = true)
 		auto *runtime = entity.try_get_mut<AbilityRuntime>();
 		if (!runtime)
 			continue;
+		if (advance)
+		{
+			runtime->work.clear();
+			runtime->work_tick = ecs.get<Clock>().tick;
+		}
 		std::vector<std::string> completed;
 		for (auto &[key, g] : runtime->grants)
 		{
 			g.output_permille = 0;
-			g.funding_permille = 0;
+			if (advance)
+				g.funding_permille = 0;
 			g.fault_permille = 0;
 			if (!ability_running(g) || !ability_apparatus_blocker(ship, g).empty())
 				continue;
 			const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
 			const auto preparing = g.phase == "preparing" || g.resume_phase == "preparing";
-			const auto demand = preparing ? d.preparation_energy_per_second : d.energy_per_second;
-			std::int64_t funding = demand ? 0 : 1000;
+			const auto funding = advance ? ability_upkeep_output(ship, key) : g.funding_permille;
 			std::int64_t faults = 1000;
 			if (!g.apparatus.empty())
-			{
-				const auto fit = instance(entity, g.apparatus);
-				if (fit && fit->entity.has<ResourceBinding>())
-					if (const auto *power = entity.try_get<ShipResources>())
-						funding = power->grants.at(fit->entity.get<ResourceBinding>().slot).supply_permille;
 				faults = fault_effectiveness(entity, g.apparatus);
-			}
 			if ((g.funding_blocked || funding < 1000) && d.shortage != "proportional")
 			{
 				if (advance && d.shortage == "stop")
@@ -779,6 +803,9 @@ void refresh_ability_work(bool advance = true)
 				g.funding_permille = funding;
 				g.fault_permille = faults;
 				g.output_permille = funding * faults / 1000;
+				if (advance && g.output_permille)
+					runtime->work.push_back(
+					    {g.source, g.owner, d.family, g.definition, g.activation, g.output_permille});
 			}
 		}
 		for (const auto &key : completed)
@@ -786,12 +813,7 @@ void refresh_ability_work(bool advance = true)
 			auto *g = ability_execution(ship, key);
 			if (!g)
 				continue;
-			ConsoleContacts cache;
-			const auto *c = resolve_ability_control(ship, *g);
-			if (c && ability_blocker(ship, *c, *g, g->target, cache).empty())
-				activate_ability(ship, key);
-			else
-				stop_ability(ship, entity.get_mut<AbilityRuntime>(), entity.get_mut<AbilityRuntime>().grants.at(key));
+			activate_ability(ship, key);
 		}
 	}
 }

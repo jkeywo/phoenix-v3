@@ -38,6 +38,7 @@ import phoenix.gameplay_scenario;
 #include "controllers.hpp"
 #include "payload_state.hpp"
 #include "rules_state.hpp"
+#include "custom_properties_state.hpp"
 #include "combat.hpp"
 #include "directed_state.hpp"
 #include "logistics_state.hpp"
@@ -157,6 +158,8 @@ struct FactionMembership
 };
 struct CompiledDefinition
 {
+	CustomPropertyState properties;
+	std::map<std::string, CustomPropertyState> equipment_properties, officer_properties, compartment_properties;
 	std::string faction;
 	std::optional<CombatDefinition> combat;
 	std::optional<DestructionDefinition> destruction;
@@ -272,6 +275,7 @@ struct World::Impl
 	std::map<std::string, EffectGroupDefinition> effect_groups;
 	std::map<std::string, AbilityGrantDefinition> ability_grant_templates;
 	SharedResourceCatalogue resource_catalogue;
+	SharedPropertyCatalog property_catalogue;
 	std::uint64_t next_shield_hit = 1;
 	std::map<std::string, std::vector<std::string>> camera_widgets;
 	std::string map;
@@ -570,34 +574,45 @@ struct World::Impl
 			            }
 			            collisions.clear();
 		            });
-		index_contacts = ecs.system<const StableId, const Pose>("IndexContacts")
-		                     .kind(0)
-		                     .run(
-		                         [this](flecs::iter &it)
-		                         {
-			                         contact_rows.clear();
-			                         contact_boxes.clear();
-			                         while (it.next())
-			                         {
-				                         auto ids = it.field<const StableId>(0);
-				                         auto poses = it.field<const Pose>(1);
-				                         for (auto row : it)
-				                         {
-					                         if (combat_dead(it.entity(row)))
-						                         continue;
-					                         contact_rows.push_back({ids[row].id, it.entity(row), poses[row].position});
-					                         const auto &shape = definition(ids[row].id).collider;
-					                         contact_boxes.push_back(Bounds::around(
-					                             poses[row].position,
-					                             shape.box ? shape.half_width + shape.half_length : shape.radius));
-				                         }
-			                         }
-			                         contact_index.rebuild(contact_boxes);
-		                         });
+		index_contacts =
+		    ecs.system<const StableId, const Pose>("IndexContacts")
+		        .kind(0)
+		        .run(
+		            [this](flecs::iter &it)
+		            {
+			            contact_rows.clear();
+			            contact_boxes.clear();
+			            while (it.next())
+			            {
+				            auto ids = it.field<const StableId>(0);
+				            auto poses = it.field<const Pose>(1);
+				            for (auto row : it)
+				            {
+					            if (combat_dead(it.entity(row)))
+						            continue;
+					            contact_rows.push_back({ids[row].id, it.entity(row), poses[row].position});
+				            }
+			            }
+			            // Spatial ties must not inherit Flecs table order: attaching or
+			            // retiring effects can move bodies between tables after restore.
+			            std::sort(contact_rows.begin(), contact_rows.end(),
+			                      [](const auto &a, const auto &b)
+			                      {
+				                      return a.id < b.id;
+			                      });
+			            for (const auto &contact : contact_rows)
+			            {
+				            const auto &shape = definition(contact.id).collider;
+				            contact_boxes.push_back(Bounds::around(
+				                contact.position, shape.box ? shape.half_width + shape.half_length : shape.radius));
+			            }
+			            contact_index.rebuild(contact_boxes);
+		            });
 	}
 	void compile(const Catalog &source, const DirectedCatalog &directed_catalog)
 	{
 		const auto content = convert_controller_content(source, directed_catalog);
+		property_catalogue = compile_property_catalog(content);
 		const auto ability_catalog = compile_ability_catalog(content);
 		rule_templates = compile_rule_catalog(content);
 		native_effect_rules = compile_effect_rules(content, rule_templates);
@@ -632,6 +647,20 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
+			result.properties.bases = compile_property_bindings(*property_catalogue, definition, "entities." + name);
+			for (const auto &[key, fit] : definition.at("systems").items())
+				result.equipment_properties[key].bases =
+				    compile_property_bindings(*property_catalogue, fit, "entities." + name + ".systems." + key);
+			if (definition.contains("personnel") && definition.at("personnel").is_object())
+				for (const auto &officer : definition.at("personnel").value("officers", Json::array()))
+					result.officer_properties[officer.at("id").get<std::string>()].bases =
+					    compile_property_bindings(*property_catalogue, officer, "entities." + name + ".officers");
+			if (definition.contains("combat"))
+				for (const auto &deck : definition.at("combat").value("decks", Json::array()))
+					for (const auto &compartment : deck.at("compartments"))
+						result.compartment_properties[compartment.at("id").get<std::string>()].bases =
+						    compile_property_bindings(*property_catalogue, compartment,
+						                              "entities." + name + ".compartments");
 			result.combat = compile_combat(content, name, directed_catalog, rule_templates);
 			if (result.combat)
 				result.destruction = result.combat->destruction;
@@ -948,7 +977,8 @@ struct World::Impl
 		                  .set<Definition>({definition, data.radar_icon, data.radar_sprite})
 		                  .set<Pose>(pose)
 		                  .set<Motion>({})
-		                  .set<Collider>(data.collider);
+		                  .set<Collider>(data.collider)
+		                  .set<CustomPropertyState>(data.properties);
 		// Before the boundary index owns the ship, exceptions must also dispose
 		// of any equipment children already constructed through ChildOf.
 		struct Construction
@@ -1034,6 +1064,7 @@ struct World::Impl
 			const auto &v = templates[i];
 			auto child =
 			    ecs.entity().child_of(entity).set<Equipment>({v.id, v.kind, i, v.maximum, v.advanced, v.enabled});
+			child.set<CustomPropertyState>(data.equipment_properties.at(v.id));
 			index.values.push_back(child);
 			index.by_id.emplace(v.id, child);
 			if (data.combat && data.combat->system_ids.contains(v.id))
@@ -1130,6 +1161,15 @@ struct World::Impl
 			}
 		entity.set<BridgeBlackboard>(std::move(board));
 		entity.set<PersonnelState>(initial_personnel(data.personnel));
+		for (std::size_t i = 0; i < data.personnel.officers.size(); ++i)
+			if (const auto at = data.officer_properties.find(data.personnel.officers[i].id);
+			    at != data.officer_properties.end())
+				entity.get_mut<PersonnelState>().officers[i].properties = at->second;
+		if (auto *structure = entity.try_get_mut<CombatStructure>())
+			for (std::size_t i = 0; i < structure->compartments.size(); ++i)
+				if (const auto at = data.compartment_properties.find(structure->definition.compartments[i].id);
+				    at != data.compartment_properties.end())
+					structure->compartments[i].properties = at->second;
 		initialise_abilities(entity);
 		for (const auto &[choir, d] : data.psychic.choirs)
 		{
@@ -2067,6 +2107,7 @@ struct World::Impl
 
 #include "directed.hpp"
 #include "combat_execution.hpp"
+#include "custom_properties.hpp"
 #include "property_effects.hpp"
 #include "effect_application.hpp"
 #include "store_effects.hpp"
@@ -2135,7 +2176,6 @@ struct World::Impl
 				auto *power = ship.try_get_mut<ShipResources>();
 				if (!allocation)
 					continue;
-				removed = reject_unfunded_abilities(ship, *allocation) || removed;
 				for (auto child : ship.get<EquipmentIndex>().values)
 				{
 					const auto &equipment = child.get<Equipment>();
@@ -2169,11 +2209,12 @@ struct World::Impl
 					}
 				}
 			}
-			removed = prepare_rule_upkeep_payments(allocations) || removed;
+			removed = prepare_rule_upkeep_payments(allocations, removed) || removed;
 			if (!removed)
 				break;
 			for (const auto &[id, ship] : ships)
 				retry_blocked_processors(ship);
+			request_rule_upkeep();
 		}
 		// No native allocation is committed until every dependent upkeep quote is final.
 		if (!commit_rule_upkeep_stocks())
@@ -4181,8 +4222,9 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 28},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 29},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
+	result["custom_properties"] = impl_->save_custom_properties();
 	result["rules"] = impl_->save_rules();
 	result["active_effects"] = impl_->save_active_modifiers();
 	result["active_effects"]["conditions"] = impl_->active_rule_snapshot();
@@ -4339,8 +4381,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 28)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 28 required)");
+	if (saved.at("schema") != 29)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 29 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4715,6 +4757,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			departure_reports.emplace(id, report);
 			departed_ships.insert(id);
 		}
+	candidate.impl_->suppress_custom_property_events = true;
+	candidate.impl_->restore_custom_properties(saved.at("custom_properties"));
 	candidate.impl_->restore_active_modifiers(saved.at("active_effects"));
 	candidate.impl_->restore_abilities(saved.at("abilities"), departed_ships);
 	candidate.impl_->refresh_ability_work(false);
@@ -4727,6 +4771,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_projectiles(saved);
 	candidate.impl_->restore_rules(saved.at("rules"), saved.at("active_effects").at("conditions"),
 	                               saved.at("active_effects").at("next_condition"));
+	candidate.impl_->suppress_custom_property_events = false;
 
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});

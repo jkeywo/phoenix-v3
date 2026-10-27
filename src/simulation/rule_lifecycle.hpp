@@ -222,6 +222,43 @@ std::string rule_application_equipment(const NativeRuleContext &context, const s
 	           ? "effect:" + std::to_string(actor.contribution) + ":" + actor.contribution_name
 	           : actor.equipment;
 }
+std::string rule_operation_equipment(const NativeRuleContext &context, const EffectOperation &operation) const
+{
+	if (modifier_templates.contains(operation.effect))
+	{
+		const auto &definition = modifier_templates.at(operation.effect);
+		const bool custom = std::any_of(definition.contributions.begin(), definition.contributions.end(),
+		                                [&](const auto &row)
+		                                {
+			                                return property_catalogue->contains(row.property);
+		                                });
+		if (custom)
+		{
+			auto actor = rule_actor(context, operation.target);
+			if (!operation.officer.empty())
+			{
+				actor.equipment.clear();
+				actor.officer = operation.officer;
+				actor.compartment = -1;
+			}
+			if (operation.equipment.empty())
+				return custom_modifier_target(actor);
+			if (operation.equipment.front() == '$' && operation.equipment != "$hit")
+				return custom_modifier_target(rule_actor(context, operation.equipment.substr(1)));
+		}
+	}
+	return rule_application_equipment(context, operation.equipment);
+}
+void capture_rule_custom_targets(const RuleDefinition &rule, const NativeRuleContext &context)
+{
+	for (const auto &operation : rule.effects.operations)
+		if (operation.kind == EffectOperationKind::Apply && modifier_templates.contains(operation.effect))
+		{
+			const auto actor = rule_actor(context, operation.target);
+			capture_custom_property_owner(custom_property_address(
+			    custom_property_actor(actor.entity, rule_operation_equipment(context, operation))));
+		}
+}
 bool same_rule_application(const RuleDefinition &rule, const NativeRuleContext &previous,
                            const NativeRuleContext &current) const
 {
@@ -239,8 +276,8 @@ bool same_rule_application(const RuleDefinition &rule, const NativeRuleContext &
 				after.equipment.clear();
 				after.officer.clear();
 			}
-			if (before != after || rule_application_equipment(previous, operation.equipment) !=
-			                           rule_application_equipment(current, operation.equipment))
+			if (before != after ||
+			    rule_operation_equipment(previous, operation) != rule_operation_equipment(current, operation))
 				return false;
 			if (modifier_templates.contains(operation.effect) &&
 			    (previous.property_filter != current.property_filter ||
@@ -260,7 +297,7 @@ bool maintained_modifier_exists(const RuleExecutionState &state, const EffectOpe
 	const auto *properties = owner->second.try_get<PropertyEffectOwner>();
 	if (!properties)
 		return false;
-	const auto equipment = rule_application_equipment(state.context, operation.equipment);
+	const auto equipment = rule_operation_equipment(state.context, operation);
 	const auto at = properties->grants.find({state.key + "." + operation.grant, equipment});
 	return at != properties->grants.end() && at->second.get<ActiveEffectIdentity>().definition == operation.effect;
 }
@@ -290,7 +327,7 @@ void withdraw_rule_grants(RuleExecutionState &state)
 				applied_actor.equipment.clear();
 			applied_actor.officer.clear();
 			const auto source = state.key + "." + operation.grant;
-			const auto equipment = rule_application_equipment(state.applied_context, operation.equipment);
+			const auto equipment = rule_operation_equipment(state.applied_context, operation);
 			if (const auto owner = entities.find(actor.entity); owner != entities.end() && !actor.ordnance)
 			{
 				if (auto *shields = owner->second.try_get_mut<ShieldComponent>();
@@ -435,6 +472,7 @@ RuleExecutionState *ensure_rule_execution(const NativeRuleSource &source, const 
 }
 void erase_rule_execution(const std::string &key)
 {
+	erase_custom_property_rate_source(key);
 	const auto found = rule_clock_addresses.find(key);
 	if (found == rule_clock_addresses.end())
 		return;
@@ -514,7 +552,10 @@ void retire_active_rule_effects()
 	std::erase_if(rule_origins,
 	              [&](const auto &entry)
 	              {
-		              return !rule_origin_live(entry.first);
+		              if (rule_origin_live(entry.first))
+			              return false;
+		              erase_custom_native_property_rates(std::get<0>(entry.first), std::get<2>(entry.first));
+		              return true;
 	              });
 }
 void prepare_rule_sources()
@@ -524,6 +565,7 @@ void prepare_rule_sources()
 	retire_active_rule_effects();
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	const auto sources = lifecycle_rule_sources();
+	prune_custom_property_rates(sources);
 	std::set<std::string> seen;
 	std::vector<FrozenRuleSourceFrame> frames;
 	for (const auto &source : sources)
@@ -565,6 +607,7 @@ void prepare_rule_sources()
 			retire_rule_state(*state, true);
 		erase_rule_execution(key);
 	}
+	prune_custom_property_rates(sources);
 	for (auto &frame : frames)
 	{
 		auto *state = find_rule_execution(frame.key);
@@ -633,8 +676,12 @@ void prepare_rule_sources()
 		}
 		if (frame.evaluation.status != RuleEvaluationStatus::Ready)
 		{
+			begin_custom_property_batch();
+			if (rule.phase == RulePhase::Maintained)
+				capture_rule_custom_targets(rule, state->context);
 			if (rule.phase != RulePhase::Periodic)
 				state->output = 0;
+			finish_custom_property_batch();
 			state->blocker = frame.evaluation.status == RuleEvaluationStatus::Invalid
 			                     ? "Invalid rule arithmetic or missing fact"
 			                     : "";
@@ -642,6 +689,8 @@ void prepare_rule_sources()
 		}
 		if (rule.phase == RulePhase::Maintained && state->last != now)
 		{
+			begin_custom_property_batch();
+			capture_rule_custom_targets(rule, state->context);
 			const bool entry =
 			    !frame.evaluation.quote.effects.costs.empty() || frame.evaluation.quote.effects.energy > 0;
 			bool failed_entry = false;
@@ -667,7 +716,10 @@ void prepare_rule_sources()
 				// Transactions can replace an active effect component: reacquire by logical key.
 				state = find_rule_execution(frame.key);
 				if (!state)
+				{
+					finish_custom_property_batch();
 					continue;
+				}
 				state->blocker = failure;
 				if (failure.empty())
 				{
@@ -684,6 +736,7 @@ void prepare_rule_sources()
 			else
 				state->output = 0;
 			state->last = now;
+			finish_custom_property_batch();
 			if (failed_entry)
 				continue;
 		}
@@ -708,7 +761,9 @@ void refresh_rule_eligibility()
 		const auto before_active = active_rule_index.size();
 		retire_active_rule_effects();
 		std::map<std::string, bool> available;
-		for (const auto &source : lifecycle_rule_sources())
+		const auto sources = lifecycle_rule_sources();
+		prune_custom_property_rates(sources);
+		for (const auto &source : sources)
 			available.emplace(source.key, source.eligible);
 		std::vector<std::string> keys;
 		for (const auto &[key, address] : rule_clock_addresses)
@@ -729,6 +784,7 @@ void refresh_rule_eligibility()
 					*remaining = std::move(retired);
 			}
 		}
+		prune_custom_property_rates(sources);
 		rebuild_rule_clock_addresses();
 		if (before_epoch == effect_commit_epoch && before_clocks == rule_clock_addresses.size() &&
 		    before_active == active_rule_index.size())

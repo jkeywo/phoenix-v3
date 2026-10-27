@@ -399,6 +399,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("effects", result.effects);
 		add("resources", result.resources);
 		add("recipes", result.recipes);
+		add("properties", result.properties);
 		if (definitions.contains("knowledge"))
 		{
 			const auto &knowledge = definitions.at("knowledge");
@@ -450,6 +451,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(result.effects, "effects");
 	inherit_definitions(result.resources, "resources");
 	inherit_definitions(result.recipes, "recipes");
+	inherit_definitions(result.properties, "properties");
+	(void)compile_property_catalog(result);
 	(void)compile_resource_catalog(result);
 	(void)compile_recipe_catalog(result);
 	(void)compile_ability_catalog(result);
@@ -693,6 +696,8 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		invalid("presentation", "selection bundle cannot contain Console UI definitions");
 	(void)compile_resource_catalog(catalog);
 	(void)compile_recipe_catalog(catalog);
+	(void)compile_property_catalog(catalog);
+	verify_property_bindings(catalog);
 	for (const auto &[id, effect] : catalog.effects)
 		if (const auto kind = effect.value("kind", std::string{});
 		    kind != "ability" && kind != "psychic" && kind != "rule")
@@ -701,7 +706,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
 	     !catalog.messages.empty() || !catalog.effects.empty() || !catalog.resources.empty() ||
-	     !catalog.recipes.empty() || !catalog.knowledge.empty() ||
+	     !catalog.recipes.empty() || !catalog.properties.empty() || !catalog.knowledge.empty() ||
 	     (catalog.selection ? (!catalog.entities.empty() || !catalog.consoles.empty() || !catalog.assets.empty())
 	                        : catalog.entities.size() != 1)))
 		invalid("presentation", "expected one own-ship definition without maps or controllers");

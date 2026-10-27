@@ -185,6 +185,38 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		values[binding.fields[ControllerAbilityField::Output]] = Value::integer(output);
 		values[binding.fields[ControllerAbilityField::Blocked]] = Value::boolean(blocked);
 		values[binding.fields[ControllerAbilityField::Requested]] = Value::boolean(requested);
+		for (const auto &property : binding.properties)
+		{
+			values.at(property.destination) = {};
+			const Json *rows = nullptr;
+			if (facts != observation.gameplay.end() && facts->contains(binding.endpoint))
+			{
+				const auto &fact = facts->at(binding.endpoint);
+				if (fact.contains("properties"))
+					rows = &fact.at("properties");
+			}
+			else if (const auto board = observation.gameplay.find("abilities"); board != observation.gameplay.end())
+				for (const auto &row : *board)
+					if (row.at("control") == binding.endpoint && row.contains("properties"))
+					{
+						rows = &row.at("properties");
+						break;
+					}
+			if (!rows)
+				continue;
+			for (const auto &row : *rows)
+				if (row.at("id") == property.property)
+				{
+					const auto &value = row.at("value");
+					if (property.type == state_tree::Type::Boolean && value.is_boolean())
+						values.at(property.destination) = Value::boolean(value.get<bool>());
+					else if (property.type == state_tree::Type::Text && value.is_string())
+						values.at(property.destination) = Value::string(value.get<std::string>());
+					else if (property.type == state_tree::Type::Integer && value.is_number_integer())
+						values.at(property.destination) = Value::integer(value.get<std::int64_t>());
+					break;
+				}
+		}
 	}
 	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
 	values[brain.own[ControllerOwnField::Y]] = Value::integer(observation.own.y);

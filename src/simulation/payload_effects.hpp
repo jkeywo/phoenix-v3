@@ -39,6 +39,10 @@ flecs::entity active_rule_entity(std::uint64_t id) const
 }
 void erase_active_rule_effect(flecs::entity entity)
 {
+	const auto &retired = entity.get<ActiveRuleEffect>();
+	erase_custom_native_property_rates(retired.context.target, retired.source);
+	for (const auto &[key, state] : retired.clocks)
+		erase_custom_property_rate_source(key);
 	rule_clock_capacity_cache.reset();
 	active_rule_index.erase(entity.get<ActiveRuleEffect>().id);
 	entity.destruct();

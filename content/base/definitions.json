@@ -14648,7 +14648,41 @@
 						"duty": "choir-phantoms",
 						"compartment": "bridge",
 						"traits": [],
-						"abilities": ["base.ability.phantoms"]
+						"abilities": ["base.ability.phantoms"],
+						"properties": {
+							"base.psychic.strain": {},
+							"base.psychic.capacity": {},
+							"base.psychic.gain_rate": {},
+							"base.psychic.recovery_rate": {},
+							"base.psychic.resume": {},
+							"base.psychic.state": {}
+						},
+						"rules": [
+							{
+								"id": "strain-0",
+								"rule": "base.psychic.strain-00-gain",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-1",
+								"rule": "base.psychic.strain-01-rest",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-2",
+								"rule": "base.psychic.strain-02-overload",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-3",
+								"rule": "base.psychic.strain-03-resume",
+								"target": "owner",
+								"eligibility": "lifetime"
+							}
+						]
 					},
 					{
 						"id": "choir-ward",
@@ -14658,7 +14692,41 @@
 						"duty": "choir-ward",
 						"compartment": "bridge",
 						"traits": [],
-						"abilities": ["base.ability.ward"]
+						"abilities": ["base.ability.ward"],
+						"properties": {
+							"base.psychic.strain": {},
+							"base.psychic.capacity": {},
+							"base.psychic.gain_rate": {},
+							"base.psychic.recovery_rate": {},
+							"base.psychic.resume": {},
+							"base.psychic.state": {}
+						},
+						"rules": [
+							{
+								"id": "strain-0",
+								"rule": "base.psychic.strain-00-gain",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-1",
+								"rule": "base.psychic.strain-01-rest",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-2",
+								"rule": "base.psychic.strain-02-overload",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-3",
+								"rule": "base.psychic.strain-03-resume",
+								"target": "owner",
+								"eligibility": "lifetime"
+							}
+						]
 					},
 					{
 						"id": "repair-team-1.leader",
@@ -29521,7 +29589,41 @@
 						"duty": "choir-veil",
 						"compartment": "mid-port",
 						"traits": [],
-						"abilities": ["base.ability.veil"]
+						"abilities": ["base.ability.veil"],
+						"properties": {
+							"base.psychic.strain": {},
+							"base.psychic.capacity": {},
+							"base.psychic.gain_rate": {},
+							"base.psychic.recovery_rate": {},
+							"base.psychic.resume": {},
+							"base.psychic.state": {}
+						},
+						"rules": [
+							{
+								"id": "strain-0",
+								"rule": "base.psychic.strain-00-gain",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-1",
+								"rule": "base.psychic.strain-01-rest",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-2",
+								"rule": "base.psychic.strain-02-overload",
+								"target": "owner",
+								"eligibility": "lifetime"
+							},
+							{
+								"id": "strain-3",
+								"rule": "base.psychic.strain-03-resume",
+								"target": "owner",
+								"eligibility": "lifetime"
+							}
+						]
 					}
 				],
 				"casualties": {
@@ -63767,7 +63869,29 @@
 			"recovery_on": "stop",
 			"shortage": "proportional",
 			"psychic_effect": "base.psychic.phantoms",
-			"require_healthy": true
+			"require_healthy": true,
+			"family": "psychic",
+			"requirements": {
+				"op": "eq",
+				"args": [
+					{
+						"fact": "owner.property",
+						"property": "base.psychic.state",
+						"view": "effective"
+					},
+					{
+						"value": "ready",
+						"enum": "base.psychic.state"
+					}
+				]
+			},
+			"requirement_failure": "end_retain_intent",
+			"observations": [
+				"base.psychic.strain",
+				"base.psychic.capacity",
+				"base.psychic.resume",
+				"base.psychic.state"
+			]
 		},
 		{
 			"label": "Psychic ward",
@@ -63787,7 +63911,29 @@
 			"recovery_on": "stop",
 			"shortage": "proportional",
 			"psychic_effect": "base.psychic.ward",
-			"require_healthy": true
+			"require_healthy": true,
+			"family": "psychic",
+			"requirements": {
+				"op": "eq",
+				"args": [
+					{
+						"fact": "owner.property",
+						"property": "base.psychic.state",
+						"view": "effective"
+					},
+					{
+						"value": "ready",
+						"enum": "base.psychic.state"
+					}
+				]
+			},
+			"requirement_failure": "end_retain_intent",
+			"observations": [
+				"base.psychic.strain",
+				"base.psychic.capacity",
+				"base.psychic.resume",
+				"base.psychic.state"
+			]
 		},
 		{
 			"label": "Veil",
@@ -63807,7 +63953,29 @@
 			"recovery_on": "stop",
 			"shortage": "proportional",
 			"psychic_effect": "base.psychic.veil",
-			"require_healthy": true
+			"require_healthy": true,
+			"family": "psychic",
+			"requirements": {
+				"op": "eq",
+				"args": [
+					{
+						"fact": "owner.property",
+						"property": "base.psychic.state",
+						"view": "effective"
+					},
+					{
+						"value": "ready",
+						"enum": "base.psychic.state"
+					}
+				]
+			},
+			"requirement_failure": "end_retain_intent",
+			"observations": [
+				"base.psychic.strain",
+				"base.psychic.capacity",
+				"base.psychic.resume",
+				"base.psychic.state"
+			]
 		},
 		{
 			"id": "base.modifier.propulsion.p200.officer-apply",
@@ -64018,6 +64186,252 @@
 			"trigger": "maintain",
 			"phase": "maintained",
 			"effect": "base.modifier.security.p200.officer-apply"
+		},
+		{
+			"id": "base.psychic.strain-gain",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "property_rate",
+					"target": "owner",
+					"property": "base.psychic.strain",
+					"amount": 0,
+					"saturate": true
+				}
+			]
+		},
+		{
+			"id": "base.psychic.strain-rest",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "property_rate",
+					"target": "owner",
+					"property": "base.psychic.strain",
+					"amount": 0,
+					"saturate": true
+				}
+			]
+		},
+		{
+			"id": "base.psychic.strain-overload",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "property_set",
+					"target": "owner",
+					"property": "base.psychic.strain",
+					"value": 0
+				},
+				{
+					"kind": "property_set",
+					"target": "owner",
+					"property": "base.psychic.state",
+					"value": "recovering"
+				}
+			]
+		},
+		{
+			"id": "base.psychic.strain-resume",
+			"kind": "operations",
+			"operations": [
+				{
+					"kind": "property_set",
+					"target": "owner",
+					"property": "base.psychic.state",
+					"value": "ready"
+				}
+			]
+		},
+		{
+			"id": "base.psychic.strain-00-gain",
+			"kind": "rule",
+			"label": "Psychic strain",
+			"trigger": "tick",
+			"phase": "periodic",
+			"period_ticks": 1,
+			"effect": "base.psychic.strain-gain",
+			"when": {
+				"op": "gt",
+				"args": [
+					{
+						"fact": "owner.completed_work",
+						"family": "psychic"
+					},
+					{
+						"value": 0,
+						"unit": "permille"
+					}
+				]
+			},
+			"values": {
+				"0": {
+					"amount": {
+						"op": "ratio",
+						"args": [
+							{
+								"fact": "owner.completed_work",
+								"family": "psychic"
+							},
+							{
+								"value": 1000,
+								"unit": "permille"
+							},
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.gain_rate",
+								"view": "effective"
+							}
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "base.psychic.strain-01-rest",
+			"kind": "rule",
+			"label": "Psychic strain",
+			"trigger": "tick",
+			"phase": "periodic",
+			"period_ticks": 1,
+			"effect": "base.psychic.strain-rest",
+			"when": {
+				"op": "eq",
+				"args": [
+					{
+						"fact": "owner.completed_work",
+						"family": "psychic"
+					},
+					{
+						"value": 0,
+						"unit": "permille"
+					}
+				]
+			},
+			"values": {
+				"0": {
+					"amount": {
+						"op": "multiply",
+						"args": [
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.recovery_rate",
+								"view": "effective"
+							},
+							-1
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "base.psychic.strain-02-overload",
+			"kind": "rule",
+			"label": "Psychic strain",
+			"trigger": "tick",
+			"phase": "periodic",
+			"period_ticks": 1,
+			"effect": "base.psychic.strain-overload",
+			"when": {
+				"op": "all",
+				"args": [
+					{
+						"op": "ge",
+						"args": [
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.strain",
+								"view": "base"
+							},
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.capacity",
+								"view": "effective"
+							}
+						]
+					},
+					{
+						"op": "ne",
+						"args": [
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.state",
+								"view": "base"
+							},
+							{
+								"value": "recovering",
+								"enum": "base.psychic.state"
+							}
+						]
+					}
+				]
+			},
+			"values": {
+				"0": {
+					"value": {
+						"fact": "owner.property",
+						"property": "base.psychic.capacity",
+						"view": "effective"
+					}
+				}
+			}
+		},
+		{
+			"id": "base.psychic.strain-03-resume",
+			"kind": "rule",
+			"label": "Psychic strain",
+			"trigger": "tick",
+			"phase": "periodic",
+			"period_ticks": 1,
+			"effect": "base.psychic.strain-resume",
+			"when": {
+				"op": "all",
+				"args": [
+					{
+						"op": "eq",
+						"args": [
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.state",
+								"view": "base"
+							},
+							{
+								"value": "recovering",
+								"enum": "base.psychic.state"
+							}
+						]
+					},
+					{
+						"op": "le",
+						"args": [
+							{
+								"fact": "owner.property",
+								"property": "base.psychic.strain",
+								"view": "base"
+							},
+							{
+								"op": "ratio",
+								"args": [
+									{
+										"fact": "owner.property",
+										"property": "base.psychic.resume",
+										"view": "effective"
+									},
+									{
+										"value": 1000,
+										"unit": "permille"
+									},
+									{
+										"fact": "owner.property",
+										"property": "base.psychic.capacity",
+										"view": "effective"
+									}
+								]
+							}
+						]
+					}
+				]
+			}
 		}
 	],
 	"resources": [
@@ -67656,6 +68070,68 @@
 				"label": "Operations",
 				"min_width": 260,
 				"min_height": 320
+			}
+		}
+	],
+	"properties": [
+		{
+			"id": "base.psychic.strain",
+			"kind": "quantity",
+			"default": 0,
+			"label": "Psychic strain",
+			"unit": "psychic_strain",
+			"minimum": 0,
+			"maximum": 1000000000000,
+			"display_scale": 1000
+		},
+		{
+			"id": "base.psychic.capacity",
+			"kind": "attribute",
+			"default": 60000,
+			"label": "Strain capacity",
+			"unit": "psychic_strain",
+			"minimum": 1,
+			"maximum": 1000000000,
+			"display_scale": 1000
+		},
+		{
+			"id": "base.psychic.gain_rate",
+			"kind": "attribute",
+			"default": 2000,
+			"label": "Psychic strain gain",
+			"unit": "psychic_strain",
+			"minimum": 0,
+			"maximum": 1000000000,
+			"display_scale": 1000
+		},
+		{
+			"id": "base.psychic.recovery_rate",
+			"kind": "attribute",
+			"default": 4500,
+			"label": "Psychic strain recovery",
+			"unit": "psychic_strain",
+			"minimum": 0,
+			"maximum": 1000000000,
+			"display_scale": 1000
+		},
+		{
+			"id": "base.psychic.resume",
+			"kind": "attribute",
+			"default": 250,
+			"label": "Safe resume threshold",
+			"unit": "permille",
+			"minimum": 0,
+			"maximum": 1000,
+			"display_scale": 10
+		},
+		{
+			"id": "base.psychic.state",
+			"kind": "enum",
+			"default": "ready",
+			"label": "Psychic recovery state",
+			"choices": {
+				"ready": "Ready",
+				"recovering": "Recovering"
 			}
 		}
 	]

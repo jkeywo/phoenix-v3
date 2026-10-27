@@ -131,7 +131,7 @@ void invalid_contracts()
 	    {
 		    rule["energy"] = {{"fact", "source.property"}, {"property", "invented-property"}};
 	    },
-	    "unknown native property");
+	    "unknown property");
 	invalid(
 	    [](Json &rule)
 	    {
@@ -323,6 +323,70 @@ Json funding_leases()
 	}
 	return trace;
 }
+Json quantity_upkeep()
+{
+	Json trace = Json::array();
+	for (const auto fractional : {false, true})
+	{
+		auto source = runtime_fixture();
+		source["properties"] = Json::array({{{"id", "test.work.charge"},
+		                                     {"kind", "quantity"},
+		                                     {"default", 3},
+		                                     {"minimum", 2},
+		                                     {"maximum", 10},
+		                                     {"unit", "charge"}}});
+		auto &radar = source["entities"][0]["systems"]["radar"];
+		radar["properties"] = {{"test.work.charge", Json::object()}};
+		radar["rules"] = Json::array({{{"id", "paid"}, {"rule", "test.runtime.maintain"}}});
+		auto &rule = definition(source, "test.runtime.maintain");
+		Json costs = Json::array({{{"payer", "source"},
+		                           {"property", "test.work.charge"},
+		                           {"per_second", {{"value", fractional ? 1 : 10}, {"unit", "charge"}}}},
+		                          {{"payer", "target"},
+		                           {"store", "energy:cell"},
+		                           {"resource", "fixture.resource.energy"},
+		                           {"per_second", {{"value", 20}, {"unit", "resource:fixture.resource.energy"}}}}});
+		if (!fractional)
+			costs.push_back({{"payer", "target"},
+			                 {"property", "test.work.charge"},
+			                 {"per_second", {{"value", 10}, {"unit", "charge"}}}});
+		rule["funding"] = {{"shortage", "pause"}, {"costs", costs}};
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		advance(world);
+		const auto snapshot = world.save();
+		bool found = false;
+		for (const auto &row : snapshot.at("custom_properties"))
+			if (row.at("entity") == 1 && row.at("equipment") == "radar")
+			{
+				found = true;
+				require(row.at("values").at("test.work.charge") == 2,
+				        "upkeep consumes only spendable quantity above its authored minimum");
+			}
+		require(found && quantity(world) == 999, "mixed quantity and native electrical work commit one exact bundle");
+		World resumed;
+		resumed.restore(catalog, snapshot);
+		advance(world, 24);
+		advance(resumed, 24);
+		require(world.save() == resumed.save(), "quantity work credits restore with exact mixed-cost continuation");
+		require(quantity(world) == (fractional ? 980 : 999),
+		        "canonical quantity aliases coalesce and prepaid fractions bound electrical work before allocation");
+		const auto paused = contributions(world);
+		require(paused.size() == 1 && paused[0].at("delta_permille") == 0,
+		        "depleted property zeros the maintained contribution while pause retains its native grant identity");
+		bool stopped_output = false;
+		const auto depleted_snapshot = world.save();
+		for (const auto &owner : depleted_snapshot.at("rules").at("ships"))
+			if (owner.at("entity") == 1)
+				for (const auto &[key, state] : owner.at("state").at("executions").items())
+					if (state.at("binding") == "paid")
+						stopped_output = state.at("output") == 0 && state.at("lease_permille") == 0;
+		require(stopped_output, "depleted quantity leaves no unpaid maintained output or future paid lease");
+		trace.push_back(portable(world.save()));
+	}
+	return trace;
+}
 Json invalid_runtime_quote()
 {
 	auto source = runtime_fixture();
@@ -353,6 +417,144 @@ Json invalid_runtime_quote()
 	advance(world, 3);
 	advance(resumed, 3);
 	require(world.save() == resumed.save(), "uncommittable native rule remains deterministic across restore");
+	return portable(world.save());
+}
+Json retry_mixed_input_reservations()
+{
+	Json trace = Json::array();
+	for (const bool property : {false, true})
+		for (const auto &policy : {std::string("pause"), std::string("proportional")})
+		{
+			auto source = runtime_fixture();
+			auto &ship = source["entities"][0];
+			Json shared;
+			if (property)
+			{
+				source["properties"] = Json::array({{{"id", "test.work.charge"},
+				                                     {"kind", "quantity"},
+				                                     {"default", 1},
+				                                     {"maximum", 1},
+				                                     {"unit", "charge"}}});
+				ship["systems"]["radar"]["properties"] = {{"test.work.charge", Json::object()}};
+				shared = {{"payer", "target"},
+				          {"property", "test.work.charge"},
+				          {"per_second", {{"value", 20}, {"unit", "charge"}}}};
+			}
+			else
+			{
+				auto &mag = ship["systems"]["mag"];
+				mag["capacity"] = 1;
+				mag["initial"] = 1;
+				mag["ammunition_type"] = "test.runtime.supply";
+				mag["reload"] = {{"strategy", "none"}};
+				shared = {{"payer", "target"},
+				          {"store", "mag"},
+				          {"resource", "test.runtime.supply"},
+				          {"per_second", {{"value", 20}, {"unit", "resource:test.runtime.supply"}}}};
+			}
+			auto earlier = definition(source, "test.runtime.maintain");
+			earlier["id"] = "test.work.first";
+			earlier["funding"] = {
+			    {"shortage", policy},
+			    {"costs",
+			     Json::array({shared,
+			                  {{"payer", "target"},
+			                   {"store", "energy:marker"},
+			                   {"resource", "fixture.resource.energy"},
+			                   {"per_second", {{"value", 20}, {"unit", "resource:fixture.resource.energy"}}}}})}};
+			auto later = earlier;
+			later["id"] = "test.work.second";
+			later["funding"]["costs"][1]["store"] = "energy:cell";
+			source["effects"].push_back(earlier);
+			source["effects"].push_back(later);
+			ship["systems"]["radar"]["rules"] = Json::array(
+			    {{{"id", "a-first"}, {"rule", "test.work.first"}}, {{"id", "b-second"}, {"rule", "test.work.second"}}});
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			advance(world);
+			require(quantity(world) == 999 && quantity(world, 1) == 0,
+			        "an electrically unfunded earlier bundle releases its provisional input for a funded later bundle");
+			const auto saved = world.save();
+			if (property)
+			{
+				bool consumed = false;
+				for (const auto &row : saved.at("custom_properties"))
+					if (row.at("entity") == 1 && row.at("equipment") == "radar")
+						consumed = row.at("values").at("test.work.charge") == 0;
+				require(consumed, "retried funded bundle consumes the last shared quantity exactly once");
+			}
+			else
+			{
+				std::int64_t remaining = 0;
+				const auto saved_body = body(world);
+				for (const auto &[name, stock] : saved_body.at("stocks").items())
+					remaining += stock.at("quantities").value("test.runtime.supply", std::int64_t{0});
+				require(remaining == 0, "retried funded bundle consumes the last shared stock exactly once");
+			}
+			World resumed;
+			resumed.restore(catalog, saved);
+			advance(world);
+			advance(resumed);
+			const auto live = contributions(world);
+			require(live.size() == 1 && live[0].at("delta_permille") == 1000,
+			        "only the funded later bundle receives its next-phase maintained lease");
+			advance(world, 2);
+			advance(resumed, 2);
+			require(world.save() == resumed.save() && quantity(world) == 999,
+			        "allocation retries preserve exact credits and continuation without charging an unfunded bundle");
+			trace.push_back(portable(world.save()));
+		}
+	return trace;
+}
+Json retry_survivor_capacity()
+{
+	auto source = runtime_fixture();
+	auto &ship = source["entities"][0];
+	ship["resources"]["stores"][0]["discharge_rate"] = 100;
+	source["properties"] = Json::array(
+	    {{{"id", "test.work.charge"}, {"kind", "quantity"}, {"default", 100}, {"maximum", 100}, {"unit", "charge"}}});
+	ship["systems"]["radar"]["properties"] = {{"test.work.charge", Json::object()}};
+	const Json energy = {{"payer", "target"},
+	                     {"store", "energy:cell"},
+	                     {"resource", "fixture.resource.energy"},
+	                     {"per_second", {{"value", 100}, {"unit", "resource:fixture.resource.energy"}}}};
+	auto survivor = definition(source, "test.runtime.maintain");
+	survivor["id"] = "test.work.survivor";
+	survivor["funding"] = {{"shortage", "proportional"},
+	                       {"costs", Json::array({energy,
+	                                              {{"payer", "target"},
+	                                               {"property", "test.work.charge"},
+	                                               {"per_second", {{"value", 20}, {"unit", "charge"}}}}})}};
+	auto loser = survivor;
+	loser["id"] = "test.work.loser";
+	loser["funding"] = {{"shortage", "pause"}, {"costs", Json::array({energy})}};
+	source["effects"].push_back(survivor);
+	source["effects"].push_back(loser);
+	ship["systems"]["radar"]["rules"] = Json::array(
+	    {{{"id", "a-survivor"}, {"rule", "test.work.survivor"}}, {{"id", "b-loser"}, {"rule", "test.work.loser"}}});
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	advance(world);
+	require(quantity(world) == 995,
+	        "a proportional survivor uses all flow released by an indivisible competitor's rejection");
+	const auto saved = world.save();
+	bool paid_full = false;
+	for (const auto &owner : saved.at("rules").at("ships"))
+		if (owner.at("entity") == 1)
+			for (const auto &[key, state] : owner.at("state").at("executions").items())
+				if (state.at("binding") == "a-survivor")
+					paid_full = state.at("lease_permille") == 1000;
+	require(paid_full, "retired competitor resets provisional output cap before the survivor's final lease");
+	World resumed;
+	resumed.restore(catalog, saved);
+	advance(world, 3);
+	advance(resumed, 3);
+	const auto live = contributions(world);
+	require(world.save() == resumed.save() && quantity(world) == 980 && live.size() == 1 &&
+	            live[0].at("delta_permille") == 1000,
+	        "full survivor output, exact mixed payment and request-set convergence continue after restore");
 	return portable(world.save());
 }
 Json prepaid_inputs()
@@ -1077,6 +1279,9 @@ int main(int argc, char **argv)
 		const Json trace = {run("compiler", compiler_contract),
 		                    run("maintained sources", maintained_sources),
 		                    run("funding leases", funding_leases),
+		                    run("quantity upkeep", quantity_upkeep),
+		                    run("mixed reservation retry", retry_mixed_input_reservations),
+		                    run("survivor capacity retry", retry_survivor_capacity),
 		                    run("prepaid inputs", prepaid_inputs),
 		                    run("invalid runtime quote", invalid_runtime_quote),
 		                    run("initial and spawned membership", region_initial_and_spawn),

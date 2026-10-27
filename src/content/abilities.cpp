@@ -89,7 +89,12 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	                "exclusions",
 	                "apparatus_recovery_key",
 	                "apparatus_recovery_ticks",
-	                "interruption_recovery_ticks"},
+	                "interruption_recovery_ticks",
+	                "requirements",
+	                "requirement_failure",
+	                "family",
+	                "costs",
+	                "observations"},
 	               path);
 	AbilityDefinition result;
 	result.id = id;
@@ -101,6 +106,36 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 			ability_fail(path + "." + field, "expected boolean");
 	result.sustained = value.value("sustained", false);
 	result.require_healthy = value.value("require_healthy", true);
+	result.family = value.value("family", std::string{});
+	const auto observed = value.value("observations", Json::array());
+	if (!observed.is_array() || observed.size() > 256)
+		ability_fail(path + ".observations", "expected at most 256 property references");
+	const auto property_catalogue = compile_property_catalog(catalog);
+	std::set<std::string> observed_ids;
+	for (const auto &reference : observed)
+	{
+		if (!reference.is_string() || !property_catalogue->contains(reference.get<std::string>()) ||
+		    !observed_ids.insert(reference.get<std::string>()).second)
+			ability_fail(path + ".observations", "unknown or duplicate property");
+		result.observations.push_back(reference.get<std::string>());
+	}
+
+	if (!result.family.empty() && !valid_identifier(result.family))
+		ability_fail(path + ".family", "expected identifier");
+	result.requirement_failure = value.value("requirement_failure", std::string("end_retain_intent"));
+	if (result.requirement_failure != "end_retain_intent")
+		ability_fail(path + ".requirement_failure", "unsupported requirement failure policy");
+	if (value.contains("requirements"))
+	{
+		RuleDefinition requirements;
+		requirements.id = id;
+		requirements.condition =
+		    compile_rule_expression(catalog, requirements, value.at("requirements"), path + ".requirements");
+		if (requirements.condition->type != state_tree::Type::Boolean)
+			ability_fail(path + ".requirements", "expected Boolean expression");
+		result.requirements = std::move(requirements);
+	}
+
 	result.target = value.value("target", std::string("self"));
 	result.recovery_on = value.value("recovery_on", result.sustained ? std::string("stop") : std::string("activation"));
 	result.interruption = value.value("interruption", std::string("cancel"));
@@ -134,6 +169,12 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	};
 	result.start_effect = effect("start_effect");
 	result.activation_effect = effect("activation_effect");
+	if (value.contains("costs"))
+	{
+		if (!result.sustained && !result.preparation_ticks)
+			ability_fail(path + ".costs", "ongoing costs require preparation or sustained work");
+		result.costs = compile_effect_costs(catalog, value.at("costs"), path + ".costs", "per_second");
+	}
 	if (!result.preparation_ticks && result.start_effect && result.activation_effect)
 	{
 		const auto &start = *result.start_effect;
@@ -316,9 +357,13 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 				ability_fail(path + "." + key, "ability channel has multiple physical consumers");
 		};
 		const auto ability = definitions.find(binding.ability);
-		const auto activation = ability != definitions.end() && !ability->second.sustained
-		                            ? OperatingAction::AbilityActivate
-		                            : OperatingAction::IntentBoolean;
+		// Fixed sustained endpoints may use an explicit start/cancel request as
+		// well as retained settings. Dynamic choir selection keeps its setting.
+		const bool request_endpoint = ability != definitions.end() &&
+		                              (!ability->second.sustained || (binding.enabled < controller.commands.size() &&
+		                                                              controller.commands[binding.enabled].action ==
+		                                                                  OperatingAction::AbilityActivate));
+		const auto activation = request_endpoint ? OperatingAction::AbilityActivate : OperatingAction::IntentBoolean;
 		channel(binding.enabled, "enabled", activation, false);
 		channel(binding.target, "target", OperatingAction::IntentInteger, true);
 		if (binding.target != ability_no_channel && controller.commands[binding.target].maximum > 1000000000)

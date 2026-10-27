@@ -94,9 +94,13 @@ struct RuleWorkCredit
 	EntityId payer = 0;
 	std::string store, resource;
 	std::int64_t prepaid = 0;
+	// A quantity input addresses the native owner directly, without a stock proxy.
+	std::string property, equipment, officer;
+	std::int64_t compartment = -1;
 	bool operator==(const RuleWorkCredit &) const = default;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RuleWorkCredit, payer, store, resource, prepaid)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RuleWorkCredit, payer, store, resource, prepaid, property, equipment, officer,
+                                   compartment)
 
 struct RuleExecutionState
 {

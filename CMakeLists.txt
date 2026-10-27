@@ -336,6 +336,7 @@ add_library(
 	src/content/gameplay.cpp
 	src/content/resource_bindings.cpp
 	src/content/stock_catalog.cpp
+	src/content/properties.cpp
 	src/content/effect_groups.cpp
 )
 target_link_libraries(
@@ -463,6 +464,7 @@ foreach(
 		psychic
 		abilities
 		rules
+		custom_properties
 		controller_runtime
 		combat
 )

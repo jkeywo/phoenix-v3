@@ -51,6 +51,8 @@ DraftTable draft_table(const Catalog &library, WorkshopDefinitionKind kind)
 		return {"effects", library.effects};
 	case WorkshopDefinitionKind::Resource:
 		return {"resources", library.resources};
+	case WorkshopDefinitionKind::Property:
+		return {"properties", library.properties};
 	case WorkshopDefinitionKind::Recipe:
 		return {"recipes", library.recipes};
 	case WorkshopDefinitionKind::Message:
@@ -185,6 +187,8 @@ Catalog WorkshopDocument::preview_equipment() const
 	preview.effects = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Effect));
 	preview.resources =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Resource));
+	preview.properties =
+	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Property));
 	preview.recipes = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Recipe));
 	preview.assemblies =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Assembly));
@@ -193,6 +197,7 @@ Catalog WorkshopDocument::preview_equipment() const
 	     std::vector<std::pair<const char *, std::map<std::string, Json> *>>{{"effects", &preview.effects},
 	                                                                         {"resources", &preview.resources},
 	                                                                         {"recipes", &preview.recipes},
+	                                                                         {"properties", &preview.properties},
 	                                                                         {"entities", &preview.entities},
 	                                                                         {"equipment", &preview.equipment},
 	                                                                         {"assemblies", &preview.assemblies}})

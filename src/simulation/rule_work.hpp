@@ -18,9 +18,10 @@ struct RuleWorkPayment
 // Inputs refer to distinct physical stores/resources; the caller coalesces
 // duplicates before quoting. Electrical work belongs to a prepared allocation,
 // so a rejected full-policy quote requires discarding/requoting that allocation.
-inline RuleWorkPayment quote_rule_work(std::span<const RuleWorkInput> inputs, bool proportional)
+inline RuleWorkPayment quote_rule_work(std::span<const RuleWorkInput> inputs, bool proportional,
+                                       std::int64_t maximum_output = 1000)
 {
-	if (inputs.size() > 4096)
+	if (inputs.size() > 4096 || maximum_output < 0 || maximum_output > 1000)
 		throw std::runtime_error("rules: work bundle exceeds supported input count");
 	const auto add = [](std::int64_t a, std::int64_t b)
 	{
@@ -35,6 +36,7 @@ inline RuleWorkPayment quote_rule_work(std::span<const RuleWorkInput> inputs, bo
 		return a * b;
 	};
 	RuleWorkPayment payment;
+	payment.output = maximum_output;
 	payment.debits.resize(inputs.size());
 	payment.credits.reserve(inputs.size());
 	for (const auto &input : inputs)

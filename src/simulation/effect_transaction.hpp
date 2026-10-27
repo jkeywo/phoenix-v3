@@ -49,6 +49,7 @@ struct PreparedEffectGroup
 	bool consumed = false, defer_damage = false;
 	std::map<EntityId, ShieldComponent> shields, original_shields;
 	std::map<EntityId, PropertyEffects> properties, original_properties;
+	std::map<CustomPropertyAddress, CustomPropertyState> custom_properties, original_custom_properties;
 	std::map<EntityId, AbilityRuntime> abilities, original_abilities;
 	std::map<EntityId, PreparedEffectPayment> payments;
 	std::set<EntityId> changed_inventories;
@@ -92,27 +93,7 @@ inline bool same_effect_shields(const ShieldComponent &a, const ShieldComponent 
 }
 inline bool same_effect_abilities(const AbilityRuntime &a, const AbilityRuntime &b)
 {
-	if (a.next_generation != b.next_generation || a.next_activation != b.next_activation || a.recovery != b.recovery ||
-	    a.grants.size() != b.grants.size())
-		return false;
-	auto i = a.grants.begin();
-	auto j = b.grants.begin();
-	for (; i != a.grants.end(); ++i, ++j)
-	{
-		const auto &x = i->second;
-		const auto &y = j->second;
-		if (i->first != j->first ||
-		    std::tie(x.id, x.definition, x.source, x.owner, x.parent, x.grant_effect, x.control, x.apparatus, x.phase,
-		             x.resume_phase, x.target, x.generation, x.activation, x.request_id, x.expiry, x.progress, x.aim_x,
-		             x.aim_y, x.requested, x.funding_blocked, x.output_permille, x.funding_permille, x.fault_permille,
-		             x.blocker) != std::tie(y.id, y.definition, y.source, y.owner, y.parent, y.grant_effect, y.control,
-		                                    y.apparatus, y.phase, y.resume_phase, y.target, y.generation, y.activation,
-		                                    y.request_id, y.expiry, y.progress, y.aim_x, y.aim_y, y.requested,
-		                                    y.funding_blocked, y.output_permille, y.funding_permille, y.fault_permille,
-		                                    y.blocker))
-			return false;
-	}
-	return true;
+	return a == b;
 }
 inline bool same_effect_active_rules(const std::vector<ActiveRuleEffect> &a, const std::vector<ActiveRuleEffect> &b)
 {

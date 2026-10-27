@@ -11,6 +11,7 @@ struct OfficerState
 	std::string condition = "healthy", facility, escort;
 	bool stabilised = false;
 	std::int64_t stun_until = 0, treatment = 0, recovery = 0, casualty_tick = -1;
+	CustomPropertyState properties;
 };
 struct PersonnelState
 {

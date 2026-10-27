@@ -267,10 +267,17 @@ struct ControllerContactRead
 	ControllerContactBinding source;
 	ControllerDestinations<ControllerContactField> fields;
 };
+struct ControllerAbilityPropertyBinding
+{
+	std::string property;
+	std::size_t destination = 0;
+	state_tree::Type type = state_tree::Type::Missing;
+};
 struct ControllerAbilityBinding
 {
 	std::string endpoint;
 	ControllerDestinations<ControllerAbilityField> fields;
+	std::vector<ControllerAbilityPropertyBinding> properties;
 };
 struct ControllerCommandBinding
 {
@@ -310,7 +317,7 @@ struct Catalog
 {
 	std::map<std::string, Json> entities, maps, consoles, trees;
 	std::map<std::string, Json> layouts, ui_groups, themes;
-	std::map<std::string, Json> equipment, assemblies, messages, effects, resources, recipes;
+	std::map<std::string, Json> equipment, assemblies, messages, effects, resources, recipes, properties;
 	Json knowledge = Json::object();
 	CompiledKnowledge knowledge_definition;
 	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
@@ -428,6 +435,30 @@ std::vector<std::string> ui_theme_artwork_slots();
 Json resolved_ui_theme(const Catalog &, const std::string &id = {}, const Json &overrides = Json::object());
 Json public_ui_theme(const Catalog &);
 void verify_ui_definitions(const Catalog &);
+enum class CustomPropertyKind
+{
+	Quantity,
+	Attribute,
+	Flag,
+	Enum
+};
+using CustomPropertyValue = std::variant<std::int64_t, bool, std::string>;
+struct CustomPropertyDefinition
+{
+	std::string id, unit, label;
+	CustomPropertyKind kind = CustomPropertyKind::Quantity;
+	std::int64_t minimum = 0, maximum = resource_limit, display_scale = 1;
+	CustomPropertyValue initial = std::int64_t{0};
+	std::map<std::string, std::string> choices;
+};
+using PropertyCatalog = std::map<std::string, CustomPropertyDefinition>;
+using SharedPropertyCatalog = std::shared_ptr<const PropertyCatalog>;
+SharedPropertyCatalog compile_property_catalog(const Catalog &);
+CustomPropertyValue read_custom_property_value(const CustomPropertyDefinition &, const Json &, const std::string &);
+Json custom_property_json(const CustomPropertyValue &);
+std::map<std::string, CustomPropertyValue> compile_property_bindings(const PropertyCatalog &, const Json &,
+                                                                     const std::string &);
+void verify_property_bindings(const Catalog &);
 ResourceCatalogue compile_resource_catalog(const Catalog &);
 std::map<std::string, RecipeDefinition> compile_recipe_catalog(const Catalog &);
 RecipeDefinition compile_recipe(const Catalog &, const std::string &);
@@ -830,6 +861,8 @@ struct ModifierContributionDefinition
 {
 	std::string name, role, property;
 	std::int64_t delta_permille = 0;
+	std::optional<CustomPropertyValue> value;
+	std::int64_t priority = 0;
 };
 struct ModifierEffectDefinition
 {
@@ -970,7 +1003,11 @@ enum class EffectOperationKind
 	StoreConsume,
 	StoreSet,
 	StoreFill,
-	StoreTransfer
+	StoreTransfer,
+	PropertySet,
+	PropertyAdd,
+	PropertySubtract,
+	PropertyRate
 };
 struct EffectOperation
 {
@@ -985,11 +1022,15 @@ struct EffectOperation
 	std::optional<std::int64_t> delta_permille;
 	std::string role;
 	std::string scope = "local";
+	std::string property;
+	CustomPropertyValue value = std::int64_t{0};
+	bool saturate = false;
 };
 struct EffectCostDefinition
 {
 	std::string payer = "target", equipment, store, resource;
 	std::int64_t amount = 0;
+	std::string property;
 };
 struct EffectGroupDefinition
 {
@@ -1021,7 +1062,8 @@ enum class RuleTrigger
 	PreSystemDamage,
 	PostSystemDamage,
 	PostEntityDamage,
-	Destroy
+	Destroy,
+	PropertyChanged
 };
 enum class RuleRole
 {
@@ -1051,7 +1093,10 @@ enum class RuleFactKind
 	ResidualDamage,
 	Strength,
 	InflictedDamage,
-	Output
+	Output,
+	CompletedWork,
+	PropertyBefore,
+	PropertyAfter
 };
 struct RuleFactBinding
 {
@@ -1100,13 +1145,14 @@ struct RuleExpression
 };
 struct RuleOperationExpressions
 {
-	std::optional<RuleExpression> damage, amount, delta_permille;
+	std::optional<RuleExpression> damage, amount, delta_permille, value;
 };
 struct RuleCostDefinition
 {
 	RuleRole payer = RuleRole::Target;
 	std::string equipment, store, resource;
 	RuleExpression amount;
+	std::string property;
 };
 struct RuleFundingDefinition
 {
@@ -1134,6 +1180,7 @@ struct RuleBinding
 	RuleRole target = RuleRole::Subject;
 	std::string equipment, officer;
 	std::vector<std::string> tags;
+	bool lifetime = false;
 };
 struct RuleContext
 {
@@ -1142,7 +1189,7 @@ struct RuleContext
 struct SourceRuleDefinitionSet
 {
 	std::vector<RuleBinding> entity;
-	std::map<std::string, std::vector<RuleBinding>> equipment, officers;
+	std::map<std::string, std::vector<RuleBinding>> equipment, officers, officer_lifetime;
 };
 struct PreparedRuleQuote
 {
@@ -1163,7 +1210,8 @@ struct RuleEvaluation
 };
 inline constexpr std::size_t rule_expression_node_limit = 256;
 inline constexpr std::size_t rule_binding_limit = 64;
-RuleDefinition compile_rule(const Catalog &, const std::string &);
+RuleExpression compile_rule_expression(const Catalog &, RuleDefinition &, const Json &, const std::string &);
+RuleDefinition compile_rule(const Catalog &, const std::string &, SharedPropertyCatalog compiled = {});
 RulesCatalog compile_rule_catalog(const Catalog &);
 RulesCatalog compile_bound_rules(const Catalog &, const Json &);
 RulesCatalog compile_entity_rule_scope(const Catalog &, const std::string &);
@@ -1192,6 +1240,10 @@ struct AbilityDefinition
 	std::int64_t preparation_ticks = 0, recovery_ticks = 0, energy_per_second = 0, preparation_energy_per_second = 0,
 	             apparatus_recovery_ticks = 0, interruption_recovery_ticks = 0;
 	std::optional<EffectGroupDefinition> start_effect, activation_effect;
+	std::optional<RuleDefinition> requirements;
+	std::string requirement_failure = "end_retain_intent", family;
+	std::vector<std::string> observations;
+	std::vector<EffectCostDefinition> costs;
 	std::vector<AbilityExclusionDefinition> exclusions;
 };
 inline constexpr std::size_t ability_no_channel = static_cast<std::size_t>(-1);
@@ -1230,6 +1282,8 @@ AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, con
 AbilityDefinitionSet compile_abilities(const Catalog &, const std::string &, SharedAbilityCatalog,
                                        const PersonnelDefinition &, const ControllableLayout &,
                                        const PsychicDefinition &);
+std::vector<EffectCostDefinition> compile_effect_costs(const Catalog &, const Json &, const std::string &,
+                                                       const std::string &quantity = "amount");
 EffectGroupDefinition compile_effect_operations(const Catalog &, const Json &, const std::string &);
 EffectGroupDefinition compile_effect_group(const Catalog &, const std::string &);
 enum class PayloadOutcomeKind
@@ -1585,6 +1639,7 @@ enum class WorkshopDefinitionKind
 	Message,
 	Effect,
 	Resource,
+	Property,
 	Recipe,
 	Layout,
 	UiGroup,

@@ -60,8 +60,11 @@ struct EffectTarget
 struct PropertyValue
 {
 	std::string name;
-	PropertyKey property;
+	PropertyKey property = PropertyKey::count;
 	std::int64_t delta = 0;
+	std::string custom;
+	std::optional<CustomPropertyValue> override_value;
+	std::int64_t priority = 0;
 	bool operator==(const PropertyValue &) const = default;
 };
 struct ModifierValues

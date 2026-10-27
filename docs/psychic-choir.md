@@ -18,7 +18,7 @@ Ghosts enter the same permitted contact picture used by players and AI. They can
 
 **Ward** protects one ship, self or a known ally, while apparatus coverage and funded work remain available. It suppresses ghost reception when its effective strength meets the incoming strength. It does not identify the attacker or erase old observations. Overlapping wards or scramblers use the strongest applicable contribution, with stable ordering for ties.
 
-Apparatus failure, partial funding, structural faults and officer availability affect actual work. The choir requests the sum of its active powers' energy demands; its funded fraction applies proportionally to all seats. Thermal behavior comes from its real resource store and cooling links. No extra mana, fatigue or random psychic casualty system is introduced.
+Apparatus failure, partial funding, structural faults and officer availability affect actual work. The choir requests the sum of its active powers' energy demands; its funded fraction applies proportionally to all seats. Thermal behavior comes from its real resource store and cooling links. Each psychic officer owns shared strain across their psychic abilities. Strain follows the officer through reassignment and travel. Actual funded output adds strain, while doing no psychic work recovers it automatically; injuries and Medical facilities are not part of this mechanic.
 
 ## Authoring and interfaces
 
@@ -60,3 +60,13 @@ Verification after the review refactor on 22 October 2026:
 - In the original choir implementation run, the explicit `phoenix_psychic_smoke` target compiled. Its graphical journey could not run because Xvfb could not bind a sandbox socket. No graphical or screen-reader pass is claimed. The network service suite was likewise blocked by socket restrictions.
 
 Native/WASM checks do not establish actual screen-reader, physical-device or six-display acceptance.
+
+## Shared psychic strain
+
+Psychic strain is authored using custom properties and ordinary shared rules. The native choir still owns energy allocation, fault-adjusted output, cloaking, wards and ghost contacts. Every completed native work phase freezes the actual output and activation identity before later interruption can retire the grant. The `psychic` ability family selects the output counted by the officer's rules; concurrent abilities add their actual output.
+
+The initial content starts officers at zero strain, with capacity 60,000 and gain 2,000 per second at full output. At capacity, the officer enters recovery and all their psychic powers end at the next native operating boundary, preserving sustained requested intent. Native cooldowns and ghost retirement still apply. Idle recovery is 4,500 per second, with reactivation permitted at 25% capacity: roughly 30 seconds fresh work, ten seconds rest, then 22.5 seconds of further work. Fully resting restores the full fresh interval. Funding outages, off-duty time and travel also recover strain when no psychic work completes.
+
+Recovery is a base enum latch. Temporary state overrides affect ability eligibility without overwriting this base: rules use explicit base reads to maintain and clear the latch. Capacity and rates are ordinary modifiable attributes; accumulated strain is a conserved quantity changed only by explicit operations. Property definitions, thresholds and rules can be overridden by mods. These are initial tuning choices, not frozen performance acceptance assertions.
+
+Only the ability's authorised Console and permitted AI observations receive its authored strain, capacity, safe-resume threshold and effective recovery state. Enemy crews and unrelated departments receive no new private officer facts.

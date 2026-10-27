@@ -505,9 +505,9 @@ LoadClosure load_closure(const Catalog &catalog, const std::string &map)
 			result.assets.insert(id);
 			return;
 		}
-		for (const auto *table :
-		     {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees, &catalog.equipment,
-		      &catalog.assemblies, &catalog.messages, &catalog.effects, &catalog.resources, &catalog.recipes})
+		for (const auto *table : {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees,
+		                          &catalog.equipment, &catalog.assemblies, &catalog.messages, &catalog.effects,
+		                          &catalog.resources, &catalog.recipes, &catalog.properties})
 			if (const auto found = table->find(id); found != table->end())
 			{
 				if (result.definitions.insert(id).second)

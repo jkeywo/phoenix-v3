@@ -118,6 +118,7 @@ ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const s
 	if (!effect.contains("contributions") || !effect.at("contributions").is_object() ||
 	    effect.at("contributions").empty() || effect.at("contributions").size() > 64)
 		throw std::runtime_error(path + ".contributions: expected 1..64 named contributions");
+	const auto properties = compile_property_catalog(catalog);
 	ModifierEffectDefinition result{id, duration.get<std::int64_t>(), {}};
 	for (const auto &[name, value] : effect.at("contributions").items())
 	{
@@ -125,18 +126,37 @@ ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const s
 		if (!valid_identifier(name) || !value.is_object())
 			throw std::runtime_error(at + ": invalid named contribution");
 		for (const auto &[key, item] : value.items())
-			if (key != "property" && key != "role" && key != "delta_permille")
+			if (key != "property" && key != "role" && key != "delta_permille" && key != "value" && key != "priority")
 				throw std::runtime_error(at + "." + key + ": unsupported modifier field");
 		ModifierContributionDefinition c;
 		c.name = name;
 		c.property = value.value("property", std::string{});
 		c.role = value.value("role", modifier_property_role(c.property));
 		const auto delta = value.value("delta_permille", Json());
-		if (!known_modifier_property(c.property) || !valid_identifier(c.role))
+		const auto custom = properties->find(c.property);
+		if ((!known_modifier_property(c.property) && custom == properties->end()) || !valid_identifier(c.role))
 			throw std::runtime_error(at + ": unknown property or invalid target role");
-		if (!delta.is_number_integer() || delta < -100000 || delta > 100000)
-			throw std::runtime_error(at + ".delta_permille: expected integer in -100000..100000");
-		c.delta_permille = delta.get<std::int64_t>();
+		const bool override_value = custom != properties->end() && (custom->second.kind == CustomPropertyKind::Flag ||
+		                                                            custom->second.kind == CustomPropertyKind::Enum);
+		if (override_value)
+		{
+			if (value.contains("delta_permille"))
+				throw std::runtime_error(at + ": flag/enum overrides omit percentage delta");
+			c.value = read_custom_property_value(custom->second, value.at("value"), at + ".value");
+			const auto priority = value.value("priority", Json(0));
+			if (!priority.is_number_integer() || priority < -1000000 || priority > 1000000)
+				throw std::runtime_error(at + ": invalid override priority");
+			c.priority = priority.get<std::int64_t>();
+		}
+		else
+		{
+			if (value.contains("value") || value.contains("priority") ||
+			    (custom != properties->end() && custom->second.kind != CustomPropertyKind::Attribute))
+				throw std::runtime_error(at + ": only attributes accept percentage modifiers");
+			if (!delta.is_number_integer() || delta < -100000 || delta > 100000)
+				throw std::runtime_error(at + ".delta_permille: expected integer in -100000..100000");
+			c.delta_permille = delta.get<std::int64_t>();
+		}
 		result.contributions.push_back(std::move(c));
 	}
 	return result;

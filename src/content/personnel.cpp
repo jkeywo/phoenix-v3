@@ -241,7 +241,10 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				fail(role_properties.contains(key) && unique.insert(key).second, "unknown or duplicate target role");
 				for (const auto &property : role_properties.at(key))
 				{
-					fail(directed.contains(system)
+					const bool custom = catalog.properties.contains(property);
+					const auto &target = catalog.entities.at(entity).at("systems").at(system);
+					fail(custom ? target.contains("properties") && target.at("properties").contains(property)
+					     : directed.contains(system)
 					         ? property_compatible(property, kinds.at(system), directed.at(system))
 					         : property_compatible(property, kinds.at(system)),
 					     "incompatible property target " + property);
@@ -252,8 +255,9 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				{
 					const auto &team = combat->systems.at(combat->system_ids.at(system)).get<TeamDefinition>();
 					for (const auto &property : role_properties.at(key))
-						fail(property == "processing" ? processor_owners.contains(system)
-						                              : team.capabilities.contains(property),
+						fail(catalog.properties.contains(property) ||
+						         (property == "processing" ? processor_owners.contains(system)
+						                                   : team.capabilities.contains(property)),
 						     "officer effect requires matching team capability");
 				}
 				d.effects[system].push_back(key);

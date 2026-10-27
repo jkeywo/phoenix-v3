@@ -46,6 +46,8 @@ The [testing policy](docs/testing.md) uses three categories: manually invoked sm
 
 The [Console Controller architecture](docs/controller-architecture.md) separates human/AI decision-making from physical Systems through shared blackboards and Controller-owned command sections. All live command decisions use that common runtime. Complexity profiles choose operators; physical mechanisms consume commands and report facts. The [refactoring plan](docs/controller-refactor-plan.md) records implementation and verification evidence. See [Controller authoring](docs/controller-content.md) for channels, subscriptions, observation scope, messaging and compatibility.
 
+[Custom property authoring](docs/custom-properties-content.md) describes quantities, attributes, flags, enums, typed effects and costs, ability requirements and production psychic strain.
+
 The [shared gameplay engine design](docs/gameplay-engine-design.md) describes the target effect, ability, resource and template architecture across equipment, officers and scenarios. Its [migration notes](docs/gameplay-engine-migration.md) start with shields and track delivery boundaries separately from the finished design. The [ECS effects record](docs/effects-ecs.md) covers active application ownership and integration with shared rules.
 
 [Bridge Command](docs/bridge-command.md) adds authored alert conditions, AI Console stances and a compact interactive Viewscreen sidebar. Couriers default to Command beside the scene, with alert selection on Support.

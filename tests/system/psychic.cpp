@@ -181,11 +181,496 @@ void claim(World &w)
 	require(w.claim(104, 2, "observer"), "claim unfed Console");
 }
 
+Json strain_fixture(bool concurrent = false)
+{
+	auto source = fixture();
+	source["properties"] = Json::parse(R"json([
+ {"id":"test.strain","kind":"quantity","unit":"strain","default":0,"maximum":1000000},
+ {"id":"test.capacity","kind":"attribute","unit":"strain","default":3000,"maximum":1000000},
+ {"id":"test.gain","kind":"attribute","unit":"strain","default":2000,"maximum":1000000},
+ {"id":"test.rest","kind":"attribute","unit":"strain","default":4500,"maximum":1000000},
+ {"id":"test.resume","kind":"attribute","unit":"permille","default":250,"maximum":1000},
+ {"id":"test.state","kind":"enum","default":"ready","choices":{"ready":"Ready","recovering":"Recovering"}}
+ ])json");
+	const auto rules = Json::parse(R"json([
+ {"id":"test.strain.gain-op","kind":"operations","operations":[{"kind":"property_rate","target":"owner","property":"test.strain","amount":0,"saturate":true}]},
+ {"id":"test.strain.rest-op","kind":"operations","operations":[{"kind":"property_rate","target":"owner","property":"test.strain","amount":0,"saturate":true}]},
+ {"id":"test.strain.overload-op","kind":"operations","operations":[
+ {"kind":"property_set","target":"owner","property":"test.strain","value":0},
+ {"kind":"property_set","target":"owner","property":"test.state","value":"recovering"}]},
+ {"id":"test.strain.resume-op","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.state","value":"ready"}]},
+ {"id":"test.strain.gain-rule","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.strain.gain-op",
+ "when":{"op":"gt","args":[{"fact":"owner.completed_work","family":"psychic"},{"value":0,"unit":"permille"}]},
+ "values":{"0":{"amount":{"op":"ratio","args":[{"fact":"owner.completed_work","family":"psychic"},{"value":1000,"unit":"permille"},{"fact":"owner.property","property":"test.gain"}]}}}},
+ {"id":"test.strain.rest-rule","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.strain.rest-op",
+ "when":{"op":"eq","args":[{"fact":"owner.completed_work","family":"psychic"},{"value":0,"unit":"permille"}]},
+ "values":{"0":{"amount":{"op":"multiply","args":[{"fact":"owner.property","property":"test.rest"},{"value":-1}]}}}},
+ {"id":"test.strain.overload-rule","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.strain.overload-op",
+ "when":{"op":"all","args":[
+ {"op":"ge","args":[{"fact":"owner.property","property":"test.strain"},{"fact":"owner.property","property":"test.capacity"}]},
+ {"op":"ne","args":[{"fact":"owner.property","property":"test.state","view":"base"},{"value":"recovering","enum":"test.state"}]}]},
+ "values":{"0":{"value":{"fact":"owner.property","property":"test.capacity"}}}},
+ {"id":"test.strain.resume-rule","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.strain.resume-op",
+ "when":{"op":"all","args":[
+ {"op":"eq","args":[{"fact":"owner.property","property":"test.state","view":"base"},{"value":"recovering","enum":"test.state"}]},
+ {"op":"le","args":[{"fact":"owner.property","property":"test.strain"},{"op":"ratio","args":[{"fact":"owner.property","property":"test.resume"},{"value":1000,"unit":"permille"},{"fact":"owner.property","property":"test.capacity"}]}]}]}}
+ ])json");
+	for (const auto &rule : rules)
+		source["effects"].push_back(rule);
+	for (auto &ability : source["effects"])
+		if (ability.value("kind", std::string{}) == "ability")
+		{
+			ability["family"] = "psychic";
+			ability["recovery_ticks"] = 30;
+			ability["requirements"] = {{"op", "eq"},
+			                           {"args", Json::array({{{"fact", "owner.property"}, {"property", "test.state"}},
+			                                                 {{"value", "ready"}, {"enum", "test.state"}}})}};
+			ability["observations"] = {"test.strain", "test.capacity", "test.resume", "test.state"};
+		}
+	auto &ship = source["entities"][0];
+	for (auto &officer : ship["personnel"]["officers"])
+	{
+		officer["properties"] = Json::object();
+		for (const auto &d : source["properties"])
+			officer["properties"][d.at("id").get<std::string>()] = Json::object();
+		officer["rules"] = Json::array();
+		for (const auto *id :
+		     {"test.strain.gain-rule", "test.strain.rest-rule", "test.strain.overload-rule", "test.strain.resume-rule"})
+			officer["rules"].push_back({{"id", id}, {"rule", id}, {"eligibility", "lifetime"}});
+	}
+	if (concurrent)
+	{
+		for (auto &seat : ship["systems"]["choir"]["seats"])
+			seat["ability"] = "test.ability." + seat.at("duty").get<std::string>();
+		Json extra;
+		for (const auto &effect : source["effects"])
+			if (effect.at("id") == "test.ability.cloak")
+				extra = effect;
+		extra["id"] = "test.ability.extra";
+		source["effects"].push_back(extra);
+		ship["personnel"]["officers"][0]["abilities"].push_back("test.ability.extra");
+		ship["systems"]["choir"]["supported_abilities"].push_back("test.ability.extra");
+		for (auto &controller : ship["control_layout"]["controllers"])
+			if (controller.at("id") == "choir")
+				controller["commands"].push_back(
+				    {{"id", "extra-enabled"}, {"action", "intent_boolean"}, {"consumers", Json::array()}});
+		ship["ability_controls"] = {{"extra",
+		                             {{"source", "officer"},
+		                              {"owner", "cloak"},
+		                              {"ability", "test.ability.extra"},
+		                              {"apparatus", "choir"},
+		                              {"controller", "choir"},
+		                              {"console", "drive"},
+		                              {"enabled", "extra-enabled"}}}};
+	}
+	return source;
+}
+Json strain_value(const World &world, const std::string &id = "test.strain", const std::string &officer = "cloak")
+{
+	const auto saved = world.save();
+	for (const auto &row : saved.at("custom_properties"))
+		if (row.at("entity") == 1 && row.at("officer") == officer)
+			return row.at("values").at(id);
+	throw std::runtime_error("Missing psychic officer properties");
+}
+Json strain_grant(const World &world, const std::string &ability = "test.ability.cloak")
+{
+	const auto saved = world.save();
+	for (const auto &ship : saved.at("abilities").at("ships"))
+		if (ship.at("ship") == 1)
+			for (const auto &[id, grant] : ship.at("state").at("grants").items())
+				if (grant.at("definition") == ability && grant.at("owner") == "cloak")
+					return grant;
+	throw std::runtime_error("Missing psychic officer ability grant");
+}
+std::int64_t strain_output(const World &world)
+{
+	const auto saved = world.save();
+	std::int64_t output = 0;
+	for (const auto &ship : saved.at("abilities").at("ships"))
+		if (ship.at("ship") == 1)
+			for (const auto &work : ship.at("state").at("work"))
+				if (work.at("owner") == "cloak" && work.at("family") == "psychic")
+					output += work.at("output").get<std::int64_t>();
+	return output;
+}
+Json ability_property_ai_contract()
+{
+	Json trace = Json::array();
+	for (int mode = 0; mode < 3; ++mode)
+	{
+		auto source = strain_fixture(true);
+		auto &ship = source["entities"][0];
+		ship["personnel"]["officers"][0]["properties"]["test.rest"] = 0;
+		source["effects"].push_back(
+		    {{"id", "test.ai.capacity"},
+		     {"kind", "modifier"},
+		     {"contributions", {{"capacity", {{"property", "test.capacity"}, {"delta_permille", 1000}}}}}});
+		source["effects"].push_back(
+		    {{"id", "test.ai.apply"},
+		     {"kind", "operations"},
+		     {"operations",
+		      Json::array(
+		          {{{"kind", "apply"}, {"target", "owner"}, {"effect", "test.ai.capacity"}, {"grant", "capacity"}}})}});
+		source["effects"].push_back(
+		    {{"id", "test.ai.activate"}, {"kind", "rule"}, {"trigger", "activate"}, {"effect", "test.ai.apply"}});
+		ship["personnel"]["officers"][0]["rules"].push_back(
+		    {{"id", "capacity"}, {"rule", "test.ai.activate"}, {"eligibility", "lifetime"}});
+		if (mode == 1)
+			for (auto &ability : source["effects"])
+				if (ability.at("id") == "test.ability.extra")
+					std::erase_if(ability["observations"].get_ref<Json::array_t &>(),
+					              [](const auto &id)
+					              {
+						              return id == "test.capacity";
+					              });
+		if (mode == 2)
+			ship["personnel"]["officers"][0]["properties"].erase("test.capacity");
+		source["trees"].push_back(Json::parse(R"json({
+   "id":"test.ai.property-reader","context":"controller",
+   "command_bindings":[{"channel":"apparatus","type":"boolean"}],
+   "ability_property_bindings":[{"endpoint":"extra","property":"test.capacity"}],
+   "initial":"waiting","states":[
+    {"id":"waiting","transitions":[{"target":"observed","conditions":[{"left":{"observation":"ability.extra.property.test.capacity"},"op":"eq","right":6000}]}]},
+    {"id":"observed","entry":[{"action":"write.apparatus","arguments":[false]}]}
+   ]})json"));
+		if (mode != 0)
+			source["trees"].back()["states"][0]["transitions"][0]["conditions"][0]["right"] = 0;
+		for (auto &controller : ship["control_layout"]["controllers"])
+			if (controller.at("id") == "choir")
+			{
+				controller.erase("fallback");
+				controller["tree"] = "test.ai.property-reader";
+			}
+		for (auto &profile : ship["control_layout"]["profiles"])
+		{
+			std::erase_if(profile["consoles"]["drive"]["human"].get_ref<Json::array_t &>(),
+			              [](const auto &id)
+			              {
+				              return id == "choir";
+			              });
+			profile["consoles"]["drive"]["ai"] = Json::array({"choir"});
+		}
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		ticks(world, 4);
+		const auto view = world.observe(101);
+		std::int64_t apparatus = -1;
+		Json property;
+		for (const auto &controller : view->gameplay.at("controllers"))
+			if (controller.at("id") == "choir")
+				apparatus = controller.at("commands").at("apparatus").at("value");
+		for (const auto &ability : view->gameplay.at("abilities"))
+			if (ability.at("control") == "extra")
+				for (const auto &row : ability.at("properties"))
+					if (row.at("id") == "test.capacity")
+						property = row;
+		if (mode == 0)
+		{
+			require(
+			    apparatus == 0 && !property.is_null() && property.at("value") == 6000,
+			    "Permitted effective custom property drives ordinary AI action and matches the human ability board");
+			require(strain_value(world, "test.capacity") == 3000,
+			        "Human and AI read effective capacity without exposing its private stored base");
+			for (int malformed = 0; malformed < 2; ++malformed)
+			{
+				auto invalid = view->gameplay;
+				for (auto &ability : invalid["abilities"])
+					if (ability["control"] == "extra")
+						for (auto &row : ability["properties"])
+							if (row["id"] == "test.capacity")
+							{
+								if (malformed == 0)
+									row["value"] = "not-an-integer";
+								else
+									row["kind"] = "invented";
+							}
+				bool refused = false;
+				try
+				{
+					(void)network::bounded_gameplay(invalid);
+				}
+				catch (const std::exception &)
+				{
+					refused = true;
+				}
+				require(refused, "Malformed typed custom property rows are rejected by bounded projection");
+			}
+			auto private_fields = view->gameplay;
+			for (auto &ability : private_fields["abilities"])
+				for (auto &row : ability["properties"])
+					row["base"] = 123;
+			const auto bounded = network::bounded_gameplay(private_fields);
+			for (const auto &ability : bounded.at("abilities"))
+				for (const auto &row : ability.at("properties"))
+					require(!row.contains("base"), "Bounded projection excludes injected private property bases");
+		}
+		else
+			require(apparatus == 1 && property.is_null(),
+			        "Unobserved or undeclared typed property remains Missing and cannot cause an AI action");
+		auto saved = world.save();
+		saved.erase("packs");
+		trace.push_back(std::move(saved));
+	}
+	return trace;
+}
+
+Json strain_contract()
+{
+	auto data = strain_fixture();
+	const auto catalog = load(data);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, 101, 1, "choir", "cloak-enabled", 1);
+	std::uint64_t first_activation = 0;
+	int overload_tick = 0;
+	for (int i = 0; i < 60; ++i)
+	{
+		ticks(world);
+		const auto grant = strain_grant(world);
+		first_activation = std::max(first_activation, grant.at("activation").get<std::uint64_t>());
+		if (strain_value(world, "test.state") == "recovering")
+		{
+			overload_tick = i + 1;
+			break;
+		}
+	}
+	require(overload_tick > 0 && first_activation > 0, "Authored actual psychic work reaches its recovery latch");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	ticks(world);
+	ticks(resumed);
+	require(strain_grant(world).at("phase") != "active" && world.observe(101)->gameplay.at("abilities").size() > 0,
+	        "Recovery requirement ends the old native psychic execution at the next operating boundary");
+	bool retained_intent = false;
+	const auto overloaded_view = world.observe(101);
+	for (const auto &row : overloaded_view->gameplay.at("abilities"))
+		if (row.at("ability") == "test.ability.cloak")
+			retained_intent = row.at("requested");
+	require(retained_intent, "Overload retains the requested sustained power");
+	const auto previous = strain_value(world).get<std::int64_t>();
+	ticks(world);
+	ticks(resumed);
+	require(strain_value(world).get<std::int64_t>() < previous && strain_output(world) == 0,
+	        "No completed psychic output recovers strain instead of charging retained intent");
+	bool ready = false;
+	for (int i = 0; i < 40; ++i)
+	{
+		ticks(world);
+		ticks(resumed);
+		if (strain_value(world, "test.state") == "ready")
+		{
+			ready = true;
+			break;
+		}
+	}
+	require(ready && strain_value(world).get<std::int64_t>() <= 750 && strain_grant(world).at("phase") != "active",
+	        "Recovery clears at authored threshold while normal longer cooldown still prevents activation");
+	bool restarted = false;
+	for (int i = 0; i < 40; ++i)
+	{
+		ticks(world);
+		ticks(resumed);
+		if (strain_grant(world).at("phase") == "active")
+		{
+			restarted = true;
+			break;
+		}
+	}
+	require(restarted && strain_grant(world).at("activation").get<std::uint64_t>() > first_activation,
+	        "Still-requested power restarts as a fresh activation after ordinary cooldown");
+	require(world.save() == resumed.save(),
+	        "Strain interruption, work receipts, cooldown and automatic fresh restart continue exactly");
+	const auto observed = world.observe(101)->gameplay.at("abilities");
+	bool local_property = false;
+	for (const auto &ability : observed)
+		if (ability.at("ability") == "test.ability.cloak")
+			for (const auto &property : ability.at("properties"))
+				local_property |= property.at("id") == "test.strain";
+	require(local_property, "Permitted ability status publishes authored strain properties");
+	require(network::bounded_gameplay(world.observe(101)->gameplay).at("abilities") == observed,
+	        "Typed authorised ability properties survive bounded network projection without changing values");
+	require(!world.observe(104)->gameplay.contains("abilities") || world.observe(104)->gameplay.at("abilities").empty(),
+	        "Unfed unrelated Console does not receive private psychic properties");
+	auto concurrent = strain_fixture(true);
+	const auto paired_catalog = load(concurrent);
+	World paired;
+	paired.load(paired_catalog, "test.map");
+	claim(paired);
+	command(paired, 101, 1, "choir", "cloak-enabled", 1);
+	command(paired, 101, 1, "choir", "extra-enabled", 1);
+	ticks(paired, 4);
+	require(strain_output(paired) == 2000,
+	        "Two independently active abilities report additive frozen work for the same officer");
+	const auto paired_before = strain_value(paired).get<std::int64_t>();
+	ticks(paired);
+	require(strain_value(paired).get<std::int64_t>() - paired_before == 200,
+	        "Concurrent actual psychic outputs add strain gain rates");
+	auto partial = strain_fixture();
+	partial["entities"][0]["resources"]["stores"][0]["discharge_rate"] = 50;
+	const auto partial_catalog = load(partial);
+	World limited;
+	limited.load(partial_catalog, "test.map");
+	claim(limited);
+	command(limited, 101, 1, "choir", "cloak-enabled", 1);
+	ticks(limited, 4);
+	const auto partial_output = strain_output(limited);
+	const auto partial_before = strain_value(limited).get<std::int64_t>();
+	ticks(limited);
+	require(partial_output > 0 && partial_output < 1000 &&
+	            strain_value(limited).get<std::int64_t>() - partial_before == strain_output(limited) / 10,
+	        "Fractional native funding charges strain from actual delivered psychic output");
+	auto empty = strain_fixture();
+	empty["entities"][0]["resources"]["stores"][0]["initial"] = 0;
+	empty["entities"][0]["personnel"]["officers"][0]["properties"]["test.strain"] = 1000;
+	const auto empty_catalog = load(empty);
+	World unfunded;
+	unfunded.load(empty_catalog, "test.map");
+	claim(unfunded);
+	command(unfunded, 101, 1, "choir", "cloak-enabled", 1);
+	ticks(unfunded, 4);
+	require(strain_output(unfunded) == 0 && strain_value(unfunded).get<std::int64_t>() < 1000,
+	        "Funding outage produces no psychic strain and permits idle recovery");
+	auto travelling = strain_fixture();
+	travelling["entities"][0]["personnel"]["officers"][0]["properties"]["test.strain"] = 2000;
+	for (auto &duty : travelling["entities"][0]["personnel"]["duties"])
+		if (duty.at("id") == "radar")
+			duty["compartment"] = "aft";
+	const auto travel_catalog = load(travelling);
+	World moving;
+	moving.load(travel_catalog, "test.map");
+	claim(moving);
+	OperatingCommand assign{1, "personnel.assign", 0, "cloak"};
+	assign.text = "radar";
+	assign.generation = moving.observe(101)->gameplay.at("personnel").at("revision");
+	require(moving.submit(101, assign), "Psychic reassignment is admitted through Personnel");
+	ticks(moving, 2);
+	require(strain_value(moving).get<std::int64_t>() < 2000 && strain_value(moving).get<std::int64_t>() > 0,
+	        "Officer lifetime rules recover the same strain balance while travelling to another duty");
+	auto discrete = strain_fixture(true);
+	for (auto &controller : discrete["entities"][0]["control_layout"]["controllers"])
+		if (controller.at("id") == "choir")
+			for (auto &setting : controller["commands"])
+				if (setting.at("id") == "extra-enabled")
+					setting["action"] = "ability_activate";
+	const auto discrete_catalog = load(discrete);
+	World requested;
+	requested.load(discrete_catalog, "test.map");
+	claim(requested);
+	command(requested, 101, 1, "choir", "extra-enabled", 1);
+	bool discrete_overload = false;
+	std::uint64_t original_request_activation = 0;
+	for (int i = 0; i < 60; ++i)
+	{
+		ticks(requested);
+		original_request_activation =
+		    std::max(original_request_activation,
+		             strain_grant(requested, "test.ability.extra").at("activation").get<std::uint64_t>());
+		if (strain_value(requested, "test.state") == "recovering")
+		{
+			discrete_overload = true;
+			break;
+		}
+	}
+	require(discrete_overload,
+	        "A discrete request may sustain psychic work until its shared requirement interrupts it");
+	ticks(requested);
+	const auto retained = strain_grant(requested, "test.ability.extra");
+	require(retained.at("retained_request") == true && retained.at("phase") != "active",
+	        "Requirement interruption retains an accepted sustained request without leaving its old execution active");
+	World requested_resumed;
+	requested_resumed.restore(discrete_catalog, requested.save());
+	bool request_restarted = false;
+	for (int i = 0; i < 60; ++i)
+	{
+		ticks(requested);
+		ticks(requested_resumed);
+		if (strain_grant(requested, "test.ability.extra").at("activation").get<std::uint64_t>() >
+		    original_request_activation)
+		{
+			request_restarted = true;
+			break;
+		}
+	}
+	require(request_restarted && requested.save() == requested_resumed.save(),
+	        "Consumed sustained request survives recovery and restore and starts one fresh activation without another "
+	        "request");
+	bool recovery_again = false;
+	for (int i = 0; i < 60; ++i)
+	{
+		ticks(requested);
+		if (strain_value(requested, "test.state") == "recovering")
+		{
+			recovery_again = true;
+			break;
+		}
+	}
+	require(recovery_again, "Repeated use can enter another recovery break");
+	ticks(requested);
+	command(requested, 101, 1, "choir", "extra-enabled", 0);
+	ticks(requested, 60);
+	require(strain_grant(requested, "test.ability.extra").at("phase") != "active" &&
+	            strain_grant(requested, "test.ability.extra").at("retained_request") == false,
+	        "Ordinary cancel clears a retained sustained request during recovery");
+
+	auto failed_preparation = discrete;
+	failed_preparation["effects"].push_back(
+	    {{"id", "test.strain.impossible"},
+	     {"kind", "operations"},
+	     {"costs", Json::array({{{"payer", "source"},
+	                             {"store", "energy:cell"},
+	                             {"resource", "fixture.resource.energy"},
+	                             {"amount", 1000001}}})},
+	     {"operations",
+	      Json::array(
+	          {{{"kind", "property_add"}, {"target", "source"}, {"property", "test.strain"}, {"amount", 1}}})}});
+	for (auto &ability : failed_preparation["effects"])
+		if (ability.at("id") == "test.ability.extra")
+		{
+			ability["preparation_ticks"] = 1;
+			ability["activation_effect"] = "test.strain.impossible";
+		}
+	const auto failed_catalog = load(failed_preparation);
+	World failed;
+	failed.load(failed_catalog, "test.map");
+	claim(failed);
+	command(failed, 101, 1, "choir", "extra-enabled", 1);
+	ticks(failed, 4);
+	require(strain_grant(failed, "test.ability.extra").at("activation") == 0 &&
+	            strain_grant(failed, "test.ability.extra").at("phase") != "active",
+	        "Failed activation after a sustained request's preparation does not start native work");
+	const auto failed_view = failed.observe(101);
+	bool recorded_failure = false;
+	for (const auto &controller : failed_view->gameplay.at("controllers"))
+		if (controller.at("id") == "choir")
+		{
+			const auto &receipt = controller.at("commands").at("extra-enabled");
+			recorded_failure = receipt.at("accepted") == false && receipt.at("consumed") == receipt.at("revision");
+		}
+	require(recorded_failure,
+	        "Original sustained request retains its identity until prepared activation records failure");
+	auto trace = world.save();
+	trace.erase("packs");
+	return Json::array({trace, ability_property_ai_contract()});
+}
+
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
+		Json strain_trace;
+		try
+		{
+			strain_trace = strain_contract();
+		}
+		catch (const std::exception &error)
+		{
+			throw std::runtime_error(std::string("authored strain: ") + error.what());
+		}
 		{
 			auto assisted = fixture();
 			auto &layout = assisted["entities"][0]["control_layout"];
@@ -975,7 +1460,7 @@ int main(int argc, char **argv)
 			// ZIP timestamps vary between fixture builds; compare simulation state.
 			auto trace = w.save();
 			trace.erase("packs");
-			std::cout << sha256(json_bytes(trace)) << '\n';
+			std::cout << sha256(json_bytes(Json::array({trace, strain_trace}))) << '\n';
 		}
 		else
 			std::cout << "Psychic choir system checks passed\n";

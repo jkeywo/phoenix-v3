@@ -2161,6 +2161,18 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			text += "; " + localise(ability.at("blocker"));
 		text += "; " + localise("Energy per second") + " " +
 		        std::to_string(ability.at("energy_per_second").get<std::int64_t>());
+		for (const auto &property : ability.value("properties", Json::array()))
+		{
+			text += "; " + localise(property.at("label")) + " ";
+			if (property.at("kind") == "enum")
+				text += localise(property.at("choice_label"));
+			else if (property.at("kind") == "flag")
+				text += localise(property.at("value").get<bool>() ? "Yes" : "No");
+			else
+				text += std::to_string(property.at("value").get<std::int64_t>() /
+				                       property.at("display_scale").get<std::int64_t>()) +
+				        (property.at("unit") == "permille" ? "%" : "");
+		}
 		result.emplace_back("game.ability/" + ability.at("id").get<std::string>(), std::move(text));
 	}
 	const auto &sensors = borrowed_member(observation_->gameplay, "sensors");

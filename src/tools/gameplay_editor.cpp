@@ -839,6 +839,7 @@ struct GameplayEditor
 			return;
 		integer(*ship, "durability");
 		rule_bindings_fields(*ship, document);
+		owner_properties_fields(*ship, document);
 		integer(*ship, "half_height_mm", 5000);
 		if (ship->contains("destruction"))
 		{
@@ -878,6 +879,7 @@ struct GameplayEditor
 			                [&](Json &room)
 			                {
 				                string(room, "id");
+				                owner_properties_fields(room, document);
 				                for (const auto *key : {"x_mm", "y_mm", "half_width_mm", "half_length_mm", "hp",
 				                                        "resistance_per_m", "recovery_hp"})
 					                integer(room, key);
@@ -1041,7 +1043,8 @@ struct GameplayEditor
 			        string(o, "name");
 			        optional_string(o, "portrait");
 			        strings(o, "abilities");
-			        rule_bindings_fields(o, document);
+			        rule_bindings_fields(o, document, true);
+			        owner_properties_fields(o, document);
 			        choice(o, "department", ids(p["departments"]));
 			        choice(o, "duty", ids(p["duties"]), true);
 			        string(o, "compartment");
@@ -1353,6 +1356,7 @@ struct GameplayEditor
 					kind = selected_system;
 				system_details(spec, kind);
 				rule_bindings_fields(spec, document);
+				owner_properties_fields(spec, document);
 				telemetry_records(spec, document);
 				scalar_map(spec, "parameters");
 				if (button("Remove System"))
@@ -2763,7 +2767,89 @@ struct GameplayEditor
 		scalar_map(processor, "inputs");
 		scalar_map(processor, "outputs");
 	}
-	void rule_bindings_fields(Json &source, WorkshopDocument &document)
+	void property_value_field(Json &owner, const char *field, const Json &definition)
+	{
+		const auto kind = definition.value("kind", std::string("quantity"));
+		if (owner.contains(field) && (kind == "flag"   ? !owner.at(field).is_boolean()
+		                              : kind == "enum" ? !owner.at(field).is_string()
+		                                               : !owner.at(field).is_number_integer()))
+		{
+			text("The value type does not match the selected property kind.");
+			if (button("Reset to selected property kind"))
+				owner[field] = kind == "flag" ? Json(false) : kind == "enum" ? Json("") : Json(0);
+			return;
+		}
+		if (kind == "flag")
+			boolean(owner, field,
+			        definition.contains("default") && definition.at("default").is_boolean()
+			            ? definition.at("default").get<bool>()
+			            : false);
+		else if (kind == "enum")
+		{
+			std::vector<std::string> choices;
+			if (definition.contains("choices") && definition.at("choices").is_object())
+				for (const auto &[id, unused] : definition.at("choices").items())
+					choices.push_back(id);
+			choice(owner, field, choices);
+		}
+		else
+			integer(owner, field,
+			        definition.contains("default") && definition.at("default").is_number_integer()
+			            ? definition.at("default").get<std::int64_t>()
+			            : 0);
+	}
+	Json property_template(WorkshopDocument &document, const std::string &id)
+	{
+		try
+		{
+			return document.preview_definition(WorkshopDefinitionKind::Property, id);
+		}
+		catch (const std::exception &)
+		{
+			return Json::object();
+		}
+	}
+	void owner_properties_fields(Json &owner, WorkshopDocument &document)
+	{
+		ScopedId scope("custom-properties");
+		ScopedTree panel(label("Custom properties").c_str());
+		if (!panel)
+			return;
+		if (owner.contains("properties") && owner.at("properties").is_object())
+			object_rows(owner["properties"],
+			            [&](const std::string &id, Json &value)
+			            {
+				            ScopedId identity(id.c_str());
+				            const auto definition = property_template(document, id);
+				            ImGui::TextUnformatted(definition.value("label", id).c_str());
+				            if (value.is_object() && value.empty())
+				            {
+					            text("Uses the property template default.");
+					            if (button("Set initial value"))
+						            value = definition.value("default", Json(0));
+				            }
+				            else
+				            {
+					            property_value_field(owner["properties"], id.c_str(), definition);
+					            if (button("Use property default"))
+						            value = Json::object();
+				            }
+				            return button("Remove property declaration");
+			            });
+		static std::map<ImGuiID, std::string> selected;
+		auto &id = selected[ImGui::GetID("new-property")];
+		Json selection = {{"property", id}};
+		if (choice(selection, "property", document.definition_choices(WorkshopDefinitionKind::Property)))
+			id = selection.at("property").get<std::string>();
+		if (button("Declare property") && !id.empty())
+		{
+			if (!owner.contains("properties"))
+				owner["properties"] = Json::object();
+			if (!owner["properties"].contains(id))
+				owner["properties"][id] = Json::object();
+		}
+	}
+	void rule_bindings_fields(Json &source, WorkshopDocument &document, bool officer = false)
 	{
 		records(source, "rules", {{"id", "rule"}, {"rule", ""}, {"target", "subject"}},
 		        [&](Json &binding)
@@ -2775,6 +2861,8 @@ struct GameplayEditor
 			        optional_string(binding, "equipment");
 			        optional_string(binding, "officer");
 			        strings(binding, "tags");
+			        if (officer)
+				        choice(binding, "eligibility", {"duty", "lifetime"});
 		        });
 	}
 	void rule_expression_field(Json &source, const char *key, Json initial)
@@ -2805,8 +2893,18 @@ struct GameplayEditor
 			        choice(cost, "payer",
 			               {"owner", "source", "instigator", "subject", "target", "attacker", "protected"});
 			        optional_string(cost, "equipment");
-			        string(cost, "store");
-			        choice(cost, "resource", document.definition_choices(WorkshopDefinitionKind::Resource));
+			        optional_string(cost, "property");
+			        if (!cost.value("property", std::string{}).empty())
+			        {
+				        choice(cost, "property", document.definition_choices(WorkshopDefinitionKind::Property));
+				        cost.erase("store");
+				        cost.erase("resource");
+			        }
+			        else
+			        {
+				        string(cost, "store");
+				        choice(cost, "resource", document.definition_choices(WorkshopDefinitionKind::Resource));
+			        }
 			        integer(cost, "amount");
 		        });
 		records(group, "operations", {{"kind", "fill"}, {"target", "protected"}, {"store", ""}, {"resource", ""}},
@@ -2814,7 +2912,8 @@ struct GameplayEditor
 		        {
 			        const auto old = operation.value("kind", std::string("fill"));
 			        choice(operation, "kind",
-			               {"damage", "apply", "remove", "add", "consume", "set", "fill", "transfer"});
+			               {"damage", "apply", "remove", "add", "consume", "set", "fill", "transfer", "property_set",
+			                "property_add", "property_subtract", "property_rate"});
 			        const auto kind = operation.value("kind", std::string("fill"));
 			        if (kind != old)
 			        {
@@ -2855,6 +2954,19 @@ struct GameplayEditor
 						        operation["delta_permille"] = 0;
 				        }
 			        }
+			        else if (kind.starts_with("property_"))
+			        {
+				        choice(operation, "property", document.definition_choices(WorkshopDefinitionKind::Property));
+				        optional_string(operation, "equipment");
+				        optional_string(operation, "officer");
+				        boolean(operation, "saturate");
+				        if (kind == "property_set")
+					        property_value_field(
+					            operation, "value",
+					            property_template(document, operation.value("property", std::string{})));
+				        else
+					        integer(operation, "amount");
+			        }
 			        else
 			        {
 				        string(operation, "store");
@@ -2869,6 +2981,26 @@ struct GameplayEditor
 	void templates(WorkshopDocument &document)
 	{
 		auto &defs = document.definitions();
+		records(defs, "properties", {{"id", "property"}, {"kind", "quantity"}, {"label", "Property"}, {"default", 0}},
+		        [&](Json &property)
+		        {
+			        string(property, "id");
+			        string(property, "label");
+			        choice(property, "extends", document.definition_choices(WorkshopDefinitionKind::Property), true);
+			        choice(property, "kind", {"quantity", "attribute", "flag", "enum"});
+			        const auto kind = property.value("kind", std::string("quantity"));
+			        if (kind == "quantity" || kind == "attribute")
+			        {
+				        optional_string(property, "unit");
+				        integer(property, "minimum");
+				        integer(property, "maximum", resource_limit);
+				        integer(property, "display_scale", 1);
+			        }
+			        if (kind == "enum")
+				        scalar_map(property, "choices");
+			        property_value_field(property, "default", property);
+			        text("Changing property kind preserves values; verification reports incompatible fields.");
+		        });
 		records(
 		    defs, "resources",
 		    {{"id", "resource"}, {"label", "Resource"}, {"tags", Json::array({"cargo"})}, {"sizes", {{"cargo", 1}}}},
@@ -2954,7 +3086,7 @@ struct GameplayEditor
 				           {"activate", "deactivate", "tick", "enter", "exit", "occupancy", "maintain",
 				            "pre_shield_damage", "post_shield_damage", "pre_compartment_damage",
 				            "post_compartment_damage", "pre_system_damage", "post_system_damage", "post_entity_damage",
-				            "destroy"});
+				            "destroy", "property_changed"});
 				    choice(effect, "phase", {"instant", "periodic", "maintained"});
 				    choice(effect, "effect", document.definition_choices(WorkshopDefinitionKind::Effect), true);
 				    if (effect.value("phase", std::string("instant")) == "periodic")
@@ -2972,6 +3104,11 @@ struct GameplayEditor
 				    string(effect, "label");
 				    boolean(effect, "sustained", false);
 				    boolean(effect, "require_healthy", true);
+				    optional_string(effect, "family");
+				    rule_expression_field(effect, "requirements", true);
+				    choice(effect, "requirement_failure", {"end_retain_intent"});
+				    names(effect, "observations", document.definition_choices(WorkshopDefinitionKind::Property));
+				    rule_expression_field(effect, "costs", Json::array());
 				    choice(effect, "target", {"self", "contact", "ally"});
 				    choice(effect, "recovery_on", {"activation", "stop"});
 				    choice(effect, "interruption", {"cancel", "pause"});
@@ -3093,9 +3230,28 @@ struct GameplayEditor
 						    std::vector<std::string> properties;
 						    for (const auto &property : modifier_properties())
 							    properties.push_back(property.id);
+						    for (const auto &id : document.definition_choices(WorkshopDefinitionKind::Property))
+						    {
+							    const auto definition = property_template(document, id);
+							    if (definition.value("kind", std::string{}) != "quantity")
+								    properties.push_back(id);
+						    }
 						    choice(arc, "property", properties);
 						    optional_string(arc, "role");
-						    integer(arc, "delta_permille");
+						    const auto definition = property_template(document, arc.value("property", std::string{}));
+						    const auto type = definition.value("kind", std::string{});
+						    if (type == "flag" || type == "enum")
+						    {
+							    arc.erase("delta_permille");
+							    integer(arc, "priority");
+							    property_value_field(arc, "value", definition);
+						    }
+						    else
+						    {
+							    arc.erase("priority");
+							    arc.erase("value");
+							    integer(arc, "delta_permille");
+						    }
 						    if (button("Remove contribution"))
 							    remove = name;
 						    continue;
@@ -3126,6 +3282,7 @@ struct GameplayEditor
 			        const auto kind = equipment_kind(document, equipment);
 			        system_details(equipment, kind);
 			        rule_bindings_fields(equipment, document);
+			        owner_properties_fields(equipment, document);
 			        if (kind == "shield")
 				        choice(equipment, "shield_effect", document.definition_choices(WorkshopDefinitionKind::Effect));
 			        telemetry_records(equipment, document);
@@ -3469,6 +3626,13 @@ struct GameplayEditor
 			        });
 		if (editable("ability_bindings"))
 			strings(tree, "ability_bindings");
+		if (editable("ability_property_bindings"))
+			records(tree, "ability_property_bindings", {{"endpoint", ""}, {"property", ""}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "endpoint");
+				        choice(binding, "property", document.definition_choices(WorkshopDefinitionKind::Property));
+			        });
 		if (editable("contact_bindings"))
 			records(tree, "contact_bindings", {{"name", "contact"}, {"controller", ""}, {"channel", ""}},
 			        [&](Json &binding)

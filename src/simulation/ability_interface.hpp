@@ -204,9 +204,10 @@ AbilityStatus ability_status(EntityId ship, const AbilityControlDefinition &cont
 	AbilityStatus status;
 	const auto &controller = entities.at(ship).get<EntityControls>().controllers.at(control.controller);
 	const auto &intent = controller.commands.at(control.enabled);
-	status.requested = controller.definition.commands.at(control.enabled).semantics == CommandSemantics::Request
-	                       ? intent.consumed < intent.revision || (grant && ability_running(*grant))
-	                       : intent.value != 0;
+	status.requested =
+	    controller.definition.commands.at(control.enabled).semantics == CommandSemantics::Request
+	        ? intent.consumed < intent.revision || (grant && (ability_running(*grant) || grant->retained_request))
+	        : intent.value != 0;
 	if (!grant)
 		return status;
 	const auto &ability = ability_definition(ship, *grant);
@@ -250,6 +251,43 @@ AbilityStatus ability_status(EntityId ship, const AbilityControlDefinition &cont
 	return status;
 }
 
+Json ability_observed_properties(EntityId ship, const AbilityGrantState &grant) const
+{
+	Json rows = Json::array();
+	RuleActor actor{ship};
+	if (grant.source == "officer")
+		actor.officer = grant.owner;
+	else
+		actor.equipment = grant.owner;
+	for (const auto &id : ability_definition(ship, grant).observations)
+	{
+		const auto value = read_custom_property(actor, id);
+		if (!value)
+			continue;
+		const auto &definition = property_catalogue->at(id);
+		const auto kind = definition.kind == CustomPropertyKind::Quantity    ? "quantity"
+		                  : definition.kind == CustomPropertyKind::Attribute ? "attribute"
+		                  : definition.kind == CustomPropertyKind::Flag      ? "flag"
+		                                                                     : "enum";
+		Json row{{"id", id},
+		         {"label", definition.label},
+		         {"kind", kind},
+		         {"unit", definition.unit},
+		         {"display_scale", definition.display_scale}};
+		if (definition.kind == CustomPropertyKind::Flag)
+			row["value"] = bool(value->number);
+		else if (definition.kind == CustomPropertyKind::Enum)
+		{
+			row["value"] = value->text;
+			row["choice_label"] = definition.choices.at(value->text);
+		}
+		else
+			row["value"] = value->number;
+		rows.push_back(std::move(row));
+	}
+	return rows;
+}
+
 Json ability_decision_facts(const ConsoleAddress &address, const Observation &permitted) const
 {
 	Json result = Json::object();
@@ -279,6 +317,8 @@ Json ability_decision_facts(const ConsoleAddress &address, const Observation &pe
 		    {"phase", status.phase},        {"ready", status.ready},   {"preparation", status.preparation},
 		    {"recovery", status.recovery},  {"output", status.output}, {"blocked", status.blocked},
 		    {"requested", status.requested}};
+		if (const auto *grant = ability_control_grant(address.ship, control))
+			result[control.id]["properties"] = ability_observed_properties(address.ship, *grant);
 	}
 	return result;
 }
@@ -318,7 +358,8 @@ Json ability_board(const ConsoleAddress &address) const
 		               {"output", grant.output_permille},
 		               {"generation", grant.generation},
 		               {"energy_per_second", ability.energy_per_second},
-		               {"preparation_energy_per_second", ability.preparation_energy_per_second}});
+		               {"preparation_energy_per_second", ability.preparation_energy_per_second},
+		               {"properties", ability_observed_properties(address.ship, grant)}});
 	}
 	return out;
 }
@@ -340,6 +381,18 @@ void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const 
 	    state.next_activation > maximum || state.grants.size() > ability_grant_limit ||
 	    state.recovery.size() > ability_recovery_limit)
 		throw std::runtime_error("Invalid saved ability roster bounds");
+	if (state.work_tick > tick || state.work.size() > ability_grant_limit)
+		throw std::runtime_error("Invalid saved ability work receipt bounds");
+	std::set<std::uint64_t> work_activations;
+	for (const auto &receipt : state.work)
+	{
+		const auto &catalogue = definition(ship).abilities.catalog->definitions;
+		const auto found = catalogue.find(receipt.definition);
+		if (found == catalogue.end() || found->second.family != receipt.family || !receipt.activation ||
+		    receipt.activation >= state.next_activation || !work_activations.insert(receipt.activation).second ||
+		    receipt.output <= 0 || receipt.output > 1000 || !ability_source_exists(ship, receipt.source, receipt.owner))
+			throw std::runtime_error("Invalid saved ability completed work");
+	}
 	const auto &abilities = definition(ship).abilities;
 	const auto &definitions = abilities.catalog->definitions;
 	std::set<std::uint64_t> generations, activations;
@@ -386,7 +439,23 @@ void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const 
 		    grant.aim_x < -fixed::unit || grant.aim_x > fixed::unit || grant.aim_y < -fixed::unit ||
 		    grant.aim_y > fixed::unit)
 			throw std::runtime_error("Invalid saved ability grant");
+		if (grant.funding_permille < 0 || grant.funding_permille > 1000 || grant.credits.size() > 4096)
+			throw std::runtime_error("Invalid saved ability payment");
+		std::set<std::tuple<EntityId, std::string, std::string, std::string, std::string, std::string, std::int64_t>>
+		    credit_keys;
+		for (const auto &credit : grant.credits)
+		{
+			validate_saved_work_credit(Json(credit));
+			if (!credit_keys
+			         .emplace(credit.payer, credit.store, credit.resource, credit.property, credit.equipment,
+			                  credit.officer, credit.compartment)
+			         .second)
+				throw std::runtime_error("Duplicate saved ability work credit");
+		}
 		const auto &ability = found->second;
+		if (grant.retained_request && (!ability.sustained || grant.phase != "ready" || grant.control.empty()))
+			throw std::runtime_error("Invalid retained ability request");
+
 		if (grant.phase != "ready" && grant.phase != "preparing" && grant.phase != "active" && grant.phase != "paused")
 			throw std::runtime_error("Invalid saved ability phase");
 		const bool activated = grant.phase == "active" || (grant.phase == "paused" && grant.resume_phase == "active");
@@ -417,6 +486,16 @@ void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const 
 		const auto *control = resolve_ability_control(ship, grant);
 		if (!grant.control.empty() && (!control || control->id != grant.control))
 			throw std::runtime_error("Saved ability control binding is stale");
+		if (grant.retained_request)
+		{
+			if (!control)
+				throw std::runtime_error("Retained ability request has no control");
+			const auto &controller = entities.at(ship).get<EntityControls>().controllers.at(control->controller);
+			const auto &intent = controller.commands.at(control->enabled);
+			if (controller.definition.commands.at(control->enabled).semantics != CommandSemantics::Request ||
+			    !intent.value)
+				throw std::runtime_error("Retained ability request disagrees with accepted intent");
+		}
 		if (grant.phase != "ready")
 		{
 			if (!running_sources.insert(ability_recovery_key(grant)).second)
@@ -441,9 +520,16 @@ void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const 
 			                         .get<EntityControls>()
 			                         .controllers.at(control->controller)
 			                         .commands.at(control->enabled);
-			if (ability.sustained ? grant.request_id != 0
-			                      : !grant.request_id || intent.request_id != grant.request_id || intent.value != 1 ||
-			                            !intent.accepted)
+			const auto semantics = entities.at(ship)
+			                           .get<EntityControls>()
+			                           .controllers.at(control->controller)
+			                           .definition.commands.at(control->enabled)
+			                           .semantics;
+			if ((!ability.sustained && (!grant.request_id || intent.request_id != grant.request_id ||
+			                            intent.value != 1 || !intent.accepted)) ||
+			    (semantics != CommandSemantics::Request && grant.request_id) ||
+			    (ability.sustained && grant.request_id && intent.request_id == grant.request_id &&
+			     (intent.value != 1 || !intent.accepted)))
 				throw std::runtime_error("Saved ability execution request is inconsistent");
 			for (const auto &exclusion : ability.exclusions)
 				if (!exclusions.insert(ability_exclusion_key(grant, exclusion)).second)

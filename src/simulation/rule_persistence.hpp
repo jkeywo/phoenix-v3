@@ -138,7 +138,7 @@ void validate_saved_rule_context(const Json &value) const
 	{
 		rule_saved_fields(saved, {"role", "kind", "key", "aux", "unit", "type", "value_type", "number", "text"});
 		rule_saved_integer(saved.at("role"), 0, static_cast<int>(RuleRole::Protected));
-		rule_saved_integer(saved.at("kind"), 0, static_cast<int>(RuleFactKind::Output));
+		rule_saved_integer(saved.at("kind"), 0, static_cast<int>(RuleFactKind::PropertyAfter));
 		rule_saved_integer(saved.at("type"), 0, static_cast<int>(state_tree::Type::Message));
 		rule_saved_integer(saved.at("value_type"), 0, static_cast<int>(state_tree::Type::Message));
 		rule_saved_integer(saved.at("number"), -9007199254740991LL);
@@ -153,13 +153,27 @@ void validate_saved_rule_context(const Json &value) const
 		                                  });
 		if (!declared ||
 		    (capture.fact.role != RuleRole::Owner && capture.fact.role != RuleRole::Source &&
-		     capture.fact.role != RuleRole::Instigator) ||
+		     capture.fact.role != RuleRole::Instigator && capture.fact.kind != RuleFactKind::PropertyBefore &&
+		     capture.fact.kind != RuleFactKind::PropertyAfter) ||
 		    std::find(seen.begin(), seen.end(), capture.fact) != seen.end() ||
 		    (capture.value.type != state_tree::Type::Missing && capture.value.type != capture.fact.type) ||
 		    (capture.value.type == state_tree::Type::Boolean && capture.value.number != 0 &&
 		     capture.value.number != 1) ||
 		    (capture.value.type != state_tree::Type::Text && !capture.value.text.empty()))
 			throw std::runtime_error("rules: captured fact layout/type mismatch");
+		if (capture.value.type != state_tree::Type::Missing &&
+		    (capture.fact.kind == RuleFactKind::Property || capture.fact.kind == RuleFactKind::PropertyBefore ||
+		     capture.fact.kind == RuleFactKind::PropertyAfter) &&
+		    property_catalogue->contains(capture.fact.key))
+		{
+			if (capture.value.type == state_tree::Type::Text && capture.value.number != 0)
+				throw std::runtime_error("rules: invalid captured custom enum scalar");
+			const auto &definition = property_catalogue->at(capture.fact.key);
+			const Json scalar = capture.value.type == state_tree::Type::Text      ? Json(capture.value.text)
+			                    : capture.value.type == state_tree::Type::Boolean ? Json(capture.value.number != 0)
+			                                                                      : Json(capture.value.number);
+			(void)read_custom_property_value(definition, scalar, "rules.capture." + capture.fact.key);
+		}
 		seen.push_back(capture.fact);
 	}
 	const auto context = value.get<NativeRuleContext>();
@@ -171,12 +185,51 @@ void validate_saved_rule_context(const Json &value) const
 	if (!context.region.empty() && !region_rule_bindings.contains(context.region))
 		throw std::runtime_error("rules: unknown saved region");
 	const auto &properties = modifier_properties();
-	if (!context.property_filter.empty() && std::none_of(properties.begin(), properties.end(),
-	                                                     [&](const auto &property)
-	                                                     {
-		                                                     return property.id == context.property_filter;
-	                                                     }))
+	if (!context.property_filter.empty() && !property_catalogue->contains(context.property_filter) &&
+	    std::none_of(properties.begin(), properties.end(),
+	                 [&](const auto &property)
+	                 {
+		                 return property.id == context.property_filter;
+	                 }))
 		throw std::runtime_error("rules: unknown saved property filter");
+}
+void validate_saved_work_credit(const Json &credit) const
+{
+	rule_saved_fields(credit,
+	                  {"payer", "store", "resource", "prepaid", "property", "equipment", "officer", "compartment"});
+	rule_saved_integer(credit.at("payer"), 1);
+	rule_saved_integer(credit.at("prepaid"));
+	rule_saved_integer(credit.at("compartment"), -1);
+	for (const auto field : {"store", "resource", "property", "equipment", "officer"})
+		rule_saved_text(credit.at(field), 1024);
+	const auto entry = credit.get<RuleWorkCredit>();
+	if (!entry.property.empty())
+	{
+		if (!entry.store.empty() || !entry.resource.empty() || !property_catalogue->contains(entry.property) ||
+		    property_catalogue->at(entry.property).kind != CustomPropertyKind::Quantity)
+			throw std::runtime_error("rules: invalid saved quantity credit");
+		const CustomPropertyAddress address{entry.payer, entry.equipment, entry.officer, entry.compartment};
+		const RuleActor actor{entry.payer,      entry.equipment, entry.officer, false, PayloadOutcomeKind::Entity,
+		                      entry.compartment};
+		if (custom_property_address(actor) != address)
+			throw std::runtime_error("rules: noncanonical saved quantity owner");
+		if (entities.contains(entry.payer))
+		{
+			const auto *owner = custom_property_state(address);
+			if (!owner || !owner->bases.contains(entry.property))
+				throw std::runtime_error("rules: incompatible saved quantity owner");
+		}
+	}
+	else
+	{
+		if (entry.store.empty() || entry.resource.empty() || !entry.equipment.empty() || !entry.officer.empty() ||
+		    entry.compartment != -1)
+			throw std::runtime_error("rules: invalid saved stock credit");
+		(void)resource_catalogue->at(entry.resource);
+		if (entities.contains(entry.payer) &&
+		    !named_stock(entities.at(entry.payer), entry.store).stock.accepts(entry.resource))
+			throw std::runtime_error("rules: incompatible saved credit store");
+	}
 }
 void validate_saved_rule_state(const Json &value, std::int64_t now) const
 {
@@ -203,21 +256,15 @@ void validate_saved_rule_state(const Json &value, std::int64_t now) const
 	const auto &credits = value.at("credits");
 	if (!credits.is_array() || credits.size() > 4096)
 		throw std::runtime_error("rules: saved credit capacity exceeded");
-	std::set<std::tuple<EntityId, std::string, std::string>> seen;
+	std::set<std::tuple<EntityId, std::string, std::string, std::string, std::string, std::string, std::int64_t>> seen;
 	for (const auto &credit : credits)
 	{
-		rule_saved_fields(credit, {"payer", "store", "resource", "prepaid"});
-		rule_saved_integer(credit.at("payer"), 1);
-		rule_saved_integer(credit.at("prepaid"));
-		rule_saved_text(credit.at("store"), 1024, false);
-		rule_saved_text(credit.at("resource"), 256, false);
+		validate_saved_work_credit(credit);
 		const auto entry = credit.get<RuleWorkCredit>();
-		(void)resource_catalogue->at(entry.resource);
-		if (!seen.emplace(entry.payer, entry.store, entry.resource).second)
+		if (!seen.emplace(entry.payer, entry.store, entry.resource, entry.property, entry.equipment, entry.officer,
+		                  entry.compartment)
+		         .second)
 			throw std::runtime_error("rules: duplicate prepaid work credit");
-		if (entities.contains(entry.payer))
-			if (!named_stock(entities.at(entry.payer), entry.store).stock.accepts(entry.resource))
-				throw std::runtime_error("rules: incompatible saved credit store");
 	}
 	const auto state = value.get<RuleExecutionState>();
 	if (!rule_templates.contains(state.definition) || state.context.tick > now || state.next < state.started ||
@@ -301,7 +348,8 @@ void restore_rules(const Json &saved, const Json &conditions, const Json &next_c
 			    : job.phase == RuleEventPhase::Source
 			        ? trigger == RuleTrigger::Activate || trigger == RuleTrigger::Deactivate
 			    : job.phase == RuleEventPhase::Periodic
-			        ? trigger == RuleTrigger::Tick || trigger == RuleTrigger::Occupancy
+			        ? trigger == RuleTrigger::Tick || trigger == RuleTrigger::Occupancy ||
+			              trigger == RuleTrigger::PropertyChanged
 			        : trigger == RuleTrigger::PostShieldDamage || trigger == RuleTrigger::PostCompartmentDamage ||
 			              trigger == RuleTrigger::PostSystemDamage || trigger == RuleTrigger::PostEntityDamage ||
 			              trigger == RuleTrigger::Destroy;
@@ -509,19 +557,21 @@ void restore_rules(const Json &saved, const Json &conditions, const Json &next_c
 						continue;
 					const auto actor = effect_group_actor(frame, operation.target);
 					if (actor.entity != id || actor.ordnance ||
-					    effect_group_equipment(frame, operation.equipment) != contribution.equipment)
+					    rule_operation_equipment(state.applied_context, operation) != contribution.equipment)
 						continue;
 					const auto role = operation.role == "$role" ? state.applied_context.property_role : operation.role;
 					const auto &definition = modifier_templates.at(contribution.definition);
-					matching = std::any_of(definition.contributions.begin(), definition.contributions.end(),
-					                       [&](const auto &row)
-					                       {
-						                       return row.name == value.name &&
-						                              property_key(row.property) == value.property &&
-						                              (role.empty() || row.role == role) &&
-						                              (state.applied_context.property_filter.empty() ||
-						                               row.property == state.applied_context.property_filter);
-					                       });
+					matching =
+					    std::any_of(definition.contributions.begin(), definition.contributions.end(),
+					                [&](const auto &row)
+					                {
+						                return row.name == value.name &&
+						                       (value.custom.empty() ? property_key(row.property) == value.property
+						                                             : row.property == value.custom) &&
+						                       (role.empty() || row.role == role) &&
+						                       (state.applied_context.property_filter.empty() ||
+						                        row.property == state.applied_context.property_filter);
+					                });
 					if (matching)
 						break;
 				}

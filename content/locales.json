@@ -1692,7 +1692,15 @@
 			"Rename theme": "Rename theme",
 			"starting_stocks": "Starting stocks",
 			"original_crew": "Original crew",
-			"capture_visitors": "Capture visiting personnel"
+			"capture_visitors": "Capture visiting personnel",
+			"Psychic strain": "Psychic strain",
+			"Strain capacity": "Strain capacity",
+			"Psychic strain gain": "Psychic strain gain",
+			"Psychic strain recovery": "Psychic strain recovery",
+			"Safe resume threshold": "Safe resume threshold",
+			"Psychic recovery state": "Psychic recovery state",
+			"Recovering": "Recovering",
+			"Ability requirements unavailable": "Ability requirements unavailable"
 		}
 	}
 }

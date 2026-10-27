@@ -39,8 +39,7 @@ static std::int64_t refresh_effect_expiry(std::int64_t previous, std::int64_t re
 void prepare_effect_application(flecs::entity ship, const EffectApplication &application, ShieldComponent *shields,
                                 PropertyEffects *properties, std::int64_t tick)
 {
-	validate_effect_identity(application.source, application.equipment,
-	                         application.kind == EffectApplicationKind::Modifier);
+	validate_effect_identity(application.source, application.equipment, false);
 	if (combat_dead(ship))
 		throw std::runtime_error("Effect target unavailable");
 	if (application.kind == EffectApplicationKind::Modifier)

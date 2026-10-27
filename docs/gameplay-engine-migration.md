@@ -47,6 +47,8 @@ The fourth slice, [directed systems and payload effects](directed-systems-migrat
 
 The fifth slice, [shared abilities and psychic migration](ability-migration-plan.md), implements officer/equipment abilities, optional preparation, explicit exclusions, source-owned recovery and effect-granted temporary abilities, proved by migrating existing psychic powers. Native psychic behaviour remains, with recovery intentionally moving from choir seat to officer. Independent correctness and architecture reviews passed after corrections. The [implementation evidence](ability-migration-evidence.md) records verification and remaining acceptance.
 
+The seventh slice adds [custom mutable properties](custom-properties-content.md) and proves them with production psychic strain. It follows the completed shared-rules and ECS integration. Its catalogue, typed operations, modifiers, payments, observations and continuation form one migration; verification evidence remains separate from this authoring reference.
+
 Order later slices by the dependencies exposed by the shield implementation and the remaining existing systems. Each slice migrates its maintained definitions, production execution, observations, presentation and continuation together. A broad combat migration is not the prerequisite for proving the framework.
 
 The coverage table in the system design is the inventory to reconcile against delivery. Track each migrated area and its evidence in implementation records; do not infer completion from the existence of catalogue types or a successful build.
@@ -76,3 +78,7 @@ The first slice should demonstrate a shared template override affecting its cons
 ## ECS ownership follow-up - 26 October 2026
 
 The [ECS effects integration](effects-ecs.md) moves modifier applications and lasting rule conditions to Flecs entities while retaining native shield, ability and source-clock ownership. It incorporates the shared-rule and ability-execution consolidation, preserves typed transaction validation and uses world/session schema 28. That record contains the integration boundaries and executed verification; earlier slice receipts remain evidence of their own revisions.
+
+## Custom properties follow-up - 27 October 2026
+
+The [custom properties plan](custom-properties-migration-plan.md) adds typed mutable properties on native owners, shared quantity funding, deferred change reactions and authored psychic strain. [Authoring](custom-properties-content.md) describes the concrete content contract; the [verification record](custom-properties-migration-evidence.md) records executed checks and remaining manual acceptance. This slice advances world/session schema to 29. Machinery processes remain the next conversion slice.

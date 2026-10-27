@@ -145,7 +145,7 @@ void rewrite_system(Json &value, const CompositionNames &names, const std::map<s
 			ids = &family(names, "links");
 		if (ids)
 			entry.value() = rewrite_reference(entry.value(), *ids, bindings, path + "." + key);
-		else if (key != "_equipment_origin" && key != "_assembly_origin")
+		else if (key != "_equipment_origin" && key != "_assembly_origin" && key != "properties")
 			rewrite_system(entry.value(), names, bindings, path + "." + key);
 	}
 }
@@ -539,7 +539,7 @@ void validate_assembly_definition(const Catalog &catalog, const std::string &id,
 					composition_error(at + "." + key, "unresolved local reference '" + value +
 					                                      "'; declare an external service when required");
 			}
-			else if (key != "_equipment_origin" && key != "_assembly_origin")
+			else if (key != "_equipment_origin" && key != "_assembly_origin" && key != "properties")
 				bindings(it.value(), at + "." + key);
 		}
 	};

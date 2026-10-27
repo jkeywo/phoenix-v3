@@ -5,6 +5,7 @@ struct CompartmentState
 {
 	std::int64_t hp = 0, work = 0;
 	bool disabled = false;
+	CustomPropertyState properties;
 };
 struct Destructible
 {

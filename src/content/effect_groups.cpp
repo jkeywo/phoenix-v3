@@ -1,5 +1,6 @@
 module;
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <set>
 #include <stdexcept>
@@ -9,6 +10,54 @@ module phoenix.content;
 
 namespace phoenix
 {
+std::vector<EffectCostDefinition> compile_effect_costs(const Catalog &catalog, const Json &costs, const std::string &at,
+                                                       const std::string &quantity)
+{
+	const auto fail = [&](const std::string &why)
+	{
+		throw std::runtime_error(at + ": " + why);
+	};
+	const auto definitions = compile_property_catalog(catalog);
+	std::vector<EffectCostDefinition> result;
+	if (!costs.is_array() || costs.empty() || costs.size() > 32)
+		fail("expected 1..32 explicit costs");
+	for (const auto &entry : costs)
+	{
+		if (!entry.is_object())
+			fail("expected cost object");
+		for (const auto &[key, unused] : entry.items())
+			if (key != "payer" && key != "equipment" && key != "store" && key != "resource" && key != quantity &&
+			    key != "property")
+				fail("unsupported cost field " + key);
+		EffectCostDefinition cost;
+		cost.payer = entry.value("payer", std::string("target"));
+		if (cost.payer != "owner" && cost.payer != "source" && cost.payer != "instigator" && cost.payer != "subject" &&
+		    cost.payer != "target" && cost.payer != "protected" && cost.payer != "attacker")
+			fail("cost requires supported payer role");
+		cost.equipment = entry.value("equipment", std::string{});
+		cost.store = entry.value("store", std::string{});
+		cost.resource = entry.value("resource", std::string{});
+		cost.property = entry.value("property", std::string{});
+		if ((!cost.equipment.empty() && cost.equipment != "$owner" && cost.equipment != "$source" &&
+		     cost.equipment != "$target" && cost.equipment != "$hit" && !valid_identifier(cost.equipment)) ||
+		    cost.store.size() > 256)
+			fail("invalid cost equipment/store");
+		if (!cost.property.empty())
+		{
+			if (!cost.store.empty() || !cost.resource.empty() || !definitions->contains(cost.property) ||
+			    definitions->at(cost.property).kind != CustomPropertyKind::Quantity)
+				fail("property cost requires a quantity without store/resource");
+		}
+		else if (cost.store.empty() || !catalog.resources.contains(cost.resource))
+			fail("invalid cost store/resource");
+		const auto amount = entry.value(quantity, Json(-1));
+		if (!amount.is_number_integer() || amount < 0 || amount > resource_limit)
+			fail("invalid cost amount");
+		cost.amount = amount.get<std::int64_t>();
+		result.push_back(std::move(cost));
+	}
+	return result;
+}
 EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Json &group, const std::string &at)
 {
 	const auto fail = [&](const std::string &reason)
@@ -20,6 +69,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 	for (const auto &[key, value] : group.items())
 		if (key != "operations" && key != "payer" && key != "energy" && key != "costs")
 			fail("unsupported field " + key);
+	const auto definitions = compile_property_catalog(catalog);
 	EffectGroupDefinition result;
 	result.payer = group.value("payer", std::string{});
 	const auto energy = group.value("energy", Json(0));
@@ -29,37 +79,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 	if (result.energy && !valid_identifier(result.payer))
 		fail("paid group requires equipment payer");
 	if (group.contains("costs"))
-	{
-		const auto &costs = group.at("costs");
-		if (!costs.is_array() || costs.empty() || costs.size() > 32)
-			fail("expected 1..32 explicit costs");
-		for (const auto &entry : costs)
-		{
-			if (!entry.is_object())
-				fail("expected cost object");
-			for (const auto &[key, unused] : entry.items())
-				if (key != "payer" && key != "equipment" && key != "store" && key != "resource" && key != "amount")
-					fail("unsupported cost field " + key);
-			EffectCostDefinition cost;
-			cost.payer = entry.value("payer", std::string("target"));
-			if (cost.payer != "owner" && cost.payer != "source" && cost.payer != "instigator" &&
-			    cost.payer != "subject" && cost.payer != "target" && cost.payer != "protected" &&
-			    cost.payer != "attacker")
-				fail("cost requires supported payer role");
-			cost.equipment = entry.value("equipment", std::string{});
-			cost.store = entry.value("store", std::string{});
-			cost.resource = entry.value("resource", std::string{});
-			if ((!cost.equipment.empty() && cost.equipment != "$owner" && cost.equipment != "$source" &&
-			     cost.equipment != "$target" && cost.equipment != "$hit" && !valid_identifier(cost.equipment)) ||
-			    cost.store.empty() || cost.store.size() > 256 || !catalog.resources.contains(cost.resource))
-				fail("invalid cost equipment/store/resource");
-			const auto amount = entry.value("amount", Json(-1));
-			if (!amount.is_number_integer() || amount < 0 || amount > resource_limit)
-				fail("invalid cost amount");
-			cost.amount = amount.get<std::int64_t>();
-			result.costs.push_back(std::move(cost));
-		}
-	}
+		result.costs = compile_effect_costs(catalog, group.at("costs"), at + ".costs");
 	if (!group.contains("operations") || !group.at("operations").is_array() || group.at("operations").empty() ||
 	    group.at("operations").size() > 32)
 		fail("expected 1..32 operations");
@@ -175,11 +195,65 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 							fail("ability grant requires an officer or equipment source binding");
 						(void)compile_ability_grant(catalog, op.effect);
 					}
-					else if (!op.officer.empty() || (effect_kind == "modifier") != !op.equipment.empty())
-						fail("modifier needs equipment; shield and periodic omit source bindings");
+					else if (effect_kind == "modifier")
+					{
+						const auto modifier = compile_modifier_effect(catalog, op.effect);
+						const bool native = std::any_of(modifier.contributions.begin(), modifier.contributions.end(),
+						                                [](const auto &c)
+						                                {
+							                                return known_modifier_property(c.property);
+						                                });
+						if (native && (op.equipment.empty() || !op.officer.empty()))
+							fail("native modifier requires equipment");
+					}
+					else if (!op.officer.empty() || !op.equipment.empty())
+						fail("shield and periodic omit source bindings");
 				}
 				else if (value.contains("delta_permille") || value.contains("role"))
 					fail("delta_permille and role require a modifier apply");
+			}
+			else if (kind == "property_set" || kind == "property_add" || kind == "property_subtract" ||
+			         kind == "property_rate")
+			{
+				fields.insert("property");
+				fields.insert("value");
+				fields.insert("amount");
+				fields.insert("saturate");
+				fields.insert("equipment");
+				fields.insert("officer");
+				op.property = value.value("property", std::string{});
+				op.equipment = value.value("equipment", std::string{});
+				op.officer = value.value("officer", std::string{});
+				if ((!op.equipment.empty() && !op.officer.empty()) ||
+				    (!op.officer.empty() && !valid_identifier(op.officer)) ||
+				    (!op.equipment.empty() && op.equipment != "$owner" && op.equipment != "$source" &&
+				     op.equipment != "$target" && op.equipment != "$hit" && !valid_identifier(op.equipment)))
+					fail("invalid property owner selector");
+				if (!definitions->contains(op.property))
+					fail("unknown custom property");
+				const auto &d = definitions->at(op.property);
+				op.saturate = value.value("saturate", false);
+				if (kind == "property_set")
+				{
+					if (value.contains("amount"))
+						fail("property_set uses value");
+					op.kind = EffectOperationKind::PropertySet;
+					op.value = read_custom_property_value(d, value.at("value"), at);
+				}
+				else
+				{
+					if (value.contains("value") ||
+					    (d.kind != CustomPropertyKind::Quantity && d.kind != CustomPropertyKind::Attribute))
+						fail("property arithmetic requires numeric amount");
+					op.kind = kind == "property_add"        ? EffectOperationKind::PropertyAdd
+					          : kind == "property_subtract" ? EffectOperationKind::PropertySubtract
+					                                        : EffectOperationKind::PropertyRate;
+					const auto amount = value.value("amount", Json(0));
+					if (!amount.is_number_integer() || amount < (kind == "property_rate" ? -resource_limit : 0) ||
+					    amount > resource_limit)
+						fail("invalid property amount");
+					op.amount = amount.get<std::int64_t>();
+				}
 			}
 			else
 			{

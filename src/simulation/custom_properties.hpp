@@ -1,0 +1,423 @@
+// Included inside World::Impl. Native owners retain stored property values.
+static CustomPropertyAddress custom_property_address(const RuleActor &actor)
+{
+	if (actor.ordnance || actor.kind == PayloadOutcomeKind::Shield ||
+	    (!actor.equipment.empty() && !actor.officer.empty()))
+		throw std::runtime_error("Invalid custom property owner");
+	return {actor.entity, actor.equipment, actor.officer,
+	        actor.equipment.empty() && actor.officer.empty() ? actor.compartment : -1};
+}
+RuleActor custom_property_actor(EntityId entity, const std::string &token) const
+{
+	RuleActor actor{entity};
+	if (token.starts_with("officer:"))
+		actor.officer = token.substr(8);
+	else if (token.starts_with("compartment:"))
+	{
+		actor.kind = PayloadOutcomeKind::Compartment;
+		const auto text = std::string_view(token).substr(12);
+		const auto parsed = std::from_chars(text.data(), text.data() + text.size(), actor.compartment);
+		if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || actor.compartment < 0)
+			throw std::runtime_error("Invalid custom compartment owner");
+	}
+	else
+		actor.equipment = token;
+	return actor;
+}
+static std::string custom_modifier_target(const RuleActor &actor)
+{
+	if (!actor.officer.empty())
+		return "officer:" + actor.officer;
+	if (!actor.equipment.empty())
+		return actor.equipment;
+	if (actor.compartment >= 0)
+		return "compartment:" + std::to_string(actor.compartment);
+	return {};
+}
+CustomPropertyState *custom_property_state(const CustomPropertyAddress &address) const
+{
+	const auto at = entities.find(address.entity);
+	if (at == entities.end())
+		return nullptr;
+	auto entity = at->second;
+	if (!address.equipment.empty())
+	{
+		const auto *index = entity.try_get<EquipmentIndex>();
+		if (!index)
+			return nullptr;
+		const auto child = index->by_id.find(address.equipment);
+		return child == index->by_id.end() ? nullptr : child->second.try_get_mut<CustomPropertyState>();
+	}
+	if (!address.officer.empty())
+	{
+		auto *personnel = entity.try_get_mut<PersonnelState>();
+		if (!personnel)
+			return nullptr;
+		const auto &officers = definition(address.entity).personnel.officers;
+		for (std::size_t i = 0; i < officers.size(); ++i)
+			if (officers[i].id == address.officer)
+				return &personnel->officers.at(i).properties;
+		return nullptr;
+	}
+	if (address.compartment >= 0)
+	{
+		auto *structure = entity.try_get_mut<CombatStructure>();
+		return !structure || static_cast<std::size_t>(address.compartment) >= structure->compartments.size()
+		           ? nullptr
+		           : &structure->compartments[address.compartment].properties;
+	}
+	return entity.try_get_mut<CustomPropertyState>();
+}
+static state_tree::Value custom_property_scalar(const CustomPropertyValue &value)
+{
+	if (const auto *number = std::get_if<std::int64_t>(&value))
+		return state_tree::Value::integer(*number);
+	if (const auto *flag = std::get_if<bool>(&value))
+		return state_tree::Value::boolean(*flag);
+	return {state_tree::Type::Text, 0, std::get<std::string>(value)};
+}
+void validate_custom_property_value(const std::string &id, const CustomPropertyValue &value) const
+{
+	(void)read_custom_property_value(property_catalogue->at(id), custom_property_json(value), "property." + id);
+}
+CustomPropertyValue effective_custom_property(const CustomPropertyAddress &address, const std::string &id,
+                                              const CustomPropertyState &state, bool retiring = false) const
+{
+	const auto &definition = property_catalogue->at(id);
+	const auto &base = state.bases.at(id);
+	if (definition.kind == CustomPropertyKind::Quantity)
+		return base;
+	std::int64_t delta = 0, priority = std::numeric_limits<std::int64_t>::min();
+	std::uint64_t newest = 0;
+	CustomPropertyValue result = base;
+	const auto ship = entities.at(address.entity);
+	const auto token = custom_modifier_target(RuleActor{
+	    address.entity, address.equipment, address.officer, false,
+	    address.compartment >= 0 ? PayloadOutcomeKind::Compartment : PayloadOutcomeKind::Entity, address.compartment});
+	if (const auto *owner = ship.try_get<PropertyEffectOwner>())
+		for (const auto &[identity, effect] : owner->applications)
+		{
+			if (effect.get<EffectTarget>().equipment_name != token)
+				continue;
+			const auto &source = effect.get<ActiveEffectIdentity>().source;
+			if (source.starts_with("rule.") && !rule_grant_available(address.entity, source))
+			{
+				const auto *previous = retiring ? readonly_rule_execution(parent_rule_execution_key(source)) : nullptr;
+				if (!previous || !previous->eligible || !previous->active || previous->stopped || !previous->output)
+					continue;
+			}
+			for (const auto &row : effect.get<ModifierValues>().values)
+				if (row.custom == id)
+				{
+					if (definition.kind == CustomPropertyKind::Attribute)
+						delta += row.delta;
+					else if (row.override_value &&
+					         (row.priority > priority || (row.priority == priority && identity > newest)))
+					{
+						result = *row.override_value;
+						priority = row.priority;
+						newest = identity;
+					}
+				}
+		}
+	if (definition.kind != CustomPropertyKind::Attribute)
+		return result;
+	const auto number = std::get<std::int64_t>(base);
+	const auto sign = number < 0 ? -1 : 1;
+	const auto magnitude = number < 0 ? -number : number;
+	const auto bound = std::max(std::abs(definition.minimum), std::abs(definition.maximum));
+	return std::clamp(sign * apply_property_delta(magnitude, delta, bound), definition.minimum, definition.maximum);
+}
+std::optional<state_tree::Value> read_custom_property(const RuleActor &actor, const std::string &id,
+                                                      bool base = false) const
+{
+	try
+	{
+		const auto address = custom_property_address(actor);
+		const auto *state = custom_property_state(address);
+		if (!state || !state->bases.contains(id))
+			return {};
+		return custom_property_scalar(base ? state->bases.at(id) : effective_custom_property(address, id, *state));
+	}
+	catch (const std::exception &)
+	{
+		return {};
+	}
+}
+std::vector<CustomPropertyAddress> custom_property_addresses(EntityId id) const
+{
+	std::vector<CustomPropertyAddress> result{{id}};
+	const auto ship = entities.at(id);
+	if (const auto *equipment = ship.try_get<EquipmentIndex>())
+		for (const auto &[name, child] : equipment->by_id)
+			result.push_back({id, name});
+	if (const auto *personnel = ship.try_get<PersonnelState>())
+		for (const auto &officer : definition(id).personnel.officers)
+			result.push_back({id, {}, officer.id});
+	if (const auto *structure = ship.try_get<CombatStructure>())
+		for (std::size_t i = 0; i < structure->compartments.size(); ++i)
+			result.push_back({id, {}, {}, static_cast<std::int64_t>(i)});
+	return result;
+}
+// Fractional work belongs to a native execution lifetime. Withdrawal while
+// paused keeps it; permanent source erasure releases it on every actual owner.
+static std::string native_property_rate_suffix(const NativeRuleContext &context)
+{
+	const auto key = std::to_string(context.owner.entity) + ":" +
+	                 std::to_string(static_cast<int>(context.owner_effect_kind)) + ":" +
+	                 std::to_string(context.owner_effect_id) + ":" + context.owner_grant;
+	return ":owner." +
+	       sha256(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t *>(key.data()), key.size()));
+}
+std::set<std::string> retired_custom_property_rates;
+bool custom_property_native_rates_dirty = false;
+void erase_custom_native_property_rates(EntityId, const std::string &)
+{
+	// Native owners are already closing. Reconcile their derived suffixes once
+	// after the surrounding retirement/transaction boundary has published.
+	custom_property_native_rates_dirty = true;
+}
+void erase_custom_property_rate_source(const std::string &source)
+{
+	retired_custom_property_rates.insert(source + ":");
+}
+std::optional<std::string> custom_property_rate_key(const EffectGroupInvocation &frame, std::size_t index,
+                                                    const std::string &property) const
+{
+	auto key = frame.source + ":" + std::to_string(index) + ":" + property;
+	if (frame.rule_context && frame.rule_context->owner_effect_kind != NativeEffectKind::None)
+	{
+		if (!native_property_rate_owner_live(*frame.rule_context))
+			return {};
+		key += native_property_rate_suffix(*frame.rule_context);
+	}
+	return key;
+}
+void prune_custom_property_rates(std::span<const NativeRuleSource> sources)
+{
+	if (retired_custom_property_rates.empty() && !custom_property_native_rates_dirty)
+		return;
+	std::set<std::string> live;
+	if (custom_property_native_rates_dirty)
+		for (const auto &source : sources)
+			if (source.context.owner_effect_kind != NativeEffectKind::None &&
+			    native_property_rate_owner_live(source.context))
+				live.insert(native_property_rate_suffix(source.context));
+	for (const auto &[id, ship] : entities)
+		for (const auto &address : custom_property_addresses(id))
+			if (auto *state = custom_property_state(address))
+				std::erase_if(state->remainders,
+				              [&](const auto &entry)
+				              {
+					              const auto separator = entry.first.find(':');
+					              if (separator != std::string::npos &&
+					                  retired_custom_property_rates.contains(entry.first.substr(0, separator + 1)))
+						              return true;
+					              const auto suffix = entry.first.rfind(":owner.");
+					              return custom_property_native_rates_dirty && suffix != std::string::npos &&
+					                     !live.contains(entry.first.substr(suffix));
+				              });
+	retired_custom_property_rates.clear();
+	custom_property_native_rates_dirty = false;
+}
+void commit_custom_property_state(const CustomPropertyAddress &address, const CustomPropertyState &value)
+{
+	auto *state = custom_property_state(address);
+	if (!state || state->bases.size() != value.bases.size())
+		throw std::runtime_error("Custom property owner changed");
+	for (const auto &[id, base] : value.bases)
+	{
+		if (!state->bases.contains(id))
+			throw std::runtime_error("Custom property is undeclared");
+		validate_custom_property_value(id, base);
+	}
+	if (value.remainders.size() > custom_property_rate_limit)
+		throw std::runtime_error("Property rate remainder capacity exhausted");
+	for (const auto &[id, remainder] : value.remainders)
+		if (id.empty() || id.size() > 512 || remainder <= -rate || remainder >= rate)
+			throw std::runtime_error("Invalid property rate remainder");
+	begin_custom_property_batch();
+	capture_custom_property_owner(address);
+	*state = value;
+	finish_custom_property_batch();
+}
+const CustomPropertyState &custom_property_declarations(const CustomPropertyAddress &address) const
+{
+	static const CustomPropertyState empty;
+	const auto &compiled = definition(address.entity);
+	if (!address.equipment.empty())
+	{
+		const auto at = compiled.equipment_properties.find(address.equipment);
+		return at == compiled.equipment_properties.end() ? empty : at->second;
+	}
+	if (!address.officer.empty())
+	{
+		const auto at = compiled.officer_properties.find(address.officer);
+		return at == compiled.officer_properties.end() ? empty : at->second;
+	}
+	if (address.compartment >= 0)
+	{
+		if (!compiled.combat || static_cast<std::size_t>(address.compartment) >= compiled.combat->compartments.size())
+			return empty;
+		const auto at = compiled.compartment_properties.find(compiled.combat->compartments[address.compartment].id);
+		return at == compiled.compartment_properties.end() ? empty : at->second;
+	}
+	return compiled.properties;
+}
+Json save_custom_properties() const
+{
+	Json out = Json::array();
+	for (const auto &[id, ship] : entities)
+		if (id < field_identity_base)
+			for (const auto &address : custom_property_addresses(id))
+			{
+				const auto *state = custom_property_state(address);
+				if (!state || state->bases.empty())
+					continue;
+				Json values = Json::object();
+				for (const auto &[key, value] : state->bases)
+					values[key] = custom_property_json(value);
+				out.push_back({{"entity", id},
+				               {"equipment", address.equipment},
+				               {"officer", address.officer},
+				               {"compartment", address.compartment},
+				               {"values", values},
+				               {"remainders", state->remainders}});
+			}
+	return out;
+}
+void restore_custom_properties(const Json &saved)
+{
+	if (!saved.is_array())
+		throw std::runtime_error("Invalid custom properties");
+	std::set<CustomPropertyAddress> seen;
+	std::map<CustomPropertyAddress, CustomPropertyState> staged;
+	for (const auto &row : saved)
+	{
+		if (!row.is_object() || row.size() != 6 || !row.at("values").is_object())
+			throw std::runtime_error("Invalid custom property owner row");
+		CustomPropertyAddress address{
+		    static_cast<EntityId>(checked_integer(row.at("entity"), 1, 9007199254740991LL, "property.entity")),
+		    row.at("equipment").get<std::string>(), row.at("officer").get<std::string>(),
+		    checked_integer(row.at("compartment"), -1, 255, "property.compartment")};
+		if ((!address.equipment.empty() && (!address.officer.empty() || address.compartment >= 0)) ||
+		    (!address.officer.empty() && address.compartment >= 0) || !seen.insert(address).second)
+			throw std::runtime_error("Invalid custom property owner identity");
+		const auto *owner = custom_property_state(address);
+		const auto &initial = custom_property_declarations(address);
+		if (!owner || initial.bases.size() != row.at("values").size() || initial.bases.empty())
+			throw std::runtime_error("Invalid custom property binding roster");
+		CustomPropertyState state;
+		for (const auto &[key, value] : row.at("values").items())
+		{
+			if (!initial.bases.contains(key))
+				throw std::runtime_error("Undeclared saved property");
+			state.bases[key] = read_custom_property_value(property_catalogue->at(key), value, "property." + key);
+		}
+		if (!row.at("remainders").is_object() || row.at("remainders").size() > custom_property_rate_limit)
+			throw std::runtime_error("Invalid custom rate remainder roster");
+		for (const auto &[key, remainder] : row.at("remainders").items())
+			state.remainders[key] = checked_integer(remainder, -rate + 1, rate - 1, "property.remainder");
+		for (const auto &[key, value] : state.remainders)
+			if (key.empty() || key.size() > 512 || value <= -rate || value >= rate)
+				throw std::runtime_error("Invalid custom rate remainder");
+		staged.emplace(address, std::move(state));
+	}
+	for (const auto &[id, ship] : entities)
+		if (id < field_identity_base)
+			for (const auto &address : custom_property_addresses(id))
+				if (!custom_property_declarations(address).bases.empty() && !seen.contains(address))
+					throw std::runtime_error("Missing saved property owner");
+	for (auto &[address, state] : staged)
+		*custom_property_state(address) = std::move(state);
+}
+
+struct CustomPropertyBefore
+{
+	CustomPropertyState state;
+	std::map<std::string, CustomPropertyValue> effective;
+};
+bool suppress_custom_property_events = false;
+std::size_t custom_property_batch_depth = 0;
+std::map<CustomPropertyAddress, CustomPropertyBefore> custom_property_batch;
+void begin_custom_property_batch()
+{
+	++custom_property_batch_depth;
+}
+void capture_custom_property_owner(const CustomPropertyAddress &address, bool retiring = false)
+{
+	if (custom_property_batch.contains(address))
+		return;
+	const auto *state = custom_property_state(address);
+	if (!state || state->bases.empty())
+		return;
+	CustomPropertyBefore before{*state, {}};
+	for (const auto &[id, value] : state->bases)
+		before.effective[id] = effective_custom_property(address, id, *state, retiring);
+	custom_property_batch.emplace(address, std::move(before));
+}
+void emit_custom_property_change(const CustomPropertyAddress &address, const CustomPropertyBefore &before)
+{
+	const auto *state = custom_property_state(address);
+	if (!state)
+		return;
+	const auto ship = entities.at(address.entity);
+	RuleActor subject{address.entity,
+	                  address.equipment,
+	                  address.officer,
+	                  false,
+	                  address.compartment >= 0 ? PayloadOutcomeKind::Compartment : PayloadOutcomeKind::Entity,
+	                  address.compartment};
+	for (const auto &[id, base] : state->bases)
+	{
+		const auto effective = effective_custom_property(address, id, *state);
+		if (before.state.bases.at(id) == base && before.effective.at(id) == effective)
+			continue;
+		NativeRuleContext event;
+		event.subject = event.target = subject;
+		event.tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+		for (const auto &source : rule_sources(ship))
+			if (source.eligible && source.bindings)
+				for (const auto &binding : *source.bindings)
+				{
+					const auto &rule = rule_templates.at(binding.rule);
+					if (rule.trigger != RuleTrigger::PropertyChanged)
+						continue;
+					auto context = merge_rule_event_context(source, event);
+					if (!rule_binding_matches(binding, context))
+						continue;
+					context = bind_rule_context(binding, std::move(context));
+					std::erase_if(context.captured,
+					              [&](const auto &capture)
+					              {
+						              return capture.fact.kind == RuleFactKind::PropertyBefore ||
+						                     capture.fact.kind == RuleFactKind::PropertyAfter ||
+						                     std::find(rule.facts.begin(), rule.facts.end(), capture.fact) ==
+						                         rule.facts.end();
+					              });
+					for (const auto &fact : rule.facts)
+						if (fact.kind == RuleFactKind::PropertyBefore || fact.kind == RuleFactKind::PropertyAfter)
+						{
+							state_tree::Value value;
+							if (fact.key == id)
+								value = custom_property_scalar(
+								    fact.kind == RuleFactKind::PropertyBefore
+								        ? (fact.aux == "base" ? before.state.bases.at(id) : before.effective.at(id))
+								        : (fact.aux == "base" ? base : effective));
+							context.captured.push_back({fact, value});
+						}
+					(void)enqueue_rule(rule.id, rule_key(source.key, binding.id, subject), context,
+					                   RuleEventPhase::Periodic, event.tick + 1);
+				}
+	}
+}
+void finish_custom_property_batch()
+{
+	if (!custom_property_batch_depth || --custom_property_batch_depth)
+		return;
+	auto changes = std::move(custom_property_batch);
+	custom_property_batch.clear();
+	if (!suppress_custom_property_events)
+		for (const auto &[address, before] : changes)
+			emit_custom_property_change(address, before);
+}

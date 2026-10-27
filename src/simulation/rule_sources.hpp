@@ -60,6 +60,58 @@ bool rule_origin_live(const RuleOriginKey &key, const PreparedEffectGroup *prepa
 				return true;
 	return false;
 }
+bool native_property_rate_owner_live(const NativeRuleContext &context) const
+{
+	if (context.owner_effect_kind == NativeEffectKind::None)
+		return true;
+	if (context.owner_effect_kind == NativeEffectKind::Periodic)
+	{
+		const auto effect = active_rule_entity(context.owner_effect_id);
+		return effect && effect.get<ActiveRuleEffect>().expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick) &&
+		       active_rule_target_available(effect.get<ActiveRuleEffect>());
+	}
+	if (!rule_origin_live({context.owner.entity, context.owner.ordnance, context.owner_grant}))
+		return false;
+	const auto found = entities.find(context.owner.entity);
+	if (found == entities.end())
+		return false;
+	const auto ship = found->second;
+	if (context.owner_effect_kind == NativeEffectKind::Modifier)
+	{
+		const auto *owner = ship.try_get<PropertyEffectOwner>();
+		if (!owner || !owner->applications.contains(context.owner_effect_id))
+			return false;
+		const auto effect = owner->applications.at(context.owner_effect_id);
+		const auto expiry = effect.get<EffectLifetime>().expiry;
+		return effect.get<ActiveEffectIdentity>().source == context.owner_grant &&
+		       (expiry < 0 || expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick));
+	}
+	if (context.owner_effect_kind == NativeEffectKind::Shield)
+	{
+		const auto *shields = ship.try_get<ShieldComponent>();
+		return shields &&
+		       std::any_of(shields->contributions.begin(), shields->contributions.end(),
+		                   [&](const auto &row)
+		                   {
+			                   return row.effect_id == context.owner_effect_id && row.source == context.owner_grant &&
+			                          (row.expiry < 0 || row.expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick));
+		                   });
+	}
+	if (context.owner_effect_kind == NativeEffectKind::Ability)
+	{
+		const auto *abilities = ship.try_get<AbilityRuntime>();
+		return abilities &&
+		       std::any_of(abilities->grants.begin(), abilities->grants.end(),
+		                   [&](const auto &row)
+		                   {
+			                   return row.second.generation == context.owner_effect_id &&
+			                          row.second.parent == context.owner_grant &&
+			                          (row.second.expiry < 0 ||
+			                           row.second.expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick));
+		                   });
+	}
+	return false;
+}
 std::size_t rule_clock_capacity(const std::vector<ActiveRuleEffect> *prepared = nullptr) const
 {
 	if (!prepared && rule_clock_capacity_cache)
@@ -121,7 +173,10 @@ void remember_rule_origins(const PreparedEffectGroup &prepared)
 	std::erase_if(rule_origins,
 	              [&](const auto &entry)
 	              {
-		              return !rule_origin_live(entry.first);
+		              if (rule_origin_live(entry.first))
+			              return false;
+		              erase_custom_native_property_rates(std::get<0>(entry.first), std::get<2>(entry.first));
+		              return true;
 	              });
 	for (const auto &frame : prepared.invocations)
 		for (const auto &operation : frame.execution.operations)
@@ -144,6 +199,8 @@ void remember_rule_origins(const PreparedEffectGroup &prepared)
 			}
 	if (prepared.active_effects)
 		discover_active_rule_clocks();
+	if (!retired_custom_property_rates.empty() || custom_property_native_rates_dirty)
+		prune_custom_property_rates(lifecycle_rule_sources());
 }
 NativeRuleContext native_rule_origin(const RuleActor &owner, const std::string &source,
                                      NativeEffectKind kind = NativeEffectKind::None, std::uint64_t instance = 0) const
@@ -307,6 +364,10 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 			if (const auto found = compiled.rules.officers.find(officer.id); found != compiled.rules.officers.end())
 				add(RuleOwnerKind::Officer, "officer:" + std::to_string(id) + ":" + officer.id, owner, passive(owner),
 				    found->second, aboard);
+			if (const auto found = compiled.rules.officer_lifetime.find(officer.id);
+			    found != compiled.rules.officer_lifetime.end())
+				add(RuleOwnerKind::Officer, "officer-lifetime:" + std::to_string(id) + ":" + officer.id, owner,
+				    passive(owner), found->second, alive && state.condition != "dead");
 			// Merge native participation routes before creating sources. An all-property
 			// route subsumes a repair-only route to the same role and target.
 			std::map<std::pair<std::string, std::string>, std::string> targets;
@@ -414,7 +475,7 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 			const auto expiry = effect.get<EffectLifetime>().expiry;
 			native(identity.definition, identity.source,
 			       "modifier-effect:" + std::to_string(id) + ":" + std::to_string(application),
-			       {id, effect.get<EffectTarget>().equipment_name}, expiry < 0 || expiry > tick,
+			       custom_property_actor(id, effect.get<EffectTarget>().equipment_name), expiry < 0 || expiry > tick,
 			       NativeEffectKind::Modifier, application);
 		}
 	if (const auto *abilities = ship.try_get<AbilityRuntime>())

@@ -343,6 +343,26 @@ std::vector<std::string> controller_ability_bindings(const Json &tree, const Cat
 		                "invalid or duplicate ability endpoint binding");
 		result.push_back(endpoint);
 	}
+	const auto property_bindings =
+	    resolve_tree_definition(tree, catalog).value("ability_property_bindings", Json::array());
+	binding_require(property_bindings.is_array() && property_bindings.size() <= 256, "Controller tree",
+	                "expected bounded ability_property_bindings");
+	const auto definitions = compile_property_catalog(catalog);
+	std::set<std::pair<std::string, std::string>> seen_properties;
+	for (const auto &binding : property_bindings)
+	{
+		binding_require(binding.is_object() && binding.size() == 2 && binding.contains("endpoint") &&
+		                    binding.contains("property") && binding.at("endpoint").is_string() &&
+		                    binding.at("property").is_string(),
+		                "Controller tree", "expected endpoint and property");
+		const auto endpoint = binding.at("endpoint").get<std::string>(),
+		           property = binding.at("property").get<std::string>();
+		binding_require(valid_identifier(endpoint) && definitions->contains(property) &&
+		                    seen_properties.emplace(endpoint, property).second,
+		                "Controller tree", "invalid or duplicate observed ability property binding");
+		if (seen.insert(endpoint).second)
+			result.push_back(endpoint);
+	}
 	return result;
 }
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &tree, const Catalog &catalog)
@@ -488,6 +508,9 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		result.telemetry.push_back({binding, add({binding.name, binding.type, 4, {}})});
 	for (const auto &binding : controller_command_reads(tree, catalog))
 		result.command_reads.push_back({binding, add({binding.name, binding.type, 4, {}})});
+	const auto property_bindings =
+	    resolve_tree_definition(tree, catalog).value("ability_property_bindings", Json::array());
+	const auto properties = compile_property_catalog(catalog);
 	for (const auto &endpoint : controller_ability_bindings(tree, catalog))
 	{
 		ControllerAbilityBinding binding;
@@ -500,6 +523,16 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		binding.fields[ControllerAbilityField::Output] = add({prefix + "output", Type::Integer, 4, {}});
 		binding.fields[ControllerAbilityField::Blocked] = add({prefix + "blocked", Type::Boolean, 4, {}});
 		binding.fields[ControllerAbilityField::Requested] = add({prefix + "requested", Type::Boolean, 4, {}});
+		for (const auto &property_binding : property_bindings)
+			if (property_binding.at("endpoint") == endpoint)
+			{
+				const auto property = property_binding.at("property").get<std::string>();
+				const auto kind = properties->at(property).kind;
+				const auto type = kind == CustomPropertyKind::Flag   ? Type::Boolean
+				                  : kind == CustomPropertyKind::Enum ? Type::Text
+				                                                     : Type::Integer;
+				binding.properties.push_back({property, add({prefix + "property." + property, type, 4, {}}), type});
+			}
 		result.abilities.push_back(std::move(binding));
 	}
 	const std::vector<FieldSpec> inbox{
