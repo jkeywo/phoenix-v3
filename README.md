@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Modularisation implementation plan](docs/modularisation-plan.md) defines the proposed family/module folder hierarchy, dependency rules and separately verifiable migration chunks.
+
 [GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
 
 [Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.
