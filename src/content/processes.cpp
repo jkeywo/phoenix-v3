@@ -29,11 +29,18 @@ void process_fields(const Json &v, const std::set<std::string> &allowed, const s
 }
 NativeProcessKind native_process_kind(const std::string &name, const std::string &at)
 {
-	static const std::map<std::string, NativeProcessKind> kinds{{"effects", NativeProcessKind::Effects},
-	                                                            {"generation", NativeProcessKind::Generation},
-	                                                            {"propulsion", NativeProcessKind::Propulsion},
-	                                                            {"cooling", NativeProcessKind::Cooling},
-	                                                            {"processor", NativeProcessKind::Processor}};
+	static const std::map<std::string, NativeProcessKind> kinds{
+	    {"effects", NativeProcessKind::Effects},
+	    {"generation", NativeProcessKind::Generation},
+	    {"propulsion", NativeProcessKind::Propulsion},
+	    {"cooling", NativeProcessKind::Cooling},
+	    {"processor", NativeProcessKind::Processor},
+	    {"repair", NativeProcessKind::Repair},
+	    {"medical", NativeProcessKind::Medical},
+	    {"recovery", NativeProcessKind::Recovery},
+	    {"servicing_energy", NativeProcessKind::ServicingEnergy},
+	    {"servicing_ammunition", NativeProcessKind::ServicingAmmunition},
+	    {"ftl", NativeProcessKind::Ftl}};
 	const auto found = kinds.find(name);
 	if (found == kinds.end())
 		process_fail(at, "unknown native process kind");
@@ -48,12 +55,12 @@ ProcessDefinition compile_process(const Catalog &catalog, const std::string &id,
 	if (found == catalog.effects.end() || found->second.value("kind", std::string{}) != "process")
 		process_fail(at, "unknown process template");
 	const auto &value = found->second;
-	process_fields(value,
-	               {"id",           "kind",          "extends",     "name",         "label",        "family",
-	                "native",       "requested",     "shortage",    "work_unit",    "requirements", "rate",
-	                "upkeep_scale", "work_scale",    "entry_costs", "upkeep_costs", "work_costs",   "start_effect",
-	                "pause_effect", "resume_effect", "stop_effect", "work_effect",  "work_values",  "exclusions",
-	                "observations", "rules"},
+	process_fields(value, {"id",           "kind",          "extends",          "name",         "label",
+	                       "family",       "native",        "requested",        "shortage",     "work_unit",
+	                       "requirements", "rate",          "upkeep_scale",     "work_scale",   "entry_costs",
+	                       "upkeep_costs", "work_costs",    "start_effect",     "pause_effect", "resume_effect",
+	                       "stop_effect",  "work_effect",   "work_values",      "exclusions",   "observations",
+	                       "rules",        "required_work", "completion_effect"},
 	               at);
 	ProcessDefinition out;
 	out.id = id;
@@ -88,6 +95,21 @@ ProcessDefinition compile_process(const Catalog &catalog, const std::string &id,
 		out.work_unit = "effort_milliticks";
 		out.work_divisor = 1000;
 		break;
+	case NativeProcessKind::Repair:
+	case NativeProcessKind::Medical:
+	case NativeProcessKind::Recovery:
+		out.work_unit = "work_milliunits";
+		out.work_divisor = 1000;
+		break;
+	case NativeProcessKind::ServicingEnergy:
+	case NativeProcessKind::Ftl:
+		out.work_unit = "energy";
+		out.work_divisor = 1;
+		break;
+	case NativeProcessKind::ServicingAmmunition:
+		out.work_unit = "rounds";
+		out.work_divisor = 1;
+		break;
 	case NativeProcessKind::Processor:
 		out.work_unit = "work_milliunits";
 		out.work_divisor = 1000;
@@ -113,6 +135,37 @@ ProcessDefinition compile_process(const Catalog &catalog, const std::string &id,
 	};
 	out.evaluation.condition = expression("requirements", state_tree::Type::Boolean, {});
 	out.rate = expression("rate", state_tree::Type::Integer, "permille");
+	// A bay connection has one native throughput budget shared by all recipients.
+	// Recipient-specific eligibility and work costs are evaluated by each episode,
+	// but this aggregate rate has no single recipient on which to evaluate facts.
+	if (out.rate &&
+	    (out.native == NativeProcessKind::ServicingEnergy || out.native == NativeProcessKind::ServicingAmmunition))
+		for (const auto &node : out.rate->nodes)
+			if (node.op == RuleExpressionOp::Fact)
+			{
+				const auto &fact = out.evaluation.facts.at(node.fact);
+				if (fact.role != RuleRole::Target && fact.role != RuleRole::Subject)
+					continue;
+				switch (fact.kind)
+				{
+				case RuleFactKind::Entity:
+				case RuleFactKind::Exists:
+				case RuleFactKind::Enabled:
+				case RuleFactKind::Eligible:
+				case RuleFactKind::Heat:
+				case RuleFactKind::ResourceQuantity:
+				case RuleFactKind::Property:
+				case RuleFactKind::Output:
+				case RuleFactKind::CompletedWork:
+				case RuleFactKind::OfficerPresent:
+				case RuleFactKind::OfficerHealthy:
+				case RuleFactKind::OfficerOnDuty:
+					process_fail(at + ".rate", "shared bay throughput has no single recipient; use owner/source rate "
+					                           "facts and per-target requirements or work costs");
+				default:
+					break;
+				}
+			}
 	out.upkeep_scale = expression("upkeep_scale", state_tree::Type::Integer, "permille");
 	out.work_scale = expression("work_scale", state_tree::Type::Integer, "permille");
 	const auto costs = [&](const char *key, const char *quantity)
@@ -136,6 +189,21 @@ ProcessDefinition compile_process(const Catalog &catalog, const std::string &id,
 	out.pause_effect = group("pause_effect");
 	out.resume_effect = group("resume_effect");
 	out.stop_effect = group("stop_effect");
+	out.completion_effect = group("completion_effect");
+	if (value.contains("required_work"))
+	{
+		const auto &required = value.at("required_work");
+		if (out.native != NativeProcessKind::Effects || !required.is_number_integer() || required <= 0 ||
+		    required > resource_limit)
+			process_fail(at, "required_work requires bounded positive effect-only work");
+		out.required_work = required.get<std::int64_t>();
+	}
+	if (out.completion_effect &&
+	    (out.native == NativeProcessKind::Generation || out.native == NativeProcessKind::Propulsion ||
+	     out.native == NativeProcessKind::Cooling || out.native == NativeProcessKind::Processor))
+		process_fail(at, "completion_effect requires finite work");
+	if (out.completion_effect && out.native == NativeProcessKind::Effects && !out.required_work)
+		process_fail(at, "effect-only completion_effect requires required_work");
 	if (const auto work = group("work_effect"))
 		out.evaluation.effects = *work;
 	if (value.contains("work_values"))
@@ -218,9 +286,22 @@ std::string resolve_process_native_binding(const ProcessDefinition &definition, 
 		process_fail(definition.id, "native process requires matching fitted machinery");
 	if (!requested_id.empty())
 	{
-		if (!found->second.contains(requested_id))
-			process_fail(definition.id, "native_id does not belong to the owning equipment/mechanism");
-		return requested_id;
+		if (found->second.contains(requested_id))
+			return requested_id;
+		if (definition.native == NativeProcessKind::ServicingAmmunition && requested_id.starts_with("ammo-"))
+		{
+			std::string match;
+			for (const auto &candidate : found->second)
+				if (candidate.ends_with("." + requested_id))
+				{
+					if (!match.empty())
+						process_fail(definition.id, "ambiguous ammunition connection");
+					match = candidate;
+				}
+			if (!match.empty())
+				return match;
+		}
+		process_fail(definition.id, "native_id does not belong to the owning equipment/mechanism");
 	}
 	if (found->second.size() != 1)
 		process_fail(definition.id, "ambiguous native machinery binding; set native_id");
@@ -257,12 +338,33 @@ ProcessDefinitionSet compile_process_bindings_impl(const Catalog &catalog, const
 			add(NativeProcessKind::Cooling, owner.value("cooling_link", std::string{}));
 		if (kind == "engine" || kind == "steering" || kind == "lateral" || kind == "boost" || kind == "impulse")
 			add(NativeProcessKind::Propulsion, id);
+		if (kind == "team" || kind == "repair_team")
+		{
+			const auto capabilities = owner.value("capabilities", Json::array({"repair"}));
+			if (kind == "repair_team" ||
+			    std::find(capabilities.begin(), capabilities.end(), "repair") != capabilities.end())
+				add(NativeProcessKind::Repair, id);
+			if (std::find(capabilities.begin(), capabilities.end(), "medical") != capabilities.end())
+				add(NativeProcessKind::Medical, id);
+		}
+		if (kind == "ftl")
+			add(NativeProcessKind::Ftl, id);
+		if (kind == "shuttle_bay")
+		{
+			if (owner.value("charge_per_second", std::int64_t{0}) > 0)
+				add(NativeProcessKind::ServicingEnergy, id);
+			for (std::size_t i = 0; i < owner.value("ammunition", Json::array()).size(); ++i)
+				add(NativeProcessKind::ServicingAmmunition, id + ".ammo-" + std::to_string(i));
+		}
 		if (owner.contains("processor"))
 			add(NativeProcessKind::Processor, id);
 		for (const auto &processor : hull.value("processors", Json::array()))
 			if (processor.value("equipment", std::string{}) == id)
 				add(NativeProcessKind::Processor, processor.at("id").get<std::string>());
 	}
+	if (hull.contains("personnel") && hull.at("personnel").is_object())
+		for (const auto &facility : hull.at("personnel").value("facilities", Json::array()))
+			out.native_bindings[""][NativeProcessKind::Recovery].insert(facility.at("id").get<std::string>());
 	std::size_t count = 0;
 	const auto bindings =
 	    [&](const Json &owner, const std::string &owner_kind, const std::string &owner_id, const std::string &path)
@@ -284,10 +386,14 @@ ProcessDefinitionSet compile_process_bindings_impl(const Catalog &catalog, const
 			if (value.contains("requested") && !value.at("requested").is_boolean())
 				process_fail(path, "requested must be Boolean");
 			b.requested = value.value("requested", definition.requested);
-			if (definition.native != NativeProcessKind::Effects && owner_kind != "equipment")
+			if (definition.native != NativeProcessKind::Effects && owner_kind != "equipment" &&
+			    !(definition.native == NativeProcessKind::Recovery && owner_kind == "entity"))
 				process_fail(path, "native machinery processes require equipment owners");
 			b.native_id = resolve_process_native_binding(
-			    definition, owner_kind == "equipment" ? out.native_bindings.at(owner_id) : ProcessNativeBindings{},
+			    definition,
+			    (owner_kind == "equipment" || definition.native == NativeProcessKind::Recovery)
+			        ? out.native_bindings.at(owner_kind == "entity" ? std::string{} : owner_id)
+			        : ProcessNativeBindings{},
 			    b.native_id);
 			result.push_back(std::move(b));
 		}

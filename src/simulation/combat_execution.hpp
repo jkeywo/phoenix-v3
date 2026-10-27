@@ -527,7 +527,9 @@ void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 	r.travel = r.edge_total = route.second;
 }
 // Repair effort is milli-HP per second; compartment work carries sub-tick fractions.
-std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams)
+std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams, EntityId target,
+                                    std::int64_t compartment = -1, const std::string &work_key = {},
+                                    std::int64_t progress = 0, std::int64_t required = 0)
 {
 	std::erase_if(teams,
 	              [&](auto team)
@@ -545,36 +547,108 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		                           y.template get<TeamDefinition>().repair_rate
 		                     : x.id < y.id;
 	          });
+	const auto origin = ship.get<StableId>().id;
 	std::int64_t work = 0;
 	for (std::size_t rank = 0; rank < teams.size(); ++rank)
 	{
-		const auto &d = teams[rank].get<CombatMechanism>().definition;
+		const auto &mechanism = teams[rank].get<CombatMechanism>();
+		const auto &d = mechanism.definition;
 		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
 			continue;
-		const auto contribution = team_work(ship, teams[rank].get<CombatMechanism>(), PropertyKey::repair,
-		                                    d.get<TeamDefinition>().repair_rate * 1000000) /
-		                          (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank));
-		work += paid_structural_work(ship.get<StableId>().id, d.id, contribution);
+		const auto contribution =
+		    team_work(ship, mechanism, PropertyKey::repair, d.get<TeamDefinition>().repair_rate * 1000000) /
+		    (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank));
+		std::int64_t credit = 0;
+		if (const auto *inventory = ship.try_get<MaterialInventory>();
+		    inventory && inventory->work_credit.contains(d.id))
+			credit = inventory->work_credit.at(d.id);
+		const auto *consumer = material_consumer(origin, d.id);
+		const bool native_priced =
+		    consumer && consumer->costs.contains("structural") && !consumer->costs.at("structural").empty();
+		auto unit_costs = native_material_work_costs(origin, d.id, "structural", false);
+		const bool inputs_available = unit_costs.has_value();
+		if (!inputs_available && credit <= 0)
+			continue;
+		if (!unit_costs)
+			unit_costs = std::vector<EffectCostDefinition>{};
+		const auto work_unit = rate * 1000;
+		std::int64_t desired = inputs_available ? contribution : std::min(contribution, credit);
+		std::int64_t purchases =
+		    unit_costs->empty() ? 0 : std::max<std::int64_t>(0, desired - credit + work_unit - 1) / work_unit;
+		for (const auto &cost : *unit_costs)
+			if (cost.amount > 0)
+				purchases =
+				    std::min(purchases, named_stock(ship, cost.store).stock.available(cost.resource) / cost.amount);
+		if (!unit_costs->empty())
+			desired = std::min(desired, credit + purchases * work_unit);
+		if (desired <= 0)
+			continue;
+		auto costs = *unit_costs;
+		for (auto &cost : costs)
+			cost.amount *= purchases;
+		RuleActor actor{target};
+		std::string key = std::to_string(target) + "/work/" + work_key;
+		std::int64_t before_progress = progress + work, threshold = required;
+		if (compartment >= 0)
+		{
+			const auto &structure = entities.at(target).get<CombatStructure>();
+			actor.kind = PayloadOutcomeKind::Compartment;
+			actor.compartment = compartment;
+			key = std::to_string(target) + "/compartment/" + structure.definition.compartments.at(compartment).id;
+			if (!work_key.empty())
+				key += "/" + work_key;
+			before_progress =
+			    structure.compartments.at(compartment).hp * rate * 1000 + structure.compartments.at(compartment).work;
+			threshold = structure.definition.compartments.at(compartment).maximum * rate * 1000;
+		}
+		auto quote =
+		    prepare_finite_native_work(origin, "repair", d.id, key, actor, before_progress, threshold, desired, costs);
+		if (!quote)
+			continue;
+		const auto actual_purchases =
+		    unit_costs->empty() ? 0 : std::max<std::int64_t>(0, quote->work - credit + work_unit - 1) / work_unit;
+		if (actual_purchases != purchases)
+		{
+			purchases = actual_purchases;
+			costs = *unit_costs;
+			for (auto &cost : costs)
+				cost.amount *= purchases;
+			quote = prepare_finite_native_work(origin, "repair", d.id, key, actor, before_progress, threshold,
+			                                   quote->work, costs, false);
+			if (!quote)
+				continue;
+		}
+		std::int64_t after_progress = before_progress + quote->work;
+		bool completed = threshold > 0 && after_progress >= threshold;
+		if (compartment >= 0)
+		{
+			auto &prepared = finite_structure_outcome(*quote, target);
+			const auto &definition_compartment =
+			    entities.at(target).get<CombatStructure>().definition.compartments.at(compartment);
+			native_structural_repair(prepared.compartments.at(compartment), definition_compartment, quote->work,
+			                         rate * 1000);
+			after_progress =
+			    prepared.compartments.at(compartment).hp * rate * 1000 + prepared.compartments.at(compartment).work;
+			completed = prepared.compartments.at(compartment).hp == definition_compartment.maximum;
+		}
+		if (!commit_finite_native_payment(*quote))
+			continue;
+		if (native_priced)
+			ship.get_mut<MaterialInventory>().work_credit[d.id] = credit + purchases * work_unit - quote->work;
+		work += quote->work;
+		commit_finite_native_work(*quote, quote->work, std::min(threshold, after_progress), threshold, completed);
 	}
 	return work;
 }
-void apply_structural_repair(CombatStructure &s, std::size_t index, std::int64_t work)
+void apply_structural_repair(CombatStructure &structure, std::size_t index, std::int64_t work)
 {
-	auto &c = s.compartments.at(index);
-	c.work += work;
-	c.hp = std::min(s.definition.compartments[index].maximum, c.hp + c.work / (rate * 1000));
-	c.work %= rate * 1000;
-	if (c.disabled && c.hp >= s.definition.compartments[index].recovery)
-		c.disabled = false;
+	(void)native_structural_repair(structure, index, work, rate * 1000);
 }
 void finish_fault_repair(CombatStructure &structure, const std::string &system, std::size_t index)
 {
-	if (structure.definition.faults.at(system).at(index).destroys)
-		return;
-	auto &fault = structure.faults.at(system).at(index);
-	fault.active = false;
-	fault.work = 0;
+	(void)native_finish_fault_repair(structure, system, index);
 }
+
 void step_repairs()
 {
 	if (duel_ended())
@@ -647,22 +721,38 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
-					const auto work = team_work(ship, *m, PropertyKey::repair,
-					                            m->definition.get<TeamDefinition>().repair_rate * 1000);
-					if (work <= 0 || !pay_material_work(id, m->definition.id, "repair", f.work > 0))
+					const auto desired = team_work(ship, *m, PropertyKey::repair,
+					                               m->definition.get<TeamDefinition>().repair_rate * 1000);
+					const auto costs = native_material_work_costs(id, m->definition.id, "repair", f.work > 0);
+					if (desired <= 0 || !costs)
 						continue;
-					f.work += work;
-					if (f.work >= d.repair_work * rate * 1000)
-					{
-						finish_fault_repair(s, task->first, task->second);
-					}
+					const auto required = d.repair_work * rate * 1000;
+					const auto key = std::to_string(id) + "/fault/" + task->first + "/" + d.id;
+					RuleActor actor{id, task->first};
+					actor.kind = PayloadOutcomeKind::System;
+					actor.compartment = index;
+					auto quote = prepare_finite_native_work(id, "repair", m->definition.id, key, actor, f.work,
+					                                        required, std::min(desired, required - f.work), *costs);
+					if (!quote)
+						continue;
+					auto &prepared = finite_structure_outcome(*quote, id).faults.at(task->first).at(task->second);
+					if (!prepared.active || d.destroys)
+						continue;
+					prepared.work += quote->work;
+					const auto progress = prepared.work;
+					const bool completed = progress >= required;
+					if (completed)
+						native_finish_fault_repair(prepared, d);
+					if (commit_finite_native_payment(*quote))
+						commit_finite_native_work(*quote, quote->work, std::min(required, progress), required,
+						                          completed);
 				}
 				else if (candidate.score > 0)
 					structural_workers[index].push_back(child);
 			}
 		for (auto &[index, teams] : structural_workers)
 		{
-			apply_structural_repair(s, index, structural_repair_work(ship, teams));
+			(void)structural_repair_work(ship, teams, id, static_cast<std::int64_t>(index));
 		}
 	}
 }

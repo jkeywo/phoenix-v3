@@ -55,6 +55,9 @@ NativeRuleContext process_context(const CustomPropertyAddress &address, const Pr
 	auto context = state.origin;
 	const auto owner = process_actor(address);
 	context.owner = context.source = context.subject = context.target = owner;
+	if (!state.target.empty() && state.origin.target.entity &&
+	    process_definition(state).native != NativeProcessKind::Effects)
+		context.subject = context.target = state.origin.target;
 	if (!context.instigator.entity)
 		context.instigator = owner;
 	context.owner_grant = process_run_source(address, state);
@@ -133,6 +136,7 @@ ProcessRuntime initial_process_runtime(const CustomPropertyAddress &address) con
 		state.id = state.slot = binding.id;
 		state.definition = binding.process;
 		state.native_id = binding.native_id;
+		state.required_work = definition.required_work;
 		state.requested = binding.requested;
 		state.phase = state.requested ? "paused" : "off";
 		state.generation = runtime.next_generation++;
@@ -164,7 +168,8 @@ std::string validate_process_grant(const CustomPropertyAddress &address, const P
 	static const ProcessNativeBindings none;
 	const auto &bindings = this->definition(address.entity).processes.native_bindings;
 	const auto native = bindings.find(address.equipment);
-	if (definition.native != NativeProcessKind::Effects && address.equipment.empty())
+	if (definition.native != NativeProcessKind::Effects && address.equipment.empty() &&
+	    !(definition.native == NativeProcessKind::Recovery && address.officer.empty() && address.compartment < 0))
 		throw std::runtime_error("Native process requires fitted equipment owner");
 	return resolve_process_native_binding(definition, native == bindings.end() ? none : native->second,
 	                                      grant.native_id);
@@ -182,6 +187,9 @@ std::string install_process_grant(ProcessRuntime &runtime, const ProcessGrantDef
 		    at->second.native_id != grant.native_id)
 			throw std::runtime_error("Process grant identity belongs to another definition");
 		at->second.expiry = refresh_effect_expiry(at->second.expiry, expiry);
+		for (auto &[child_id, child] : runtime.processes)
+			if (child.parent_process == id)
+				child.expiry = at->second.expiry;
 		return id;
 	}
 	if (runtime.processes.size() >= process_owner_limit || !runtime.next_generation ||
@@ -198,6 +206,7 @@ std::string install_process_grant(ProcessRuntime &runtime, const ProcessGrantDef
 	state.expiry = expiry;
 	state.origin = origin;
 	state.requested = process_catalog->at(grant.process).requested;
+	state.required_work = process_catalog->at(grant.process).required_work;
 	state.phase = state.requested ? "paused" : "off";
 	runtime.processes.emplace(id, std::move(state));
 	return id;
@@ -305,6 +314,8 @@ std::string process_conflict(const CustomPropertyAddress &address, const Process
 			{
 				if ((owner == address && id == state.id) || !other.admitted)
 					continue;
+				if (owner == address && !state.parent_process.empty() && other.parent_process == state.parent_process)
+					continue;
 				const auto &other_definition = process_definition(other);
 				if (!native.empty() && other_definition.native != NativeProcessKind::Effects &&
 				    native == process_native_identity(owner, other, other_definition))
@@ -380,6 +391,12 @@ bool process_owner_terminated(EntityId id) const
 }
 std::string process_requirements(const CustomPropertyAddress &address, const ProcessState &state) const
 {
+	if (!state.parent_process.empty())
+	{
+		const auto *driver = process_state(address, state.parent_process);
+		if (!driver || !driver->requested || !driver->parent_process.empty() || driver->generation >= state.generation)
+			return "Process driver unavailable";
+	}
 	const auto owner = rule_entity(process_actor(address));
 	if (!owner || combat_dead(owner) || process_owner_terminated(address.entity) || !process_runtime(address))
 		return "Process owner unavailable";
@@ -399,24 +416,43 @@ std::string process_requirements(const CustomPropertyAddress &address, const Pro
 		return "Invalid process arithmetic or missing fact";
 	return process_native_blocker(address, state, definition);
 }
+void reset_process_run_state(ProcessState &state, bool clear_request) const
+{
+	state.admitted = false;
+	if (clear_request)
+		state.requested = false;
+	state.phase = state.requested ? "paused" : "off";
+	state.idle_output = state.work_output = 0;
+	state.idle_credits.clear();
+	state.work_credits.clear();
+	state.work_remainder = 0;
+	state.completed = state.completion_delivered = state.ready = false;
+	if (process_definition(state).native == NativeProcessKind::Effects)
+		state.progress = 0;
+}
 std::string stop_process(const CustomPropertyAddress &address, const std::string &id, bool clear_request = true)
 {
 	auto *state = process_state(address, id);
 	if (!state)
 		return "Process unavailable";
 	const auto previous = *state;
+	if (state->parent_process.empty())
+	{
+		std::vector<std::string> children;
+		for (const auto &[child_id, child] : process_runtime(address)->processes)
+			if (child.parent_process == id)
+				children.push_back(child_id);
+		for (const auto &child : children)
+			(void)stop_process(address, child, true);
+		state = process_state(address, id);
+		if (!state)
+			return {};
+	}
 	// Stop availability before invoking its exit effects. Independent committed
 	// consequences remain; dependent maintained grants see the closed run.
-	state->admitted = false;
-	state->phase = "off";
-	state->idle_output = state->work_output = 0;
-	if (clear_request)
-		state->requested = false;
+	reset_process_run_state(*state, clear_request);
 	if (previous.admitted)
 		process_retirement_pending = true;
-	state->idle_credits.clear();
-	state->work_credits.clear();
-	state->work_remainder = 0;
 	erase_custom_property_rate_source(process_run_source(address, previous));
 	const auto failure = previous.admitted
 	                         ? process_execute_lifecycle(address, previous, process_definition(previous).stop_effect)
@@ -434,6 +470,22 @@ bool process_request(const CustomPropertyAddress &address, const std::string &id
 		(void)stop_process(address, id, true);
 	else
 	{
+		if (state->parent_process.empty())
+			std::erase_if(process_runtime(address)->processes,
+			              [&](const auto &child)
+			              {
+				              return child.second.parent_process == id && !child.second.admitted &&
+				                     !child.second.requested;
+			              });
+		if (state->completed)
+		{
+			// A new finite episode retires the old funding/lifetime source just
+			// like an explicit stop; physical native progress remains native.
+			(void)stop_process(address, id, false);
+			state = process_state(address, id);
+			if (!state)
+				return false;
+		}
 		state->requested = true;
 		if (!state->admitted)
 			state->phase = "paused";
@@ -455,6 +507,156 @@ void set_process_paused(const CustomPropertyAddress &address, const std::string 
 		(void)process_execute_lifecycle(address, previous, process_definition(previous).pause_effect);
 	}
 }
+bool admit_process_run(const CustomPropertyAddress &address, const std::string &id)
+{
+	auto *state = process_state(address, id);
+	if (!state || !state->requested)
+		return false;
+	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+	const auto &definition = process_definition(*state);
+	if (!state->admitted)
+	{
+		const auto conflict = process_conflict(address, *state);
+		if (!conflict.empty())
+		{
+			set_process_paused(address, id, conflict);
+			return false;
+		}
+		auto *runtime = process_runtime(address);
+		if (runtime->next_run >= 9007199254740991ULL)
+		{
+			set_process_paused(address, id, "Process run identity exhausted");
+			return false;
+		}
+		auto candidate = *state;
+		candidate.run = runtime->next_run;
+		std::vector<EffectGroupDefinition> groups;
+		if (!definition.entry_costs.empty())
+		{
+			EffectGroupDefinition entry;
+			entry.costs = definition.entry_costs;
+			groups.push_back(std::move(entry));
+		}
+		if (definition.start_effect)
+			groups.push_back(*definition.start_effect);
+		std::vector<EffectGroupInvocation> frames;
+		for (const auto &group : groups)
+			frames.push_back(process_effect_invocation(address, candidate, group));
+		auto quote = prepare_effect_groups(frames);
+		quote.original_processes.try_emplace(address, *runtime);
+		auto &staged = quote.processes.try_emplace(address, *runtime).first->second;
+		if (auto at = staged.processes.find(id); at != staged.processes.end())
+		{
+			if (at->second.generation != candidate.generation || staged.next_run != candidate.run)
+				quote.failure = "Process admission ownership changed";
+			else
+			{
+				at->second.run = staged.next_run++;
+				at->second.started = tick;
+				at->second.admitted = true;
+				at->second.phase = "paused";
+			}
+		}
+		const auto failure = commit_effect_group(quote);
+		state = process_state(address, id);
+		if (!state || state->generation != candidate.generation)
+			return false;
+		if (!failure.empty())
+		{
+			set_process_paused(address, id, failure);
+			return false;
+		}
+	}
+	return true;
+}
+std::string begin_finite_native_run(const CustomPropertyAddress &address, const std::string &id,
+                                    const std::string &target, const RuleActor &target_actor, std::int64_t progress,
+                                    std::int64_t required)
+{
+	auto *driver = process_state(address, id);
+	if (!driver || !driver->parent_process.empty() || !driver->requested || target.empty() || target.size() > 1024 ||
+	    progress < 0 || required < 0 || progress > resource_limit || required > resource_limit)
+		return {};
+	const auto blocker = process_native_blocker(address, *driver, process_definition(*driver));
+	if (process_owner_terminated(address.entity) || (!driver->source.empty() && !rule_lease_available(driver->source)))
+		return {};
+	if (!blocker.empty())
+	{
+		set_process_paused(address, id, blocker);
+		return {};
+	}
+	const auto target_hash =
+	    sha256(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t *>(target.data()), target.size()));
+	const auto episode = "episode:" + std::to_string(driver->generation) + ":" + target_hash;
+	auto *runtime = process_runtime(address);
+	auto found = runtime->processes.find(episode);
+	if (found != runtime->processes.end() && !found->second.requested)
+		return {};
+	if (found != runtime->processes.end() && found->second.completed)
+	{
+		(void)stop_process(address, episode, false);
+		runtime = process_runtime(address);
+		driver = process_state(address, id);
+		if (!runtime || !driver || !driver->requested)
+			return {};
+		runtime->processes.erase(episode);
+		found = runtime->processes.end();
+	}
+	if (found == runtime->processes.end())
+	{
+		// Completed target snapshots may be retired to admit new work. Independent
+		// consequences retain their existing application identities and lifetimes.
+		if (runtime->processes.size() >= process_owner_limit)
+		{
+			for (auto it = runtime->processes.begin();
+			     it != runtime->processes.end() && runtime->processes.size() >= process_owner_limit;)
+				if (!it->second.parent_process.empty() && !it->second.admitted && it->second.completed)
+					it = runtime->processes.erase(it);
+				else
+					++it;
+		}
+		if (runtime->processes.size() >= process_owner_limit || runtime->next_generation >= process_generation_limit)
+		{
+			set_process_paused(address, id, "Process target capacity exhausted");
+			return {};
+		}
+		ProcessState candidate;
+		candidate.id = episode;
+		candidate.parent_process = id;
+		candidate.slot = driver->slot;
+		candidate.definition = driver->definition;
+		candidate.native_id = driver->native_id;
+		candidate.source = driver->source;
+		candidate.grant_effect = driver->grant_effect;
+		candidate.expiry = driver->expiry;
+		candidate.origin = driver->origin;
+		candidate.generation = runtime->next_generation++;
+		candidate.requested = true;
+		candidate.phase = "paused";
+		candidate.rate_permille = driver->rate_permille;
+		runtime->processes.emplace(episode, std::move(candidate));
+	}
+	auto *state = process_state(address, episode);
+	state->target = target;
+	state->origin.target = target_actor;
+	state->progress = progress;
+	state->required_work = required;
+	state->rate_permille = driver->rate_permille;
+	const auto requirements = process_requirements(address, *state);
+	if (!requirements.empty())
+	{
+		set_process_paused(address, episode, requirements);
+		return {};
+	}
+	const auto rate_scale = process_scale(process_definition(*state).rate, process_expression_context(address, *state));
+	if (!rate_scale)
+		return {};
+	state->rate_permille = *rate_scale;
+	if (!admit_process_run(address, episode))
+		return {};
+	return episode;
+}
+
 void prepare_processes()
 {
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
@@ -499,6 +701,8 @@ void prepare_processes()
 				(void)stop_process(item.owner, item.id, true);
 			continue;
 		}
+		if (state->completed && process_definition(*state).native != NativeProcessKind::Ftl)
+			continue;
 		const auto blocker = process_requirements(item.owner, *state);
 		if (!blocker.empty())
 		{
@@ -508,59 +712,16 @@ void prepare_processes()
 		const auto &definition = process_definition(*state);
 		const auto frozen = process_expression_context(item.owner, *state);
 		state->rate_permille = *process_scale(definition.rate, frozen);
-		if (!state->admitted)
-		{
-			const auto conflict = process_conflict(item.owner, *state);
-			if (!conflict.empty())
-			{
-				set_process_paused(item.owner, item.id, conflict);
-				continue;
-			}
-			auto *runtime = process_runtime(item.owner);
-			if (runtime->next_run >= 9007199254740991ULL)
-			{
-				set_process_paused(item.owner, item.id, "Process run identity exhausted");
-				continue;
-			}
-			auto candidate = *state;
-			candidate.run = runtime->next_run;
-			std::vector<EffectGroupDefinition> groups;
-			if (!definition.entry_costs.empty())
-			{
-				EffectGroupDefinition entry;
-				entry.costs = definition.entry_costs;
-				groups.push_back(std::move(entry));
-			}
-			if (definition.start_effect)
-				groups.push_back(*definition.start_effect);
-			std::vector<EffectGroupInvocation> frames;
-			for (const auto &group : groups)
-				frames.push_back(process_effect_invocation(item.owner, candidate, group));
-			auto quote = prepare_effect_groups(frames);
-			quote.original_processes.try_emplace(item.owner, *runtime);
-			auto &staged = quote.processes.try_emplace(item.owner, *runtime).first->second;
-			if (auto at = staged.processes.find(item.id); at != staged.processes.end())
-			{
-				if (at->second.generation != candidate.generation || staged.next_run != candidate.run)
-					quote.failure = "Process admission ownership changed";
-				else
-				{
-					at->second.run = staged.next_run++;
-					at->second.started = tick;
-					at->second.admitted = true;
-					at->second.phase = "paused";
-				}
-			}
-			const auto failure = commit_effect_group(quote);
-			state = process_state(item.owner, item.id);
-			if (!state || state->generation != candidate.generation)
-				continue;
-			if (!failure.empty())
-			{
-				set_process_paused(item.owner, item.id, failure);
-				continue;
-			}
-		}
+		const bool late_native = definition.native == NativeProcessKind::Repair ||
+		                         definition.native == NativeProcessKind::Medical ||
+		                         definition.native == NativeProcessKind::Recovery ||
+		                         definition.native == NativeProcessKind::ServicingEnergy ||
+		                         definition.native == NativeProcessKind::ServicingAmmunition;
+		if (late_native)
+			continue;
+		if (!admit_process_run(item.owner, item.id))
+			continue;
+		state = process_state(item.owner, item.id);
 		state->blocker.clear();
 		// The existing allocation phase decides whether this run can operate. No
 		// pause/resume or work effects are published from a provisional quote here.
@@ -581,12 +742,7 @@ std::string stage_process_funding_state(const CustomPropertyAddress &address, Pr
 		state.blocker = "Insufficient process funding";
 		if (definition.shortage == "stop")
 		{
-			state.admitted = false;
-			state.requested = false;
-			state.phase = "off";
-			state.idle_credits.clear();
-			state.work_credits.clear();
-			state.work_remainder = 0;
+			reset_process_run_state(state, true);
 			return "stop";
 		}
 		const bool pausing = state.phase == "running";
@@ -619,7 +775,13 @@ std::int64_t process_effect_work(const CustomPropertyAddress &address, const Pro
 	if (work < 0 || work > resource_limit || state.work_remainder < 0 || state.work_remainder >= divisor)
 		throw std::runtime_error("Invalid process fractional work");
 	const auto total = work + state.work_remainder;
-	return total / divisor * divisor;
+	const auto &definition = process_definition(state);
+	const auto required = definition.required_work        ? definition.required_work
+	                      : !state.parent_process.empty() ? state.required_work
+	                                                      : 0;
+	// Native targets own their progress across contributors. A contributor may
+	// finish the remaining fraction even when its own work is below one unit.
+	return required && state.progress + work >= required ? total : total / divisor * divisor;
 }
 std::int64_t process_next_work_remainder(const CustomPropertyAddress &address, const ProcessState &state,
                                          std::int64_t work) const
@@ -638,6 +800,37 @@ RuleEvaluation process_work_effects(const CustomPropertyAddress &address, const 
 		return empty;
 	}
 	return evaluate_rule(definition.evaluation, process_expression_context(address, state, whole, activity));
+}
+void commit_finite_process_completion(const CustomPropertyAddress &address, const std::string &id,
+                                      const std::string &target)
+{
+	auto *state = process_state(address, id);
+	if (!state || state->completed || !state->admitted)
+		return;
+	const auto frozen = *state;
+	const auto &definition = process_definition(frozen);
+	state->target = target;
+	state->completed = state->completion_delivered = true;
+	state->ready = true;
+	if (definition.native != NativeProcessKind::Ftl)
+	{
+		state->admitted = false;
+		state->phase = "completed";
+		state->idle_output = state->work_output = 0;
+		state->idle_credits.clear();
+		state->work_credits.clear();
+		state->work_remainder = 0;
+		process_retirement_pending = true;
+		erase_custom_property_rate_source(process_run_source(address, frozen));
+	}
+	const auto failure = process_execute_lifecycle(address, frozen, definition.completion_effect);
+	if (!failure.empty())
+	{
+		if (auto *current = process_state(address, id);
+		    current && current->generation == frozen.generation && current->run == frozen.run)
+			current->blocker = "Completion effect failed";
+		record_effect_result(rule_results, next_rule_job++, "failed: process completion " + failure.substr(0, 900));
+	}
 }
 void commit_process_work_receipt(const CustomPropertyAddress &address, const ProcessState &frozen, std::int64_t work,
                                  std::int64_t activity)
@@ -660,6 +853,8 @@ void commit_process_work_receipt(const CustomPropertyAddress &address, const Pro
 	{
 		state->last_work = tick;
 		state->actual_work = work;
+		if (process_definition(*state).required_work)
+			state->progress = std::min(process_definition(*state).required_work, state->progress + work);
 		if (state->admitted && state->phase == "running")
 			state->work_output = activity;
 	}
@@ -668,6 +863,8 @@ void commit_process_work_receipt(const CustomPropertyAddress &address, const Pro
 	const auto &definition = process_definition(frozen);
 	runtime->work.push_back({process_owner_kind(address), process_owner_name(address), definition.family, definition.id,
 	                         frozen.run, activity, frozen.id, work, definition.work_unit, frozen.generation});
+	if (same && definition.required_work && state->progress >= definition.required_work)
+		commit_finite_process_completion(address, frozen.id, {});
 }
 void publish_process_work()
 {
@@ -737,17 +934,45 @@ void validate_process_runtime(const CustomPropertyAddress &address, const Proces
 			throw std::runtime_error("Invalid process execution state");
 		if (state.phase == "running" ? state.idle_output <= 0 : state.idle_output || state.work_output)
 			throw std::runtime_error("Contradictory process activity");
-		if (state.phase != "off" && state.phase != "running" && state.phase != "paused")
+		if (state.phase != "off" && state.phase != "running" && state.phase != "paused" && state.phase != "completed")
 			throw std::runtime_error("Invalid process phase");
-		if (state.admitted
-		        ? (!state.requested || !state.run || state.phase == "off" || state.started < 0 ||
-		           !runs.insert(state.run).second)
-		        : (state.phase == "running" || (state.requested ? state.phase != "paused" : state.phase != "off")))
+		if (state.admitted ? (!state.requested || !state.run || state.phase == "off" || state.started < 0 ||
+		                      !runs.insert(state.run).second)
+		                   : (state.phase == "running" ||
+		                      (state.completed ? state.phase != "completed"
+		                                       : (state.requested ? state.phase != "paused" : state.phase != "off"))))
 			throw std::runtime_error("Contradictory process lifecycle");
+		if (state.target.size() > 1024 || state.progress < 0 || state.progress > resource_limit ||
+		    state.required_work < 0 || state.required_work > resource_limit ||
+		    state.completed != state.completion_delivered || (state.phase == "completed" && !state.completed) ||
+		    (process_catalog->at(state.definition).required_work &&
+		     (state.required_work != process_catalog->at(state.definition).required_work ||
+		      state.progress > state.required_work)))
+			throw std::runtime_error("Invalid finite process continuation");
 		if (!state.admitted && (!state.idle_credits.empty() || !state.work_credits.empty() || state.work_remainder))
 			throw std::runtime_error("Unadmitted process retained paid work");
 		validate_saved_rule_context(Json(state.origin));
-		if (state.source.empty())
+		if (!state.parent_process.empty())
+		{
+			const auto parent = runtime.processes.find(state.parent_process);
+			if (parent == runtime.processes.end() || !parent->second.parent_process.empty() ||
+			    parent->second.generation >= state.generation || parent->second.definition != state.definition ||
+			    parent->second.native_id != state.native_id || parent->second.source != state.source ||
+			    parent->second.grant_effect != state.grant_effect || parent->second.slot != state.slot ||
+			    parent->second.expiry != state.expiry || state.target.empty() ||
+			    (!parent->second.requested && state.requested) || !id.starts_with("episode:"))
+				throw std::runtime_error("Invalid native target episode lineage");
+			const auto target_hash = sha256(std::span<const std::uint8_t>(
+			    reinterpret_cast<const std::uint8_t *>(state.target.data()), state.target.size()));
+			if (id != "episode:" + std::to_string(parent->second.generation) + ":" + target_hash)
+				throw std::runtime_error("Native target episode identity changed");
+			const auto native = process_catalog->at(state.definition).native;
+			if (native != NativeProcessKind::Repair && native != NativeProcessKind::Medical &&
+			    native != NativeProcessKind::Recovery && native != NativeProcessKind::ServicingEnergy &&
+			    native != NativeProcessKind::ServicingAmmunition)
+				throw std::runtime_error("Non-native process has target episodes");
+		}
+		else if (state.source.empty())
 		{
 			const auto expected = initial.processes.find(id);
 			if (expected == initial.processes.end() || state.definition != expected->second.definition ||
@@ -817,20 +1042,26 @@ void validate_saved_process_state(const Json &state) const
 		throw std::runtime_error("Invalid process roster shape");
 	for (const auto &[id, process] : state.at("processes").items())
 	{
-		rule_saved_fields(
-		    process, {"id",          "slot",        "definition",  "source",        "grant_effect", "native_id",
-		              "generation",  "run",         "expiry",      "started",       "last_work",    "requested",
-		              "admitted",    "origin",      "phase",       "idle_credits",  "work_credits", "work_remainder",
-		              "idle_output", "work_output", "actual_work", "rate_permille", "blocker"});
-		for (const auto name : {"id", "slot", "definition", "source", "grant_effect", "native_id", "phase", "blocker"})
+		rule_saved_fields(process, {"id",           "slot",           "definition",  "source",
+		                            "grant_effect", "native_id",      "generation",  "run",
+		                            "expiry",       "started",        "last_work",   "requested",
+		                            "admitted",     "origin",         "phase",       "idle_credits",
+		                            "work_credits", "work_remainder", "idle_output", "work_output",
+		                            "actual_work",  "rate_permille",  "blocker",     "target",
+		                            "progress",     "required_work",  "completed",   "completion_delivered",
+		                            "ready",        "parent_process"});
+		for (const auto name : {"id", "slot", "definition", "source", "grant_effect", "native_id", "phase", "blocker",
+		                        "target", "parent_process"})
 			rule_saved_text(process.at(name), 1024);
-		for (const auto name :
-		     {"generation", "run", "work_remainder", "idle_output", "work_output", "actual_work", "rate_permille"})
+		for (const auto name : {"generation", "run", "work_remainder", "idle_output", "work_output", "actual_work",
+		                        "rate_permille", "progress", "required_work"})
 			rule_saved_integer(process.at(name));
 		for (const auto name : {"expiry", "started", "last_work"})
 			rule_saved_integer(process.at(name), -1);
 		rule_saved_bool(process.at("requested"));
 		rule_saved_bool(process.at("admitted"));
+		for (const auto *name : {"completed", "completion_delivered", "ready"})
+			rule_saved_bool(process.at(name));
 		validate_saved_rule_context(process.at("origin"));
 		for (const auto name : {"idle_credits", "work_credits"})
 		{

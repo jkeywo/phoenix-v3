@@ -563,6 +563,15 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		binding.fields[ControllerProcessField::Blocked] = add({prefix + "blocked", Type::Boolean, 4, {}});
 		binding.fields[ControllerProcessField::Activity] = add({prefix + "activity", Type::Integer, 4, {}});
 		binding.fields[ControllerProcessField::Work] = add({prefix + "work", Type::Integer, 4, {}});
+		binding.fields[ControllerProcessField::Finite] = add({prefix + "finite", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Driver] = add({prefix + "driver", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Target] = add({prefix + "target", Type::Text, 4, {}});
+		binding.fields[ControllerProcessField::Progress] = add({prefix + "progress", Type::Integer, 4, {}});
+		binding.fields[ControllerProcessField::RequiredWork] = add({prefix + "required_work", Type::Integer, 4, {}});
+		binding.fields[ControllerProcessField::Completed] = add({prefix + "completed", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Ready] = add({prefix + "ready", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::CompletionDelivered] =
+		    add({prefix + "completion_delivered", Type::Boolean, 4, {}});
 		for (const auto &property_binding : process_properties)
 			if (property_binding.at("endpoint") == endpoint)
 			{

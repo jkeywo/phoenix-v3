@@ -14,7 +14,9 @@ struct ProcessState
 	std::int64_t expiry = -1, started = -1, last_work = -1;
 	bool requested = true, admitted = false;
 	NativeRuleContext origin;
-	std::string phase = "off", blocker;
+	std::string phase = "off", blocker, target, parent_process;
+	std::int64_t progress = 0, required_work = 0;
+	bool completed = false, completion_delivered = false, ready = false;
 	std::vector<RuleWorkCredit> idle_credits, work_credits;
 	std::int64_t work_remainder = 0;
 	// Derived quote/activity values are frozen by the existing work phase.
@@ -24,7 +26,8 @@ struct ProcessState
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ProcessState, id, slot, definition, source, grant_effect, native_id, generation, run,
                                    expiry, started, last_work, requested, admitted, origin, phase, idle_credits,
                                    work_credits, work_remainder, idle_output, work_output, actual_work, rate_permille,
-                                   blocker)
+                                   blocker, target, parent_process, progress, required_work, completed,
+                                   completion_delivered, ready)
 using ProcessWorkReceipt = ExecutionWorkReceipt;
 struct ProcessRuntime
 {

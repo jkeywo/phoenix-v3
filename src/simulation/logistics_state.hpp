@@ -19,6 +19,14 @@ struct MaterialInventory
 	std::map<std::string, std::int64_t> work_credit;
 	std::set<EntityId> authorised_craft;
 };
+// A queued servicing transfer is native logistics work, not a work receipt.
+// Attribution survives dispatch; only receiving the actual batch can publish work.
+struct MaterialServiceAttribution
+{
+	std::string bay, native, process;
+	std::uint64_t generation = 0;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialServiceAttribution, bay, native, process, generation)
 struct MaterialRequest
 {
 	std::uint64_t id = 0;
@@ -28,6 +36,7 @@ struct MaterialRequest
 	std::int64_t remaining = 0;
 	bool automatic = false;
 	std::uint64_t cargo = 0;
+	MaterialServiceAttribution service;
 };
 struct CargoDelivery
 {
@@ -60,12 +69,13 @@ struct MaterialBatch
 	bool returning = false;
 	std::int64_t crossing = 0;
 	std::uint64_t cargo = 0;
+	MaterialServiceAttribution service;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialStoreState, stock, targets, held)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialInventory, stores, revision, handling_remainder, work_credit,
                                    authorised_craft)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialRequest, id, source, destination, from, to, material, remaining, automatic,
-                                   cargo)
+                                   cargo, service)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MaterialBatch, id, request, source, destination, location, from, to, compartment,
-                                   material, quantity, edge_to, travel, returning, crossing, cargo)
+                                   material, quantity, edge_to, travel, returning, crossing, cargo, service)
 } // namespace phoenix

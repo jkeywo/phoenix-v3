@@ -334,6 +334,8 @@ Json lifecycle_and_exclusions()
 	return Json::array({portable(world.save()), portable(exclusive.save())});
 }
 #include "../support/process_runtime_cases.hpp"
+#include "../support/finite_runtime_cases.hpp"
+#include "../support/finite_outcome_cases.hpp"
 #include "../support/process_native_cases.hpp"
 #include "../support/process_presentation_cases.hpp"
 } // namespace
@@ -355,6 +357,9 @@ int main(int argc, char **argv)
 			}
 		};
 		const Json trace = {run("four owners and travel", four_owners_and_travel),
+		                    run("finite effect-only jobs", finite_effect_only_jobs),
+		                    run("finite stop and restart", finite_stop_restarts),
+		                    run("direct native outcomes", finite_direct_outcomes),
 		                    run("lifecycle and exclusions", lifecycle_and_exclusions),
 		                    run("mixed funding and rollback", mixed_funding_and_rollback),
 		                    run("bounded process prices", bounded_process_prices),
@@ -374,6 +379,7 @@ int main(int argc, char **argv)
 		                    run("competing thermal work", competing_thermal_work),
 		                    run("processor commitments", processor_commitments),
 		                    run("permitted process information", permitted_process_information),
+		                    run("finite process information", finite_process_information),
 		                    run("process rule visibility", process_rule_visibility)};
 		if (!failures.empty())
 		{

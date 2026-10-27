@@ -261,22 +261,31 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 					fact = &fallback;
 					break;
 				}
-		for (const auto &[field, name] : std::array<std::pair<ControllerProcessField, const char *>, 7>{
+		for (const auto &[field, name] : std::array<std::pair<ControllerProcessField, const char *>, 15>{
 		         {{ControllerProcessField::Phase, "phase"},
 		          {ControllerProcessField::Requested, "requested"},
 		          {ControllerProcessField::Running, "running"},
 		          {ControllerProcessField::Paused, "paused"},
 		          {ControllerProcessField::Blocked, "blocked"},
 		          {ControllerProcessField::Activity, "activity"},
-		          {ControllerProcessField::Work, "work"}}})
+		          {ControllerProcessField::Work, "work"},
+		          {ControllerProcessField::Finite, "finite"},
+		          {ControllerProcessField::Driver, "driver"},
+		          {ControllerProcessField::Target, "target"},
+		          {ControllerProcessField::Progress, "progress"},
+		          {ControllerProcessField::RequiredWork, "required_work"},
+		          {ControllerProcessField::Completed, "completed"},
+		          {ControllerProcessField::Ready, "ready"},
+		          {ControllerProcessField::CompletionDelivered, "completion_delivered"}}})
 		{
 			auto &value = values.at(binding.fields[field]);
 			value = {};
-			if (!fact)
+			if (!fact || !fact->contains(name))
 				continue;
-			if (field == ControllerProcessField::Phase)
+			if (field == ControllerProcessField::Phase || field == ControllerProcessField::Target)
 				value = Value::string(fact->at(name).get<std::string>());
-			else if (field == ControllerProcessField::Activity || field == ControllerProcessField::Work)
+			else if (field == ControllerProcessField::Activity || field == ControllerProcessField::Work ||
+			         field == ControllerProcessField::Progress || field == ControllerProcessField::RequiredWork)
 				value = Value::integer(fact->at(name));
 			else
 				value = Value::boolean(fact->at(name).get<bool>());

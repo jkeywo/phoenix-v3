@@ -304,13 +304,17 @@
 					"acceleration_mm_s2": 4000,
 					"deceleration_mm_s2": 6000,
 					"processes": {
-						"propulsion": { "process": "base.process.propulsion" }
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
 					}
 				},
 				"steering": {
 					"turn_mdeg_s": 45000,
 					"processes": {
-						"propulsion": { "process": "base.process.propulsion" }
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
 					}
 				},
 				"radar": {
@@ -12379,28 +12383,48 @@
 					"compartment": "engineering",
 					"hp_per_second": 25,
 					"observation_console": "engineering",
-					"local_repair_priority": true
+					"local_repair_priority": true,
+					"processes": {
+						"repair": {
+							"process": "base.process.repair"
+						}
+					}
 				},
 				"repair-2": {
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
 					"observation_console": "engineering",
-					"local_repair_priority": true
+					"local_repair_priority": true,
+					"processes": {
+						"repair": {
+							"process": "base.process.repair"
+						}
+					}
 				},
 				"repair-3": {
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
 					"observation_console": "engineering",
-					"local_repair_priority": true
+					"local_repair_priority": true,
+					"processes": {
+						"repair": {
+							"process": "base.process.repair"
+						}
+					}
 				},
 				"repair-4": {
 					"kind": "repair_team",
 					"compartment": "engineering",
 					"hp_per_second": 25,
 					"observation_console": "engineering",
-					"local_repair_priority": true
+					"local_repair_priority": true,
+					"processes": {
+						"repair": {
+							"process": "base.process.repair"
+						}
+					}
 				},
 				"displacement": {
 					"kind": "displacement",
@@ -12511,7 +12535,12 @@
 					"charge_per_second": 1500,
 					"ammunition": [],
 					"observation_console": "engineering",
-					"flight_spacing_mm": 4000
+					"flight_spacing_mm": 4000,
+					"processes": {
+						"servicing_energy": {
+							"process": "base.process.servicing_energy"
+						}
+					}
 				},
 				"combat-bay": {
 					"kind": "shuttle_bay",
@@ -12543,7 +12572,20 @@
 						}
 					],
 					"observation_console": "tactical",
-					"flight_spacing_mm": 4000
+					"flight_spacing_mm": 4000,
+					"processes": {
+						"servicing_energy": {
+							"process": "base.process.servicing_energy"
+						},
+						"servicing-ammunition-0": {
+							"process": "base.process.servicing_ammunition",
+							"native_id": "combat-bay.ammo-0"
+						},
+						"servicing-ammunition-1": {
+							"process": "base.process.servicing_ammunition",
+							"native_id": "combat-bay.ammo-1"
+						}
+					}
 				},
 				"weapons-supply": {
 					"kind": "distribution",
@@ -12622,7 +12664,12 @@
 							"tree": "base.team.recover",
 							"patient_states": ["stabilised"]
 						}
-					]
+					],
+					"processes": {
+						"medical": {
+							"process": "base.process.medical"
+						}
+					}
 				},
 				"medical-2": {
 					"kind": "team",
@@ -12650,7 +12697,12 @@
 							"tree": "base.team.recover",
 							"patient_states": ["stabilised"]
 						}
-					]
+					],
+					"processes": {
+						"medical": {
+							"process": "base.process.medical"
+						}
+					}
 				},
 				"security-1": {
 					"kind": "team",
@@ -16183,6 +16235,12 @@
 						"emergency_damage": 20
 					}
 				]
+			},
+			"processes": {
+				"recovery-infirmary": {
+					"process": "base.process.recovery",
+					"native_id": "infirmary"
+				}
 			}
 		},
 		{
@@ -27179,7 +27237,12 @@
 							"tree": "base.team.recover",
 							"patient_states": ["stabilised"]
 						}
-					]
+					],
+					"processes": {
+						"medical": {
+							"process": "base.process.medical"
+						}
+					}
 				},
 				"security-team": {
 					"kind": "team",
@@ -29800,6 +29863,12 @@
 						"allocation_rate": 120
 					}
 				]
+			},
+			"processes": {
+				"recovery-sickbay": {
+					"process": "base.process.recovery",
+					"native_id": "sickbay"
+				}
 			}
 		},
 		{
@@ -32032,6 +32101,12 @@
 						"emergency_damage": 20
 					}
 				]
+			},
+			"processes": {
+				"recovery-sickbay": {
+					"process": "base.process.recovery",
+					"native_id": "sickbay"
+				}
 			}
 		},
 		{
@@ -35367,6 +35442,12 @@
 						"portrait": "phoenix-base:assets/personnel/officer-4.png"
 					}
 				]
+			},
+			"processes": {
+				"recovery-sickbay": {
+					"process": "base.process.recovery",
+					"native_id": "sickbay"
+				}
 			}
 		},
 		{
@@ -61671,7 +61752,12 @@
 					"capability": "repair",
 					"tree": "base.team.repair"
 				}
-			]
+			],
+			"processes": {
+				"repair": {
+					"process": "base.process.repair"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.combat-reactor",
@@ -61987,7 +62073,12 @@
 			"charging_loss_per_second": 2000,
 			"ready_loss_per_second": 5000,
 			"off_discharge_per_second": 8000,
-			"observation_console": "navigator"
+			"observation_console": "navigator",
+			"processes": {
+				"ftl": {
+					"process": "base.process.ftl"
+				}
+			}
 		}
 	],
 	"assemblies": [
@@ -64662,6 +64753,60 @@
 			"label": "Recipe processing",
 			"family": "machinery.processor",
 			"native": "processor",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.repair",
+			"kind": "process",
+			"label": "Repair work",
+			"family": "work.repair",
+			"native": "repair",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.medical",
+			"kind": "process",
+			"label": "Medical care",
+			"family": "work.medical",
+			"native": "medical",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.recovery",
+			"kind": "process",
+			"label": "Facility recovery",
+			"family": "work.recovery",
+			"native": "recovery",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.servicing_energy",
+			"kind": "process",
+			"label": "Craft charging",
+			"family": "work.servicing_energy",
+			"native": "servicing_energy",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.servicing_ammunition",
+			"kind": "process",
+			"label": "Craft rearming",
+			"family": "work.servicing_ammunition",
+			"native": "servicing_ammunition",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.ftl",
+			"kind": "process",
+			"label": "FTL preparation",
+			"family": "work.ftl",
+			"native": "ftl",
 			"requested": true,
 			"shortage": "proportional"
 		}

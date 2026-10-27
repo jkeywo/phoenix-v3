@@ -795,6 +795,159 @@ void step_vertical()
 		e.get_mut<Motion>().vertical_velocity = v.velocity;
 	}
 }
+std::int64_t craft_service_rate(EntityId home, std::string_view kind, const std::string &native) const
+{
+	const auto driver = finite_native_driver(home, kind, native);
+	if (!driver.state)
+		return 0;
+	const auto &definition = process_definition(*driver.state);
+	const auto scale = process_scale(definition.rate, process_expression_context(driver.owner, *driver.state));
+	return scale ? *scale : 0;
+}
+// Preview and stage against the same native networks and staged payment stocks.
+// Swapping just the stocks retains native discharge, receiving and thermal state.
+std::int64_t stage_craft_service_energy(FiniteNativeWork &quote, EntityId home, EntityId craft, ResourceIndex from,
+                                        ResourceIndex to, std::int64_t offered, bool stage)
+{
+	auto &source =
+	    quote.prepared.payments.try_emplace(home, entities.at(home).get<ShipResources>().network).first->second.network;
+	auto &target = quote.prepared.payments.try_emplace(craft, entities.at(craft).get<ShipResources>().network)
+	                   .first->second.network;
+	const auto &resource = source.definition().stores.at(from).resource;
+	if (!stage)
+	{
+		auto source_copy = source;
+		auto target_copy = target;
+		source_copy.stock(from) = quote.prepared.stocks.view(source.stock(from));
+		target_copy.stock(to) = quote.prepared.stocks.view(target.stock(to));
+		return source_copy.transfer_external(target_copy, from, to, offered);
+	}
+	auto source_stock = quote.prepared.stocks.view(source.stock(from));
+	auto target_stock = quote.prepared.stocks.view(target.stock(to));
+	source.stock(from).swap(source_stock);
+	target.stock(to).swap(target_stock);
+	std::int64_t received = 0;
+	try
+	{
+		received = source.transfer_external(target, from, to, offered);
+	}
+	catch (...)
+	{
+		source.stock(from).swap(source_stock);
+		target.stock(to).swap(target_stock);
+		throw;
+	}
+	source.stock(from).swap(source_stock);
+	target.stock(to).swap(target_stock);
+	if (!quote.prepared.stocks.transfer(source.stock(from), target.stock(to), resource, received))
+		throw std::runtime_error("Servicing energy transaction lost its native transfer");
+	return received;
+}
+std::int64_t service_craft_energy(EntityId home, const std::string &bay, EntityId craft, ResourceIndex from,
+                                  ResourceIndex to, std::int64_t offered)
+{
+	const auto &network = entities.at(craft).get<ShipResources>().network;
+	// Native demand precedes admission. A full, protected or disconnected reserve
+	// must not create an episode or charge entry costs merely to quote zero work.
+	auto source_preview = entities.at(home).get<ShipResources>().network;
+	auto target_preview = network;
+	offered = source_preview.transfer_external(target_preview, from, to, offered);
+	if (!offered)
+		return 0;
+	const auto progress = network.stores().at(to).energy();
+	const auto required = network.definition().stores.at(to).capacity;
+	const auto target = "craft:" + std::to_string(craft) + ":energy:" + std::to_string(to);
+	for (std::size_t attempt = 0; offered > 0 && attempt < 64; ++attempt)
+	{
+		auto quote = prepare_finite_native_work(home, "servicing_energy", bay, target, RuleActor{craft}, progress,
+		                                        required, offered, {}, false);
+		if (!quote)
+			return 0;
+		const auto accepted = stage_craft_service_energy(*quote, home, craft, from, to, quote->work, false);
+		if (accepted < quote->work)
+		{
+			offered = accepted;
+			continue;
+		}
+		if (stage_craft_service_energy(*quote, home, craft, from, to, accepted, true) != accepted)
+			throw std::runtime_error("Servicing energy preview changed before commit");
+		if (!commit_finite_native_payment(*quote))
+			return 0;
+		const auto delivered = entities.at(craft).get<ShipResources>().network.stores().at(to).energy();
+		commit_finite_native_work(*quote, accepted, delivered, required, delivered >= required);
+		return accepted;
+	}
+	return 0;
+}
+void validate_craft_service_attribution(EntityId home, EntityId craft, std::size_t from, std::size_t to,
+                                        const MaterialServiceAttribution &service) const
+{
+	if (service.bay.empty())
+	{
+		if (!service.native.empty() || !service.process.empty() || service.generation)
+			throw std::runtime_error("Invalid empty servicing attribution");
+		return;
+	}
+	if (!entities.contains(home) || !definition(home).craft_bays.contains(service.bay) || service.process.empty() ||
+	    service.process.size() > 1024 || !service.generation || service.generation >= process_generation_limit)
+		throw std::runtime_error("Invalid servicing source attribution");
+	const auto &bay = definition(home).craft_bays.at(service.bay);
+	for (std::size_t i = 0; i < bay.ammunition.size(); ++i)
+		if (service.native == service.bay + ".ammo-" + std::to_string(i))
+		{
+			if (from != bay.ammunition[i].source_store)
+				break;
+			if (!craft)
+				return; // A cancelled batch may already be returning to its source.
+			if (!entities.contains(craft) || !entities.at(craft).has<CraftState>())
+				break;
+			const auto &state = entities.at(craft).get<CraftState>();
+			const auto found = bay.ammunition[i].destination_stores.find(entities.at(craft).get<Definition>().name);
+			if (state.home == home && state.bay == service.bay && found != bay.ammunition[i].destination_stores.end() &&
+			    found->second == to)
+				return;
+			break;
+		}
+	throw std::runtime_error("Invalid servicing destination attribution");
+}
+bool prepare_craft_service_delivery(const MaterialBatch &batch, std::optional<FiniteNativeWork> &work)
+{
+	if (batch.service.bay.empty() || batch.returning)
+		return true;
+	const auto address = custom_property_address(RuleActor{batch.source, batch.service.bay});
+	const auto *state = process_state(address, batch.service.process);
+	// Dispatch already committed the finite supplies to physical logistics. A
+	// withdrawn grant leaves delivery independent, without crediting a replacement.
+	if (!state || state->generation != batch.service.generation || !state->requested)
+		return true;
+	const auto progress = material_quantity(batch.destination, batch.to, batch.material);
+	const auto required = material_store(batch.destination, batch.to).capacity /
+	                      material_size(batch.destination, batch.to, batch.material);
+	const auto target =
+	    "craft:" + std::to_string(batch.destination) + ":ammunition:" + std::to_string(batch.to) + ":" + batch.material;
+	work = prepare_finite_native_work(batch.source, "servicing_ammunition", batch.service.native, target,
+	                                  RuleActor{batch.destination}, progress, required, batch.quantity, {}, false);
+	if (!work)
+		return false;
+	auto &stock = material_stock(batch.destination, batch.to);
+	const auto claim = material_batch_claim(batch.id);
+	if (work->work == batch.quantity)
+	{
+		if (!work->prepared.stocks.receive_reserved(stock, claim))
+			throw std::runtime_error("Missing servicing delivery receiving commitment");
+	}
+	else
+	{
+		// A proportionally funded delivery consumes only its accepted portion;
+		// the same physical batch retains the exact remaining receiving claim.
+		const auto remaining = batch.quantity - work->work;
+		if (remaining <= 0 || !work->prepared.stocks.release_capacity(stock, claim) ||
+		    !work->prepared.stocks.add(stock, batch.material, work->work) ||
+		    !work->prepared.stocks.reserve_capacity(stock, claim, batch.material, remaining))
+			throw std::runtime_error("Missing partial servicing receiving commitment");
+	}
+	return commit_finite_native_payment(*work);
+}
 void service_craft()
 {
 	const auto rows = craft_rows();
@@ -811,13 +964,15 @@ void service_craft()
 			continue;
 		const auto &d = definition(s.home).craft_bays.at(s.bay);
 		auto &bs = away_equipment(s.home, s.bay).get_mut<CraftBayState>();
-		bs.energy_remainder += d.charge_rate;
+		bs.energy_remainder += d.charge_rate * craft_service_rate(s.home, "servicing_energy", s.bay) / 1000;
 		auto energy = bs.energy_remainder / rate;
 		bs.energy_remainder %= rate;
 		std::vector<std::int64_t> rounds;
 		for (std::size_t i = 0; i < d.ammunition.size(); ++i)
 		{
-			bs.ammunition_remainders[i] += d.ammunition[i].rate;
+			const auto native = s.bay + ".ammo-" + std::to_string(i);
+			bs.ammunition_remainders[i] +=
+			    d.ammunition[i].rate * craft_service_rate(s.home, "servicing_ammunition", native) / 1000;
 			rounds.push_back(bs.ammunition_remainders[i] / rate);
 			bs.ammunition_remainders[i] %= rate;
 		}
@@ -830,8 +985,9 @@ void service_craft()
 			    source && energy && !d.power_store.empty())
 				if (auto *target = craft.try_get_mut<ShipResources>())
 					for (ResourceIndex store = 0; store < target->network.stores().size(); ++store)
-						energy -= source->network.transfer_external(
-						    target->network, source->definition.network.store_ids.at(d.power_store), store, energy);
+						energy -=
+						    service_craft_energy(s.home, s.bay, other,
+						                         source->definition.network.store_ids.at(d.power_store), store, energy);
 			for (std::size_t i = 0; i < d.ammunition.size(); ++i)
 			{
 				const auto &connection = d.ammunition[i];
@@ -851,8 +1007,17 @@ void service_craft()
 				                                                      material_pending(other, to, resource)));
 				if (amount > 0)
 				{
+					const auto native = s.bay + ".ammo-" + std::to_string(i);
+					const auto driver = finite_native_driver(s.home, "servicing_ammunition", native);
+					if (!driver.state)
+						continue;
+					const auto request = next_material_request;
 					request_material(s.home, connection.source_store, other, to, resource, amount, false);
-					rounds[i] -= amount;
+					if (next_material_request != request)
+					{
+						material_requests.back().service = {s.bay, native, driver.state->id, driver.state->generation};
+						rounds[i] -= amount;
+					}
 				}
 			}
 		}

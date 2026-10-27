@@ -1,4 +1,5 @@
 #pragma once
+#include "native_outcomes.hpp"
 namespace phoenix
 {
 // A quote owns its native copies and the addresses staged by StockTransaction.
@@ -53,6 +54,9 @@ struct PreparedEffectGroup
 	std::uint64_t epoch = 0, next_active = 0, original_next_active = 0;
 	bool consumed = false, defer_damage = false;
 	bool pre_generation = false;
+	std::map<EntityId, NativeStructureOutcome> structures, original_structures;
+	std::map<std::pair<EntityId, std::size_t>, NativePatientOutcome> patients, original_patients;
+	std::map<std::pair<EntityId, std::string>, NativeTeamOutcome> clinical_teams, original_clinical_teams;
 	std::map<EntityId, ShieldComponent> shields, original_shields;
 	std::map<EntityId, PropertyEffects> properties, original_properties;
 	std::map<CustomPropertyAddress, CustomPropertyState> custom_properties, original_custom_properties;

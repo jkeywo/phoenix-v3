@@ -140,8 +140,13 @@ void rewrite_system(const Catalog &catalog, Json &value, const CompositionNames 
 					const auto &ids = native == "generation" ? family(names, "generators")
 					                  : native == "cooling"  ? family(names, "cooling_links")
 					                                         : names.systems;
-					binding["native_id"] = rewrite_reference(binding.at("native_id"), ids, bindings,
+					const auto native_id = rewrite_reference(binding.at("native_id"), ids, bindings,
 					                                         path + ".processes." + slot + ".native_id");
+					const auto channel = native_id.rfind(".ammo-");
+					binding["native_id"] =
+					    native == "servicing_ammunition" && channel != std::string::npos
+					        ? renamed(names.systems, native_id.substr(0, channel)) + native_id.substr(channel)
+					        : native_id;
 				}
 			continue;
 		}

@@ -2967,7 +2967,8 @@ struct GameplayEditor
 			        const auto old = operation.value("kind", std::string("fill"));
 			        choice(operation, "kind",
 			               {"damage", "apply", "remove", "add", "consume", "set", "fill", "transfer", "property_set",
-			                "property_add", "property_subtract", "property_rate", "heat_add", "heat_remove"});
+			                "property_add", "property_subtract", "property_rate", "heat_add", "heat_remove",
+			                "structural_repair", "fault_repair", "treat", "stabilise", "recover"});
 			        const auto kind = operation.value("kind", std::string("fill"));
 			        if (kind != old)
 			        {
@@ -2976,6 +2977,27 @@ struct GameplayEditor
 			        }
 			        choice(operation, "target",
 			               {"owner", "source", "instigator", "subject", "target", "attacker", "protected"});
+			        if (kind == "structural_repair" || kind == "fault_repair" || kind == "treat" ||
+			            kind == "stabilise" || kind == "recover")
+			        {
+				        if (kind == "structural_repair")
+				        {
+					        optional_string(operation, "compartment");
+					        integer(operation, "amount", 1);
+				        }
+				        else if (kind == "fault_repair")
+				        {
+					        optional_string(operation, "equipment");
+					        string(operation, "fault");
+				        }
+				        else
+				        {
+					        optional_string(operation, "officer");
+					        if (kind == "treat")
+						        optional_string(operation, "equipment");
+				        }
+				        return;
+			        }
 			        if (kind == "heat_add" || kind == "heat_remove")
 			        {
 				        optional_string(operation, "equipment");
@@ -3164,7 +3186,20 @@ struct GameplayEditor
 			    if (kind == "process")
 			    {
 				    string(effect, "label");
-				    choice(effect, "native", {"effects", "generation", "propulsion", "cooling", "processor"});
+				    choice(effect, "native",
+				           {"effects", "generation", "propulsion", "cooling", "processor", "repair", "medical",
+				            "recovery", "servicing_energy", "servicing_ammunition", "ftl"});
+				    if (effect.value("native", std::string("effects")) == "effects")
+				    {
+					    if (effect.contains("required_work"))
+					    {
+						    integer(effect, "required_work", 1);
+						    if (button("Remove finite work requirement"))
+							    effect.erase("required_work");
+					    }
+					    else if (button("Add finite work requirement"))
+						    effect["required_work"] = 1;
+				    }
 				    boolean(effect, "requested", true);
 				    optional_string(effect, "family");
 				    choice(effect, "shortage", {"proportional", "pause", "stop"});
@@ -3175,8 +3210,8 @@ struct GameplayEditor
 				    effect_costs_fields(effect, "entry_costs", "amount", document);
 				    effect_costs_fields(effect, "upkeep_costs", "per_second", document);
 				    effect_costs_fields(effect, "work_costs", "per_work", document);
-				    for (const auto *field :
-				         {"start_effect", "pause_effect", "resume_effect", "stop_effect", "work_effect"})
+				    for (const auto *field : {"start_effect", "pause_effect", "resume_effect", "stop_effect",
+				                              "work_effect", "completion_effect"})
 					    choice(effect, field, document.definition_choices(WorkshopDefinitionKind::Effect), true);
 				    rule_expression_field(effect, "work_values", Json::object());
 				    records(effect, "exclusions", {{"id", "exclusive"}, {"scope", "source"}},

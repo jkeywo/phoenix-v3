@@ -1731,7 +1731,29 @@
 			"Invalid process work effects": "Invalid process work effects",
 			"Insufficient process funding": "Insufficient process funding",
 			"effort_milliticks": "effort",
-			"work_milliunits": "work"
+			"work_milliunits": "work",
+			"completed": "Completed",
+			"Completion effect failed": "Completion effect failed",
+			"Add finite work requirement": "Add finite work requirement",
+			"Remove finite work requirement": "Remove finite work requirement",
+			"required_work": "Required work",
+			"completion_effect": "Completion effect",
+			"Job progress": "Job progress",
+			"Job completed": "Job completed",
+			"Completion delivered": "Completion delivered",
+			"Completion failed": "Completion failed",
+			"Job details unavailable": "Job details unavailable",
+			"Automatic work": "Automatic work",
+			"structural_repair": "Structural repair",
+			"fault_repair": "Fault repair",
+			"treat": "Treat",
+			"stabilise": "Stabilise",
+			"recover": "Recover",
+			"recovery": "Recovery",
+			"servicing_energy": "Craft energy servicing",
+			"servicing_ammunition": "Craft ammunition servicing",
+			"ftl": "FTL preparation",
+			"rounds": "rounds"
 		}
 	}
 }

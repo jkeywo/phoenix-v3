@@ -266,6 +266,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		return false;
 	if (!execute)
 		return true;
+	cancel_finite_native_owner_jobs(a.ship, c.system);
 	// Releasing an escort preserves the patient's current position and progress.
 	for (auto &o : entities.at(a.ship).get_mut<PersonnelState>().officers)
 		if (o.escort == c.system)
@@ -324,49 +325,75 @@ std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::si
 void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t patient,
                    const std::string &activity)
 {
-	const auto work = team_work(entities.at(origin), team, PropertyKey::medical, 1000);
-	if (work <= 0)
+	const auto desired = team_work(entities.at(origin), team, PropertyKey::medical, 1000);
+	if (desired <= 0)
 		return;
 	const auto patients = clinical_patients(target);
 	const auto &selected = patients.at(patient);
+	const auto &definition_team = team.definition.get<TeamDefinition>();
 	if (!selected.team.empty())
 	{
-		auto &r = away_equipment(target, selected.team).get_mut<CombatMechanism>().get<TeamState>();
-		if (activity != "treat" || r.condition != "injured")
+		const auto &before = away_equipment(target, selected.team).get<CombatMechanism>().get<TeamState>();
+		if (activity != "treat" || before.condition != "injured")
 			return;
-		if (!pay_material_work(origin, team.definition.id, "treat", r.treatment > 0))
+		const auto costs = native_material_work_costs(origin, team.definition.id, "treat", before.treatment > 0);
+		if (!costs)
 			return;
-		r.treatment += work;
-		if (r.treatment >= team.definition.get<TeamDefinition>().treatment_ticks * 1000)
-		{
-			r.condition = "healthy";
-			r.treatment = 0;
-			++r.revision;
-		}
+		const auto required = definition_team.treatment_ticks * 1000;
+		const auto key = std::to_string(target) + "/team/" + selected.team;
+		auto quote = prepare_finite_native_work(origin, "medical", team.definition.id, key, {target, selected.team},
+		                                        before.treatment, required,
+		                                        std::min(desired, required - before.treatment), *costs);
+		if (!quote)
+			return;
+		auto &prepared = finite_team_outcome(*quote, target, selected.team);
+		if (prepared.condition != "injured")
+			return;
+		prepared.treatment += quote->work;
+		const auto progress = prepared.treatment;
+		const bool completed = progress >= required;
+		if (completed)
+			native_treat_team(prepared);
+		if (commit_finite_native_payment(*quote))
+			commit_finite_native_work(*quote, quote->work, std::min(required, progress), required, completed);
 		return;
 	}
-	auto &o = entities.at(target).get_mut<PersonnelState>().officers.at(patient);
-	const auto &d = team.definition.get<TeamDefinition>();
-	if (!d.capabilities.contains("medical") || !patient_eligible(o))
+	const auto &before = entities.at(target).get<PersonnelState>().officers.at(patient);
+	if (!definition_team.capabilities.contains("medical") || !patient_eligible(before) ||
+	    (activity == "stabilise" && before.condition != "severe") ||
+	    (before.condition == "severe" && before.stabilised))
 		return;
-	if (activity == "stabilise" && o.condition != "severe")
+	const auto clinical_activity = before.condition == "severe" ? "stabilise" : "treat";
+	const auto required =
+	    (before.condition == "severe" ? definition_team.stabilise_ticks : definition_team.treatment_ticks) * 1000;
+	const auto costs = native_material_work_costs(origin, team.definition.id, clinical_activity, before.treatment > 0);
+	if (!costs)
 		return;
-	if (o.condition == "severe" && o.stabilised)
+	const auto officer = definition(target).personnel.officers.at(patient).id;
+	const auto key = std::to_string(target) + "/officer/" + officer + "/" + clinical_activity;
+	auto quote =
+	    prepare_finite_native_work(origin, "medical", team.definition.id, key, {target, {}, officer}, before.treatment,
+	                               required, std::min(desired, required - before.treatment), *costs);
+	if (!quote)
 		return;
-	const auto ticks = o.condition == "severe" ? d.stabilise_ticks : d.treatment_ticks;
-	if (!pay_material_work(origin, team.definition.id, o.condition == "severe" ? "stabilise" : "treat",
-	                       o.treatment > 0))
+	auto &prepared = finite_patient_outcome(*quote, target, patient);
+	if ((clinical_activity == std::string("stabilise") && (prepared.condition != "severe" || prepared.stabilised)) ||
+	    (clinical_activity == std::string("treat") && prepared.condition != "minor"))
 		return;
-	o.treatment += work;
-	if (o.treatment < ticks * 1000)
-		return;
-	o.treatment = 0;
-	if (o.condition == "severe")
-		o.stabilised = true;
-	else
-		o.condition = "healthy";
-	personnel_changed(target);
+	prepared.treatment += quote->work;
+	const auto progress = prepared.treatment;
+	const bool completed = progress >= required;
+	if (completed)
+	{
+		if (prepared.condition == "severe")
+			native_stabilise_patient(prepared);
+		else
+			native_treat_patient(prepared);
+	}
+	if (commit_finite_native_payment(*quote))
+		commit_finite_native_work(*quote, quote->work, std::min(required, progress), required, completed);
 }
+
 bool step_clinical_work(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t compartment,
                         const TeamOrderDefinition &order, const std::string &activity, const std::string &priority,
                         std::set<std::pair<EntityId, std::size_t>> &claimed)
@@ -392,30 +419,48 @@ void step_medical_facilities()
 		if (!ship.has<PersonnelState>() || combat_dead(ship))
 			continue;
 		const auto &pd = definition(id).personnel;
-		auto &ps = ship.get_mut<PersonnelState>();
-		for (auto &o : ps.officers)
-			if (!o.facility.empty())
-				for (const auto &f : pd.facilities)
-					if (f.id == o.facility)
-					{
-						const auto at = std::find(pd.compartments.begin(), pd.compartments.end(), f.compartment) -
-						                pd.compartments.begin();
-						if (ship.has<CombatStructure>() && ship.get<CombatStructure>().compartments.at(at).disabled)
-							continue;
-						if (!pay_material_work(id, f.id, "recover", o.recovery > 0))
-							continue;
-						o.recovery += 1000;
-						if (o.recovery >= f.recovery_ticks * 1000)
-						{
-							o.condition = "healthy";
-							o.stabilised = false;
-							o.recovery = 0;
-							o.facility.clear();
-							personnel_changed(id);
-						}
-					}
+		const auto count = ship.get<PersonnelState>().officers.size();
+		for (std::size_t patient = 0; patient < count; ++patient)
+		{
+			const auto &before = ship.get<PersonnelState>().officers.at(patient);
+			if (before.facility.empty())
+				continue;
+			for (const auto &facility : pd.facilities)
+				if (facility.id == before.facility)
+				{
+					const auto compartment =
+					    std::find(pd.compartments.begin(), pd.compartments.end(), facility.compartment) -
+					    pd.compartments.begin();
+					if (ship.has<CombatStructure>() &&
+					    ship.get<CombatStructure>().compartments.at(compartment).disabled)
+						continue;
+					const auto costs = native_material_work_costs(id, facility.id, "recover", before.recovery > 0);
+					if (!costs)
+						continue;
+					const auto required = facility.recovery_ticks * 1000;
+					const auto officer = pd.officers.at(patient).id;
+					const auto key = std::to_string(id) + "/officer/" + officer + "/recover";
+					auto quote = prepare_finite_native_work(
+					    id, "recovery", facility.id, key, {id, {}, officer}, before.recovery, required,
+					    std::min<std::int64_t>(1000, required - before.recovery), *costs);
+					if (!quote)
+						continue;
+					auto &prepared = finite_patient_outcome(*quote, id, patient);
+					if (prepared.condition != "severe" || !prepared.stabilised || prepared.facility != facility.id)
+						continue;
+					prepared.recovery += quote->work;
+					const auto progress = prepared.recovery;
+					const bool completed = progress >= required;
+					if (completed)
+						native_recover_patient(prepared);
+					if (commit_finite_native_payment(*quote))
+						commit_finite_native_work(*quote, quote->work, std::min(required, progress), required,
+						                          completed);
+				}
+		}
 	}
 }
+
 void step_teams()
 {
 	std::set<std::pair<EntityId, std::size_t>> claimed;

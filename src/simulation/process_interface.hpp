@@ -30,7 +30,8 @@ const ProcessState *process_control_grant(EntityId ship, const ProcessControlDef
 		return nullptr;
 	const ProcessState *result = nullptr;
 	for (const auto &[id, state] : runtime->processes)
-		if (state.slot == control.process && (!result || (!result->admitted && state.admitted)))
+		if (state.parent_process.empty() && state.slot == control.process &&
+		    (!result || (!result->admitted && state.admitted)))
 			result = &state;
 	return result;
 }
@@ -152,6 +153,74 @@ bool process_rule_visible(const ConsoleAddress &address, const NativeRuleSource 
 		}
 	return false;
 }
+static bool process_has_finite_work(const ProcessDefinition &spec)
+{
+	return spec.required_work > 0 || spec.native == NativeProcessKind::Repair ||
+	       spec.native == NativeProcessKind::Medical || spec.native == NativeProcessKind::Recovery ||
+	       spec.native == NativeProcessKind::ServicingEnergy || spec.native == NativeProcessKind::ServicingAmmunition ||
+	       spec.native == NativeProcessKind::Ftl;
+}
+static bool process_is_native_driver(const ProcessDefinition &spec, const ProcessState &state)
+{
+	return state.parent_process.empty() &&
+	       (spec.native == NativeProcessKind::Repair || spec.native == NativeProcessKind::Medical ||
+	        spec.native == NativeProcessKind::Recovery || spec.native == NativeProcessKind::ServicingEnergy ||
+	        spec.native == NativeProcessKind::ServicingAmmunition);
+}
+// A process endpoint permits its own execution state, not unrestricted facts
+// about a remote patient, fault or craft. Reuse the native Console scope before
+// publishing a job target and its progress.
+bool process_job_details_visible(const ConsoleAddress &address, const CustomPropertyAddress &owner,
+                                 const ProcessState &state, const Observation *permitted) const
+{
+	const auto &spec = process_definition(state);
+	if (spec.native == NativeProcessKind::Effects || state.target.empty())
+		return true;
+	if (!permitted)
+		return false;
+	const auto &gameplay = permitted->gameplay;
+	if (spec.native == NativeProcessKind::Ftl)
+	{
+		for (const auto &drive : gameplay.value("ftl", Json::array()))
+			if (drive.at("system") == owner.equipment)
+				return true;
+		return false;
+	}
+	if (spec.native == NativeProcessKind::ServicingEnergy || spec.native == NativeProcessKind::ServicingAmmunition)
+	{
+		for (const auto &craft : gameplay.value("craft", Json::array()))
+			if (craft.at("id") == std::to_string(state.origin.target.entity) && craft.at("bay") == owner.equipment &&
+			    craft.at("phase") == "docked")
+				return true;
+		return false;
+	}
+	if (state.origin.target.entity != address.ship)
+		return false;
+	if (spec.native == NativeProcessKind::Repair)
+	{
+		for (const auto &team : gameplay.value("teams", Json::array()))
+			if (team.at("id") == owner.equipment && team.value("repair", false))
+				return true;
+		return false;
+	}
+	if (spec.native == NativeProcessKind::Medical || spec.native == NativeProcessKind::Recovery)
+	{
+		const auto &target = state.origin.target;
+		const auto &patient = target.officer.empty() ? target.equipment : target.officer;
+		if (patient.empty())
+			return false;
+		for (const auto &team : gameplay.value("teams", Json::array()))
+			for (const auto &row : team.value("patients", Json::array()))
+				if (row.at("id") == patient || row.at("id") == "team:" + patient)
+					return true;
+		if (const auto personnel = gameplay.find("personnel"); personnel != gameplay.end())
+			for (const auto &row : personnel->value("officers", Json::array()))
+				if (row.at("id") == patient)
+					return true;
+		return false;
+	}
+	return false;
+}
 Json process_board(const ConsoleAddress &address, const Observation *permitted = nullptr) const
 {
 	Json rows = Json::array();
@@ -160,8 +229,14 @@ Json process_board(const ConsoleAddress &address, const Observation *permitted =
 	{
 		if (rows.size() >= 4096)
 			return;
+		const auto *parent = state.parent_process.empty() ? nullptr : process_state(owner, state.parent_process);
+		if (!state.parent_process.empty() && !parent)
+			return;
 		const auto &spec = process_definition(state);
 		const auto key = process_instance_key(owner, state);
+		const bool driver = process_is_native_driver(spec, state);
+		const bool details = !driver && process_job_details_visible(address, owner, state, permitted);
+		const bool hidden_job = process_has_finite_work(spec) && !details && !driver;
 		published.insert(key);
 		rows.push_back({{"id", key + (endpoint.empty() ? "" : ":" + endpoint)},
 		                {"control", endpoint},
@@ -171,21 +246,40 @@ Json process_board(const ConsoleAddress &address, const Observation *permitted =
 		                {"source", process_owner_kind(owner)},
 		                {"owner", process_owner_name(owner)},
 		                {"requested", state.requested},
-		                {"phase", state.phase},
-		                {"blocker", state.blocker},
+		                {"phase", hidden_job ? (state.requested ? "paused" : "off") : state.phase},
+		                {"blocker", hidden_job ? "Job details unavailable" : state.blocker},
 		                {"generation", state.generation},
 		                {"run", state.run},
-		                {"output", state.work_output},
+		                {"output", hidden_job ? 0 : state.work_output},
 		                {"upkeep_output", state.idle_output},
-		                {"work", state.actual_work},
+		                {"work", hidden_job ? 0 : state.actual_work},
 		                {"work_unit", spec.work_unit},
 		                {"display_scale", spec.work_divisor},
+		                {"finite", process_has_finite_work(spec)},
+		                {"driver", driver},
+		                {"parent", state.parent_process.empty() ? std::string{} : process_instance_key(owner, *parent)},
+		                {"details_available", details},
+		                {"target", details ? state.target : std::string{}},
+		                {"progress", details ? state.progress : 0},
+		                {"required_work", details ? state.required_work : 0},
+		                {"completed", details && state.completed},
+		                {"ready", details && state.ready},
+		                {"completion_delivered", details && state.completion_delivered},
 		                {"properties", execution_observed_properties(process_actor(owner), spec.observations)}});
 	};
 	for (const auto &binding : definition(address.ship).processes.controls)
 		if (process_control_visible(address, binding))
 			if (const auto *state = process_control_grant(address.ship, binding))
-				append(process_control_address(address.ship, binding), *state, binding.id);
+			{
+				const auto owner = process_control_address(address.ship, binding);
+				append(owner, *state, binding.id);
+				if (const auto *runtime = process_runtime(owner))
+					for (const auto &[id, child] : runtime->processes)
+						if (child.parent_process == state->id &&
+						    !published.contains(process_instance_key(owner, child)) &&
+						    process_job_details_visible(address, owner, child, permitted))
+							append(owner, child, {});
+			}
 	// Native System readouts already express equipment-local visibility. Do not
 	// require extra process endpoints just to preserve ordinary machinery panels.
 	if (permitted)
@@ -194,21 +288,49 @@ Json process_board(const ConsoleAddress &address, const Observation *permitted =
 			const CustomPropertyAddress owner{address.ship, system.id};
 			if (const auto *runtime = process_runtime(owner))
 				for (const auto &[id, state] : runtime->processes)
-					if (!published.contains(process_instance_key(owner, state)))
+					if (!published.contains(process_instance_key(owner, state)) &&
+					    (state.parent_process.empty() || process_job_details_visible(address, owner, state, permitted)))
 						append(owner, state, {});
 		}
+	// Facilities are entity-owned rather than fitted equipment. A permitted
+	// patient readout grants the corresponding recovery episode, not unrelated
+	// entity processes or another department's patients.
+	const CustomPropertyAddress entity_owner{address.ship};
+	if (permitted)
+		if (const auto *runtime = process_runtime(entity_owner))
+			for (const auto &[id, state] : runtime->processes)
+				if (process_definition(state).native == NativeProcessKind::Recovery && !state.parent_process.empty() &&
+				    process_job_details_visible(address, entity_owner, state, permitted))
+				{
+					if (const auto *driver = process_state(entity_owner, state.parent_process);
+					    driver && !published.contains(process_instance_key(entity_owner, *driver)))
+						append(entity_owner, *driver, {});
+					if (!published.contains(process_instance_key(entity_owner, state)))
+						append(entity_owner, state, {});
+				}
 	return rows;
 }
 static Json process_row_decision_facts(const Json &row)
 {
-	return {{"phase", row.at("phase")},
-	        {"requested", row.at("requested")},
-	        {"running", row.at("phase") == "running"},
-	        {"paused", row.at("phase") == "paused"},
-	        {"blocked", !row.at("blocker").get<std::string>().empty()},
-	        {"activity", row.at("output")},
-	        {"work", row.at("work")},
-	        {"properties", row.at("properties")}};
+	Json result{{"phase", row.at("phase")},
+	            {"requested", row.at("requested")},
+	            {"running", row.at("phase") == "running"},
+	            {"paused", row.at("phase") == "paused"},
+	            {"blocked", !row.at("blocker").get<std::string>().empty()},
+	            {"activity", row.at("output")},
+	            {"work", row.at("work")},
+	            {"finite", row.at("finite")},
+	            {"driver", row.at("driver")},
+	            {"properties", row.at("properties")}};
+	if (row.at("finite").get<bool>() && !row.at("details_available").get<bool>())
+	{
+		result.erase("activity");
+		result.erase("work");
+	}
+	if (row.at("details_available").get<bool>())
+		for (const auto *field : {"target", "progress", "required_work", "completed", "ready", "completion_delivered"})
+			result[field] = row.at(field);
+	return result;
 }
 Json process_decision_facts(const Observation &permitted) const
 {

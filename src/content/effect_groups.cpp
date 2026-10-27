@@ -221,6 +221,57 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 				else if (value.contains("delta_permille") || value.contains("role"))
 					fail("delta_permille and role require a modifier apply");
 			}
+			else if (kind == "structural_repair" || kind == "fault_repair" || kind == "treat" || kind == "stabilise" ||
+			         kind == "recover")
+			{
+				const auto equipment_selector = [&]
+				{
+					op.equipment = value.value("equipment", std::string{});
+					if (!op.equipment.empty() && op.equipment != "$owner" && op.equipment != "$source" &&
+					    op.equipment != "$target" && op.equipment != "$hit" && !valid_identifier(op.equipment))
+						fail("invalid native outcome equipment selector");
+				};
+				if (kind == "structural_repair")
+				{
+					fields.insert("compartment");
+					fields.insert("amount");
+					op.kind = EffectOperationKind::StructuralRepair;
+					op.compartment = value.value("compartment", std::string{});
+					if (!op.compartment.empty() && !valid_identifier(op.compartment))
+						fail("invalid repair compartment");
+					const auto amount = value.value("amount", Json(0));
+					if (!amount.is_number_integer() || amount < 0 || amount > resource_limit)
+						fail("invalid structural repair amount");
+					op.amount = amount.get<std::int64_t>();
+				}
+				else if (kind == "fault_repair")
+				{
+					fields.insert("equipment");
+					fields.insert("fault");
+					op.kind = EffectOperationKind::FaultRepair;
+					equipment_selector();
+					op.fault = value.value("fault", std::string{});
+					if (!valid_identifier(op.fault))
+						fail("fault_repair requires a specific fault identity");
+				}
+				else
+				{
+					fields.insert("officer");
+					op.kind = kind == "treat"       ? EffectOperationKind::Treat
+					          : kind == "stabilise" ? EffectOperationKind::Stabilise
+					                                : EffectOperationKind::Recover;
+					op.officer = value.value("officer", std::string{});
+					if (!op.officer.empty() && !valid_identifier(op.officer))
+						fail("invalid clinical officer selector");
+					if (kind == "treat")
+					{
+						fields.insert("equipment");
+						equipment_selector();
+						if (!op.officer.empty() && !op.equipment.empty())
+							fail("treatment requires one officer or team selector");
+					}
+				}
+			}
 			else if (kind == "heat_add" || kind == "heat_remove")
 			{
 				fields.insert("equipment");

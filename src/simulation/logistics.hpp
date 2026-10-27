@@ -380,6 +380,7 @@ void step_logistics()
 		material_batches.push_back(
 		    {next_material_batch++, r.id, r.source, r.destination, r.source, r.from, r.to, start, r.material, n});
 		material_batches.back().cargo = r.cargo;
+		material_batches.back().service = r.service;
 		++active[r.source];
 	}
 	std::erase_if(material_requests,
@@ -440,8 +441,18 @@ void step_logistics()
 		}
 		if (!material_store_working(b.destination, b.to))
 			continue;
-		if (!material_stock(b.destination, b.to).receive_reserved(material_batch_claim(b.id)))
+		std::optional<FiniteNativeWork> service_work;
+		if (!prepare_craft_service_delivery(b, service_work))
+			continue;
+		if (!service_work && !material_stock(b.destination, b.to).receive_reserved(material_batch_claim(b.id)))
 			throw std::runtime_error("Missing delivery receiving commitment");
+		if (service_work)
+		{
+			const auto delivered = material_quantity(b.destination, b.to, b.material);
+			const auto required =
+			    material_store(b.destination, b.to).capacity / material_size(b.destination, b.to, b.material);
+			commit_finite_native_work(*service_work, service_work->work, delivered, required, delivered >= required);
+		}
 		for (auto &job : cargo_deliveries)
 			if (job.id == b.cargo && job.collection && !b.returning)
 			{
@@ -452,7 +463,7 @@ void step_logistics()
 				if (b.destination == job.source && b.material == job.material)
 					job.delivered += b.quantity;
 			}
-		b.quantity = 0;
+		b.quantity -= service_work ? service_work->work : b.quantity;
 		for (const auto &job : cargo_deliveries)
 			if (job.id == b.cargo)
 				sync_cargo_stock(job);
@@ -800,6 +811,9 @@ void restore_logistics(const Json &saved)
 		if (r.id <= last || r.id >= next_material_request || r.remaining <= 0 ||
 		    !endpoint(r.source, r.from, r.material) || !endpoint(r.destination, r.to, r.material))
 			throw std::runtime_error("Invalid saved supply request");
+		if (r.cargo && !r.service.bay.empty())
+			throw std::runtime_error("Cargo request cannot also own servicing work");
+		validate_craft_service_attribution(r.source, r.destination, r.from, r.to, r.service);
 		last = r.id;
 	}
 	last = 0;
@@ -826,6 +840,9 @@ void restore_logistics(const Json &saved)
 			if (!edge)
 				throw std::runtime_error("Invalid saved material route progress");
 		}
+		if (b.cargo && !b.service.bay.empty())
+			throw std::runtime_error("Cargo batch cannot also own servicing work");
+		validate_craft_service_attribution(b.source, b.returning ? 0 : b.destination, b.from, b.to, b.service);
 		last = b.id;
 	}
 	validate_cargo();
@@ -879,57 +896,41 @@ const MaterialConsumerDefinition *material_consumer(EntityId origin, const std::
 			return &c;
 	return nullptr;
 }
-bool pay_material_work(EntityId origin, const std::string &system, const std::string &activity, bool paid)
+// Native work authoring supplies legacy per-episode inputs; actual payment uses
+// the same prepared transaction as process inputs and native outcomes.
+std::optional<std::vector<EffectCostDefinition>>
+native_material_work_costs(EntityId origin, const std::string &system, const std::string &activity, bool paid) const
 {
+	std::vector<EffectCostDefinition> result;
 	if (paid)
-		return true;
-	const auto *c = material_consumer(origin, system);
-	if (!c || !c->costs.contains(activity))
-		return true;
-	const auto &d = definition(origin).logistics;
-	const auto at = std::find_if(d.stores.begin(), d.stores.end(),
-	                             [&](const auto &s)
+		return result;
+	const auto *consumer = material_consumer(origin, system);
+	if (!consumer || !consumer->costs.contains(activity))
+		return result;
+	const auto &stores = definition(origin).logistics.stores;
+	const auto at = std::find_if(stores.begin(), stores.end(),
+	                             [&](const auto &store)
 	                             {
-		                             return s.id == c->store;
+		                             return store.id == consumer->store;
 	                             });
-	const auto index = static_cast<std::size_t>(at - d.stores.begin());
-	// Deployed teams carry their own kit; stationary stores cannot supply them remotely.
+	if (at == stores.end())
+		return {};
 	if (away_reserved(origin, "team:" + system) && at->system != system)
-		return false;
+		return {};
 	if (!at->system.empty())
 	{
-		const auto fit = instance(entities.at(origin), at->system);
-		if (!fit || !fit->enabled || !fault_effectiveness(entities.at(origin), at->system))
-			return false;
+		const auto fitted = instance(entities.at(origin), at->system);
+		if (!fitted || !fitted->enabled || !fault_effectiveness(entities.at(origin), at->system))
+			return {};
 	}
-	const auto &costs = c->costs.at(activity);
-	for (const auto &[m, n] : costs)
-		if (material_stock(origin, index).available(m) < n)
-			return false;
-	StockTransaction transaction;
-	for (const auto &[m, n] : costs)
-		transaction.consume(material_stock(origin, index), m, n);
-	return transaction.commit();
-}
-std::int64_t paid_structural_work(EntityId origin, const std::string &system, std::int64_t work)
-{
-	const auto *c = material_consumer(origin, system);
-	if (!c || !c->costs.contains("structural"))
-		return work;
-	auto &credit = entities.at(origin).get_mut<MaterialInventory>().work_credit[system];
-	std::int64_t result = 0;
-	while (work > 0)
+	for (const auto &[resource, amount] : consumer->costs.at(activity))
 	{
-		if (!credit)
-		{
-			if (!pay_material_work(origin, system, "structural", false))
-				break;
-			credit = rate * 1000;
-		}
-		const auto amount = std::min(work, credit);
-		credit -= amount;
-		work -= amount;
-		result += amount;
+		EffectCostDefinition cost;
+		cost.payer = "owner";
+		cost.store = consumer->store;
+		cost.resource = resource;
+		cost.amount = amount;
+		result.push_back(std::move(cost));
 	}
 	return result;
 }

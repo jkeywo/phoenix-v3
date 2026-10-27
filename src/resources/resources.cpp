@@ -538,6 +538,10 @@ void ResourceNetwork::add_consumption_heat(ResourceIndex i, ResourceAmount consu
 	add_heat(i, heat);
 	add_heat(i, scaled(depleted, d.depletion_heat_ppm, s.depletion_heat_remainder));
 }
+ResourceAmount ResourceNetwork::external_payment_budget(ResourceIndex index) const
+{
+	return operational(index) ? std::min(stores_.at(index).available(), discharge_left_.at(index)) : 0;
+}
 bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 {
 	changed();

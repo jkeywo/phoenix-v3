@@ -9,6 +9,7 @@ import phoenix.console;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
+#include "../support/machinery_baseline.hpp"
 void ticks(World &w, int n)
 {
 	while (n-- > 0)
@@ -50,10 +51,12 @@ void assign(World &w, const std::string &transport)
 	ticks(w, 15);
 }
 #include "../support/escort_cases.hpp"
+#include "../support/finite_servicing_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		finite_servicing_cases();
 		escort_cases();
 		Json trace = Json::array();
 		auto input = craft_fixture();
@@ -716,7 +719,9 @@ int main(int argc, char **argv)
 				if (c.at("id") == bomber)
 					require(c.at("phase") == "docked", "authored recall returns a loaded bomber");
 		}
-		if (argc > 1 && std::string(argv[1]) == "--trace")
+		if (argc > 1 && std::string(argv[1]) == "--physical-trace")
+			std::cout << machinery_physical_trace(trace).dump() << "\n";
+		else if (argc > 1 && std::string(argv[1]) == "--trace")
 		{
 			for (auto &state : trace)
 				state.erase("packs");

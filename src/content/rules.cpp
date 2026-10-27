@@ -687,14 +687,17 @@ void compile_rule_values(const Catalog &catalog, RuleDefinition &result, const J
 		{
 			if (operation.kind == EffectOperationKind::Damage || operation.kind == EffectOperationKind::Apply ||
 			    operation.kind == EffectOperationKind::Remove || operation.kind == EffectOperationKind::StoreFill ||
-			    operation.kind == EffectOperationKind::PropertySet)
-				rule_fail(at, "amount expression requires quantified store operation");
+			    operation.kind == EffectOperationKind::PropertySet ||
+			    operation.kind == EffectOperationKind::FaultRepair || operation.kind == EffectOperationKind::Treat ||
+			    operation.kind == EffectOperationKind::Stabilise || operation.kind == EffectOperationKind::Recover)
+				rule_fail(at, "amount expression requires quantified operation");
 			compiled.amount = expression(
 			    over.at("amount"), "values." + index + ".amount", Type::Integer,
 			    (operation.kind == EffectOperationKind::HeatAdd || operation.kind == EffectOperationKind::HeatRemove)
 			        ? "heat"
-			    : operation.property.empty() ? "resource:" + operation.resource
-			                                 : properties->at(operation.property).unit);
+			    : operation.kind == EffectOperationKind::StructuralRepair ? "damage"
+			    : operation.property.empty()                              ? "resource:" + operation.resource
+			                                                              : properties->at(operation.property).unit);
 		}
 		if (over.contains("value"))
 		{

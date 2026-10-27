@@ -12,6 +12,18 @@ static std::string_view native_process_kind_name(NativeProcessKind kind)
 		return "cooling";
 	case NativeProcessKind::Processor:
 		return "processor";
+	case NativeProcessKind::Repair:
+		return "repair";
+	case NativeProcessKind::Medical:
+		return "medical";
+	case NativeProcessKind::Recovery:
+		return "recovery";
+	case NativeProcessKind::ServicingEnergy:
+		return "servicing_energy";
+	case NativeProcessKind::ServicingAmmunition:
+		return "servicing_ammunition";
+	case NativeProcessKind::Ftl:
+		return "ftl";
 	default:
 		return "effects";
 	}
@@ -38,10 +50,31 @@ std::string process_native_blocker(const CustomPropertyAddress &address, const P
 	// Keep authored runs paused without charging upkeep for unavailable machinery.
 	if (craft_dormant(ship))
 		return "Native craft dormant";
+	if (definition.native == NativeProcessKind::Recovery)
+	{
+		for (const auto &facility : this->definition(address.entity).personnel.facilities)
+			if (facility.id == state.native_id)
+				return {};
+		return "Native recovery facility unavailable";
+	}
 	const auto equipment = address.equipment;
 	const auto fitted = instance(ship, equipment);
 	if (!fitted || !fitted->enabled || structurally_disabled(ship, equipment))
 		return "Native machinery unavailable";
+	if (definition.native == NativeProcessKind::Ftl)
+	{
+		const auto *ftl = fitted->entity.try_get<FtlReserve>();
+		const auto *resources = ship.try_get<ShipResources>();
+		if (!ftl || !resources || !fault_effectiveness(ship, equipment))
+			return "Native FTL unavailable";
+		if (resources->network.stores().at(ftl->definition.store).thermal_stop)
+			return "Native machinery protected";
+		return {};
+	}
+	if (definition.native == NativeProcessKind::Repair || definition.native == NativeProcessKind::Medical ||
+	    definition.native == NativeProcessKind::ServicingEnergy ||
+	    definition.native == NativeProcessKind::ServicingAmmunition)
+		return {};
 	const auto reserve_ready = [&](ResourceIndex index)
 	{
 		const auto *resources = ship.try_get<ShipResources>();
@@ -191,6 +224,12 @@ void begin_process_machinery_quotes()
 					if (state.admitted && state.requested && state.blocker.empty())
 					{
 						const auto &definition = process_definition(state);
+						if (definition.native == NativeProcessKind::Repair ||
+						    definition.native == NativeProcessKind::Medical ||
+						    definition.native == NativeProcessKind::Recovery ||
+						    definition.native == NativeProcessKind::ServicingEnergy ||
+						    definition.native == NativeProcessKind::ServicingAmmunition)
+							continue;
 						const auto native = state.native_id.empty() ? address.equipment : state.native_id;
 						process_machinery_quotes.push_back({address, state, definition.native, native});
 					}
@@ -275,7 +314,22 @@ bool capture_process_native_work(const std::map<EntityId, std::optional<ShipReso
 		const auto *native = allocation != allocations.end() && allocation->second ? &*allocation->second : nullptr;
 		std::int64_t available = 0, full = 0;
 		if (quote.kind == NativeProcessKind::Effects)
+		{
 			available = full = quote.frozen.rate_permille;
+			if (definition.required_work)
+				available = full =
+				    std::min(available, std::max<std::int64_t>(0, definition.required_work - quote.frozen.progress));
+		}
+		else if (quote.kind == NativeProcessKind::Ftl && native)
+		{
+			const auto fitted = instance(ship, quote.owner.equipment);
+			if (fitted && fitted->entity.has<FtlReserve>())
+			{
+				const auto &ftl = fitted->entity.get<FtlReserve>();
+				available = native->prepared_network().telemetry().at(ftl.definition.store).accepted_incoming;
+				full = std::max<std::int64_t>(available, ftl.definition.charge_rate / rate);
+			}
+		}
 		else if (quote.kind == NativeProcessKind::Generation && native)
 		{
 			const auto index = native->prepared_network().definition().generator_ids.at(quote.native);
@@ -400,6 +454,9 @@ void capture_process_native_requests()
 			quote.discrete_request =
 			    ship.get<ShipResources>().requests.at(fitted->entity.get<ResourceBinding>().slot).discrete;
 		}
+		else if (quote.kind == NativeProcessKind::Ftl)
+			quote.power_rate =
+			    ship.get<ShipResources>().requests.at(fitted->entity.get<ResourceBinding>().slot).extra_rate;
 		else if (quote.kind == NativeProcessKind::Processor)
 			if (const auto *processors = ship.try_get<ShipProcessors>();
 			    processors && processors->energy_rates.contains(quote.native))
@@ -431,5 +488,14 @@ void price_process_native_requests()
 		}
 		if (quote.kind == NativeProcessKind::Cooling && !fraction)
 			request.duty_permille = 0;
+		if (quote.kind == NativeProcessKind::Ftl)
+		{
+			const auto &ftl = fitted->entity.get<FtlReserve>().definition;
+			const auto base = ftl.charge_rate * quote.frozen.rate_permille / 1000;
+			const auto maximum = quote.limit >= base / rate + 1 ? base : std::min(base, quote.limit * rate);
+			power->network.set_store_enabled(ftl.store, maximum > 0);
+			power->network.set_storage_limits(ftl.store, maximum,
+			                                  power->definition.network.stores.at(ftl.store).discharge_rate);
+		}
 	}
 }

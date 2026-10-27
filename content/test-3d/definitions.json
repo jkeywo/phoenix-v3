@@ -44,13 +44,17 @@
 					"max_speed_mm_s": 12000,
 					"acceleration_mm_s2": 2000,
 					"processes": {
-						"propulsion": { "process": "test3d.process.propulsion" }
+						"propulsion": {
+							"process": "test3d.process.propulsion"
+						}
 					}
 				},
 				"steering": {
 					"turn_mdeg_s": 45000,
 					"processes": {
-						"propulsion": { "process": "test3d.process.propulsion" }
+						"propulsion": {
+							"process": "test3d.process.propulsion"
+						}
 					}
 				},
 				"radar": {
@@ -15689,6 +15693,60 @@
 			"label": "Recipe processing",
 			"family": "machinery.processor",
 			"native": "processor",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.repair",
+			"kind": "process",
+			"label": "Repair work",
+			"family": "work.repair",
+			"native": "repair",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.medical",
+			"kind": "process",
+			"label": "Medical care",
+			"family": "work.medical",
+			"native": "medical",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.recovery",
+			"kind": "process",
+			"label": "Facility recovery",
+			"family": "work.recovery",
+			"native": "recovery",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.servicing_energy",
+			"kind": "process",
+			"label": "Craft charging",
+			"family": "work.servicing_energy",
+			"native": "servicing_energy",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.servicing_ammunition",
+			"kind": "process",
+			"label": "Craft rearming",
+			"family": "work.servicing_ammunition",
+			"native": "servicing_ammunition",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.ftl",
+			"kind": "process",
+			"label": "FTL preparation",
+			"family": "work.ftl",
+			"native": "ftl",
 			"requested": true,
 			"shortage": "proportional"
 		}

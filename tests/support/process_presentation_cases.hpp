@@ -171,3 +171,87 @@ Json process_rule_visibility()
 	        "Permitted and withheld process rule status survive the bounded projection boundary");
 	return portable(world.save());
 }
+
+Json finite_process_information()
+{
+	auto source = fixture();
+	effect(source, "test.process.tick")["required_work"] = 2500;
+	effect(source, "test.process.tick")["completion_effect"] = "test.process.pause";
+	source["entities"][0]["processes"] = {{"main", {{"process", "test.process.tick"}}}};
+	controls(source,
+	         {{"main", {{"source", "entity"}, {"process", "main"}, {"controller", "processes"}, {"enabled", "main"}}}});
+	WorkshopDocument document;
+	document.load_pack(archive(source));
+	for (auto &definition : document.definitions()["effects"])
+		if (definition.at("id") == "test.process.tick")
+			definition["required_work"] = 3500;
+	const auto exported = resolve_packs({read_pack(document.export_pack(PackEncoding::Dat))});
+	const auto edited = compile_process(exported, "test.process.tick");
+	require(edited.required_work == 3500 && edited.completion_effect.has_value(),
+	        "Workshop editing and DAT export retain finite work and its completion-effect dependency");
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(101, 1, "drive") && world.claim(102, 1, "observer"), "Claim finite-job information Consoles");
+	ticks(world, 4);
+	const auto observed = world.observe(101)->gameplay;
+	bool found = false;
+	for (const auto &row : observed.at("processes"))
+		if (row.at("control") == "main")
+		{
+			found = true;
+			require(row.at("finite") == true && row.at("details_available") == true && row.at("progress") == 2500 &&
+			            row.at("required_work") == 2500 && row.at("completed") == true &&
+			            row.at("completion_delivered") == true,
+			        "A permitted finite job publishes exact bounded progress and once-only completion");
+		}
+	require(found, "Finite-job endpoint is present on its owning Console");
+	require(network::bounded_gameplay(observed).at("processes") == observed.at("processes"),
+	        "Finite-job facts survive the bounded network projection");
+	auto invalid = observed;
+	invalid["processes"][0]["progress"] = -1;
+	bool refused = false;
+	try
+	{
+		(void)network::bounded_gameplay(invalid);
+	}
+	catch (const std::exception &)
+	{
+		refused = true;
+	}
+	require(refused, "Malformed finite progress is rejected at the projection boundary");
+	for (const auto &row : world.observe(102)->gameplay.value("processes", Json::array()))
+		require(row.value("control", std::string{}) != "main", "An unfed Console cannot inspect a finite job");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	ticks(world, 2);
+	ticks(resumed, 2);
+	require(portable(world.save()) == portable(resumed.save()),
+	        "Completed job information survives exact continuation");
+	source["trees"].push_back(Json::parse(R"json({"id":"test.process.finite-reader","context":"controller",
+ "command_bindings":[{"channel":"main","type":"boolean"}],"process_bindings":["main"],
+ "initial":"waiting","states":[{"id":"waiting","transitions":[{"target":"finished","conditions":[{"left":{"observation":"process.main.completed"},"op":"eq","right":true}]}]},
+ {"id":"finished","entry":[{"action":"write.main","arguments":[false]}]}]})json"));
+	for (auto &controller : source["entities"][0]["control_layout"]["controllers"])
+		if (controller.at("id") == "processes")
+		{
+			controller.erase("fallback");
+			controller["tree"] = "test.process.finite-reader";
+		}
+	for (auto &profile : source["entities"][0]["control_layout"]["profiles"])
+	{
+		std::erase_if(profile["consoles"]["drive"]["human"].get_ref<Json::array_t &>(),
+		              [](const auto &id)
+		              {
+			              return id == "processes";
+		              });
+		profile["consoles"]["drive"]["ai"] = Json::array({"processes"});
+	}
+	World automated;
+	automated.load(load(source), "test.map");
+	require(automated.claim(101, 1, "drive"), "Claim finite Controller information fixture");
+	ticks(automated, 7);
+	require(state(automated, "main").at("requested") == false,
+	        "AI observes the same permitted completion and acts through the ordinary process command");
+	return Json::array({portable(world.save()), portable(automated.save())});
+}

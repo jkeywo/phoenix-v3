@@ -543,7 +543,7 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 					add_process_source(state.definition, process_run_source(address, state),
 					                   process_context(address, state),
 					                   lifetime && process_run_available(process_context(address, state)));
-				if (!state.grant_effect.empty())
+				if (!state.grant_effect.empty() && state.parent_process.empty())
 				{
 					auto context = state.origin;
 					context.owner = context.subject = context.target = owner;

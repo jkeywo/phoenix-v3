@@ -196,12 +196,16 @@ void prepare_ftl(flecs::entity ship)
 		{
 			const auto &d = ftl->definition;
 			const auto &s = power.network.stores().at(d.store);
-			const bool enabled =
-			    child.get<Equipment>().enabled && !structurally_disabled(ship, child.get<Equipment>().id) &&
-			    fault_effectiveness(ship, child.get<Equipment>().id) > 0 && !s.thermal_stop && !combat_dead(ship);
+			const auto entity = ship.get<StableId>().id;
+			const auto &equipment = child.get<Equipment>().id;
+			const auto process_rate = native_process_rate(entity, "ftl", equipment);
+			const bool enabled = process_rate > 0 && child.get<Equipment>().enabled &&
+			                     !structurally_disabled(ship, equipment) && fault_effectiveness(ship, equipment) > 0 &&
+			                     !s.thermal_stop && !combat_dead(ship);
 			const bool full = s.energy() == power.definition.network.stores.at(d.store).capacity;
 			power.network.set_store_enabled(d.store, enabled);
-			power.network.set_storage_limits(d.store, enabled ? d.charge_rate : 0,
+			const auto charge_rate = enabled ? d.charge_rate * process_rate / 1000 : 0;
+			power.network.set_storage_limits(d.store, charge_rate,
 			                                 power.definition.network.stores.at(d.store).discharge_rate);
 			request_system_resource(power, child.get<ResourceBinding>().slot, 0, false,
 			                        enabled ? (full ? d.ready_loss : d.charging_loss) : 0);
@@ -221,6 +225,68 @@ void actuate_ftl(flecs::entity ship)
 				ftl->discharge_remainder %= rate;
 			}
 		}
+}
+// Called after the paid machinery receipts. The finite completion is an event;
+// readiness continues to come from the live reserve and never replaces it.
+void finalise_ftl_processes()
+{
+	for (const auto &[id, ship] : entities)
+		if (ship.has<ShipResources>())
+			for (auto child : ship.get<EquipmentIndex>().values)
+				if (const auto *ftl = child.try_get<FtlReserve>())
+				{
+					const auto &equipment = child.get<Equipment>().id;
+					const auto &network = ship.get<ShipResources>().network;
+					const auto energy = network.stores().at(ftl->definition.store).energy();
+					const auto capacity = network.definition().stores.at(ftl->definition.store).capacity;
+					const auto address = custom_property_address(RuleActor{id, equipment});
+					auto *runtime = process_runtime(address);
+					if (!runtime)
+						continue;
+					std::vector<std::string> processes;
+					for (const auto &[key, state] : runtime->processes)
+						if (process_definition(state).native == NativeProcessKind::Ftl && state.native_id == equipment)
+							processes.push_back(key);
+					for (const auto &key : processes)
+					{
+						auto *state = process_state(address, key);
+						if (!state)
+							continue;
+						const bool ready = state->requested && state->admitted && child.get<Equipment>().enabled &&
+						                   !combat_dead(ship) && !departed(id) && energy == capacity &&
+						                   network.operation_ready(ftl->definition.store);
+						if (state->completed && energy < capacity && state->requested)
+						{
+							// A genuinely depleted/unavailable reserve begins another preparation
+							// episode; it must earn readiness and its completion again.
+							process_request(address, key, true);
+							state = process_state(address, key);
+						}
+						state->target = "ftl:" + equipment;
+						state->origin.target = state->origin.subject = RuleActor{id, equipment};
+						state->progress = energy;
+						state->required_work = capacity;
+						state->ready = ready;
+						if (ready && !state->completed)
+						{
+							const auto generation = state->generation, run = state->run;
+							commit_finite_process_completion(address, key, state->target);
+							// Completion consequences can spend or alter the reserve, or
+							// remove this run. Publish its resulting physical facts now;
+							// another demand episode is considered on a later tick.
+							state = process_state(address, key);
+							if (!state || state->generation != generation || state->run != run)
+								continue;
+							const auto &actual = ship.get<ShipResources>().network;
+							state->progress = actual.stores().at(ftl->definition.store).energy();
+							state->required_work = actual.definition().stores.at(ftl->definition.store).capacity;
+							state->ready = state->requested && state->admitted && child.get<Equipment>().enabled &&
+							               !combat_dead(ship) && !departed(id) &&
+							               state->progress == state->required_work &&
+							               actual.operation_ready(ftl->definition.store);
+						}
+					}
+				}
 }
 std::pair<bool, std::int64_t> ftl_local_facts(EntityId id) const
 {

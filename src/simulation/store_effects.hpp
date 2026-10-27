@@ -1,3 +1,4 @@
+#include "native_outcome_effects.hpp"
 // Included inside World::Impl. Resolve an explicit store identity across native
 // mechanisms; there is no implicit ship-wide pool or remote supply lookup.
 enum class NamedStockKind
@@ -486,16 +487,19 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 			if (it->second.generation == identity &&
 			    (process_run_source(address, it->second) == source || it->second.source == source))
 			{
-				if (!it->second.source.empty())
+				if (!it->second.source.empty() && it->second.parent_process.empty())
+				{
+					const auto removed_id = it->first;
 					runtime.processes.erase(it);
+					std::erase_if(runtime.processes,
+					              [&](const auto &child)
+					              {
+						              return child.second.parent_process == removed_id;
+					              });
+				}
 				else
 				{
-					it->second.admitted = it->second.requested = false;
-					it->second.phase = "off";
-					it->second.idle_output = it->second.work_output = it->second.actual_work = 0;
-					it->second.idle_credits.clear();
-					it->second.work_credits.clear();
-					it->second.work_remainder = 0;
+					reset_process_run_state(it->second, true);
 				}
 				removed = true;
 				break;
@@ -641,7 +645,11 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::size_t invocation)
 			                            })))
 				process_address = candidate;
 		}
-		if (op.kind == EffectOperationKind::HeatAdd || op.kind == EffectOperationKind::HeatRemove)
+		if (op.kind >= EffectOperationKind::StructuralRepair && op.kind <= EffectOperationKind::Recover)
+		{
+			prepare_native_outcome(quote, frame, op);
+		}
+		else if (op.kind == EffectOperationKind::HeatAdd || op.kind == EffectOperationKind::HeatRemove)
 		{
 			prepare_thermal_operation(quote, frame, op);
 		}
@@ -915,6 +923,8 @@ PreparedEffectGroup prepare_effect_group(const EffectGroupDefinition &execution,
 }
 bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 {
+	if (native_outcome_quote_stale(quote))
+		return true;
 	if (quote.epoch != effect_commit_epoch || quote.tick != static_cast<std::int64_t>(ecs.get<Clock>().tick))
 		return true;
 	for (const auto &[id, payment] : quote.payments)
@@ -1023,6 +1033,7 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 	for (auto id : quote.changed_inventories)
 		if (auto *inventory = entities.at(id).try_get_mut<MaterialInventory>())
 			++inventory->revision;
+	commit_native_outcomes(quote);
 	for (auto &[id, value] : quote.shields)
 		entities.at(id).set<ShieldComponent>(std::move(value));
 	for (auto &[id, value] : quote.properties)

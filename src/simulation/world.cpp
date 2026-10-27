@@ -2206,6 +2206,7 @@ struct World::Impl
 #include "payload_effects.hpp"
 #include "effect_damage.hpp"
 #include "rule_funding.hpp"
+#include "finite_native_work.hpp"
 #include "rule_lifecycle.hpp"
 #include "region_rules.hpp"
 #include "rule_persistence.hpp"
@@ -2476,6 +2477,7 @@ struct World::Impl
 		for (const auto &quote : process_machinery_quotes)
 			commit_process_work_receipt(quote.owner, quote.frozen, quote.work, quote.activity);
 		publish_process_work();
+		finalise_ftl_processes();
 	}
 	void scenario_effects()
 	{
@@ -3356,6 +3358,7 @@ void World::tick()
 	impl_->prune_property_targets();
 	impl_->refresh_rule_eligibility();
 	profile.mark("missions_comms_away_sensors");
+	impl_->finalise_finite_native_jobs();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
@@ -3709,13 +3712,13 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["personnel"] = impl_->personnel_board(address);
 	result.gameplay["psychic"] = impl_->psychic_board(address);
 	result.gameplay["abilities"] = impl_->ability_board(address);
-	result.gameplay["processes"] = impl_->process_board(address, &result);
 	if (auto rules = impl_->rules_board(address); !rules.empty())
 		result.gameplay["rules"] = std::move(rules);
 	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["craft"] = impl_->craft_board(address);
 	result.gameplay["ftl"] = impl_->ftl_board(address);
+	result.gameplay["processes"] = impl_->process_board(address, &result);
 	result.gameplay["mission_report"] =
 	    entity.has<MissionDeparture>() ? entity.get<MissionDeparture>().report : Json(nullptr);
 	if (impl_->comms_owner(address.ship) == address)
@@ -4462,7 +4465,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 30},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 31},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["custom_properties"] = impl_->save_custom_properties();
 	result["rules"] = impl_->save_rules();
@@ -4622,8 +4625,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 30)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 30 required)");
+	if (saved.at("schema") != 31)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 31 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))

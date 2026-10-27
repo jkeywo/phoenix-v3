@@ -6,6 +6,7 @@ import phoenix.simulation;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
+#include "../support/machinery_baseline.hpp"
 void ticks(World &w, int n)
 {
 	for (int i = 0; i < n; ++i)
@@ -182,10 +183,12 @@ void race_departure()
 		won |= o.value("outcome", "") == "won" && o.value("completed_actor", std::uint64_t{0}) == 2;
 	require(won, "remaining racer wins after physical arrival");
 }
+#include "../support/finite_craft_ftl_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		finite_ftl_cases();
 		displacement_departure();
 		race_departure();
 		auto source = ftl_fixture();
@@ -306,7 +309,9 @@ int main(int argc, char **argv)
 			    resumed.restore(catalog, malformed);
 		    },
 		    "malformed departure refused transactionally");
-		if (argc > 1 && std::string(argv[1]) == "--trace")
+		if (argc > 1 && std::string(argv[1]) == "--physical-trace")
+			std::cout << machinery_physical_checkpoint(w.save()).dump() << "\n";
+		else if (argc > 1 && std::string(argv[1]) == "--trace")
 		{
 			auto continued = w.save();
 			// Synthetic ZIP timestamps are not simulation continuation. Every restore

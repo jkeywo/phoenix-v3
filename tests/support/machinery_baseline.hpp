@@ -42,7 +42,26 @@ inline Json machinery_physical_checkpoint(const Json &saved)
 						flight["definition"] = definition.dump();
 					}
 				}
-	return {{"tick", saved.at("tick")}, {"bodies", std::move(bodies)}};
+	// Finite servicing adds execution attribution to native transfer records.
+	// Keep quantities, routing, claims, IDs and all other physical fields.
+	for (auto &body : bodies)
+		if (body.contains("logistics"))
+			for (const auto *kind : {"requests", "batches"})
+				if (body["logistics"].contains(kind))
+					for (auto &transfer : body["logistics"][kind])
+						transfer.erase("service");
+	Json result{{"tick", saved.at("tick")}, {"bodies", std::move(bodies)}};
+	// Finite work also owns real material commitments, bay service fractions and
+	// away progress outside body components. Preserve all native fields here.
+	for (const auto *key : {"logistics", "craft", "away_missions"})
+		if (saved.contains(key))
+			result[key] = saved.at(key);
+	if (result.contains("logistics"))
+		for (const auto *kind : {"requests", "batches"})
+			if (result["logistics"].contains(kind))
+				for (auto &transfer : result["logistics"][kind])
+					transfer.erase("service");
+	return result;
 }
 inline Json machinery_physical_trace(const Json &trace)
 {

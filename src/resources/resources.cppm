@@ -229,6 +229,7 @@ public:
 	ResourceAmount receive_external(ResourceIndex store, ResourceAmount offered);
 	// Atomic discrete operating payment against this tick's remaining discharge budget.
 	bool spend_external(ResourceIndex store, ResourceAmount amount);
+	ResourceAmount external_payment_budget(ResourceIndex store) const;
 	ResourceAmount transfer_external(ResourceNetwork &destination, ResourceIndex source, ResourceIndex target,
 	                                 ResourceAmount offered);
 	void dormant_tick();

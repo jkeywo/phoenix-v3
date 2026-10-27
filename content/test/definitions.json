@@ -303,13 +303,17 @@
 					"max_speed_mm_s": 12000,
 					"acceleration_mm_s2": 2000,
 					"processes": {
-						"propulsion": { "process": "test.process.propulsion" }
+						"propulsion": {
+							"process": "test.process.propulsion"
+						}
 					}
 				},
 				"steering": {
 					"turn_mdeg_s": 45000,
 					"processes": {
-						"propulsion": { "process": "test.process.propulsion" }
+						"propulsion": {
+							"process": "test.process.propulsion"
+						}
 					}
 				},
 				"radar": {
@@ -7672,7 +7676,12 @@
 					"kind": "repair_team",
 					"hp_per_second": 15,
 					"compartment": "hull",
-					"observation_console": "support"
+					"observation_console": "support",
+					"processes": {
+						"repair": {
+							"process": "test.process.repair"
+						}
+					}
 				},
 				"reactor": {
 					"kind": "generator",
@@ -7746,7 +7755,20 @@
 							"destination": "bomb-mag",
 							"rounds_per_second": 1
 						}
-					]
+					],
+					"processes": {
+						"servicing_energy": {
+							"process": "test.process.servicing_energy"
+						},
+						"servicing-ammunition-0": {
+							"process": "test.process.servicing_ammunition",
+							"native_id": "bay.ammo-0"
+						},
+						"servicing-ammunition-1": {
+							"process": "test.process.servicing_ammunition",
+							"native_id": "bay.ammo-1"
+						}
+					}
 				},
 				"jump": {
 					"kind": "ftl",
@@ -7756,7 +7778,12 @@
 					"charging_loss_per_second": 20,
 					"ready_loss_per_second": 50,
 					"off_discharge_per_second": 83,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"ftl": {
+							"process": "test.process.ftl"
+						}
+					}
 				}
 			},
 			"resources": {
@@ -8690,7 +8717,12 @@
 					"kind": "repair_team",
 					"hp_per_second": 15,
 					"compartment": "hull",
-					"observation_console": "support"
+					"observation_console": "support",
+					"processes": {
+						"repair": {
+							"process": "test.process.repair"
+						}
+					}
 				},
 				"reactor": {
 					"kind": "generator",
@@ -8764,7 +8796,20 @@
 							"destination": "bomb-mag",
 							"rounds_per_second": 1
 						}
-					]
+					],
+					"processes": {
+						"servicing_energy": {
+							"process": "test.process.servicing_energy"
+						},
+						"servicing-ammunition-0": {
+							"process": "test.process.servicing_ammunition",
+							"native_id": "bay.ammo-0"
+						},
+						"servicing-ammunition-1": {
+							"process": "test.process.servicing_ammunition",
+							"native_id": "bay.ammo-1"
+						}
+					}
 				},
 				"jump": {
 					"kind": "ftl",
@@ -8774,7 +8819,12 @@
 					"charging_loss_per_second": 20,
 					"ready_loss_per_second": 50,
 					"off_discharge_per_second": 83,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"ftl": {
+							"process": "test.process.ftl"
+						}
+					}
 				},
 				"medical": {
 					"kind": "team",
@@ -8791,7 +8841,12 @@
 							"capability": "medical",
 							"tree": "test.logistics.treat"
 						}
-					]
+					],
+					"processes": {
+						"medical": {
+							"process": "test.process.medical"
+						}
+					}
 				}
 			},
 			"resources": {
@@ -20989,6 +21044,60 @@
 			"label": "Recipe processing",
 			"family": "machinery.processor",
 			"native": "processor",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test.process.repair",
+			"kind": "process",
+			"label": "Repair work",
+			"family": "work.repair",
+			"native": "repair",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test.process.medical",
+			"kind": "process",
+			"label": "Medical care",
+			"family": "work.medical",
+			"native": "medical",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test.process.recovery",
+			"kind": "process",
+			"label": "Facility recovery",
+			"family": "work.recovery",
+			"native": "recovery",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test.process.servicing_energy",
+			"kind": "process",
+			"label": "Craft charging",
+			"family": "work.servicing_energy",
+			"native": "servicing_energy",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test.process.servicing_ammunition",
+			"kind": "process",
+			"label": "Craft rearming",
+			"family": "work.servicing_ammunition",
+			"native": "servicing_ammunition",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test.process.ftl",
+			"kind": "process",
+			"label": "FTL preparation",
+			"family": "work.ftl",
+			"native": "ftl",
 			"requested": true,
 			"shortage": "proportional"
 		}

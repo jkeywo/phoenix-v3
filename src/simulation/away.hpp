@@ -1338,13 +1338,14 @@ void advance_away()
 								    effective_property(entities.at(ship), "away:" + d.id + ":officer:" + officer.id,
 								                       PropertyKey::repair, 1000);
 							}
-				const auto effort = structural_repair_work(entities.at(ship), teams);
+				const auto repair_at = m.repair_compartment.empty()
+				                           ? std::int64_t{-1}
+				                           : static_cast<std::int64_t>(d.repair_compartments.at(m.repair_compartment));
+				const auto effort = structural_repair_work(entities.at(ship), teams, d.target, repair_at,
+				                                           d.id + "/" + m.work_key, m.progress * rate, m.work * rate);
 				// Standalone officers can perform generic work, but structural repair needs a team.
 				const auto progress = teams.empty() ? officer_work : effort / rate;
 				m.progress = std::min(m.work, m.progress + progress);
-				if (!m.repair_compartment.empty() && !combat_dead(entities.at(d.target)))
-					apply_structural_repair(entities.at(d.target).get_mut<CombatStructure>(),
-					                        d.repair_compartments.at(m.repair_compartment), effort);
 			}
 			const bool repaired =
 			    m.repair_compartment.empty() ||

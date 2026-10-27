@@ -8,6 +8,7 @@ import phoenix.console_controls;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
+#include "../support/machinery_baseline.hpp"
 namespace
 {
 void ticks(World &w, int n)
@@ -575,10 +576,14 @@ void system_casualty_regressions()
 		}
 }
 } // namespace
+
+#include "../support/finite_team_cases.hpp"
+
 int main(int argc, char **argv)
 {
 	try
 	{
+		finite_clinical_jobs();
 		property_work_regressions();
 		{
 			auto source = medical_fixture();
@@ -969,7 +974,9 @@ int main(int argc, char **argv)
 		// validate the actual content identity within each run.
 		for (auto &state : trace)
 			state.erase("packs");
-		if (argc > 1 && std::string(argv[1]) == "--trace-state")
+		if (argc > 1 && std::string(argv[1]) == "--physical-trace")
+			std::cout << machinery_physical_trace(trace).dump() << "\n";
+		else if (argc > 1 && std::string(argv[1]) == "--trace-state")
 			std::cout << trace.dump() << "\n";
 		else if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << sha256(json_bytes(trace)) << "\n";

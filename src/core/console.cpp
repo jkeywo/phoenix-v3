@@ -2185,20 +2185,40 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	}
 	for (const auto &process : borrowed_member(observation_->gameplay, "processes", true))
 	{
-		auto text = localise(process.at("label")) + "; " + localise(process.at("phase"));
+		auto text = localise(process.at("label")) + "; " +
+		            localise(process.at("driver").get<bool>() ? Json("Automatic work") : process.at("phase"));
 		text += "; " + localise(process.at("requested").get<bool>() ? "Requested" : "Stopped");
-		text += "; " + localise("Funded activity") + " " +
-		        std::to_string(process.at("output").get<std::int64_t>() / 10) + "%";
-		std::ostringstream work;
-		work << std::fixed << std::setprecision(3)
-		     << static_cast<double>(process.at("work").get<std::int64_t>()) /
-		            process.value("display_scale", std::int64_t{1});
-		auto amount = work.str();
-		while (amount.ends_with('0'))
-			amount.pop_back();
-		if (amount.ends_with('.'))
-			amount.pop_back();
-		text += "; " + localise("Completed work") + " " + amount + " " + localise(process.at("work_unit"));
+		if (!process.at("finite").get<bool>() || process.at("details_available").get<bool>())
+		{
+			text += "; " + localise("Funded activity") + " " +
+			        std::to_string(process.at("output").get<std::int64_t>() / 10) + "%";
+			std::ostringstream work;
+			work << std::fixed << std::setprecision(3)
+			     << static_cast<double>(process.at("work").get<std::int64_t>()) /
+			            process.value("display_scale", std::int64_t{1});
+			auto amount = work.str();
+			while (amount.ends_with('0'))
+				amount.pop_back();
+			if (amount.ends_with('.'))
+				amount.pop_back();
+			text += "; " + localise("Completed work") + " " + amount + " " + localise(process.at("work_unit"));
+		}
+		if (process.at("finite").get<bool>() && process.at("details_available").get<bool>())
+		{
+			if (!process.at("target").get<std::string>().empty())
+				text += "; " + localise("Target") + " " + process.at("target").get<std::string>();
+			const auto required = process.at("required_work").get<std::int64_t>();
+			if (required > 0)
+				text += "; " + localise("Job progress") + " " +
+				        std::to_string(
+				            std::min<std::int64_t>(100, process.at("progress").get<std::int64_t>() * 100 / required)) +
+				        "%";
+			if (process.at("completed").get<bool>())
+				text += "; " + localise("Job completed");
+			if (process.at("ready").get<bool>())
+				text += "; " + localise("Ready");
+		}
+
 		if (!process.at("blocker").get<std::string>().empty())
 			text += "; " + localise(process.at("blocker"));
 		text += console_property_readout(process.value("properties", Json::array()));

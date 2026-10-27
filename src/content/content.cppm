@@ -248,6 +248,14 @@ enum class ControllerProcessField
 	Blocked,
 	Activity,
 	Work,
+	Finite,
+	Driver,
+	Target,
+	Progress,
+	RequiredWork,
+	Completed,
+	Ready,
+	CompletionDelivered,
 	Count
 };
 enum class ControllerResultField
@@ -1046,7 +1054,12 @@ enum class EffectOperationKind
 	PropertySubtract,
 	PropertyRate,
 	HeatAdd,
-	HeatRemove
+	HeatRemove,
+	StructuralRepair,
+	FaultRepair,
+	Treat,
+	Stabilise,
+	Recover
 };
 struct EffectOperation
 {
@@ -1062,7 +1075,7 @@ struct EffectOperation
 	std::string role;
 	std::string scope = "local";
 	std::string property;
-	std::string compartment;
+	std::string compartment, fault;
 	CustomPropertyValue value = std::int64_t{0};
 	bool saturate = false;
 };
@@ -1285,18 +1298,24 @@ enum class NativeProcessKind
 	Generation,
 	Propulsion,
 	Cooling,
-	Processor
+	Processor,
+	Repair,
+	Medical,
+	Recovery,
+	ServicingEnergy,
+	ServicingAmmunition,
+	Ftl
 };
 struct ProcessDefinition
 {
 	std::string id, label, family, shortage = "pause", work_unit = "work";
 	NativeProcessKind native = NativeProcessKind::Effects;
 	bool requested = true;
-	std::int64_t work_divisor = 1000;
+	std::int64_t work_divisor = 1000, required_work = 0;
 	RuleDefinition evaluation;
 	std::optional<RuleExpression> rate, upkeep_scale, work_scale;
 	std::vector<EffectCostDefinition> entry_costs, upkeep_costs, work_costs;
-	std::optional<EffectGroupDefinition> start_effect, pause_effect, resume_effect, stop_effect;
+	std::optional<EffectGroupDefinition> start_effect, pause_effect, resume_effect, stop_effect, completion_effect;
 	std::vector<AbilityExclusionDefinition> exclusions;
 	std::vector<std::string> observations;
 };
