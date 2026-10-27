@@ -87,46 +87,22 @@ CustomPropertyValue effective_custom_property(const CustomPropertyAddress &addre
 	const auto &base = state.bases.at(id);
 	if (definition.kind == CustomPropertyKind::Quantity)
 		return base;
-	std::int64_t delta = 0, priority = std::numeric_limits<std::int64_t>::min();
-	std::uint64_t newest = 0;
-	CustomPropertyValue result = base;
 	const auto ship = entities.at(address.entity);
 	const auto token = custom_modifier_target(RuleActor{
 	    address.entity, address.equipment, address.officer, false,
 	    address.compartment >= 0 ? PayloadOutcomeKind::Compartment : PayloadOutcomeKind::Entity, address.compartment});
-	if (const auto *owner = ship.try_get<PropertyEffectOwner>())
-		for (const auto &[identity, effect] : owner->applications)
-		{
-			if (effect.get<EffectTarget>().equipment_name != token)
-				continue;
-			const auto &source = effect.get<ActiveEffectIdentity>().source;
-			if (source.starts_with("rule.") && !rule_grant_available(address.entity, source))
-			{
-				const auto *previous = retiring ? readonly_rule_execution(parent_rule_execution_key(source)) : nullptr;
-				if (!previous || !previous->eligible || !previous->active || previous->stopped || !previous->output)
-					continue;
-			}
-			for (const auto &row : effect.get<ModifierValues>().values)
-				if (row.custom == id)
-				{
-					if (definition.kind == CustomPropertyKind::Attribute)
-						delta += row.delta;
-					else if (row.override_value &&
-					         (row.priority > priority || (row.priority == priority && identity > newest)))
-					{
-						result = *row.override_value;
-						priority = row.priority;
-						newest = identity;
-					}
-				}
-		}
+	RuleSourceAvailabilityCache sources;
+	std::map<std::string, bool> grants;
+	const auto value = read_property_aggregate(ship, property_target_key(ship, token), PropertyKey::count, id, sources,
+	                                           grants, retiring);
 	if (definition.kind != CustomPropertyKind::Attribute)
-		return result;
+		return value.override_value.value_or(base);
 	const auto number = std::get<std::int64_t>(base);
 	const auto sign = number < 0 ? -1 : 1;
 	const auto magnitude = number < 0 ? -number : number;
 	const auto bound = std::max(std::abs(definition.minimum), std::abs(definition.maximum));
-	return std::clamp(sign * apply_property_delta(magnitude, delta, bound), definition.minimum, definition.maximum);
+	return std::clamp(sign * apply_property_delta(magnitude, value.delta, bound), definition.minimum,
+	                  definition.maximum);
 }
 std::optional<state_tree::Value> read_custom_property(const RuleActor &actor, const std::string &id,
                                                       bool base = false) const
@@ -171,7 +147,7 @@ static std::string native_property_rate_suffix(const NativeRuleContext &context)
 }
 std::set<std::string> retired_custom_property_rates;
 bool custom_property_native_rates_dirty = false;
-void erase_custom_native_property_rates(EntityId, const std::string &)
+void mark_custom_property_rates_dirty()
 {
 	// Native owners are already closing. Reconcile their derived suffixes once
 	// after the surrounding retirement/transaction boundary has published.
@@ -377,38 +353,31 @@ void emit_custom_property_change(const CustomPropertyAddress &address, const Cus
 		event.subject = event.target = subject;
 		event.tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 		for (const auto &source : rule_sources(ship))
-			if (source.eligible && source.bindings)
-				for (const auto &binding : *source.bindings)
-				{
-					const auto &rule = rule_templates.at(binding.rule);
-					if (rule.trigger != RuleTrigger::PropertyChanged)
-						continue;
-					auto context = merge_rule_event_context(source, event);
-					if (!rule_binding_matches(binding, context))
-						continue;
-					context = bind_rule_context(binding, std::move(context));
-					std::erase_if(context.captured,
-					              [&](const auto &capture)
-					              {
-						              return capture.fact.kind == RuleFactKind::PropertyBefore ||
-						                     capture.fact.kind == RuleFactKind::PropertyAfter ||
-						                     std::find(rule.facts.begin(), rule.facts.end(), capture.fact) ==
-						                         rule.facts.end();
-					              });
-					for (const auto &fact : rule.facts)
-						if (fact.kind == RuleFactKind::PropertyBefore || fact.kind == RuleFactKind::PropertyAfter)
-						{
-							state_tree::Value value;
-							if (fact.key == id)
-								value = custom_property_scalar(
-								    fact.kind == RuleFactKind::PropertyBefore
-								        ? (fact.aux == "base" ? before.state.bases.at(id) : before.effective.at(id))
-								        : (fact.aux == "base" ? base : effective));
-							context.captured.push_back({fact, value});
-						}
-					(void)enqueue_rule(rule.id, rule_key(source.key, binding.id, subject), context,
-					                   RuleEventPhase::Periodic, event.tick + 1);
-				}
+			visit_rule_event_bindings(
+			    source, RuleTrigger::PropertyChanged, event,
+			    [&](const std::string &key, const RuleDefinition &rule, NativeRuleContext context)
+			    {
+				    std::erase_if(context.captured,
+				                  [&](const auto &capture)
+				                  {
+					                  return capture.fact.kind == RuleFactKind::PropertyBefore ||
+					                         capture.fact.kind == RuleFactKind::PropertyAfter ||
+					                         std::find(rule.facts.begin(), rule.facts.end(), capture.fact) ==
+					                             rule.facts.end();
+				                  });
+				    for (const auto &fact : rule.facts)
+					    if (fact.kind == RuleFactKind::PropertyBefore || fact.kind == RuleFactKind::PropertyAfter)
+					    {
+						    state_tree::Value value;
+						    if (fact.key == id)
+							    value = custom_property_scalar(
+							        fact.kind == RuleFactKind::PropertyBefore
+							            ? (fact.aux == "base" ? before.state.bases.at(id) : before.effective.at(id))
+							            : (fact.aux == "base" ? base : effective));
+						    context.captured.push_back({fact, value});
+					    }
+				    (void)enqueue_rule(rule.id, key, context, RuleEventPhase::Periodic, event.tick + 1);
+			    });
 	}
 }
 void finish_custom_property_batch()

@@ -319,15 +319,15 @@ Json rate_and_change_events()
 	}
 	return portable(world.save());
 }
-void enabled(World &world, bool value)
+void enabled(World &world, bool value, const std::string &system = "radar")
 {
 	const auto view = world.observe(101);
 	for (const auto &controller : view->gameplay.at("controllers"))
-		if (controller.at("id") == "radar")
+		if (controller.at("id") == system)
 		{
 			require(
 			    world.submit(
-			        101, OperatingCommand{1, {}, value ? 1 : 0, {}, "radar", "enabled", controller.at("generation")}),
+			        101, OperatingCommand{1, {}, value ? 1 : 0, {}, system, "enabled", controller.at("generation")}),
 			    "Native equipment enable command admitted");
 			return;
 		}
@@ -510,6 +510,128 @@ Json compartment_event_continuation()
 	return portable(world.save());
 }
 
+Json mixed_maintained_contributions()
+{
+	auto source = fixture(Json::parse(R"json([
+ {"id":"test.mixed.independent","kind":"modifier","duration_ticks":20,"contributions":{
+ "native":{"property":"sensors","delta_permille":250},
+ "attribute":{"property":"test.attribute","delta_permille":250},
+ "flag":{"property":"test.flag","value":true,"priority":5},
+ "mode":{"property":"test.mode","value":"b","priority":5}}},
+ {"id":"test.mixed.first","kind":"modifier","contributions":{
+ "native":{"property":"sensors","delta_permille":500},
+ "attribute":{"property":"test.attribute","delta_permille":500},
+ "flag":{"property":"test.flag","value":false,"priority":10},
+ "mode":{"property":"test.mode","value":"c","priority":10}}},
+ {"id":"test.mixed.second","kind":"modifier","contributions":{
+ "native":{"property":"sensors","delta_permille":250},
+ "attribute":{"property":"test.attribute","delta_permille":250},
+ "flag":{"property":"test.flag","value":true,"priority":7},
+ "mode":{"property":"test.mode","value":"b","priority":7}}},
+ {"id":"test.mixed.start","kind":"operations","operations":[
+ {"kind":"apply","target":"protected","equipment":"radar","effect":"test.mixed.independent","grant":"independent"}]},
+ {"id":"test.mixed.first-op","kind":"operations","operations":[
+ {"kind":"apply","target":"target","equipment":"$target","effect":"test.mixed.first","grant":"first"}]},
+ {"id":"test.mixed.second-op","kind":"operations","operations":[
+ {"kind":"apply","target":"target","equipment":"$target","effect":"test.mixed.second","grant":"second"}]},
+ {"id":"test.mixed.first-rule","kind":"rule","trigger":"maintain","phase":"maintained","effect":"test.mixed.first-op","when":{"fact":"source.enabled"}},
+ {"id":"test.mixed.second-rule","kind":"rule","trigger":"maintain","phase":"maintained","effect":"test.mixed.second-op","when":{"fact":"source.enabled"}},
+ {"id":"test.mixed.sample-op","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.sample","value":0}]},
+ {"id":"test.mixed.sample","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.mixed.sample-op",
+ "values":{"0":{"value":{"fact":"owner.property","property":"test.attribute"}}}},
+ {"id":"test.mixed.flag-one","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.flag-sample","value":1}]},
+ {"id":"test.mixed.flag-zero","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.flag-sample","value":0}]},
+ {"id":"test.mixed.flag-on","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.mixed.flag-one","when":{"fact":"owner.property","property":"test.flag"}},
+ {"id":"test.mixed.flag-off","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.mixed.flag-zero","when":{"op":"not","args":[{"fact":"owner.property","property":"test.flag"}]}},
+ {"id":"test.mixed.mode-a-op","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.mode-sample","value":0}]},
+ {"id":"test.mixed.mode-b-op","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.mode-sample","value":1}]},
+ {"id":"test.mixed.mode-c-op","kind":"operations","operations":[{"kind":"property_set","target":"owner","property":"test.mode-sample","value":2}]},
+ {"id":"test.mixed.mode-a","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.mixed.mode-a-op","when":{"op":"eq","args":[{"fact":"owner.property","property":"test.mode"},{"value":"a","enum":"test.mode"}]}},
+ {"id":"test.mixed.mode-b","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.mixed.mode-b-op","when":{"op":"eq","args":[{"fact":"owner.property","property":"test.mode"},{"value":"b","enum":"test.mode"}]}},
+ {"id":"test.mixed.mode-c","kind":"rule","trigger":"tick","phase":"periodic","effect":"test.mixed.mode-c-op","when":{"op":"eq","args":[{"fact":"owner.property","property":"test.mode"},{"value":"c","enum":"test.mode"}]}},
+ {"id":"test.mixed.changed-op","kind":"operations","operations":[{"kind":"property_add","target":"subject","property":"test.events","amount":1}]},
+ {"id":"test.mixed.changed","kind":"rule","trigger":"property_changed","effect":"test.mixed.changed-op",
+ "when":{"op":"lt","args":[{"fact":"event.property_before","property":"test.attribute"},{"fact":"event.property_after","property":"test.attribute"}]}}
+ ])json"),
+	                      {"test.mixed.start"});
+	auto &ship = source["entities"][0];
+	auto &radar = ship["systems"]["radar"];
+	for (const auto *property :
+	     {"test.attribute", "test.sample", "test.mode", "test.flag-sample", "test.mode-sample", "test.events"})
+		radar["properties"][property] = Json::object();
+	radar["rules"] = Json::array();
+	for (const auto *rule : {"test.mixed.sample", "test.mixed.flag-on", "test.mixed.flag-off", "test.mixed.mode-a",
+	                         "test.mixed.mode-b", "test.mixed.mode-c"})
+		radar["rules"].push_back({{"id", rule}, {"rule", rule}});
+	ship["systems"]["mount"]["rules"] =
+	    Json::array({{{"id", "first"}, {"rule", "test.mixed.first-rule"}, {"equipment", "radar"}}});
+	ship["systems"]["gun"]["rules"] =
+	    Json::array({{{"id", "second"}, {"rule", "test.mixed.second-rule"}, {"equipment", "radar"}}});
+	ship["rules"] = Json::array({{{"id", "retirement"}, {"rule", "test.mixed.changed"}}});
+	const auto catalog = content(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(101, 1, "drive"), "Claim mixed modifier fixture");
+	ticks(world, 4);
+	const auto check = [](const World &run, std::int64_t range, std::int64_t attribute, int flag, int mode, int changes)
+	{
+		const auto view = run.observe(101);
+		bool found = false;
+		for (const auto &system : view->systems)
+			if (system.id == "radar")
+			{
+				require(system.effective_range == range,
+				        "Native rows retain their contribution share in a mixed modifier group");
+				found = true;
+			}
+		require(found && value(run, "test.sample", 1, "radar") == attribute &&
+		            value(run, "test.flag-sample", 1, "radar") == flag &&
+		            value(run, "test.mode-sample", 1, "radar") == mode,
+		        "Native/custom rows share source eligibility while typed overrides preserve independent precedence");
+		require(value(run, "test.events", 1, "radar") == changes,
+		        "Property retirement events preserve the effective before value exactly once");
+	};
+	check(world, 400000, -40, 0, 2, 0);
+	const auto warm = modifier_applications(world.save(), 1);
+	require(warm.size() == 3, "Independent and two maintained mixed applications have separate source identities");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	const auto step = [&](int count)
+	{
+		ticks(world, count);
+		ticks(resumed, count);
+		require(world.save() == resumed.save(),
+		        "Mixed contribution eligibility and grouped rebuild continue exactly after restore");
+	};
+	enabled(world, false, "mount");
+	enabled(resumed, false, "mount");
+	step(2);
+	check(world, 300000, -30, 1, 1, 1);
+	enabled(world, false, "gun");
+	enabled(resumed, false, "gun");
+	step(2);
+	check(world, 250000, -25, 1, 1, 2);
+	enabled(world, true, "mount");
+	enabled(resumed, true, "mount");
+	step(2);
+	check(world, 350000, -35, 0, 2, 2);
+	step(15);
+	check(world, 300000, -30, 0, 2, 3);
+	enabled(world, false, "mount");
+	enabled(resumed, false, "mount");
+	step(2);
+	check(world, 200000, -20, 0, 0, 4);
+	require(modifier_applications(world.save(), 1).empty(),
+	        "Retired sources leave no cached native or custom modifier output");
+	World cold;
+	cold.restore(catalog, world.save());
+	ticks(world, 2);
+	ticks(cold, 2);
+	require(world.save() == cold.save(),
+	        "Rebuilding an empty mixed contribution group cannot resurrect retired values");
+	return portable(world.save());
+}
+
 Json overrides()
 {
 	auto source = fixture(Json::parse(R"json([
@@ -593,7 +715,8 @@ int main(int argc, char **argv)
 		                    run("rate owner lifetimes", rate_owner_lifetimes),
 		                    run("distinct officer subjects", distinct_officer_events),
 		                    run("compartment event continuation", compartment_event_continuation),
-		                    run("overrides", overrides)};
+		                    run("overrides", overrides),
+		                    run("mixed maintained contributions", mixed_maintained_contributions)};
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << sha256(json_bytes(trace)) << '\n';
 		else

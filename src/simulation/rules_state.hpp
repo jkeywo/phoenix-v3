@@ -87,6 +87,8 @@ struct NativeRuleSource
 	bool eligible = false;
 	std::uint64_t active_effect = 0;
 };
+// Derived scratch shared by native/custom modifier reads, never persisted.
+using RuleSourceAvailabilityCache = std::map<EntityId, std::map<std::string, bool>>;
 // These credits represent already consumed resources buying unfinished work.
 // They cannot be spent as stock, transferred, or refunded on rule removal.
 struct RuleWorkCredit

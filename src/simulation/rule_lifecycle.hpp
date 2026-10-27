@@ -6,7 +6,6 @@ struct RuleClockAddress
 	std::uint64_t active = 0;
 };
 std::map<std::string, RuleClockAddress> rule_clock_addresses;
-using RuleSourceAvailabilityCache = std::map<EntityId, std::map<std::string, bool>>;
 
 std::vector<NativeRuleSource> lifecycle_rule_sources() const
 {
@@ -554,7 +553,7 @@ void retire_active_rule_effects()
 	              {
 		              if (rule_origin_live(entry.first))
 			              return false;
-		              erase_custom_native_property_rates(std::get<0>(entry.first), std::get<2>(entry.first));
+		              mark_custom_property_rates_dirty();
 		              return true;
 	              });
 }

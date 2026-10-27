@@ -34,24 +34,9 @@ void visit_damage_rule_bindings(flecs::entity ship, RuleTrigger trigger, const N
                                 const std::vector<NativeRuleSource> *sources = nullptr,
                                 const NativeRuleContext *shield_origin = nullptr) const
 {
-	const auto visit = [&](const NativeRuleSource &source, const std::vector<RuleBinding> &bindings)
-	{
-		for (const auto &binding : bindings)
-		{
-			const auto found = rule_templates.find(binding.rule);
-			if (found == rule_templates.end() || found->second.trigger != trigger)
-				continue;
-			auto context = merge_rule_event_context(source, event);
-			if (!rule_binding_matches(binding, context))
-				continue;
-			context = bind_rule_context(binding, std::move(context));
-			callback(rule_key(source.key, binding.id, event.subject), found->second, context);
-		}
-	};
 	const auto local_sources = sources ? std::vector<NativeRuleSource>{} : rule_sources(ship);
 	for (const auto &source : sources ? *sources : local_sources)
-		if (source.eligible && source.bindings)
-			visit(source, *source.bindings);
+		visit_rule_event_bindings(source, trigger, event, callback);
 	if (shield)
 	{
 		NativeRuleSource source;
@@ -63,7 +48,9 @@ void visit_damage_rule_bindings(flecs::entity ship, RuleTrigger trigger, const N
 		                     ? *shield_origin
 		                     : native_rule_origin({ship.get<StableId>().id, shield->equipment}, shield->source,
 		                                          NativeEffectKind::Shield, shield->effect_id);
-		visit(source, shield->definition.shield.rules);
+		source.eligible = true;
+		source.bindings = &shield->definition.shield.rules;
+		visit_rule_event_bindings(source, trigger, event, callback);
 	}
 }
 std::vector<DamageRuleFrame> freeze_damage_rules(flecs::entity ship, RuleTrigger trigger,

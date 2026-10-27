@@ -48,56 +48,91 @@ static PropertyTargetKey property_target_key(const EffectTarget &target)
 		return {PropertyTargetKind::Shield, target.contribution, target.contribution_name};
 	return {PropertyTargetKind::Logical, 0, target.equipment_name};
 }
+static void merge_property_aggregate(PropertyAggregateValue &total, const PropertyAggregateValue &value)
+{
+	total.delta += value.delta;
+	if (value.override_value && (value.priority > total.priority ||
+	                             (value.priority == total.priority && value.application > total.application)))
+	{
+		total.override_value = value.override_value;
+		total.priority = value.priority;
+		total.application = value.application;
+	}
+}
+const PropertyEffectOwner *property_aggregates(flecs::entity ship) const
+{
+	const auto *owner = ship.try_get<PropertyEffectOwner>();
+	if (!owner || owner->aggregate_valid)
+		return owner;
+	owner->independent.clear();
+	owner->guarded.clear();
+	for (const auto &[id, effect] : owner->applications)
+	{
+		const auto &identity = effect.get<ActiveEffectIdentity>();
+		const auto key = property_target_key(effect.get<EffectTarget>());
+		auto &totals =
+		    identity.source.starts_with("rule.") ? owner->guarded[key][identity.source] : owner->independent[key];
+		for (const auto &row : effect.get<ModifierValues>().values)
+			if (row.custom.empty())
+				totals.native[static_cast<std::size_t>(row.property)] += row.delta;
+			else
+				merge_property_aggregate(totals.custom[row.custom], {row.delta, row.override_value, row.priority, id});
+	}
+	owner->aggregate_valid = true;
+	return owner;
+}
+PropertyAggregateValue read_property_aggregate(flecs::entity ship, const PropertyTargetKey &key, PropertyKey property,
+                                               const std::string &custom, RuleSourceAvailabilityCache &sources,
+                                               std::map<std::string, bool> &grants, bool retiring = false) const
+{
+	PropertyAggregateValue result;
+	const auto *owner = property_aggregates(ship);
+	if (!owner)
+		return result;
+	const auto select = [&](const PropertyTotals &totals)
+	{
+		if (custom.empty())
+			return PropertyAggregateValue{totals.native[static_cast<std::size_t>(property)]};
+		const auto at = totals.custom.find(custom);
+		return at == totals.custom.end() ? PropertyAggregateValue{} : at->second;
+	};
+	if (const auto at = owner->independent.find(key); at != owner->independent.end())
+		result = select(at->second);
+	if (const auto at = owner->guarded.find(key); at != owner->guarded.end())
+		for (const auto &[source, totals] : at->second)
+		{
+			const auto value = select(totals);
+			if (!value.delta && !value.override_value)
+				continue;
+			auto known = grants.find(source);
+			if (known == grants.end())
+			{
+				bool available = rule_grant_available(ship.get<StableId>().id, source, &sources);
+				if (!available && retiring)
+				{
+					const auto *previous = readonly_rule_execution(parent_rule_execution_key(source));
+					available =
+					    previous && previous->eligible && previous->active && !previous->stopped && previous->output;
+				}
+				known = grants.emplace(source, available).first;
+			}
+			if (known->second)
+				merge_property_aggregate(result, value);
+		}
+	return result;
+}
 std::int64_t property_delta(flecs::entity ship, const std::string &equipment, PropertyKey property,
                             const std::string &contribution = {}) const
 {
-	const auto *owner = ship.try_get<PropertyEffectOwner>();
-	if (!owner)
-		return 0;
-	if (!owner->aggregate_valid)
-	{
-		owner->independent.clear();
-		owner->guarded.clear();
-		for (const auto &[id, effect] : owner->applications)
-		{
-			const auto &identity = effect.get<ActiveEffectIdentity>();
-			const auto key = property_target_key(effect.get<EffectTarget>());
-			for (const auto &row : effect.get<ModifierValues>().values)
-				if (row.custom.empty())
-					if (identity.source.starts_with("rule."))
-						owner->guarded[key][identity.source][static_cast<std::size_t>(row.property)] += row.delta;
-					else
-						owner->independent[key][static_cast<std::size_t>(row.property)] += row.delta;
-		}
-		owner->aggregate_valid = true;
-	}
 	RuleSourceAvailabilityCache sources;
 	std::map<std::string, bool> grants;
-	const auto read = [&](const PropertyTargetKey &key)
-	{
-		std::int64_t delta = 0;
-		if (const auto at = owner->independent.find(key); at != owner->independent.end())
-			delta = at->second[static_cast<std::size_t>(property)];
-		if (const auto at = owner->guarded.find(key); at != owner->guarded.end())
-			for (const auto &[source, values] : at->second)
-				if (const auto value = values[static_cast<std::size_t>(property)]; value)
-				{
-					auto known = grants.find(source);
-					if (known == grants.end())
-						known = grants.emplace(source, rule_grant_available(ship.get<StableId>().id, source, &sources))
-						            .first;
-					if (known->second)
-						delta += value;
-				}
-		return delta;
-	};
 	const auto key = property_target_key(ship, equipment);
-	std::int64_t delta = read(key);
+	auto delta = read_property_aggregate(ship, key, property, {}, sources, grants).delta;
 	if (!contribution.empty())
 	{
 		const auto extra = property_target_key(ship, contribution);
 		if (!(extra == key))
-			delta += read(extra);
+			delta += read_property_aggregate(ship, extra, property, {}, sources, grants).delta;
 	}
 	return delta;
 }
@@ -304,8 +339,7 @@ EffectTarget resolve_modifier_target(flecs::entity ship, const std::string &equi
 void erase_modifier(flecs::entity effect)
 {
 	const auto effect_target = effect.get<EffectTarget>();
-	erase_custom_native_property_rates(effect.get<ActiveEffectIdentity>().owner,
-	                                   effect.get<ActiveEffectIdentity>().source);
+	mark_custom_property_rates_dirty();
 	begin_custom_property_batch();
 	if (effect_target.body.is_alive())
 		capture_custom_property_owner(custom_property_address(custom_property_actor(

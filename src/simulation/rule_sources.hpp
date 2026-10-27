@@ -175,7 +175,7 @@ void remember_rule_origins(const PreparedEffectGroup &prepared)
 	              {
 		              if (rule_origin_live(entry.first))
 			              return false;
-		              erase_custom_native_property_rates(std::get<0>(entry.first), std::get<2>(entry.first));
+		              mark_custom_property_rates_dirty();
 		              return true;
 	              });
 	for (const auto &frame : prepared.invocations)
@@ -253,6 +253,25 @@ NativeRuleContext merge_rule_event_context(const NativeRuleSource &source, const
 		if (capture.fact.role == RuleRole::Instigator)
 			context.captured.push_back(capture);
 	return context;
+}
+// Event producers own capture/phase policy; native binding traversal is shared.
+template <class Callback>
+void visit_rule_event_bindings(const NativeRuleSource &source, RuleTrigger trigger, const NativeRuleContext &event,
+                               Callback &&callback) const
+{
+	if (!source.eligible || !source.bindings)
+		return;
+	for (const auto &binding : *source.bindings)
+	{
+		const auto found = rule_templates.find(binding.rule);
+		if (found == rule_templates.end() || found->second.trigger != trigger)
+			continue;
+		auto context = merge_rule_event_context(source, event);
+		if (!rule_binding_matches(binding, context))
+			continue;
+		context = bind_rule_context(binding, std::move(context));
+		callback(rule_key(source.key, binding.id, event.subject), found->second, std::move(context));
+	}
 }
 NativeRuleSource active_native_rule_source(const ActiveRuleEffect &effect, bool retiring = false) const
 {

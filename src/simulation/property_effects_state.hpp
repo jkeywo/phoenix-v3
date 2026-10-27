@@ -10,7 +10,18 @@ inline constexpr std::size_t modifier_contribution_limit =
 // arithmetic budget in addition to the full supported application roster.
 inline constexpr std::int64_t modifier_delta_limit =
     static_cast<std::int64_t>(modifier_contribution_limit) * 100000 + 1000000000000LL;
-using PropertyTotals = std::array<std::int64_t, static_cast<std::size_t>(PropertyKey::count)>;
+struct PropertyAggregateValue
+{
+	std::int64_t delta = 0;
+	std::optional<CustomPropertyValue> override_value;
+	std::int64_t priority = std::numeric_limits<std::int64_t>::min();
+	std::uint64_t application = 0;
+};
+struct PropertyTotals
+{
+	std::array<std::int64_t, static_cast<std::size_t>(PropertyKey::count)> native{};
+	std::map<std::string, PropertyAggregateValue> custom;
+};
 enum class PropertyTargetKind
 {
 	Equipment,
