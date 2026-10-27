@@ -229,7 +229,7 @@ int main(int argc, char **argv)
     ]
   }
 ])json");
-		pack.files["definitions.json"] = json_bytes(definitions);
+		pack = phoenix::test::fixture_pack(json_bytes(definitions), "test-core");
 		auto lobby_source = make_host_world();
 		lobby_source->add_pack(write_pack(pack));
 		const auto lobby_bundle =

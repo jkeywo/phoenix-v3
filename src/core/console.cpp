@@ -82,9 +82,10 @@ std::string console_label(const std::string &key)
 	std::replace(fallback.begin(), fallback.end(), '_', ' ');
 	return fallback;
 }
-std::string console_ability_prefix(const Json &descriptor)
+std::string console_execution_prefix(const Json &descriptor)
 {
-	const auto key = console_string(descriptor, "ability_label");
+	const auto key =
+	    console_string(descriptor, descriptor.contains("process_label") ? "process_label" : "ability_label");
 	if (key.empty())
 		return {};
 	auto prefix = console_label(key);
@@ -206,6 +207,23 @@ std::string console_evidence(const Json &record, std::uint64_t now = 0)
 		text += "; " + localise("Stale");
 	if (record.contains("withdrawn") && record.at("withdrawn") == true)
 		text += "; " + localise("Withdrawn");
+	return text;
+}
+std::string console_property_readout(const Json &properties)
+{
+	std::string text;
+	for (const auto &property : properties)
+	{
+		text += "; " + localise(property.at("label")) + " ";
+		if (property.at("kind") == "enum")
+			text += localise(property.at("choice_label"));
+		else if (property.at("kind") == "flag")
+			text += localise(property.at("value").get<bool>() ? "Yes" : "No");
+		else
+			text += std::to_string(property.at("value").get<std::int64_t>() /
+			                       property.at("display_scale").get<std::int64_t>()) +
+			        (property.at("unit") == "permille" ? "%" : "");
+	}
 	return text;
 }
 std::string console_objective_status(const Json &value)
@@ -1781,7 +1799,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 			projected_label = console_label(console_string(descriptor, "label"));
 		if (descriptor.value("label_value", false))
 			projected_label += " " + std::to_string(command.value);
-		projected_label = console_ability_prefix(descriptor) + projected_label;
+		projected_label = console_execution_prefix(descriptor) + projected_label;
 	}
 	if (!session->dispatch_console_command(route_, command))
 	{
@@ -2020,7 +2038,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			else
 				label += " " + std::to_string(value);
 		}
-		label = console_ability_prefix(descriptor) + localise(descriptor.value("label_prefix", std::string{})) + label;
+		label =
+		    console_execution_prefix(descriptor) + localise(descriptor.value("label_prefix", std::string{})) + label;
 		if (descriptor.value("selected", false))
 			label += " (" + localise("Selected") + ")";
 		if (label.empty())
@@ -2161,19 +2180,29 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			text += "; " + localise(ability.at("blocker"));
 		text += "; " + localise("Energy per second") + " " +
 		        std::to_string(ability.at("energy_per_second").get<std::int64_t>());
-		for (const auto &property : ability.value("properties", Json::array()))
-		{
-			text += "; " + localise(property.at("label")) + " ";
-			if (property.at("kind") == "enum")
-				text += localise(property.at("choice_label"));
-			else if (property.at("kind") == "flag")
-				text += localise(property.at("value").get<bool>() ? "Yes" : "No");
-			else
-				text += std::to_string(property.at("value").get<std::int64_t>() /
-				                       property.at("display_scale").get<std::int64_t>()) +
-				        (property.at("unit") == "permille" ? "%" : "");
-		}
+		text += console_property_readout(ability.value("properties", Json::array()));
 		result.emplace_back("game.ability/" + ability.at("id").get<std::string>(), std::move(text));
+	}
+	for (const auto &process : borrowed_member(observation_->gameplay, "processes", true))
+	{
+		auto text = localise(process.at("label")) + "; " + localise(process.at("phase"));
+		text += "; " + localise(process.at("requested").get<bool>() ? "Requested" : "Stopped");
+		text += "; " + localise("Funded activity") + " " +
+		        std::to_string(process.at("output").get<std::int64_t>() / 10) + "%";
+		std::ostringstream work;
+		work << std::fixed << std::setprecision(3)
+		     << static_cast<double>(process.at("work").get<std::int64_t>()) /
+		            process.value("display_scale", std::int64_t{1});
+		auto amount = work.str();
+		while (amount.ends_with('0'))
+			amount.pop_back();
+		if (amount.ends_with('.'))
+			amount.pop_back();
+		text += "; " + localise("Completed work") + " " + amount + " " + localise(process.at("work_unit"));
+		if (!process.at("blocker").get<std::string>().empty())
+			text += "; " + localise(process.at("blocker"));
+		text += console_property_readout(process.value("properties", Json::array()));
+		result.emplace_back("game.process/" + process.at("id").get<std::string>(), std::move(text));
 	}
 	const auto &sensors = borrowed_member(observation_->gameplay, "sensors");
 	for (const auto &b : observation_->bearing_contacts)

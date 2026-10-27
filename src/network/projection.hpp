@@ -3,6 +3,7 @@
 #include "../core/personnel_projection.hpp"
 #include "../core/psychic_projection.hpp"
 #include "../core/ability_projection.hpp"
+#include "../core/process_projection.hpp"
 #include "../core/rules_projection.hpp"
 #include "../core/away_projection.hpp"
 #include "../core/team_projection.hpp"
@@ -48,8 +49,8 @@ static inline Json bounded_gameplay(const Json &source)
 	constexpr std::size_t budget = 1024 * 1024;
 	// Controls and fresh notifications take precedence over historical reports.
 	// Entries remain whole, and retained history keeps its original order.
-	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
-	                            "shared",   "records",       "messages"};
+	const char *categories[] = {"controls",   "notifications", "processes", "controllers",
+	                            "objectives", "shared",        "records",   "messages"};
 	Json result = source;
 	if (source.contains("objective_board"))
 		result["objective_board"] = objective_projection::board(source.at("objective_board"));
@@ -59,6 +60,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["mission_report"] = ftl_projection::report(source.at("mission_report"));
 	if (source.contains("psychic"))
 		result["psychic"] = psychic_projection::board(source.at("psychic"));
+	if (source.contains("processes"))
+		result["processes"] = process_projection::board(source.at("processes"));
 	if (source.contains("abilities"))
 		result["abilities"] = ability_projection::board(source.at("abilities"));
 	if (source.contains("rules"))
@@ -83,6 +86,7 @@ static inline Json bounded_gameplay(const Json &source)
 		result["conversations"] = conversation_projection::board(source.at("conversations"));
 	if (source.contains("alert"))
 		result["alert"] = alert_json(source.at("alert"));
+	const auto process_rows = result.value("processes", Json::array());
 	Json omitted = Json::object();
 	for (const auto *category : categories)
 	{
@@ -115,12 +119,15 @@ static inline Json bounded_gameplay(const Json &source)
 		for (const auto &control : *controls)
 		{
 			ability_projection::validate_control(control);
+			process_projection::validate_control(control);
 			keep("controls", control);
 		}
 	if (const auto notifications = source.find("notifications");
 	    notifications != source.end() && notifications->is_array())
 		for (auto entry = notifications->rbegin(); entry != notifications->rend(); ++entry)
 			keep("notifications", *entry);
+	for (const auto &process : process_rows)
+		keep("processes", process);
 	std::size_t history = 0;
 	for (const auto *category : {"controllers", "objectives", "shared", "records", "messages"})
 		if (const auto entries = source.find(category); entries != source.end() && entries->is_array())
@@ -137,7 +144,8 @@ static inline Json bounded_gameplay(const Json &source)
 					keep(category, entry);
 			}
 	for (const auto *category : categories)
-		if (category != categories[0] && result.contains(category) && result.at(category).is_array())
+		if (std::string_view(category) != "controls" && std::string_view(category) != "processes" &&
+		    result.contains(category) && result.at(category).is_array())
 			std::reverse(result[category].begin(), result[category].end());
 	result["omitted"] = std::move(omitted);
 	return result;
@@ -418,13 +426,18 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	if (const auto controls = result.gameplay.find("controls");
 	    controls != result.gameplay.end() && controls->is_array())
 		for (const auto &control : *controls)
+		{
 			ability_projection::validate_control(control);
+			process_projection::validate_control(control);
+		}
 	if (result.gameplay.contains("ftl"))
 		result.gameplay["ftl"] = ftl_projection::board(result.gameplay.at("ftl"));
 	if (result.gameplay.contains("mission_report"))
 		result.gameplay["mission_report"] = ftl_projection::report(result.gameplay.at("mission_report"));
 	if (result.gameplay.contains("psychic"))
 		result.gameplay["psychic"] = psychic_projection::board(result.gameplay.at("psychic"));
+	if (result.gameplay.contains("processes"))
+		result.gameplay["processes"] = process_projection::board(result.gameplay.at("processes"));
 	if (result.gameplay.contains("abilities"))
 		result.gameplay["abilities"] = ability_projection::board(result.gameplay.at("abilities"));
 	if (result.gameplay.contains("rules"))

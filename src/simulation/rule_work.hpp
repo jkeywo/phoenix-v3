@@ -7,6 +7,9 @@ struct RuleWorkInput
 {
 	std::int64_t rate = 0, credit = 0, purchased = 0, available = 0;
 	bool electrical = false, blocked = false;
+	// Credits and purchased work use this many subunits per physical input unit.
+	// Ordinary continuous rates retain the native energy/time denominator.
+	std::int64_t unit_work = resource_work_unit;
 };
 struct RuleWorkPayment
 {
@@ -41,13 +44,35 @@ inline RuleWorkPayment quote_rule_work(std::span<const RuleWorkInput> inputs, bo
 	payment.credits.reserve(inputs.size());
 	for (const auto &input : inputs)
 	{
-		if (input.rate < 0 || input.rate > resource_limit || input.available < 0 || input.available > resource_limit ||
-		    input.credit < 0 || input.purchased < 0 || (!input.electrical && input.purchased))
+		if (input.rate < 0 || input.rate > std::numeric_limits<std::int64_t>::max() / 1000 || input.available < 0 ||
+		    input.available > resource_limit || input.credit < 0 || input.purchased < 0 ||
+		    (!input.electrical && input.purchased) || input.unit_work < 1 || input.unit_work > 1000000000)
 			throw std::runtime_error("rules: invalid prepaid work input");
-		const auto work =
-		    add(input.credit, input.electrical ? input.purchased : multiply(input.available, resource_work_unit));
+		if (input.credit > std::numeric_limits<std::int64_t>::max() - input.unit_work)
+			throw std::runtime_error("rules: prepaid work overflow");
 		if (input.rate)
-			payment.output = std::min(payment.output, input.blocked ? std::int64_t{0} : work / input.rate);
+		{
+			if (input.blocked)
+				payment.output = 0;
+			else
+			{
+				const auto prepaid = add(input.credit, input.electrical ? input.purchased : 0);
+				const auto required = multiply(input.rate, payment.output);
+				if (prepaid < required)
+				{
+					const auto outstanding = required - prepaid;
+					const auto units = outstanding / input.unit_work + (outstanding % input.unit_work != 0);
+					// Large unspent stores need no multiplication. If this comparison
+					// fails, available * denominator is strictly below required work.
+					if (input.electrical || input.available < units)
+					{
+						const auto work =
+						    add(prepaid, input.electrical ? 0 : multiply(input.available, input.unit_work));
+						payment.output = std::min(payment.output, work / input.rate);
+					}
+				}
+			}
+		}
 		payment.credits.push_back(input.credit);
 	}
 	payment.shortage = payment.output < 1000;
@@ -66,10 +91,10 @@ inline RuleWorkPayment quote_rule_work(std::span<const RuleWorkInput> inputs, bo
 		{
 			const auto outstanding = std::max(std::int64_t{0}, required - input.credit);
 			// Division/remainder avoids overflowing a ceil-division numerator.
-			payment.debits[i] = outstanding / resource_work_unit + (outstanding % resource_work_unit != 0);
+			payment.debits[i] = outstanding / input.unit_work + (outstanding % input.unit_work != 0);
 			if (payment.debits[i] > input.available)
 				throw std::logic_error("rules: prepaid work quote exceeds available stock");
-			payment.credits[i] = add(input.credit, multiply(payment.debits[i], resource_work_unit)) - required;
+			payment.credits[i] = add(input.credit, multiply(payment.debits[i], input.unit_work)) - required;
 		}
 	}
 	return payment;

@@ -238,12 +238,17 @@ ResourceNetwork::ResourceNetwork(ResourceNetworkDefinition definition, std::uint
 		s.isolated = d.isolated;
 		cooling_links_.push_back(s);
 	}
+	generator_work_.resize(generators_.size());
+	cooling_work_.resize(cooling_links_.size());
+	generation_receipts_.resize(generators_.size());
+	cooling_receipts_.resize(cooling_links_.size());
 	telemetry_.resize(stores_.size());
 	charge_left_.resize(stores_.size());
 	discharge_left_.resize(stores_.size());
 	demand_.resize(stores_.size());
 	initial_energy_.resize(stores_.size());
 	initial_heat_.resize(stores_.size());
+	producer_paid_.resize(stores_.size());
 	link_left_.resize(links_.size());
 	group_left_.resize(groups_.size());
 }
@@ -369,6 +374,76 @@ void ResourceNetwork::set_cooling(ResourceIndex i, ResourceAmount rate, bool iso
 	cooling_links_[i].allocation_rate = rate;
 	cooling_links_[i].isolated = isolated;
 }
+namespace
+{
+void validate_machinery_control(const ResourceMachineryControl &control)
+{
+	if (control.throughput_permille < 0 || control.throughput_permille > 1000000 || control.work_limit < 0 ||
+	    control.work_limit > resource_limit)
+		throw std::runtime_error("resources: invalid prepared machinery control");
+}
+ResourceAmount machinery_rate(ResourceAmount rate, ResourceAmount fraction, ResourceAmount &remainder)
+{
+	const auto numerator = rate * fraction + remainder;
+	if (numerator / 1000 >= resource_limit)
+	{
+		remainder = 0;
+		return resource_limit;
+	}
+	remainder = numerator % 1000;
+	return numerator / 1000;
+}
+} // namespace
+void ResourceNetwork::set_generator_work(ResourceIndex index, ResourceMachineryControl control)
+{
+	validate_machinery_control(control);
+	generator_work_.at(index) = control;
+	changed();
+}
+void ResourceNetwork::set_cooling_work(ResourceIndex index, ResourceMachineryControl control)
+{
+	validate_machinery_control(control);
+	cooling_work_.at(index) = control;
+	changed();
+}
+void ResourceNetwork::clear_machinery_work()
+{
+	std::fill(generator_work_.begin(), generator_work_.end(), ResourceMachineryControl{});
+	std::fill(cooling_work_.begin(), cooling_work_.end(), ResourceMachineryControl{});
+	changed();
+}
+const std::vector<ResourceMachineryReceipt> &ResourceNetwork::generation_work() const
+{
+	return generation_receipts_;
+}
+const std::vector<ResourceMachineryReceipt> &ResourceNetwork::cooling_work() const
+{
+	return cooling_receipts_;
+}
+ResourceAmount ResourceNetwork::add_thermal(ResourceIndex index, ResourceAmount amount)
+{
+	bounded(amount, "thermal addition");
+	auto &store = stores_.at(index);
+	const auto accepted = std::min(amount, resource_limit - store.heat);
+	changed();
+	add_heat(index, accepted);
+	const auto &definition = definition_.stores.at(index);
+	if (definition.stop_heat && store.heat >= definition.stop_heat)
+		store.thermal_stop = true;
+	return accepted;
+}
+ResourceAmount ResourceNetwork::remove_thermal(ResourceIndex index, ResourceAmount amount)
+{
+	bounded(amount, "thermal removal");
+	auto &store = stores_.at(index);
+	const auto removed = std::min(amount, store.heat);
+	changed();
+	store.heat -= removed;
+	telemetry_.at(index).heat_removed += removed;
+	if (store.thermal_stop && store.heat <= definition_.stores.at(index).recover_heat)
+		store.thermal_stop = false;
+	return removed;
+}
 std::uint64_t ResourceNetwork::random_next()
 {
 	random_ ^= random_ << 13;
@@ -378,9 +453,7 @@ std::uint64_t ResourceNetwork::random_next()
 }
 bool ResourceNetwork::operational(ResourceIndex i) const
 {
-	const auto &s = stores_[i];
-	const auto &d = definition_.stores[i];
-	return s.enabled && (!s.thermal_stop || s.thermal_override) && (!d.stress_limit || s.stress < d.stress_limit);
+	return operation_ready(i);
 }
 void ResourceNetwork::add_heat(ResourceIndex i, ResourceAmount heat)
 {
@@ -481,6 +554,39 @@ bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 		s.thermal_stop = true;
 	return true;
 }
+bool ResourceNetwork::producer_input_operational(ResourceIndex index) const
+{
+	return operation_ready(index, true);
+}
+bool ResourceNetwork::operation_ready(ResourceIndex index, bool next_tick) const
+{
+	const auto &store = stores_.at(index);
+	const auto &definition = definition_.stores.at(index);
+	const auto protected_heat = next_tick ? (definition.stop_heat && store.heat >= definition.stop_heat) ||
+	                                            (store.thermal_stop && store.heat > definition.recover_heat)
+	                                      : store.thermal_stop;
+	return store.enabled && (!protected_heat || store.thermal_override) &&
+	       (!definition.stress_limit || store.stress < definition.stress_limit);
+}
+ResourceAmount ResourceNetwork::producer_input_budget(ResourceIndex index) const
+{
+	if (!producer_input_operational(index))
+		return 0;
+	const auto &store = stores_.at(index);
+	const auto allowance = (store.discharge_limit + store.discharge_remainder) / resource_tick_hz;
+	return std::min(store.available(), std::max<ResourceAmount>(0, allowance - producer_paid_.at(index)));
+}
+bool ResourceNetwork::prepare_producer_payment(ResourceIndex index, ResourceAmount amount)
+{
+	bounded(amount, "producer operating payment");
+	if (!producer_input_operational(index) || amount > producer_input_budget(index))
+		return false;
+	if (!stores_.at(index).stock.consume(definition_.stores.at(index).resource, amount))
+		return false;
+	producer_paid_.at(index) += amount;
+	changed();
+	return true;
+}
 void ResourceNetwork::apply_operating_heat(ResourceIndex store, ResourceAmount heat)
 {
 	changed();
@@ -509,12 +615,14 @@ void ResourceNetwork::tick()
 {
 	changed();
 	++ticks_;
+	std::fill(generation_receipts_.begin(), generation_receipts_.end(), ResourceMachineryReceipt{});
+	std::fill(cooling_receipts_.begin(), cooling_receipts_.end(), ResourceMachineryReceipt{});
 	for (ResourceIndex i = 0; i < stores_.size(); ++i)
 	{
 		auto &s = stores_[i];
 		const auto &d = definition_.stores[i];
 		telemetry_[i] = {};
-		initial_energy_[i] = s.energy();
+		initial_energy_[i] = s.energy() + producer_paid_[i];
 		initial_heat_[i] = s.heat;
 		if (d.stop_heat && s.heat >= d.stop_heat)
 			s.thermal_stop = true;
@@ -522,6 +630,9 @@ void ResourceNetwork::tick()
 			s.thermal_stop = false;
 		charge_left_[i] = per_tick(s.charge_limit, s.charge_remainder);
 		discharge_left_[i] = per_tick(s.discharge_limit, s.discharge_remainder);
+		if (producer_paid_[i] > discharge_left_[i])
+			throw std::runtime_error("Prepared producer payment exceeds native discharge allowance");
+		discharge_left_[i] -= producer_paid_[i];
 		const auto fullness = s.energy() * million / d.capacity;
 		const auto loss_ppm = d.loss_empty_ppm + (d.loss_full_ppm - d.loss_empty_ppm) * fullness / million;
 		const auto loss =
@@ -556,17 +667,22 @@ void ResourceNetwork::tick()
 		auto goal = s.enabled && operational(d.store) ? s.commanded_rate : 0;
 		if (stores_[d.store].overdrive)
 			goal = std::min(resource_limit, goal * equipment.overdrive_permille / 1000);
+		const auto &work = generator_work_.at(i);
 		const auto change = per_tick(d.response_rate, s.response_remainder);
 		if (s.actual_rate < goal)
 			s.actual_rate += std::min(change, goal - s.actual_rate);
 		else
 			s.actual_rate -= std::min(change, s.actual_rate - goal);
-		auto generated = per_tick(s.actual_rate, s.generation_remainder);
+		auto generated = per_tick(machinery_rate(s.actual_rate, work.throughput_permille, s.throughput_remainder),
+		                          s.generation_remainder);
 		// Protection suppresses actual generation immediately, even while the internal response decays.
-		if (!s.enabled || !operational(d.store))
+		if (!s.enabled || !operational(d.store) || !work.enabled)
 			generated = 0;
 		auto &store = stores_[d.store];
 		generated = std::min({generated, charge_left_[d.store], store.headroom()});
+		generation_receipts_[i].available = generated;
+		generated = std::min(generated, work.work_limit);
+		generation_receipts_[i].completed = generated;
 		stock_add(store.stock, generated);
 		charge_left_[d.store] -= generated;
 		telemetry_[d.store].generated += generated;
@@ -589,8 +705,13 @@ void ResourceNetwork::tick()
 		own = std::min(resource_limit, own + s.discrete_request * resource_tick_hz);
 		ResourceAmount generation = 0;
 		for (ResourceIndex g = 0; g < generators_.size(); ++g)
-			if (definition_.generators[g].store == i && generators_[g].enabled)
-				generation += generators_[g].actual_rate;
+			if (definition_.generators[g].store == i && generators_[g].enabled && generator_work_[g].enabled)
+			{
+				auto remainder = generators_[g].throughput_remainder;
+				generation += std::min(
+				    machinery_rate(generators_[g].actual_rate, generator_work_[g].throughput_permille, remainder),
+				    generator_work_[g].work_limit * resource_tick_hz);
+			}
 		generation = std::min(generation, s.charge_limit);
 		const auto reserves = std::max<ResourceAmount>(0, s.available() - demand_[i]) * resource_tick_hz;
 		return std::min(std::max<ResourceAmount>(0, s.discharge_limit - own), reserves + generation);
@@ -803,6 +924,9 @@ void ResourceNetwork::tick()
 		auto &s = stores_[i];
 		const auto &d = definition_.stores[i];
 		const auto incoming = telemetry_[i].accepted_incoming + telemetry_[i].generated;
+		telemetry_[i].producer_consumed = producer_paid_[i];
+		telemetry_[i].consumed += producer_paid_[i];
+		producer_paid_[i] = 0;
 		add_heat(i, scaled(incoming, d.charge_heat_ppm, s.charge_heat_remainder));
 		add_consumption_heat(i, telemetry_[i].consumed,
 		                     telemetry_[i].consumed + telemetry_[i].outgoing + telemetry_[i].lost);
@@ -833,11 +957,17 @@ void ResourceNetwork::tick()
 			const auto &paid = telemetry_[pump];
 			output_permille = funded_permille(paid.work_funded, paid.work_requested);
 		}
-		const auto capacity =
-		    s.isolated ? 0 : divided(s.allocation_rate * output_permille, resource_tick_hz * 1000, s.tick_remainder);
+		const auto &work = cooling_work_.at(i);
+		const auto effective_rate =
+		    work.enabled ? machinery_rate(s.allocation_rate, work.throughput_permille, s.throughput_remainder) : 0;
+		const auto capacity = s.isolated || !work.enabled ? 0
+		                                                  : divided(effective_rate * output_permille,
+		                                                            resource_tick_hz * 1000, s.tick_remainder);
 		const auto affordable =
 		    std::max<ResourceAmount>(0, source.available() * million - source.consumption_remainder) / ratio;
-		const auto removed = std::min({capacity, store.heat, affordable});
+		const auto available = std::min({capacity, store.heat, affordable});
+		const auto removed = std::min(available, work.work_limit);
+		cooling_receipts_[i] = {available, removed};
 		const auto used = scaled(removed, ratio, source.consumption_remainder);
 		stock_consume(source.stock, used);
 		source.last_heat_removed += removed;
@@ -944,6 +1074,7 @@ Json ResourceNetwork::save() const
 		                           {"actual_rate", s.actual_rate},
 		                           {"response_remainder", s.response_remainder},
 		                           {"generation_remainder", s.generation_remainder},
+		                           {"throughput_remainder", s.throughput_remainder},
 		                           {"heat_remainder", s.heat_remainder},
 		                           {"enabled", s.enabled}});
 	for (const auto &s : groups_)
@@ -959,12 +1090,15 @@ Json ResourceNetwork::save() const
 		                                {"last_heat_removed", s.last_heat_removed},
 		                                {"last_consumed", s.last_consumed}});
 	for (const auto &s : cooling_links_)
-		j["cooling_links"].push_back(
-		    {{"allocation_rate", s.allocation_rate}, {"tick_remainder", s.tick_remainder}, {"isolated", s.isolated}});
+		j["cooling_links"].push_back({{"allocation_rate", s.allocation_rate},
+		                              {"tick_remainder", s.tick_remainder},
+		                              {"throughput_remainder", s.throughput_remainder},
+		                              {"isolated", s.isolated}});
 	// Last grants are observations, not spendable credit. Saving them preserves forecasts on recovery.
 	j["telemetry"] = Json::array();
 	for (const auto &t : telemetry_)
 		j["telemetry"].push_back({{"requested", t.requested},
+		                          {"producer_consumed", t.producer_consumed},
 		                          {"accepted_incoming", t.accepted_incoming},
 		                          {"outgoing", t.outgoing},
 		                          {"generated", t.generated},
@@ -1080,6 +1214,7 @@ void ResourceNetwork::restore(const Json &j)
 		         std::min(resource_limit, d.maximum_rate * definition_.stores[d.store].overdrive_permille / 1000));
 		s.response_remainder = read(v, "response_remainder", 19);
 		s.generation_remainder = read(v, "generation_remainder", 19);
+		s.throughput_remainder = read(v, "throughput_remainder", 999);
 		s.heat_remainder = read(v, "heat_remainder", million - 1);
 		s.enabled = boolean(v, "enabled");
 	}
@@ -1119,16 +1254,20 @@ void ResourceNetwork::restore(const Json &j)
 		next.set_cooling(i, read(v, "allocation_rate", definition_.cooling_links[i].capacity_rate),
 		                 boolean(v, "isolated"));
 		next.cooling_links_[i].tick_remainder = read(v, "tick_remainder", resource_tick_hz * 1000 - 1);
+		next.cooling_links_[i].throughput_remainder = read(v, "throughput_remainder", 999);
 	}
 	for (ResourceIndex i = 0; i < telemetry_.size(); ++i)
 	{
 		auto &t = next.telemetry_[i];
 		const auto &v = j.at("telemetry").at(i);
 		t.requested = read(v, "requested");
+		t.producer_consumed = read(v, "producer_consumed");
 		t.accepted_incoming = read(v, "accepted_incoming");
 		t.outgoing = read(v, "outgoing");
 		t.generated = read(v, "generated");
 		t.consumed = read(v, "consumed");
+		if (t.producer_consumed > t.consumed)
+			throw std::runtime_error("resources.save: producer payment exceeds consumed energy");
 		t.work_requested = v.contains("work_requested") ? read(v, "work_requested", resource_limit * 10000) : 0;
 		t.work_funded = v.contains("work_funded") ? read(v, "work_funded", t.work_requested) : 0;
 		t.lost = read(v, "lost");

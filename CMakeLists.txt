@@ -337,6 +337,7 @@ add_library(
 	src/content/resource_bindings.cpp
 	src/content/stock_catalog.cpp
 	src/content/properties.cpp
+	src/content/processes.cpp
 	src/content/effect_groups.cpp
 )
 target_link_libraries(
@@ -465,6 +466,7 @@ foreach(
 		abilities
 		rules
 		custom_properties
+		processes
 		controller_runtime
 		combat
 )

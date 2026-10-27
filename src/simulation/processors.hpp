@@ -52,11 +52,17 @@ void prepare_processors(flecs::entity ship)
 		    equipment->entity.get<CombatMechanism>().definition.get<MagazineDefinition>().processor->id == id;
 		if (magazine_reload && duel_ended())
 			continue;
+		const auto process_rate = native_process_rate(ship.get<StableId>().id, "processor", id);
+		if (!process_rate)
+			continue;
 		const auto property = magazine_reload ? PropertyKey::reload : PropertyKey::processing;
-		const auto milli_rate = apply_property_delta(definition.work_per_second * 1000,
-		                                             property_delta(ship, definition.equipment, property) +
-		                                                 property_fault_delta(ship, definition.equipment, property),
-		                                             resource_limit);
+		auto milli_rate = apply_property_delta(definition.work_per_second * 1000,
+		                                       property_delta(ship, definition.equipment, property) +
+		                                           property_fault_delta(ship, definition.equipment, property),
+		                                       resource_limit);
+		// The process rate changes this tick's work quotation, never the native
+		// recipe definition or accumulated batch/receiving commitments.
+		milli_rate = apply_property_delta(milli_rate, process_rate - 1000, resource_limit);
 		const auto work = processor.milli_work_budget(milli_rate);
 		processors.work_quotes[id] = work;
 		if (work && processor.prepare(processor_stores(ship, definition), work))
@@ -99,6 +105,10 @@ void retry_blocked_processors(flecs::entity ship)
 			continue;
 		const auto energy = processor.operating_rate(work);
 		processors.energy_rates[id] = energy;
+		// This processor was blocked when the tick's native requests were
+		// captured. Its newly prepared work now owns this request component.
+		if (auto *quote = native_machinery_quote(ship.get<StableId>().id, "processor", id))
+			quote->power_rate = quote->applied_power_rate = energy;
 		if (auto *power = ship.try_get_mut<ShipResources>(); power && energy)
 		{
 			const auto equipment = instance(ship, processor.definition().equipment)->entity;
@@ -135,7 +145,12 @@ void actuate_processors(flecs::entity ship)
 					supply = grant.supply_permille;
 			}
 		}
-		processor.advance(processor_stores(ship, definition), processor.funded_work(supply));
+		const auto available = processor.quoted_funded_work(supply);
+		const auto funded = native_process_paid(ship.get<StableId>().id, "processor", id, supply);
+		const auto completed =
+		    processor.funded_work(funded, native_process_work_limit(ship.get<StableId>().id, "processor", id));
+		processor.advance(processor_stores(ship, definition), completed);
+		record_native_process_work(ship.get<StableId>().id, "processor", id, available, completed);
 	}
 	processors.energy_rates.clear();
 	processors.work_quotes.clear();

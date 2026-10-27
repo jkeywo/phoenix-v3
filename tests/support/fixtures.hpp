@@ -1,7 +1,9 @@
 #pragma once
+#include <algorithm>
 #include <string>
 #include <functional>
 #include <map>
+#include <set>
 #include <utility>
 #include <vector>
 #include <stdexcept>
@@ -9,6 +11,7 @@
 import phoenix.content;
 #include "directed_materialisation.hpp"
 #include "rule_materialisation.hpp"
+#include "process_materialisation.hpp"
 namespace phoenix::test
 {
 // Legacy shorthand is confined to synthetic fixture construction. Production packs
@@ -117,7 +120,8 @@ inline void materialise_fixture_resources(Json &authored)
 					{
 						resource("fixture.resource.coolant", "coolant");
 						coolant["resource"] = "fixture.resource.coolant";
-						coolant["capacity"] = coolant.value("initial", std::int64_t(0));
+						if (!coolant.contains("capacity"))
+							coolant["capacity"] = std::max<std::int64_t>(1, coolant.value("initial", std::int64_t(0)));
 					}
 			}
 			for (auto &[key, child] : v.items())
@@ -239,6 +243,7 @@ inline PackDraft fixture_pack(const Bytes &definitions, const std::string &id)
 				materialise(child);
 	};
 	materialise(authored);
+	materialise_fixture_processes(authored);
 	materialise_fixture_rules(authored);
 	pack.files["definitions.json"] = json_bytes(authored);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");

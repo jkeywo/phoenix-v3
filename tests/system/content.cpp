@@ -578,6 +578,7 @@ int main()
 		{
 			auto source = base;
 			auto definitions = parse_json(source.files.at("definitions.json"), "effect fixture");
+			const auto fixture_effects = definitions.value("effects", Json::array());
 			definitions["effects"] =
 			    Json::array({{{"id", "test.shield-effect"},
 			                  {"kind", "shield"},
@@ -585,6 +586,8 @@ int main()
 			                 {{"id", "test.shield-child"},
 			                  {"extends", "test.shield-effect"},
 			                  {"contributions", {{"fore", {{"initial", 25}}}}}}});
+			for (const auto &effect : fixture_effects)
+				definitions["effects"].push_back(effect);
 			source.files["definitions.json"] = json_bytes(definitions);
 			auto source_pack = read_pack(write_pack(source));
 			auto effects = resolve_packs({source_pack});

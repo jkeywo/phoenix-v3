@@ -31,11 +31,7 @@ ResourceAmount adapter_amount(const Json &json, const char *key, const std::stri
 }
 bool store_operational(const ShipResources &ship, ResourceIndex i)
 {
-	if (i == no_resource)
-		return true;
-	const auto &s = ship.network.stores()[i];
-	const auto &d = ship.definition.network.stores[i];
-	return s.enabled && (!s.thermal_stop || s.thermal_override) && (!d.stress_limit || s.stress < d.stress_limit);
+	return i == no_resource || ship.network.operation_ready(i);
 }
 ResourceAmount weighted_share(ResourceAmount quantity, ResourceAmount weight, ResourceAmount total)
 {
@@ -118,13 +114,22 @@ void request_named_resource(ShipResources &ship, const std::string &key, Resourc
 	}
 }
 
-ShipResourceAllocation::ShipResourceAllocation(ShipResources &origin, std::span<const std::size_t> unavailable)
-    : candidate_(origin), origin_(&origin), origin_tick_(origin.network.ticks())
+ShipResourceAllocation::ShipResourceAllocation(ShipResources &origin, std::span<const std::size_t> unavailable,
+                                               const ResourceNetwork *seed_network)
+    : candidate_(origin), origin_(&origin), origin_tick_(origin.network.ticks()),
+      origin_revision_(origin.network.revision())
 {
 	for (const auto &store : origin.network.stores())
 		origin_store_revisions_.push_back(store.stock.revision());
 	for (const auto &source : origin.network.coolant_sources())
 		origin_coolant_revisions_.push_back(source.stock.revision());
+	if (seed_network)
+	{
+		if (seed_network->ticks() != origin_tick_ ||
+		    seed_network->definition().signature != origin.network.definition().signature)
+			throw std::logic_error("resources: incompatible prepared producer seed");
+		candidate_.network = *seed_network;
+	}
 	struct Availability
 	{
 		ResourceControl control;
@@ -175,10 +180,16 @@ ResourceNetwork &ShipResourceAllocation::prepared_network()
 		throw std::logic_error("resources: allocation already committed");
 	return candidate_.network;
 }
+const ResourceNetwork &ShipResourceAllocation::prepared_network() const
+{
+	if (!origin_)
+		throw std::logic_error("resources: allocation already committed");
+	return candidate_.network;
+}
 
 void ShipResourceAllocation::commit()
 {
-	if (!origin_ || origin_->network.ticks() != origin_tick_)
+	if (!origin_ || origin_->network.ticks() != origin_tick_ || origin_->network.revision() != origin_revision_)
 		throw std::logic_error("resources: allocation already committed or superseded");
 	for (std::size_t i = 0; i < origin_store_revisions_.size(); ++i)
 		if (origin_->network.stores()[i].stock.revision() != origin_store_revisions_[i])
@@ -337,7 +348,8 @@ void tick_ship_resources(ShipResources &ship)
 	{
 		const auto &t = ship.network.telemetry()[store];
 		const auto requested = std::max<ResourceAmount>(0, t.requested - discrete[store]);
-		const auto paid = std::max<ResourceAmount>(0, t.consumed - (t.discrete_paid ? discrete[store] : 0));
+		const auto paid =
+		    std::max<ResourceAmount>(0, t.consumed - t.producer_consumed - (t.discrete_paid ? discrete[store] : 0));
 		ResourceAmount assigned_request = 0, assigned_paid = 0, assigned_work = 0, assigned_funded = 0;
 		for (auto &consumer : consumers)
 			if (consumer.store == store)

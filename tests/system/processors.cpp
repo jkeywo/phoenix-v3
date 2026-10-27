@@ -7,6 +7,7 @@
 #include <vector>
 import phoenix.resources;
 import phoenix.simulation;
+#include "../support/machinery_baseline.hpp"
 namespace
 {
 using namespace phoenix;
@@ -407,6 +408,12 @@ int main(int argc, char **argv)
 	{
 		const auto catalog = fixture();
 		Json trace = Json::array();
+		if (argc > 1 && std::string(argv[1]) == "--baseline-json")
+		{
+			world_contracts(trace);
+			std::cout << phoenix::test::machinery_physical_trace(trace).dump() << '\n';
+			return 0;
+		}
 		batch_contracts(catalog, trace);
 		continuous_contracts(catalog, trace);
 		cadence_and_shared_store(catalog, trace);

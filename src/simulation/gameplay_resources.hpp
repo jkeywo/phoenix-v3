@@ -50,18 +50,20 @@ struct ShipResources
 class ShipResourceAllocation
 {
 public:
-	ShipResourceAllocation(ShipResources &, std::span<const std::size_t> unavailable);
+	ShipResourceAllocation(ShipResources &, std::span<const std::size_t> unavailable,
+	                       const ResourceNetwork *seed_network = nullptr);
 	ShipResourceAllocation(const ShipResourceAllocation &) = delete;
 	ShipResourceAllocation &operator=(const ShipResourceAllocation &) = delete;
 	const std::vector<SystemResourceGrant> &grants() const;
 	const std::map<std::string, SystemResourceGrant> &named_grants() const;
 	ResourceNetwork &prepared_network();
+	const ResourceNetwork &prepared_network() const;
 	void commit();
 
 private:
 	ShipResources candidate_;
 	ShipResources *origin_;
-	std::uint64_t origin_tick_;
+	std::uint64_t origin_tick_, origin_revision_;
 	std::vector<std::uint64_t> origin_store_revisions_, origin_coolant_revisions_;
 };
 void request_system_resource(ShipResources &ship, std::size_t system, ResourceAmount duty_permille,

@@ -498,6 +498,8 @@ void finalise_destroyed_missions()
 			            {"objectives", Json::array()},
 			            {"left_behind", ftl_left_behind(ship)}};
 			entities.at(ship).set<MissionDeparture>({ftl_projection::report(authoritative_report(ship, report))});
+			retire_ship_processes(ship);
+			retire_process_dependants();
 		}
 }
 

@@ -607,7 +607,21 @@ int main(int argc, char **argv)
 				if (c.at("id") == "flight")
 					climb.generation = c.at("generation");
 			require(craft.submit(201, climb), "owned vertical flight channel");
-			ticks(craft, 20);
+			ticks(craft, 1);
+			const auto climbing = craft.save();
+			bool vertical_work = false;
+			for (const auto &owner : climbing.at("processes"))
+				if (owner.at("entity") == 2 && owner.at("equipment") == "engine")
+					for (const auto &process : owner.at("state").at("processes"))
+						vertical_work |= process.at("native_id") == "engine" && process.at("actual_work") == 1000;
+			require(vertical_work && craft.observe(201)->own.vx == 0 && craft.observe(201)->own.vy == 0,
+			        "Vertical-only powered flight records propulsion work without requiring horizontal thrust");
+			World vertical_resumed;
+			vertical_resumed.restore(spatial_catalog, climbing);
+			ticks(craft, 19);
+			ticks(vertical_resumed, 19);
+			require(craft.save() == vertical_resumed.save(),
+			        "Vertical propulsion receipts and native altitude accounting continue exactly");
 			require(craft.observe(201)->own.altitude > 0, "ordinary craft have physical vertical movement");
 			const auto state = craft.save();
 			World restored;

@@ -248,9 +248,12 @@ CustomPropertyState &prepare_custom_property_owner(PreparedEffectGroup &quote, c
 	return quote.custom_properties.try_emplace(address, *current).first->second;
 }
 RuleActor effect_property_actor(const EffectGroupInvocation &frame, const RuleActor &original,
-                                const std::string &equipment, const std::string &officer) const
+                                const std::string &equipment, const std::string &officer,
+                                const std::string &compartment = {}) const
 {
-	auto actor = original;
+	if ((!equipment.empty() + !officer.empty() + !compartment.empty()) > 1)
+		throw std::runtime_error("Effect owner selectors conflict");
+	auto actor = equipment.empty() && officer.empty() && compartment.empty() ? original : rule_body_actor(original);
 	if (!equipment.empty())
 	{
 		actor.equipment = effect_group_equipment(frame, equipment);
@@ -262,6 +265,15 @@ RuleActor effect_property_actor(const EffectGroupInvocation &frame, const RuleAc
 		actor.officer = officer;
 		actor.equipment.clear();
 		actor.compartment = -1;
+	}
+	if (!compartment.empty())
+	{
+		const auto &combat = definition(actor.entity).combat;
+		if (!combat || !combat->compartment_ids.contains(compartment))
+			throw std::runtime_error("Effect compartment unavailable");
+		actor = rule_body_actor(actor);
+		actor.kind = PayloadOutcomeKind::Compartment;
+		actor.compartment = combat->compartment_ids.at(compartment);
 	}
 	return actor;
 }
@@ -466,6 +478,29 @@ void prepare_owner_effect_removal(PreparedEffectGroup &quote, const EffectGroupI
 				}
 		}
 	}
+	else if (context.owner_effect_kind == NativeEffectKind::Process)
+	{
+		const auto address = custom_property_address(actor);
+		auto &runtime = prepare_process_owner(quote, address);
+		for (auto it = runtime.processes.begin(); it != runtime.processes.end(); ++it)
+			if (it->second.generation == identity &&
+			    (process_run_source(address, it->second) == source || it->second.source == source))
+			{
+				if (!it->second.source.empty())
+					runtime.processes.erase(it);
+				else
+				{
+					it->second.admitted = it->second.requested = false;
+					it->second.phase = "off";
+					it->second.idle_output = it->second.work_output = it->second.actual_work = 0;
+					it->second.idle_credits.clear();
+					it->second.work_credits.clear();
+					it->second.work_remainder = 0;
+				}
+				removed = true;
+				break;
+			}
+	}
 	else if (context.owner_effect_kind == NativeEffectKind::Periodic)
 	{
 		const ActiveRuleEffect *current = nullptr;
@@ -509,7 +544,21 @@ void stage_effect_costs(PreparedEffectGroup &quote, const EffectGroupInvocation 
 		}
 		else if (cost.energy_store != no_resource)
 		{
-			if (!spend_prepared_effect_energy(quote, cost))
+			bool paid = false;
+			if (quote.pre_generation)
+			{
+				auto &network = quote.payments.at(cost.payer).network;
+				auto &reserve = network.stock(cost.energy_store);
+				const auto reserved =
+				    reserve.quantity(cost.resource) - quote.stocks.view(reserve).quantity(cost.resource);
+				paid = network.producer_input_operational(cost.energy_store) &&
+				       cost.amount <=
+				           std::max<std::int64_t>(0, network.producer_input_budget(cost.energy_store) - reserved) &&
+				       quote.stocks.consume(reserve, cost.resource, cost.amount);
+			}
+			else
+				paid = spend_prepared_effect_energy(quote, cost);
+			if (!paid)
 				throw std::runtime_error("Energy payment unavailable");
 		}
 		else if (!quote.stocks.consume(prepared_effect_stock(quote, frame, cost.payer, cost.store, false),
@@ -574,7 +623,29 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::size_t invocation)
 		    "temporary:" + source + "." + op.grant + ":" + ability_source + ":" + ability_owner;
 		const bool removing_ability =
 		    op.kind == EffectOperationKind::Remove && ability_state && ability_state->grants.contains(ability_grant_id);
-		if (op.kind >= EffectOperationKind::PropertySet)
+		std::optional<CustomPropertyAddress> process_address;
+		if (!actor.ordnance &&
+		    (actor.kind != PayloadOutcomeKind::Shield || !op.equipment.empty() || !op.officer.empty() ||
+		     !op.compartment.empty()) &&
+		    (process_grant_templates.contains(op.effect) || op.kind == EffectOperationKind::Remove))
+		{
+			const auto candidate =
+			    custom_property_address(effect_property_actor(frame, actor, op.equipment, op.officer, op.compartment));
+			const auto *runtime =
+			    quote.processes.contains(candidate) ? &quote.processes.at(candidate) : process_runtime(candidate);
+			if (process_grant_templates.contains(op.effect) ||
+			    (runtime && std::any_of(runtime->processes.begin(), runtime->processes.end(),
+			                            [&](const auto &entry)
+			                            {
+				                            return entry.second.source == source + "." + op.grant;
+			                            })))
+				process_address = candidate;
+		}
+		if (op.kind == EffectOperationKind::HeatAdd || op.kind == EffectOperationKind::HeatRemove)
+		{
+			prepare_thermal_operation(quote, frame, op);
+		}
+		else if (op.kind >= EffectOperationKind::PropertySet && op.kind <= EffectOperationKind::PropertyRate)
 		{
 			prepare_custom_property_operation(quote, frame, op, actor, current_operation);
 		}
@@ -623,6 +694,19 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::size_t invocation)
 			}
 			if (!valid)
 				throw std::runtime_error("Store operation cannot satisfy exact stock/capacity commitment");
+		}
+		else if (process_address)
+		{
+			auto &runtime = prepare_process_owner(quote, *process_address);
+			if (op.kind == EffectOperationKind::Remove)
+				remove_process_grant(runtime, source + "." + op.grant);
+			else
+			{
+				auto grant = process_grant_templates.at(op.effect);
+				grant.native_id = validate_process_grant(*process_address, grant);
+				install_process_grant(runtime, grant, op.effect, source + "." + op.grant, op.grant, quote.tick,
+				                      effect_invocation_context(frame, quote.tick));
+			}
 		}
 		else if (ability_grant_templates.contains(op.effect) || removing_ability)
 		{
@@ -690,10 +774,54 @@ void stage_effect_invocation(PreparedEffectGroup &quote, std::size_t invocation)
 		}
 	}
 }
-PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation> invocations)
+ProcessRuntime &prepare_process_owner(PreparedEffectGroup &quote, const CustomPropertyAddress &address) const
 {
-	PreparedEffectGroup quote;
+	const auto *runtime = process_runtime(address);
+	if (!runtime)
+		throw std::runtime_error("Process owner unavailable");
+	quote.original_processes.try_emplace(address, *runtime);
+	return quote.processes.try_emplace(address, *runtime).first->second;
+}
+std::vector<EffectGroupInvocation> process_removal_frames(PreparedEffectGroup &quote,
+                                                          const EffectGroupInvocation &frame)
+{
+	std::vector<EffectGroupInvocation> result;
+	for (const auto &operation : frame.execution.operations)
+	{
+		if (operation.kind != EffectOperationKind::Remove || operation.all_sources)
+			continue;
+		const bool owner_removal = operation.scope == "owner" && frame.rule_context &&
+		                           frame.rule_context->owner_effect_kind == NativeEffectKind::Process;
+		if (operation.scope != "local" && !owner_removal)
+			continue;
+		const auto actor = effect_group_actor(frame, operation.target);
+		if (actor.ordnance || actor.kind == PayloadOutcomeKind::Shield)
+			continue;
+		const auto address = custom_property_address(
+		    effect_property_actor(frame, actor, operation.equipment, operation.officer, operation.compartment));
+		const auto *runtime = process_runtime(address);
+		if (!runtime)
+			continue;
+		const auto source = owner_removal ? frame.rule_context->owner_grant : frame.source + "." + operation.grant;
+		for (const auto &[id, state] : runtime->processes)
+			if ((state.source == source || (owner_removal && state.generation == frame.rule_context->owner_effect_id &&
+			                                process_run_source(address, state) == source)) &&
+			    state.admitted && quote.process_stops.emplace(address, process_run_source(address, state)).second)
+			{
+				const auto &definition = process_definition(state);
+				if (definition.stop_effect)
+					result.push_back(process_effect_invocation(address, state, *definition.stop_effect));
+			}
+	}
+	return result;
+}
+PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation> invocations,
+                                          PreparedEffectGroup quote = {})
+{
 	quote.invocations.assign(invocations.begin(), invocations.end());
+	quote.invocation_roots.clear();
+	for (std::size_t i = 0; i < quote.invocations.size(); ++i)
+		quote.invocation_roots.push_back(i);
 	for (auto &frame : quote.invocations)
 		if (!frame.hit_context && frame.rule_context && frame.rule_context->hit.target)
 			frame.hit_context = frame.rule_context->hit;
@@ -711,11 +839,26 @@ PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation>
 		for (std::size_t i = 0; i < quote.invocations.size(); ++i)
 		{
 			quote.failed_invocation = i;
-			costs.push_back(resolve_effect_costs(quote, quote.invocations[i]));
+			const auto frame = quote.invocations[i];
+			costs.push_back(resolve_effect_costs(quote, frame));
 			for (const auto &cost : costs.back())
 				if (cost.energy_store != no_resource && cost.amount)
 					quote.payments.try_emplace(cost.payer, entities.at(cost.payer).get<ShipResources>().network);
+			for (auto &stop : process_removal_frames(quote, frame))
+			{
+				if (quote.invocations.size() >= rule_instance_limit)
+					throw std::runtime_error("Process stop effect batch capacity exhausted");
+				const auto address = custom_property_address(stop.rule_context->owner);
+				if (quote.prepaid_process_stops.contains({address, stop.source}))
+				{
+					stop.execution.energy = 0;
+					stop.execution.costs.clear();
+				}
+				quote.invocations.push_back(std::move(stop));
+				quote.invocation_roots.push_back(quote.invocation_roots.at(i));
+			}
 		}
+		prepare_thermal_networks(quote);
 		for (std::size_t i = 0; i < quote.invocations.size(); ++i)
 		{
 			quote.failed_invocation = i;
@@ -763,7 +906,7 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 	{
 		if (!entities.contains(id) || !entities.at(id).has<ShipResources>())
 			return true;
-		const auto &current = entities.at(id).get<ShipResources>().network;
+		const auto &current = payment.destination ? *payment.destination : entities.at(id).get<ShipResources>().network;
 		if (current.revision() != payment.revision || current.stores().size() != payment.stores.size() ||
 		    current.coolant_sources().size() != payment.coolant.size())
 			return true;
@@ -792,6 +935,12 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 		if (!entities.contains(id) || !entities.at(id).has<AbilityRuntime>() ||
 		    !same_effect_abilities(entities.at(id).get<AbilityRuntime>(), original))
 			return true;
+	for (const auto &[address, original] : quote.original_processes)
+	{
+		const auto *current = process_runtime(address);
+		if (!current || *current != original)
+			return true;
+	}
 	if (quote.original_active_effects &&
 	    (next_rule_instance != quote.original_next_active ||
 	     !same_effect_active_rules(active_rule_snapshot(), *quote.original_active_effects)))
@@ -836,6 +985,8 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 		return "Effect quote became stale";
 	if (effect_commit_epoch == std::numeric_limits<std::uint64_t>::max())
 		return "Effect commit epoch exhausted";
+	if (quote.effect_failures.size() > 9007199254740991ULL - next_rule_job)
+		return "Effect result identity exhausted";
 	if (const auto failure = rule_origin_failure(quote); !failure.empty())
 		return failure;
 	if (quote.defer_damage && !quote.damages.empty())
@@ -845,10 +996,15 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 		return "Store transaction became stale";
 	quote.consumed = true;
 	++effect_commit_epoch;
+	for (const auto &failure : quote.effect_failures)
+		record_effect_result(rule_results, next_rule_job++, "failed: " + failure);
 	begin_custom_property_batch();
 
 	for (auto &[id, payment] : quote.payments)
-		entities.at(id).get_mut<ShipResources>().network = std::move(payment.network);
+		if (payment.destination)
+			*payment.destination = std::move(payment.network);
+		else
+			entities.at(id).get_mut<ShipResources>().network = std::move(payment.network);
 	for (auto id : quote.changed_inventories)
 		if (auto *inventory = entities.at(id).try_get_mut<MaterialInventory>())
 			++inventory->revision;
@@ -858,6 +1014,8 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 		commit_property_effects(entities.at(id), value);
 	for (auto &[address, value] : quote.custom_properties)
 		commit_custom_property_state(address, value);
+	for (auto &[address, value] : quote.processes)
+		commit_process_runtime(address, value);
 	if (quote.active_effects)
 	{
 		commit_active_rule_effects(*quote.active_effects);

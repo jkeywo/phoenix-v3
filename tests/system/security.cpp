@@ -261,10 +261,19 @@ void craft_regression(Json &trace)
 		delivered_resume.restore(catalog, saved);
 		ticks(w, 1);
 		ticks(delivered_resume, 1);
+		if (w.save() != delivered_resume.save())
+			std::cerr << "Docked craft continuation difference (" << mode
+			          << "): " << Json::diff(w.save(), delivered_resume.save()).dump() << '\n';
 		require(w.save() == delivered_resume.save(), "docked and consumed craft restore identically");
 		const auto phase = saved["craft"]["entities"][0]["state"]["phase"];
 		require(phase == (mode == "shuttle" ? "flying" : "consumed"),
 		        "finite shuttle retained or disposable torpedo consumed");
+		if (mode == "boarding_torpedo")
+			for (const auto &owner : saved.at("processes"))
+				if (owner.at("entity") == saved["craft"]["entities"][0]["id"])
+					for (const auto &process : owner.at("state").at("processes"))
+						require(!process.at("requested").get<bool>() && !process.at("admitted").get<bool>(),
+						        "consumed craft permanently retires native processes");
 		auto invalid_terminal = saved;
 		invalid_terminal["craft"]["entities"][0]["state"]["phase"] = "consumed";
 		invalid_terminal["craft"]["entities"][0]["state"]["order"] = "return";
@@ -437,6 +446,9 @@ void finalizer_regression(Json &trace)
 		resumed.restore(catalog, saved);
 		ticks(w, 2);
 		ticks(resumed, 2);
+		if (w.save() != resumed.save())
+			std::cerr << "Recovered Medical continuation difference (" << transport
+			          << "): " << Json::diff(w.save(), resumed.save()).dump() << '\n';
 		require(w.save() == resumed.save(), "recovered Medical mission restores");
 		trace.push_back(w.save());
 	}

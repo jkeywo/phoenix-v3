@@ -32,6 +32,9 @@ using SharedPropertyCatalog = std::shared_ptr<const PropertyCatalog>;
 // Optional compiler scopes must describe the same resolved Catalog; standalone helpers compile their own scope.
 struct DirectedDefinition;
 struct AbilityCatalog;
+struct ProcessDefinition;
+using ProcessCatalog = std::map<std::string, ProcessDefinition>;
+using SharedProcessCatalog = std::shared_ptr<const ProcessCatalog>;
 struct PersonnelDefinition;
 struct ControllableLayout;
 struct RuleDefinition;
@@ -130,6 +133,7 @@ struct ControllerContactBinding
 };
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &, const Catalog &);
 std::vector<std::string> controller_ability_bindings(const Json &, const Catalog &, SharedPropertyCatalog = {});
+std::vector<std::string> controller_process_bindings(const Json &, const Catalog &, SharedPropertyCatalog = {});
 std::string choir_ability_control(const std::string &apparatus, const std::string &duty);
 std::vector<std::string> controller_message_templates(const Json &, const Catalog &);
 std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &, const Catalog &);
@@ -235,6 +239,17 @@ enum class ControllerAbilityField
 	Requested,
 	Count
 };
+enum class ControllerProcessField
+{
+	Phase,
+	Requested,
+	Running,
+	Paused,
+	Blocked,
+	Activity,
+	Work,
+	Count
+};
 enum class ControllerResultField
 {
 	Available,
@@ -283,6 +298,12 @@ struct ControllerAbilityBinding
 	ControllerDestinations<ControllerAbilityField> fields;
 	std::vector<ControllerAbilityPropertyBinding> properties;
 };
+struct ControllerProcessBinding
+{
+	std::string endpoint;
+	ControllerDestinations<ControllerProcessField> fields;
+	std::vector<ControllerAbilityPropertyBinding> properties;
+};
 struct ControllerCommandBinding
 {
 	std::string channel;
@@ -307,6 +328,7 @@ struct ControllerTreeBindings
 	std::vector<ControllerRead<GameplayTreeRecordBinding>> messages;
 	std::vector<ControllerContactRead> contacts;
 	std::vector<ControllerAbilityBinding> abilities;
+	std::vector<ControllerProcessBinding> processes;
 };
 struct BaseConfiguration
 {
@@ -901,6 +923,8 @@ enum class PropertyKey : std::size_t
 	medical,
 	security,
 	comms,
+	generation,
+	cooling,
 	count
 };
 struct ModifierPropertyDescriptor
@@ -1020,7 +1044,9 @@ enum class EffectOperationKind
 	PropertySet,
 	PropertyAdd,
 	PropertySubtract,
-	PropertyRate
+	PropertyRate,
+	HeatAdd,
+	HeatRemove
 };
 struct EffectOperation
 {
@@ -1036,6 +1062,7 @@ struct EffectOperation
 	std::string role;
 	std::string scope = "local";
 	std::string property;
+	std::string compartment;
 	CustomPropertyValue value = std::int64_t{0};
 	bool saturate = false;
 };
@@ -1109,7 +1136,12 @@ enum class RuleFactKind
 	Output,
 	CompletedWork,
 	PropertyBefore,
-	PropertyAfter
+	PropertyAfter,
+	ProcessWork,
+	ProcessActivity,
+	OfficerPresent,
+	OfficerHealthy,
+	OfficerOnDuty
 };
 struct RuleFactBinding
 {
@@ -1186,6 +1218,7 @@ struct RuleDefinition
 	std::int64_t period_ticks = 1;
 	std::optional<RuleFundingDefinition> funding;
 	bool scalable = false;
+	std::string work_unit;
 };
 struct RuleBinding
 {
@@ -1246,6 +1279,62 @@ struct AbilityExclusionDefinition
 {
 	std::string id, scope = "source";
 };
+enum class NativeProcessKind
+{
+	Effects,
+	Generation,
+	Propulsion,
+	Cooling,
+	Processor
+};
+struct ProcessDefinition
+{
+	std::string id, label, family, shortage = "pause", work_unit = "work";
+	NativeProcessKind native = NativeProcessKind::Effects;
+	bool requested = true;
+	std::int64_t work_divisor = 1000;
+	RuleDefinition evaluation;
+	std::optional<RuleExpression> rate, upkeep_scale, work_scale;
+	std::vector<EffectCostDefinition> entry_costs, upkeep_costs, work_costs;
+	std::optional<EffectGroupDefinition> start_effect, pause_effect, resume_effect, stop_effect;
+	std::vector<AbilityExclusionDefinition> exclusions;
+	std::vector<std::string> observations;
+};
+struct ProcessBinding
+{
+	std::string id, process, native_id;
+	bool requested = true;
+};
+struct ProcessControlDefinition
+{
+	std::string id, source = "equipment", owner, process;
+	std::size_t controller = 0, enabled = 0;
+};
+using ProcessNativeBindings = std::map<NativeProcessKind, std::set<std::string>>;
+std::string resolve_process_native_binding(const ProcessDefinition &, const ProcessNativeBindings &,
+                                           const std::string &requested_id = {});
+struct ProcessDefinitionSet
+{
+	SharedProcessCatalog catalog;
+	std::map<std::string, ProcessNativeBindings> native_bindings;
+	std::vector<ProcessBinding> entity;
+	std::map<std::string, std::vector<ProcessBinding>> equipment, officers, compartments;
+	std::vector<ProcessControlDefinition> controls;
+};
+struct ProcessGrantDefinition
+{
+	std::string process, native_id;
+	std::int64_t duration_ticks = 0;
+};
+ProcessDefinition compile_process(const Catalog &, const std::string &, SharedPropertyCatalog = {});
+SharedProcessCatalog compile_process_catalog(const Catalog &, SharedPropertyCatalog = {});
+ProcessGrantDefinition compile_process_grant(const Catalog &, const std::string &);
+ProcessDefinitionSet compile_process_bindings(const Catalog &, const std::string &, SharedProcessCatalog,
+                                              SharedPropertyCatalog = {});
+std::vector<RuleCostDefinition> compile_rule_costs(const Catalog &, RuleDefinition &, const Json &, const std::string &,
+                                                   const std::string &, SharedPropertyCatalog = {});
+void compile_rule_values(const Catalog &, RuleDefinition &, const Json &, const std::string &,
+                         SharedPropertyCatalog = {});
 struct AbilityDefinition
 {
 	std::string id, label, target = "self", recovery_on = "activation", interruption = "cancel", shortage = "pause",

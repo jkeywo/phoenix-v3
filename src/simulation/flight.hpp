@@ -55,6 +55,7 @@ struct FlightState
 	int actual_longitudinal = 0, actual_lateral = 0, actual_steering = 0;
 	int steering_limit_permille = 1000;
 	std::int64_t charge_spent = 0;
+	std::int64_t work_remainder = 0;
 	// Numeric reason codes are translated by presentation: 0 none, 1 reserve,
 	// 2 charging power, 3 operating power, 4 disabled, 5 collision, 6 manual.
 	int impulse_reason = 0, effective_boost = 0;
@@ -76,6 +77,7 @@ struct FlightDemand
 	std::int64_t power_rate = 0, heat_rate = 0;
 	int longitudinal = 0, lateral = 0, steering = 0;
 	bool charging = false;
+	int effort_permille = 0;
 	// Prepared against the tick snapshot; execution may clip but never re-plan.
 	std::int64_t target_speed = 0, acceleration = 0, target_lateral_speed = 0, lateral_acceleration = 0;
 	std::int64_t heading_basis = 0, desired_heading = 0;
@@ -88,8 +90,20 @@ struct FlightExecution
 	fixed::Vec velocity_change;
 	std::int64_t heading_change = 0, power_rate = 0, heat_rate = 0;
 	bool supply_limited = false, match_stale = false;
+	std::int64_t effort_milliticks = 0, charging_milliticks = 0;
 	int forward_permille = 0, lateral_permille = 0, steering_permille = 0;
 };
+struct FlightWorkQuote
+{
+	std::int64_t effort_milliticks = 0, charging_milliticks = 0, work_remainder = 0, charge_remainder = 0;
+};
+struct FlightChargeQuote
+{
+	std::int64_t energy = 0, progress = 0;
+};
+FlightWorkQuote quote_flight_work(const FlightDefinition &, const FlightState &, const FlightDemand &,
+                                  int paid_permille, int output_permille = 1000);
+FlightChargeQuote quote_flight_charge(const FlightDefinition &, const FlightState &);
 FlightState initial_flight(const FlightDefinition &, const Pose &, const Motion &);
 FlightCommandResult apply_flight(const FlightDefinition &, FlightState &, FlightCommand, const Pose &, const Motion &);
 // Call before quoting resources when a fresh permitted observation has arrived.

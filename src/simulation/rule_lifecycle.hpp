@@ -367,6 +367,31 @@ void withdraw_rule_grants(RuleExecutionState &state)
 						changed = abilities_changed = true;
 					}
 				}
+
+				if (process_grant_templates.contains(operation.effect))
+				{
+					EffectGroupInvocation frame;
+					frame.rule_context = state.applied_context;
+					frame.hit_context = state.applied_context.hit;
+					const auto address = custom_property_address(effect_property_actor(
+					    frame, actor, operation.equipment, operation.officer, operation.compartment));
+					if (const auto *runtime = process_runtime(address))
+					{
+						std::vector<std::pair<std::string, std::uint64_t>> retired;
+						for (const auto &[id, process] : runtime->processes)
+							if (process.source == source && process.grant_effect == operation.effect)
+								retired.emplace_back(id, process.generation);
+						for (const auto &[id, generation] : retired)
+						{
+							(void)stop_process(address, id, true);
+							if (auto *remaining = process_runtime(address))
+								if (const auto at = remaining->processes.find(id);
+								    at != remaining->processes.end() && at->second.generation == generation)
+									remaining->processes.erase(at);
+							changed = true;
+						}
+					}
+				}
 			}
 			changed = erase_active_rule_effects_if(
 			              [&](const auto &effect)

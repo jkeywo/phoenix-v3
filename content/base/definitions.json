@@ -302,10 +302,16 @@
 				"engine": {
 					"max_speed_mm_s": 18000,
 					"acceleration_mm_s2": 4000,
-					"deceleration_mm_s2": 6000
+					"deceleration_mm_s2": 6000,
+					"processes": {
+						"propulsion": { "process": "base.process.propulsion" }
+					}
 				},
 				"steering": {
-					"turn_mdeg_s": 45000
+					"turn_mdeg_s": 45000,
+					"processes": {
+						"propulsion": { "process": "base.process.propulsion" }
+					}
 				},
 				"radar": {
 					"range_mm": 500000,
@@ -12549,7 +12555,12 @@
 					"kind": "coolant",
 					"compartment": "engineering",
 					"cooling_link": "weapons-cooling",
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"processes": {
+						"cooling": {
+							"process": "base.process.cooling"
+						}
+					}
 				},
 				"shields-supply": {
 					"kind": "distribution",
@@ -12561,7 +12572,12 @@
 					"kind": "coolant",
 					"compartment": "engineering",
 					"cooling_link": "shields-cooling",
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"processes": {
+						"cooling": {
+							"process": "base.process.cooling"
+						}
+					}
 				},
 				"services-supply": {
 					"kind": "distribution",
@@ -12573,7 +12589,12 @@
 					"kind": "coolant",
 					"compartment": "engineering",
 					"cooling_link": "services-cooling",
-					"observation_console": "engineering"
+					"observation_console": "engineering",
+					"processes": {
+						"cooling": {
+							"process": "base.process.cooling"
+						}
+					}
 				},
 				"medical-1": {
 					"kind": "team",
@@ -12697,7 +12718,12 @@
 				"psychic-cooling": {
 					"kind": "coolant",
 					"compartment": "bridge",
-					"cooling_link": "psychic-cooling"
+					"cooling_link": "psychic-cooling",
+					"processes": {
+						"cooling": {
+							"process": "base.process.cooling"
+						}
+					}
 				},
 				"engineering-dispatch": {
 					"kind": "dispatch",
@@ -20410,7 +20436,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"helm": {
 					"kind": "steering",
@@ -20440,7 +20471,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar",
@@ -20651,6 +20687,11 @@
 						"mode": "batch",
 						"work_per_second": 20,
 						"energy_per_second": 0
+					},
+					"processes": {
+						"processor": {
+							"process": "base.process.processor"
+						}
 					}
 				},
 				"forward-gun": {
@@ -22617,7 +22658,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"helm": {
 					"kind": "steering",
@@ -22647,7 +22693,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar"
@@ -26636,7 +26687,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"helm": {
 					"kind": "steering",
@@ -26666,7 +26722,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar",
@@ -26879,6 +26940,11 @@
 						"mode": "batch",
 						"work_per_second": 20,
 						"energy_per_second": 0
+					},
+					"processes": {
+						"processor": {
+							"process": "base.process.processor"
+						}
 					}
 				},
 				"forward-gun": {
@@ -27149,7 +27215,12 @@
 					"kind": "coolant",
 					"compartment": "mid-port",
 					"cooling_link": "veil-cooling",
-					"observation_console": "support"
+					"observation_console": "support",
+					"processes": {
+						"cooling": {
+							"process": "base.process.cooling"
+						}
+					}
 				},
 				"beam-turret": {
 					"kind": "turret",
@@ -30028,7 +30099,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"helm": {
 					"kind": "steering",
@@ -30058,7 +30134,12 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"template": "base.equipment.combat-radar"
@@ -30260,6 +30341,11 @@
 						"mode": "batch",
 						"work_per_second": 20,
 						"energy_per_second": 0
+					},
+					"processes": {
+						"processor": {
+							"process": "base.process.processor"
+						}
 					}
 				},
 				"forward-gun": {
@@ -31968,14 +32054,24 @@
 					"acceleration_mm_s2": 5000,
 					"compartment": "cabin",
 					"power_rate": 200,
-					"power_store": "cell"
+					"power_store": "cell",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"steering": {
 					"kind": "steering",
 					"turn_mdeg_s": 90000,
 					"compartment": "cabin",
 					"power_rate": 40,
-					"power_store": "cell"
+					"power_store": "cell",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"kind": "radar",
@@ -32395,12 +32491,22 @@
 					"acceleration_mm_s2": 10000,
 					"power_store": "cell",
 					"energy_per_second": 30,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"steering": {
 					"kind": "steering",
 					"turn_mdeg_s": 120000,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"kind": "radar",
@@ -32774,12 +32880,22 @@
 					"acceleration_mm_s2": 10000,
 					"power_store": "cell",
 					"energy_per_second": 30,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"steering": {
 					"kind": "steering",
 					"turn_mdeg_s": 120000,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"kind": "radar",
@@ -33206,12 +33322,22 @@
 					"acceleration_mm_s2": 10000,
 					"power_store": "cell",
 					"energy_per_second": 30,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"steering": {
 					"kind": "steering",
 					"turn_mdeg_s": 120000,
-					"compartment": "hull"
+					"compartment": "hull",
+					"processes": {
+						"propulsion": {
+							"process": "base.process.propulsion"
+						}
+					}
 				},
 				"radar": {
 					"kind": "radar",
@@ -61133,7 +61259,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "base.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.steering",
@@ -61152,7 +61283,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "base.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.lateral",
@@ -61176,7 +61312,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "base.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.boost",
@@ -61212,7 +61353,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "base.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.impulse",
@@ -61247,7 +61393,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "base.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.radar",
@@ -61292,7 +61443,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"generation": {
+					"process": "base.process.generation"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.storage",
@@ -61319,7 +61475,12 @@
 		{
 			"id": "base.equipment.coolant-valve",
 			"kind": "coolant",
-			"cooling_link": "cooling"
+			"cooling_link": "cooling",
+			"processes": {
+				"cooling": {
+					"process": "base.process.cooling"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.pump",
@@ -61338,7 +61499,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"cooling": {
+					"process": "base.process.cooling"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.combat-radar",
@@ -61427,6 +61593,11 @@
 				"mode": "batch",
 				"work_per_second": 20,
 				"energy_per_second": 0
+			},
+			"processes": {
+				"processor": {
+					"process": "base.process.processor"
+				}
 			}
 		},
 		{
@@ -61475,6 +61646,11 @@
 				"mode": "batch",
 				"work_per_second": 20,
 				"energy_per_second": 0
+			},
+			"processes": {
+				"processor": {
+					"process": "base.process.processor"
+				}
 			}
 		},
 		{
@@ -61526,7 +61702,12 @@
 					"severity": 1000,
 					"repair_work": 100
 				}
-			]
+			],
+			"processes": {
+				"generation": {
+					"process": "base.process.generation"
+				}
+			}
 		},
 		{
 			"id": "base.equipment.combat-weapon-cell",
@@ -61752,6 +61933,11 @@
 				"mode": "batch",
 				"work_per_second": 20,
 				"energy_per_second": 0
+			},
+			"processes": {
+				"processor": {
+					"process": "base.process.processor"
+				}
 			}
 		},
 		{
@@ -62507,7 +62693,12 @@
 				},
 				"cooling": {
 					"kind": "coolant",
-					"cooling_link": "cooling"
+					"cooling_link": "cooling",
+					"processes": {
+						"cooling": {
+							"process": "base.process.cooling"
+						}
+					}
 				}
 			},
 			"resources": {
@@ -62567,7 +62758,12 @@
 				"reactor": {
 					"kind": "generator",
 					"generator": "reactor",
-					"power_store": "main"
+					"power_store": "main",
+					"processes": {
+						"generation": {
+							"process": "base.process.generation"
+						}
+					}
 				}
 			},
 			"resources": {
@@ -64432,6 +64628,42 @@
 					}
 				]
 			}
+		},
+		{
+			"id": "base.process.generation",
+			"kind": "process",
+			"label": "Power generation",
+			"family": "machinery.generation",
+			"native": "generation",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.propulsion",
+			"kind": "process",
+			"label": "Propulsion",
+			"family": "machinery.propulsion",
+			"native": "propulsion",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.cooling",
+			"kind": "process",
+			"label": "Cooling",
+			"family": "machinery.cooling",
+			"native": "cooling",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "base.process.processor",
+			"kind": "process",
+			"label": "Recipe processing",
+			"family": "machinery.processor",
+			"native": "processor",
+			"requested": true,
+			"shortage": "proportional"
 		}
 	],
 	"resources": [

@@ -1,3 +1,33 @@
+// Execution endpoints add grant guards to the existing Controller command envelope.
+bool controller_arguments_valid(EntityId ship, std::size_t controller, std::size_t channel, OperatingAction action,
+                                std::int64_t value, std::span<const std::int64_t> arguments,
+                                bool restoring = false) const
+{
+	if (ability_channel_bound(ship, controller, channel))
+		return restoring ? process_arguments_shape(arguments)
+		                 : ability_generation_valid(ship, controller, channel, arguments);
+	if (process_channel_bound(ship, controller, channel))
+		return restoring ? process_arguments_shape(arguments)
+		                 : process_generation_valid(ship, controller, channel, arguments);
+	return operating_arguments_valid(action, value, arguments);
+}
+static state_tree::Value controller_property_fact(const Json *rows, const ControllerAbilityPropertyBinding &property)
+{
+	if (rows)
+		for (const auto &row : *rows)
+			if (row.at("id") == property.property)
+			{
+				const auto &value = row.at("value");
+				if (property.type == state_tree::Type::Boolean && value.is_boolean())
+					return state_tree::Value::boolean(value.get<bool>());
+				if (property.type == state_tree::Type::Text && value.is_string())
+					return state_tree::Value::string(value.get<std::string>());
+				if (property.type == state_tree::Type::Integer && value.is_number_integer())
+					return state_tree::Value::integer(value.get<std::int64_t>());
+				break;
+			}
+	return {};
+}
 // Textual selections retain normal Console ownership and generation admission.
 bool selection_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
 {
@@ -202,21 +232,65 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 						rows = &row.at("properties");
 						break;
 					}
-			if (!rows)
-				continue;
+			values.at(property.destination) = controller_property_fact(rows, property);
+		}
+	}
+	for (const auto &binding : brain.processes)
+	{
+		const auto &controls = definition(id).processes.controls;
+		const auto endpoint = std::find_if(controls.begin(), controls.end(),
+		                                   [&](const auto &candidate)
+		                                   {
+			                                   return candidate.id == binding.endpoint;
+		                                   });
+		const auto &controllers = entities.at(id).get<EntityControls>().controllers;
+		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
+		if (endpoint == controls.end() || endpoint->controller != owner ||
+		    controller.definition.console != address.console)
+			throw std::runtime_error("Controller process observation is not owned by this endpoint");
+		Json fallback;
+		const Json *fact = nullptr;
+		if (const auto facts = observation.gameplay.find("process_facts");
+		    facts != observation.gameplay.end() && facts->contains(binding.endpoint))
+			fact = &facts->at(binding.endpoint);
+		else if (const auto rows = observation.gameplay.find("processes"); rows != observation.gameplay.end())
 			for (const auto &row : *rows)
-				if (row.at("id") == property.property)
+				if (row.at("control") == binding.endpoint)
 				{
-					const auto &value = row.at("value");
-					if (property.type == state_tree::Type::Boolean && value.is_boolean())
-						values.at(property.destination) = Value::boolean(value.get<bool>());
-					else if (property.type == state_tree::Type::Text && value.is_string())
-						values.at(property.destination) = Value::string(value.get<std::string>());
-					else if (property.type == state_tree::Type::Integer && value.is_number_integer())
-						values.at(property.destination) = Value::integer(value.get<std::int64_t>());
+					fallback = {{"phase", row.at("phase")},
+					            {"requested", row.at("requested")},
+					            {"running", row.at("phase") == "running"},
+					            {"paused", row.at("phase") == "paused"},
+					            {"blocked", !row.at("blocker").get<std::string>().empty()},
+					            {"activity", row.at("output")},
+					            {"work", row.at("work")},
+					            {"properties", row.at("properties")}};
+					fact = &fallback;
 					break;
 				}
+		for (const auto &[field, name] : std::array<std::pair<ControllerProcessField, const char *>, 7>{
+		         {{ControllerProcessField::Phase, "phase"},
+		          {ControllerProcessField::Requested, "requested"},
+		          {ControllerProcessField::Running, "running"},
+		          {ControllerProcessField::Paused, "paused"},
+		          {ControllerProcessField::Blocked, "blocked"},
+		          {ControllerProcessField::Activity, "activity"},
+		          {ControllerProcessField::Work, "work"}}})
+		{
+			auto &value = values.at(binding.fields[field]);
+			value = {};
+			if (!fact)
+				continue;
+			if (field == ControllerProcessField::Phase)
+				value = Value::string(fact->at(name).get<std::string>());
+			else if (field == ControllerProcessField::Activity || field == ControllerProcessField::Work)
+				value = Value::integer(fact->at(name));
+			else
+				value = Value::boolean(fact->at(name).get<bool>());
 		}
+		for (const auto &property : binding.properties)
+			values.at(property.destination) = controller_property_fact(
+			    fact && fact->contains("properties") ? &fact->at("properties") : nullptr, property);
 	}
 	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
 	values[brain.own[ControllerOwnField::Y]] = Value::integer(observation.own.y);
@@ -776,11 +850,10 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 				return {};
 			if (command.value < spec.minimum || command.value > spec.maximum ||
 			    (!spec.choices.empty() && !spec.choices.contains(command.value)) ||
-			    !(ability_channel_bound(address.ship, i, field)
-			          ? ability_generation_valid(address.ship, i, field, command.arguments)
-			          : operating_arguments_valid(spec.action, command.value, command.arguments)))
+			    !controller_arguments_valid(address.ship, i, field, spec.action, command.value, command.arguments))
 				return {};
-			if (!ability_command_valid(address.ship, i, field, command))
+			if (!ability_command_valid(address.ship, i, field, command) ||
+			    !process_command_valid(address.ship, i, field, command))
 				return {};
 			// Capture the current grant for ordinary Controller outputs too. A
 			// queued command cannot jump to a replacement grant after revocation.
@@ -789,6 +862,11 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 					if (binding.controller == i && (binding.enabled == field || binding.target == field))
 						if (const auto *grant = ability_control_grant(address.ship, binding))
 							command.arguments = {static_cast<std::int64_t>(grant->generation)};
+			if (command.arguments.empty())
+				for (const auto &binding : definition(address.ship).processes.controls)
+					if (binding.controller == i && binding.enabled == field)
+						if (const auto *process = process_control_grant(address.ship, binding))
+							command.arguments = {static_cast<std::int64_t>(process->generation)};
 			const auto &state = controller.commands[field];
 			if (spec.semantics == CommandSemantics::Request)
 			{
@@ -835,16 +913,15 @@ bool commit_controller(const ControllerProposal &proposal)
 	    controller.human != proposal.human || proposal.channel >= controller.commands.size())
 		return false;
 	if (!ability_channel_valid(proposal.address.entity, proposal.controller, proposal.channel, proposal.value,
-	                           proposal.request_id))
+	                           proposal.request_id) ||
+	    !process_channel_valid(proposal.address.entity, proposal.controller, proposal.channel, proposal.value))
 		return false;
 	const auto &spec = controller.definition.commands[proposal.channel];
 	auto &state = controller.commands[proposal.channel];
 	if (proposal.value < spec.minimum || proposal.value > spec.maximum ||
 	    (!spec.choices.empty() && !spec.choices.contains(proposal.value)) ||
-	    !(ability_channel_bound(proposal.address.entity, proposal.controller, proposal.channel)
-	          ? ability_generation_valid(proposal.address.entity, proposal.controller, proposal.channel,
-	                                     proposal.arguments)
-	          : operating_arguments_valid(spec.action, proposal.value, proposal.arguments)))
+	    !controller_arguments_valid(proposal.address.entity, proposal.controller, proposal.channel, spec.action,
+	                                proposal.value, proposal.arguments))
 		return false;
 	if (spec.semantics == CommandSemantics::Request)
 	{
@@ -1192,7 +1269,9 @@ void consume_controller_commands(flecs::entity entity)
 		{
 			auto &value = controller.commands[i];
 			const auto &command = controller.definition.commands[i];
-			if (command.action == OperatingAction::AbilityActivate)
+			if (command.action == OperatingAction::AbilityActivate ||
+			    process_channel_bound(entity.get<StableId>().id,
+			                          static_cast<std::size_t>(&controller - controls.controllers.data()), i))
 				continue; // The bound ability consumes its request in the physical preparation phase.
 			if (value.consumed == value.revision)
 				continue;
@@ -1435,9 +1514,8 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			}
 			const auto controller_index = static_cast<std::size_t>(&controller - controls.controllers.data());
 			const auto channel_index = static_cast<std::size_t>(&state - controller.commands.data());
-			fail(ability_channel_bound(entity.get<StableId>().id, controller_index, channel_index)
-			         ? (state.arguments.empty() || (state.arguments.size() == 1 && state.arguments.front() > 0))
-			         : operating_arguments_valid(spec.action, state.value, state.arguments));
+			fail(controller_arguments_valid(entity.get<StableId>().id, controller_index, channel_index, spec.action,
+			                                state.value, state.arguments, true));
 			for (const auto *key : {"revision", "consumed", "request_id"})
 				fail(value.at(key).is_number_unsigned());
 			state.revision = value.at("revision").get<std::uint64_t>();

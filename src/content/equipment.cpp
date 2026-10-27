@@ -114,13 +114,13 @@ std::string rewrite_reference(const Json &value, const std::map<std::string, std
 	}
 	return renamed(locals, text);
 }
-void rewrite_system(Json &value, const CompositionNames &names, const std::map<std::string, std::string> &bindings,
-                    const std::string &path)
+void rewrite_system(const Catalog &catalog, Json &value, const CompositionNames &names,
+                    const std::map<std::string, std::string> &bindings, const std::string &path)
 {
 	if (value.is_array())
 	{
 		for (std::size_t i = 0; i < value.size(); ++i)
-			rewrite_system(value.at(i), names, bindings, path + "[" + std::to_string(i) + "]");
+			rewrite_system(catalog, value.at(i), names, bindings, path + "[" + std::to_string(i) + "]");
 		return;
 	}
 	if (!value.is_object())
@@ -128,6 +128,23 @@ void rewrite_system(Json &value, const CompositionNames &names, const std::map<s
 	for (auto entry = value.begin(); entry != value.end(); ++entry)
 	{
 		const auto &key = entry.key();
+		if (key == "processes" && entry.value().is_object())
+		{
+			for (auto &[slot, binding] : entry.value().items())
+				if (binding.is_object() && binding.contains("native_id"))
+				{
+					const auto process = binding.value("process", std::string{});
+					if (!catalog.effects.contains(process))
+						composition_error(path + ".processes." + slot, "unknown process template");
+					const auto native = catalog.effects.at(process).value("native", std::string("effects"));
+					const auto &ids = native == "generation" ? family(names, "generators")
+					                  : native == "cooling"  ? family(names, "cooling_links")
+					                                         : names.systems;
+					binding["native_id"] = rewrite_reference(binding.at("native_id"), ids, bindings,
+					                                         path + ".processes." + slot + ".native_id");
+				}
+			continue;
+		}
 		const std::map<std::string, std::string> *ids = nullptr;
 		if (key == "system")
 			ids = &names.systems;
@@ -146,7 +163,7 @@ void rewrite_system(Json &value, const CompositionNames &names, const std::map<s
 		if (ids)
 			entry.value() = rewrite_reference(entry.value(), *ids, bindings, path + "." + key);
 		else if (key != "_equipment_origin" && key != "_assembly_origin" && key != "properties")
-			rewrite_system(entry.value(), names, bindings, path + "." + key);
+			rewrite_system(catalog, entry.value(), names, bindings, path + "." + key);
 	}
 }
 void rewrite_resource(Json &record, const std::string &kind, const CompositionNames &names,
@@ -784,7 +801,7 @@ void resolve_equipment(Catalog &catalog, SharedPropertyCatalog compiled)
 				if (entity["systems"].contains(placed_id))
 					composition_error(p.path, "placed System collides with '" + placed_id + "'");
 				auto spec = instantiate_equipment(catalog, it.value(), p.path + ".systems." + it.key());
-				rewrite_system(spec, p.names, bound, p.path + ".systems." + it.key());
+				rewrite_system(catalog, spec, p.names, bound, p.path + ".systems." + it.key());
 				spec["_assembly_origin"] = {{"assembly", p.definition},
 				                            {"placement", p.id},
 				                            {"local_id", it.key()},

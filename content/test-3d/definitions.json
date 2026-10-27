@@ -42,10 +42,16 @@
 			"systems": {
 				"engine": {
 					"max_speed_mm_s": 12000,
-					"acceleration_mm_s2": 2000
+					"acceleration_mm_s2": 2000,
+					"processes": {
+						"propulsion": { "process": "test3d.process.propulsion" }
+					}
 				},
 				"steering": {
-					"turn_mdeg_s": 45000
+					"turn_mdeg_s": 45000,
+					"processes": {
+						"propulsion": { "process": "test3d.process.propulsion" }
+					}
 				},
 				"radar": {
 					"range_mm": 500000,
@@ -14434,7 +14440,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "test3d.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.steering",
@@ -14453,7 +14464,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "test3d.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.lateral",
@@ -14477,7 +14493,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "test3d.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.boost",
@@ -14513,7 +14534,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "test3d.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.impulse",
@@ -14548,7 +14574,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"propulsion": {
+					"process": "test3d.process.propulsion"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.radar",
@@ -14593,7 +14624,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"generation": {
+					"process": "test3d.process.generation"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.storage",
@@ -14620,7 +14656,12 @@
 		{
 			"id": "test3d.equipment.coolant-valve",
 			"kind": "coolant",
-			"cooling_link": "cooling"
+			"cooling_link": "cooling",
+			"processes": {
+				"cooling": {
+					"process": "test3d.process.cooling"
+				}
+			}
 		},
 		{
 			"id": "test3d.equipment.pump",
@@ -14639,7 +14680,12 @@
 						"limited": "supply_limited"
 					}
 				}
-			]
+			],
+			"processes": {
+				"cooling": {
+					"process": "test3d.process.cooling"
+				}
+			}
 		}
 	],
 	"assemblies": [
@@ -15609,6 +15655,42 @@
 			"kind": "directed_mode",
 			"range_mm": 300000,
 			"energy_per_second": 0
+		},
+		{
+			"id": "test3d.process.generation",
+			"kind": "process",
+			"label": "Power generation",
+			"family": "machinery.generation",
+			"native": "generation",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.propulsion",
+			"kind": "process",
+			"label": "Propulsion",
+			"family": "machinery.propulsion",
+			"native": "propulsion",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.cooling",
+			"kind": "process",
+			"label": "Cooling",
+			"family": "machinery.cooling",
+			"native": "cooling",
+			"requested": true,
+			"shortage": "proportional"
+		},
+		{
+			"id": "test3d.process.processor",
+			"kind": "process",
+			"label": "Recipe processing",
+			"family": "machinery.processor",
+			"native": "processor",
+			"requested": true,
+			"shortage": "proportional"
 		}
 	],
 	"layouts": [

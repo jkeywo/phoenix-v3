@@ -175,10 +175,30 @@ void prune_custom_property_rates(std::span<const NativeRuleSource> sources)
 		return;
 	std::set<std::string> live;
 	if (custom_property_native_rates_dirty)
+	{
 		for (const auto &source : sources)
 			if (source.context.owner_effect_kind != NativeEffectKind::None &&
 			    native_property_rate_owner_live(source.context))
 				live.insert(native_property_rate_suffix(source.context));
+		// Process work and lifecycle groups have native provenance even when
+		// neither the process nor its grant declares rules. Derive those live
+		// lifetimes from their actual owners, including temporarily paused runs.
+		for (const auto &[id, ship] : entities)
+			for (const auto &address : custom_property_addresses(id))
+				if (const auto *runtime = process_runtime(address))
+					for (const auto &[name, process] : runtime->processes)
+					{
+						auto context = process_context(address, process);
+						if (native_property_rate_owner_live(context))
+							live.insert(native_property_rate_suffix(context));
+						if (!process.source.empty())
+						{
+							context.owner_grant = process.source;
+							if (native_property_rate_owner_live(context))
+								live.insert(native_property_rate_suffix(context));
+						}
+					}
+	}
 	for (const auto &[id, ship] : entities)
 		for (const auto &address : custom_property_addresses(id))
 			if (auto *state = custom_property_state(address))

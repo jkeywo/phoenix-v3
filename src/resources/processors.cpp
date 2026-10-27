@@ -572,13 +572,23 @@ ResourceAmount ResourceProcessor::milli_work_budget(ResourceAmount effective_mil
 	state_.rate_remainder = scaled % resource_tick_hz;
 	return scaled / resource_tick_hz;
 }
-ResourceAmount ResourceProcessor::funded_work(ResourceAmount supply_permille)
+ResourceAmount ResourceProcessor::quoted_funded_work(ResourceAmount supply_permille) const
+{
+	if (supply_permille < 0 || supply_permille > 1000)
+		throw std::runtime_error("Invalid processor funding quote");
+	return (state_.prepared_work * supply_permille + state_.funding_remainder) / 1000;
+}
+ResourceAmount ResourceProcessor::funded_work(ResourceAmount supply_permille, ResourceAmount maximum_work)
 {
 	if (supply_permille < 0 || supply_permille > 1000)
 		throw std::runtime_error("Invalid processor funding");
-	const auto scaled = state_.prepared_work * supply_permille + state_.funding_remainder;
-	state_.funding_remainder = scaled % 1000;
-	return scaled / 1000;
+	if (maximum_work < 0 || maximum_work > resource_limit)
+		throw std::runtime_error("Invalid processor work cap");
+	const auto work = quoted_funded_work(supply_permille);
+	if (work > maximum_work)
+		return maximum_work;
+	state_.funding_remainder = (state_.prepared_work * supply_permille + state_.funding_remainder) % 1000;
+	return work;
 }
 ResourceAmount ResourceProcessor::operating_rate(ResourceAmount maximum_work) const
 {

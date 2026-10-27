@@ -130,7 +130,14 @@ class ExpressionCompiler
 			key = name.substr(split + 1);
 			if (prefix != "event")
 				binding.role = role(prefix, at);
-			if (prefix == "event" && (key == "property_before" || key == "property_after"))
+			if (prefix == "event" && (key == "work" || key == "activity"))
+			{
+				if (rule.work_unit.empty())
+					rule_fail(at, "process work facts require a process evaluation");
+				binding.kind = key == "work" ? RuleFactKind::ProcessWork : RuleFactKind::ProcessActivity;
+				binding.unit = key == "work" ? rule.work_unit : "permille";
+			}
+			else if (prefix == "event" && (key == "property_before" || key == "property_after"))
 			{
 				if (rule.trigger != RuleTrigger::PropertyChanged)
 					rule_fail(at, "property event fact requires property_changed trigger");
@@ -196,6 +203,13 @@ class ExpressionCompiler
 			else if (key == "eligible")
 			{
 				binding.kind = RuleFactKind::Eligible;
+				binding.type = Type::Boolean;
+			}
+			else if (key == "present" || key == "healthy" || key == "on_duty")
+			{
+				binding.kind = key == "present"   ? RuleFactKind::OfficerPresent
+				               : key == "healthy" ? RuleFactKind::OfficerHealthy
+				                                  : RuleFactKind::OfficerOnDuty;
 				binding.type = Type::Boolean;
 			}
 			else if (key == "heat")
@@ -319,7 +333,8 @@ class ExpressionCompiler
 			if (!unit.empty())
 			{
 				bool known = unit == "ticks" || unit == "milliticks" || unit == "damage" || unit == "strength" ||
-				             unit == "energy" || unit == "heat" || unit == "permille";
+				             unit == "energy" || unit == "heat" || unit == "permille" ||
+				             (!rule.work_unit.empty() && unit == rule.work_unit);
 				for (const auto &d : modifier_properties())
 					known = known || d.unit == unit;
 
@@ -590,6 +605,122 @@ RuleExpression compile_rule_expression(const Catalog &catalog, RuleDefinition &r
 {
 	return ExpressionCompiler(catalog, rule, path, std::move(compiled)).compile(value);
 }
+std::vector<RuleCostDefinition> compile_rule_costs(const Catalog &catalog, RuleDefinition &result, const Json &entries,
+                                                   const std::string &at, const std::string &quantity,
+                                                   SharedPropertyCatalog supplied)
+{
+	const auto properties = supplied ? std::move(supplied) : compile_property_catalog(catalog);
+	const auto expression = [&](const Json &value, const std::string &field, Type type, const std::string &unit)
+	{
+		auto compiled = ExpressionCompiler(catalog, result, at + "." + field, properties).compile(value);
+		if (compiled.type != type || compiled.unit != unit)
+			rule_fail(at, "expression has incompatible type or units; expected " + unit);
+		return compiled;
+	};
+
+	if (!entries.is_array() || entries.empty() || entries.size() > 32)
+		rule_fail(at, "expected 1..32 costs");
+	std::vector<RuleCostDefinition> compiled;
+	for (const auto &entry : entries)
+	{
+		fields(entry, {"payer", "equipment", "store", "resource", "property", quantity}, at);
+		RuleCostDefinition cost;
+		cost.payer = role(entry.value("payer", std::string("target")), at);
+		cost.equipment = entry.value("equipment", std::string{});
+		cost.store = entry.value("store", std::string{});
+		cost.resource = entry.value("resource", std::string{});
+		cost.property = entry.value("property", std::string{});
+		if ((!cost.equipment.empty() && cost.equipment != "$owner" && cost.equipment != "$source" &&
+		     cost.equipment != "$target" && cost.equipment != "$hit" && !valid_identifier(cost.equipment)) ||
+		    cost.store.size() > 256)
+			rule_fail(at, "invalid cost equipment/store");
+		std::string unit = "resource:" + cost.resource;
+		if (!cost.property.empty())
+		{
+			const auto &definitions = properties;
+			if (!cost.store.empty() || !cost.resource.empty() || !definitions->contains(cost.property) ||
+			    definitions->at(cost.property).kind != CustomPropertyKind::Quantity)
+				rule_fail(at, "property cost requires a quantity without store/resource");
+			unit = definitions->at(cost.property).unit;
+		}
+		else if (cost.store.empty() || !catalog.resources.contains(cost.resource))
+			rule_fail(at, "cost requires store and known resource");
+		if (!entry.contains(quantity))
+			rule_fail(at, "missing " + quantity);
+		cost.amount = expression(entry.at(quantity), quantity, Type::Integer, unit);
+		compiled.push_back(std::move(cost));
+	}
+	return compiled;
+}
+void compile_rule_values(const Catalog &catalog, RuleDefinition &result, const Json &overrides, const std::string &at,
+                         SharedPropertyCatalog supplied)
+{
+	const auto properties = supplied ? std::move(supplied) : compile_property_catalog(catalog);
+	const auto expression = [&](const Json &value, const std::string &field, Type type, const std::string &unit)
+	{
+		auto compiled = ExpressionCompiler(catalog, result, at + "." + field, properties).compile(value);
+		if (compiled.type != type || compiled.unit != unit)
+			rule_fail(at, "expression has incompatible type or units; expected " + unit);
+		return compiled;
+	};
+
+	if (!overrides.is_object() || overrides.size() > 32)
+		rule_fail(at, "values requires operation-index object");
+	for (const auto &[index, over] : overrides.items())
+	{
+		if (index.empty() || index.size() > 2 || index.find_first_not_of("0123456789") != std::string::npos ||
+		    (index.size() > 1 && index[0] == '0'))
+			rule_fail(at, "invalid operation index");
+		const auto i = static_cast<std::size_t>(std::stoul(index));
+		if (i >= result.effects.operations.size())
+			rule_fail(at, "operation index outside effect group");
+		fields(over, {"damage", "amount", "delta_permille", "value"}, at + ".values." + index);
+		RuleOperationExpressions compiled;
+		const auto &operation = result.effects.operations[i];
+		if (over.contains("damage"))
+		{
+			if (operation.kind != EffectOperationKind::Damage)
+				rule_fail(at, "damage expression requires damage operation");
+			compiled.damage = expression(over.at("damage"), "values." + index + ".damage", Type::Integer, "damage");
+		}
+		if (over.contains("amount"))
+		{
+			if (operation.kind == EffectOperationKind::Damage || operation.kind == EffectOperationKind::Apply ||
+			    operation.kind == EffectOperationKind::Remove || operation.kind == EffectOperationKind::StoreFill ||
+			    operation.kind == EffectOperationKind::PropertySet)
+				rule_fail(at, "amount expression requires quantified store operation");
+			compiled.amount = expression(
+			    over.at("amount"), "values." + index + ".amount", Type::Integer,
+			    (operation.kind == EffectOperationKind::HeatAdd || operation.kind == EffectOperationKind::HeatRemove)
+			        ? "heat"
+			    : operation.property.empty() ? "resource:" + operation.resource
+			                                 : properties->at(operation.property).unit);
+		}
+		if (over.contains("value"))
+		{
+			if (operation.kind != EffectOperationKind::PropertySet)
+				rule_fail(at, "value expression requires property_set");
+			const auto &definitions = properties;
+			const auto &d = definitions->at(operation.property);
+			const auto type = d.kind == CustomPropertyKind::Flag   ? Type::Boolean
+			                  : d.kind == CustomPropertyKind::Enum ? Type::Text
+			                                                       : Type::Integer;
+			compiled.value = expression(over.at("value"), "values." + index + ".value", type,
+			                            d.kind == CustomPropertyKind::Enum ? "enum:" + d.id : d.unit);
+		}
+		if (over.contains("delta_permille"))
+		{
+			if (operation.kind != EffectOperationKind::Apply ||
+			    catalog.effects.at(operation.effect).value("kind", std::string{}) != "modifier")
+				rule_fail(at, "delta_permille expression requires modifier apply");
+			compiled.delta_permille =
+			    expression(over.at("delta_permille"), "values." + index + ".delta_permille", Type::Integer, "permille");
+		}
+		if (!compiled.damage && !compiled.amount && !compiled.delta_permille && !compiled.value)
+			rule_fail(at, "empty operation expression override");
+		result.values.emplace(i, std::move(compiled));
+	}
+}
 RuleDefinition compile_rule(const Catalog &catalog, const std::string &id, SharedPropertyCatalog compiled)
 try
 {
@@ -642,39 +773,7 @@ try
 	};
 	const auto costs = [&](const Json &entries, const std::string &field, const std::string &quantity)
 	{
-		if (!entries.is_array() || entries.empty() || entries.size() > 32)
-			rule_fail(at + "." + field, "expected 1..32 costs");
-		std::vector<RuleCostDefinition> compiled;
-		for (const auto &entry : entries)
-		{
-			fields(entry, {"payer", "equipment", "store", "resource", "property", quantity}, at + "." + field);
-			RuleCostDefinition cost;
-			cost.payer = role(entry.value("payer", std::string("target")), at + "." + field);
-			cost.equipment = entry.value("equipment", std::string{});
-			cost.store = entry.value("store", std::string{});
-			cost.resource = entry.value("resource", std::string{});
-			cost.property = entry.value("property", std::string{});
-			if ((!cost.equipment.empty() && cost.equipment != "$owner" && cost.equipment != "$source" &&
-			     cost.equipment != "$target" && cost.equipment != "$hit" && !valid_identifier(cost.equipment)) ||
-			    cost.store.size() > 256)
-				rule_fail(at + "." + field, "invalid cost equipment/store");
-			std::string unit = "resource:" + cost.resource;
-			if (!cost.property.empty())
-			{
-				const auto &definitions = properties;
-				if (!cost.store.empty() || !cost.resource.empty() || !definitions->contains(cost.property) ||
-				    definitions->at(cost.property).kind != CustomPropertyKind::Quantity)
-					rule_fail(at, "property cost requires a quantity without store/resource");
-				unit = definitions->at(cost.property).unit;
-			}
-			else if (cost.store.empty() || !catalog.resources.contains(cost.resource))
-				rule_fail(at, "cost requires store and known resource");
-			if (!entry.contains(quantity))
-				rule_fail(at + "." + field, "missing " + quantity);
-			cost.amount = expression(entry.at(quantity), field + "." + quantity, Type::Integer, unit);
-			compiled.push_back(std::move(cost));
-		}
-		return compiled;
+		return compile_rule_costs(catalog, result, entries, at + "." + field, quantity, properties);
 	};
 	if (value.contains("costs"))
 		result.costs = costs(value.at("costs"), "costs", "amount");
@@ -695,62 +794,7 @@ try
 		result.energy = expression(value.at("energy"), "energy", Type::Integer, "energy");
 	}
 	if (value.contains("values"))
-	{
-		const auto &overrides = value.at("values");
-		if (!overrides.is_object() || overrides.size() > 32)
-			rule_fail(at, "values requires operation-index object");
-		for (const auto &[index, over] : overrides.items())
-		{
-			if (index.empty() || index.size() > 2 || index.find_first_not_of("0123456789") != std::string::npos ||
-			    (index.size() > 1 && index[0] == '0'))
-				rule_fail(at, "invalid operation index");
-			const auto i = static_cast<std::size_t>(std::stoul(index));
-			if (i >= result.effects.operations.size())
-				rule_fail(at, "operation index outside effect group");
-			fields(over, {"damage", "amount", "delta_permille", "value"}, at + ".values." + index);
-			RuleOperationExpressions compiled;
-			const auto &operation = result.effects.operations[i];
-			if (over.contains("damage"))
-			{
-				if (operation.kind != EffectOperationKind::Damage)
-					rule_fail(at, "damage expression requires damage operation");
-				compiled.damage = expression(over.at("damage"), "values." + index + ".damage", Type::Integer, "damage");
-			}
-			if (over.contains("amount"))
-			{
-				if (operation.kind == EffectOperationKind::Damage || operation.kind == EffectOperationKind::Apply ||
-				    operation.kind == EffectOperationKind::Remove || operation.kind == EffectOperationKind::StoreFill ||
-				    operation.kind == EffectOperationKind::PropertySet)
-					rule_fail(at, "amount expression requires quantified store operation");
-				compiled.amount = expression(over.at("amount"), "values." + index + ".amount", Type::Integer,
-				                             operation.property.empty() ? "resource:" + operation.resource
-				                                                        : properties->at(operation.property).unit);
-			}
-			if (over.contains("value"))
-			{
-				if (operation.kind != EffectOperationKind::PropertySet)
-					rule_fail(at, "value expression requires property_set");
-				const auto &definitions = properties;
-				const auto &d = definitions->at(operation.property);
-				const auto type = d.kind == CustomPropertyKind::Flag   ? Type::Boolean
-				                  : d.kind == CustomPropertyKind::Enum ? Type::Text
-				                                                       : Type::Integer;
-				compiled.value = expression(over.at("value"), "values." + index + ".value", type,
-				                            d.kind == CustomPropertyKind::Enum ? "enum:" + d.id : d.unit);
-			}
-			if (over.contains("delta_permille"))
-			{
-				if (operation.kind != EffectOperationKind::Apply ||
-				    catalog.effects.at(operation.effect).value("kind", std::string{}) != "modifier")
-					rule_fail(at, "delta_permille expression requires modifier apply");
-				compiled.delta_permille = expression(over.at("delta_permille"), "values." + index + ".delta_permille",
-				                                     Type::Integer, "permille");
-			}
-			if (!compiled.damage && !compiled.amount && !compiled.delta_permille && !compiled.value)
-				rule_fail(at, "empty operation expression override");
-			result.values.emplace(i, std::move(compiled));
-		}
-	}
+		compile_rule_values(catalog, result, value.at("values"), at, properties);
 	if (result.phase == RulePhase::Maintained)
 		for (const auto &op : result.effects.operations)
 			if (op.kind != EffectOperationKind::Apply)
@@ -1071,7 +1115,7 @@ std::map<std::string, std::vector<RuleBinding>> compile_effect_rules(const Catal
 		{
 			const auto kind = effect.value("kind", std::string{});
 			if (kind != "shield" && kind != "modifier" && kind != "periodic" && kind != "ability_grant" &&
-			    kind != "payload")
+			    kind != "payload" && kind != "process" && kind != "process_grant")
 				rule_fail("effects." + id + ".rules", "this template has no native binding owner");
 			// Payload/periodic adapters already own their binding list and native cadence.
 			if (kind == "payload" || kind == "periodic")

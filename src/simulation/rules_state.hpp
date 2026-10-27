@@ -51,7 +51,8 @@ enum class NativeEffectKind
 	Shield,
 	Modifier,
 	Ability,
-	Periodic
+	Periodic,
+	Process
 };
 struct NativeRuleContext
 {
@@ -73,7 +74,8 @@ enum class RuleOwnerKind
 	Officer,
 	Region,
 	Effect,
-	Shield
+	Shield,
+	Process
 };
 // Ephemeral adapter view. The pointed-to bindings belong to the immutable
 // compiled catalogue; the native object remains the lifetime authority.
@@ -99,10 +101,11 @@ struct RuleWorkCredit
 	// A quantity input addresses the native owner directly, without a stock proxy.
 	std::string property, equipment, officer;
 	std::int64_t compartment = -1;
+	std::int64_t unit_work = resource_work_unit;
 	bool operator==(const RuleWorkCredit &) const = default;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RuleWorkCredit, payer, store, resource, prepaid, property, equipment, officer,
-                                   compartment)
+                                   compartment, unit_work)
 
 struct RuleExecutionState
 {

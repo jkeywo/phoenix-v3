@@ -139,6 +139,7 @@ ConsoleAddress ftl_owner(EntityId id, const std::string &system) const
 }
 void retire_departed(EntityId id)
 {
+	retire_ship_processes(id);
 	auto ship = entities.at(id);
 	ship.disable();
 	for (auto child : ship.get<EquipmentIndex>().values)

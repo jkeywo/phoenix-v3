@@ -1173,6 +1173,31 @@ struct GameplayEditor
 		}
 
 		{
+			ScopedTree panel("Process control bindings");
+			if (panel)
+			{
+				if (!ship.contains("process_controls"))
+					ship["process_controls"] = Json::object();
+				auto &controls = ship["process_controls"];
+				object_rows(controls,
+				            [&](const std::string &id, Json &binding)
+				            {
+					            ScopedId identity(id.c_str());
+					            ImGui::TextUnformatted(id.c_str());
+					            choice(binding, "source", {"entity", "equipment", "officer", "compartment"});
+					            string(binding, "owner");
+					            string(binding, "process");
+					            for (const auto *field : {"controller", "enabled"})
+						            string(binding, field);
+					            return button("Remove process endpoint");
+				            });
+				if (button("Add process endpoint"))
+					controls[fresh(controls, "process")] = {
+					    {"source", "equipment"}, {"owner", ""}, {"process", ""}, {"controller", ""}, {"enabled", ""}};
+			}
+		}
+
+		{
 			ScopedTree panel("Boarding missions");
 			if (panel)
 				records(
@@ -2809,8 +2834,33 @@ struct GameplayEditor
 			return Json::object();
 		}
 	}
+	void owner_processes_fields(Json &owner, WorkshopDocument &document)
+	{
+		ScopedId scope("owner-processes");
+		ScopedTree panel(label("Processes").c_str());
+		if (!panel)
+			return;
+		if (owner.contains("processes") && owner.at("processes").is_object())
+			object_rows(owner["processes"],
+			            [&](const std::string &id, Json &binding)
+			            {
+				            ScopedId identity(id.c_str());
+				            ImGui::TextUnformatted(id.c_str());
+				            choice(binding, "process", document.definition_choices(WorkshopDefinitionKind::Effect));
+				            boolean(binding, "requested", true);
+				            optional_string(binding, "native_id");
+				            return button("Remove process declaration");
+			            });
+		if (button("Declare process"))
+		{
+			if (!owner.contains("processes"))
+				owner["processes"] = Json::object();
+			owner["processes"][fresh(owner["processes"], "process")] = {{"process", ""}, {"requested", true}};
+		}
+	}
 	void owner_properties_fields(Json &owner, WorkshopDocument &document)
 	{
+		owner_processes_fields(owner, document);
 		ScopedId scope("custom-properties");
 		ScopedTree panel(label("Custom properties").c_str());
 		if (!panel)
@@ -2883,11 +2933,9 @@ struct GameplayEditor
 				source.erase(key);
 		}
 	}
-	void effect_operations_fields(Json &group, WorkshopDocument &document)
+	void effect_costs_fields(Json &group, const char *key, const char *quantity, WorkshopDocument &document)
 	{
-		optional_string(group, "payer");
-		integer(group, "energy");
-		records(group, "costs", {{"payer", "target"}, {"store", ""}, {"resource", ""}, {"amount", 0}},
+		records(group, key, {{"payer", "target"}, {"store", ""}, {"resource", ""}, {quantity, 0}},
 		        [&](Json &cost)
 		        {
 			        choice(cost, "payer",
@@ -2905,15 +2953,21 @@ struct GameplayEditor
 				        string(cost, "store");
 				        choice(cost, "resource", document.definition_choices(WorkshopDefinitionKind::Resource));
 			        }
-			        integer(cost, "amount");
+			        integer(cost, quantity);
 		        });
+	}
+	void effect_operations_fields(Json &group, WorkshopDocument &document)
+	{
+		optional_string(group, "payer");
+		integer(group, "energy");
+		effect_costs_fields(group, "costs", "amount", document);
 		records(group, "operations", {{"kind", "fill"}, {"target", "protected"}, {"store", ""}, {"resource", ""}},
 		        [&](Json &operation)
 		        {
 			        const auto old = operation.value("kind", std::string("fill"));
 			        choice(operation, "kind",
 			               {"damage", "apply", "remove", "add", "consume", "set", "fill", "transfer", "property_set",
-			                "property_add", "property_subtract", "property_rate"});
+			                "property_add", "property_subtract", "property_rate", "heat_add", "heat_remove"});
 			        const auto kind = operation.value("kind", std::string("fill"));
 			        if (kind != old)
 			        {
@@ -2922,6 +2976,13 @@ struct GameplayEditor
 			        }
 			        choice(operation, "target",
 			               {"owner", "source", "instigator", "subject", "target", "attacker", "protected"});
+			        if (kind == "heat_add" || kind == "heat_remove")
+			        {
+				        optional_string(operation, "equipment");
+				        optional_string(operation, "store");
+				        integer(operation, "amount", 1);
+				        return;
+			        }
 			        if (kind == "damage")
 				        integer(operation, "damage", 1);
 			        else if (kind == "apply" || kind == "remove")
@@ -3059,7 +3120,7 @@ struct GameplayEditor
 			    string(effect, "id");
 			    choice(effect, "kind",
 			           {"shield", "modifier", "operations", "directed_mode", "targeting_policy", "payload", "periodic",
-			            "ability", "psychic", "ability_grant", "rule"},
+			            "ability", "psychic", "ability_grant", "process", "process_grant", "rule"},
 			           true);
 			    choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
 			    text("Changing template kind preserves authored fields. Verification reports fields incompatible with "
@@ -3078,7 +3139,8 @@ struct GameplayEditor
 				    {
 				    }
 			    }
-			    if (kind == "shield" || kind == "modifier" || kind == "ability_grant")
+			    if (kind == "shield" || kind == "modifier" || kind == "ability_grant" || kind == "process" ||
+			        kind == "process_grant")
 				    rule_bindings_fields(effect, document);
 			    if (kind == "rule")
 			    {
@@ -3097,6 +3159,39 @@ struct GameplayEditor
 				    rule_expression_field(effect, "values", Json::object());
 				    rule_expression_field(effect, "costs", Json::array());
 				    rule_expression_field(effect, "funding", {{"shortage", "pause"}, {"costs", Json::array()}});
+				    return;
+			    }
+			    if (kind == "process")
+			    {
+				    string(effect, "label");
+				    choice(effect, "native", {"effects", "generation", "propulsion", "cooling", "processor"});
+				    boolean(effect, "requested", true);
+				    optional_string(effect, "family");
+				    choice(effect, "shortage", {"proportional", "pause", "stop"});
+				    rule_expression_field(effect, "requirements", true);
+				    for (const auto *field : {"rate", "upkeep_scale", "work_scale"})
+					    rule_expression_field(effect, field, {{"value", 1000}, {"unit", "permille"}});
+				    names(effect, "observations", document.definition_choices(WorkshopDefinitionKind::Property));
+				    effect_costs_fields(effect, "entry_costs", "amount", document);
+				    effect_costs_fields(effect, "upkeep_costs", "per_second", document);
+				    effect_costs_fields(effect, "work_costs", "per_work", document);
+				    for (const auto *field :
+				         {"start_effect", "pause_effect", "resume_effect", "stop_effect", "work_effect"})
+					    choice(effect, field, document.definition_choices(WorkshopDefinitionKind::Effect), true);
+				    rule_expression_field(effect, "work_values", Json::object());
+				    records(effect, "exclusions", {{"id", "exclusive"}, {"scope", "source"}},
+				            [&](Json &exclusion)
+				            {
+					            string(exclusion, "id");
+					            choice(exclusion, "scope", {"source"});
+				            });
+				    return;
+			    }
+			    if (kind == "process_grant")
+			    {
+				    choice(effect, "process", document.definition_choices(WorkshopDefinitionKind::Effect));
+				    optional_string(effect, "native_id");
+				    integer(effect, "duration_ticks", 100);
 				    return;
 			    }
 			    if (kind == "ability")
@@ -3317,6 +3412,7 @@ struct GameplayEditor
 					                "lateral", "boost", "impulse"},
 					               true);
 					        system_details(it.value(), equipment_kind(document, it.value()));
+					        owner_processes_fields(it.value(), document);
 					        text("Absent values inherit from the equipment template. Endpoint names and $service "
 					             "bindings remain local to this assembly until placement.");
 					        scalar_map(it.value(), "parameters");
@@ -3626,6 +3722,15 @@ struct GameplayEditor
 			        });
 		if (editable("ability_bindings"))
 			strings(tree, "ability_bindings");
+		if (editable("process_bindings"))
+			strings(tree, "process_bindings");
+		if (editable("process_property_bindings"))
+			records(tree, "process_property_bindings", {{"endpoint", ""}, {"property", ""}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "endpoint");
+				        choice(binding, "property", document.definition_choices(WorkshopDefinitionKind::Property));
+			        });
 		if (editable("ability_property_bindings"))
 			records(tree, "ability_property_bindings", {{"endpoint", ""}, {"property", ""}},
 			        [&](Json &binding)

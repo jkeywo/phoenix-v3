@@ -355,6 +355,10 @@ void advance_craft_transport(std::size_t index, EntityId craft)
 			s.pending_target = 0;
 			s.progress = 0;
 			m.transport_released = true;
+			// A consumed craft cannot launch again. Close its native executions
+			// before disabling the physical owner, just as for a departed ship.
+			retire_ship_processes(craft);
+			retire_process_dependants();
 			set_craft_active(e, false);
 		}
 		else if (!d.retain_craft)
@@ -771,8 +775,10 @@ void step_vertical()
 				const auto paid = p && child.has<ResourceBinding>()
 				                      ? p->grants.at(child.get<ResourceBinding>().slot).supply_permille
 				                      : 1000;
-				effectiveness = std::max(
-				    effectiveness, static_cast<int>(paid * fault_effectiveness(e, child.get<Equipment>().id) / 1000));
+				const auto process_paid = native_process_paid(id, "propulsion", child.get<Equipment>().id, paid);
+				effectiveness =
+				    std::max(effectiveness,
+				             static_cast<int>(process_paid * fault_effectiveness(e, child.get<Equipment>().id) / 1000));
 			}
 		const auto delta = v.desired - v.altitude;
 		const auto stopping = static_cast<std::int64_t>(

@@ -1,6 +1,5 @@
 #pragma once
-#include "body_projection.hpp"
-#include <set>
+#include "property_projection.hpp"
 namespace phoenix::ability_projection
 {
 inline void validate_control(const Json &control)
@@ -48,40 +47,7 @@ inline Json board(const Json &source)
 		row["output"] = projection::number(entry.at("output"), 0, 1000);
 		for (const auto *key : {"energy_per_second", "preparation_energy_per_second"})
 			row[key] = projection::number(entry.at(key), 0, 1000000000);
-		row["properties"] = Json::array();
-		const auto properties = entry.value("properties", Json::array());
-		if (!properties.is_array() || properties.size() > 256)
-			throw std::runtime_error("Invalid ability property observations");
-		std::set<std::string> property_ids;
-		for (const auto &property : properties)
-		{
-			const auto property_id = projection::text(property.at("id"), 128);
-			const auto kind = projection::text(property.at("kind"), 16);
-			if (property_id.empty() || !property_ids.insert(property_id).second)
-				throw std::runtime_error("Invalid ability observed property identity");
-			Json value{{"id", property_id},
-			           {"kind", kind},
-			           {"label", projection::text(property.at("label"), 128)},
-			           {"unit", projection::text(property.at("unit"), 128)},
-			           {"display_scale", projection::number(property.at("display_scale"), 1, 1000000000)}};
-			if (kind == "flag")
-			{
-				if (!property.at("value").is_boolean())
-					throw std::runtime_error("Invalid ability observed flag");
-				value["value"] = property.at("value");
-			}
-			else if (kind == "enum")
-			{
-				value["value"] = projection::text(property.at("value"), 128);
-				value["choice_label"] = projection::text(property.at("choice_label"), 128);
-			}
-			else if (kind == "quantity" || kind == "attribute")
-				value["value"] = projection::number(property.at("value"), kind == "quantity" ? 0 : -1000000000000LL,
-				                                    1000000000000LL);
-			else
-				throw std::runtime_error("Invalid ability observed property kind");
-			row["properties"].push_back(std::move(value));
-		}
+		row["properties"] = property_projection::observations(entry.value("properties", Json::array()));
 		result.push_back(std::move(row));
 	}
 	return result;

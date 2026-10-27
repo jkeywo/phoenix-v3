@@ -34,6 +34,8 @@ bool rule_origin_live(const RuleOriginKey &key, const PreparedEffectGroup *prepa
 	if (ordnance || !entities.contains(id))
 		return false;
 	const auto ship = entities.at(id);
+	if (process_origin_live(id, source, prepared))
+		return true;
 	const auto *shields =
 	    prepared && prepared->shields.contains(id) ? &prepared->shields.at(id) : ship.try_get<ShieldComponent>();
 	if (shields)
@@ -64,6 +66,19 @@ bool native_property_rate_owner_live(const NativeRuleContext &context) const
 {
 	if (context.owner_effect_kind == NativeEffectKind::None)
 		return true;
+	if (context.owner_effect_kind == NativeEffectKind::Process)
+	{
+		const auto address = custom_property_address(context.owner);
+		const auto *runtime = process_runtime(address);
+		if (!runtime)
+			return false;
+		for (const auto &[id, state] : runtime->processes)
+			if (state.generation == context.owner_effect_id &&
+			    (state.expiry < 0 || state.expiry > static_cast<std::int64_t>(ecs.get<Clock>().tick)))
+				return (!state.source.empty() && state.source == context.owner_grant) ||
+				       (state.admitted && process_run_source(address, state) == context.owner_grant);
+		return false;
+	}
 	if (context.owner_effect_kind == NativeEffectKind::Periodic)
 	{
 		const auto effect = active_rule_entity(context.owner_effect_id);
@@ -509,6 +524,36 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 				native(grant.grant_effect, grant.parent,
 				       "ability-effect:" + std::to_string(id) + ":" + std::to_string(grant.generation), owner,
 				       grant.expiry < 0 || grant.expiry > tick, NativeEffectKind::Ability, grant.generation);
+			}
+	for (const auto &address : custom_property_addresses(id))
+		if (const auto *runtime = process_runtime(address))
+			for (const auto &[slot, state] : runtime->processes)
+			{
+				const auto owner = process_actor(address);
+				const auto lifetime = state.expiry < 0 || state.expiry > tick;
+				const auto add_process_source =
+				    [&](const std::string &definition, const std::string &key, NativeRuleContext context, bool eligible)
+				{
+					const auto bindings = native_effect_rules.find(definition);
+					if (bindings != native_effect_rules.end())
+						add(RuleOwnerKind::Process, key, owner, std::move(context), bindings->second,
+						    alive && eligible && rule_lease_available(state.source));
+				};
+				if (state.admitted)
+					add_process_source(state.definition, process_run_source(address, state),
+					                   process_context(address, state),
+					                   lifetime && process_run_available(process_context(address, state)));
+				if (!state.grant_effect.empty())
+				{
+					auto context = state.origin;
+					context.owner = context.subject = context.target = owner;
+					context.owner_grant = state.source;
+					context.owner_effect_kind = NativeEffectKind::Process;
+					context.owner_effect_id = state.generation;
+					context.hit = rule_hit_context(owner);
+					add_process_source(state.grant_effect, "process-grant:" + process_instance_key(address, state),
+					                   std::move(context), lifetime);
+				}
 			}
 	for (auto effect_entity : active_rule_rows())
 	{

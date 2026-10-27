@@ -328,26 +328,26 @@ std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &t
 	}
 	return result;
 }
-std::vector<std::string> controller_ability_bindings(const Json &tree, const Catalog &catalog,
-                                                     SharedPropertyCatalog compiled)
+static std::vector<std::string> controller_execution_endpoints(const Json &tree, const Catalog &catalog,
+                                                               SharedPropertyCatalog compiled,
+                                                               const char *endpoint_field, const char *property_field)
 {
-	const auto bindings = resolve_tree_definition(tree, catalog).value("ability_bindings", Json::array());
+	const auto bindings = resolve_tree_definition(tree, catalog).value(endpoint_field, Json::array());
 	binding_require(bindings.is_array() && bindings.size() <= 256, "Controller tree",
-	                "expected bounded ability_bindings");
+	                std::string("expected bounded ") + endpoint_field);
 	std::vector<std::string> result;
 	std::set<std::string> seen;
 	for (const auto &binding : bindings)
 	{
-		binding_require(binding.is_string(), "Controller tree", "ability binding must name an endpoint");
+		binding_require(binding.is_string(), "Controller tree", "execution binding must name an endpoint");
 		const auto endpoint = binding.get<std::string>();
 		binding_require(valid_identifier(endpoint) && seen.insert(endpoint).second, "Controller tree",
-		                "invalid or duplicate ability endpoint binding");
+		                "invalid or duplicate execution endpoint binding");
 		result.push_back(endpoint);
 	}
-	const auto property_bindings =
-	    resolve_tree_definition(tree, catalog).value("ability_property_bindings", Json::array());
+	const auto property_bindings = resolve_tree_definition(tree, catalog).value(property_field, Json::array());
 	binding_require(property_bindings.is_array() && property_bindings.size() <= 256, "Controller tree",
-	                "expected bounded ability_property_bindings");
+	                std::string("expected bounded ") + property_field);
 	const auto definitions = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	std::set<std::pair<std::string, std::string>> seen_properties;
 	for (const auto &binding : property_bindings)
@@ -360,11 +360,23 @@ std::vector<std::string> controller_ability_bindings(const Json &tree, const Cat
 		           property = binding.at("property").get<std::string>();
 		binding_require(valid_identifier(endpoint) && definitions->contains(property) &&
 		                    seen_properties.emplace(endpoint, property).second,
-		                "Controller tree", "invalid or duplicate observed ability property binding");
+		                "Controller tree", "invalid or duplicate observed execution property binding");
 		if (seen.insert(endpoint).second)
 			result.push_back(endpoint);
 	}
 	return result;
+}
+std::vector<std::string> controller_ability_bindings(const Json &tree, const Catalog &catalog,
+                                                     SharedPropertyCatalog properties)
+{
+	return controller_execution_endpoints(tree, catalog, std::move(properties), "ability_bindings",
+	                                      "ability_property_bindings");
+}
+std::vector<std::string> controller_process_bindings(const Json &tree, const Catalog &catalog,
+                                                     SharedPropertyCatalog properties)
+{
+	return controller_execution_endpoints(tree, catalog, std::move(properties), "process_bindings",
+	                                      "process_property_bindings");
 }
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &tree, const Catalog &catalog)
 {
@@ -536,6 +548,32 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 				binding.properties.push_back({property, add({prefix + "property." + property, type, 4, {}}), type});
 			}
 		result.abilities.push_back(std::move(binding));
+	}
+	const auto process_properties =
+	    resolve_tree_definition(tree, catalog).value("process_property_bindings", Json::array());
+	for (const auto &endpoint : controller_process_bindings(tree, catalog, properties))
+	{
+		ControllerProcessBinding binding;
+		binding.endpoint = endpoint;
+		const auto prefix = "process." + endpoint + ".";
+		binding.fields[ControllerProcessField::Phase] = add({prefix + "phase", Type::Text, 4, {}});
+		binding.fields[ControllerProcessField::Requested] = add({prefix + "requested", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Running] = add({prefix + "running", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Paused] = add({prefix + "paused", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Blocked] = add({prefix + "blocked", Type::Boolean, 4, {}});
+		binding.fields[ControllerProcessField::Activity] = add({prefix + "activity", Type::Integer, 4, {}});
+		binding.fields[ControllerProcessField::Work] = add({prefix + "work", Type::Integer, 4, {}});
+		for (const auto &property_binding : process_properties)
+			if (property_binding.at("endpoint") == endpoint)
+			{
+				const auto property = property_binding.at("property").get<std::string>();
+				const auto kind = properties->at(property).kind;
+				const auto type = kind == CustomPropertyKind::Flag   ? Type::Boolean
+				                  : kind == CustomPropertyKind::Enum ? Type::Text
+				                                                     : Type::Integer;
+				binding.properties.push_back({property, add({prefix + "property." + property, type, 4, {}}), type});
+			}
+		result.processes.push_back(std::move(binding));
 	}
 	const std::vector<FieldSpec> inbox{
 	    {"message.available", Type::Boolean, 4, {}},     {"message.id", Type::Message, 4, {}},

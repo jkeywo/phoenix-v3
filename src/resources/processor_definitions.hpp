@@ -39,7 +39,8 @@ public:
 	bool can_select(const ProcessorStores &, const std::string &recipe) const;
 	ResourceAmount work_budget(ResourceAmount effective_rate);
 	ResourceAmount milli_work_budget(ResourceAmount effective_milli_rate);
-	ResourceAmount funded_work(ResourceAmount supply_permille);
+	ResourceAmount quoted_funded_work(ResourceAmount supply_permille) const;
+	ResourceAmount funded_work(ResourceAmount supply_permille, ResourceAmount maximum_work = resource_limit);
 	ResourceAmount operating_rate(ResourceAmount maximum_work) const;
 	Json save() const;
 	void restore(const Json &, const ProcessorStores &);

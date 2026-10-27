@@ -307,6 +307,9 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 	if (catalog.presentation)
 		return result;
 	const auto &hull = catalog.entities.at(entity);
+	const auto process_controls = hull.value("process_controls", Json::object());
+	if (!process_controls.is_object())
+		ability_fail(entity + ".process_controls", "expected object");
 	const auto &definitions = result.catalog->definitions;
 	for (const auto &[id, system] : hull.at("systems").items())
 		if (system.contains("abilities"))
@@ -360,6 +363,10 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 				ability_fail(path + "." + key, "requires zero-initialised nonnegative intent channel");
 			if (!channels.emplace(binding.controller, index).second)
 				ability_fail(path + "." + key, "ability channel has multiple physical consumers");
+			for (const auto &[id, process] : process_controls.items())
+				if (process.value("controller", std::string{}) == controller.id &&
+				    process.value("enabled", std::string{}) == controller.commands[index].id)
+					ability_fail(path, "channel cannot drive both an ability and a process");
 		};
 		const auto ability = definitions.find(binding.ability);
 		// Fixed sustained endpoints may use an explicit start/cancel request as
@@ -487,6 +494,10 @@ AbilityDefinitionSet compile_abilities(const Catalog &catalog, const std::string
 					ability_fail(path + ".planner", "missing matching planning channel");
 				const auto &execution = controller.commands[index];
 				const auto &preference = planner.commands[planned_index];
+				for (const auto &[id, process] : process_controls.items())
+					if (process.value("controller", std::string{}) == planner.id &&
+					    process.value("enabled", std::string{}) == preference.id)
+						ability_fail(path, "planning channel cannot drive both an ability and a process");
 				const auto action = execution.action == OperatingAction::AbilityActivate
 				                        ? OperatingAction::IntentBoolean
 				                        : execution.action;

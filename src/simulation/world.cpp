@@ -39,6 +39,8 @@ import phoenix.gameplay_scenario;
 #include "payload_state.hpp"
 #include "rules_state.hpp"
 #include "custom_properties_state.hpp"
+#include "execution_state.hpp"
+#include "processes_state.hpp"
 #include "combat.hpp"
 #include "directed_state.hpp"
 #include "logistics_state.hpp"
@@ -168,6 +170,7 @@ struct CompiledDefinition
 	PersonnelDefinition personnel;
 	PsychicDefinition psychic;
 	AbilityDefinitionSet abilities;
+	ProcessDefinitionSet processes;
 	SourceRuleDefinitionSet rules;
 	std::vector<BoardingDefinition> boarding;
 	std::map<std::string, std::vector<std::string>> boarding_docking_ports;
@@ -274,6 +277,8 @@ struct World::Impl
 	std::map<std::string, ModifierEffectDefinition> modifier_templates;
 	std::map<std::string, EffectGroupDefinition> effect_groups;
 	std::map<std::string, AbilityGrantDefinition> ability_grant_templates;
+	SharedProcessCatalog process_catalog;
+	std::map<std::string, ProcessGrantDefinition> process_grant_templates;
 	SharedResourceCatalogue resource_catalogue;
 	SharedPropertyCatalog property_catalogue;
 	std::uint64_t next_shield_hit = 1;
@@ -614,6 +619,7 @@ struct World::Impl
 		property_catalogue = std::move(properties);
 		const auto content = convert_controller_content(source, directed_catalog, property_catalogue);
 		const auto ability_catalog = compile_ability_catalog(content, property_catalogue);
+		process_catalog = compile_process_catalog(content, property_catalogue);
 		rule_templates = compile_rule_catalog(content, property_catalogue);
 		native_effect_rules = compile_effect_rules(content, rule_templates);
 		console_layouts = content.consoles;
@@ -629,6 +635,8 @@ struct World::Impl
 				payload_templates.emplace(id, compile_payload(content, id, rule_templates));
 			else if (effect.at("kind") == "periodic")
 				periodic_templates.emplace(id, compile_periodic_effect(content, id, rule_templates));
+			else if (effect.at("kind") == "process_grant")
+				process_grant_templates.emplace(id, compile_process_grant(content, id));
 			else if (effect.at("kind") == "ability_grant")
 				ability_grant_templates.emplace(id, compile_ability_grant(content, id));
 		packs = content.ordered_packs;
@@ -681,6 +689,7 @@ struct World::Impl
 			result.psychic = compile_psychic(content, name, ability_catalog, result.personnel, ability_layout);
 			result.abilities =
 			    compile_abilities(content, name, ability_catalog, result.personnel, ability_layout, result.psychic);
+			result.processes = compile_process_bindings(content, name, process_catalog, property_catalogue);
 			result.boarding = compile_boarding(content, name, directed_catalog, property_catalogue);
 			for (const auto &row : definition.value("boarding_missions", Json::array()))
 				result.boarding_docking_ports[row.at("id").get<std::string>()] =
@@ -748,6 +757,7 @@ struct World::Impl
 							brain.result = bindings.result;
 							brain.telemetry_reads = bindings.telemetry;
 							brain.abilities = bindings.abilities;
+							brain.processes = bindings.processes;
 							for (const auto &read : bindings.command_reads)
 							{
 								const auto &binding = read.source;
@@ -1171,6 +1181,7 @@ struct World::Impl
 				    at != data.compartment_properties.end())
 					structure->compartments[i].properties = at->second;
 		initialise_abilities(entity);
+		initialise_processes(entity);
 		for (const auto &[choir, d] : data.psychic.choirs)
 		{
 			PsychicChoirState state;
@@ -1740,6 +1751,33 @@ struct World::Impl
 		          });
 		return rows;
 	}
+	Steering effective_basic_steering(flecs::entity child) const
+	{
+		auto effective = child.get<Steering>();
+		const auto ship = child.parent();
+		const auto &equipment = child.get<Equipment>().id;
+		effective.rate = effective_property(ship, equipment, "turn", effective.rate);
+		effective.rate = apply_property_delta(
+		    effective.rate, native_process_rate(ship.get<StableId>().id, "propulsion", equipment) - 1000,
+		    resource_limit);
+		return effective;
+	}
+	Engine effective_basic_engine(flecs::entity child) const
+	{
+		auto effective = child.get<Engine>();
+		const auto ship = child.parent();
+		const auto &equipment = child.get<Equipment>().id;
+		effective.enabled &= !structurally_disabled(ship, equipment);
+		effective.acceleration = effective_property(ship, equipment, "propulsion", effective.acceleration);
+		effective.max_speed = effective_property(ship, equipment, "speed", effective.max_speed);
+		effective.speed = effective.speed == child.get<Engine>().max_speed
+		                      ? effective.max_speed
+		                      : std::min(effective.speed, effective.max_speed);
+		effective.acceleration = apply_property_delta(
+		    effective.acceleration, native_process_rate(ship.get<StableId>().id, "propulsion", equipment) - 1000,
+		    resource_limit);
+		return effective;
+	}
 	void run_basic_steering()
 	{
 		for (auto child : ordered_equipment(steering_query))
@@ -1747,10 +1785,17 @@ struct World::Impl
 			                                !structurally_disabled(ship, child.get<Equipment>().id))
 			{
 				auto &native = child.get_mut<Steering>();
-				auto effective = native;
-				effective.rate = effective_property(ship, child.get<Equipment>().id, "turn", native.rate);
-				step_basic_steering(ship.get_mut<Pose>(), effective, 1000);
+				const auto *quote =
+				    native_machinery_quote(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id);
+				auto effective =
+				    quote && quote->basic_steering ? *quote->basic_steering : effective_basic_steering(child);
+				const auto paid =
+				    native_process_paid(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id, 1000);
+				const bool active = native.heading != ship.get<Pose>().heading;
+				step_basic_steering(ship.get_mut<Pose>(), effective, paid);
 				native.remainder = effective.remainder;
+				record_native_process_work(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id,
+				                           active ? 1000 : 0, active ? paid : 0);
 			}
 	}
 	void run_basic_engines()
@@ -1759,17 +1804,17 @@ struct World::Impl
 			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id))
 			{
 				auto &native = child.get_mut<Engine>();
-				auto effective = native;
-				effective.enabled &= !structurally_disabled(ship, child.get<Equipment>().id);
+				const auto *quote =
+				    native_machinery_quote(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id);
+				auto effective = quote && quote->basic_engine ? *quote->basic_engine : effective_basic_engine(child);
 				const auto &equipment = child.get<Equipment>().id;
-				effective.acceleration = effective_property(ship, equipment, "propulsion", native.acceleration);
-				effective.max_speed = effective_property(ship, equipment, "speed", native.max_speed);
-				effective.speed = native.speed == native.max_speed ? effective.max_speed
-				                                                   : std::min(native.speed, effective.max_speed);
-				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), effective, 1000);
+				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), effective,
+				                  native_process_paid(ship.get<StableId>().id, "propulsion", equipment, 1000));
 				native.remainder = effective.remainder;
 				native.damping_remainder = effective.damping_remainder;
 				native.forward_output = effective.forward_output;
+				record_native_process_work(ship.get<StableId>().id, "propulsion", equipment, 1000,
+				                           effective.forward_output);
 			}
 	}
 	struct FlightRestrictions
@@ -1834,6 +1879,11 @@ struct World::Impl
 		definition.lateral_acceleration =
 		    effective_property(ship, equipment, "propulsion", definition.lateral_acceleration, acceleration);
 		definition.turn_rate = effective_property(ship, equipment, "turn", definition.turn_rate, turn);
+		const auto process_rate = native_process_rate(ship.get<StableId>().id, "propulsion", equipment);
+		definition.acceleration = apply_property_delta(definition.acceleration, process_rate - 1000, resource_limit);
+		definition.lateral_acceleration =
+		    apply_property_delta(definition.lateral_acceleration, process_rate - 1000, resource_limit);
+		definition.turn_rate = apply_property_delta(definition.turn_rate, process_rate - 1000, resource_limit);
 		return definition;
 	}
 	FlightState effective_flight_state(flecs::entity child, const FlightDefinition &definition,
@@ -1865,6 +1915,19 @@ struct World::Impl
 					desired = value;
 			}
 		return desired;
+	}
+	void include_vertical_demand(flecs::entity child, bool enabled)
+	{
+		auto &flight = child.get_mut<FlightRuntime>();
+		const auto ship = child.parent();
+		if (const auto *vertical = ship.try_get<VerticalMotion>();
+		    vertical && enabled && flight.definition.kind == FlightKind::Engine &&
+		    (vertical->desired != vertical->altitude || vertical->velocity) &&
+		    native_process_rate(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id))
+		{
+			flight.demand.power_rate = std::max(flight.demand.power_rate, flight.definition.power_rate);
+			flight.demand.effort_permille = 1000;
+		}
 	}
 	void request_flight_resources(flecs::entity ship, FlightRestrictions restrictions)
 	{
@@ -1898,20 +1961,15 @@ struct World::Impl
 			const auto effective = effective_flight_definition(child, restrictions);
 			const auto requested = effective_flight_state(child, effective, restrictions);
 			flight.demand = flight_demand(effective, requested, pose, motion, lateral);
-			if (const auto *v = ship.try_get<VerticalMotion>(); v && requested.enabled &&
-			                                                    flight.definition.kind == FlightKind::Engine &&
-			                                                    (v->desired != v->altitude || v->velocity))
-				flight.demand.power_rate = std::max(flight.demand.power_rate, flight.definition.power_rate);
+			if (!native_process_rate(id, "propulsion", child.get<Equipment>().id))
+				flight.demand = {};
+			include_vertical_demand(child, requested.enabled);
 			if (auto power = ship.try_get_mut<ShipResources>())
 			{
-				const bool charging =
-				    flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy;
-				const auto completed = flight.state.charge_milliticks / 1000;
-				const auto energy = charging ? (flight.definition.impulse_charge_energy * (completed + 1) +
-				                                flight.definition.impulse_charge_ticks - 1) /
-				                                       flight.definition.impulse_charge_ticks -
-				                                   flight.state.charge_spent
-				                             : 0;
+				const bool charging = flight.state.impulse == ImpulsePhase::Charging &&
+				                      flight.definition.impulse_charge_energy &&
+				                      native_process_rate(id, "propulsion", child.get<Equipment>().id);
+				const auto energy = charging ? quote_flight_charge(flight.definition, flight.state).energy : 0;
 				request_system_resource(*power, child.get<ResourceBinding>().slot, 0, energy > 0,
 				                        (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
 				                            ? 0
@@ -1923,15 +1981,26 @@ struct World::Impl
 		{
 			const auto &fit = child.get<Equipment>();
 			const auto radar = child.try_get<Radar>();
-			request_system_resource(ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
-			                        fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) &&
-			                                fit.kind != OperatingSystem::Psychic &&
-			                                ((fit.kind != OperatingSystem::Displacement &&
-			                                  !(fit.kind == OperatingSystem::ShuttleBay &&
-			                                    definition(id).craft_bays.at(fit.id).legacy_transport)) ||
-			                                 away_transport_requested(id, fit.id))
-			                            ? 1000
-			                            : 0);
+			request_system_resource(
+			    ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
+			    fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) &&
+			            fit.kind != OperatingSystem::Psychic &&
+			            (fit.kind != OperatingSystem::Coolant ||
+			             (child.get<ResourceBinding>().slot < ship.get<ShipResources>().definition.systems.size() &&
+			              native_process_rate(id, "cooling",
+			                                  ship.get<ShipResources>()
+			                                      .network.definition()
+			                                      .cooling_links
+			                                      .at(ship.get<ShipResources>()
+			                                              .definition.systems[child.get<ResourceBinding>().slot]
+			                                              .cooling)
+			                                      .id))) &&
+			            ((fit.kind != OperatingSystem::Displacement &&
+			              !(fit.kind == OperatingSystem::ShuttleBay &&
+			                definition(id).craft_bays.at(fit.id).legacy_transport)) ||
+			             away_transport_requested(id, fit.id))
+			        ? 1000
+			        : 0);
 		}
 	}
 	void reserve_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
@@ -1945,7 +2014,7 @@ struct World::Impl
 		for (auto source : fittings)
 		{
 			const auto &flight = source.get<FlightRuntime>();
-			if (!flight.state.enabled ||
+			if (!flight.state.enabled || !native_process_rate(id, "propulsion", source.get<Equipment>().id) ||
 			    !(flight.state.impulse == ImpulsePhase::Active || (flight.state.boost && !restrictions.impulse)))
 				continue;
 			for (const auto &binding : flight.definition.targets)
@@ -2001,8 +2070,9 @@ struct World::Impl
 				if (!modifier.state.enabled || structurally_disabled(ship, source.get<Equipment>().id) ||
 				    !(impulse || (modifier.state.boost && !restrictions.impulse)))
 					continue;
-				const auto paid =
-				    allocation ? allocation->grants()[source.get<ResourceBinding>().slot].supply_permille : 1000;
+				const auto paid = native_process_paid(
+				    id, "propulsion", source.get<Equipment>().id,
+				    allocation ? allocation->grants()[source.get<ResourceBinding>().slot].supply_permille : 1000);
 				for (const auto &binding : modifier.definition.targets)
 					if (binding.index == target.get<Equipment>().ordinal)
 					{
@@ -2017,11 +2087,13 @@ struct World::Impl
 							flight.state.external_impulse = true;
 					}
 			}
-			const auto paid =
-			    allocation ? allocation->grants()[target.get<ResourceBinding>().slot].supply_permille : 1000;
+			const auto paid = native_process_paid(
+			    id, "propulsion", target.get<Equipment>().id,
+			    allocation ? allocation->grants()[target.get<ResourceBinding>().slot].supply_permille : 1000);
 			definition = effective_flight_definition(target, restrictions, speed, acceleration, turn, paid);
 			const auto state = effective_flight_state(target, definition, restrictions);
 			flight.demand = flight_demand(definition, state, ship.get<Pose>(), ship.get<Motion>(), lateral);
+			include_vertical_demand(target, state.enabled);
 		}
 	}
 	void actuate_flight(flecs::entity child, FlightRestrictions restrictions)
@@ -2030,16 +2102,17 @@ struct World::Impl
 		auto ship = child.parent();
 		auto power = ship.try_get_mut<ShipResources>();
 		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
-		int paid = power ? power->grants[slot].supply_permille : 1000;
+		int paid =
+		    static_cast<int>(native_process_paid(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id,
+		                                         power ? power->grants[slot].supply_permille : 1000));
+		const auto charge_before = flight.state.charge_milliticks;
 		if (flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy)
 		{
 			const auto &grant = power->grants[slot];
-			const auto completed = flight.state.charge_milliticks / 1000;
-			const auto due = (flight.definition.impulse_charge_energy * (completed + 1) +
-			                  flight.definition.impulse_charge_ticks - 1) /
-			                     flight.definition.impulse_charge_ticks -
-			                 flight.state.charge_spent;
-			if ((!due || grant.discrete_paid) && !grant.blocked)
+			const auto due = quote_flight_charge(flight.definition, flight.state).energy;
+			if ((!due || grant.discrete_paid) && !grant.blocked &&
+			    native_process_rate(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id) &&
+			    native_process_work_limit(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id) >= 1000)
 			{
 				flight.state.charge_spent += due;
 				flight.state.charge_milliticks += 1000;
@@ -2049,7 +2122,12 @@ struct World::Impl
 			}
 			else
 				flight.state.impulse_reason = 2;
-			paid = (!due || grant.discrete_paid) && !grant.blocked ? 1000 : 0;
+			paid = (!due || grant.discrete_paid) && !grant.blocked &&
+			               native_process_rate(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id) &&
+			               native_process_work_limit(ship.get<StableId>().id, "propulsion",
+			                                         child.get<Equipment>().id) >= 1000
+			           ? 1000
+			           : 0;
 		}
 		if (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
 			paid = 0;
@@ -2078,6 +2156,9 @@ struct World::Impl
 		}
 		flight.state.enabled = accepted_enabled;
 		flight.state.boost = requested_boost;
+		record_native_process_work(
+		    ship.get<StableId>().id, "propulsion", child.get<Equipment>().id, flight.demand.effort_permille,
+		    execution.effort_milliticks + std::max<std::int64_t>(0, flight.state.charge_milliticks - charge_before));
 		if (auto engine = child.try_get_mut<Engine>())
 		{
 			engine->speed = flight.state.desired_speed;
@@ -2110,9 +2191,13 @@ struct World::Impl
 #include "custom_properties.hpp"
 #include "property_effects.hpp"
 #include "effect_application.hpp"
+#include "process_thermal.hpp"
 #include "store_effects.hpp"
+#include "processes.hpp"
+#include "process_machinery.hpp"
 #include "abilities.hpp"
 #include "ability_interface.hpp"
+#include "process_interface.hpp"
 #include "effect_queue.hpp"
 #include "rules.hpp"
 #include "rule_sources.hpp"
@@ -2124,8 +2209,112 @@ struct World::Impl
 #include "rule_persistence.hpp"
 #include "rule_interface.hpp"
 #include "processors.hpp"
+	void quote_basic_process_work()
+	{
+		for (auto &quote : process_machinery_quotes)
+		{
+			quote.basic_available = quote.basic_full = 0;
+			quote.basic_engine.reset();
+			quote.basic_steering.reset();
+		}
+		std::map<EntityId, Pose> poses;
+		std::map<EntityId, Motion> motions;
+		const auto pose_for = [&](flecs::entity ship) -> Pose &
+		{
+			return poses.try_emplace(ship.get<StableId>().id, ship.get<Pose>()).first->second;
+		};
+		const auto motion_for = [&](flecs::entity ship) -> Motion &
+		{
+			return motions.try_emplace(ship.get<StableId>().id, ship.get<Motion>()).first->second;
+		};
+		for (auto child : ordered_equipment(steering_query))
+			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) &&
+			                                !structurally_disabled(ship, child.get<Equipment>().id))
+			{
+				auto effective = effective_basic_steering(child);
+				auto &pose = pose_for(ship);
+				const auto active = effective.heading != pose.heading;
+				const auto paid =
+				    native_process_paid(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id, 1000);
+				if (auto *quote =
+				        native_machinery_quote(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id))
+				{
+					quote->basic_full = active ? 1000 : 0;
+					quote->basic_available = active ? paid : 0;
+					quote->basic_steering = effective;
+				}
+				step_basic_steering(pose, effective, paid);
+			}
+		for (auto child : ordered_equipment(engine_query))
+			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id))
+			{
+				auto &pose = pose_for(ship);
+				auto &motion = motion_for(ship);
+				auto full_engine = effective_basic_engine(child);
+				auto full_motion = motion;
+				step_basic_engine(pose, full_motion, full_engine, 1000);
+				auto actual_engine = effective_basic_engine(child);
+				if (auto *quote =
+				        native_machinery_quote(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id))
+					quote->basic_engine = actual_engine;
+				step_basic_engine(
+				    pose, motion, actual_engine,
+				    native_process_paid(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id, 1000));
+				if (auto *quote =
+				        native_machinery_quote(ship.get<StableId>().id, "propulsion", child.get<Equipment>().id))
+				{
+					quote->basic_full = std::max<std::int64_t>(quote->basic_full, full_engine.forward_output);
+					quote->basic_available =
+					    std::max<std::int64_t>(quote->basic_available, actual_engine.forward_output);
+				}
+			}
+	}
+	bool quote_process_native_work(const std::vector<std::pair<EntityId, flecs::entity>> &ships,
+	                               const std::map<EntityId, std::optional<ShipResourceAllocation>> &allocations,
+	                               bool stage)
+	{
+		std::vector<std::tuple<flecs::entity, FlightState, FlightDemand>> snapshots;
+		for (const auto &[id, ship] : ships)
+			for (auto child : ordered_equipment(flight_query, id))
+			{
+				const auto &flight = child.get<FlightRuntime>();
+				snapshots.emplace_back(child, flight.state, flight.demand);
+			}
+		try
+		{
+			for (const auto &[id, ship] : ships)
+			{
+				const auto found = allocations.find(id);
+				prepare_paid_modifiers(ship, flight_restrictions(id),
+				                       found != allocations.end() && found->second ? &*found->second : nullptr);
+			}
+			const auto changed = capture_process_native_work(allocations, stage);
+			for (auto &[child, state, demand] : snapshots)
+			{
+				auto &flight = child.get_mut<FlightRuntime>();
+				flight.state = state;
+				flight.demand = demand;
+			}
+			return changed;
+		}
+		catch (...)
+		{
+			for (auto &[child, state, demand] : snapshots)
+			{
+				auto &flight = child.get_mut<FlightRuntime>();
+				flight.state = state;
+				flight.demand = demand;
+			}
+			throw;
+		}
+	}
 	void run_advanced_equipment()
 	{
+		for (const auto &[id, ship] : entities)
+			if (ship.has<EntityControls>())
+				consume_process_commands(id);
+		prepare_processes();
+		begin_process_machinery_quotes();
 		std::vector<std::pair<EntityId, flecs::entity>> ships;
 		advanced_ships.each(
 		    [&](flecs::entity entity, const StableId &id, const GameplayShip &)
@@ -2154,9 +2343,9 @@ struct World::Impl
 			reserve_paid_modifiers(ship, restrictions);
 			request_processor_resources(ship);
 		}
-		request_rule_upkeep();
 		std::map<EntityId, std::optional<ShipResourceAllocation>> allocations;
-		for (;;)
+		capture_process_native_requests();
+		const auto allocate_native = [&](bool producers)
 		{
 			allocations.clear();
 			for (const auto &[id, ship] : ships)
@@ -2167,8 +2356,27 @@ struct World::Impl
 						if (structurally_disabled(ship, child.get<Equipment>().id) ||
 						    boarding_inhibited(id, child.get<Equipment>().id))
 							unavailable.push_back(child.get<ResourceBinding>().slot);
-					allocations[id].emplace(*power, unavailable);
+					allocations[id].emplace(*power, unavailable, producers ? process_producer_seed(id) : nullptr);
 				}
+		};
+		prepare_process_machinery_controls();
+		allocate_native(false);
+		quote_process_native_work(ships, allocations, true);
+		std::vector<RuleProcessWork> process_work;
+		for (std::size_t attempt = 0;; ++attempt)
+		{
+			if (attempt > 4096)
+				throw std::runtime_error("Native process allocation did not settle within supported bounds");
+			prepare_process_machinery_controls();
+			if (prepare_process_producer_funding())
+				continue;
+			if (cap_process_native_work(true))
+			{
+				price_process_native_requests();
+				continue;
+			}
+			request_rule_upkeep();
+			allocate_native(true);
 			bool removed = false;
 			for (const auto &[id, ship] : ships)
 			{
@@ -2209,25 +2417,49 @@ struct World::Impl
 					}
 				}
 			}
+			if (removed)
+			{
+				// A withdrawn launch releases real stock. Retry before any quote
+				// restaging can continue this loop and lose the withdrawal edge.
+				for (const auto &[id, ship] : ships)
+					retry_blocked_processors(ship);
+				reset_surviving_process_native_caps();
+				price_process_native_requests();
+			}
 			removed = prepare_rule_upkeep_payments(allocations, removed) || removed;
+			if (cap_process_native_work())
+			{
+				price_process_native_requests();
+				continue;
+			}
+			if (quote_process_native_work(ships, allocations, true))
+				continue;
+			process_work.clear();
+			for (const auto &quote : process_machinery_quotes)
+				process_work.push_back({quote.owner, quote.frozen.id, quote.work, quote.activity});
+			if (prepare_process_funding_effects(process_work, allocations))
+			{
+				cap_process_native_work();
+				price_process_native_requests();
+				continue;
+			}
 			if (!removed)
 				break;
-			for (const auto &[id, ship] : ships)
-				retry_blocked_processors(ship);
-			request_rule_upkeep();
 		}
-		// No native allocation is committed until every dependent upkeep quote is final.
-		if (!commit_rule_upkeep_stocks())
-			throw std::logic_error("rules: prepared upkeep changed before commit");
 		for (const auto &[id, ship] : ships)
 		{
 			auto &allocation = allocations[id];
 			prepare_paid_modifiers(ship, flight_restrictions(id), allocation ? &*allocation : nullptr);
 		}
+		// Freeze this paid operating frame before its work effects change modifiers.
+		if (!commit_rule_upkeep_stocks())
+			throw std::logic_error("rules: prepared upkeep changed before commit");
 		for (auto &[id, allocation] : allocations)
 			if (allocation)
 				allocation->commit();
 		finish_rule_upkeep();
+		run_basic_steering();
+		run_basic_engines();
 		for (const auto &[id, ship] : ships)
 		{
 			const auto restrictions = flight_restrictions(id);
@@ -2239,6 +2471,9 @@ struct World::Impl
 		}
 		refresh_ability_work();
 		sync_psychic_contributions();
+		for (const auto &quote : process_machinery_quotes)
+			commit_process_work_receipt(quote.owner, quote.frozen, quote.work, quote.activity);
+		publish_process_work();
 	}
 	void scenario_effects()
 	{
@@ -3036,8 +3271,6 @@ void World::tick()
 	impl_->prepare_rule_sources();
 	impl_->step_rule_events(RuleEventPhase::Source);
 	impl_->capture_dock_propulsion();
-	impl_->run_basic_steering();
-	impl_->run_basic_engines();
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>() && !entity.has<GameplayShip>())
 			for (auto child : entity.get<EquipmentIndex>().values)
@@ -3474,6 +3707,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["personnel"] = impl_->personnel_board(address);
 	result.gameplay["psychic"] = impl_->psychic_board(address);
 	result.gameplay["abilities"] = impl_->ability_board(address);
+	result.gameplay["processes"] = impl_->process_board(address, &result);
 	if (auto rules = impl_->rules_board(address); !rules.empty())
 		result.gameplay["rules"] = std::move(rules);
 	result.gameplay["teams"] = impl_->team_board(address);
@@ -3583,6 +3817,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						}
 					}
 					if (impl_->station_stars(address) < channel.individual_stars)
+						continue;
+					if (impl_->process_controls(address, controller, i, buttons))
 						continue;
 					if (impl_->ability_controls(address, controller, i, buttons, ability_contacts))
 						continue;
@@ -4224,7 +4460,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 29},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 30},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["custom_properties"] = impl_->save_custom_properties();
 	result["rules"] = impl_->save_rules();
@@ -4369,6 +4605,7 @@ Json World::save() const
 	result["directed"] = impl_->save_directed();
 	result["psychic"] = impl_->save_psychic();
 	result["abilities"] = impl_->save_abilities();
+	result["processes"] = impl_->save_processes();
 	result["sensor_discoveries"] = impl_->sensor_discoveries;
 	result["conversation_starts"] = impl_->save_conversation_starts();
 	result["projectiles"] = impl_->save_projectiles();
@@ -4383,8 +4620,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 29)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 29 required)");
+	if (saved.at("schema") != 30)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 30 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4764,6 +5001,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->restore_custom_properties(saved.at("custom_properties"));
 	candidate.impl_->restore_active_modifiers(saved.at("active_effects"));
 	candidate.impl_->restore_abilities(saved.at("abilities"), departed_ships);
+	candidate.impl_->restore_processes(saved.at("processes"), departed_ships);
 	candidate.impl_->refresh_ability_work(false);
 	candidate.impl_->restore_psychic(saved.value("psychic", Json::object()), departed_ships);
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));

@@ -35,8 +35,13 @@ Json rules_board(const ConsoleAddress &address) const
 	{
 		if (!source.bindings || source.owner.ordnance)
 			continue;
-		if ((!source.owner.officer.empty() && !officer_visible(source.owner.officer)) ||
-		    (!source.owner.equipment.empty() && !equipment_visible(source.owner.equipment)))
+		if (source.kind == RuleOwnerKind::Process)
+		{
+			if (!process_rule_visible(address, source))
+				continue;
+		}
+		else if ((!source.owner.officer.empty() && !officer_visible(source.owner.officer)) ||
+		         (!source.owner.equipment.empty() && !equipment_visible(source.owner.equipment)))
 			continue;
 		std::string kind;
 		switch (source.kind)
@@ -55,6 +60,9 @@ Json rules_board(const ConsoleAddress &address) const
 			break;
 		case RuleOwnerKind::Shield:
 			kind = "shield";
+			break;
+		case RuleOwnerKind::Process:
+			kind = "process";
 			break;
 		}
 		for (const auto &binding : *source.bindings)

@@ -355,9 +355,34 @@ state_tree::Value read_rule_fact(const RuleFactBinding &fact, const NativeRuleCo
 			}
 		return {};
 	case RuleFactKind::CompletedWork:
-		if (const auto work = ability_completed_work(actor, fact.key))
-			return Value::integer(*work);
+	{
+		const auto ability = ability_completed_work(actor, fact.key);
+		const auto process = process_completed_work(actor, fact.key);
+		if (ability && process && *ability <= resource_limit - *process)
+			return Value::integer(*ability + *process);
 		return {};
+	}
+	case RuleFactKind::ProcessWork:
+	case RuleFactKind::ProcessActivity:
+		return {}; // The process quote freezes these typed facts before evaluation.
+	case RuleFactKind::OfficerPresent:
+	case RuleFactKind::OfficerHealthy:
+	case RuleFactKind::OfficerOnDuty:
+	{
+		const auto *personnel = entity ? entity.try_get<PersonnelState>() : nullptr;
+		if (!personnel || actor.officer.empty())
+			return {};
+		const auto &officers = definition(actor.entity).personnel.officers;
+		for (std::size_t i = 0; i < officers.size(); ++i)
+			if (officers[i].id == actor.officer)
+			{
+				const auto &state = personnel->officers.at(i);
+				return Value::boolean(fact.kind == RuleFactKind::OfficerPresent   ? state.present
+				                      : fact.kind == RuleFactKind::OfficerHealthy ? officer_healthy(state)
+				                                                                  : !state.duty.empty());
+			}
+		return {};
+	}
 	case RuleFactKind::PropertyBefore:
 	case RuleFactKind::PropertyAfter:
 		return {}; // Frozen by the successful transaction which emitted the event.

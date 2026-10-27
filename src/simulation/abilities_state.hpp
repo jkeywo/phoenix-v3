@@ -20,15 +20,7 @@ struct AbilityGrantState
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AbilityGrantState, id, definition, source, owner, parent, grant_effect, control,
                                    apparatus, phase, resume_phase, target, generation, activation, request_id, expiry,
                                    progress, aim_x, aim_y, credits, funding_permille, retained_request)
-// A completed native work receipt survives grant interruption until the next work phase.
-struct AbilityWorkReceipt
-{
-	std::string source, owner, family, definition;
-	std::uint64_t activation = 0;
-	std::int64_t output = 0;
-	bool operator==(const AbilityWorkReceipt &) const = default;
-};
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AbilityWorkReceipt, source, owner, family, definition, activation, output)
+using AbilityWorkReceipt = ExecutionWorkReceipt;
 struct AbilityRuntime
 {
 	std::map<std::string, AbilityGrantState> grants;

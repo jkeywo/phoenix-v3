@@ -97,6 +97,7 @@ FlightDemand flight_demand(const FlightDefinition &def, const FlightState &state
 		result.heat_rate = boost ? def.boost_heat_rate : (impulse || result.charging) ? def.impulse_heat_rate : 0;
 		if (result.charging && !def.impulse_charge_energy)
 			result.power_rate = def.impulse_charge_power_rate;
+		result.effort_permille = boost || impulse ? 1000 : 0;
 		return result;
 	}
 	const auto current = forward_speed(pose, motion);
@@ -159,6 +160,7 @@ FlightDemand flight_demand(const FlightDefinition &def, const FlightState &state
 		return result;
 	}
 	const auto effort = std::max({std::abs(result.longitudinal), std::abs(result.lateral), std::abs(result.steering)});
+	result.effort_permille = effort;
 	result.power_rate = flight_scaled_rate(def.power_rate, effort);
 	result.heat_rate = flight_scaled_rate(def.heat_rate, effort);
 	if (boost && result.longitudinal)
@@ -391,6 +393,41 @@ void observe_flight(const FlightDefinition &def, FlightState &state, std::uint64
 	state.match_stale =
 	    !state.matched_observed || tick < state.observed_tick || tick - state.observed_tick > def.match_stale_ticks;
 }
+FlightChargeQuote quote_flight_charge(const FlightDefinition &definition, const FlightState &state)
+{
+	if (state.impulse != ImpulsePhase::Charging || !definition.impulse_charge_energy)
+		return {};
+	const auto completed = state.charge_milliticks / 1000;
+	const auto due = (definition.impulse_charge_energy * (completed + 1) + definition.impulse_charge_ticks - 1) /
+	                     definition.impulse_charge_ticks -
+	                 state.charge_spent;
+	return {due, 1000};
+}
+FlightWorkQuote quote_flight_work(const FlightDefinition &definition, const FlightState &state,
+                                  const FlightDemand &demand, int paid, int output)
+{
+	if (paid < 0 || paid > 1000 || output < 1000 || output > 10000)
+		throw std::runtime_error("flight: invalid work quote fraction");
+	FlightWorkQuote quote;
+	quote.work_remainder = state.work_remainder;
+	quote.charge_remainder = state.charge_remainder;
+	if (!state.enabled)
+		return quote;
+	const auto effort = std::int64_t{demand.effort_permille} * paid * output + state.work_remainder;
+	quote.effort_milliticks = effort / 1000000;
+	quote.work_remainder = effort % 1000000;
+	if (demand.charging && paid > 0 && !definition.impulse_charge_energy)
+	{
+		const auto progress = std::int64_t{paid} * output + state.charge_remainder;
+		quote.charging_milliticks =
+		    std::min(definition.impulse_charge_ticks * 1000 - state.charge_milliticks, progress / 1000);
+		quote.charge_remainder =
+		    state.charge_milliticks + quote.charging_milliticks == definition.impulse_charge_ticks * 1000
+		        ? 0
+		        : progress % 1000;
+	}
+	return quote;
+}
 FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pose &pose, Motion &motion,
                             const FlightDemand &demand, int paid_permille, int output_permille, int heat_permille)
 {
@@ -407,6 +444,7 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 		target.longitudinal = target.lateral = target.steering = 0;
 		target.power_rate = target.heat_rate = 0;
 		target.charging = false;
+		target.effort_permille = 0;
 	}
 	auto basis = pose;
 	basis.heading = demand.heading_basis;
@@ -439,18 +477,14 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	}
 	new_motion.velocity.x = std::clamp(new_motion.velocity.x, -maximum_velocity, maximum_velocity);
 	new_motion.velocity.y = std::clamp(new_motion.velocity.y, -maximum_velocity, maximum_velocity);
-	if (target.charging && paid_permille > 0 && !def.impulse_charge_energy)
-	{
-		const auto progress = std::int64_t{paid_permille} * output_permille + candidate.charge_remainder;
-		candidate.charge_remainder = progress % 1000;
-		candidate.charge_milliticks =
-		    std::min(def.impulse_charge_ticks * 1000, candidate.charge_milliticks + progress / 1000);
-		if (candidate.charge_milliticks == def.impulse_charge_ticks * 1000)
-		{
-			candidate.impulse = ImpulsePhase::Active;
-			candidate.charge_remainder = 0;
-		}
-	}
+	const auto work_quote = quote_flight_work(def, state, target, paid_permille, output_permille);
+	candidate.work_remainder = work_quote.work_remainder;
+	candidate.charge_remainder = work_quote.charge_remainder;
+	candidate.charge_milliticks += work_quote.charging_milliticks;
+	if (work_quote.charging_milliticks && candidate.charge_milliticks == def.impulse_charge_ticks * 1000)
+		candidate.impulse = ImpulsePhase::Active;
+	result.effort_milliticks = work_quote.effort_milliticks;
+	result.charging_milliticks = work_quote.charging_milliticks;
 	candidate.actual_longitudinal = target.longitudinal * paid_permille / 1000;
 	candidate.actual_lateral = target.lateral * paid_permille / 1000;
 	candidate.actual_steering = target.steering * paid_permille / 1000;
@@ -553,6 +587,7 @@ Json save_flight(const FlightDefinition &def, const FlightState &state)
 	        {"charge_milliticks", state.charge_milliticks},
 	        {"charge_remainder", state.charge_remainder},
 	        {"charge_spent", state.charge_spent},
+	        {"work_remainder", state.work_remainder},
 	        {"impulse_reason", state.impulse_reason},
 	        {"selected_contact", state.selected_contact},
 	        {"matched_contact", state.matched_contact},
@@ -619,6 +654,7 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	}
 	const bool legacy_remainders = saved.at("schema") == 2;
 	result.charge_remainder = legacy_remainders ? 0 : number("charge_remainder", 0, 999);
+	result.work_remainder = number("work_remainder", 0, 999999);
 	result.selected_contact =
 	    static_cast<EntityId>(number("selected_contact", 0, std::numeric_limits<std::int64_t>::max()));
 	result.matched_contact =

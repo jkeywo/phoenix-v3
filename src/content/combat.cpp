@@ -49,7 +49,9 @@ const std::vector<ModifierPropertyDescriptor> &modifier_properties()
 	    {PropertyKey::repair, "repair", "native_work_units", {OperatingSystem::Team}, 1000000000000000000LL},
 	    {PropertyKey::medical, "medical", "relative_permille", {OperatingSystem::Team}},
 	    {PropertyKey::security, "security", "relative_permille", {OperatingSystem::Team}},
-	    {PropertyKey::comms, "comms", "mm", {OperatingSystem::Comms}}};
+	    {PropertyKey::comms, "comms", "mm", {OperatingSystem::Comms}},
+	    {PropertyKey::generation, "generation", "energy_per_second", {OperatingSystem::Generator}},
+	    {PropertyKey::cooling, "cooling", "heat_per_second", {OperatingSystem::Coolant}}};
 	return properties;
 }
 PropertyKey property_key(std::string_view name)
@@ -193,6 +195,10 @@ void compile_effect(const Catalog &catalog, const std::string &id, const RulesCa
 		(void)compile_ability(catalog, id, properties);
 	else if (effect.value("kind", std::string{}) == "psychic")
 		(void)compile_psychic_effect(catalog, id);
+	else if (effect.value("kind", std::string{}) == "process")
+		(void)compile_process(catalog, id, properties);
+	else if (effect.value("kind", std::string{}) == "process_grant")
+		(void)compile_process_grant(catalog, id);
 	else if (effect.value("kind", std::string{}) == "ability_grant")
 		(void)compile_ability_grant(catalog, id);
 	else if (effect.value("kind", std::string{}) == "rule")

@@ -8,7 +8,11 @@ struct PreparedEffectPayment
 	ResourceNetwork network;
 	std::uint64_t revision = 0;
 	std::vector<std::uint64_t> stores, coolant;
-	explicit PreparedEffectPayment(const ResourceNetwork &original) : network(original), revision(original.revision())
+	// A native allocation may own the final network. Preparation still mutates
+	// only this copy; the existing allocation commits after this transaction.
+	ResourceNetwork *destination = nullptr;
+	explicit PreparedEffectPayment(const ResourceNetwork &original, ResourceNetwork *prepared_destination = nullptr)
+	    : network(original), revision(original.revision()), destination(prepared_destination)
 	{
 		for (const auto &store : original.stores())
 			stores.push_back(store.stock.revision());
@@ -42,15 +46,22 @@ struct PreparedEffectTarget
 struct PreparedEffectGroup
 {
 	std::vector<EffectGroupInvocation> invocations;
+	std::vector<std::size_t> invocation_roots;
 	std::size_t failed_invocation = static_cast<std::size_t>(-1);
 	std::string failure;
 	std::int64_t tick = 0;
 	std::uint64_t epoch = 0, next_active = 0, original_next_active = 0;
 	bool consumed = false, defer_damage = false;
+	bool pre_generation = false;
 	std::map<EntityId, ShieldComponent> shields, original_shields;
 	std::map<EntityId, PropertyEffects> properties, original_properties;
 	std::map<CustomPropertyAddress, CustomPropertyState> custom_properties, original_custom_properties;
 	std::map<EntityId, AbilityRuntime> abilities, original_abilities;
+	std::map<CustomPropertyAddress, ProcessRuntime> processes, original_processes;
+	std::set<std::pair<CustomPropertyAddress, std::string>> process_stops;
+	std::set<std::pair<CustomPropertyAddress, std::string>> prepaid_process_stops;
+	std::set<std::pair<CustomPropertyAddress, std::string>> prepaid_process_exits;
+	std::vector<std::string> effect_failures;
 	std::map<EntityId, PreparedEffectPayment> payments;
 	std::set<EntityId> changed_inventories;
 	std::vector<PreparedEffectTarget> targets;

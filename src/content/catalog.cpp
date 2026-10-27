@@ -456,11 +456,12 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	(void)compile_resource_catalog(result);
 	(void)compile_recipe_catalog(result);
 	(void)compile_ability_catalog(result, properties);
+	(void)compile_process_catalog(result, properties);
 	const auto rules_catalog = compile_rule_catalog(result, properties);
 	(void)compile_effect_rules(result, rules_catalog);
 	for (const auto &[id, effect] : result.effects)
 		if (const auto kind = effect.value("kind", std::string{});
-		    kind != "ability" && kind != "psychic" && kind != "rule")
+		    kind != "ability" && kind != "psychic" && kind != "rule" && kind != "process")
 			compile_effect(result, id, rules_catalog, properties);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
@@ -688,6 +689,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
                              SharedPropertyCatalog properties)
 {
 	const auto ability_catalog = compile_ability_catalog(catalog, properties);
+	const auto process_catalog = compile_process_catalog(catalog, properties);
 	const auto rules_catalog = compile_rule_catalog(catalog, properties);
 	(void)compile_effect_rules(catalog, rules_catalog);
 	std::map<std::string, ControllableLayout> ability_layouts;
@@ -700,7 +702,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	verify_property_bindings(catalog, properties);
 	for (const auto &[id, effect] : catalog.effects)
 		if (const auto kind = effect.value("kind", std::string{});
-		    kind != "ability" && kind != "psychic" && kind != "rule")
+		    kind != "ability" && kind != "psychic" && kind != "rule" && kind != "process")
 			compile_effect(catalog, id, rules_catalog, properties);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
@@ -965,6 +967,7 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 		const auto &layout = ability_layouts.at(id);
 		const auto psychic = compile_psychic(catalog, id, ability_catalog, personnel, layout);
 		(void)compile_abilities(catalog, id, ability_catalog, personnel, layout, psychic);
+		(void)compile_process_bindings(catalog, id, process_catalog, properties);
 		(void)compile_boarding(catalog, id, directed_catalog, properties);
 	}
 	for (const auto &[id, console] : catalog.consoles)

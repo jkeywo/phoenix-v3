@@ -24,6 +24,7 @@ import phoenix.session.local;
 import phoenix.console;
 import phoenix.console_controls;
 
+#include "../support/machinery_baseline.hpp"
 using namespace phoenix;
 extern "C" void resource_allocation_lifecycle(const Catalog &);
 extern "C" void named_resource_allocation_contracts(const Catalog &);
@@ -2023,14 +2024,91 @@ void semantic_controls()
 	            system(*model.observation(), "drive").telemetry.at("longitudinal_thrust") == 0,
 	        "Away must transfer effective control and clear stale human axes through the real authority path");
 }
+Json machinery_baseline()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	ship["resources"]["stores"][0]["initial"] = 3000;
+	ship["resources"]["stores"][0]["initial_heat"] = 80;
+	ship["resources"]["generators"] = Json::array({{{"id", "reactor"},
+	                                                {"store", "cell"},
+	                                                {"maximum_rate", 200},
+	                                                {"response_rate", 100},
+	                                                {"initial_output", 100},
+	                                                {"heat_ppm", 500000}}});
+	ship["systems"]["generator"] = {{"kind", "generator"}, {"generator", "reactor"}, {"power_store", "cell"}};
+	ship["resources"]["coolant_sources"] = Json::array({{{"id", "tank"},
+	                                                     {"initial", 1000},
+	                                                     {"capacity", 1000},
+	                                                     {"removal_rate", 40},
+	                                                     {"coolant_per_heat_ppm", 1000000}}});
+	ship["resources"]["cooling_links"] = Json::array(
+	    {{{"id", "feed"}, {"source", "tank"}, {"store", "cell"}, {"capacity_rate", 40}, {"allocation_rate", 40}}});
+	ship["systems"]["cooler"] = {{"kind", "coolant"}, {"cooling_link", "feed"}};
+	ship["stations"][0]["consoles"][3]["systems"].push_back("generator");
+	ship["stations"][0]["consoles"][3]["systems"].push_back("cooler");
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	Json trace = Json::array();
+	const auto record = [&]
+	{
+		trace.push_back(phoenix::test::machinery_physical_checkpoint(world.save()));
+	};
+	record();
+	command(world, "generator_output", 200, "generator", 104);
+	command(world, "speed_mm_s", 10000, "drive");
+	for (int tick = 0; tick < 8; ++tick)
+	{
+		world.tick();
+		if (tick == 0 || tick == 2 || tick == 7)
+			record();
+	}
+	command(world, "assisted", 0, "drive");
+	command(world, "assisted", 0, "turn");
+	command(world, "boost", 1, "boost");
+	for (int tick = 0; tick < 4; ++tick)
+	{
+		world.tick();
+		record();
+	}
+	command(world, "boost", 0, "boost");
+	command(world, "impulse", 1, "impulse");
+	world.tick();
+	record();
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int tick = 0; tick < 4; ++tick)
+	{
+		world.tick();
+		resumed.tick();
+		record();
+	}
+	require(world.save() == resumed.save(), "Baseline impulse charge and native machinery continue exactly");
+	command(world, "impulse", 0, "impulse");
+	command(world, "system_enabled", 0, "cooler", 104);
+	for (int tick = 0; tick < 3; ++tick)
+	{
+		world.tick();
+		record();
+	}
+	return trace;
+}
+
 } // namespace
 
 #include "../support/coordinated_impulse_cases.hpp"
 
-int main()
+int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && std::string(argv[1]) == "--baseline-json")
+		{
+			std::cout << machinery_baseline().dump() << '\n';
+			return 0;
+		}
 		coordinated_impulse_cases();
 		launch_curve_and_linear_braking();
 		manual_and_conservation();

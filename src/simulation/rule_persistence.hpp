@@ -123,7 +123,7 @@ void validate_saved_rule_context(const Json &value) const
 	for (const auto field : {"property_role", "property_filter", "region"})
 		rule_saved_text(value.at(field), 256);
 	rule_saved_text(value.at("owner_grant"), 1024);
-	rule_saved_integer(value.at("owner_effect_kind"), 0, static_cast<int>(NativeEffectKind::Periodic));
+	rule_saved_integer(value.at("owner_effect_kind"), 0, static_cast<int>(NativeEffectKind::Process));
 	rule_saved_integer(value.at("owner_effect_id"));
 	rule_saved_bool(value.at("capture_owner"));
 	for (const auto field :
@@ -138,7 +138,7 @@ void validate_saved_rule_context(const Json &value) const
 	{
 		rule_saved_fields(saved, {"role", "kind", "key", "aux", "unit", "type", "value_type", "number", "text"});
 		rule_saved_integer(saved.at("role"), 0, static_cast<int>(RuleRole::Protected));
-		rule_saved_integer(saved.at("kind"), 0, static_cast<int>(RuleFactKind::PropertyAfter));
+		rule_saved_integer(saved.at("kind"), 0, static_cast<int>(RuleFactKind::OfficerOnDuty));
 		rule_saved_integer(saved.at("type"), 0, static_cast<int>(state_tree::Type::Message));
 		rule_saved_integer(saved.at("value_type"), 0, static_cast<int>(state_tree::Type::Message));
 		rule_saved_integer(saved.at("number"), -9007199254740991LL);
@@ -195,11 +195,14 @@ void validate_saved_rule_context(const Json &value) const
 }
 void validate_saved_work_credit(const Json &credit) const
 {
-	rule_saved_fields(credit,
-	                  {"payer", "store", "resource", "prepaid", "property", "equipment", "officer", "compartment"});
+	rule_saved_fields(credit, {"payer", "store", "resource", "prepaid", "property", "equipment", "officer",
+	                           "compartment", "unit_work"});
 	rule_saved_integer(credit.at("payer"), 1);
 	rule_saved_integer(credit.at("prepaid"));
 	rule_saved_integer(credit.at("compartment"), -1);
+	const auto denomination = rule_saved_integer(credit.at("unit_work"), resource_work_unit, 1000000000);
+	if (denomination % resource_work_unit)
+		throw std::runtime_error("rules: invalid work credit denomination");
 	for (const auto field : {"store", "resource", "property", "equipment", "officer"})
 		rule_saved_text(credit.at(field), 1024);
 	const auto entry = credit.get<RuleWorkCredit>();
@@ -240,7 +243,7 @@ void validate_saved_rule_state(const Json &value, std::int64_t now) const
 	for (const auto field : {"key", "definition", "binding", "source_key"})
 		rule_saved_text(value.at(field), 1024, false);
 	rule_saved_text(value.at("blocker"), 4096);
-	rule_saved_integer(value.at("owner_kind"), 0, static_cast<int>(RuleOwnerKind::Shield));
+	rule_saved_integer(value.at("owner_kind"), 0, static_cast<int>(RuleOwnerKind::Process));
 	rule_saved_integer(value.at("generation"), 1);
 	rule_saved_integer(value.at("started"), 0, now);
 	rule_saved_integer(value.at("next"));

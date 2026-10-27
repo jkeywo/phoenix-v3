@@ -119,7 +119,7 @@ struct ResourceStoreState
 struct ResourceGeneratorState
 {
 	ResourceAmount commanded_rate = 0, actual_rate = 0, response_remainder = 0;
-	ResourceAmount generation_remainder = 0, heat_remainder = 0;
+	ResourceAmount generation_remainder = 0, heat_remainder = 0, throughput_remainder = 0;
 	bool enabled = true;
 };
 struct ResourceGroupState
@@ -149,12 +149,13 @@ struct CoolantSourceState
 };
 struct CoolingLinkState
 {
-	ResourceAmount allocation_rate = 0, tick_remainder = 0;
+	ResourceAmount allocation_rate = 0, tick_remainder = 0, throughput_remainder = 0;
 	bool isolated = false;
 };
 struct ResourceStoreTelemetry
 {
 	ResourceAmount requested = 0, accepted_incoming = 0, outgoing = 0, generated = 0;
+	ResourceAmount producer_consumed = 0;
 	ResourceAmount consumed = 0, lost = 0, heat_added = 0, heat_removed = 0;
 	ResourceAmount work_requested = 0, work_funded = 0;
 	bool discrete_paid = false, limited = false;
@@ -173,6 +174,17 @@ struct CoolantForecast
 	bool constant_last_tick_rates = true, excludes_future_commands_and_network_changes = true;
 };
 
+// Tick-local mechanism controls are prepared on allocation copies. They never
+// replace the commanded native settings or the immutable network definition.
+struct ResourceMachineryControl
+{
+	ResourceAmount throughput_permille = 1000, work_limit = resource_limit;
+	bool enabled = true;
+};
+struct ResourceMachineryReceipt
+{
+	ResourceAmount available = 0, completed = 0;
+};
 class ResourceNetwork
 {
 public:
@@ -199,6 +211,20 @@ public:
 	void set_group_budget(ResourceIndex group, ResourceAmount energy_per_second);
 	void set_link_isolated(ResourceIndex link, bool isolated);
 	void set_cooling(ResourceIndex link, ResourceAmount removal_per_second, bool isolated = false);
+	void set_generator_work(ResourceIndex, ResourceMachineryControl);
+	void set_cooling_work(ResourceIndex, ResourceMachineryControl);
+	void clear_machinery_work();
+	const std::vector<ResourceMachineryReceipt> &generation_work() const;
+	const std::vector<ResourceMachineryReceipt> &cooling_work() const;
+	// Explicit thermal effects use the same state and protection hysteresis.
+	ResourceAmount add_thermal(ResourceIndex, ResourceAmount);
+	ResourceAmount remove_thermal(ResourceIndex, ResourceAmount);
+	ResourceAmount producer_input_budget(ResourceIndex) const;
+	bool producer_input_operational(ResourceIndex) const;
+	bool operation_ready(ResourceIndex, bool next_tick = false) const;
+	// Prepared seed only: debit pre-existing energy and reserve this tick's native
+	// discharge allowance. The ordinary tick settles its heat and observations.
+	bool prepare_producer_payment(ResourceIndex, ResourceAmount);
 	void tick();
 	ResourceAmount receive_external(ResourceIndex store, ResourceAmount offered);
 	// Atomic discrete operating payment against this tick's remaining discharge budget.
@@ -223,8 +249,11 @@ private:
 	std::vector<CoolantSourceState> coolant_sources_;
 	std::vector<CoolingLinkState> cooling_links_;
 	std::vector<ResourceStoreTelemetry> telemetry_;
+	std::vector<ResourceMachineryControl> generator_work_, cooling_work_;
+	std::vector<ResourceMachineryReceipt> generation_receipts_, cooling_receipts_;
 	std::vector<ResourceAmount> charge_left_, discharge_left_, link_left_, group_left_;
 	std::vector<ResourceAmount> demand_, initial_energy_, initial_heat_;
+	std::vector<ResourceAmount> producer_paid_;
 	std::uint64_t random_ = 1, ticks_ = 0, revision_ = 1;
 	void changed();
 	std::uint64_t random_next();

@@ -303,6 +303,8 @@ Observation capture_decision_observation(const ConsoleAddress &address, Telemetr
 	auto result = capture_console_observation(address, Json::object(), ObservationDetail::Decision, telemetry_snapshot,
 	                                          contact_snapshot);
 	result.gameplay["ability_facts"] = ability_decision_facts(address, result);
+	result.gameplay["processes"] = process_board(address, &result);
+	result.gameplay["process_facts"] = process_decision_facts(address, result);
 	return result;
 }
 // Visibility consumers use the identical Console feed/type/contact boundary,

@@ -116,6 +116,7 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 				fields.insert("grant");
 				fields.insert("equipment");
 				fields.insert("officer");
+				fields.insert("compartment");
 				fields.insert("delta_permille");
 				fields.insert("role");
 				op.kind = kind == "apply" ? EffectOperationKind::Apply : EffectOperationKind::Remove;
@@ -131,8 +132,8 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 							op.target = "owner";
 						if (op.target != "owner")
 							fail("owner-scoped removal requires owner target");
-						for (const auto *field :
-						     {"grant", "effect", "equipment", "officer", "all_sources", "delta_permille", "role"})
+						for (const auto *field : {"grant", "effect", "equipment", "officer", "compartment",
+						                          "all_sources", "delta_permille", "role"})
 							if (value.contains(field))
 								fail("owner-scoped removal omits named grant/effect/source filters");
 					}
@@ -150,6 +151,10 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 				op.grant = value.value("grant", std::string{});
 				op.equipment = value.value("equipment", std::string{});
 				op.officer = value.value("officer", std::string{});
+				op.compartment = value.value("compartment", std::string{});
+				if (!op.compartment.empty() &&
+				    (!valid_identifier(op.compartment) || !op.equipment.empty() || !op.officer.empty()))
+					fail("compartment selector must be exclusive");
 				if ((!op.officer.empty() && !valid_identifier(op.officer)) ||
 				    (!op.officer.empty() && !op.equipment.empty()))
 					fail("ability source must bind one valid officer or equipment");
@@ -189,9 +194,11 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 						op.delta_permille = delta.get<std::int64_t>();
 					}
 					if (effect_kind != "shield" && effect_kind != "modifier" && effect_kind != "periodic" &&
-					    effect_kind != "ability_grant")
+					    effect_kind != "ability_grant" && effect_kind != "process_grant")
 						fail("nested operation groups are unsupported");
-					if (effect_kind == "ability_grant")
+					if (effect_kind == "process_grant")
+						(void)compile_process_grant(catalog, op.effect);
+					else if (effect_kind == "ability_grant")
 					{
 						if (op.equipment.empty() && op.officer.empty())
 							fail("ability grant requires an officer or equipment source binding");
@@ -208,11 +215,29 @@ EffectGroupDefinition compile_effect_operations(const Catalog &catalog, const Js
 						if (native && (op.equipment.empty() || !op.officer.empty()))
 							fail("native modifier requires equipment");
 					}
-					else if (!op.officer.empty() || !op.equipment.empty())
+					else if (!op.officer.empty() || !op.equipment.empty() || !op.compartment.empty())
 						fail("shield and periodic omit source bindings");
 				}
 				else if (value.contains("delta_permille") || value.contains("role"))
 					fail("delta_permille and role require a modifier apply");
+			}
+			else if (kind == "heat_add" || kind == "heat_remove")
+			{
+				fields.insert("equipment");
+				fields.insert("store");
+				fields.insert("amount");
+				op.kind = kind == "heat_add" ? EffectOperationKind::HeatAdd : EffectOperationKind::HeatRemove;
+				op.store = value.value("store", std::string{});
+				if (op.store.size() > 256)
+					fail("invalid thermal store selector");
+				op.equipment = value.value("equipment", std::string{});
+				if (!op.equipment.empty() && op.equipment != "$owner" && op.equipment != "$source" &&
+				    op.equipment != "$target" && op.equipment != "$hit" && !valid_identifier(op.equipment))
+					fail("invalid thermal equipment selector");
+				const auto amount = value.value("amount", Json(0));
+				if (!amount.is_number_integer() || amount < 0 || amount > resource_limit)
+					fail("invalid thermal amount");
+				op.amount = amount.get<std::int64_t>();
 			}
 			else if (kind == "property_set" || kind == "property_add" || kind == "property_subtract" ||
 			         kind == "property_rate")

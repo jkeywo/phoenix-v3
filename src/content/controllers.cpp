@@ -584,6 +584,23 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			     controller_ability_bindings(catalog.trees.at(controller.tree), catalog, properties))
 				control_require(ability_endpoint_owned(entity, endpoint, controller.id, controller.console), where,
 				                "ability observation must name an owned execution/planning endpoint on this Console");
+		if (!controller.tree.empty())
+			for (const auto &endpoint :
+			     controller_process_bindings(catalog.trees.at(controller.tree), catalog, properties))
+			{
+				const auto controls = entity.value("process_controls", Json::object());
+				bool owned = false;
+				if (controls.is_object() && controls.contains(endpoint))
+				{
+					const auto owner = controls.at(endpoint).value("controller", std::string{});
+					owned = owner == controller.id;
+					if (!owned && entity.contains("control_layout"))
+						for (const auto &other : entity.at("control_layout").at("controllers"))
+							owned = owned || (other.at("id") == owner &&
+							                  other.value("console", std::string{}) == controller.console);
+				}
+				control_require(owned, where, "process observation must name an owned endpoint on this Console");
+			}
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
 		{
 			const auto seat = std::find_if(consoles.begin(), consoles.end(),

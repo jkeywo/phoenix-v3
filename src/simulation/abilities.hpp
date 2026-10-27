@@ -194,7 +194,7 @@ std::string ability_conflict(EntityId ship, const AbilityGrantState &g) const
 				if (ability_exclusion_key(g, wanted) == ability_exclusion_key(other, held))
 					return "Exclusive ability is busy";
 	}
-	return {};
+	return process_ability_conflict(ship, g);
 }
 void initialise_abilities(flecs::entity ship)
 {
@@ -804,8 +804,8 @@ void refresh_ability_work(bool advance = true)
 				g.fault_permille = faults;
 				g.output_permille = funding * faults / 1000;
 				if (advance && g.output_permille)
-					runtime->work.push_back(
-					    {g.source, g.owner, d.family, g.definition, g.activation, g.output_permille});
+					runtime->work.push_back({g.source, g.owner, d.family, g.definition, g.activation, g.output_permille,
+					                         g.id, g.output_permille, "permille", g.generation});
 			}
 		}
 		for (const auto &key : completed)

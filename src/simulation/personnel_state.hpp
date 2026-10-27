@@ -12,6 +12,7 @@ struct OfficerState
 	bool stabilised = false;
 	std::int64_t stun_until = 0, treatment = 0, recovery = 0, casualty_tick = -1;
 	CustomPropertyState properties;
+	ProcessRuntime processes;
 };
 struct PersonnelState
 {

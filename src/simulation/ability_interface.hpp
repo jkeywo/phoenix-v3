@@ -251,15 +251,10 @@ AbilityStatus ability_status(EntityId ship, const AbilityControlDefinition &cont
 	return status;
 }
 
-Json ability_observed_properties(EntityId ship, const AbilityGrantState &grant) const
+Json execution_observed_properties(const RuleActor &actor, std::span<const std::string> observations) const
 {
 	Json rows = Json::array();
-	RuleActor actor{ship};
-	if (grant.source == "officer")
-		actor.officer = grant.owner;
-	else
-		actor.equipment = grant.owner;
-	for (const auto &id : ability_definition(ship, grant).observations)
+	for (const auto &id : observations)
 	{
 		const auto value = read_custom_property(actor, id);
 		if (!value)
@@ -286,6 +281,16 @@ Json ability_observed_properties(EntityId ship, const AbilityGrantState &grant) 
 		rows.push_back(std::move(row));
 	}
 	return rows;
+}
+
+Json ability_observed_properties(EntityId ship, const AbilityGrantState &grant) const
+{
+	RuleActor actor{ship};
+	if (grant.source == "officer")
+		actor.officer = grant.owner;
+	else
+		actor.equipment = grant.owner;
+	return execution_observed_properties(actor, ability_definition(ship, grant).observations);
 }
 
 Json ability_decision_facts(const ConsoleAddress &address, const Observation &permitted) const
@@ -390,7 +395,10 @@ void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const 
 		const auto found = catalogue.find(receipt.definition);
 		if (found == catalogue.end() || found->second.family != receipt.family || !receipt.activation ||
 		    receipt.activation >= state.next_activation || !work_activations.insert(receipt.activation).second ||
-		    receipt.output <= 0 || receipt.output > 1000 || !ability_source_exists(ship, receipt.source, receipt.owner))
+		    receipt.output <= 0 || receipt.output > 1000 || receipt.work != receipt.output ||
+		    receipt.work_unit != "permille" || receipt.execution.empty() || receipt.execution.size() > 1024 ||
+		    !receipt.generation || receipt.generation >= state.next_generation ||
+		    !ability_source_exists(ship, receipt.source, receipt.owner))
 			throw std::runtime_error("Invalid saved ability completed work");
 	}
 	const auto &abilities = definition(ship).abilities;

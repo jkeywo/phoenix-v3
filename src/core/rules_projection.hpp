@@ -23,7 +23,8 @@ inline Json board(const Json &source)
 		if (phase != "ready" && phase != "active" && phase != "paused" && phase != "stopped" && phase != "unavailable")
 			throw std::runtime_error("Invalid rule projection phase");
 		const auto &kind = row.at("source_kind");
-		if (kind != "equipment" && kind != "officer" && kind != "effect" && kind != "region" && kind != "shield")
+		if (kind != "equipment" && kind != "officer" && kind != "effect" && kind != "region" && kind != "shield" &&
+		    kind != "process")
 			throw std::runtime_error("Invalid rule projection source kind");
 		const auto &blocker = row.at("blocker");
 		if (blocker != "" && blocker != "conditions" && blocker != "source" && blocker != "funding" &&
