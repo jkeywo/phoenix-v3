@@ -3,3 +3,4 @@ line_length: 120
 unsafe: false
 definitions:
   - cmake/Boundaries.cmake
+  - cmake/ModulePolicy.cmake
