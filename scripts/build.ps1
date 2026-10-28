@@ -4,9 +4,14 @@ param(
 	[ValidateRange(1, 1024)][int]$Jobs = 8,
 	[switch]$Reconfigure,
 	[switch]$ConfigureOnly,
-	[switch]$Threaded
+	[switch]$Threaded,
+	[switch]$DevelopmentLink
 )
 $ErrorActionPreference = 'Stop'
+if ($Target -ne 'web' -and $PSBoundParameters.ContainsKey('DevelopmentLink'))
+{
+	throw '-DevelopmentLink applies only to web builds.'
+}
 $repo = Split-Path $PSScriptRoot -Parent
 $originalPath = $env:PATH
 Push-Location $repo
@@ -40,13 +45,18 @@ try
 		$env:PATH = ($toolPaths + $env:PATH) -join [System.IO.Path]::PathSeparator
 	}
 	$threadedRequested = $Target -eq 'web' -and $PSBoundParameters.ContainsKey('Threaded')
+	$developmentLinkRequested = $Target -eq 'web' -and $PSBoundParameters.ContainsKey('DevelopmentLink')
 	[string[]]$threadedArguments = @()
 	if ($threadedRequested)
 	{
 		$threadedArguments += "-DPHOENIX_BROWSER_THREADS=$(if ($Threaded) { 'ON' } else { 'OFF' })"
 	}
+	if ($developmentLinkRequested)
+	{
+		$threadedArguments += "-DPHOENIX_WEB_DEVELOPMENT_LINK=$(if ($DevelopmentLink) { 'ON' } else { 'OFF' })"
+	}
 	# Generated builds already rerun CMake when tracked configuration inputs change.
-	if ($Reconfigure -or $ConfigureOnly -or $threadedRequested -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))
+	if ($Reconfigure -or $ConfigureOnly -or $threadedRequested -or $developmentLinkRequested -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))
 	{
 		if ($Target -eq 'native')
 		{

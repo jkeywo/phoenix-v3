@@ -1544,3 +1544,6 @@ target_sources(phoenix_simulation PRIVATE src/world/lifecycle/instance.cpp)
 target_link_libraries(phoenix_simulation PRIVATE phoenix_effects_ability_lifecycle phoenix_gameplay_projectiles)
 
 target_link_libraries(phoenix_simulation PRIVATE phoenix_control_native_commands)
+
+# Apply after all application, fixture and manual-host link flags are registered.
+include(cmake/WebDevelopmentLink.cmake)

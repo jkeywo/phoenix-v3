@@ -129,7 +129,8 @@ try
 		{
 			$webOptions.Threaded = $Threaded
 		}
-		& "$PSScriptRoot/build.ps1" -Target web @webOptions
+		# The complete gate validates ordinary Release linking, even after local iteration.
+		& "$PSScriptRoot/build.ps1" -Target web -DevelopmentLink:$false @webOptions
 		Push-Location build/web
 		try
 		{

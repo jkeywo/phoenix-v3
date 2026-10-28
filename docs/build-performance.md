@@ -2,6 +2,22 @@
 
 The [28 October development measurements](build-measurements-2026-10-28.md) cover the expanded modular codebase: focused no-op builds, implementation edits, World runtime interface changes and a same-object web link optimisation comparison. They identify development web linking and World dependency breadth as the strongest measured opportunities.
 
+## Development web linking
+
+Use `-DevelopmentLink` to skip expensive executable link optimisation during local web iteration. C++ libraries, named modules and application objects retain their configured Release compilation optimisation. The option covers server, client, Workshop, system fixtures and explicitly selected manual hosts, including hosts with their own link optimisation flags.
+
+```powershell
+./scripts/build.ps1 -Target web -BuildTarget client -DevelopmentLink
+./scripts/build.ps1 -Target web -BuildTarget server
+./scripts/build.ps1 -Target web -BuildTarget server -DevelopmentLink:$false
+```
+
+The setting persists in `build/web`: omitting the switch preserves it, while `-DevelopmentLink:$false` restores ordinary Release linking. A fresh build defaults to ordinary linking. Native builds reject the switch. Direct CMake users can set `PHOENIX_WEB_DEVELOPMENT_LINK=ON` or `OFF`. Changing the setting requires relinking, without deliberately rebuilding compiled objects. `scripts/check.ps1` explicitly disables development linking for the complete Release gate and CI/deployment builds.
+
+The same-object threaded server measurement reduced median link time from 51.037 to 2.194 seconds. This option is for iteration; use ordinary Release linking for delivery and runtime-performance measurements. It does not promise a particular runtime speed or download size.
+
+The implementation was verified in an isolated snapshot of `1c423fd` plus the build-option changes, using shared pinned dependency sources and separate build outputs. The threaded client built with development linking and relinked with ordinary optimisation without compiling C++ again; its compiled entry-point hash and 707 captured compiler command lines were unchanged. Generated commands verified the final optimisation flag for server, client, Workshop, a system fixture, the Workshop host and manual mission/profiling hosts. Native wrapper/CMake rejection, the fresh default and caller PATH restoration also passed. Concurrent feature edits in the main worktree were excluded from this validation.
+
 The ordinary [build commands](building.md) configure a new build tree automatically. Subsequent runs use the generated build directly; CMake still regenerates when its tracked inputs change. Use `-Reconfigure` to explicitly configure and build, or `-ConfigureOnly` to configure without compiling. Release settings and the existing native/web output paths are unchanged.
 
 Build just the application or integration case needed for the current edit:
