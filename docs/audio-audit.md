@@ -8,6 +8,8 @@ The requested reuse increment adds `the_final_battle` for red alert; host-ship e
 
 ## What V3 had at audit start
 
+28 October follow-up: the six selected CC0 audition recordings now cover committed PDC fire, FTL reinforcement arrivals/departures, delivered Comms attention, critical ship status and funded psychic activation. Deleted candidates and Kenney packs are excluded. See [selected audio bindings](selected-audio.md) for triggers, provenance and remaining acceptance; the inventory below remains the historical audit.
+
 There are **five unique shipped recordings**: two music tracks and three effects. Seven audio files exist under `content/` because the red-alert siren is duplicated in the two development bases. The siren copies are byte-identical. There is no broader weapon, machinery or notification library hidden in the tracked content.
 
 | Recording                                       | Current use                                                                  | Evidence / limitations                                                                                                                                           |

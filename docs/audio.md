@@ -11,7 +11,9 @@ The ship host produces one music/ship/world mix. Native playback routes it to th
 | `cutting_beam.ogg`     | Actual sustained Courier cutting-beam execution                                        | 0.5 × SFX           |
 | `shield.ogg`           | One quiet bed per visible ship/recording while shields operate, with actual-hit spikes | 0.06–0.8 × SFX      |
 
-The cockpit camera retains own-ship combat feedback while hiding its hull. Other combat sources follow the Viewscreen camera frustum and render horizon; changing camera direction does not replay old shots. PDCs, missiles and other beam types receive no new firing recording. Existing explosion and UI-click sounds remain.
+The cockpit camera retains own-ship combat feedback while hiding its hull. Other combat sources follow the Viewscreen camera frustum and render horizon; changing camera direction does not replay old shots. PDCs now use the selected burst recording through the same committed directed-launch hook. Missiles and other beam types retain their previous coverage. Existing explosion and UI-click sounds remain.
+
+The six surviving [audition candidates](selected-audio.md) are also bound: PDC bursts, FTL arrival/departure, Comms delivery, critical status and funded psychic activation. All use SFX and the existing bounded one-shot voices. Internal Comms/status/psychic cues are audible only for the host's own ship. Kenney packs and deleted candidates are unused.
 
 Shield audio belongs to the shared shield-effect contributions, including temporary grants. The native hit resolver publishes assigned damage only for reached contributions. The local mixer combines their beds and hit amounts per ship/recording; four arcs do not create four hums. The initial envelope ignores damage below 1, scales normalized intensity from zero at 1 to a full spike at 30, and decays at 1.5 intensity units/second before mapping the bed to peak gain. Cannon sounds follow committed directed launches, and beam loops follow actual sustained directed execution. Both publish through the common cosmetic cue interface; shield audio is owned by the resolved shield effects.
 
@@ -20,6 +22,8 @@ Loops stop on pause/recovery, departure, destruction, leaving the mission or rep
 ## Authoring
 
 An entity's optional `audio.ambient` and `audio.engine` each contain an `asset` reference and a numeric `gain` from 0 to 1. Directed operating modes may supply `firing_audio` with the same fields: launch modes require WAV; sustained beam modes require OGG. Scan modes have no firing audio. A fitting can bind launch and beam modes with separate recordings. These are explicit metadata bindings, not hardcoded weapon-name rules.
+
+Ship `audio.ftl_arrival`, `audio.ftl_departure`, `audio.comms_attention` and `audio.critical_warning`, plus shared ability `activation_audio`, accept optional WAV `asset`/`gain` objects. Workshop exposes these alongside the existing audio fields; ordinary asset closure includes them in host exports and excludes them from remote Console bundles.
 
 A shared shield contribution's optional `audio` object contains `asset`, `gain`, `peak_gain`, `decay_per_second`, `damage_threshold` and `damage_full_spike`. Conditions may additionally set `music_gain` (default 1). Workshop exposes these fields alongside ship fittings, weapon templates, shield contributions and condition music. Asset dependencies use the ordinary scenario/export reference closure.
 
