@@ -3,6 +3,7 @@ module;
 
 module phoenix.simulation;
 import :crew_bindings;
+import :away_adapters;
 
 namespace phoenix::world_detail
 {

@@ -3,6 +3,7 @@ module;
 
 export module phoenix.simulation:effect_work;
 export import :runtime;
+export import phoenix.effects.ability_lifecycle;
 // Actor-scoped ability physical binding, shared by the ordinary lifecycle units.
 export namespace phoenix::world_detail
 {

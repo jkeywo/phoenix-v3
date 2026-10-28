@@ -2,6 +2,8 @@
 
 The [28 October development measurements](build-measurements-2026-10-28.md) cover the expanded modular codebase: focused no-op builds, implementation edits, World runtime interface changes and a same-object web link optimisation comparison. They identify development web linking and World dependency breadth as the strongest measured opportunities.
 
+[World compilation dependencies](world-build-dependencies.md) records the subsequent Away adapter extraction, native/WASM integration evidence and the measured reduction from 102 affected objects to one for edits to those implementation bodies.
+
 ## Development web linking
 
 Use `-DevelopmentLink` to skip expensive executable link optimisation during local web iteration. C++ libraries, named modules and application objects retain their configured Release compilation optimisation. The option covers server, client, Workshop, system fixtures and explicitly selected manual hosts, including hosts with their own link optimisation flags.

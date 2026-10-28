@@ -4,8 +4,9 @@ target_sources(
 		FILE_SET runtime_partitions
 			TYPE CXX_MODULES
 			BASE_DIRS "${PROJECT_SOURCE_DIR}"
-			FILES "${CMAKE_CURRENT_LIST_DIR}/integration.cppm"
+			FILES "${CMAKE_CURRENT_LIST_DIR}/integration.cppm" "${CMAKE_CURRENT_LIST_DIR}/away_adapters.cppm"
 	PRIVATE
+		"${CMAKE_CURRENT_LIST_DIR}/away_adapters.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/away_access.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/away_commands.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/away_projection.cpp"
