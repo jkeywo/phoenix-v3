@@ -1,0 +1,24 @@
+Selected audition recordings, 28 October 2026
+
+All six recordings are CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
+Runtime WAVs were converted from the selected Freesound public high-quality MP3 previews, not original lossless uploads.
+See selected-audio-sources.json for source pages, creator identities, source/output hashes and conversion details.
+
+comms_attention_transmission_end.wav: Walkie Talkie - Roger Beep by bruce965
+https://freesound.org/people/bruce965/sounds/321906/
+
+critical_heat_power_damage_warning.wav: Generic Spaceship Alarm 01.wav by Tim_Verberne
+https://freesound.org/people/Tim_Verberne/sounds/514080/
+
+ftl_arrival.wav: Fast Warp In by GammaGool
+https://freesound.org/people/GammaGool/sounds/735062/
+
+ftl_departure.wav: Warp SFX by Breviceps
+https://freesound.org/people/Breviceps/sounds/453391/
+
+pdc_firing.wav: Clean Machine Gun Burst by qubodup
+https://freesound.org/people/qubodup/sounds/482122/
+
+psychic_ward_activation.wav: Shimmer glass by Dasgoat
+https://freesound.org/people/Dasgoat/sounds/361704/
+
