@@ -1,5 +1,6 @@
-# Portable preferences are registered early beside the UI contracts, before this
-# application composition family is registered from the root.
+# Portable preferences and application composition share one family owner.
+# Cross-family target links are resolved after all families are registered.
+add_subdirectory(preferences)
 add_subdirectory(library)
 add_subdirectory(shell)
 add_subdirectory(preference-store)

@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -331,21 +307,20 @@ auto Runtime::fire_weapons(flecs::entity ship) -> void
 				        instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
 				            ->entity.get_mut<CombatMechanism>();
 				    auto &stock = physical_stock(ship, a.get<MagazineState>().stock);
-				    const auto &payload = prepared.projectile;
 				    if (!commit_weapon_launch(m->get<WeaponState>(), child.get_mut<DirectedRuntime>(), prepared, stock,
 				                              d.id, projectile_rows().size()))
 					    return false;
 				    record_interdiction_attack(ship.get<StableId>().id, directed_target(ship.get<StableId>().id, d.id));
 				    psychic_weapon_emission(ship.get<StableId>().id);
 				    auto &s = ship.get_mut<CombatStructure>();
-				    auto p = create_launched_projectile(prepared,
+				    auto p = projectiles.prepare_launch(prepared,
 				                                        {id, directed_target(id, d.id), d.id, altitude(id),
 				                                         d.get<WeaponDefinition>().range, ship.get<Motion>().velocity},
-				                                        s.random, next_projectile);
+				                                        s.random);
 				    p.rule_captures = capture_payload_rule_facts(id, d.id, p.payloads);
 				    p.destruction_rule_captures =
 				        capture_payload_rule_facts(id, d.id, p.definition.destruction.payloads);
-				    ecs.entity().set<Projectile>(p).set<Destructible>({payload.destruction, payload.durability});
+				    projectiles.publish(ecs, p);
 				    emit_audio(ship, {SceneAudioKind::Shot, "weapon:" + d.id, directed_mode(id, d.id)->firing_audio});
 				    return true;
 			    });

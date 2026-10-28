@@ -10,6 +10,7 @@ module;
 
 export module phoenix.gameplay.away.runtime;
 export import phoenix.gameplay.away.operations;
+export import phoenix.content.controllers.types;
 export import phoenix.gameplay.personnel.state;
 export import phoenix.gameplay.combat.state;
 export import phoenix.gameplay.craft;
@@ -30,6 +31,8 @@ struct AwayTransportLayout
 	const std::map<std::string, DisplacementDefinition> &displacements;
 	const std::vector<DockPortDefinition> &ports;
 	const CombatDefinition *structure;
+	const std::vector<ConsoleSpec> &consoles;
+	const CraftDefinition *craft;
 };
 struct AwayTeamMotion
 {
@@ -57,6 +60,7 @@ public:
 	virtual AwayTransportLayout layout() const = 0;
 	virtual const PersonnelState &personnel() const = 0;
 	virtual const CombatMechanism &team(const std::string &team_id) const = 0;
+	virtual bool team_present(const std::string &team_id) const = 0;
 	virtual const DockConnection *dock_connection() const = 0;
 };
 class AwayCraftView
@@ -71,6 +75,7 @@ public:
 	virtual ~AwayViews();
 	virtual const AwayShipView &ship(EntityId ship_id) const = 0;
 	virtual const AwayCraftView &craft(EntityId craft_id) const = 0;
+	virtual bool is_craft(EntityId entity_id) const = 0;
 	virtual EntityId transport(EntityId origin_ship, const std::string &transport_key) const = 0;
 };
 struct AwayObservation
@@ -169,6 +174,59 @@ struct AwayExecution
 	std::int64_t ticks_per_second;
 	std::map<EntityId, std::map<std::string, PersonnelPosting>> &postings;
 };
+struct AwayReservations
+{
+	const std::map<std::string, EntityId> &slots;
+	const std::map<EntityId, std::map<std::string, PersonnelPosting>> &postings;
+	const MissionLedger &ledger;
+};
+class AwayRestoreChecks
+{
+public:
+	virtual ~AwayRestoreChecks();
+	// Boarding owns capture/defender receipts; called after care validation at the
+	// original restore boundary, before the mission continuation is installed.
+	virtual void boarding(const AwayDefinition &definition, const AwayMission &mission) const = 0;
+};
+struct AwayRestoreContext
+{
+	AwayObservation observation;
+	AwayReservations reservations;
+	const AwayRestoreChecks &checks;
+};
+struct AwayPermittedSlot
+{
+	bool owned = false;
+	std::vector<std::string> choices;
+};
+struct AwayPermittedSupply
+{
+	std::int64_t quantity = 0, payment_quantity = 0;
+	std::string phase;
+	std::int64_t delivered = 0;
+	bool manual = false;
+	std::vector<std::int64_t> quantities;
+};
+// Only ownership/choice decisions cross from the control adapter. Canonical
+// mission identity, disclosure, phase, result and assignment fields stay here.
+struct AwayPermittedRow
+{
+	bool dispatch = false, automatic_dispatch = false, can_contribute = false, transport_owned = false;
+	std::string blocker, owner, dispatch_system;
+	std::vector<AwayPermittedSlot> slots, craft_slots;
+	std::vector<std::string> transports;
+	std::optional<AwayPermittedSupply> supply;
+	std::map<std::string, std::string> labels;
+};
+class AwayProjectionSource
+{
+public:
+	virtual ~AwayProjectionSource();
+	// Runtime checks origin and Hidden disclosure before calling this readonly
+	// source. Collection preserves existing native control admission predicates.
+	virtual AwayPermittedRow permitted_row(std::size_t mission_index, const ConsoleAddress &viewer) const = 0;
+};
+
 class AwayRuntime : public AwayOperations
 {
 public:
@@ -187,5 +245,12 @@ public:
 	                            const AwayObservation &observation) const;
 	void recover(EntityId origin, AwayMission &mission, AwayExecution &execution);
 	void deploy(const AwayDefinition &definition, AwayMission &mission, const AwayObservation &observation);
+	Json save(const AwayObservation &observation) const;
+	void restore(const Json &rows, const AwayRestoreContext &context);
+	bool reserved(EntityId origin, const std::string &asset, const AwayReservations &context) const;
+	bool slot_accepts(EntityId origin, const AwaySlot &slot, const std::string &asset,
+	                  const AwayObservation &observation) const;
+	Json board(const ConsoleAddress &viewer, const AwayObservation &observation,
+	           const AwayProjectionSource &permitted) const;
 };
 } // namespace phoenix

@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :persistence;
@@ -187,7 +163,7 @@ Json World::save() const
 	result["projectiles"] = impl_->save_projectiles();
 	result["blast_visuals"] = impl_->blast_visuals;
 	result["next_blast"] = impl_->next_blast;
-	result["next_projectile"] = impl_->next_projectile;
+	result["next_projectile"] = impl_->projectiles.next_identity();
 	return result;
 }
 
@@ -452,20 +428,17 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	    saved.value("personnel_postings", decltype(candidate.impl_->personnel_postings){});
 	candidate.impl_->restore_interdictions(saved.value("interdictions", Json::array()), content);
 	candidate.impl_->departures.restore_groups(saved.value("departure_groups", Json(DepartureGroups{})));
-	std::set<EntityId> grouped_members;
-	for (const auto &[leader, group] : candidate.impl_->departures.groups())
-	{
-		if (!candidate.impl_->entities.contains(leader) || !group.contains(leader) || group.size() > 32)
-			throw std::runtime_error("Invalid departure group");
-		for (auto member : group)
-			if (!candidate.impl_->entities.contains(member) || !grouped_members.insert(member).second)
-				throw std::runtime_error("Unknown or duplicate departure member");
-	}
+	candidate.impl_->departures.validate_group_members(
+	    [&candidate](EntityId id)
+	    {
+		    return candidate.impl_->entities.contains(id);
+	    });
 	candidate.impl_->discard_obsolete_encounter_departures();
-	for (const auto &[leader, group] : candidate.impl_->departures.groups())
-		for (auto member : group)
-			if (!candidate.impl_->departure_member_authorised(leader, member))
-				throw std::runtime_error("Unknown or duplicate departure member");
+	candidate.impl_->departures.validate_group_authority(
+	    [&candidate](EntityId leader, EntityId member)
+	    {
+		    return candidate.impl_->departure_member_authorised(leader, member);
+	    });
 	candidate.impl_->validate_personnel_postings();
 
 	for (const auto &[target, origin] : candidate.impl_->captured_by)

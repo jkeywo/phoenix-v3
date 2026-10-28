@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -344,10 +320,7 @@ auto Runtime::restore_combat(flecs::entity ship, const Json &j) -> void
 
 auto Runtime::save_projectiles() const -> Json
 {
-	Json result = Json::array();
-	for (auto particle : projectile_rows())
-		result.push_back(save_projectile_continuation(particle.get<Projectile>(), particle.get<Destructible>()));
-	return result;
+	return projectiles.save();
 }
 
 auto Runtime::restore_projectiles(const Json &saved) -> void
@@ -361,16 +334,12 @@ auto Runtime::restore_projectiles(const Json &saved) -> void
 		if (const auto *structure = entity.try_get<CombatStructure>())
 			for (const auto &compartment : structure->definition.compartments)
 				catalogue.decks[id].insert(compartment.deck);
-	auto restored =
-	    restore_projectile_continuations(saved, static_cast<std::int64_t>(ecs.get<Clock>().tick), catalogue);
-	next_projectile = restored.next_projectile;
-	for (auto &value : restored.values)
-	{
-		validate_rule_captures(value.projectile.rule_captures, value.projectile.payloads);
-		validate_rule_captures(value.projectile.destruction_rule_captures,
-		                       value.projectile.definition.destruction.payloads);
-		ecs.entity().set<Projectile>(value.projectile).set<Destructible>(std::move(value.native));
-	}
+	projectiles.restore(ecs, saved, static_cast<std::int64_t>(ecs.get<Clock>().tick), catalogue,
+	                    [this](const Projectile &p)
+	                    {
+		                    validate_rule_captures(p.rule_captures, p.payloads);
+		                    validate_rule_captures(p.destruction_rule_captures, p.definition.destruction.payloads);
+	                    });
 }
 
 auto Runtime::save_shields(flecs::entity ship) const -> Json

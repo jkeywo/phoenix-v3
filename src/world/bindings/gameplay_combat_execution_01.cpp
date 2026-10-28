@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -32,18 +8,7 @@ namespace phoenix::world_detail
 {
 auto Runtime::projectile_rows() const -> std::vector<flecs::entity>
 {
-	std::vector<flecs::entity> rows;
-	projectile_query.each(
-	    [&](flecs::entity e, const Projectile &)
-	    {
-		    rows.push_back(e);
-	    });
-	std::sort(rows.begin(), rows.end(),
-	          [](auto a, auto b)
-	          {
-		          return a.template get<Projectile>().id < b.template get<Projectile>().id;
-	          });
-	return rows;
+	return projectiles.rows();
 }
 
 auto Runtime::combat_rows() const -> std::vector<std::pair<EntityId, flecs::entity>>

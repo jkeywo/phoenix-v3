@@ -11,3 +11,12 @@ target_link_libraries(phoenix_gameplay_ftl_coordinator PUBLIC phoenix_contracts)
 set_property(TARGET phoenix_gameplay_ftl_coordinator PROPERTY CXX_SCAN_FOR_MODULES ON)
 set_property(TARGET phoenix_gameplay_ftl_coordinator PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_contracts)
 set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_ftl_coordinator)
+
+# Command/group admission and continuation share the canonical coordinator.
+target_sources(phoenix_gameplay_ftl_coordinator PRIVATE admission.cpp)
+target_link_libraries(phoenix_gameplay_ftl_coordinator PUBLIC phoenix_content_controllers_types)
+set_property(
+	TARGET phoenix_gameplay_ftl_coordinator
+	APPEND
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_content_controllers_types
+)

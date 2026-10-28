@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -246,7 +222,7 @@ auto Runtime::meta(std::uint64_t claimant, const OperatingCommand &command, bool
 	if (departed(address.ship) && command.action != "camera_mode" && command.action != "camera_direction")
 		return false;
 	if (command.action.starts_with("ftl."))
-		return ftl_command(address, command, execute);
+		return departures.admit(departure_admission_facts(), address, command, execute);
 	if (command.action == "flight.impulse")
 		return coordinated_impulse(address, command, execute);
 	if (command.action.starts_with("away."))

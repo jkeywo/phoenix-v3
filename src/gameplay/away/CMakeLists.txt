@@ -36,12 +36,13 @@ set_target_properties(
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
 
-add_library(phoenix_gameplay_away_runtime STATIC runtime.cpp)
+add_library(phoenix_gameplay_away_runtime STATIC runtime.cpp persistence.cpp projection.cpp)
 target_sources(phoenix_gameplay_away_runtime PUBLIC FILE_SET CXX_MODULES FILES runtime.cppm)
 target_link_libraries(
 	phoenix_gameplay_away_runtime
 	PUBLIC
 		phoenix_gameplay_away_operations
+		phoenix_content_controllers_types
 		phoenix_gameplay_personnel_state
 		phoenix_gameplay_combat_state
 		phoenix_gameplay_craft
@@ -52,6 +53,7 @@ target_link_libraries(
 		phoenix_effects_contracts
 		phoenix_scenarios_objectives
 	PRIVATE
+		phoenix_gameplay_away_crew
 		phoenix_gameplay_conversations
 		phoenix_scenarios_runtime
 		phoenix_behavior_state_tree

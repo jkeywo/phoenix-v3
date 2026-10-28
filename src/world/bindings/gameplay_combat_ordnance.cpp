@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -246,9 +222,7 @@ auto Runtime::resolve_destructions() -> void
 			}
 		}
 	}
-	for (auto e : projectile_rows())
-		if (projectile_finished(e.get<Projectile>()))
-			e.destruct();
+	projectiles.erase_finished();
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	std::erase_if(blast_visuals,
 	              [&](const auto &v)
@@ -342,32 +316,23 @@ auto Runtime::fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec orig
 	}
 }
 
-auto Runtime::advance_ordnance(Projectile &p) -> void
-{
-	std::optional<OrdnanceTarget> target;
-	if (entities.contains(p.target))
-		target = OrdnanceTarget{entities.at(p.target).get<Pose>().position, altitude(p.target),
-		                        !combat_dead(entities.at(p.target))};
-	advance_projectile(p, target);
-}
-
 auto Runtime::step_ordnance() -> void
 {
 	if (duel_ended())
 	{
-		for (auto e : projectile_rows())
-			e.destruct();
+		projectiles.clear();
 		return;
 	}
-	using Previous = OrdnancePrevious;
-	std::map<std::uint64_t, Previous> previous;
-	auto rows = projectile_rows();
-	for (auto row : rows)
-	{
-		auto &p = row.get_mut<Projectile>();
-		previous[p.id] = {p.position, p.altitude};
-		advance_ordnance(p);
-	}
+	auto frame = projectiles.advance(
+	    [this](EntityId target) -> std::optional<OrdnanceTarget>
+	    {
+		    if (!entities.contains(target))
+			    return std::nullopt;
+		    return OrdnanceTarget{entities.at(target).get<Pose>().position, altitude(target),
+		                          !combat_dead(entities.at(target))};
+	    });
+	auto &rows = frame.rows;
+	auto &previous = frame.previous;
 	std::vector<flecs::entity> target_entities;
 	std::vector<OrdnanceBodySweep> targets;
 	bodies.each(
@@ -481,13 +446,11 @@ auto Runtime::step_ordnance() -> void
 		}
 		if (p.damage > 0)
 			ghost_damage(p.source, from.position, p.position, from.altitude, p.altitude, p.definition.radius);
-		if (p.life > 0 && --p.life == 0 && p.definition.durability)
-		{
-			p.life = 1;
-			destroy_missile(row, false);
-		}
-		if (std::abs(p.position.x) > fixed::unit || std::abs(p.position.y) > fixed::unit)
-			p.life = 0;
+		projectiles.finish_step(row,
+		                        [this](flecs::entity expired)
+		                        {
+			                        destroy_missile(expired, false);
+		                        });
 	}
 }
 } // namespace phoenix::world_detail

@@ -1,0 +1,17 @@
+add_library(phoenix_gameplay_projectiles STATIC projectiles.cpp)
+target_sources(phoenix_gameplay_projectiles PUBLIC FILE_SET CXX_MODULES FILES projectiles.cppm)
+target_link_libraries(
+	phoenix_gameplay_projectiles
+	PUBLIC flecs_static phoenix_gameplay_weapons phoenix_gameplay_ordnance_contacts phoenix_gameplay_combat_continuation
+)
+set_target_properties(
+	phoenix_gameplay_projectiles
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+set_property(
+	TARGET phoenix_gameplay_projectiles
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"flecs_static;phoenix_gameplay_weapons;phoenix_gameplay_ordnance_contacts;phoenix_gameplay_combat_continuation"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_projectiles)

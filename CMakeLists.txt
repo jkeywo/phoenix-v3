@@ -227,22 +227,18 @@ add_library(
 )
 target_include_directories(phoenix_imgui PUBLIC ${imgui_SOURCE_DIR})
 add_subdirectory(src/foundation)
-add_subdirectory(src/resources/stocks)
-add_subdirectory(src/resources/processors)
+add_subdirectory(src/resources)
 add_subdirectory(src/ui)
-add_subdirectory(src/application/preferences)
+add_subdirectory(src/application)
 
 add_subdirectory(src/content)
 
 # Domain definitions and execution have independent module-local owners.
 add_subdirectory(src/behavior)
-add_subdirectory(src/knowledge/records)
-add_subdirectory(src/resources/networks)
-add_subdirectory(src/scenarios/environment)
-add_subdirectory(src/scenarios/runtime)
-add_subdirectory(src/gameplay/conversations)
+add_subdirectory(src/knowledge)
+add_subdirectory(src/scenarios)
+add_subdirectory(src/gameplay)
 
-add_subdirectory(src/application)
 add_subdirectory(src/executables/diagnostics)
 
 if(WIN32)
@@ -293,38 +289,9 @@ target_link_libraries(
 		phoenix_behavior_state_tree
 		phoenix_knowledge_records_definitions
 )
-add_subdirectory(src/world/state)
-add_subdirectory(src/world/spatial)
-add_subdirectory(src/gameplay/flight)
+add_subdirectory(src/world)
 add_subdirectory(src/control)
-add_subdirectory(src/knowledge/projections)
-add_subdirectory(src/knowledge/consoles)
-add_subdirectory(src/knowledge/read-models)
 add_subdirectory(src/effects)
-add_subdirectory(src/gameplay/combat)
-add_subdirectory(src/gameplay/personnel)
-add_subdirectory(src/gameplay/teams)
-add_subdirectory(src/resources/equipment)
-add_subdirectory(src/gameplay/fitting)
-add_subdirectory(src/gameplay/ftl)
-add_subdirectory(src/gameplay/docking)
-add_subdirectory(src/gameplay/craft)
-add_subdirectory(src/gameplay/logistics)
-add_subdirectory(src/gameplay/sensors)
-add_subdirectory(src/gameplay/psychic)
-add_subdirectory(src/gameplay/boarding)
-add_subdirectory(src/gameplay/away)
-add_subdirectory(src/world/persistence)
-add_subdirectory(src/scenarios/objectives)
-add_subdirectory(src/world/lifecycle)
-add_subdirectory(src/gameplay/directed)
-add_subdirectory(src/gameplay/ordnance)
-add_subdirectory(src/gameplay/combat-continuation)
-add_subdirectory(src/gameplay/weapons)
-add_subdirectory(src/gameplay/damage)
-add_subdirectory(src/gameplay/repairs)
-add_subdirectory(src/gameplay/ordnance-contacts)
-add_subdirectory(src/gameplay/machinery)
 add_library(phoenix_simulation STATIC src/world/lifecycle/world.cpp)
 target_link_libraries(
 	phoenix_simulation
@@ -1522,8 +1489,6 @@ target_link_libraries(phoenix_craft_tests PRIVATE phoenix_console_model)
 target_link_libraries(phoenix_gameplay_knowledge_tests PRIVATE phoenix_console_model)
 
 # Executable-level native and browser adapters own their implementation modules.
-add_subdirectory(src/scenarios/interdictions)
-add_subdirectory(src/world/schedule)
 
 # Native World composition delegates state and policy to their family owners.
 target_link_libraries(
@@ -1550,97 +1515,102 @@ include(cmake/ModulePolicy.cmake)
 
 # Incremental private Runtime compiler checkpoint. The public facade does not
 # import or reexport this partition; all binding units remain with its owner.
-target_sources(phoenix_simulation
-    PRIVATE FILE_SET runtime_partitions TYPE CXX_MODULES
-        FILES src/world/lifecycle/runtime.cppm
-    PRIVATE src/world/lifecycle/queries.cpp
+target_sources(
+	phoenix_simulation
+	PRIVATE FILE_SET runtime_partitions TYPE CXX_MODULES FILES src/world/lifecycle/runtime.cppm
+	PRIVATE src/world/lifecycle/queries.cpp
 )
 
 # Private native binding composition; no public Runtime export.
-target_sources(phoenix_simulation
-    PRIVATE FILE_SET runtime_partitions TYPE CXX_MODULES FILES src/world/bindings/bindings.cppm
-        src/world/schedule/schedule.cppm
-        src/world/persistence/bindings.cppm
-    PRIVATE
-        src/world/bindings/lifecycle_native_01.cpp
-        src/world/bindings/lifecycle_native_02.cpp
-        src/world/bindings/lifecycle_native_03.cpp
-        src/world/bindings/scenarios_asteroid_fields.cpp
-        src/world/bindings/gameplay_navigation_assessment.cpp
-        src/world/bindings/control_controller_execution_01.cpp
-        src/world/bindings/control_controller_execution_02.cpp
-        src/world/bindings/control_controller_actions.cpp
-        src/world/bindings/control_controller_coordination.cpp
-        src/world/bindings/control_controller_models.cpp
-        src/world/bindings/resources_power_projection.cpp
-        src/world/bindings/knowledge_console_observations.cpp
-        src/world/bindings/gameplay_directed.cpp
-        src/world/bindings/effects_damage_rules.cpp
-        src/world/bindings/gameplay_combat_effects.cpp
-        src/world/bindings/gameplay_combat_execution_01.cpp
-        src/world/bindings/gameplay_combat_execution_02.cpp
-        src/world/bindings/gameplay_combat_weapons.cpp
-        src/world/bindings/gameplay_combat_ordnance.cpp
-        src/world/bindings/effects_custom_properties.cpp
-        src/world/bindings/effects_property_effects.cpp
-        src/world/bindings/effects_effect_application.cpp
-        src/world/bindings/effects_native_outcome_effects.cpp
-        src/world/bindings/effects_preparation_adapter.cpp
-        src/world/bindings/effects_store_effects.cpp
-        src/world/bindings/effects_processes_01.cpp
-        src/world/bindings/effects_processes_02.cpp
-        src/world/bindings/effects_process_machinery.cpp
-        src/world/bindings/effects_abilities_01.cpp
-        src/world/bindings/effects_abilities_02.cpp
-        src/world/bindings/effects_ability_interface.cpp
-        src/world/bindings/effects_validation_adapter.cpp
-        src/world/bindings/effects_process_interface.cpp
-        src/world/bindings/effects_rules.cpp
-        src/world/bindings/effects_rule_sources.cpp
-        src/world/bindings/effects_payload_effects.cpp
-        src/world/bindings/effects_effect_damage.cpp
-        src/world/bindings/effects_rule_funding_01.cpp
-        src/world/bindings/effects_rule_funding_02.cpp
-        src/world/bindings/effects_finite_native_work.cpp
-        src/world/bindings/effects_rule_lifecycle.cpp
-        src/world/bindings/effects_bindings_adapter.cpp
-        src/world/bindings/effects_region_rules.cpp
-        src/world/bindings/effects_rule_persistence.cpp
-        src/world/bindings/effects_rule_interface.cpp
-        src/world/bindings/resources_processors.cpp
-        src/world/bindings/gameplay_personnel.cpp
-        src/world/bindings/gameplay_psychic.cpp
-        src/world/bindings/gameplay_teams_01.cpp
-        src/world/bindings/gameplay_teams_02.cpp
-        src/world/bindings/gameplay_compartment_access.cpp
-        src/world/bindings/gameplay_logistics_01.cpp
-        src/world/bindings/gameplay_logistics_02.cpp
-        src/world/bindings/gameplay_docking_01.cpp
-        src/world/bindings/gameplay_docking_02.cpp
-        src/world/bindings/gameplay_cargo.cpp
-        src/world/bindings/resources_supply.cpp
-        src/world/bindings/control_bridge.cpp
-        src/world/bindings/gameplay_conversations.cpp
-        src/world/bindings/gameplay_away_01.cpp
-        src/world/bindings/gameplay_away_02.cpp
-        src/world/bindings/gameplay_away_03.cpp
-        src/world/bindings/gameplay_ownership.cpp
-        src/world/bindings/gameplay_boarding.cpp
-        src/world/bindings/gameplay_craft_01.cpp
-        src/world/bindings/gameplay_craft_02.cpp
-        src/world/bindings/gameplay_ftl.cpp
-        src/world/bindings/scenarios_missions.cpp
-        src/world/bindings/gameplay_interdictions.cpp
-        src/world/bindings/gameplay_sensors.cpp
-        src/world/lifecycle/assembly_bindings.cpp
-        src/world/bindings/console_sessions.cpp
-        src/world/bindings/scene_views.cpp
-        src/world/bindings/console_views.cpp
-        src/world/bindings/controller_admission.cpp
-        src/world/bindings/debug_views.cpp
-        src/world/persistence/checkpoint_bindings.cpp
-        src/world/schedule/schedule.cpp
+target_sources(
+	phoenix_simulation
+	PRIVATE
+		FILE_SET runtime_partitions
+			TYPE CXX_MODULES
+			FILES src/world/bindings/bindings.cppm src/world/schedule/schedule.cppm src/world/persistence/bindings.cppm
+	PRIVATE
+		src/world/bindings/lifecycle_native_01.cpp
+		src/world/bindings/lifecycle_native_02.cpp
+		src/world/bindings/lifecycle_native_03.cpp
+		src/world/bindings/scenarios_asteroid_fields.cpp
+		src/world/bindings/gameplay_navigation_assessment.cpp
+		src/world/bindings/control_controller_execution_01.cpp
+		src/world/bindings/control_controller_execution_02.cpp
+		src/world/bindings/control_controller_actions.cpp
+		src/world/bindings/control_controller_coordination.cpp
+		src/world/bindings/control_controller_models.cpp
+		src/world/bindings/resources_power_projection.cpp
+		src/world/bindings/knowledge_console_observations.cpp
+		src/world/bindings/gameplay_directed.cpp
+		src/world/bindings/effects_damage_rules.cpp
+		src/world/bindings/gameplay_combat_effects.cpp
+		src/world/bindings/gameplay_combat_execution_01.cpp
+		src/world/bindings/gameplay_combat_execution_02.cpp
+		src/world/bindings/gameplay_combat_weapons.cpp
+		src/world/bindings/gameplay_combat_ordnance.cpp
+		src/world/bindings/effects_custom_properties.cpp
+		src/world/bindings/effects_property_effects.cpp
+		src/world/bindings/effects_effect_application.cpp
+		src/world/bindings/effects_native_outcome_effects.cpp
+		src/world/bindings/effects_preparation_adapter.cpp
+		src/world/bindings/effects_store_effects.cpp
+		src/world/bindings/effects_processes_01.cpp
+		src/world/bindings/effects_processes_02.cpp
+		src/world/bindings/effects_process_machinery.cpp
+		src/world/bindings/effects_abilities_01.cpp
+		src/world/bindings/effects_abilities_02.cpp
+		src/world/bindings/effects_ability_interface.cpp
+		src/world/bindings/effects_validation_adapter.cpp
+		src/world/bindings/effects_process_interface.cpp
+		src/world/bindings/effects_rules.cpp
+		src/world/bindings/effects_rule_sources.cpp
+		src/world/bindings/effects_payload_effects.cpp
+		src/world/bindings/effects_effect_damage.cpp
+		src/world/bindings/effects_rule_funding_01.cpp
+		src/world/bindings/effects_rule_funding_02.cpp
+		src/world/bindings/effects_finite_native_work.cpp
+		src/world/bindings/effects_rule_lifecycle.cpp
+		src/world/bindings/effects_bindings_adapter.cpp
+		src/world/bindings/effects_region_rules.cpp
+		src/world/bindings/effects_rule_persistence.cpp
+		src/world/bindings/effects_rule_interface.cpp
+		src/world/bindings/resources_processors.cpp
+		src/world/bindings/gameplay_personnel.cpp
+		src/world/bindings/gameplay_psychic.cpp
+		src/world/bindings/gameplay_teams_01.cpp
+		src/world/bindings/gameplay_teams_02.cpp
+		src/world/bindings/gameplay_compartment_access.cpp
+		src/world/bindings/gameplay_logistics_01.cpp
+		src/world/bindings/gameplay_logistics_02.cpp
+		src/world/bindings/gameplay_docking_01.cpp
+		src/world/bindings/gameplay_docking_02.cpp
+		src/world/bindings/gameplay_cargo.cpp
+		src/world/bindings/resources_supply.cpp
+		src/world/bindings/control_bridge.cpp
+		src/world/bindings/gameplay_conversations.cpp
+		src/world/bindings/gameplay_away_01.cpp
+		src/world/bindings/gameplay_away_02.cpp
+		src/world/bindings/gameplay_away_03.cpp
+		src/world/bindings/gameplay_ownership.cpp
+		src/world/bindings/gameplay_boarding.cpp
+		src/world/bindings/gameplay_craft_01.cpp
+		src/world/bindings/gameplay_craft_02.cpp
+		src/world/bindings/gameplay_ftl.cpp
+		src/world/bindings/scenarios_missions.cpp
+		src/world/bindings/gameplay_interdictions.cpp
+		src/world/bindings/gameplay_sensors.cpp
+		src/world/lifecycle/assembly_bindings.cpp
+		src/world/bindings/console_sessions.cpp
+		src/world/bindings/scene_views.cpp
+		src/world/bindings/console_views.cpp
+		src/world/bindings/controller_admission.cpp
+		src/world/bindings/debug_views.cpp
+		src/world/persistence/checkpoint_bindings.cpp
+		src/world/schedule/schedule.cpp
 )
 target_link_libraries(phoenix_simulation PRIVATE phoenix_world_profiling)
 
 target_sources(phoenix_simulation PRIVATE src/world/lifecycle/instance.cpp)
+
+# Adopt the final domain owners through private Runtime composition.
+target_link_libraries(phoenix_simulation PRIVATE phoenix_effects_ability_lifecycle phoenix_gameplay_projectiles)

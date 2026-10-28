@@ -6,6 +6,6 @@ Start at `docking.cppm` (`phoenix.gameplay.docking`). The module owns DockPortSt
 
 Inputs are compiled port definitions, kinematic snapshots and narrowly scoped permission/working/crossing facts. The module has no Flecs or World dependency; it uses world-state value contracts and content logistics definitions.
 
-`docking.hpp` remains the World composition adapter for authoritative commands, guidance commitment, port/mission permissions, root membership and integration with physical batch/team crossings. It applies native transition results immediately and retains the original bounded topological synchronization passes. No state reference may survive an ECS archetype-changing operation.
+`src/world/bindings/gameplay_docking_01.cpp` and `gameplay_docking_02.cpp` are the ordinary World composition adapters for authoritative commands, guidance commitment, port/mission permissions, root membership and integration with physical batch/team crossings. It applies native transition results immediately and retains the original bounded topological synchronization passes. No state reference may survive an ECS archetype-changing operation.
 
 Relevant checks: docking, craft, cargo, boarding and native/WASM continuation. Real docking UI journeys are separately invoked smoke evidence.

@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -373,7 +349,7 @@ auto Runtime::prepare_encounter_departure(EntityId leader, const std::set<Entity
 		if (entities.at(member).has<DockConnection>())
 			encounter_dock_order(member, "dock.undock");
 	}
-	if (!departure_group_blocker(leader).empty())
+	if (!departures.group_blocker(departure_admission_facts(), leader).empty())
 		return;
 	const auto drive = departure_drive(leader);
 	if (!drive)
@@ -385,7 +361,7 @@ auto Runtime::prepare_encounter_departure(EntityId leader, const std::set<Entity
 			OperatingCommand command{leader, "ftl.depart", 0, drive.get<Equipment>().id};
 			command.controller = controller.definition.id;
 			command.generation = controller.generation;
-			if (ftl_command(owner, command, true, true))
+			if (departures.admit(departure_admission_facts(), owner, command, true, true))
 				return;
 		}
 }

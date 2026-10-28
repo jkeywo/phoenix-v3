@@ -16,7 +16,8 @@ preserving ward precedence and equal-strength ties. `emission.cppm` measures
 native apparatus, recent weapons and sent messages.
 
 World currently binds those operations to fitted apparatus and permitted sensor
-feeds. Native board, save/restore and encounter orchestration still have
-implementation fragments pending extraction. The three newest providers passed
+feeds through ordinary `src/world/bindings/gameplay_psychic.cpp` and
+`gameplay_interdictions.cpp` units. Native board, save/restore and encounter
+integration still contain policy pending further extraction. The three newest providers passed
 standalone native compilation; their integrated system and continuation checks
 are running. The earlier projection/reception owners passed those checks.

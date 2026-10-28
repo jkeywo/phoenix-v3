@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 export module phoenix.simulation:runtime;
 import phoenix.simulation;
@@ -59,6 +35,7 @@ export import phoenix.control.ownership;
 export import phoenix.control.handover;
 export import phoenix.effects.contracts;
 export import phoenix.effects.abilities;
+export import phoenix.effects.ability_lifecycle;
 export import phoenix.effects.processes;
 export import phoenix.effects.rules;
 export import phoenix.effects.properties;
@@ -79,6 +56,7 @@ export import phoenix.gameplay.ftl.coordinator;
 export import phoenix.gameplay.combat.state;
 export import phoenix.gameplay.directed;
 export import phoenix.gameplay.ordnance;
+export import phoenix.gameplay.projectiles;
 export import phoenix.gameplay.ordnance.contacts;
 export import phoenix.gameplay.repairs;
 export import phoenix.gameplay.damage;
@@ -265,7 +243,7 @@ struct Runtime
 	flecs::query<const Equipment, const ResourceBinding> passive_resource_query;
 	flecs::query<const StableId, const GameplayShip> advanced_ships;
 	flecs::query<const StableId, const CombatStructure> combat_ships;
-	flecs::query<const Projectile> projectile_query;
+	ProjectileStore projectiles;
 	flecs::query<CraftState> craft_query;
 	flecs::query<const StableId, MaterialInventory> inventory_query;
 	flecs::query<const StableId, DockingState> docking_query;
@@ -573,7 +551,6 @@ struct Runtime
 	// World::Impl combat adapter. All decisions originate at Controllers; mechanisms consume admitted intent.
 	std::vector<flecs::entity> projectile_rows() const;
 	std::vector<std::pair<EntityId, flecs::entity>> combat_rows() const;
-	std::uint64_t next_projectile = 1;
 	bool combat_duel = false;
 	bool duel_ended() const;
 	bool combat_dead(flecs::entity ship) const;
@@ -628,7 +605,6 @@ struct Runtime
 	void destroy_missile(flecs::entity row, bool warhead);
 	void resolve_destructions();
 	void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::int64_t bearing);
-	void advance_ordnance(Projectile &p);
 	void step_ordnance();
 	std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size_t from, std::size_t to,
 	                                                   std::int64_t *total_cost = nullptr) const;
@@ -1329,8 +1305,8 @@ struct Runtime
 	void restore_personnel(EntityId id, const Json &saved);
 	// World adapter. Apparatus components own commitments; receiver records own apparent evidence.
 	PsychicReceptions ghost_receptions;
-	std::map<EntityId, std::int64_t> concealment_cache;
-	std::map<EntityId, std::uint64_t> weapon_emissions;
+	PsychicInterferenceMemory psychic_interference;
+	PsychicEmissionMemory weapon_emissions;
 	void psychic_weapon_emission(EntityId ship);
 	std::int64_t emission(EntityId ship) const;
 	const OfficerDefinition *choir_officer(EntityId ship, const std::string &duty) const;
@@ -1348,7 +1324,6 @@ struct Runtime
 	std::int64_t concealment(EntityId target) const;
 	void dispel_ghost(const GhostReception &g);
 	bool ghost_live(const GhostReception &g) const;
-	std::map<EntityId, PsychicSource> scrambler_winners;
 	void refresh_psychic_reception();
 	PsychicSource strongest_scrambler(EntityId receiver) const;
 	void advance_psychic();
@@ -1579,6 +1554,9 @@ struct Runtime
 	// Private World adapter. Include once in its native Away implementation unit.
 	// Actor wrappers contain only a logical ID and private owner reference. Every
 	// component lookup occurs lazily at the call site; wrappers cache no ECS pointers.
+	// Private World adapter. Include once in its native Away implementation unit.
+	// Actor wrappers contain only a logical ID and private owner reference. Every
+	// component lookup occurs lazily at the call site; wrappers cache no ECS pointers.
 	struct NativeAwayActors final : AwayActors
 	{
 		struct Ship final : AwayShipActor
@@ -1592,8 +1570,10 @@ struct Runtime
 			inline AwayTransportLayout layout() const override
 			{
 				const auto &d = owner.definition(id);
-				return {d.personnel,     d.transport, d.craft_bays,
-				        d.displacements, d.docking,   d.combat ? &*d.combat : nullptr};
+				return {d.personnel,  d.transport,
+				        d.craft_bays, d.displacements,
+				        d.docking,    d.combat ? &*d.combat : nullptr,
+				        d.consoles,   d.craft ? &*d.craft : nullptr};
 			}
 			inline PersonnelState &personnel() override
 			{
@@ -1606,6 +1586,10 @@ struct Runtime
 			inline CombatMechanism &team(const std::string &key) override
 			{
 				return owner.away_equipment(id, key).get_mut<CombatMechanism>();
+			}
+			inline bool team_present(const std::string &key) const override
+			{
+				return bool(owner.away_equipment(id, key));
 			}
 			inline const CombatMechanism &team(const std::string &key) const override
 			{
@@ -1740,6 +1724,10 @@ struct Runtime
 		{
 			return crafts.try_emplace(id, owner, id).first->second;
 		}
+		inline bool is_craft(EntityId id) const override
+		{
+			return owner.entities.contains(id) && owner.entities.at(id).has<CraftState>();
+		}
 		inline EntityId transport(EntityId ship, const std::string &key) const override
 		{
 			return owner.away_transport_entity(ship, key);
@@ -1858,12 +1846,18 @@ struct Runtime
 			inline AwayTransportLayout layout() const override
 			{
 				const auto &d = owner.definition(id);
-				return {d.personnel,     d.transport, d.craft_bays,
-				        d.displacements, d.docking,   d.combat ? &*d.combat : nullptr};
+				return {d.personnel,  d.transport,
+				        d.craft_bays, d.displacements,
+				        d.docking,    d.combat ? &*d.combat : nullptr,
+				        d.consoles,   d.craft ? &*d.craft : nullptr};
 			}
 			inline const PersonnelState &personnel() const override
 			{
 				return owner.entities.at(id).get<PersonnelState>();
+			}
+			inline bool team_present(const std::string &key) const override
+			{
+				return bool(owner.away_equipment(id, key));
 			}
 			inline const CombatMechanism &team(const std::string &key) const override
 			{
@@ -1901,6 +1895,10 @@ struct Runtime
 		inline const AwayCraftView &craft(EntityId id) const override
 		{
 			return crafts.try_emplace(id, owner, id).first->second;
+		}
+		inline bool is_craft(EntityId id) const override
+		{
+			return owner.entities.contains(id) && owner.entities.at(id).has<CraftState>();
 		}
 		inline EntityId transport(EntityId ship, const std::string &key) const override
 		{
@@ -1945,6 +1943,47 @@ struct Runtime
 		NativeAwayBinding(NativeAwayBinding &&) = delete;
 		NativeAwayBinding &operator=(NativeAwayBinding &&) = delete;
 	};
+
+	struct NativeAwayRestoreChecks final : AwayRestoreChecks
+	{
+		const Impl &owner;
+		inline explicit NativeAwayRestoreChecks(const Impl &owner) : owner(owner)
+		{
+		}
+		inline ~NativeAwayRestoreChecks() override = default;
+		inline void boarding(const AwayDefinition &definition, const AwayMission &mission) const override
+		{
+			owner.validate_boarding_state(definition, mission);
+		}
+	};
+	struct NativeAwayPersistenceBinding
+	{
+		NativeAwayReadBinding read;
+		NativeAwayRestoreChecks checks;
+		AwayRestoreContext context;
+		inline explicit NativeAwayPersistenceBinding(const Impl &owner)
+		    : read(owner), checks(owner),
+		      context{read.observation, {owner.slot_entities, owner.personnel_postings, owner.mission_ledger}, checks}
+		{
+		}
+		inline ~NativeAwayPersistenceBinding() = default;
+		NativeAwayPersistenceBinding(const NativeAwayPersistenceBinding &) = delete;
+		NativeAwayPersistenceBinding &operator=(const NativeAwayPersistenceBinding &) = delete;
+		NativeAwayPersistenceBinding(NativeAwayPersistenceBinding &&) = delete;
+		NativeAwayPersistenceBinding &operator=(NativeAwayPersistenceBinding &&) = delete;
+	};
+	struct NativeAwayProjectionSource final : AwayProjectionSource
+	{
+		const Impl &owner;
+		inline explicit NativeAwayProjectionSource(const Impl &owner) : owner(owner)
+		{
+		}
+		inline ~NativeAwayProjectionSource() override = default;
+		inline AwayPermittedRow permitted_row(std::size_t mission_index, const ConsoleAddress &viewer) const override
+		{
+			return owner.permitted_away_row(mission_index, viewer);
+		}
+	};
 	EntityId away_ship(const AwayDefinition &d) const;
 	EntityId away_transport_entity(EntityId ship, const std::string &transport) const;
 	std::string canonical_away_transport(EntityId ship, const std::string &transport, const std::string &mission) const;
@@ -1981,6 +2020,7 @@ struct Runtime
 	void stage_away(EntityId ship, AwayMission &m);
 	void advance_away();
 	std::string away_asset_label(EntityId ship, const std::string &asset) const;
+	AwayPermittedRow permitted_away_row(std::size_t mission_index, const ConsoleAddress &viewer) const;
 	Json away_board(const ConsoleAddress &a) const;
 	Json save_away() const;
 	void restore_away(const Json &rows);
@@ -2058,6 +2098,8 @@ struct Runtime
 	void validate_craft_transports() const;
 	// World::Impl FTL mechanism and per-crew departure boundary.
 	DepartureCoordinator departures;
+	DepartureCapabilities departure_capabilities(EntityId id) const;
+	DepartureAdmissionFacts departure_admission_facts() const;
 	bool departure_member_authorised(EntityId leader, EntityId member) const;
 	// Older saves could retain the pirate-only remainder after the prize changed owner.
 	// Discard only that identifiable obsolete encounter goal, without changing physical state.
@@ -2067,7 +2109,6 @@ struct Runtime
 	EntityId departure_leader(EntityId member) const;
 
 	flecs::entity departure_drive(EntityId ship) const;
-	std::string departure_group_blocker(EntityId ship) const;
 	bool departed(EntityId id) const;
 	ConsoleAddress ftl_owner(EntityId id, const std::string &system) const;
 	void retire_departed(EntityId id);
@@ -2080,7 +2121,6 @@ struct Runtime
 	void finalise_ftl_processes();
 	std::pair<bool, std::int64_t> ftl_local_facts(EntityId id) const;
 	Json ftl_board(const ConsoleAddress &a) const;
-	bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false);
 
 	void commit_departures();
 	// Generic world-fact adapter. No scenario/content identities belong here.

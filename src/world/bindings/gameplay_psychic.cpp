@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -32,16 +8,15 @@ namespace phoenix::world_detail
 {
 auto Runtime::psychic_weapon_emission(EntityId ship) -> void
 {
-	weapon_emissions[ship] = ecs.get<Clock>().tick + 20;
+	weapon_emissions.record(ship, ecs.get<Clock>().tick);
 }
 
 auto Runtime::emission(EntityId ship) const -> std::int64_t
 {
 	const auto tick = ecs.get<Clock>().tick;
 	const auto entity = entities.at(ship);
-	return native_psychic_emission(entity, ship, combat_dead(entity),
-	                               weapon_emissions.contains(ship) && weapon_emissions.at(ship) > tick, conversations,
-	                               tick);
+	return native_psychic_emission(entity, ship, combat_dead(entity), weapon_emissions.recent(ship, tick),
+	                               conversations, tick);
 }
 
 auto Runtime::choir_officer(EntityId ship, const std::string &duty) const -> const OfficerDefinition *
@@ -172,16 +147,15 @@ auto Runtime::compute_concealment(EntityId target) const -> std::int64_t
 
 auto Runtime::refresh_concealment() -> void
 {
-	concealment_cache.clear();
+	psychic_interference.begin_concealment();
 	for (const auto &[ship, entity] : entities)
 		if (entity.has<EquipmentIndex>())
-			concealment_cache[ship] = compute_concealment(ship);
+			psychic_interference.set_concealment(ship, compute_concealment(ship));
 }
 
 auto Runtime::concealment(EntityId target) const -> std::int64_t
 {
-	const auto value = concealment_cache.find(target);
-	return value == concealment_cache.end() ? 0 : value->second;
+	return psychic_interference.concealment(target);
 }
 
 auto Runtime::dispel_ghost(const GhostReception &g) -> void
@@ -197,7 +171,7 @@ auto Runtime::ghost_live(const GhostReception &g) const -> bool
 
 auto Runtime::refresh_psychic_reception() -> void
 {
-	scrambler_winners.clear();
+	psychic_interference.begin_reception();
 	std::vector<PsychicInterferenceSource> sources;
 	for (auto child : ordered_equipment(choir_query))
 	{
@@ -224,13 +198,12 @@ auto Runtime::refresh_psychic_reception() -> void
 	} interference{*this};
 	for (const auto &[receiver, entity] : entities)
 		if (entity.has<EquipmentIndex>())
-			scrambler_winners.emplace(receiver, select_psychic_interference(receiver, sources, interference));
+			psychic_interference.observe(receiver, sources, interference);
 }
 
 auto Runtime::strongest_scrambler(EntityId receiver) const -> PsychicSource
 {
-	const auto found = scrambler_winners.find(receiver);
-	return found == scrambler_winners.end() ? PsychicSource{} : found->second;
+	return psychic_interference.strongest(receiver);
 }
 
 auto Runtime::advance_psychic() -> void
@@ -239,11 +212,11 @@ auto Runtime::advance_psychic() -> void
 	refresh_psychic_reception();
 	refresh_concealment();
 	const auto tick = ecs.get<Clock>().tick;
-	std::erase_if(weapon_emissions,
-	              [&](const auto &v)
-	              {
-		              return !entities.contains(v.first) || v.second <= tick;
-	              });
+	weapon_emissions.expire(tick,
+	                        [this](EntityId ship)
+	                        {
+		                        return entities.contains(ship);
+	                        });
 	for (auto child : ordered_equipment(choir_query))
 		if (child.has<PsychicChoirState>())
 		{
@@ -389,8 +362,7 @@ auto Runtime::save_psychic() const -> Json
 			                         {"state", child.get<PsychicChoirState>()}});
 	for (const auto &[id, g] : ghost_receptions.records())
 		out["receptions"].push_back(g);
-	for (const auto &[ship, until] : weapon_emissions)
-		out["emissions"].push_back({{"ship", ship}, {"until", until}});
+	out["emissions"] = weapon_emissions.save();
 	return out;
 }
 
@@ -464,14 +436,11 @@ auto Runtime::restore_psychic(const Json &saved, const std::set<EntityId> &depar
 			        std::tuple{reception.source, reception.choir, reception.grant})
 				throw std::runtime_error("Unearned live ghost reception");
 		}
-	for (const auto &row : saved.at("emissions"))
-	{
-		const EntityId ship = row.at("ship");
-		const std::uint64_t until = row.at("until");
-		if (!entities.contains(ship) || until > ecs.get<Clock>().tick + 20 ||
-		    !weapon_emissions.emplace(ship, until).second)
-			throw std::runtime_error("Invalid saved emission");
-	}
+	weapon_emissions.restore(saved.at("emissions"), ecs.get<Clock>().tick,
+	                         [this](EntityId ship)
+	                         {
+		                         return entities.contains(ship);
+	                         });
 	refresh_concealment();
 }
 } // namespace phoenix::world_detail

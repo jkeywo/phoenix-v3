@@ -5,3 +5,11 @@ target_link_libraries(phoenix_effects_abilities PUBLIC phoenix_effects_contracts
 add_library(phoenix_effects_ability_validation STATIC validation.cpp)
 target_sources(phoenix_effects_ability_validation PUBLIC FILE_SET CXX_MODULES FILES validation.cppm)
 target_link_libraries(phoenix_effects_ability_validation PUBLIC phoenix_effects_abilities)
+
+add_library(phoenix_effects_ability_lifecycle STATIC lifecycle.cpp)
+target_sources(phoenix_effects_ability_lifecycle PUBLIC FILE_SET CXX_MODULES FILES lifecycle.cppm)
+target_link_libraries(
+	phoenix_effects_ability_lifecycle
+	PUBLIC phoenix_effects_abilities flecs_static
+	PRIVATE phoenix_control_controllers
+)

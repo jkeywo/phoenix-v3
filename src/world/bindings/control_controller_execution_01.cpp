@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -342,7 +318,7 @@ auto Runtime::controller_output(EntityId id, std::size_t index, const state_tree
 				OperatingCommand command{id, "ftl.depart", 0, output.arguments.at(0).text, controller.definition.id,
 				                         {}};
 				command.generation = controller.generation;
-				if (!ftl_command(source, command, true, true))
+				if (!departures.admit(departure_admission_facts(), source, command, true, true))
 					throw std::runtime_error("FTL departure refused");
 			}
 			else if (action.name.starts_with("logistics.") || action.name.starts_with("dock."))

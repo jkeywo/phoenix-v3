@@ -1,0 +1,27 @@
+#pragma once
+
+#include <flecs.h>
+#include <functional>
+#include <chrono>
+#include <charconv>
+#include <iterator>
+#include <type_traits>
+#include <string_view>
+#include <cstdlib>
+#include <iostream>
+#include <algorithm>
+#include <array>
+#include <variant>
+#include <set>
+#include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <limits>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <tuple>
+#include <vector>

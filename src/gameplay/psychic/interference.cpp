@@ -1,4 +1,5 @@
 module;
+#include <map>
 #include <cstdint>
 #include <initializer_list>
 #include <span>
@@ -29,5 +30,33 @@ PsychicSource select_psychic_interference(EntityId receiver, std::span<const Psy
 				winner = {source.ship, source.choir->id, *source.grant};
 		}
 	return winner;
+}
+
+void PsychicInterferenceMemory::begin_reception()
+{
+	winners_.clear();
+}
+void PsychicInterferenceMemory::observe(EntityId receiver, std::span<const PsychicInterferenceSource> sources,
+                                        const PsychicInterferencePort &port)
+{
+	winners_.emplace(receiver, select_psychic_interference(receiver, sources, port));
+}
+PsychicSource PsychicInterferenceMemory::strongest(EntityId receiver) const
+{
+	const auto found = winners_.find(receiver);
+	return found == winners_.end() ? PsychicSource{} : found->second;
+}
+void PsychicInterferenceMemory::begin_concealment()
+{
+	concealment_.clear();
+}
+void PsychicInterferenceMemory::set_concealment(EntityId ship, std::int64_t strength)
+{
+	concealment_[ship] = strength;
+}
+std::int64_t PsychicInterferenceMemory::concealment(EntityId ship) const
+{
+	const auto found = concealment_.find(ship);
+	return found == concealment_.end() ? 0 : found->second;
 }
 } // namespace phoenix

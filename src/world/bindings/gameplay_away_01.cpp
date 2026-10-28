@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -110,14 +86,7 @@ auto Runtime::away_officer_location(EntityId ship, const std::string &officer) c
 
 auto Runtime::away_reserved(EntityId ship, const std::string &asset) const -> bool
 {
-	if (personnel_postings.contains(ship) && personnel_postings.at(ship).contains(asset) &&
-	    personnel_postings.at(ship).at(asset).status == "prize_crew")
-		return true;
-	if (boarding_defender_reserved(ship, asset))
-		return true;
-	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(asset))
-		return true;
-	return away_operations.asset_assigned(ship, asset, slot_entities);
+	return away_operations.reserved(ship, asset, {slot_entities, personnel_postings, mission_ledger});
 }
 
 auto Runtime::away_transport_requested(EntityId ship, const std::string &system) const -> bool
@@ -263,18 +232,8 @@ auto Runtime::away_asset_healthy(EntityId ship, const std::string &asset) const 
 
 auto Runtime::away_slot_accepts(EntityId ship, const AwaySlot &s, const std::string &asset) const -> bool
 {
-	const TeamDefinition *definition_team = nullptr;
-	bool duty = false;
-	if (s.kind == "team" && asset.starts_with("team:"))
-	{
-		if (const auto team = away_equipment(ship, asset.substr(5)); team)
-		{
-			duty = away_team_duty(ship, asset.substr(5)) != nullptr;
-			if (duty && s.trait.empty())
-				definition_team = &team.get<CombatMechanism>().definition.get<TeamDefinition>();
-		}
-	}
-	return away_crew_slot_accepts(s, asset, definition(ship).personnel, definition_team, duty);
+	NativeAwayReadBinding binding(*this);
+	return away_operations.slot_accepts(ship, s, asset, binding.observation);
 }
 
 auto Runtime::away_origin(EntityId ship, const std::string &transport) const -> std::size_t

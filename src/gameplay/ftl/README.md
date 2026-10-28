@@ -4,8 +4,19 @@ Start at `ftl.cppm` (`phoenix.gameplay.ftl`). `reserve.cpp` owns reserve prepara
 
 The interface consumes ShipResources/ResourceNetwork and explicit equipment facts. It does not query a World, choose an operator, authorize a departure or inspect hidden mission state. Definition and resource accounting modules are its only runtime dependencies.
 
-`coordinator.cppm` (`phoenix.gameplay.ftl.coordinator`) and `coordinator.cpp` own departure groups, reassignment/pruning, capture cancellation, exact group continuation and the transient request queue. Readiness/authority and physical departure commits remain outside that owner.
+`coordinator.cppm` (`phoenix.gameplay.ftl.coordinator`) is the departure policy front door. `coordinator.cpp` owns groups, reassignment/pruning, capture cancellation, exact group continuation and the transient queue. `admission.cpp` resolves Console ownership from selected layout data, checks command shape and current Controller grants, orders group readiness, prepares the accepted batch and validates restored membership/authority. It owns no physical resource or World.
 
-`ftl.hpp` remains the World composition adapter for Console admission, displacement/visitor facts, group authorization, recall, report capture and deliberate departure. Those operations must remain at their current phases; the reserve module does not introduce a new scheduler or completion owner. Finite process readiness still derives from the actual reserve after payment/completion effects.
+`src/world/bindings/gameplay_ftl.cpp` is the ordinary World adapter for bounded drive/Controller capabilities, displacement/visitor and cross-domain group permission facts, reserve charging, report capture and physical departure effects. Those operations must remain at their current phases; the reserve module does not introduce a new scheduler or completion owner. Finite process readiness still derives from the actual reserve after payment/completion effects.
 
 Relevant checks: FTL and finite-process synthetic integration/continuation, mission/debrief and recovery cases. This guide is not executed acceptance evidence.
+
+`DepartureAdmissionFacts` contains synchronous reads only. Its capabilities expose
+current drive/Console ownership and Controller grants without AI memory or a
+World getter. `prepare_pending` returns the whole accepted batch before World
+dissipates any reserve, freezes reports, changes Away transfer state or withdraws
+scenario actors. Restore validates members, performs the existing obsolete
+encounter-goal cleanup, then validates authority in that order.
+
+The provider passed standalone native compilation and the ordinary native
+adapters are activated. Full-cohort system and continuation gates remain
+separate evidence; this guide does not claim those checks have passed.

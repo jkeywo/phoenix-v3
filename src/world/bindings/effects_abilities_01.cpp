@@ -1,29 +1,5 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
@@ -245,23 +221,11 @@ auto Runtime::ability_recovery_capacity(EntityId ship, const AbilityGrantState &
 	                                          ecs.get<Clock>().tick);
 }
 
-auto Runtime::stop_ability(EntityId ship, AbilityRuntime &runtime, AbilityGrantState &g) -> void
+auto Runtime::stop_ability(EntityId ship, AbilityRuntime &runtime, AbilityGrantState &grant) -> void
 {
-	if (!ability_running(g))
+	if (!ability_running(grant))
 		return;
-	const auto &d = definition(ship).abilities.catalog->definitions.at(g.definition);
-	const bool preparing = g.phase == "preparing" || g.resume_phase == "preparing";
-	if (preparing && d.interruption_recovery_ticks)
-	{
-		const auto key = ability_recovery_key(g);
-		runtime.recovery[key] = std::max(runtime.recovery[key], ecs.get<Clock>().tick + d.interruption_recovery_ticks);
-	}
-	else if (!preparing && d.recovery_on == "stop")
-		ability_begin_recovery(ship, runtime, g);
-	g.phase = "ready";
-	g.resume_phase.clear();
-	g.progress = 0;
-	g.output_permille = 0;
+	stop_ability_run(runtime, grant, ability_definition(ship, grant), ecs.get<Clock>().tick);
 }
 
 auto Runtime::reset_ability_endpoint(EntityId ship, const AbilityControlDefinition &c) -> void
@@ -423,57 +387,48 @@ auto Runtime::ability_request_result(EntityId ship, const AbilityGrantState &g, 
 		}
 }
 
+AbilityLifecycleBridge::AbilityLifecycleBridge(Runtime &owner, EntityId actor) : world(owner), ship(actor)
+{
+}
+const AbilityControlDefinition *AbilityLifecycleBridge::resolve_control(const AbilityGrantState &grant) const
+{
+	return world.resolve_ability_control(ship, grant);
+}
+std::string AbilityLifecycleBridge::eligibility_blocker(const AbilityControlDefinition &control,
+                                                        const AbilityGrantState &grant, EntityId target) const
+{
+	Runtime::ConsoleContacts contacts;
+	return world.ability_blocker(ship, control, grant, target, contacts);
+}
+std::string AbilityLifecycleBridge::apparatus_blocker(const AbilityGrantState &grant) const
+{
+	return world.ability_apparatus_blocker(ship, grant);
+}
+std::string AbilityLifecycleBridge::commit_activation(const AbilityGrantState &grant,
+                                                      const std::optional<EffectGroupDefinition> &effect)
+{
+	return world.ability_apply_groups(ship, grant, effect);
+}
+void AbilityLifecycleBridge::request_result(const AbilityGrantState &grant, bool accepted)
+{
+	world.ability_request_result(ship, grant, accepted);
+}
+std::int64_t AbilityLifecycleBridge::paid_output(const std::string &grant) const
+{
+	return world.ability_upkeep_output(ship, grant);
+}
+std::int64_t AbilityLifecycleBridge::apparatus_effectiveness(const std::string &apparatus) const
+{
+	return world.fault_effectiveness(world.entities.at(ship), apparatus);
+}
+
 auto Runtime::activate_ability(EntityId ship, const std::string &key, bool activation_committed) -> void
 {
-	const auto *before = ability_execution(ship, key);
-	if (!before)
+	if (!ability_execution(ship, key))
 		return;
-	const auto snapshot = *before;
-	const auto &d = definition(ship).abilities.catalog->definitions.at(snapshot.definition);
-	ConsoleContacts contacts;
-	const auto *control = resolve_ability_control(ship, snapshot);
-	const auto blocker = control ? ability_blocker(ship, *control, snapshot, snapshot.target, contacts)
-	                             : "No compatible ability control";
-	if (!control || !blocker.empty() || !ability_apparatus_blocker(ship, snapshot).empty())
-	{
-		auto &state = entities.at(ship).get_mut<AbilityRuntime>();
-		auto &interrupted = state.grants.at(key);
-		if (control && d.sustained && blocker == "Ability requirements unavailable" &&
-		    entities.at(ship)
-		            .get<EntityControls>()
-		            .controllers.at(control->controller)
-		            .definition.commands.at(control->enabled)
-		            .semantics == CommandSemantics::Request)
-			interrupted.retained_request = true;
-		stop_ability(ship, state, interrupted);
-		ability_request_result(ship, snapshot, false);
-		return;
-	}
-	if (entities.at(ship).get<AbilityRuntime>().next_activation >= 9007199254740991ULL)
-		throw std::runtime_error("Ability activation identity exhausted");
-	const auto failure =
-	    activation_committed ? std::string{} : ability_apply_groups(ship, snapshot, d.activation_effect);
-	auto &runtime = entities.at(ship).get_mut<AbilityRuntime>();
-	const auto found = runtime.grants.find(key);
-	if (found == runtime.grants.end() || found->second.generation != snapshot.generation)
-		return;
-	auto &g = found->second;
-	if (!failure.empty())
-	{
-		if (d.preparation_ticks)
-			stop_ability(ship, runtime, g);
-		else
-			g.phase = "ready";
-		g.blocker = failure;
-		ability_request_result(ship, snapshot, false);
-		return;
-	}
-	g.retained_request = false;
-	g.activation = runtime.next_activation++;
-	g.phase = d.sustained ? "active" : "ready";
-	g.progress = d.preparation_ticks * 1000;
-	if (d.recovery_on == "activation" || !d.sustained)
-		ability_begin_recovery(ship, runtime, g);
+	AbilityLifecycleBridge native(*this, ship);
+	AbilityLifecycle lifecycle(entities.at(ship), *definition(ship).abilities.catalog, ecs.get<Clock>().tick, native);
+	lifecycle.activate(key, activation_committed);
 }
 
 auto Runtime::prepare_abilities(EntityId ship) -> void

@@ -1,35 +1,67 @@
 module;
-#include <flecs.h>
-#include <functional>
-#include <chrono>
-#include <charconv>
-#include <iterator>
-#include <type_traits>
-#include <string_view>
-#include <cstdlib>
-#include <iostream>
-#include <algorithm>
-#include <array>
-#include <variant>
-#include <set>
-#include <stdexcept>
-#include <cstdint>
-#include <map>
-#include <limits>
-#include <memory>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
-#include <string>
-#include <utility>
-#include <tuple>
-#include <vector>
+#include "native_headers.hpp"
 
 module phoenix.simulation;
 import :bindings;
 
 namespace phoenix::world_detail
 {
+auto Runtime::departure_capabilities(EntityId id) const -> DepartureCapabilities
+{
+	DepartureCapabilities result;
+	const auto actor = entities.at(id);
+	const auto &fitted = actor.get<EquipmentIndex>().values;
+	for (auto child : fitted)
+		if (child.has<FtlReserve>())
+		{
+			const auto &system = child.get<Equipment>().id;
+			result.drives.push_back({system, ftl_owner(id, system)});
+		}
+	if (const auto *controls = actor.try_get<EntityControls>())
+		for (const auto &controller : controls->controllers)
+		{
+			DepartureControllerGrant grant;
+			grant.console = controller.definition.console;
+			grant.controller = controller.definition.id;
+			grant.human = controller.human;
+			grant.generation = controller.generation;
+			for (const auto &channel : controller.definition.commands)
+				for (const auto index : channel.consumers)
+					grant.physical_consumers.push_back(fitted.at(index).get<Equipment>().id);
+			result.controllers.push_back(std::move(grant));
+		}
+	return result;
+}
+auto Runtime::departure_admission_facts() const -> DepartureAdmissionFacts
+{
+	DepartureAdmissionFacts facts;
+	facts.departed = [this](EntityId id)
+	{
+		return departed(id);
+	};
+	facts.unavailable = [this](EntityId id)
+	{
+		return truly_destroyed(id) || departed(id);
+	};
+	facts.capabilities = [this](EntityId id)
+	{
+		return departure_capabilities(id);
+	};
+	facts.member_authorised = [this](EntityId leader, EntityId member)
+	{
+		return departure_member_authorised(leader, member);
+	};
+	facts.visitors = [this](EntityId id)
+	{
+		return ftl_local_facts(id).second;
+	};
+	facts.reserve_blocker = [this](EntityId id, const std::string &system)
+	{
+		return ftl_blocker(id, entities.at(id).get<EquipmentIndex>().by_id.at(system));
+	};
+	return facts;
+}
+
 auto Runtime::departure_member_authorised(EntityId leader, EntityId member) const -> bool
 {
 	if (operational_owner(leader) == operational_owner(member))
@@ -44,20 +76,17 @@ auto Runtime::departure_member_authorised(EntityId leader, EntityId member) cons
 
 auto Runtime::discard_obsolete_encounter_departures() -> void
 {
-	std::vector<EntityId> obsolete_groups;
-	for (const auto &[leader, group] : departures.groups())
-	{
-		bool obsolete = false;
-		for (std::size_t i = 0; i < interdiction_book.size(); ++i)
-			if (interdiction_book.state(i).captured &&
-			    interdiction_book.obsolete_departure(i, leader, group,
-			                                         operational_owner(interdiction_book.definition(i).target)))
-				obsolete = true;
-		if (obsolete)
-			obsolete_groups.push_back(leader);
-	}
-	for (const auto leader : obsolete_groups)
-		departures.erase_group(leader, true);
+	departures.discard_obsolete_groups(
+	    [this](EntityId leader, const std::set<EntityId> &members)
+	    {
+		    bool obsolete = false;
+		    for (std::size_t i = 0; i < interdiction_book.size(); ++i)
+			    if (interdiction_book.state(i).captured &&
+			        interdiction_book.obsolete_departure(i, leader, members,
+			                                             operational_owner(interdiction_book.definition(i).target)))
+				    obsolete = true;
+		    return obsolete;
+	    });
 }
 
 auto Runtime::assign_departure_group(EntityId leader, const std::set<EntityId> &members) -> void
@@ -95,25 +124,6 @@ auto Runtime::departure_drive(EntityId ship) const -> flecs::entity
 	return {};
 }
 
-auto Runtime::departure_group_blocker(EntityId ship) const -> std::string
-{
-	const auto leader = departure_leader(ship);
-	if (!departures.groups().contains(leader))
-		return {};
-	for (const auto member : departures.groups().at(leader))
-		if (!truly_destroyed(member) && !departed(member))
-		{
-			if (!departure_member_authorised(leader, member))
-				return "Departure group ownership changed";
-			if (member != leader && ftl_local_facts(member).second)
-				return "Friendly visitors await recovery";
-			const auto drive = departure_drive(member);
-			if (!drive || !ftl_blocker(member, drive).empty())
-				return "Departure group not ready";
-		}
-	return {};
-}
-
 auto Runtime::departed(EntityId id) const -> bool
 {
 	return entities.contains(id) && entities.at(id).has<MissionDeparture>() &&
@@ -122,16 +132,14 @@ auto Runtime::departed(EntityId id) const -> bool
 
 auto Runtime::ftl_owner(EntityId id, const std::string &system) const -> ConsoleAddress
 {
-	const auto &d = definition(id);
-	if (!d.ftl.contains(system) || !d.layout)
+	const auto &selected = definition(id);
+	if (!selected.ftl.contains(system) || !selected.layout)
 		return {};
-	for (const auto &ctrl : d.layout->controllers)
-		for (const auto &channel : ctrl.commands)
-			if (channel.action == OperatingAction::SystemEnabled)
-				for (const auto i : channel.consumers)
-					if (d.fitted->values.at(i).id == system)
-						return {id, ctrl.console};
-	return {};
+	std::vector<std::string> fitted_system_ids;
+	fitted_system_ids.reserve(selected.fitted->values.size());
+	for (const auto &fit : selected.fitted->values)
+		fitted_system_ids.push_back(fit.id);
+	return departure_console_owner(id, system, *selected.layout, fitted_system_ids);
 }
 
 auto Runtime::retire_departed(EntityId id) -> void
@@ -295,7 +303,7 @@ auto Runtime::ftl_board(const ConsoleAddress &a) const -> Json
 			const auto &s = p.network.stores().at(ftl->definition.store);
 			auto blocker = ftl_blocker(a.ship, child);
 			if (blocker.empty())
-				blocker = departure_group_blocker(a.ship);
+				blocker = departures.group_blocker(departure_admission_facts(), a.ship);
 			rows.push_back({{"system", child.get<Equipment>().id},
 			                {"energy", s.energy()},
 			                {"capacity", p.definition.network.stores.at(ftl->definition.store).capacity},
@@ -311,67 +319,11 @@ auto Runtime::ftl_board(const ConsoleAddress &a) const -> Json
 	return rows;
 }
 
-auto Runtime::ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai) -> bool
-{
-	if (c.action != "ftl.depart" || departed(a.ship) || c.value || !c.channel.empty() || c.request_id ||
-	    !c.arguments.empty() || !c.text.empty() || !c.speaker_name.empty() || !c.speaker_avatar.empty())
-		return false;
-	auto ship = entities.at(a.ship);
-	if (ftl_owner(a.ship, c.system) != a)
-		return false;
-	bool authority = false;
-	for (const auto &ctrl : ship.get<EntityControls>().controllers)
-		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller && ctrl.human != ai &&
-		    ctrl.generation == c.generation)
-			for (const auto &channel : ctrl.definition.commands)
-				for (const auto i : channel.consumers)
-					authority |= ship.get<EquipmentIndex>().values.at(i).get<Equipment>().id == c.system;
-	if (!authority)
-		return false;
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (child.has<FtlReserve>() && child.get<Equipment>().id == c.system)
-		{
-			if (!ftl_blocker(a.ship, child).empty() || !departure_group_blocker(a.ship).empty() ||
-			    departure_leader(a.ship) != a.ship)
-				return false;
-			if (!execute)
-				return true;
-			departures.request(a, c, ai);
-			return true;
-		}
-	return false;
-}
-
 auto Runtime::commit_departures() -> void
 {
-	auto pending = departures.take_requests();
-	std::sort(pending.begin(), pending.end(),
-	          [](const auto &a, const auto &b)
-	          {
-		          return std::get<0>(a).ship < std::get<0>(b).ship;
-	          });
-	std::vector<std::pair<ConsoleAddress, OperatingCommand>> accepted;
-	std::set<EntityId> seen;
-	for (const auto &[a, c, ai] : pending)
-		if (!seen.contains(a.ship) && ftl_command(a, c, false, ai))
-		{
-			accepted.emplace_back(a, c);
-			seen.insert(a.ship);
-		}
+	auto accepted = departures.prepare_pending(departure_admission_facts());
 	if (accepted.empty())
 		return;
-	// Readiness and ownership are rechecked as one batch before any member leaves.
-	const auto leaders = accepted;
-	for (const auto &[a, command] : leaders)
-		if (departures.groups().contains(a.ship))
-			for (auto member : departures.groups().at(a.ship))
-				if (member != a.ship && !truly_destroyed(member) && !departed(member) && !seen.contains(member))
-				{
-					const auto drive = departure_drive(member);
-					OperatingCommand companion{member, "ftl.depart", 0, drive.get<Equipment>().id};
-					accepted.emplace_back(ftl_owner(member, companion.system), companion);
-					seen.insert(member);
-				}
 	for (const auto &[a, c] : accepted)
 	{
 		auto ship = entities.at(a.ship);

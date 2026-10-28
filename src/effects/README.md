@@ -2,7 +2,7 @@
 
 Start with contracts, then the pure rule evaluator, property preparation and ability/process continuation. These modules accept explicit definitions, fixed ticks and native-owned state; they do not read a World or renderer.
 
-Native integration is ordered by the World schedule. Physical mechanisms own actual damage, repair, clinical progress, resource allocation and deliveries. Prepared transactions copy only supported native outcome fields and commit with revision checks. See the migration ledger for integration fragments still being extracted.
+Native integration is ordered by the World schedule. Physical mechanisms own actual damage, repair, clinical progress, resource allocation and deliveries. Prepared transactions copy only supported native outcome fields and commit with revision checks. See `src/world/bindings/effects_*.cpp` and the migration ledger for native binding policy still being extracted.
 
 `rules` deliberately has separate pure evaluator and authoritative clock-state targets. Client/content verification code can use expression evaluation without acquiring Flecs.
 
@@ -17,4 +17,4 @@ Native integration is ordered by the World schedule. Physical mechanisms own act
 | `transactions` | Candidate native state, operation preparation, exact payment guards and shared commit ordering. |
 | `funding`      | Upkeep bundle identities, work credits, dependency bounds and input quotations.                 |
 
-The central migration ledger distinguishes compiled and integrated modules from prepared extractions. Native adapter fragments remain alongside their family owner until their production-path checkpoint passes.
+The central migration ledger distinguishes compiled and integrated modules from prepared extractions. Native adapters compile as ordinary World binding units; moving a body there is distinct from extracting its policy into a domain owner.

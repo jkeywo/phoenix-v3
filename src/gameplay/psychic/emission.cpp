@@ -1,10 +1,13 @@
 module;
+#include <map>
 #include <nlohmann/json.hpp>
 #include <flecs.h>
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <stdexcept>
+#include <functional>
 module phoenix.gameplay.psychic.emission;
 import phoenix.gameplay.fitting;
 import phoenix.gameplay.directed;
@@ -58,5 +61,40 @@ std::int64_t native_psychic_emission(flecs::entity entity, EntityId ship, bool u
 			if (m.sender == "ship:" + std::to_string(ship) && m.sent + 20 >= tick)
 				result += 250;
 	return std::min<std::int64_t>(1000, result);
+}
+
+void PsychicEmissionMemory::record(EntityId ship, std::uint64_t tick)
+{
+	emissions_[ship] = tick + 20;
+}
+bool PsychicEmissionMemory::recent(EntityId ship, std::uint64_t tick) const
+{
+	return emissions_.contains(ship) && emissions_.at(ship) > tick;
+}
+void PsychicEmissionMemory::expire(std::uint64_t tick, const std::function<bool(EntityId)> &actor_exists)
+{
+	std::erase_if(emissions_,
+	              [&](const auto &entry)
+	              {
+		              return !actor_exists(entry.first) || entry.second <= tick;
+	              });
+}
+Json PsychicEmissionMemory::save() const
+{
+	Json rows = Json::array();
+	for (const auto &[ship, until] : emissions_)
+		rows.push_back({{"ship", ship}, {"until", until}});
+	return rows;
+}
+void PsychicEmissionMemory::restore(const Json &rows, std::uint64_t tick,
+                                    const std::function<bool(EntityId)> &actor_exists)
+{
+	for (const auto &row : rows)
+	{
+		const EntityId ship = row.at("ship");
+		const std::uint64_t until = row.at("until");
+		if (!actor_exists(ship) || until > tick + 20 || !emissions_.emplace(ship, until).second)
+			throw std::runtime_error("Invalid saved emission");
+	}
 }
 } // namespace phoenix

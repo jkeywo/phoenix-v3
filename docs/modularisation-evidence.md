@@ -307,6 +307,51 @@ remaining deepening opportunities are explicit in the reading guides. The full
 native/continuation and both browser-mode gates remain required on the final
 ownership graph.
 
+## Final native and ordinary-browser ownership gate
+
+The final cohort adds the projectile store, ability lifecycle, strict Away
+persistence/permitted projection, deeper departure admission and psychic signal
+memory. Their native adapters use the ordinary World units; no retired header
+path is active. Independent reviews found no concrete ordering, lifetime,
+authority or continuation regression in the ability, Away and projectile seams.
+
+Family-owned CMake lists now compose resources, knowledge, scenarios, gameplay
+and World; application owns preferences. Six actual configure captures proved
+the Native (287 targets), ordinary WASM (268) and threaded WASM (268) graphs
+identical before/after this folding, including ordered links, sources, file
+sets, directories, flags, definitions, outputs and dependency ceilings. Audit
+injection was removed afterward. This was a build-layout change, not a new
+umbrella target.
+
+- Final native build: `final-native-build-66.log`, passed. The first attempt
+  exposed an unqualified Runtime contact-cache alias in the newly separate
+  ability bridge; it was qualified before rebuilding.
+- Final native suite: `final-native-tests-68.log`, all 48 passed. Its 1,074.66
+  seconds overlapped parallel WASM optimization. A separate low-load synthetic
+  Controller replay passed in 7.708 seconds, close to the earlier focused
+  7.49-second run; this is diagnostic context, not a performance assertion.
+- Native build check and all 23 fresh continuations passed; every trace is
+  byte-for-byte equal to starting revision `34883ac`. Freshness/digest receipt:
+  `final-native-trace-comparison-69.json`.
+- All 12 live-network cases passed, with no skips, in 252.90 seconds. This
+  includes fleet recovery, durable logs, playable Console routing, GM admission,
+  verified WSS and pre-game admission/readiness cases.
+- Complete ordinary WASM build: `final-wasm-build-65.log`, passed. Complete
+  existing browser runtime gate and all native/WASM continuation comparisons:
+  `final-wasm-runtime-70.log`, passed.
+- Existing test-body audit: 62 modified baseline bodies, zero unexpected
+  token/literal changes. All 47 non-ASCII source literal occurrences remain
+  unchanged. The documented API adaptations remain explicit.
+- Source ownership: 644 C++ files, 211 primary named modules and four private
+  partitions; zero temporary exceptions and zero violations. The reading-size
+  inventory has 134 module folders and retains the source-tree fingerprint.
+
+The final threaded WASM build/runtime gate is running. Linux-native compilation,
+physical multi-display/touch/gamepad/screen-reader operation and graphical or
+sustained-performance smoke evidence are not established by these automated
+checks. Existing functional acceptance limits remain in the implementation and
+testing documents.
+
 ## Aggregate retirement activation
 
 The unused `phoenix.content` re-export interface and its build target are now

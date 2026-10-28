@@ -2,7 +2,9 @@
 
 Code is grouped as `src/<family>/<module>/`. Start with a family's README, then the selected module's named interface and its implementation. Folders group related reading; named modules define declaration ownership; CMake targets define compiled/link ownership. These are related boundaries, not interchangeable counts.
 
-The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record intended work, actual ownership and checks performed. Most domain interfaces are active, but the final World private outline and several native integration bindings remain migration work. A folder, README or successful provider build does not establish that work as complete.
+The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record intended work, actual ownership and checks performed. The ordinary World outline and domain interfaces are active. Native bindings intentionally retain cross-domain integration policy; that policy is visible in the reading map rather than presented as independent domain libraries. Source ownership and execution acceptance are recorded separately.
+
+The pinned final source passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM final gates remain pending. These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
 
 ## Reading map
 
@@ -48,7 +50,7 @@ The content re-export facade, generic gameplay definition/runtime aliases and Co
 
 Content compiler implementations retain real recursive relationships among combat/directed definitions, effects/rules/abilities/processes and stock/logistics resolution. Their shared implementation target is intentional and documented. Packs, image codec, catalogue model, assets, UI, documents and distribution remain separately owned. Public declaration ownership must not be duplicated to disguise a cycle.
 
-World still includes native integration fragments from domain folders while the remaining policies and private outline are finalized. Those headers are not additional public module interfaces. Domain providers must be compiled first, then adopted through guarded World edits and behavioral/continuation checks. The exact temporary boundaries remain visible in the source checker exceptions and migration ledger.
+World now compiles ordinary implementation units in `src/world/bindings`, with construction, schedule and checkpoint composition in their corresponding World folders. Private `:runtime`, `:bindings`, `:schedule` and `:persistence` partitions are not reexported by the public facade. The former included class-body headers are retired; integration policy remains visible in the ordinary binding units. Domain providers compile separately and their native adapters require behavioral/continuation checks. The source boundary checker reports zero temporary exceptions; the migration ledger records the final ownership and deliberate allocation changes.
 
 ## Authoring a module
 
@@ -71,31 +73,45 @@ The implementation attaches to `module phoenix.example;`. Give each exported cla
 
 Track both imports and target links. The source checker checks named ownership/private-header boundaries; CMake checks linked dependency reachability. Neither replaces compilation, runtime integration or permission/continuation checks. Use the build commands and compiler constraints in [building.md](building.md), with test policy in [testing.md](testing.md).
 
-## Checkpoint size inventory
+## Source size inventory
 
-The following snapshot is **before the final World outline**. It counts physical lines, including blanks/comments, across current first-party C++ interfaces, implementations and private headers. It excludes dependencies, references and build output. These are reading sizes, not executable-code size, target independence or an acceptance metric. Final counts must be regenerated after the outline/adoption checkpoint.
+The ownership snapshot after includes-only World header deduplication contains
+**644 first-party C++ files in 134 module folders**, with **211 primary named
+modules and 4 private partitions**. It has **145,538 physical lines** and
+**142,598 nonblank lines**. This is a reading-size inventory, not a runtime or
+platform acceptance claim.
 
-| Family        | Module folders | Named modules | Physical lines |
-| ------------- | -------------: | ------------: | -------------: |
-| `application` |              6 |             6 |          1,440 |
-| `behavior`    |              2 |             2 |          2,108 |
-| `content`     |             17 |            27 |         21,175 |
-| `control`     |              5 |            11 |          4,506 |
-| `effects`     |              8 |            21 |         15,136 |
-| `executables` |              7 |             5 |          2,531 |
-| `foundation`  |              4 |             4 |          1,882 |
-| `gameplay`    |             22 |            50 |         23,650 |
-| `graphics`    |              5 |             6 |          4,425 |
-| `knowledge`   |              4 |             4 |          4,903 |
-| `networking`  |             10 |            14 |          9,458 |
-| `platform`    |              7 |            10 |          4,990 |
-| `resources`   |              4 |             5 |          4,585 |
-| `scenarios`   |              5 |             6 |          5,739 |
-| `ui`          |             12 |            18 |         20,292 |
-| `workshop`    |              9 |            14 |         10,135 |
-| `world`       |              5 |             6 |          6,042 |
+Physical lines include comments, blank lines, directives and embedded
+JavaScript/JSON/text. Nonblank lines exclude whitespace-only lines but still
+include comments. Only maintained C++ source under `src/` is counted; tests,
+vendors, historical references, generated build outputs, CMake and external web
+assets are excluded. The four maintained includes-only native headers count.
 
-The checkpoint inventory has 132 module folders, 209 named modules and 142,997 physical lines. Detailed current per-folder/per-file data is prepared locally in `build/modularisation-baseline/module-size-inventory.prepared.{json,csv}`; it is not the final inventory deliverable.
+The [full family/module table](module-sizes.md), [module CSV](module-sizes.csv)
+and [per-file CSV](module-files.csv) give both counts and the named-unit split.
+The inventory records a normalized source fingerprint; regenerate it after an
+actual gate-driven source fix. CMake-only composition edits do not affect these
+counts.
+
+| Family        | Module folders | Physical lines | Nonblank lines |
+| ------------- | -------------: | -------------: | -------------: |
+| `application` |              6 |          1,440 |          1,406 |
+| `behavior`    |              2 |          2,108 |          2,094 |
+| `content`     |             17 |         21,175 |         20,969 |
+| `control`     |              5 |          2,922 |          2,836 |
+| `effects`     |              8 |          7,026 |          6,752 |
+| `executables` |              7 |          2,531 |          2,491 |
+| `foundation`  |              4 |          1,882 |          1,858 |
+| `gameplay`    |             23 |         12,459 |         12,278 |
+| `graphics`    |              5 |          4,425 |          4,373 |
+| `knowledge`   |              4 |          4,588 |          4,489 |
+| `networking`  |             10 |          9,458 |          9,342 |
+| `platform`    |              7 |          4,990 |          4,897 |
+| `resources`   |              4 |          3,967 |          3,918 |
+| `scenarios`   |              5 |          5,101 |          5,057 |
+| `ui`          |             12 |         20,292 |         19,975 |
+| `workshop`    |              9 |         10,135 |          9,915 |
+| `world`       |              6 |         31,039 |         29,948 |
 
 The implementation refines the plan's original folder sketch with these concrete seams. They remain inside the intended family and have their own reading guides.
 
@@ -117,6 +133,8 @@ The implementation refines the plan's original folder sketch with these concrete
 | `networking/projection`        | Bounded observation/public-board envelopes and permission validation stay outside mutable sessions                                 |
 | `platform/viewport`            | Focus and CSS/drawing-surface synchronization stay outside UI/Application state                                                    |
 | `scenarios/interdictions`      | Encounter orders, rosters and continuation are separate from physical psychic simulation                                           |
+| `gameplay/projectiles`         | Canonical projectile launch/continuation and native owner records are separate from geometry and contact indexing                  |
+| `world/bindings`               | Ordinary private World implementation units expose cross-domain integration policy without class-body includes                     |
 
 Record a new owner's responsibility and dependency direction rather than renaming it merely to resemble the initial sketch.
 

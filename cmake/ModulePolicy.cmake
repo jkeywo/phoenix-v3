@@ -377,7 +377,7 @@ phoenix_intended_module(
 )
 phoenix_intended_module(phoenix_gameplay_flight_work phoenix_gameplay_flight phoenix_resources_equipment)
 phoenix_intended_module(phoenix_gameplay_ftl phoenix_resources_equipment)
-phoenix_intended_module(phoenix_gameplay_ftl_coordinator phoenix_contracts)
+phoenix_intended_module(phoenix_gameplay_ftl_coordinator phoenix_contracts phoenix_content_controllers_types)
 phoenix_intended_module(phoenix_gameplay_logistics_state phoenix_contracts phoenix_resources_stocks)
 phoenix_intended_module(phoenix_gameplay_logistics phoenix_gameplay_logistics_state)
 phoenix_intended_module(
@@ -862,6 +862,7 @@ phoenix_intended_module(
 # Batch-four native owners; these ceilings come from their scoped contracts.
 phoenix_intended_module(
 	phoenix_gameplay_away_runtime
+	phoenix_content_controllers_types
 	phoenix_gameplay_away_operations
 	phoenix_gameplay_personnel_state
 	phoenix_gameplay_combat_state
@@ -876,6 +877,7 @@ phoenix_intended_module(
 	phoenix_scenarios_runtime
 	phoenix_behavior_state_tree
 	phoenix_gameplay_team_routes
+	phoenix_gameplay_away_crew
 )
 phoenix_intended_module(
 	phoenix_effects_properties_runtime
@@ -895,6 +897,21 @@ phoenix_intended_module(
 	phoenix_behavior_state_tree
 )
 phoenix_intended_module(phoenix_world_profiling nlohmann_json::nlohmann_json)
+
+# Final native owners keep executable state out of every shared frontend.
+phoenix_intended_module(
+	phoenix_gameplay_projectiles
+	flecs_static
+	phoenix_gameplay_weapons
+	phoenix_gameplay_ordnance_contacts
+	phoenix_gameplay_combat_continuation
+)
+phoenix_intended_module(
+	phoenix_effects_ability_lifecycle
+	phoenix_effects_abilities
+	flecs_static
+	phoenix_control_controllers
+)
 
 # Root-level composition owners are also explicit. World is the only broad
 # authoritative composition; native/browser UI owns permitted projections.
@@ -1049,6 +1066,8 @@ foreach(
 	phoenix_effects_active_rules
 	phoenix_scenario_interdictions
 	phoenix_world_profiling
+	phoenix_gameplay_projectiles
+	phoenix_effects_ability_lifecycle
 )
 	if(TARGET "${phoenix_composition_owner}" AND TARGET phoenix_simulation)
 		set_property(TARGET phoenix_simulation APPEND PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "${phoenix_composition_owner}")
@@ -1142,6 +1161,8 @@ function(phoenix_validate_final_module_policy)
 		phoenix_scenario_bridge
 		phoenix_scenario_interdictions
 		flecs_static
+		phoenix_gameplay_projectiles
+		phoenix_effects_ability_lifecycle
 	)
 	foreach(
 		frontend
