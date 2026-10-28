@@ -338,8 +338,11 @@ struct FleetCommit::Impl
 					{
 						handle(notice);
 					}
-					catch (const std::exception &)
-					{ /* Malformed authenticated peer messages grant no operation. */
+					catch (const WireJson::exception &)
+					{
+						// Only malformed packet fields are ignorable. Internal failures
+						// must reach the outer boundary and revoke fleet authority.
+						continue;
 					}
 			if (broken || !core)
 				return;
