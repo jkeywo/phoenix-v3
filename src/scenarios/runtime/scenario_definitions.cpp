@@ -46,7 +46,8 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		group.id = identifier(v, "id");
 		for (const auto &e : list(v, "entities"))
 		{
-			ScenarioSpawnPlacement p{text(e, "definition"), point(e), number(e, "heading_mdeg", 0, 0, 359999)};
+			ScenarioSpawnPlacement p{read_scenario_text(e, "definition"), point(e),
+			                         number(e, "heading_mdeg", 0, 0, 359999)};
 			require(contains_name(out.entity_definitions, p.definition), "unresolved spawn definition " + p.definition);
 			group.entities.push_back(std::move(p));
 		}
@@ -58,7 +59,7 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 	{
 		ScenarioObjectiveDefinition d;
 		d.id = identifier(v, "id");
-		const auto kind = text(v, "type");
+		const auto kind = read_scenario_text(v, "type");
 		require(kind == "reach_region" || kind == "condition", "unsupported objective type in " + d.id);
 		d.condition = kind == "condition";
 		d.optional = v.value("optional", false);
@@ -70,15 +71,15 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		}
 		else
 		{
-			const auto region = text(v, "region");
+			const auto region = read_scenario_text(v, "region");
 			require(out.region_ids.contains(region), "unresolved objective region " + region);
 			d.region = out.region_ids.at(region);
 		}
 		d.actor = actor(v.at("actor"));
 		d.recipients = recipients(v.at("recipients"));
-		d.title_key = text(v, "title_key");
-		d.description_key = text(v, "description_key", true);
-		d.competition = text(v, "competition", true);
+		d.title_key = read_scenario_text(v, "title_key");
+		d.description_key = read_scenario_text(v, "description_key", true);
+		d.competition = read_scenario_text(v, "competition", true);
 		require(d.competition.empty() || (!d.condition && valid_identifier(d.competition)),
 		        "invalid objective competition");
 		auto check_slot = [&](const ScenarioActor &a)

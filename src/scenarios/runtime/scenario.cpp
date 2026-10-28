@@ -887,7 +887,7 @@ void ScenarioRuntime::restore(const Json &j)
 	for (const auto &v : list(j, "spawned", definition_.spawned_population))
 	{
 		const auto id = unsigned_number(v.at("id"), "id");
-		const auto name = text(v, "definition");
+		const auto name = read_scenario_text(v, "definition");
 		require(id > 0 && contains_name(definition_.entity_definitions, name) && r.spawned_.emplace(id, name).second,
 		        "invalid/duplicate spawned entity definition");
 	}
@@ -898,7 +898,7 @@ void ScenarioRuntime::restore(const Json &j)
 		identity(o.id);
 		o.instance = unsigned_number(v.at("instance"), "instance");
 		require(r.instances_.contains(o.instance), "saved objective has unknown instance");
-		o.definition = text(v, "definition");
+		o.definition = read_scenario_text(v, "definition");
 		o.sequence = v.value("sequence", std::string{});
 		o.cycle = unsigned_number(v.value("cycle", Json(0)), "cycle");
 		const auto index = unsigned_number(v.value("sequence_index", Json(0)), "sequence_index");
@@ -1002,7 +1002,8 @@ void ScenarioRuntime::restore(const Json &j)
 		        "duplicate pending spawn handle");
 		for (const auto &p : list(v, "entities"))
 		{
-			ScenarioSpawnPlacement placement{text(p, "definition"), point(p), number(p, "heading_mdeg", 0, 0, 359999)};
+			ScenarioSpawnPlacement placement{read_scenario_text(p, "definition"), point(p),
+			                                 number(p, "heading_mdeg", 0, 0, 359999)};
 			require(contains_name(definition_.entity_definitions, placement.definition),
 			        "saved spawn definition missing");
 			q.entities.push_back(std::move(placement));
@@ -1016,7 +1017,8 @@ void ScenarioRuntime::restore(const Json &j)
 	for (const auto &v : list(j, "events", definition_.maximum_events))
 	{
 		ScenarioEvent e{unsigned_number(v.at("id"), "id"), unsigned_number(v.at("instance"), "instance"),
-		                text(v, "name"), parameters(v.at("payload")), unsigned_number(v.at("tick"), "tick")};
+		                read_scenario_text(v, "name"), parameters(v.at("payload")),
+		                unsigned_number(v.at("tick"), "tick")};
 		identity(e.id);
 		require(r.instances_.contains(e.source_instance) && contains_name(definition_.events, e.name) &&
 		            e.tick <= r.tick_,
@@ -1031,7 +1033,7 @@ void ScenarioRuntime::restore(const Json &j)
 		identity(p.id);
 		p.instance = unsigned_number(v.at("instance"), "instance");
 		p.objective = unsigned_number(v.at("objective"), "objective");
-		p.record = text(v, "record");
+		p.record = read_scenario_text(v, "record");
 		require(r.instances_.contains(p.instance), "saved publication origin missing");
 		p.recipients = recipients(v.at("recipients"));
 		r.validate_recipients(p.recipients);

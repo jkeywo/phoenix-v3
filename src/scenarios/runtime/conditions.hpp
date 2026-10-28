@@ -154,12 +154,12 @@ void compile_mission_reports(const Json &source, ScenarioDefinition &out)
 		require(ids.insert(r.id).second, "duplicate report");
 		r.ship = actor(v.at("ship"));
 		r.instance = v.value("instance", std::string{"main"});
-		r.title_key = text(v, "title_key");
+		r.title_key = read_scenario_text(v, "title_key");
 		for (const auto &entry : list(v, "log_events", 128))
 		{
 			const auto event = identifier(entry, "event");
 			require(std::find(out.events.begin(), out.events.end(), event) != out.events.end(), "unknown log event");
-			require(r.log_events.emplace(event, text(entry, "text_key")).second, "duplicate log event");
+			require(r.log_events.emplace(event, read_scenario_text(entry, "text_key")).second, "duplicate log event");
 		}
 		for (const auto &o : list(v, "objectives", 256))
 		{
@@ -170,29 +170,30 @@ void compile_mission_reports(const Json &source, ScenarioDefinition &out)
 		{
 			auto id = identifier(f, "fact");
 			require(out.fact_bindings.contains(id), "unknown report fact");
-			r.facts.emplace_back(id, text(f, "label_key"));
+			r.facts.emplace_back(id, read_scenario_text(f, "label_key"));
 		}
 		for (const auto &rule : list(v, "rules", 32))
-			r.rules.push_back({identifier(rule, "result"), text(rule, "title_key"), text(rule, "explanation_key"),
-			                   compile_condition(rule.at("when"), out)});
+			r.rules.push_back({identifier(rule, "result"), read_scenario_text(rule, "title_key"),
+			                   read_scenario_text(rule, "explanation_key"), compile_condition(rule.at("when"), out)});
 		const auto &f = v.at("fallback");
 		r.fallback = identifier(f, "result");
-		r.fallback_title_key = text(f, "title_key");
-		r.fallback_explanation_key = text(f, "explanation_key");
+		r.fallback_title_key = read_scenario_text(f, "title_key");
+		r.fallback_explanation_key = read_scenario_text(f, "explanation_key");
 		std::set<std::string> assessment_ids;
 		for (const auto &a : list(v, "assessments", 16))
 		{
 			ScenarioReportDefinition assessment;
 			assessment.id = identifier(a, "id");
 			require(assessment_ids.insert(assessment.id).second, "duplicate report assessment");
-			assessment.title_key = text(a, "title_key");
+			assessment.title_key = read_scenario_text(a, "title_key");
 			for (const auto &rule : list(a, "rules", 32))
-				assessment.rules.push_back({identifier(rule, "result"), text(rule, "title_key"),
-				                            text(rule, "explanation_key"), compile_condition(rule.at("when"), out)});
+				assessment.rules.push_back({identifier(rule, "result"), read_scenario_text(rule, "title_key"),
+				                            read_scenario_text(rule, "explanation_key"),
+				                            compile_condition(rule.at("when"), out)});
 			const auto &fallback = a.at("fallback");
 			assessment.fallback = identifier(fallback, "result");
-			assessment.fallback_title_key = text(fallback, "title_key");
-			assessment.fallback_explanation_key = text(fallback, "explanation_key");
+			assessment.fallback_title_key = read_scenario_text(fallback, "title_key");
+			assessment.fallback_explanation_key = read_scenario_text(fallback, "explanation_key");
 			r.assessments.push_back(std::move(assessment));
 		}
 		out.reports.push_back(std::move(r));

@@ -15,18 +15,9 @@ std::int64_t number(const Json &v, const char *field, std::int64_t fallback = 0,
 {
 	return json_integer(v, field, fallback, minimum, maximum, "scenario");
 }
-std::string text(const Json &v, const char *field, bool optional = false)
-{
-	if (optional && !v.contains(field))
-		return {};
-	require(v.contains(field) && v.at(field).is_string(), std::string(field) + " must be text");
-	auto s = v.at(field).get<std::string>();
-	require(!s.empty() && s.size() <= 256, std::string(field) + " must contain 1..256 characters");
-	return s;
-}
 std::string identifier(const Json &v, const char *field)
 {
-	auto s = text(v, field);
+	auto s = read_scenario_text(v, field);
 	require(valid_identifier(s), std::string(field) + " is not an authored identifier: " + s);
 	return s;
 }

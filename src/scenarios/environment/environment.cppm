@@ -16,6 +16,8 @@ export import phoenix.contracts;
 export namespace phoenix
 {
 inline constexpr std::int64_t scenario_coordinate_limit = 1000000000;
+// Shared scenario authoring/restore string validation.
+std::string read_scenario_text(const Json &, const char *field, bool optional = false);
 enum class ScenarioRegionShape
 {
 	Circle,
