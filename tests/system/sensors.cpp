@@ -3,6 +3,7 @@
 #include <iostream>
 import phoenix.content.controllers;
 import phoenix.content.distribution;
+import phoenix.gameplay.directed;
 import phoenix.simulation;
 import phoenix.console;
 import phoenix.session.execution;
@@ -511,6 +512,11 @@ int main(int argc, char **argv)
 			require(observed->bearing_contacts[0].id == 2 && observed->bearing_contacts[0].bearing_mdeg < 20 &&
 			            std::abs(observed->bearing_contacts[1].bearing_mdeg - 90000) < 20,
 			        "bearing geometry without range");
+			const auto aim = select_directed_contact(*observed, 3, observed->own.altitude, true);
+			require(aim && aim->body.id == 3 && aim->bearing == observed->bearing_contacts[1].bearing_mdeg &&
+			            aim->altitude == observed->own.altitude && aim->body.definition.empty() && aim->body.x == 0 &&
+			            aim->body.y == 0 && aim->body.vx == 0 && aim->body.vy == 0 && aim->body.heading == 0,
+			        "Bearing-only directed aim carries no uninitialized position, motion or identity details");
 			const auto encoded = network::observation_json(*observed);
 			for (const auto &b : encoded.at("bearing_contacts"))
 				require(b.size() == 3 && !b.contains("x") && !b.contains("definition"),

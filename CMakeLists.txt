@@ -1483,7 +1483,7 @@ target_link_libraries(
 
 # Synthetic cases link only the presentation contracts they exercise.
 target_link_libraries(phoenix_gameplay_flight_tests PRIVATE phoenix_console_model)
-target_link_libraries(phoenix_sensors_tests PRIVATE phoenix_console_model)
+target_link_libraries(phoenix_sensors_tests PRIVATE phoenix_console_model phoenix_gameplay_directed)
 target_link_libraries(phoenix_controller_runtime_tests PRIVATE phoenix_ui_navigation phoenix_console_model)
 
 # These integration cases also call the Console free-function contracts.

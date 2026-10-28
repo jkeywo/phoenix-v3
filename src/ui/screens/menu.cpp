@@ -194,7 +194,7 @@ struct NativeMenuScreen::State
 		// All document references have now been replaced or removed.
 		retain_menu_images(sources);
 	}
-	void choose_scenario(Application &app, std::string id)
+	void choose_scenario(Application &app, const std::string &id)
 	{
 		focus_next = "menu.back";
 		app.selected_scenario = id;

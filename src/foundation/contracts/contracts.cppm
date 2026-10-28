@@ -334,9 +334,9 @@ struct BearingContactView
 };
 struct BodyView
 {
-	EntityId id;
+	EntityId id = 0;
 	std::string definition;
-	std::int64_t x, y, vx, vy, heading;
+	std::int64_t x = 0, y = 0, vx = 0, vy = 0, heading = 0;
 	RadarIcon radar_icon = RadarIcon::contact;
 	std::string radar_sprite;
 	std::string faction, faction_label;

@@ -53,7 +53,7 @@ public:
 			order_[i] = i;
 		root_ = bounds.empty() ? none : build(bounds, 0, bounds.size(), none);
 	}
-	inline void update(std::size_t key, Bounds bounds)
+	inline void update(std::size_t key, const Bounds &bounds)
 	{
 		auto node = leaves_[key];
 		if (nodes_[node].bounds == bounds)
