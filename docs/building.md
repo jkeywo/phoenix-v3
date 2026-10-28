@@ -73,15 +73,17 @@ The FTL system check also records `build/native/ftl-continuation.trace`. The web
 
 ## Linux native game and packager
 
-The Linux port builds the same `native`, `phoenix_pack` and `phoenix_verify` targets, plus the native system and network probes. Use Clang 19 with its matching `clang-scan-deps`, CMake 3.28+ (3.31.6 is the repository bootstrap pin), Ninja, Python, Git, Node 22+ and OpenSSL. GCC is not selected by the wrapper because the first-party C++20 named modules need a supported CMake dependency scanner.
+The Linux port builds the same `native`, `phoenix_pack` and `phoenix_verify` targets, plus the native system and network probes. Use the native Clang 24 binaries and matching `clang-scan-deps` supplied by the pinned Emscripten 6.0.12 SDK, CMake 3.28+ (3.31.6 is the repository bootstrap pin), Ninja, Python, Git, Node 22+ and OpenSSL. Clang 19 crashes during code generation for imported World module types; the SDK compiler also supports native x86-64 and avoids that failure. The `g++` package supplies native C++ headers and runtime libraries; Clang is the selected compiler because first-party C++20 named modules need a supported CMake dependency scanner.
 
-On Debian 13 / Ubuntu with Clang 19 packages available, install the development dependencies:
+On Debian 13 / Ubuntu, install the development dependencies and run the shared bootstrap with PowerShell 7:
 
 ```sh
 sudo apt-get update
-sudo apt-get install clang-19 clang-tools-19 cmake ninja-build python3 git openssl pkg-config \
+sudo apt-get install g++ ninja-build python3 python3-pip git openssl pkg-config \
   libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
   libasound2-dev libudev-dev libdbus-1-dev libgtk-3-dev libcurl4-openssl-dev
+pwsh -NoProfile -File scripts/bootstrap.ps1
+export PATH="$PWD/.tools/python/cmake/data/bin:$PWD/.tools/python/bin:$PATH"
 ./scripts/build-linux.sh
 ./build/linux/native --build-check
 ./scripts/check-linux.sh
@@ -89,7 +91,7 @@ sudo apt-get install clang-19 clang-tools-19 cmake ninja-build python3 git opens
 
 Install Node 22+ with npm separately if the distribution packages are older, and confirm `node --version` before running the checks. The cloud environment already provides Node 24.19.0.
 
-Run commands from the checkout root. `./scripts/build-linux.sh native phoenix_pack` selects just those targets; `JOBS=4` controls parallelism. `CC`/`CXX` can select another compatible Clang installation on the first configuration. Dependencies retain the same immutable revisions and archive hashes as Windows/WebAssembly. SDL supplies gamepads only; raylib/GLFW owns the X11/OpenGL window. Wayland desktops need XWayland. GTK 3 supplies file pickers and clipboard services.
+Run commands from the checkout root. `./scripts/build-linux.sh native phoenix_pack` selects just those targets; `JOBS=4` controls parallelism. `CC`/`CXX` can select another compatible Clang installation on the first configuration. Use a fresh build tree when changing compiler versions; module artifacts cannot be shared between them. Dependencies retain the same immutable revisions and archive hashes as Windows/WebAssembly. SDL supplies gamepads only; raylib/GLFW owns the X11/OpenGL window. Wayland desktops need XWayland. GTK 3 supplies file pickers and clipboard services.
 
 The packager is a command-line executable and needs no display:
 
@@ -113,7 +115,7 @@ Linux validation on 20 October 2026 used Debian 13, Clang 19.1.7, CMake 3.31.6 a
 
 The public launcher is **https://jkeywo.github.io/phoenix-v3/**. Use Host Game, one of the three Join Game roles, or Workshop. The HTML menu offers verified training scenarios and defers WASM until lobby/Workshop entry; QR links bypass the menu. See [browser menu behavior](browser-menu.md).
 
-`.github/workflows/build.yml` builds and deploys on every push to `main`, including documentation changes. It also supports manual dispatch on `main`. Pull requests run the code/build gate and stage the site without publishing it. Native compilation, content verification and native/network system cases run on Windows; WebAssembly compilation and all WASM system cases run on Linux. Both jobs use `scripts/check.ps1` with their respective `-Target`. The native job allows 45 minutes for cold MSVC compilation and the complete verification gate; the web job allows 90 minutes for the ordinary and isolated-worker Release builds, WASM linking and both integration gates. A commit-pinned artifact transfer carries this run's verified packs and native continuation trace to the web job. Its exact native/WASM comparison must pass before staging, and deployment depends on both jobs succeeding. Graphical smoke runs remain manually triggered.
+`.github/workflows/build.yml` builds and deploys on every push to `main`, including documentation changes. It also supports manual dispatch on `main`. Pull requests run the code/build gate and stage the site without publishing it. Native compilation, content verification and native/network system cases run on Windows; WebAssembly compilation and all WASM system cases run on Linux. Both jobs use `scripts/check.ps1` with their respective `-Target`. The native job allows 90 minutes and the Linux job 60 minutes for cold compilation and the complete verification gate, including continuation traces and network checks. Linux CI uses two build workers because Clang compilation of World module consumers can use several GiB per process. Earlier limits cancelled passing system suites before those later checks could finish. The web job allows 90 minutes for the ordinary and isolated-worker Release builds, WASM linking and both integration gates. A commit-pinned artifact transfer carries this run's verified packs and native continuation trace to the web job. Its exact native/WASM comparison must pass before staging, and deployment depends on both jobs succeeding. Graphical smoke runs remain manually triggered.
 
 The workflow stages `index.html`, `menu.css`, `launcher.mjs`, standalone menu artwork/font/translation assets, each browser role's `.js`, `.wasm` and `.data`, the disposable `workshop-test-worker.js` and `phoenix_workshop_test.js`/`.wasm` host, verified production `base.zip` and `test-missions.zip`, their `.menu.json` metadata and `.clients/` DAT directories, and `revision.txt` in `build/pages`. The `.data` bundles contain runtime assets and their font/QR licence notices. The worker files are copied explicitly; system-test executables, synthetic fixture bundles, manual probes, build intermediates and local user data are not published. The launcher and worker use relative URLs, so assets resolve beneath the repository's `/phoenix-v3/` path. `revision.txt` identifies the deployed commit.
 

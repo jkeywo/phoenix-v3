@@ -25,8 +25,8 @@ concurrency:
 jobs:
   native:
     runs-on: windows-2022
-    # Cold MSVC builds take about 24 minutes before tests and continuation/network checks.
-    timeout-minutes: 45
+    # Hosted MSVC module builds have exhausted 45 minutes before reaching CTest.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Bootstrap pinned local tools
@@ -64,7 +64,8 @@ jobs:
             build/native/*-continuation.trace
   linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Allow the full trace/network gate after the cold module build and CTest.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -73,12 +74,18 @@ jobs:
       - name: Install Linux development dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-19 clang-tools-19 ninja-build python3-pip pkg-config openssl \
+          sudo apt-get install -y g++ ninja-build python3-pip pkg-config openssl \
             libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
             libasound2-dev libudev-dev libdbus-1-dev libgtk-3-dev libcurl4-openssl-dev
-          python3 -m pip install --target .tools/linux cmake==3.31.6
-          echo "$PWD/.tools/linux/cmake/data/bin" >> "$GITHUB_PATH"
+      - name: Bootstrap pinned build tools and native Clang
+        shell: pwsh
+        run: |
+          ./scripts/bootstrap.ps1
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value "$PWD/.tools/python/cmake/data/bin"
       - name: Build game and packager; run native and network integration
+        env:
+          # World module consumers can each use several GiB while Clang compiles them.
+          JOBS: "2"
         run: ./scripts/check-linux.sh
   web:
     needs: native
