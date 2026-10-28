@@ -1,4 +1,5 @@
 module;
+#include <string>
 #include <raylib.h>
 #include <imgui.h>
 #include <functional>
