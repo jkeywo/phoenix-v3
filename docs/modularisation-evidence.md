@@ -271,6 +271,42 @@ Formatting check passed for 743 C/C++, 150 CMake, 11 PowerShell and 439
 web/data/document files (`batch4-format-check-52.log`). The source ledger still
 retains all 342 baseline origins and separately records new owner files.
 
+## World compilation and fragment retirement checkpoint
+
+World now has an opaque public PIMPL, one private Runtime definition and ordinary
+implementation units grouped by their integration responsibility. Lifecycle,
+console/control bindings, scene views, persistence and the explicit tick sequence
+have separate source files. Private partitions stay within the World family;
+the primary interface does not reexport them.
+
+The initial small private-class export reproduced the known MSVC inline-JSON
+compiler failure. The prepared fallback outlined ordinary method definitions.
+Private reexport markers also required complete global JSON headers for MSVC
+reachability; Runtime destruction is explicitly defaulted out of line.
+
+- `runtime-outline-native-56.log`: all ordinary implementation units compiled
+  and linked after those targeted compiler fixes.
+- `runtime-outline-focused-tests-57.log`: simulation, Controller and store-effect
+  production-path cases passed after crossing the new compilation boundaries.
+- `runtime-outline-full-native-58.log`: the complete native target graph rebuilt
+  and relinked successfully, including application, tools, session and networking
+  consumers.
+- Retirement audit: all 824 Runtime bodies and 29 facade bodies preserve their
+  source tokens/signatures; all 130 field/type declarations preserve order.
+  Shared helpers match except the explicitly approved inline constant, and the
+  explicit destructor is defaulted. Exact input bytes and hashes are retained in
+  the ignored `world-outline/retirement` receipt.
+- All 57 now-unused class-body headers were removed after verifying no live
+  include or authored CMake source user remained.
+- Source ownership: 633 C++ sources, 213 module units, **zero temporary
+  exceptions and zero violations**. Architecture fixtures passed.
+
+This separates compilation and removes contextual includes. Some integration
+policies still belong to the private World bindings; their locations and
+remaining deepening opportunities are explicit in the reading guides. The full
+native/continuation and both browser-mode gates remain required on the final
+ownership graph.
+
 ## Aggregate retirement activation
 
 The unused `phoenix.content` re-export interface and its build target are now

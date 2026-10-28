@@ -13,6 +13,11 @@ export import phoenix.content.catalog;
 export import phoenix.contracts;
 export import phoenix.control.controllers;
 
+export namespace phoenix::world_detail
+{
+struct Runtime;
+}
+
 export namespace phoenix
 {
 class World
@@ -54,7 +59,8 @@ public:
 private:
 	void load_impl(const Catalog &, const std::string &, const std::map<std::string, std::string> &, bool restoring);
 	Observation observe_at(std::uint64_t claimant, const ConsoleAddress &) const;
-	struct Impl;
+	using Impl = world_detail::Runtime;
+	friend struct world_detail::Runtime;
 	std::unique_ptr<Impl> impl_;
 };
 } // namespace phoenix
