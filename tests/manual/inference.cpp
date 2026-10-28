@@ -3,11 +3,12 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <functional>
 #include <string>
 #include <thread>
 import phoenix.simulation;
 import phoenix.inference;
-#include "../../src/session/inference_host.hpp"
+import phoenix.control.inference_host;
 using namespace phoenix;
 #include "officer_inference.hpp"
 int main(int argc, char **argv)
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
 			throw std::runtime_error("Usage: probe --snapshot OR probe <pair-token> <service-url> [seconds]");
 		const int seconds = argc > 3 ? std::stoi(argv[3]) : 30;
 		InferenceHost host;
-		host.connection = std::make_shared<InferenceConnection>(argv[1], argv[2]);
+		host.set_connection(std::make_shared<InferenceConnection>(argv[1], argv[2]));
 		const auto end = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
 		auto next_tick = std::chrono::steady_clock::now();
 		while (std::chrono::steady_clock::now() < end)
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
 		const auto saved = world.save().at("bodies")[0].at("console_controllers").at("controllers")[0];
-		auto connection = host.connection->status();
+		auto connection = host.status();
 		connection.erase("pair");
 		std::cout << Json{{"provider", world.controller_ai(1)},
 		                  {"history", saved.at("model").at("history")},

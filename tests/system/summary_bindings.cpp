@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+import phoenix.content.documents;
+import phoenix.content.knowledge;
 import phoenix.simulation;
 
 namespace

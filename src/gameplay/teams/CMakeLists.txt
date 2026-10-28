@@ -1,0 +1,7 @@
+add_library(phoenix_gameplay_team_routes STATIC)
+target_sources(phoenix_gameplay_team_routes PUBLIC FILE_SET CXX_MODULES FILES routes.cppm)
+set_property(TARGET phoenix_gameplay_team_routes PROPERTY CXX_SCAN_FOR_MODULES ON)
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_gameplay_team_routes PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_gameplay_team_routes INTERFACE ${PHOENIX_EXCEPTION_FLAG})
+endif()

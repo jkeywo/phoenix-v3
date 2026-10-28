@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 
+import phoenix.content.assets;
+import phoenix.content.controllers;
+import phoenix.content.distribution;
 import phoenix.simulation;
 
 using namespace phoenix;

@@ -1,0 +1,15 @@
+add_library(phoenix_network_projection STATIC gameplay.cpp observation.cpp)
+target_sources(phoenix_network_projection PUBLIC FILE_SET CXX_MODULES FILES projection.cppm)
+target_link_libraries(
+	phoenix_network_projection
+	PUBLIC phoenix_contracts phoenix_content_catalog
+	PRIVATE phoenix_knowledge_read_models phoenix_content_compilers
+)
+set_property(TARGET phoenix_network_projection PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_network_projection
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_contracts;phoenix_content_catalog;phoenix_knowledge_read_models;phoenix_content_compilers"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_network_projection)

@@ -1,0 +1,34 @@
+add_library(phoenix_gameplay_personnel_state STATIC serialization.cpp)
+target_sources(phoenix_gameplay_personnel_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
+target_link_libraries(
+	phoenix_gameplay_personnel_state
+	PUBLIC phoenix_content_operations_types phoenix_effects_contracts phoenix_effects_processes
+)
+set_property(TARGET phoenix_gameplay_personnel_state PROPERTY CXX_SCAN_FOR_MODULES ON)
+
+add_library(phoenix_gameplay_personnel_outcomes STATIC outcomes.cpp)
+target_sources(phoenix_gameplay_personnel_outcomes PUBLIC FILE_SET CXX_MODULES FILES outcomes.cppm)
+target_link_libraries(
+	phoenix_gameplay_personnel_outcomes
+	PUBLIC phoenix_gameplay_combat_state phoenix_gameplay_personnel_state
+)
+
+add_library(phoenix_gameplay_personnel_clinical STATIC clinical.cpp)
+target_sources(phoenix_gameplay_personnel_clinical PUBLIC FILE_SET CXX_MODULES FILES clinical.cppm)
+target_link_libraries(phoenix_gameplay_personnel_clinical PUBLIC phoenix_gameplay_personnel_state)
+set_target_properties(
+	phoenix_gameplay_personnel_clinical
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_gameplay_personnel_runtime STATIC runtime.cpp)
+target_sources(phoenix_gameplay_personnel_runtime PUBLIC FILE_SET CXX_MODULES FILES runtime.cppm)
+target_link_libraries(
+	phoenix_gameplay_personnel_runtime
+	PUBLIC phoenix_gameplay_personnel_state
+	PRIVATE phoenix_gameplay_team_routes
+)
+set_target_properties(
+	phoenix_gameplay_personnel_runtime
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

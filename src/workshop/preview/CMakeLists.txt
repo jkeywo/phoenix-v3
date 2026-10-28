@@ -1,0 +1,27 @@
+add_library(phoenix_workshop_asset_preview STATIC assets.cpp)
+target_sources(phoenix_workshop_asset_preview PUBLIC FILE_SET CXX_MODULES FILES assets.cppm)
+target_link_libraries(
+	phoenix_workshop_asset_preview
+	PUBLIC raylib
+	PRIVATE phoenix_graphics_assets phoenix_application_preferences phoenix_imgui
+)
+
+add_library(phoenix_workshop_material_preview STATIC material.cpp)
+target_sources(phoenix_workshop_material_preview PUBLIC FILE_SET CXX_MODULES FILES material.cppm)
+target_link_libraries(
+	phoenix_workshop_material_preview
+	PUBLIC phoenix_workshop_shell
+	PRIVATE phoenix_graphics_scene phoenix_workshop_asset_preview phoenix_imgui raylib
+)
+
+target_link_libraries(
+	phoenix_workshop_asset_preview
+	PUBLIC phoenix_content_documents
+	PRIVATE phoenix_content_image_codec
+)
+
+target_link_libraries(
+	phoenix_workshop_material_preview
+	PUBLIC phoenix_content_documents
+	PRIVATE phoenix_content_assets phoenix_content_catalog
+)

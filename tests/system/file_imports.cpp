@@ -13,7 +13,9 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 import phoenix.files;
-import phoenix.content;
+import phoenix.content.documents;
+import phoenix.content.packs;
+import phoenix.content.verification;
 import phoenix.session.local;
 using namespace phoenix;
 using phoenix::test::require;

@@ -15,7 +15,9 @@
 #include <utility>
 
 import phoenix.wire;
-#include "../../src/network/projection.hpp"
+import phoenix.knowledge.read_models;
+import phoenix.content.controllers;
+import phoenix.networking.projection;
 
 using namespace phoenix;
 using phoenix::test::require;

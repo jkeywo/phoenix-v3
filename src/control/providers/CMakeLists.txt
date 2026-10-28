@@ -1,0 +1,20 @@
+add_library(phoenix_control_providers STATIC providers.cpp)
+target_sources(phoenix_control_providers PUBLIC FILE_SET CXX_MODULES FILES providers.cppm)
+target_link_libraries(
+	phoenix_control_providers
+	PUBLIC phoenix_control_controllers
+	PRIVATE phoenix_control_coordination phoenix_behavior_state_tree
+)
+set_property(TARGET phoenix_control_providers PROPERTY CXX_SCAN_FOR_MODULES ON)
+
+# Authoritative host scheduling is deliberately separate from the pure policy
+# helpers: simulation can use the latter without depending back on World.
+add_library(phoenix_control_inference_host STATIC inference_host.cpp)
+target_sources(phoenix_control_inference_host PUBLIC FILE_SET CXX_MODULES FILES inference_host.cppm)
+target_link_libraries(phoenix_control_inference_host PUBLIC phoenix_simulation phoenix_inference)
+set_property(TARGET phoenix_control_inference_host PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_control_inference_host
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_simulation;phoenix_inference"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_control_inference_host)

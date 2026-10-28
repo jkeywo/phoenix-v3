@@ -1,0 +1,9 @@
+add_library(phoenix_inference STATIC inference.cpp)
+target_sources(phoenix_inference PUBLIC FILE_SET CXX_MODULES FILES inference.cppm)
+target_link_libraries(phoenix_inference PUBLIC phoenix_foundation phoenix_transport PRIVATE phoenix_wire)
+set_property(TARGET phoenix_inference PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_inference
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_foundation;phoenix_transport;phoenix_wire"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_inference)

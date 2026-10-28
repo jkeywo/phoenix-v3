@@ -1,10 +1,13 @@
 #include "../support/assertions.hpp"
 #include "../support/combat_fixture.hpp"
 #include <iostream>
+import phoenix.content.controllers;
+import phoenix.content.distribution;
 import phoenix.simulation;
 import phoenix.console;
 import phoenix.session.execution;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
+import phoenix.knowledge.read_models;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace
@@ -117,8 +120,7 @@ void independent_shield_scan()
   "contributions":{"bubble":{"capacity":12,"initial":9,"sustain_energy_per_second":0,
    "recharge_per_second":0,"off_recharge_per_second":0,"warmup_ticks":1}}}])json");
 	source["maps"][0]["scenario"] = {{"tree", "test.remote-shield-tree"}, {"bindings", {{"actor", {{"entity", 2}}}}}};
-	source["trees"].push_back(
-	    Json::parse(R"json({"id":"test.remote-shield-tree","context":"scenario","initial":"apply",
+	source["trees"].push_back(Json::parse(R"json({"id":"test.remote-shield-tree","context":"scenario","initial":"apply",
   "states":[{"id":"apply","entry":[{"action":"apply_shield_effect",
    "arguments":[{"observation":"self.entity"},"test.remote-shield","blessing"]}]}]})json"));
 	const auto catalog = load(source);

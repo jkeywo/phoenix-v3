@@ -5,9 +5,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
+import phoenix.content.documents;
+import phoenix.content.controllers;
+import phoenix.content.effects;
 import phoenix.simulation;
 import phoenix.gameplay_scenario;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace

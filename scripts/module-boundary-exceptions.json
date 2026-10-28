@@ -1,0 +1,734 @@
+{
+	"version": 1,
+	"description": "Exact baseline migration exceptions. Remove each edge as its owning module is extracted; strict checking rejects stale entries.",
+	"exceptions": [
+		{
+			"source": "src/executables/browser/web.cpp",
+			"rule": "cross-module-include",
+			"target": "src/executables/diagnostics/browser_performance.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "18"
+		},
+		{
+			"source": "src/executables/native/native.cpp",
+			"rule": "cross-module-include",
+			"target": "src/executables/browser/workshop_bridge.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "18"
+		},
+		{
+			"source": "src/executables/native/native.cpp",
+			"rule": "cross-module-include",
+			"target": "src/executables/diagnostics/performance.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "18"
+		},
+		{
+			"source": "src/gameplay/combat/combat_effects.hpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/damage_rules.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "26"
+		},
+		{
+			"source": "src/workshop/test-client/browser_workshop_test.cpp",
+			"rule": "implementation-owner",
+			"target": "src/workshop/shell",
+			"reason": "Baseline umbrella named module still owns this implementation; attach it to its independently compiled destination module during extraction.",
+			"chunk": "10"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/combat/directed_state.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/resources/equipment/processors_state.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/world/schedule/tick_profile.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/scenarios/environment/asteroid_fields.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/scenarios/environment/asteroid_fields.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/flight/navigation_assessment.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/flight/navigation_assessment.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/control/execution/controller_execution.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/control/execution/controller_execution.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/control/execution/controller_actions.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/control/execution/controller_actions.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/control/coordination/controller_coordination.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/control/coordination/controller_coordination.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/control/providers/controller_models.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/control/providers/controller_models.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/resources/equipment/power_projection.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/resources/equipment/power_projection.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/knowledge/projections/console_observations.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/knowledge/projections/console_observations.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/combat/directed.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/combat/directed.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/combat/combat_execution.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/combat/combat_execution.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/properties/custom_properties.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/properties/custom_properties.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/properties/property_effects.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/properties/property_effects.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/transactions/effect_application.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/transactions/effect_application.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/transactions/store_effects.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/transactions/store_effects.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/processes/processes.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/processes/processes.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/processes/process_machinery.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/processes/process_machinery.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/abilities/abilities.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/abilities/abilities.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/abilities/ability_interface.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/abilities/ability_interface.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/processes/process_interface.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/processes/process_interface.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/rules.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/rules.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/rule_sources.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/rule_sources.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/lifecycle/payload_effects.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/lifecycle/payload_effects.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/transactions/effect_damage.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/transactions/effect_damage.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/rule_funding.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/rule_funding.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/processes/finite_native_work.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/processes/finite_native_work.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/rule_lifecycle.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/rule_lifecycle.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/region_rules.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/region_rules.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/rule_persistence.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/rule_persistence.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/effects/rules/rule_interface.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/effects/rules/rule_interface.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/resources/equipment/processors.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/resources/equipment/processors.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/personnel/personnel.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/personnel/personnel.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/psychic/psychic.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/psychic/psychic.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/teams/teams.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/teams/teams.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/teams/compartment_access.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/teams/compartment_access.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/logistics/logistics.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/logistics/logistics.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/docking/docking.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/docking/docking.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/logistics/cargo.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/logistics/cargo.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/resources/equipment/supply.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/resources/equipment/supply.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/control/coordination/bridge.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/control/coordination/bridge.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/conversations/conversations.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/conversations/conversations.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/away/away.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/away/away.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/boarding/ownership.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/boarding/ownership.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/boarding/boarding.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/boarding/boarding.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/craft/craft.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/craft/craft.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/ftl/ftl.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/ftl/ftl.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/scenarios/objectives/missions.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/scenarios/objectives/missions.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/psychic/interdictions.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/psychic/interdictions.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "class-body-include",
+			"target": "src/gameplay/sensors/sensors.hpp",
+			"reason": "Baseline implementation fragment still depends on its enclosing class; owning extraction chunk must compile it independently.",
+			"chunk": "30"
+		},
+		{
+			"source": "src/world/lifecycle/world.cpp",
+			"rule": "cross-module-include",
+			"target": "src/gameplay/sensors/sensors.hpp",
+			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
+			"chunk": "30"
+		}
+	]
+}

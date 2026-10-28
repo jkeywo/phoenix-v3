@@ -12,12 +12,12 @@ module;
 #include <utility>
 #include <vector>
 
-// Test-only implementation unit of the production module: exercise its private
-// allocation seam without exporting simulation internals to ordinary callers.
+// Exercise the resource owner's allocation seam through its production interface.
 module phoenix.simulation;
-import phoenix.content;
-#include "../../src/simulation/gameplay_resources.hpp"
-#include "../../src/simulation/rule_work.hpp"
+import phoenix.content.catalog;
+import phoenix.content.resources;
+import phoenix.resources.equipment;
+import phoenix.effects.processes;
 
 extern "C" void resource_allocation_lifecycle(const phoenix::Catalog &catalog)
 {

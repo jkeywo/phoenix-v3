@@ -1,0 +1,3 @@
+add_library(phoenix_effects_processes STATIC processes.cpp)
+target_sources(phoenix_effects_processes PUBLIC FILE_SET CXX_MODULES FILES processes.cppm)
+target_link_libraries(phoenix_effects_processes PUBLIC phoenix_effects_contracts)

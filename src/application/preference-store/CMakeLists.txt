@@ -1,0 +1,6 @@
+add_library(phoenix_application_preference_store STATIC preference_store.cpp)
+target_sources(phoenix_application_preference_store PUBLIC FILE_SET CXX_MODULES FILES preference_store.cppm)
+target_link_libraries(
+	phoenix_application_preference_store
+	PUBLIC phoenix_application_shell phoenix_application_preferences
+)

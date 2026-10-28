@@ -1,5 +1,4 @@
 #pragma once
-#include "../../src/presentation/engineering.hpp"
 namespace phoenix::test
 {
 inline void power_panel_cases()

@@ -1,0 +1,7 @@
+add_library(phoenix_effects_abilities STATIC abilities.cpp)
+target_sources(phoenix_effects_abilities PUBLIC FILE_SET CXX_MODULES FILES abilities.cppm)
+target_link_libraries(phoenix_effects_abilities PUBLIC phoenix_effects_contracts)
+
+add_library(phoenix_effects_ability_validation STATIC validation.cpp)
+target_sources(phoenix_effects_ability_validation PUBLIC FILE_SET CXX_MODULES FILES validation.cppm)
+target_link_libraries(phoenix_effects_ability_validation PUBLIC phoenix_effects_abilities)

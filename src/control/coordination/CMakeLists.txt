@@ -1,0 +1,4 @@
+add_library(phoenix_control_coordination STATIC coordination.cpp)
+target_sources(phoenix_control_coordination PUBLIC FILE_SET CXX_MODULES FILES coordination.cppm)
+target_link_libraries(phoenix_control_coordination PUBLIC phoenix_control_controllers)
+set_property(TARGET phoenix_control_coordination PROPERTY CXX_SCAN_FOR_MODULES ON)

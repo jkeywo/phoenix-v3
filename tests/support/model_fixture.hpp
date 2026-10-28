@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <nlohmann/json.hpp>
-import phoenix.content;
+import phoenix.data;
 namespace phoenix::test
 {
 // A static triangle with a translated/scaled parent and an inactive scene node.

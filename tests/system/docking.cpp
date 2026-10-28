@@ -1,8 +1,10 @@
 #include "../support/assertions.hpp"
 #include "../support/docking_fixture.hpp"
 #include <iostream>
+import phoenix.content.controllers;
 import phoenix.simulation;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
+import phoenix.knowledge.read_models;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace

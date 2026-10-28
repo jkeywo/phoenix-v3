@@ -1,0 +1,11 @@
+add_library(phoenix_application_library STATIC menu.cpp)
+target_sources(phoenix_application_library PUBLIC FILE_SET CXX_MODULES FILES menu.cppm)
+target_link_libraries(
+	phoenix_application_library
+	PUBLIC phoenix_application_preferences phoenix_content_catalog phoenix_content_packs
+)
+target_link_libraries(
+	phoenix_application_library
+	PRIVATE phoenix_content_assets phoenix_content_distribution phoenix_content_compilers
+)
+target_link_libraries(phoenix_application_library PUBLIC phoenix_platform_user_paths phoenix_platform_display_identity)

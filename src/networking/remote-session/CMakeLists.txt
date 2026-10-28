@@ -1,0 +1,54 @@
+# Client/GM consumers never link the host implementation transitively.
+add_library(phoenix_network_client STATIC client.cpp)
+target_sources(phoenix_network_client PUBLIC FILE_SET CXX_MODULES FILES client.cppm)
+target_link_libraries(
+	phoenix_network_client
+	PUBLIC phoenix_session_api phoenix_blobs phoenix_transport phoenix_wire
+	PRIVATE phoenix_network_projection
+)
+set_property(TARGET phoenix_network_client PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_network_client
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_session_api;phoenix_blobs;phoenix_transport;phoenix_wire;phoenix_network_projection"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_network_client)
+
+add_library(phoenix_network_host STATIC host.cpp)
+target_sources(phoenix_network_host PUBLIC FILE_SET CXX_MODULES FILES host.cppm)
+target_link_libraries(
+	phoenix_network_host
+	PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence phoenix_wire phoenix_fleet_setup
+)
+set_property(TARGET phoenix_network_host PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_network_host
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_session;phoenix_blobs;phoenix_transport;phoenix_persistence;phoenix_wire;phoenix_fleet_setup"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_network_host)
+
+target_link_libraries(phoenix_network_host PRIVATE phoenix_network_projection)
+set_property(TARGET phoenix_network_host APPEND PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_network_projection)
+
+target_link_libraries(phoenix_network_host PRIVATE phoenix_control_inference_host)
+set_property(TARGET phoenix_network_host APPEND PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_control_inference_host)
+
+target_link_libraries(phoenix_network_client PRIVATE phoenix_content_compilers phoenix_content_distribution)
+set_property(
+	TARGET phoenix_network_client
+	APPEND
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_content_compilers phoenix_content_distribution
+)
+
+target_link_libraries(
+	phoenix_network_host
+	PRIVATE phoenix_content_assets phoenix_content_compilers phoenix_content_distribution
+)
+set_property(
+	TARGET phoenix_network_host
+	APPEND
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_content_assets phoenix_content_compilers phoenix_content_distribution
+)

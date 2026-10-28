@@ -1,0 +1,17 @@
+add_library(phoenix_scenarios_runtime_definitions STATIC scenario_definitions.cpp)
+target_sources(phoenix_scenarios_runtime_definitions PUBLIC FILE_SET CXX_MODULES FILES scenario.cppm)
+target_link_libraries(
+	phoenix_scenarios_runtime_definitions
+	PUBLIC phoenix_foundation phoenix_behavior_state_tree_definitions phoenix_scenarios_environment
+)
+set_target_properties(
+	phoenix_scenarios_runtime_definitions
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_scenarios_runtime STATIC scenario.cpp)
+target_link_libraries(phoenix_scenarios_runtime PUBLIC phoenix_scenarios_runtime_definitions)
+set_target_properties(
+	phoenix_scenarios_runtime
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

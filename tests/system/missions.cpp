@@ -2,8 +2,9 @@
 #include "../support/ftl_fixture.hpp"
 #include "../support/away_fixture.hpp"
 #include <iostream>
+import phoenix.content.controllers;
 import phoenix.simulation;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
 Json evidence = Json::array();

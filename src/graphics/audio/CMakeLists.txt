@@ -1,0 +1,9 @@
+add_library(phoenix_graphics_audio_policy STATIC audio_policy.cpp)
+target_sources(phoenix_graphics_audio_policy PUBLIC FILE_SET CXX_MODULES FILES audio_policy.cppm)
+add_library(phoenix_graphics_audio STATIC music.cpp)
+target_sources(phoenix_graphics_audio PUBLIC FILE_SET CXX_MODULES FILES audio.cppm)
+target_link_libraries(phoenix_graphics_audio PUBLIC phoenix_graphics_audio_policy phoenix_graphics_scene raylib)
+
+target_link_libraries(phoenix_graphics_audio_policy PUBLIC phoenix_content_assets)
+
+target_link_libraries(phoenix_graphics_audio PUBLIC phoenix_content_catalog PRIVATE phoenix_content_assets)

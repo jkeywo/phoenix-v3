@@ -4,6 +4,7 @@
 #include <string>
 import phoenix.tools;
 import phoenix.presentation;
+import phoenix.navigation;
 
 // Explicitly invoked visual authoring journey; never registered with CTest.
 int main(int argc, char **argv)

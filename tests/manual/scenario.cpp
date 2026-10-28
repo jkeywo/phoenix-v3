@@ -11,7 +11,9 @@
 #include <variant>
 #include <vector>
 
-import phoenix.content;
+import phoenix.content.catalog;
+import phoenix.content.packs;
+import phoenix.content.verification;
 import phoenix.gameplay_scenario;
 
 namespace

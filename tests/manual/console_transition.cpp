@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 import phoenix.presentation;
+import phoenix.navigation;
 import phoenix.console;
 import phoenix.network.lobby;
 import phoenix.session.local;

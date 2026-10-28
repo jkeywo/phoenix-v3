@@ -1,0 +1,29 @@
+add_library(phoenix_lobby_protocol STATIC lobby.cpp)
+target_sources(phoenix_lobby_protocol PUBLIC FILE_SET CXX_MODULES FILES lobby_protocol.cppm)
+target_link_libraries(phoenix_lobby_protocol PUBLIC phoenix_network_client phoenix_session_api phoenix_wire)
+set_property(TARGET phoenix_lobby_protocol PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_lobby_protocol
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_network_client;phoenix_session_api;phoenix_wire"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_lobby_protocol)
+
+add_library(phoenix_network_lobby STATIC lobby_host.cpp)
+target_sources(phoenix_network_lobby PUBLIC FILE_SET CXX_MODULES FILES lobby.cppm)
+target_link_libraries(phoenix_network_lobby PUBLIC phoenix_lobby_protocol phoenix_network_host phoenix_fleet_setup)
+set_property(TARGET phoenix_network_lobby PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_network_lobby
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_lobby_protocol;phoenix_network_host;phoenix_fleet_setup"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_network_lobby)
+
+target_link_libraries(
+	phoenix_lobby_protocol
+	PRIVATE phoenix_content_assets phoenix_content_compilers phoenix_content_distribution
+)
+set_property(
+	TARGET phoenix_lobby_protocol
+	APPEND
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_content_assets phoenix_content_compilers phoenix_content_distribution
+)

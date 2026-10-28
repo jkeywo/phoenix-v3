@@ -26,6 +26,8 @@ if(EMSCRIPTEN AND PHOENIX_BROWSER_THREADS)
 endif()
 
 function(phoenix_fixture target)
+	# The shared synthetic pack helpers import their real archive/resolution owners.
+	target_link_libraries(${target} PRIVATE phoenix_content_packs phoenix_content_compilers)
 	if(EMSCRIPTEN)
 		target_compile_definitions(${target} PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
 		target_link_options(
@@ -224,131 +226,56 @@ add_library(
 	${imgui_SOURCE_DIR}/imgui_widgets.cpp
 )
 target_include_directories(phoenix_imgui PUBLIC ${imgui_SOURCE_DIR})
-add_library(
-	phoenix_foundation
-	STATIC
-	src/core/input.cpp
-	src/core/contracts.cpp
-	src/core/console_controls.cpp
-	src/core/data.cpp
-	src/platform/random.cpp
-	src/platform/atomic_file.cpp
-)
-target_include_directories(phoenix_foundation PRIVATE ${picosha2_SOURCE_DIR})
-if(WIN32)
-	target_link_libraries(phoenix_foundation PRIVATE bcrypt)
-endif()
-target_sources(
-	phoenix_foundation
-	PUBLIC
-		FILE_SET CXX_MODULES
-			FILES src/core/input.cppm src/core/contracts.cppm src/core/data.cppm src/core/console_controls.cppm
-)
-target_link_libraries(phoenix_foundation PUBLIC nlohmann_json::nlohmann_json)
-if(EMSCRIPTEN)
-	target_compile_options(phoenix_foundation PUBLIC ${PHOENIX_EXCEPTION_FLAG})
-	target_link_options(phoenix_foundation INTERFACE ${PHOENIX_EXCEPTION_FLAG})
-endif()
-add_library(phoenix_session_api STATIC)
+add_subdirectory(src/foundation)
+add_subdirectory(src/resources/stocks)
+add_subdirectory(src/resources/processors)
+add_subdirectory(src/ui)
+add_subdirectory(src/application/preferences)
 
-# Definition compilers are shared with content verification and Workshop. Domain
-# execution implementations are linked only by authoritative simulation.
-add_library(
-	phoenix_gameplay_definitions
-	STATIC
-	src/resources/resource_definitions.cpp
-	src/resources/stock_definitions.cpp
-	src/knowledge/knowledge_definitions.cpp
-	src/scenario/scenario_definitions.cpp
-	src/scenario/fields.cpp
-	src/behavior/state_tree_definitions.cpp
-	src/conversations/conversation_definitions.cpp
-	src/behavior/gameplay_vocabulary.cpp
-	src/flight/flight_definitions.cpp
-)
-target_sources(
-	phoenix_gameplay_definitions
-	PUBLIC
-		FILE_SET CXX_MODULES
-			FILES
-				src/resources/resources.cppm
-				src/knowledge/knowledge.cppm
-				src/scenario/scenario.cppm
-				src/behavior/state_tree.cppm
-				src/behavior/gameplay_vocabulary.cppm
-				src/flight/flight.cppm
-				src/conversations/conversations.cppm
-)
-target_link_libraries(phoenix_gameplay_definitions PUBLIC phoenix_foundation)
-add_library(
-	phoenix_gameplay_runtime
-	STATIC
-	src/resources/resources.cpp
-	src/resources/stock.cpp
-	src/resources/processors.cpp
-	src/knowledge/knowledge.cpp
-	src/scenario/scenario.cpp
-	src/behavior/state_tree.cpp
-	src/conversations/conversations.cpp
-)
-target_link_libraries(phoenix_gameplay_runtime PUBLIC phoenix_gameplay_definitions)
-target_link_libraries(phoenix_session_api PUBLIC phoenix_content phoenix_transport)
-add_library(phoenix_core STATIC src/core/application.cpp src/core/semantics.cpp src/core/console.cpp src/core/menu.cpp)
-target_link_libraries(phoenix_core PUBLIC phoenix_foundation phoenix_session_api)
-if(WIN32)
-	target_link_libraries(phoenix_core PRIVATE shell32 ole32)
-endif()
-add_library(phoenix_replication STATIC src/replication/consensus.cpp)
-target_link_libraries(phoenix_replication PUBLIC phoenix_foundation nlohmann_json::nlohmann_json)
-add_library(
-	phoenix_content
-	STATIC
-	src/content/pack.cpp
-	src/content/catalog.cpp
-	src/content/sprite.cpp
-	src/content/model.cpp
-	src/content/stations.cpp
-	src/content/combat.cpp
-	src/content/directed.cpp
-	src/content/audio.cpp
-	src/content/conversations.cpp
-	src/content/bridge.cpp
-	src/content/factions.cpp
-	src/content/controller_actions.cpp
-	src/content/personnel.cpp
-	src/content/away.cpp
-	src/content/interdictions.cpp
-	src/content/craft.cpp
-	src/content/logistics.cpp
-	src/content/docking.cpp
-	src/content/sensors.cpp
-	src/content/psychic.cpp
-	src/content/abilities.cpp
-	src/content/rules.cpp
-	src/content/controllers.cpp
-	src/content/console_assets.cpp
-	src/content/ui_layout.cpp
-	src/content/workshop.cpp
-	src/content/equipment.cpp
-	src/content/scenario.cpp
-	src/content/gameplay_knowledge.cpp
-	src/content/tree_bindings.cpp
-	src/content/gameplay.cpp
-	src/content/resource_bindings.cpp
-	src/content/stock_catalog.cpp
-	src/content/properties.cpp
-	src/content/processes.cpp
-	src/content/effect_groups.cpp
-)
+add_subdirectory(src/content)
+
+# Domain definitions and execution have independent module-local owners.
+add_subdirectory(src/behavior)
+add_subdirectory(src/knowledge/records)
+add_subdirectory(src/resources/networks)
+add_subdirectory(src/scenarios/environment)
+add_subdirectory(src/scenarios/runtime)
+add_subdirectory(src/gameplay/conversations)
+
+add_library(phoenix_gameplay_definitions INTERFACE)
 target_link_libraries(
-	phoenix_content
-	PUBLIC phoenix_foundation phoenix_gameplay_definitions nlohmann_json::nlohmann_json
-	PRIVATE phoenix_zip webp
+	phoenix_gameplay_definitions
+	INTERFACE
+		phoenix_behavior_state_tree_definitions
+		phoenix_behavior_vocabulary
+		phoenix_knowledge_records_definitions
+		phoenix_resources_stocks_definitions
+		phoenix_resources_processors_definitions
+		phoenix_resources_networks_definitions
+		phoenix_scenarios_environment
+		phoenix_scenarios_runtime_definitions
+		phoenix_gameplay_conversations_definitions
+		phoenix_gameplay_flight_definitions
 )
-add_library(phoenix_persistence STATIC src/replication/store.cpp src/replication/durable.cpp)
-target_link_libraries(phoenix_persistence PUBLIC phoenix_replication)
+add_library(phoenix_gameplay_runtime INTERFACE)
+target_link_libraries(
+	phoenix_gameplay_runtime
+	INTERFACE
+		phoenix_behavior_state_tree
+		phoenix_knowledge_records
+		phoenix_resources_stocks
+		phoenix_resources_processors
+		phoenix_resources_networks
+		phoenix_scenarios_runtime
+		phoenix_gameplay_conversations
+)
+
+add_subdirectory(src/application)
+
+if(WIN32)
+endif()
+
 if(EMSCRIPTEN)
-	target_sources(phoenix_persistence PRIVATE src/platform/browser_store.cpp)
 	add_executable(phoenix_storage_probe tests/manual/browser_store.cpp)
 	target_link_libraries(phoenix_storage_probe PRIVATE phoenix_persistence)
 	target_link_options(
@@ -361,82 +288,144 @@ if(EMSCRIPTEN)
 	)
 	configure_file(web/storage-probe.html "${CMAKE_CURRENT_BINARY_DIR}/storage-probe.html" COPYONLY)
 elseif(WIN32)
-	target_sources(phoenix_persistence PRIVATE src/platform/windows_store.cpp)
+
 else()
-	target_sources(phoenix_persistence PRIVATE src/platform/posix_store.cpp)
 endif()
-target_include_directories(phoenix_content PRIVATE ${raylib_SOURCE_DIR}/src/external)
-add_library(phoenix_wire STATIC src/network/packet.cpp src/network/transfer.cpp)
-target_link_libraries(phoenix_wire PUBLIC phoenix_content)
-target_include_directories(phoenix_wire PRIVATE ${picosha2_SOURCE_DIR})
-add_library(phoenix_inference STATIC src/network/inference.cpp)
-target_sources(phoenix_inference PUBLIC FILE_SET CXX_MODULES FILES src/network/inference.cppm)
-target_link_libraries(phoenix_inference PUBLIC phoenix_foundation phoenix_transport PRIVATE phoenix_wire)
-target_link_libraries(phoenix_session_api PUBLIC phoenix_inference)
+
 if(NOT EMSCRIPTEN)
-	add_executable(phoenix_inference_bridge src/entry/inference_bridge.cpp)
+	add_executable(phoenix_inference_bridge src/executables/inference-bridge/inference_bridge.cpp)
 	target_link_libraries(phoenix_inference_bridge PRIVATE phoenix_inference phoenix_wire)
 	add_executable(phoenix_inference_probe tests/manual/inference.cpp)
-	target_link_libraries(phoenix_inference_probe PRIVATE phoenix_inference phoenix_simulation)
+	target_link_libraries(
+		phoenix_inference_probe
+		PRIVATE phoenix_inference phoenix_simulation phoenix_control_inference_host
+	)
 	phoenix_fixture(phoenix_inference_probe)
 endif()
-add_library(phoenix_blobs STATIC src/network/blob.cpp)
-target_link_libraries(phoenix_blobs PUBLIC phoenix_foundation)
+
 if(EMSCRIPTEN)
-	target_sources(phoenix_blobs PRIVATE src/platform/browser_blobs.cpp)
 else()
-	target_sources(phoenix_blobs PRIVATE src/platform/native_blobs.cpp)
 endif()
-add_library(phoenix_scenario_bridge STATIC src/simulation/gameplay_scenario.cpp)
-target_sources(phoenix_scenario_bridge PUBLIC FILE_SET CXX_MODULES FILES src/simulation/gameplay_scenario.cppm)
-target_link_libraries(phoenix_scenario_bridge PUBLIC phoenix_content PRIVATE phoenix_gameplay_runtime)
-add_library(
-	phoenix_simulation
-	STATIC
-	src/simulation/world.cpp
-	src/simulation/collision.cpp
-	src/simulation/gameplay_knowledge.cpp
-	src/simulation/gameplay_resources.cpp
-	src/simulation/flight.cpp
+add_library(phoenix_scenario_bridge STATIC src/scenarios/integration/gameplay_scenario.cpp)
+target_sources(
+	phoenix_scenario_bridge
+	PUBLIC FILE_SET CXX_MODULES FILES src/scenarios/integration/gameplay_scenario.cppm
 )
 target_link_libraries(
+	phoenix_scenario_bridge
+	PUBLIC phoenix_content_catalog phoenix_content_effects_types phoenix_effects_contracts
+	PRIVATE
+		phoenix_content_compilers
+		phoenix_scenarios_runtime
+		phoenix_behavior_state_tree
+		phoenix_knowledge_records_definitions
+)
+add_subdirectory(src/world/state)
+add_subdirectory(src/world/spatial)
+add_subdirectory(src/gameplay/flight)
+add_subdirectory(src/control)
+add_subdirectory(src/knowledge/projections)
+add_subdirectory(src/knowledge/consoles)
+add_subdirectory(src/knowledge/read-models)
+add_subdirectory(src/effects)
+add_subdirectory(src/gameplay/combat)
+add_subdirectory(src/gameplay/personnel)
+add_subdirectory(src/gameplay/teams)
+add_subdirectory(src/resources/equipment)
+add_subdirectory(src/gameplay/fitting)
+add_subdirectory(src/gameplay/ftl)
+add_subdirectory(src/gameplay/docking)
+add_subdirectory(src/gameplay/craft)
+add_subdirectory(src/gameplay/logistics)
+add_subdirectory(src/gameplay/sensors)
+add_subdirectory(src/gameplay/psychic)
+add_subdirectory(src/gameplay/boarding)
+add_subdirectory(src/gameplay/away)
+add_subdirectory(src/world/persistence)
+add_subdirectory(src/scenarios/objectives)
+add_library(phoenix_simulation STATIC src/world/lifecycle/world.cpp)
+target_link_libraries(
 	phoenix_simulation
-	PUBLIC phoenix_foundation phoenix_content
-	PRIVATE flecs_static phoenix_gameplay_runtime phoenix_scenario_bridge
+	PUBLIC
+		phoenix_foundation
+		phoenix_content_catalog
+		phoenix_control_controllers
+		phoenix_effects_contracts
+		phoenix_effects_processes
+	PRIVATE
+		flecs_static
+		phoenix_content_compilers
+		phoenix_content_assets
+		phoenix_gameplay_runtime
+		phoenix_scenario_bridge
+		phoenix_world_state
+		phoenix_world_spatial
+		phoenix_gameplay_flight
+		phoenix_knowledge_consoles
+		phoenix_control_providers
+		phoenix_control_ownership
+		phoenix_effects_rules
+		phoenix_effects_rule_state
+		phoenix_effects_abilities
+		phoenix_effects_properties
+		phoenix_effects_events
+		phoenix_effects_transactions
+		phoenix_gameplay_combat_state
+		phoenix_gameplay_personnel_state
+		phoenix_gameplay_combat_outcomes
+		phoenix_gameplay_personnel_outcomes
+		phoenix_gameplay_team_routes
+		phoenix_resources_equipment
+		phoenix_control_coordination
+		phoenix_control_execution
+		phoenix_knowledge_read_models
+		phoenix_effects_grants
+		phoenix_effects_native
+		phoenix_gameplay_combat_shields
+		phoenix_gameplay_combat_faults
+		phoenix_gameplay_fitting
+		phoenix_gameplay_ftl
+		phoenix_gameplay_docking
+		phoenix_gameplay_craft
+		phoenix_gameplay_logistics_state
 )
 if(MSVC)
 	target_compile_options(phoenix_simulation PRIVATE /bigobj)
 endif()
-add_library(phoenix_workshop_test_host STATIC src/simulation/workshop_test.cpp)
-target_sources(phoenix_workshop_test_host PUBLIC FILE_SET CXX_MODULES FILES src/simulation/workshop_test.cppm)
-target_link_libraries(phoenix_workshop_test_host PUBLIC phoenix_simulation)
-add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.cpp src/session/frame.cpp)
-target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
-add_library(phoenix_files STATIC src/platform/imports.cpp)
-target_link_libraries(phoenix_files PUBLIC phoenix_content)
-add_library(
-	phoenix_presentation
-	STATIC
-	src/presentation/screen.cpp
-	src/presentation/game.cpp
-	src/presentation/menu.cpp
-	src/presentation/music.cpp
-	src/presentation/scene.cpp
-	src/presentation/sprite_scene.cpp
-	src/presentation/model_scene.cpp
-	src/presentation/radar_sweep.cpp
-	src/presentation/environment.cpp
-	src/presentation/icons.cpp
+add_library(phoenix_workshop_test_host STATIC src/executables/workshop-host/workshop_test.cpp)
+target_sources(
+	phoenix_workshop_test_host
+	PUBLIC FILE_SET CXX_MODULES FILES src/executables/workshop-host/workshop_test.cppm
 )
-add_library(phoenix_devices STATIC)
+target_link_libraries(phoenix_workshop_test_host PUBLIC phoenix_simulation PRIVATE phoenix_content_compilers)
+
+add_subdirectory(src/graphics)
+add_library(phoenix_presentation STATIC src/ui/runtime/screen.cpp)
+target_sources(phoenix_presentation PRIVATE src/ui/runtime/accessibility.cpp)
+target_link_libraries(
+	phoenix_presentation
+	PUBLIC
+		phoenix_graphics_assets
+		phoenix_graphics_scene
+		phoenix_graphics_radar
+		phoenix_graphics_audio
+		phoenix_ui_rml
+		phoenix_knowledge_read_models
+		phoenix_ui_console_surface
+		phoenix_ui_viewscreen
+		phoenix_ui_screens
+		phoenix_ui_settings
+		phoenix_ui_theme
+		phoenix_ui_engineering_widgets
+		phoenix_ui_information_widgets
+		phoenix_ui_preview
+		phoenix_accessibility
+)
+
 if(EMSCRIPTEN)
-	target_sources(phoenix_devices PRIVATE src/platform/browser_devices.cpp)
-	target_compile_options(phoenix_devices PUBLIC ${PHOENIX_EXCEPTION_FLAG})
 else()
-	target_sources(phoenix_devices PRIVATE src/platform/native_devices.cpp)
-	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static)
+
 	if(WIN32)
-		target_link_libraries(phoenix_devices PRIVATE comctl32)
 	endif()
 endif()
 foreach(
@@ -488,19 +477,31 @@ if(NOT EMSCRIPTEN)
 	add_test(NAME system.conversations COMMAND phoenix_conversation_tests)
 endif()
 add_executable(phoenix_scenario_tests tests/manual/scenario.cpp)
-target_link_libraries(phoenix_scenario_tests PRIVATE phoenix_scenario_bridge phoenix_gameplay_runtime)
+target_link_libraries(
+	phoenix_scenario_tests
+	PRIVATE phoenix_scenario_bridge phoenix_scenarios_runtime phoenix_behavior_state_tree
+)
 phoenix_fixture(phoenix_scenario_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.scenario-situations COMMAND phoenix_scenario_tests)
 endif()
 add_executable(phoenix_gameplay_tests tests/manual/gameplay.cpp tests/support/stock_accounting.cpp)
-target_link_libraries(phoenix_gameplay_tests PRIVATE phoenix_content phoenix_gameplay_runtime)
+target_link_libraries(
+	phoenix_gameplay_tests
+	PRIVATE
+		phoenix_content_documents
+		phoenix_content_compilers
+		phoenix_content_packs
+		phoenix_resources_networks
+		phoenix_resources_stocks
+		phoenix_knowledge_records
+		phoenix_behavior_state_tree
+)
 phoenix_fixture(phoenix_gameplay_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.gameplay-foundations COMMAND phoenix_gameplay_tests)
 endif()
 if(EMSCRIPTEN)
-	target_sources(phoenix_presentation PRIVATE src/presentation/browser_semantics.cpp)
 else()
 	enable_testing()
 	add_executable(phoenix_menu_tests tests/system/menu.cpp)
@@ -511,7 +512,19 @@ else()
 	target_link_libraries(phoenix_system_tests PRIVATE phoenix_core)
 	add_test(NAME system.input-and-semantics COMMAND phoenix_system_tests)
 	add_executable(phoenix_content_tests tests/system/content.cpp)
-	target_link_libraries(phoenix_content_tests PRIVATE phoenix_content phoenix_gameplay_runtime)
+	target_link_libraries(
+		phoenix_content_tests
+		PRIVATE
+			phoenix_content_assets
+			phoenix_content_catalog
+			phoenix_content_compilers
+			phoenix_content_distribution
+			phoenix_content_documents
+			phoenix_content_image_codec
+			phoenix_content_packs
+			phoenix_content_ui
+			phoenix_scenarios_runtime
+	)
 	phoenix_fixture(phoenix_content_tests)
 	add_test(NAME system.content-and-packs COMMAND phoenix_content_tests)
 	add_executable(phoenix_simulation_tests tests/system/simulation.cpp)
@@ -531,7 +544,7 @@ else()
 	phoenix_fixture(phoenix_replication_tests)
 	add_test(NAME system.peer-consensus COMMAND phoenix_replication_tests)
 	add_executable(phoenix_store_tests tests/system/peer_store.cpp)
-	target_link_libraries(phoenix_store_tests PRIVATE phoenix_persistence phoenix_content)
+	target_link_libraries(phoenix_store_tests PRIVATE phoenix_persistence phoenix_foundation)
 	add_test(NAME system.peer-storage COMMAND phoenix_store_tests)
 	add_executable(phoenix_transfer_tests tests/system/network_content.cpp)
 	target_link_libraries(phoenix_transfer_tests PRIVATE phoenix_wire)
@@ -541,10 +554,13 @@ else()
 	target_link_libraries(phoenix_blob_tests PRIVATE phoenix_blobs phoenix_wire)
 	phoenix_fixture(phoenix_blob_tests)
 	add_test(NAME system.persistent-content COMMAND phoenix_blob_tests)
-	add_executable(phoenix_verify src/entry/verify.cpp)
-	target_link_libraries(phoenix_verify PRIVATE phoenix_content)
-	add_executable(phoenix_pack src/entry/pack.cpp)
-	target_link_libraries(phoenix_pack PRIVATE phoenix_content)
+	add_executable(phoenix_verify src/executables/verify/verify.cpp)
+	target_link_libraries(phoenix_verify PRIVATE phoenix_content_packs phoenix_content_compilers)
+	add_executable(phoenix_pack src/executables/pack/pack.cpp)
+	target_link_libraries(
+		phoenix_pack
+		PRIVATE phoenix_content_packs phoenix_content_catalog phoenix_content_distribution phoenix_content_compilers
+	)
 	# Track archive contents and membership, including removed files. The list file
 	# changes only when membership changes, so reconfiguration alone does not repack.
 	file(
@@ -645,20 +661,18 @@ else()
 	add_custom_target(development_packs DEPENDS test_pack test_3d_pack)
 
 	if(WIN32)
-		target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
 		target_link_libraries(
 			phoenix_presentation
 			PRIVATE uiautomationcore ole32 oleaut32 comctl32 imm32
 		)
 	else()
-		target_sources(phoenix_presentation PRIVATE src/presentation/linux_semantics.cpp)
 	endif()
 endif()
 
 target_link_libraries(
 	phoenix_presentation
-	PUBLIC phoenix_core phoenix_content phoenix_files raylib RmlUi::RmlUi
-	PRIVATE phoenix_qr phoenix_devices phoenix_shaping
+	PUBLIC phoenix_core phoenix_files raylib RmlUi::RmlUi
+	PRIVATE phoenix_qr phoenix_devices phoenix_shaping phoenix_content_packs
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
 # Retire archives left by older builds before any asset directory is preloaded.
@@ -771,17 +785,10 @@ configure_file(
 configure_file("${qrcodegen_SOURCE_DIR}/Readme.markdown" "${CMAKE_CURRENT_BINARY_DIR}/assets/QR-LICENSE.txt" COPYONLY)
 configure_file("${webp_SOURCE_DIR}/COPYING" "${CMAKE_CURRENT_BINARY_DIR}/assets/WEBP-LICENSE.txt" COPYONLY)
 configure_file("${webp_SOURCE_DIR}/PATENTS" "${CMAKE_CURRENT_BINARY_DIR}/assets/WEBP-PATENTS.txt" COPYONLY)
-add_library(
-	phoenix_tools
-	STATIC
-	src/tools/workshop.cpp
-	src/tools/editor.cpp
-	src/tools/gameplay_editor.cpp
-	${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
-)
+add_subdirectory(src/workshop)
+
 if(EMSCRIPTEN)
-	target_sources(phoenix_tools PRIVATE src/platform/browser_workshop_test.cpp)
-	add_executable(phoenix_workshop_test src/entry/workshop_test.cpp)
+	add_executable(phoenix_workshop_test src/executables/workshop-host/main.cpp)
 	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host phoenix_core)
 	target_link_options(
 		phoenix_workshop_test
@@ -797,17 +804,13 @@ if(EMSCRIPTEN)
 	)
 	configure_file(web/workshop-test-worker.js "${CMAKE_CURRENT_BINARY_DIR}/workshop-test-worker.js" COPYONLY)
 endif()
-target_link_libraries(phoenix_tools PUBLIC phoenix_presentation phoenix_imgui phoenix_content)
+
 if(EMSCRIPTEN)
-	target_sources(phoenix_files PRIVATE src/platform/browser_files.cpp)
 elseif(WIN32)
-	target_sources(phoenix_files PRIVATE src/platform/windows_files.cpp)
-	target_link_libraries(phoenix_files PRIVATE comdlg32)
+
 else()
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
-	target_sources(phoenix_files PRIVATE src/platform/linux_files.cpp)
-	target_link_libraries(phoenix_files PRIVATE PkgConfig::GTK3)
 endif()
 if(EMSCRIPTEN)
 	add_executable(phoenix_blob_probe tests/manual/browser_blobs.cpp)
@@ -818,14 +821,26 @@ if(EMSCRIPTEN)
 		PRIVATE "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']" "-sEXPORTED_RUNTIME_METHODS=['ccall']"
 	)
 	configure_file(web/blob-probe.html "${CMAKE_CURRENT_BINARY_DIR}/blob-probe.html" COPYONLY)
-	add_executable(phoenix_build_check src/entry/build_check.cpp)
+	add_executable(phoenix_build_check src/executables/diagnostics/build_check.cpp)
 	target_link_libraries(phoenix_build_check PRIVATE phoenix_simulation)
 	target_link_options(
 		phoenix_build_check
 		PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sASSERTIONS=2" "-sSTACK_SIZE=1048576" "-sSTACK_OVERFLOW_CHECK=2" "-g2"
 	)
 	add_executable(phoenix_content_check tests/system/content.cpp)
-	target_link_libraries(phoenix_content_check PRIVATE phoenix_content phoenix_gameplay_runtime)
+	target_link_libraries(
+		phoenix_content_check
+		PRIVATE
+			phoenix_content_assets
+			phoenix_content_catalog
+			phoenix_content_compilers
+			phoenix_content_distribution
+			phoenix_content_documents
+			phoenix_content_image_codec
+			phoenix_content_packs
+			phoenix_content_ui
+			phoenix_scenarios_runtime
+	)
 	phoenix_fixture(phoenix_content_check)
 	add_executable(phoenix_transfer_check tests/system/network_content.cpp)
 	target_link_libraries(phoenix_transfer_check PRIVATE phoenix_wire)
@@ -843,7 +858,7 @@ if(EMSCRIPTEN)
 	target_link_libraries(phoenix_simulation_check PRIVATE phoenix_simulation)
 	phoenix_fixture(phoenix_simulation_check)
 	foreach(role IN ITEMS server client workshop)
-		add_executable(${role} src/entry/web.cpp)
+		add_executable(${role} src/executables/browser/web.cpp)
 		target_compile_definitions(${role} PRIVATE PHOENIX_ROLE="${role}")
 		target_link_libraries(${role} PRIVATE phoenix_presentation)
 		target_link_options(
@@ -908,10 +923,22 @@ if(EMSCRIPTEN)
 	configure_file(web/session-profile.mjs "${CMAKE_CURRENT_BINARY_DIR}/session-profile.mjs" COPYONLY)
 	configure_file(web/session-clock.js "${CMAKE_CURRENT_BINARY_DIR}/session-clock.js" COPYONLY)
 else()
-	add_executable(native src/entry/native.cpp)
+	add_subdirectory(src/executables/native)
+	add_executable(native src/executables/native/native.cpp tests/manual/native_smokes.cpp)
 	target_link_libraries(
 		native
-		PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools phoenix_workshop_test_host
+		PRIVATE
+			phoenix_native_displays
+			phoenix_network_lobby
+			phoenix_network_host
+			phoenix_network_client
+			phoenix_tools
+			phoenix_workshop_test_host
+			phoenix_content_compilers
+			phoenix_content_distribution
+			phoenix_presentation
+			phoenix_graphics_audio
+			raylib
 	)
 	# Content and UI-only edits do not relink native. Always stage its runtime
 	# dependencies so an incremental IDE launch consumes the current build.
@@ -933,6 +960,8 @@ else()
 endif()
 
 include(cmake/Networking.cmake)
+add_subdirectory(src/networking)
+add_subdirectory(src/platform)
 add_executable(phoenix_comic_probe EXCLUDE_FROM_ALL tests/manual/comic.cpp)
 target_link_libraries(phoenix_comic_probe PRIVATE phoenix_presentation)
 if(NOT EMSCRIPTEN)
@@ -959,25 +988,13 @@ else()
 			"$<TARGET_FILE_DIR:phoenix_comic_probe>/assets/pfx"
 	)
 endif()
-add_library(
-	phoenix_transport
-	STATIC
-	src/transport/options.cpp
-	src/transport/policy.cpp
-	src/platform/content_download.cpp
-)
-target_link_libraries(phoenix_transport PUBLIC phoenix_foundation PRIVATE nlohmann_json::nlohmann_json)
+
 if(EMSCRIPTEN)
-	target_sources(phoenix_transport PRIVATE src/platform/browser_transport.cpp)
-	target_link_options(phoenix_transport PUBLIC "-sFETCH=1")
 else()
-	target_sources(phoenix_transport PRIVATE src/platform/native_transport.cpp)
-	target_link_libraries(phoenix_transport PRIVATE datachannel-static)
+
 	if(WIN32)
-		target_link_libraries(phoenix_transport PRIVATE crypt32 winhttp)
 	else()
 		find_package(CURL REQUIRED)
-		target_link_libraries(phoenix_transport PRIVATE CURL::libcurl)
 	endif()
 endif()
 add_executable(phoenix_network_probe tests/manual/network.cpp)
@@ -993,23 +1010,14 @@ if(EMSCRIPTEN)
 	)
 	configure_file(web/network-probe.html "${CMAKE_CURRENT_BINARY_DIR}/network-probe.html" COPYONLY)
 endif()
-add_library(phoenix_network_client STATIC src/network/client.cpp)
-add_library(phoenix_fleet STATIC src/replication/fleet.cpp)
-target_link_libraries(phoenix_fleet PUBLIC phoenix_persistence phoenix_wire phoenix_transport)
-target_link_libraries(phoenix_network_client PUBLIC phoenix_session_api phoenix_blobs phoenix_transport phoenix_wire)
-add_library(phoenix_network_host STATIC src/network/host.cpp)
-add_library(phoenix_lobby_protocol STATIC src/network/lobby.cpp)
-target_link_libraries(phoenix_lobby_protocol PUBLIC phoenix_network_client phoenix_session_api phoenix_wire)
-add_library(phoenix_network_lobby STATIC src/network/lobby_host.cpp)
-target_link_libraries(phoenix_network_lobby PUBLIC phoenix_lobby_protocol phoenix_network_host phoenix_fleet_setup)
+
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_lobby_tests tests/system/lobby.cpp)
 	target_link_libraries(phoenix_lobby_tests PRIVATE phoenix_network_lobby phoenix_core)
 	phoenix_fixture(phoenix_lobby_tests)
 	add_test(NAME system.lobby-worker-consoles COMMAND phoenix_lobby_tests --local-consoles)
 endif()
-add_library(phoenix_fleet_setup STATIC src/session/fleet_setup.cpp src/session/fleet_runtime.cpp)
-target_link_libraries(phoenix_fleet_setup PUBLIC phoenix_session phoenix_wire phoenix_fleet phoenix_blobs)
+
 if(EMSCRIPTEN)
 	add_executable(phoenix_fleet_setup_check tests/system/fleet_setup.cpp)
 	target_link_libraries(phoenix_fleet_setup_check PRIVATE phoenix_fleet_setup)
@@ -1024,10 +1032,7 @@ else()
 	phoenix_fixture(phoenix_fleet_runtime_tests)
 	add_test(NAME system.fleet-runtime COMMAND phoenix_fleet_runtime_tests)
 endif()
-target_link_libraries(
-	phoenix_network_host
-	PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence phoenix_wire phoenix_fleet_setup
-)
+
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_fleet_probe tests/manual/fleet.cpp)
 	target_link_libraries(phoenix_fleet_probe PRIVATE phoenix_fleet phoenix_simulation)
@@ -1278,6 +1283,7 @@ add_test(
 	COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/system/inference_adapters.py
 )
 include(cmake/Modules.cmake)
+include(cmake/ModuleChecks.cmake)
 include(cmake/BuildPerformance.cmake)
 foreach(
 	frontend
@@ -1334,3 +1340,129 @@ if(NOT EMSCRIPTEN)
 endif()
 
 include(cmake/runtime-profile.cmake)
+
+# Existing synthetic cases import these narrow production contracts directly.
+target_link_libraries(phoenix_simulation PRIVATE phoenix_gameplay_logistics)
+target_link_libraries(phoenix_simulation PRIVATE phoenix_gameplay_sensor_envelopes phoenix_gameplay_psychic_state)
+target_link_libraries(
+	phoenix_simulation
+	PRIVATE phoenix_gameplay_away_state phoenix_world_persistence phoenix_control_templates
+)
+target_link_libraries(phoenix_presentation PRIVATE phoenix_ui_pad_dispatch)
+target_link_libraries(phoenix_presentation PRIVATE phoenix_platform_viewport)
+target_link_libraries(phoenix_simulation PRIVATE phoenix_gameplay_ftl_coordinator)
+target_link_libraries(phoenix_simulation PRIVATE phoenix_gameplay_personnel_clinical phoenix_gameplay_personnel_runtime)
+target_link_libraries(phoenix_simulation PRIVATE phoenix_scenarios_objectives)
+target_link_libraries(phoenix_simulation PRIVATE phoenix_scenarios_streaming)
+if(EMSCRIPTEN)
+	target_link_libraries(phoenix_transfer_check PRIVATE phoenix_knowledge_read_models)
+else()
+	target_link_libraries(phoenix_transfer_tests PRIVATE phoenix_knowledge_read_models)
+endif()
+target_link_libraries(
+	phoenix_simulation
+	PRIVATE
+		phoenix_effects_preparation
+		phoenix_effects_funding
+		phoenix_effects_bindings
+		phoenix_effects_ability_validation
+		phoenix_effects_continuation_validation
+		phoenix_effects_clocks
+		phoenix_gameplay_sensor_evidence
+		phoenix_gameplay_sensor_coverage
+		phoenix_gameplay_sensor_acquisition
+		phoenix_gameplay_psychic_projection
+		phoenix_gameplay_psychic_receptions
+)
+foreach(target phoenix_controller_runtime_tests)
+	target_link_libraries(
+		${target}
+		PRIVATE phoenix_graphics_geometry phoenix_graphics_audio_policy phoenix_ui_engineering_widgets
+	)
+endforeach()
+target_link_libraries(phoenix_combat_tests PRIVATE phoenix_graphics_audio_policy)
+target_link_libraries(phoenix_away_tests PRIVATE phoenix_effects_contracts)
+foreach(target phoenix_conversation_tests phoenix_personnel_tests phoenix_security_tests)
+	target_link_libraries(${target} PRIVATE phoenix_knowledge_read_models)
+endforeach()
+if(EMSCRIPTEN)
+	target_link_libraries(phoenix_input_check PRIVATE phoenix_knowledge_read_models)
+	target_link_libraries(phoenix_simulation_check PRIVATE phoenix_effects_processes)
+else()
+	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_graphics_geometry phoenix_ui_skin)
+	target_link_libraries(phoenix_system_tests PRIVATE phoenix_knowledge_read_models)
+	target_link_libraries(phoenix_simulation_tests PRIVATE phoenix_effects_processes)
+endif()
+foreach(
+	target
+	IN
+	ITEMS phoenix_combat_tests phoenix_processes_tests phoenix_summary_bindings_tests phoenix_workshop_test_tests
+)
+	target_link_libraries(${target} PRIVATE phoenix_content_documents)
+endforeach()
+target_link_libraries(phoenix_rules_tests PRIVATE phoenix_effects_rules)
+if(EMSCRIPTEN)
+	target_link_libraries(phoenix_file_check PRIVATE phoenix_content_documents)
+	target_link_libraries(phoenix_fleet_setup_check PRIVATE phoenix_content_documents)
+	target_link_libraries(phoenix_input_check PRIVATE phoenix_content_compilers phoenix_content_packs)
+else()
+	target_link_libraries(phoenix_file_tests PRIVATE phoenix_content_documents)
+	target_link_libraries(phoenix_fleet_setup_tests PRIVATE phoenix_content_documents)
+	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_content_documents)
+	target_link_libraries(phoenix_system_tests PRIVATE phoenix_content_compilers phoenix_content_packs)
+endif()
+target_link_libraries(phoenix_gameplay_flight_tests PRIVATE phoenix_resources_equipment)
+if(EMSCRIPTEN)
+	target_link_libraries(phoenix_simulation_check PRIVATE phoenix_content_distribution)
+else()
+	target_link_libraries(phoenix_simulation_tests PRIVATE phoenix_content_distribution)
+endif()
+foreach(
+	target
+	IN
+	ITEMS
+		phoenix_abilities_tests
+		phoenix_away_tests
+		phoenix_camera_tests
+		phoenix_cargo_tests
+		phoenix_combat_tests
+		phoenix_controller_runtime_tests
+		phoenix_craft_tests
+		phoenix_directed_tests
+		phoenix_docking_tests
+		phoenix_ftl_tests
+		phoenix_medical_tests
+		phoenix_missions_tests
+		phoenix_processes_tests
+		phoenix_psychic_tests
+		phoenix_sensors_tests
+)
+	target_link_libraries(${target} PRIVATE phoenix_network_projection)
+endforeach()
+foreach(
+	target
+	IN
+	ITEMS phoenix_controller_runtime_tests phoenix_docking_tests phoenix_medical_tests phoenix_sensors_tests
+)
+	target_link_libraries(${target} PRIVATE phoenix_knowledge_read_models)
+endforeach()
+foreach(
+	target
+	IN
+	ITEMS
+		phoenix_controller_runtime_tests
+		phoenix_combat_tests
+		phoenix_gameplay_flight_tests
+		phoenix_sensors_tests
+		phoenix_mission_smoke
+		phoenix_lobby_smoke
+)
+	target_link_libraries(${target} PRIVATE phoenix_content_distribution)
+endforeach()
+if(EMSCRIPTEN)
+	target_link_libraries(phoenix_transfer_check PRIVATE phoenix_network_projection)
+else()
+	target_link_libraries(phoenix_transfer_tests PRIVATE phoenix_network_projection)
+	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_content_distribution)
+	target_link_libraries(phoenix_lobby_tests PRIVATE phoenix_content_distribution)
+endif()

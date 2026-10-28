@@ -19,7 +19,14 @@
 #include <variant>
 #include <vector>
 
-import phoenix.content;
+import phoenix.content.documents;
+import phoenix.content.equipment;
+import phoenix.content.packs;
+import phoenix.content.verification;
+import phoenix.resources;
+import phoenix.knowledge;
+import phoenix.state_tree;
+import phoenix.gameplay_vocabulary;
 
 extern "C" void stock_accounting_contracts();
 using namespace phoenix;

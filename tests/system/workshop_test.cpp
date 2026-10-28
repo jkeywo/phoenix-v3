@@ -12,6 +12,11 @@
 #include <utility>
 #include <vector>
 
+import phoenix.content.documents;
+import phoenix.content.combat;
+import phoenix.content.effects;
+import phoenix.content.knowledge;
+import phoenix.content.scenarios;
 import phoenix.workshop_test;
 
 using namespace phoenix;

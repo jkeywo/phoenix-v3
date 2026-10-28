@@ -11,7 +11,9 @@
 #include <optional>
 #include <string>
 #include <vector>
+import phoenix.content.distribution;
 import phoenix.presentation;
+import phoenix.navigation;
 import phoenix.network.lobby;
 import phoenix.network.lobby.protocol;
 using namespace phoenix;

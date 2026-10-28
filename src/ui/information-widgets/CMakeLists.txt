@@ -1,0 +1,9 @@
+add_library(phoenix_ui_information_widgets STATIC messages.cpp)
+target_sources(phoenix_ui_information_widgets PUBLIC FILE_SET CXX_MODULES FILES messages.cppm)
+target_link_libraries(
+	phoenix_ui_information_widgets
+	PUBLIC phoenix_console_model RmlUi::RmlUi
+	PRIVATE phoenix_ui_rml phoenix_application_preferences raylib
+)
+
+target_link_libraries(phoenix_ui_information_widgets PUBLIC phoenix_content_catalog)

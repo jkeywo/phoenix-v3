@@ -1,0 +1,7 @@
+add_library(phoenix_behavior_vocabulary STATIC gameplay_vocabulary.cpp)
+target_sources(phoenix_behavior_vocabulary PUBLIC FILE_SET CXX_MODULES FILES gameplay_vocabulary.cppm)
+target_link_libraries(phoenix_behavior_vocabulary PUBLIC phoenix_foundation phoenix_behavior_state_tree_definitions)
+set_target_properties(
+	phoenix_behavior_vocabulary
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

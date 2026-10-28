@@ -1,0 +1,12 @@
+add_library(phoenix_scenarios_environment STATIC fields.cpp definitions.cpp)
+target_sources(phoenix_scenarios_environment PUBLIC FILE_SET CXX_MODULES FILES environment.cppm)
+target_link_libraries(phoenix_scenarios_environment PUBLIC phoenix_foundation)
+set_target_properties(
+	phoenix_scenarios_environment
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_scenarios_streaming STATIC streaming.cpp)
+target_sources(phoenix_scenarios_streaming PUBLIC FILE_SET CXX_MODULES FILES streaming.cppm)
+target_link_libraries(phoenix_scenarios_streaming PUBLIC phoenix_scenarios_environment phoenix_world_state)
+set_property(TARGET phoenix_scenarios_streaming PROPERTY CXX_SCAN_FOR_MODULES ON)

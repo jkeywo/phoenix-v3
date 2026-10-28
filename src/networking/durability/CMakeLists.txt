@@ -1,0 +1,9 @@
+add_library(phoenix_persistence STATIC durable.cpp)
+target_sources(phoenix_persistence PUBLIC FILE_SET CXX_MODULES FILES persistence.cppm)
+target_link_libraries(phoenix_persistence PUBLIC phoenix_replication phoenix_platform_storage)
+set_property(TARGET phoenix_persistence PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_persistence
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_replication;phoenix_platform_storage"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_persistence)

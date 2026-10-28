@@ -1,0 +1,7 @@
+add_library(phoenix_input STATIC input.cpp)
+target_sources(phoenix_input PUBLIC FILE_SET CXX_MODULES FILES input.cppm)
+set_property(TARGET phoenix_input PROPERTY CXX_SCAN_FOR_MODULES ON)
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_input PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_input INTERFACE ${PHOENIX_EXCEPTION_FLAG})
+endif()

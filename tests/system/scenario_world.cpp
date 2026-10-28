@@ -16,6 +16,8 @@
 #include <variant>
 #include <vector>
 
+import phoenix.content.assets;
+import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.gameplay_scenario;
 import phoenix.session.local;

@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 import phoenix.application;
 import phoenix.presentation;
+import phoenix.navigation;
 import phoenix.session.execution;
 import phoenix.console;
 using namespace phoenix;

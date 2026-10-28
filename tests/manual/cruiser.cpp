@@ -10,8 +10,11 @@
 #include <utility>
 #include <vector>
 #include <nlohmann/json.hpp>
+import phoenix.content.operations;
+import phoenix.content.verification;
 import phoenix.session.local;
 import phoenix.presentation;
+import phoenix.graphics.scene;
 using namespace phoenix;
 #include "cruiser_transport.hpp"
 #include "cruiser_departments.hpp"

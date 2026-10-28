@@ -1,0 +1,8 @@
+add_library(phoenix_scenarios_objectives STATIC serialization.cpp history.cpp report.cpp)
+target_sources(phoenix_scenarios_objectives PUBLIC FILE_SET CXX_MODULES FILES objectives.cppm)
+target_link_libraries(
+	phoenix_scenarios_objectives
+	PUBLIC phoenix_scenarios_runtime_definitions
+	PRIVATE phoenix_scenarios_runtime
+)
+set_property(TARGET phoenix_scenarios_objectives PROPERTY CXX_SCAN_FOR_MODULES ON)

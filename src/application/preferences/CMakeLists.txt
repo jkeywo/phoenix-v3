@@ -1,0 +1,7 @@
+add_library(phoenix_application_preferences STATIC preferences.cpp)
+target_sources(phoenix_application_preferences PUBLIC FILE_SET CXX_MODULES FILES preferences.cppm)
+target_link_libraries(phoenix_application_preferences PUBLIC phoenix_foundation)
+set_target_properties(
+	phoenix_application_preferences
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

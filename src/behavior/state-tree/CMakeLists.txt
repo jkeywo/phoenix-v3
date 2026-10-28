@@ -1,0 +1,14 @@
+add_library(phoenix_behavior_state_tree_definitions STATIC state_tree_definitions.cpp)
+target_sources(phoenix_behavior_state_tree_definitions PUBLIC FILE_SET CXX_MODULES FILES state_tree.cppm)
+target_link_libraries(phoenix_behavior_state_tree_definitions PUBLIC phoenix_foundation)
+set_target_properties(
+	phoenix_behavior_state_tree_definitions
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_behavior_state_tree STATIC state_tree.cpp)
+target_link_libraries(phoenix_behavior_state_tree PUBLIC phoenix_behavior_state_tree_definitions)
+set_target_properties(
+	phoenix_behavior_state_tree
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

@@ -1,0 +1,5 @@
+add_library(phoenix_graphics_assets STATIC assets.cpp)
+target_sources(phoenix_graphics_assets PUBLIC FILE_SET CXX_MODULES FILES assets.cppm)
+target_link_libraries(phoenix_graphics_assets PUBLIC phoenix_data raylib)
+
+target_link_libraries(phoenix_graphics_assets PRIVATE phoenix_content_image_codec)

@@ -1,0 +1,16 @@
+add_library(phoenix_gameplay_psychic_state STATIC serialization.cpp)
+target_sources(phoenix_gameplay_psychic_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
+target_link_libraries(phoenix_gameplay_psychic_state PUBLIC phoenix_world_state phoenix_behavior_state_tree_definitions)
+add_library(phoenix_gameplay_psychic_projection STATIC projection.cpp)
+target_sources(phoenix_gameplay_psychic_projection PUBLIC FILE_SET CXX_MODULES FILES projection.cppm)
+target_link_libraries(
+	phoenix_gameplay_psychic_projection
+	PUBLIC phoenix_gameplay_psychic_state phoenix_content_sensing_types
+	PRIVATE phoenix_gameplay_flight phoenix_gameplay_combat_state
+)
+add_library(phoenix_gameplay_psychic_receptions STATIC receptions.cpp)
+target_sources(phoenix_gameplay_psychic_receptions PUBLIC FILE_SET CXX_MODULES FILES receptions.cppm)
+target_link_libraries(
+	phoenix_gameplay_psychic_receptions
+	PUBLIC phoenix_gameplay_psychic_state phoenix_effects_abilities
+)

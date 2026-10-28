@@ -1,0 +1,37 @@
+add_library(phoenix_effects_transactions STATIC transactions.cpp)
+target_sources(phoenix_effects_transactions PUBLIC FILE_SET CXX_MODULES FILES transactions.cppm)
+target_link_libraries(
+	phoenix_effects_transactions
+	PUBLIC
+		phoenix_resources_networks
+		phoenix_effects_properties
+		phoenix_effects_abilities
+		phoenix_effects_processes
+		phoenix_effects_rule_state
+		phoenix_gameplay_combat_state
+		phoenix_gameplay_combat_shields
+		phoenix_gameplay_combat_outcomes
+		phoenix_gameplay_personnel_outcomes
+		phoenix_effects_events
+)
+
+add_library(phoenix_effects_native STATIC native.cpp)
+target_sources(phoenix_effects_native PUBLIC FILE_SET CXX_MODULES FILES native.cppm)
+target_link_libraries(
+	phoenix_effects_native
+	PUBLIC
+		phoenix_effects_contracts
+		phoenix_effects_processes
+		phoenix_gameplay_fitting
+		phoenix_gameplay_personnel_state
+		phoenix_gameplay_logistics_state
+	PRIVATE flecs_static phoenix_resources_networks phoenix_resources_stocks
+)
+
+add_library(phoenix_effects_preparation STATIC preparation.cpp)
+target_sources(phoenix_effects_preparation PUBLIC FILE_SET CXX_MODULES FILES preparation.cppm)
+target_link_libraries(
+	phoenix_effects_preparation
+	PUBLIC phoenix_effects_transactions phoenix_effects_native phoenix_effects_grants
+	PRIVATE flecs_static
+)

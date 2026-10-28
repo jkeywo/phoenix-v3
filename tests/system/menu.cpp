@@ -1,3 +1,5 @@
+#include <array>
+#include <cmath>
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
 #include "../support/model_fixture.hpp"
@@ -8,8 +10,11 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
-#include "../../src/presentation/menu_skin.hpp"
-#include "../../src/presentation/sprite_direction.hpp"
+import phoenix.content.documents;
+import phoenix.content.assets;
+import phoenix.content.distribution;
+import phoenix.ui.skin;
+import phoenix.graphics.geometry;
 import phoenix.menu;
 import phoenix.session.local;
 using namespace phoenix;

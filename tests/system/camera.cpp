@@ -1,6 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
-#include "../../src/presentation/ship_camera.hpp"
+#include "../../src/ui/viewscreen/ship_camera.hpp"
 #include <algorithm>
 #include <iostream>
 #include <optional>
@@ -9,10 +9,11 @@
 #include <string>
 #include <vector>
 
+import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.console;
 import phoenix.session.local;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 
 using namespace phoenix;
 using namespace phoenix::test;

@@ -7,7 +7,7 @@ import phoenix.simulation;
 import phoenix.session.execution;
 using namespace phoenix;
 using namespace phoenix::test;
-#include "../../src/core/away_projection.hpp"
+import phoenix.knowledge.read_models;
 namespace
 {
 Json &body(Json &save, EntityId id)

@@ -5,7 +5,7 @@
 import phoenix.simulation;
 import phoenix.conversations;
 import phoenix.console_controls;
-#include "../../src/core/conversation_projection.hpp"
+import phoenix.knowledge.read_models;
 using namespace phoenix;
 using namespace phoenix::test;
 bool projected_command(const Observation &view, const OperatingCommand &command)

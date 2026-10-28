@@ -1,0 +1,9 @@
+add_library(phoenix_replication STATIC consensus.cpp)
+target_sources(phoenix_replication PUBLIC FILE_SET CXX_MODULES FILES replication.cppm)
+target_link_libraries(phoenix_replication PUBLIC phoenix_foundation nlohmann_json::nlohmann_json)
+set_property(TARGET phoenix_replication PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_replication
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_foundation;nlohmann_json::nlohmann_json"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_replication)

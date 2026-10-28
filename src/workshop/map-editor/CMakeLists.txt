@@ -1,0 +1,21 @@
+add_library(phoenix_workshop_map_navigation STATIC navigation.cpp)
+target_sources(phoenix_workshop_map_navigation PUBLIC FILE_SET CXX_MODULES FILES navigation.cppm)
+target_link_libraries(
+	phoenix_workshop_map_navigation
+	PUBLIC phoenix_foundation phoenix_ui_interaction phoenix_imgui raylib
+	PRIVATE phoenix_graphics_radar
+)
+
+add_library(phoenix_workshop_map STATIC map.cpp)
+target_sources(phoenix_workshop_map PUBLIC FILE_SET CXX_MODULES FILES map.cppm)
+target_link_libraries(
+	phoenix_workshop_map
+	PUBLIC phoenix_workshop_shell
+	PRIVATE phoenix_workshop_asset_preview phoenix_workshop_map_navigation phoenix_imgui raylib
+)
+
+target_link_libraries(
+	phoenix_workshop_map
+	PUBLIC phoenix_content_documents
+	PRIVATE phoenix_content_assets phoenix_content_catalog
+)

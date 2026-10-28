@@ -1,0 +1,6 @@
+add_library(phoenix_resources_stocks_definitions STATIC stock_definitions.cpp)
+target_sources(phoenix_resources_stocks_definitions PUBLIC FILE_SET CXX_MODULES FILES stocks.cppm)
+target_link_libraries(phoenix_resources_stocks_definitions PUBLIC phoenix_foundation)
+add_library(phoenix_resources_stocks STATIC stock.cpp)
+target_link_libraries(phoenix_resources_stocks PUBLIC phoenix_resources_stocks_definitions)
+set_property(TARGET phoenix_resources_stocks_definitions phoenix_resources_stocks PROPERTY CXX_SCAN_FOR_MODULES ON)

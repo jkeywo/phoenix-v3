@@ -1,0 +1,3 @@
+add_library(phoenix_ui_flight_widgets STATIC flight.cpp)
+target_sources(phoenix_ui_flight_widgets PUBLIC FILE_SET CXX_MODULES FILES flight.cppm)
+target_link_libraries(phoenix_ui_flight_widgets PUBLIC phoenix_console_model)

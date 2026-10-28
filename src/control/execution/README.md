@@ -1,0 +1,7 @@
+# Shared Controller action execution
+
+`phoenix.control.execution` owns action input preparation, availability admission, replacement, interrupt cleanup and running action progression. `execution.cppm` exposes a permitted-observation lookup and ordinary output sink; `execution.cpp` mutates only the supplied Controller's action state and generic tree continuation.
+
+The caller supplies live operator generation and routes emitted commands through authoritative admission. The interpreter has no Flecs/entity registry, physical mechanisms or networking. `observations.cpp` evaluates compiled bindings over immutable Console evidence, command snapshots and endpoint definitions; `decisions.cpp` evaluates tactical/repair facts from explicit native capability metadata and permitted contacts. `persistence.cpp` owns full Controller checkpoint encoding and validation with explicit native argument checks and known peer identities. `admission.cpp` owns generation, bounds, request identity, idempotency and revision admission over the supplied Controller state; domain-specific validity and existing physical-setting comparisons remain explicit callbacks.
+
+Integer distance helpers come from the pure World numeric contract. Remaining World integration fragments capture native own/craft/FTL facts and route physical admission/actuation while migration proceeds. Relevant integration: Controller runtime, handover, interruption and continuation.

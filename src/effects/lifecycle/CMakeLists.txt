@@ -1,0 +1,18 @@
+add_library(phoenix_effects_events STATIC events.cpp)
+target_sources(phoenix_effects_events PUBLIC FILE_SET CXX_MODULES FILES events.cppm)
+target_link_libraries(phoenix_effects_events PUBLIC phoenix_effects_rule_state phoenix_effects_rules)
+
+add_library(phoenix_effects_grants STATIC grants.cpp)
+target_sources(phoenix_effects_grants PUBLIC FILE_SET CXX_MODULES FILES grants.cppm)
+target_link_libraries(phoenix_effects_grants PUBLIC phoenix_effects_rule_state)
+
+add_library(phoenix_effects_continuation_validation STATIC validation.cpp)
+target_sources(phoenix_effects_continuation_validation PUBLIC FILE_SET CXX_MODULES FILES validation.cppm)
+target_link_libraries(
+	phoenix_effects_continuation_validation
+	PUBLIC phoenix_effects_rule_state phoenix_foundation phoenix_resources_stocks_definitions
+)
+
+add_library(phoenix_effects_clocks STATIC clocks.cpp)
+target_sources(phoenix_effects_clocks PUBLIC FILE_SET CXX_MODULES FILES clocks.cppm)
+target_link_libraries(phoenix_effects_clocks PUBLIC phoenix_effects_rule_state)

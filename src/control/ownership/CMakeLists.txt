@@ -1,0 +1,4 @@
+add_library(phoenix_control_ownership STATIC ownership.cpp)
+target_sources(phoenix_control_ownership PUBLIC FILE_SET CXX_MODULES FILES ownership.cppm)
+target_link_libraries(phoenix_control_ownership PUBLIC phoenix_foundation)
+set_property(TARGET phoenix_control_ownership PROPERTY CXX_SCAN_FOR_MODULES ON)

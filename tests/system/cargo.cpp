@@ -3,9 +3,10 @@
 #include "../support/craft_fixture.hpp"
 #include <iostream>
 #include <set>
+import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.console_controls;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace

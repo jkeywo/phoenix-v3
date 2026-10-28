@@ -1,5 +1,4 @@
 #include "../support/assertions.hpp"
-#include "../../src/core/pad_navigation.hpp"
 #include <iostream>
 #include <cmath>
 #include <iterator>
@@ -15,15 +14,12 @@
 #include <utility>
 #include <vector>
 
-namespace
-{
-#include "../../src/tools/map_gesture.hpp"
-}
-
+import phoenix.content.verification;
+import phoenix.ui.interaction;
 import phoenix.input;
 import phoenix.navigation;
 import phoenix.console;
-#include "../../src/core/rules_projection.hpp"
+import phoenix.knowledge.read_models;
 
 using namespace phoenix;
 using phoenix::test::require;

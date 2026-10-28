@@ -1,0 +1,20 @@
+add_library(phoenix_gameplay_combat_state STATIC serialization.cpp)
+target_sources(phoenix_gameplay_combat_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
+target_link_libraries(
+	phoenix_gameplay_combat_state
+	PUBLIC phoenix_world_state phoenix_content_combat_types phoenix_effects_contracts phoenix_effects_processes
+)
+set_property(TARGET phoenix_gameplay_combat_state PROPERTY CXX_SCAN_FOR_MODULES ON)
+
+add_library(phoenix_gameplay_combat_outcomes STATIC outcomes.cpp)
+target_sources(phoenix_gameplay_combat_outcomes PUBLIC FILE_SET CXX_MODULES FILES outcomes.cppm)
+target_link_libraries(phoenix_gameplay_combat_outcomes PUBLIC phoenix_gameplay_combat_state)
+
+add_library(phoenix_gameplay_combat_shields STATIC shields.cpp)
+target_sources(phoenix_gameplay_combat_shields PUBLIC FILE_SET CXX_MODULES FILES shields.cppm)
+target_link_libraries(phoenix_gameplay_combat_shields PUBLIC phoenix_gameplay_combat_state)
+
+add_library(phoenix_gameplay_combat_faults STATIC faults.cpp)
+target_sources(phoenix_gameplay_combat_faults PUBLIC FILE_SET CXX_MODULES FILES faults.cppm)
+target_link_libraries(phoenix_gameplay_combat_faults PUBLIC phoenix_gameplay_combat_state)
+set_property(TARGET phoenix_gameplay_combat_faults PROPERTY CXX_SCAN_FOR_MODULES ON)

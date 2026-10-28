@@ -1,0 +1,14 @@
+add_library(phoenix_knowledge_records_definitions STATIC knowledge_definitions.cpp)
+target_sources(phoenix_knowledge_records_definitions PUBLIC FILE_SET CXX_MODULES FILES knowledge.cppm)
+target_link_libraries(phoenix_knowledge_records_definitions PUBLIC phoenix_foundation)
+set_target_properties(
+	phoenix_knowledge_records_definitions
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_knowledge_records STATIC knowledge.cpp)
+target_link_libraries(phoenix_knowledge_records PUBLIC phoenix_knowledge_records_definitions)
+set_target_properties(
+	phoenix_knowledge_records
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

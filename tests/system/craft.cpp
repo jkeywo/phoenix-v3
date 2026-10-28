@@ -4,9 +4,10 @@
 #include "../support/ftl_fixture.hpp"
 #include <iostream>
 #include <set>
+import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.console;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
 #include "../support/machinery_baseline.hpp"

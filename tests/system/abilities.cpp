@@ -4,8 +4,13 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+import phoenix.content.combat;
+import phoenix.content.controllers;
+import phoenix.content.effects;
+import phoenix.content.operations;
+import phoenix.content.sensing;
 import phoenix.simulation;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace

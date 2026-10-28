@@ -19,6 +19,8 @@
 #include <variant>
 #include <vector>
 
+import phoenix.content.controllers;
+import phoenix.content.distribution;
 import phoenix.simulation;
 import phoenix.session.local;
 import phoenix.console;

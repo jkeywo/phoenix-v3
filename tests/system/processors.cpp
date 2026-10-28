@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+import phoenix.content.resources;
 import phoenix.resources;
 import phoenix.simulation;
 #include "../support/machinery_baseline.hpp"

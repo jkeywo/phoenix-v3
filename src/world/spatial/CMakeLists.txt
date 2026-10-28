@@ -1,0 +1,4 @@
+add_library(phoenix_world_spatial STATIC collision.cpp)
+target_sources(phoenix_world_spatial PUBLIC FILE_SET CXX_MODULES FILES spatial.cppm)
+target_link_libraries(phoenix_world_spatial PUBLIC phoenix_world_state)
+set_property(TARGET phoenix_world_spatial PROPERTY CXX_SCAN_FOR_MODULES ON)

@@ -1,0 +1,16 @@
+add_library(phoenix_gameplay_logistics_state STATIC state.cpp)
+target_sources(phoenix_gameplay_logistics_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
+target_link_libraries(phoenix_gameplay_logistics_state PUBLIC phoenix_contracts phoenix_resources_stocks)
+set_property(TARGET phoenix_gameplay_logistics_state PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_gameplay_logistics_state
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_contracts;phoenix_resources_stocks"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_logistics_state)
+
+add_library(phoenix_gameplay_logistics STATIC native.cpp)
+target_sources(phoenix_gameplay_logistics PUBLIC FILE_SET CXX_MODULES FILES logistics.cppm)
+target_link_libraries(phoenix_gameplay_logistics PUBLIC phoenix_gameplay_logistics_state)
+set_property(TARGET phoenix_gameplay_logistics PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(TARGET phoenix_gameplay_logistics PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_gameplay_logistics_state)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_logistics)

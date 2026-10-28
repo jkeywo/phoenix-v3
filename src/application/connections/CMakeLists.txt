@@ -1,0 +1,3 @@
+add_library(phoenix_application_connections STATIC connections.cpp)
+target_sources(phoenix_application_connections PUBLIC FILE_SET CXX_MODULES FILES connections.cppm)
+target_link_libraries(phoenix_application_connections PUBLIC phoenix_application_shell phoenix_application_preferences)

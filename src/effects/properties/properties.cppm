@@ -1,0 +1,142 @@
+module;
+#include <flecs.h>
+#include <array>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <set>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <utility>
+#include <variant>
+#include <vector>
+
+export module phoenix.effects.properties;
+export import phoenix.effects.contracts;
+
+export namespace phoenix
+{
+inline constexpr std::size_t independent_modifier_contribution_limit = 8192;
+// Shared clock count × maximum Apply operations × named rows per modifier template.
+inline constexpr std::size_t maintained_modifier_contribution_limit = rule_instance_limit * 32 * 64;
+inline constexpr std::size_t modifier_contribution_limit =
+    independent_modifier_contribution_limit + maintained_modifier_contribution_limit;
+// Each named row permits +/-100,000. Retain the existing native fault/boost
+// arithmetic budget in addition to the full supported application roster.
+inline constexpr std::int64_t modifier_delta_limit =
+    static_cast<std::int64_t>(modifier_contribution_limit) * 100000 + 1000000000000LL;
+struct PropertyAggregateValue
+{
+	std::int64_t delta = 0;
+	std::optional<CustomPropertyValue> override_value;
+	std::int64_t priority = std::numeric_limits<std::int64_t>::min();
+	std::uint64_t application = 0;
+};
+struct PropertyTotals
+{
+	std::array<std::int64_t, static_cast<std::size_t>(PropertyKey::count)> native{};
+	std::map<std::string, PropertyAggregateValue> custom;
+};
+enum class PropertyTargetKind
+{
+	Equipment,
+	Shield,
+	Logical
+};
+struct PropertyTargetKey
+{
+	PropertyTargetKind kind = PropertyTargetKind::Logical;
+	std::uint64_t identity = 0;
+	std::string name;
+	bool operator<(const PropertyTargetKey &other) const
+	{
+		return std::tie(kind, identity, name) < std::tie(other.kind, other.identity, other.name);
+	}
+	bool operator==(const PropertyTargetKey &other) const
+	{
+		return kind == other.kind && identity == other.identity && name == other.name;
+	}
+};
+using PropertyAggregate = std::map<PropertyTargetKey, PropertyTotals>;
+// Authoritative applications are ECS entities; snapshots use the same grouped values.
+struct ActiveEffectIdentity
+{
+	std::uint64_t id = 0;
+	EntityId owner = 0;
+	std::string source, definition;
+	bool operator==(const ActiveEffectIdentity &) const = default;
+};
+struct EffectLifetime
+{
+	std::int64_t expiry = -1;
+};
+enum class EffectTargetKind
+{
+	Equipment,
+	Shield,
+	Logical
+};
+struct EffectTarget
+{
+	flecs::entity body, equipment;
+	EffectTargetKind kind = EffectTargetKind::Logical;
+	std::uint64_t contribution = 0;
+	std::string equipment_name, contribution_name;
+};
+struct PropertyValue
+{
+	std::string name;
+	PropertyKey property = PropertyKey::count;
+	std::int64_t delta = 0;
+	std::string custom;
+	std::optional<CustomPropertyValue> override_value;
+	std::int64_t priority = 0;
+	bool operator==(const PropertyValue &) const = default;
+};
+struct ModifierValues
+{
+	bool maintained = false;
+	std::vector<PropertyValue> values;
+	bool operator==(const ModifierValues &) const = default;
+};
+struct ModifierApplication
+{
+	std::uint64_t id = 0;
+	std::string source, definition, equipment;
+	std::int64_t expiry = -1;
+	ModifierValues modifier;
+	bool operator==(const ModifierApplication &) const = default;
+};
+struct PropertyEffects
+{
+	std::uint64_t next_id = 1;
+	std::vector<ModifierApplication> applications;
+	bool operator==(const PropertyEffects &) const = default;
+};
+struct PropertyEffectOwner
+{
+	std::uint64_t next_id = 1;
+	std::map<std::uint64_t, flecs::entity> applications;
+	std::map<std::pair<std::string, std::string>, flecs::entity> grants;
+	mutable PropertyAggregate independent;
+	mutable std::map<PropertyTargetKey, std::map<std::string, PropertyTotals>> guarded;
+	mutable bool aggregate_valid = false;
+};
+
+std::int64_t apply_property_delta(std::int64_t base, std::int64_t delta, std::int64_t maximum);
+void merge_property_aggregate(PropertyAggregateValue &, const PropertyAggregateValue &);
+std::vector<PropertyValue> modifier_values(const ModifierEffectDefinition &, const PropertyCatalog &);
+std::uint64_t install_modifier_grant(PropertyEffects &, const ModifierEffectDefinition &,
+                                     const PropertyCatalog &catalog, const std::string &source,
+                                     const std::string &equipment, std::int64_t tick, bool maintained = false);
+void remove_modifier_grant(PropertyEffects &, const std::string &source, const std::string &equipment);
+ModifierApplication read_modifier_application(flecs::entity);
+PropertyEffects read_property_effects(flecs::entity);
+} // namespace phoenix

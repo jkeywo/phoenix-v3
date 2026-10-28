@@ -3,6 +3,8 @@
 #include "../support/combat_fixture.hpp"
 #include <iostream>
 #include <limits>
+import phoenix.content.effects;
+import phoenix.effects.rules;
 import phoenix.simulation;
 using namespace phoenix;
 using namespace phoenix::test;

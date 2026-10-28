@@ -14,10 +14,11 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
+import phoenix.ui.rml;
+import phoenix.ui.information_widgets;
 import phoenix.presentation;
+import phoenix.navigation;
 import phoenix.console;
-#include "../../src/presentation/rml_backend.hpp"
-#include "../../src/presentation/messages.hpp"
 using namespace phoenix;
 using phoenix::test::require;
 int main()
@@ -56,7 +57,8 @@ scrollbarvertical slidertrack {width:14px;}
 		const auto frame = [&]
 		{
 			app.screen_readouts.clear();
-			message_ui::refresh(*document, *history, messages, app);
+			message_ui::refresh(*document, *history, messages, app.session ? &app.session->catalog() : nullptr,
+			                    app.screen_readouts);
 			context->Update();
 			BeginDrawing();
 			ClearBackground(BLACK);

@@ -9,11 +9,17 @@
 #include <map>
 #include <string>
 #include <vector>
+import phoenix.content.documents;
+import phoenix.content.combat;
+import phoenix.content.controllers;
+import phoenix.content.distribution;
+import phoenix.content.resources;
+import phoenix.content.scenarios;
+import phoenix.graphics.audio_policy;
 import phoenix.simulation;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
-#include "../../src/presentation/host_audio.hpp"
 namespace
 {
 Json fixture()

@@ -1,0 +1,4 @@
+add_library(phoenix_world_state STATIC state.cpp)
+target_sources(phoenix_world_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
+target_link_libraries(phoenix_world_state PUBLIC phoenix_foundation)
+set_property(TARGET phoenix_world_state PROPERTY CXX_SCAN_FOR_MODULES ON)

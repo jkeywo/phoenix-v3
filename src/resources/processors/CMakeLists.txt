@@ -1,0 +1,12 @@
+add_library(phoenix_resources_processors_definitions STATIC)
+target_sources(phoenix_resources_processors_definitions PUBLIC FILE_SET CXX_MODULES FILES processors.cppm)
+target_link_libraries(phoenix_resources_processors_definitions PUBLIC phoenix_resources_stocks_definitions)
+add_library(phoenix_resources_processors STATIC processors.cpp)
+target_link_libraries(
+	phoenix_resources_processors
+	PUBLIC phoenix_resources_processors_definitions phoenix_resources_stocks
+)
+set_property(
+	TARGET phoenix_resources_processors_definitions phoenix_resources_processors
+	PROPERTY CXX_SCAN_FOR_MODULES ON
+)

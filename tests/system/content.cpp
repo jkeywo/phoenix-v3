@@ -17,7 +17,24 @@
 #include <vector>
 #include <variant>
 
-import phoenix.content;
+import phoenix.content.assets;
+import phoenix.content.catalog;
+import phoenix.content.combat;
+import phoenix.content.combat.types;
+import phoenix.content.controllers;
+import phoenix.content.distribution;
+import phoenix.content.documents;
+import phoenix.content.effects;
+import phoenix.content.image_codec;
+import phoenix.content.operations;
+import phoenix.content.packs;
+import phoenix.content.resources;
+import phoenix.content.scenarios;
+import phoenix.content.ui;
+import phoenix.content.verification;
+import phoenix.scenario;
+import phoenix.state_tree;
+import phoenix.gameplay_vocabulary;
 
 using namespace phoenix;
 using phoenix::test::rejected;

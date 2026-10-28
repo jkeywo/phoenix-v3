@@ -1,0 +1,15 @@
+add_library(phoenix_gameplay_docking STATIC docking.cpp guidance.cpp)
+target_sources(phoenix_gameplay_docking PUBLIC FILE_SET CXX_MODULES FILES docking.cppm)
+target_link_libraries(
+	phoenix_gameplay_docking
+	PUBLIC phoenix_world_state phoenix_content_logistics_types
+	PRIVATE phoenix_world_spatial phoenix_gameplay_flight
+)
+set_property(TARGET phoenix_gameplay_docking PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_gameplay_docking
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_world_state;phoenix_content_logistics_types;phoenix_world_spatial;phoenix_gameplay_flight"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_docking)

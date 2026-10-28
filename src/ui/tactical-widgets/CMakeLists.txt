@@ -1,0 +1,9 @@
+add_library(phoenix_ui_tactical_widgets STATIC tactical.cpp)
+target_sources(phoenix_ui_tactical_widgets PUBLIC FILE_SET CXX_MODULES FILES tactical.cppm)
+target_link_libraries(
+	phoenix_ui_tactical_widgets
+	PUBLIC phoenix_console_model phoenix_input
+	PRIVATE phoenix_ui_engineering_widgets phoenix_application_preferences
+)
+
+target_link_libraries(phoenix_ui_tactical_widgets PUBLIC phoenix_content_catalog PRIVATE phoenix_content_compilers)

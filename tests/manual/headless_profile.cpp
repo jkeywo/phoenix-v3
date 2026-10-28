@@ -8,7 +8,8 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 import phoenix.simulation;
-import phoenix.content;
+import phoenix.content.packs;
+import phoenix.content.verification;
 using namespace phoenix;
 
 int main(int argc, char **argv)

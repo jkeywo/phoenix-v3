@@ -1,0 +1,26 @@
+add_library(phoenix_gameplay_sensors_state STATIC serialization.cpp)
+target_sources(phoenix_gameplay_sensors_state PUBLIC FILE_SET CXX_MODULES FILES state.cppm)
+target_link_libraries(phoenix_gameplay_sensors_state PUBLIC phoenix_world_state)
+add_library(phoenix_gameplay_sensor_envelopes STATIC envelopes.cpp)
+target_sources(phoenix_gameplay_sensor_envelopes PUBLIC FILE_SET CXX_MODULES FILES envelopes.cppm)
+target_link_libraries(
+	phoenix_gameplay_sensor_envelopes
+	PUBLIC phoenix_gameplay_sensors_state phoenix_scenarios_environment
+)
+
+add_library(phoenix_gameplay_sensor_evidence STATIC evidence.cpp)
+target_sources(phoenix_gameplay_sensor_evidence PUBLIC FILE_SET CXX_MODULES FILES evidence.cppm)
+target_link_libraries(phoenix_gameplay_sensor_evidence PUBLIC phoenix_gameplay_sensors_state phoenix_knowledge_consoles)
+add_library(phoenix_gameplay_sensor_coverage STATIC coverage.cpp)
+target_sources(phoenix_gameplay_sensor_coverage PUBLIC FILE_SET CXX_MODULES FILES coverage.cppm)
+target_link_libraries(
+	phoenix_gameplay_sensor_coverage
+	PUBLIC phoenix_world_state phoenix_scenarios_environment
+	PRIVATE phoenix_gameplay_combat_state
+)
+add_library(phoenix_gameplay_sensor_acquisition STATIC acquisition.cpp)
+target_sources(phoenix_gameplay_sensor_acquisition PUBLIC FILE_SET CXX_MODULES FILES acquisition.cppm)
+target_link_libraries(
+	phoenix_gameplay_sensor_acquisition
+	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
+)

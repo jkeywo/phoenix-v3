@@ -15,6 +15,8 @@
 #endif
 import phoenix.application;
 import phoenix.presentation;
+import phoenix.platform.accessibility;
+import phoenix.navigation;
 import phoenix.console;
 import phoenix.session.execution;
 using namespace phoenix;

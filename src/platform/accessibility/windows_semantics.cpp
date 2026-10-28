@@ -1,0 +1,1009 @@
+module;
+#include <cstdint>
+#include <tuple>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <objbase.h>
+#include <oleauto.h>
+#include <uiautomation.h>
+#include <commctrl.h>
+#include <imm.h>
+#include <RmlUi/Core.h>
+#include <RmlUi/Core/TextInputHandler.h>
+#include <RmlUi/Core/TextInputContext.h>
+#include <atomic>
+#include <algorithm>
+#include <map>
+#include <cmath>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <type_traits>
+#include <unordered_set>
+#include <string_view>
+
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
+#include <nlohmann/json.hpp>
+
+module phoenix.platform.accessibility;
+
+namespace phoenix
+{
+namespace
+{
+struct Shared
+{
+	HWND window{};
+	std::mutex mutex;
+	std::vector<SemanticControl> controls;
+	std::deque<std::string> actions;
+	std::deque<std::string> focuses;
+	std::deque<std::pair<std::string, std::string>> values;
+	std::map<std::string, int> identities;
+	int next_identity = 1;
+	std::weak_ptr<void> session;
+	std::uint64_t generation = 0;
+	int focus = -1;
+	bool active = true;
+	std::string status;
+};
+std::shared_ptr<Shared> state;
+class NativeTextInput final : public Rml::TextInputHandler
+{
+	void OnActivate(Rml::TextInputContext *input) override
+	{
+		Rml::Rectanglef bounds;
+		if (!state || !input->GetBoundingBox(bounds))
+			return;
+		const auto window = state->window;
+		if (const auto ime = ImmGetContext(window))
+		{
+			COMPOSITIONFORM composition{};
+			composition.dwStyle = CFS_POINT;
+			composition.ptCurrentPos = {static_cast<LONG>(bounds.Left()), static_cast<LONG>(bounds.Bottom())};
+			ImmSetCompositionWindow(ime, &composition);
+			CANDIDATEFORM candidates{};
+			candidates.dwStyle = CFS_CANDIDATEPOS;
+			candidates.ptCurrentPos = composition.ptCurrentPos;
+			ImmSetCandidateWindow(ime, &candidates);
+			ImmReleaseContext(window, ime);
+		}
+	}
+} native_text_input;
+std::wstring wide(const std::string &text)
+{
+	int count = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+	std::wstring result(count, L'\0');
+	MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), result.data(), count);
+	return result;
+}
+class Provider final : public IRawElementProviderSimple,
+                       public IRawElementProviderFragment,
+                       public IRawElementProviderFragmentRoot,
+                       public IInvokeProvider,
+                       public IValueProvider,
+                       public IRangeValueProvider,
+                       public ISelectionItemProvider,
+                       public IToggleProvider
+{
+	std::atomic<ULONG> refs_{1};
+	std::shared_ptr<Shared> state_;
+	mutable int index_;
+	std::string id_;
+	int identity_ = 0;
+	bool valid() const
+	{
+		if (!state_->active)
+			return false;
+		if (id_.empty())
+			return true;
+		const auto token = state_->identities.find(id_);
+		if (token == state_->identities.end() || token->second != identity_)
+			return false;
+		const auto at = std::find_if(state_->controls.begin(), state_->controls.end(),
+		                             [&](const auto &c)
+		                             {
+			                             return c.id == id_;
+		                             });
+		if (at == state_->controls.end())
+			return false;
+		index_ = static_cast<int>(at - state_->controls.begin());
+		return true;
+	}
+	IUnknown *marshaler_ = nullptr;
+	Provider *make(int index)
+	{
+		return new Provider(state_, index);
+	}
+
+public:
+	Provider(std::shared_ptr<Shared> shared, int index) : state_(std::move(shared)), index_(index)
+	{
+		if (index >= 0)
+		{
+			id_ = state_->controls[index].id;
+			identity_ = state_->identities.at(id_);
+		}
+		CoCreateFreeThreadedMarshaler(static_cast<IRawElementProviderSimple *>(this), &marshaler_);
+	}
+	~Provider()
+	{
+		if (marshaler_)
+			marshaler_->Release();
+	}
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **object) override
+	{
+		if (!object)
+			return E_POINTER;
+		*object = nullptr;
+		if (iid == __uuidof(IUnknown) || iid == __uuidof(IRawElementProviderSimple))
+			*object = static_cast<IRawElementProviderSimple *>(this);
+		else if (iid == __uuidof(IRawElementProviderFragment))
+			*object = static_cast<IRawElementProviderFragment *>(this);
+		else if (iid == __uuidof(IRawElementProviderFragmentRoot) && index_ == -1)
+			*object = static_cast<IRawElementProviderFragmentRoot *>(this);
+		else if (iid == __uuidof(IToggleProvider) && index_ >= 0)
+			*object = static_cast<IToggleProvider *>(this);
+		else if (iid == __uuidof(IInvokeProvider) && index_ >= 0)
+			*object = static_cast<IInvokeProvider *>(this);
+		else if (iid == __uuidof(IValueProvider) && index_ >= 0)
+			*object = static_cast<IValueProvider *>(this);
+		else if (iid == __uuidof(IRangeValueProvider) && index_ >= 0)
+			*object = static_cast<IRangeValueProvider *>(this);
+		else if (iid == __uuidof(ISelectionItemProvider) && index_ >= 0)
+			*object = static_cast<ISelectionItemProvider *>(this);
+		else if (iid == __uuidof(IMarshal) && marshaler_)
+			return marshaler_->QueryInterface(iid, object);
+		if (!*object)
+			return E_NOINTERFACE;
+		AddRef();
+		return S_OK;
+	}
+	ULONG STDMETHODCALLTYPE AddRef() override
+	{
+		return ++refs_;
+	}
+	ULONG STDMETHODCALLTYPE Release() override
+	{
+		auto refs = --refs_;
+		if (!refs)
+			delete this;
+		return refs;
+	}
+	HRESULT STDMETHODCALLTYPE get_ProviderOptions(ProviderOptions *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = static_cast<ProviderOptions>(ProviderOptions_ServerSideProvider | ProviderOptions_UseComThreading);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID id, IUnknown **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = nullptr;
+		if (index_ >= 0 && id == UIA_TogglePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].toggle)
+			{
+				*result = static_cast<IToggleProvider *>(this);
+				AddRef();
+			}
+		}
+		if (index_ >= 0 && id == UIA_SelectionItemPatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].tab)
+			{
+				*result = static_cast<ISelectionItemProvider *>(this);
+				AddRef();
+			}
+		}
+		if (index_ >= 0 && id == UIA_InvokePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (!state_->controls[index_].read_only && !state_->controls[index_].editable)
+			{
+				*result = static_cast<IInvokeProvider *>(this);
+				AddRef();
+			}
+		}
+		if (index_ >= 0 && id == UIA_ValuePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].editable)
+			{
+				*result = static_cast<IValueProvider *>(this);
+				AddRef();
+			}
+		}
+		if (index_ >= 0 && id == UIA_RangeValuePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].percentage)
+			{
+				*result = static_cast<IRangeValueProvider *>(this);
+				AddRef();
+			}
+		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		VariantInit(result);
+		std::lock_guard lock(state_->mutex);
+		if (!valid())
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (id == UIA_ControlTypePropertyId)
+		{
+			result->vt = VT_I4;
+			result->lVal = index_ < 0                            ? UIA_GroupControlTypeId
+			               : state_->controls[index_].tab        ? UIA_TabItemControlTypeId
+			               : state_->controls[index_].read_only  ? UIA_TextControlTypeId
+			               : state_->controls[index_].percentage ? UIA_SliderControlTypeId
+			               : state_->controls[index_].editable   ? UIA_EditControlTypeId
+			                                                     : UIA_ButtonControlTypeId;
+		}
+		else if (id == UIA_ToggleToggleStatePropertyId && index_ >= 0 && state_->controls[index_].toggle)
+		{
+			result->vt = VT_I4;
+			result->lVal = state_->controls[index_].pressed ? ToggleState_On : ToggleState_Off;
+		}
+		else if (id == UIA_SelectionItemIsSelectedPropertyId && index_ >= 0 && state_->controls[index_].tab)
+		{
+			result->vt = VT_BOOL;
+			result->boolVal = state_->controls[index_].selected ? VARIANT_TRUE : VARIANT_FALSE;
+		}
+		else if (id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId)
+		{
+			auto text = index_ < 0                 ? std::string("Phoenix navigation")
+			            : id == UIA_NamePropertyId ? state_->controls[index_].label
+			                                       : state_->controls[index_].id;
+			result->vt = VT_BSTR;
+			result->bstrVal = SysAllocString(wide(text).c_str());
+		}
+		else if (id == UIA_IsControlElementPropertyId || id == UIA_IsContentElementPropertyId ||
+		         id == UIA_IsEnabledPropertyId || id == UIA_IsKeyboardFocusablePropertyId)
+		{
+			result->vt = VT_BOOL;
+			result->boolVal = VARIANT_TRUE;
+			if (id == UIA_IsKeyboardFocusablePropertyId && index_ >= 0 && state_->controls[index_].read_only)
+				result->boolVal = VARIANT_FALSE;
+			if (id == UIA_IsEnabledPropertyId && index_ >= 0)
+				result->boolVal = state_->controls[index_].placement.enabled ? VARIANT_TRUE : VARIANT_FALSE;
+		}
+		else if (id == UIA_HasKeyboardFocusPropertyId)
+		{
+			result->vt = VT_BOOL;
+			result->boolVal = state_->focus == index_ ? VARIANT_TRUE : VARIANT_FALSE;
+		}
+		else if (id == UIA_HelpTextPropertyId && index_ < 0)
+		{
+			result->vt = VT_BSTR;
+			result->bstrVal = SysAllocString(wide(state_->status).c_str());
+		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE SetValue(double value) override
+	{
+		if (!std::isfinite(value) || value < 0 || value > 100)
+			return E_INVALIDARG;
+		const auto text = wide(std::to_string(value));
+		return SetValue(text.c_str());
+	}
+	HRESULT STDMETHODCALLTYPE get_Value(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (!state_->controls[index_].percentage)
+			return UIA_E_NOTSUPPORTED;
+		*result = std::stod(state_->controls[index_].value);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_Minimum(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 0;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_Maximum(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 100;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_SmallChange(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 1;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_LargeChange(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 10;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR value) override
+	{
+		if (!value)
+			return E_INVALIDARG;
+		const int length = WideCharToMultiByte(CP_UTF8, 0, value, -1, nullptr, 0, nullptr, nullptr);
+		if (length <= 0 || length > 4097)
+			return E_INVALIDARG;
+		std::string text(length, '\0');
+		WideCharToMultiByte(CP_UTF8, 0, value, -1, text.data(), length, nullptr, nullptr);
+		text.pop_back();
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (!state_->controls[index_].editable)
+			return UIA_E_NOTSUPPORTED;
+		if (!state_->controls[index_].placement.enabled)
+			return UIA_E_ELEMENTNOTENABLED;
+		if (state_->values.size() >= 64)
+			return E_FAIL;
+		state_->values.emplace_back(state_->controls[index_].id, std::move(text));
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_Value(BSTR *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = SysAllocString(wide(state_->controls[index_].value).c_str());
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_IsReadOnly(BOOL *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = FALSE;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = nullptr;
+		return index_ == -1 ? UiaHostProviderFromHwnd(state_->window, result) : S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE Navigate(NavigateDirection direction, IRawElementProviderFragment **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = nullptr;
+		std::lock_guard lock(state_->mutex);
+		if (!valid())
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		int count = static_cast<int>(state_->controls.size());
+		if (index_ < 0 && count && direction == NavigateDirection_FirstChild)
+			*result = make(0);
+		else if (index_ < 0 && count && direction == NavigateDirection_LastChild)
+			*result = make(count - 1);
+		else if (index_ >= 0 && direction == NavigateDirection_Parent)
+			*result = make(-1);
+		else if (index_ >= 0 && direction == NavigateDirection_NextSibling && index_ + 1 < count)
+			*result = make(index_ + 1);
+		else if (index_ > 0 && direction == NavigateDirection_PreviousSibling)
+			*result = make(index_ - 1);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid())
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = SafeArrayCreateVector(VT_I4, 0, 3);
+		if (!*result)
+			return E_OUTOFMEMORY;
+		int values[] = {UiaAppendRuntimeId,
+		                static_cast<int>(reinterpret_cast<std::uintptr_t>(state_->window) & 0x7fffffff), identity_};
+		for (LONG i = 0; i < 3; ++i)
+			SafeArrayPutElement(*result, &i, &values[i]);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_BoundingRectangle(UiaRect *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid())
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (index_ >= 0)
+		{
+			POINT origin{};
+			ClientToScreen(state_->window, &origin);
+			const auto &box = state_->controls[index_].placement;
+			*result = {origin.x + static_cast<double>(box.x), origin.y + static_cast<double>(box.y), box.width,
+			           box.height};
+			return S_OK;
+		}
+		RECT rect{};
+		GetWindowRect(state_->window, &rect);
+		*result = {static_cast<double>(rect.left), static_cast<double>(rect.top),
+		           static_cast<double>(rect.right - rect.left), static_cast<double>(rect.bottom - rect.top)};
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE GetEmbeddedFragmentRoots(SAFEARRAY **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = nullptr;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE SetFocus() override
+	{
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (index_ >= 0 && !state_->controls[index_].placement.enabled)
+				return UIA_E_ELEMENTNOTENABLED;
+			if (index_ >= 0 && state_->focuses.size() < 64)
+				state_->focuses.push_back(state_->controls[index_].id);
+		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_FragmentRoot(IRawElementProviderFragmentRoot **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = make(-1);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE ElementProviderFromPoint(double x, double y,
+	                                                   IRawElementProviderFragment **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!state_->active)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		POINT origin{};
+		ClientToScreen(state_->window, &origin);
+		for (int i = static_cast<int>(state_->controls.size()) - 1; i >= 0; --i)
+		{
+			const auto &box = state_->controls[i].placement;
+			if (x >= origin.x + box.x && y >= origin.y + box.y && x < origin.x + box.x + box.width &&
+			    y < origin.y + box.y + box.height)
+			{
+				*result = make(i);
+				return S_OK;
+			}
+		}
+		*result = make(-1);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE GetFocus(IRawElementProviderFragment **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		*result = make(state_->focus);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE Toggle() override
+	{
+		return Invoke();
+	}
+	HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = state_->controls[index_].pressed ? ToggleState_On : ToggleState_Off;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE Select() override
+	{
+		return Invoke();
+	}
+	HRESULT STDMETHODCALLTYPE AddToSelection() override
+	{
+		return Select();
+	}
+	HRESULT STDMETHODCALLTYPE RemoveFromSelection() override
+	{
+		return UIA_E_INVALIDOPERATION;
+	}
+	HRESULT STDMETHODCALLTYPE get_IsSelected(BOOL *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = state_->controls[index_].selected;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_SelectionContainer(IRawElementProviderSimple **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		// The platform bridge presents a flat semantic tree, without a selection container.
+		*result = nullptr;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE Invoke() override
+	{
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (state_->controls[index_].read_only || state_->controls[index_].editable)
+			return UIA_E_NOTSUPPORTED;
+		if (!state_->controls[index_].placement.enabled)
+			return UIA_E_ELEMENTNOTENABLED;
+		if (state_->actions.size() < 64)
+			state_->actions.push_back(state_->controls[index_].id);
+		return S_OK;
+	}
+};
+Provider *root = nullptr;
+bool com_initialised = false;
+LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam, UINT_PTR, DWORD_PTR)
+{
+	if (message == WM_GETOBJECT && static_cast<LONG>(lparam) == UiaRootObjectId && root)
+		return UiaReturnRawElementProvider(window, wparam, lparam, root);
+	return DefSubclassProc(window, message, wparam, lparam);
+}
+} // namespace
+void install_native_accessibility(void *window)
+{
+	auto result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	com_initialised = SUCCEEDED(result);
+	state = std::make_shared<Shared>();
+	Rml::SetTextInputHandler(&native_text_input);
+	state->window = static_cast<HWND>(window);
+	root = new Provider(state, -1);
+	SetWindowSubclass(state->window, window_proc, 1, 0);
+}
+void focus_semantic_text(const std::string &)
+{
+}
+void publish_accessibility(const SemanticSnapshot &frame)
+{
+	if (!state)
+		return;
+	std::unique_lock lock(state->mutex);
+	const auto previous_focus = state->focus >= 0 ? state->controls[state->focus].id : std::string{};
+
+	const bool announce = frame.announce && frame.status != state->status && !frame.status.empty();
+	state->status = frame.status;
+	auto controls = frame.controls;
+	const bool replaced =
+	    state->session.lock() != frame.owner || (frame.owner && state->generation != frame.generation);
+	if (!replaced && !announce && same_semantic_controls(controls, state->controls))
+		return;
+	const auto previous = std::move(state->controls);
+	bool changed = replaced || controls.size() != previous.size();
+	if (replaced)
+	{
+		state->session = frame.owner;
+		state->generation = frame.generation;
+		state->identities.clear();
+		state->actions.clear();
+		state->focuses.clear();
+		state->values.clear();
+	}
+	for (std::size_t i = 0; !changed && i < controls.size(); ++i)
+		changed = controls[i].id != previous[i].id;
+	if (changed)
+	{
+		std::unordered_set<std::string_view> current_ids;
+		current_ids.reserve(controls.size());
+		for (const auto &control : controls)
+			current_ids.insert(control.id);
+		std::erase_if(state->identities,
+		              [&](const auto &entry)
+		              {
+			              return !current_ids.contains(entry.first);
+		              });
+		std::erase_if(state->actions,
+		              [&](const auto &id)
+		              {
+			              return !state->identities.contains(id);
+		              });
+		std::erase_if(state->focuses,
+		              [&](const auto &id)
+		              {
+			              return !state->identities.contains(id);
+		              });
+		std::erase_if(state->values,
+		              [&](const auto &value)
+		              {
+			              return !state->identities.contains(value.first);
+		              });
+		for (const auto &control : controls)
+			if (!state->identities.contains(control.id))
+				state->identities[control.id] = state->next_identity++;
+	}
+	state->focus = -1;
+	for (std::size_t i = 0; i < controls.size(); ++i)
+		if (controls[i].placement.focused)
+			state->focus = static_cast<int>(i);
+	state->controls = std::move(controls);
+	Provider *focused = state->focus >= 0 && (replaced || state->controls[state->focus].id != previous_focus)
+	                        ? new Provider(state, state->focus)
+	                        : nullptr;
+	struct PropertyChange
+	{
+		Provider *provider;
+		PROPERTYID property;
+		VARIANT old_value, new_value;
+	};
+	std::vector<PropertyChange> properties;
+	const bool listening = root && UiaClientsAreListening();
+	if (listening && !replaced)
+	{
+		std::map<std::string_view, const SemanticControl *> previous_controls;
+		for (const auto &control : previous)
+			previous_controls.emplace(control.id, &control);
+		for (std::size_t i = 0; i < state->controls.size(); ++i)
+		{
+			const auto &now = state->controls[i];
+			const auto found = previous_controls.find(now.id);
+			if (found == previous_controls.end())
+				continue;
+			const auto *old = found->second;
+			auto property = [&](PROPERTYID id, const auto &before, const auto &after)
+			{
+				if (before == after)
+					return;
+				VARIANT a{}, b{};
+				if constexpr (std::is_same_v<std::decay_t<decltype(before)>, std::string>)
+				{
+					a.vt = b.vt = VT_BSTR;
+					a.bstrVal = SysAllocString(wide(before).c_str());
+					b.bstrVal = SysAllocString(wide(after).c_str());
+				}
+				else if constexpr (std::is_same_v<std::decay_t<decltype(before)>, bool>)
+				{
+					a.vt = b.vt = VT_BOOL;
+					a.boolVal = before ? VARIANT_TRUE : VARIANT_FALSE;
+					b.boolVal = after ? VARIANT_TRUE : VARIANT_FALSE;
+				}
+				else if constexpr (std::is_same_v<std::decay_t<decltype(before)>, double>)
+				{
+					a.vt = b.vt = VT_R8;
+					a.dblVal = before;
+					b.dblVal = after;
+				}
+				else
+				{
+					a.vt = b.vt = VT_I4;
+					a.lVal = before;
+					b.lVal = after;
+				}
+				properties.push_back({new Provider(state, static_cast<int>(i)), id, a, b});
+			};
+			property(UIA_NamePropertyId, old->label, now.label);
+			if (now.editable)
+				property(UIA_ValueValuePropertyId, old->value, now.value);
+			if (now.percentage && old->percentage)
+				property(UIA_RangeValueValuePropertyId, std::stod(old->value), std::stod(now.value));
+			property(UIA_IsEnabledPropertyId, old->placement.enabled, now.placement.enabled);
+			if (now.toggle)
+				property(UIA_ToggleToggleStatePropertyId, int(old->pressed ? ToggleState_On : ToggleState_Off),
+				         int(now.pressed ? ToggleState_On : ToggleState_Off));
+			if (now.tab)
+				property(UIA_SelectionItemIsSelectedPropertyId, old->selected, now.selected);
+		}
+	}
+	lock.unlock();
+	if (changed && listening)
+		UiaRaiseStructureChangedEvent(root, StructureChangeType_ChildrenInvalidated, nullptr, 0);
+	for (auto &property : properties)
+	{
+		UiaRaiseAutomationPropertyChangedEvent(property.provider, property.property, property.old_value,
+		                                       property.new_value);
+		VariantClear(&property.old_value);
+		VariantClear(&property.new_value);
+		property.provider->Release();
+	}
+	if (announce && root && UiaClientsAreListening())
+	{
+		auto message = SysAllocString(wide(frame.status).c_str());
+		auto activity = SysAllocString(L"Phoenix Console action");
+		UiaRaiseNotificationEvent(root, NotificationKind_ActionCompleted, NotificationProcessing_ImportantMostRecent,
+		                          message, activity);
+		SysFreeString(message);
+		SysFreeString(activity);
+	}
+	if (focused)
+	{
+		UiaRaiseAutomationEvent(focused, UIA_AutomationFocusChangedEventId);
+		focused->Release();
+	}
+}
+bool semantic_actions_pending()
+{
+	if (!state)
+		return false;
+	std::lock_guard lock(state->mutex);
+	return !state->actions.empty() || !state->focuses.empty() || !state->values.empty();
+}
+AccessibilityActions take_accessibility_actions(const SemanticSnapshot &frame)
+{
+	AccessibilityActions result;
+	if (!state)
+		return result;
+	std::lock_guard lock(state->mutex);
+	if (state->session.lock() != frame.owner || (frame.owner && state->generation != frame.generation))
+	{
+		state->actions.clear();
+		state->focuses.clear();
+		state->values.clear();
+		return result;
+	}
+	const auto available = [&](const std::string &id)
+	{
+		return std::any_of(frame.controls.begin(), frame.controls.end(),
+		                   [&](const auto &control)
+		                   {
+			                   return control.id == id && control.placement.enabled;
+		                   });
+	};
+	for (const auto &id : state->focuses)
+		if (available(id))
+			result.focuses.push_back(id);
+	for (const auto &value : state->values)
+		if (available(value.first))
+			result.values.push_back(value);
+	for (const auto &id : state->actions)
+		if (available(id))
+			result.actions.push_back(id);
+	state->actions.clear();
+	state->focuses.clear();
+	state->values.clear();
+	return result;
+}
+void remove_native_accessibility(void *window)
+{
+	RemoveWindowSubclass(static_cast<HWND>(window), window_proc, 1);
+	if (state)
+	{
+		std::lock_guard lock(state->mutex);
+		state->active = false;
+	}
+	if (root)
+	{
+		root->Release();
+		root = nullptr;
+	}
+	state.reset();
+	if (com_initialised)
+		CoUninitialize();
+}
+bool probe_accessibility(const AccessibilityProbe &probe)
+{
+	bool edited = false, focused = false;
+	std::string editing_id;
+	const auto drain = [&]()
+	{
+		auto actions = take_accessibility_actions(probe.snapshot());
+		for (const auto &id : actions.focuses)
+		{
+			focused = id == "home";
+			if (probe.focus)
+				probe.focus(id);
+		}
+		for (const auto &[id, value] : actions.values)
+		{
+			const bool accepted = probe.set_value && probe.set_value(id, value);
+			if (!editing_id.empty())
+				edited = accepted && id == editing_id && value == "probe-\xce\xb1";
+		}
+		for (const auto &id : actions.actions)
+			if (probe.invoke)
+				probe.invoke(id);
+	};
+
+	// Exercise provider lifetime through the real publisher and COM methods.
+	{
+		SemanticSnapshot fixture;
+		fixture.announce = true;
+		fixture.controls = {{"stable", "Stable control"}};
+		publish_accessibility(fixture);
+		auto *stable = new Provider(state, 0);
+		SAFEARRAY *before = nullptr, *after = nullptr;
+		stable->GetRuntimeId(&before);
+		fixture.controls.insert(fixture.controls.begin(), {"unrelated", "Unrelated control"});
+		fixture.controls.back().label = "Updated stable control";
+		publish_accessibility(fixture);
+		VARIANT name{};
+		const bool available = SUCCEEDED(stable->GetPropertyValue(UIA_NamePropertyId, &name)) && name.vt == VT_BSTR &&
+		                       std::wstring(name.bstrVal) == L"Updated stable control";
+		stable->GetRuntimeId(&after);
+		bool same = available && before && after;
+		for (LONG i = 0; same && i < 3; ++i)
+		{
+			int a = 0, b = 0;
+			SafeArrayGetElement(before, &i, &a);
+			SafeArrayGetElement(after, &i, &b);
+			same = a == b;
+		}
+		VariantClear(&name);
+		if (before)
+			SafeArrayDestroy(before);
+		if (after)
+			SafeArrayDestroy(after);
+		fixture.controls.pop_back();
+		publish_accessibility(fixture);
+		const bool removed = stable->GetPropertyValue(UIA_NamePropertyId, &name) == UIA_E_ELEMENTNOTAVAILABLE;
+		fixture.controls.push_back({"stable", "Recreated control"});
+		publish_accessibility(fixture);
+		const bool recreated = stable->Invoke() == UIA_E_ELEMENTNOTAVAILABLE;
+		stable->Release();
+		auto *replacement = new Provider(state, 1);
+		fixture.owner = probe.snapshot().owner;
+		fixture.generation = probe.snapshot().generation;
+		if (fixture.owner)
+		{
+			publish_accessibility(fixture);
+			same = same && replacement->Invoke() == UIA_E_ELEMENTNOTAVAILABLE;
+		}
+		replacement->Release();
+		publish_accessibility(probe.snapshot());
+		if (!same || !removed || !recreated)
+			return false;
+	}
+
+	publish_accessibility(probe.snapshot());
+	if (probe.native_menu)
+	{
+		bool checked = false;
+		const auto controls = probe.snapshot().controls;
+		for (std::size_t i = 0; i < controls.size(); ++i)
+		{
+			const auto &control = controls[i];
+			if (!control.read_only && !control.percentage && !control.tab)
+				continue;
+			auto *provider = new Provider(state, static_cast<int>(i));
+			VARIANT type;
+			VariantInit(&type);
+			provider->GetPropertyValue(UIA_ControlTypePropertyId, &type);
+			UiaRect bounds{};
+			provider->get_BoundingRectangle(&bounds);
+			bool valid = type.vt == VT_I4 && bounds.width > 0 && bounds.height > 0;
+			IUnknown *pattern = nullptr;
+			if (control.tab)
+			{
+				provider->GetPatternProvider(UIA_SelectionItemPatternId, &pattern);
+				ISelectionItemProvider *tab = nullptr;
+				if (pattern)
+				{
+					pattern->QueryInterface(__uuidof(ISelectionItemProvider), reinterpret_cast<void **>(&tab));
+					pattern->Release();
+				}
+				BOOL selected = FALSE;
+				valid = valid && type.lVal == UIA_TabItemControlTypeId && tab &&
+				        SUCCEEDED(tab->get_IsSelected(&selected)) && bool(selected) == control.selected;
+				if (tab)
+					tab->Release();
+			}
+			else if (control.read_only)
+			{
+				provider->GetPatternProvider(UIA_InvokePatternId, &pattern);
+				valid = valid && type.lVal == UIA_TextControlTypeId && !pattern;
+				if (pattern)
+					pattern->Release();
+			}
+			else
+			{
+				provider->GetPatternProvider(UIA_RangeValuePatternId, &pattern);
+				IRangeValueProvider *range = nullptr;
+				if (pattern)
+				{
+					pattern->QueryInterface(__uuidof(IRangeValueProvider), reinterpret_cast<void **>(&range));
+					pattern->Release();
+				}
+				valid = valid && type.lVal == UIA_SliderControlTypeId && range;
+				if (range)
+				{
+					valid = valid && SUCCEEDED(range->SetValue(std::stod(control.value)));
+					range->Release();
+					drain();
+				}
+			}
+			VariantClear(&type);
+			provider->Release();
+			if (!valid)
+				return false;
+			checked = true;
+		}
+		return checked;
+	}
+	for (std::size_t i = 0; i < probe.editable_ids.size(); ++i)
+	{
+		const auto id = probe.editable_ids[i];
+		auto controls = probe.snapshot().controls;
+		for (std::size_t index = 0; index < controls.size(); ++index)
+			if (controls[index].id == id)
+			{
+				auto *field = new Provider(state, static_cast<int>(index));
+				IUnknown *pattern = nullptr;
+				field->GetPatternProvider(UIA_ValuePatternId, &pattern);
+				field->Release();
+				if (!pattern)
+					return false;
+				IValueProvider *value = nullptr;
+				pattern->QueryInterface(__uuidof(IValueProvider), reinterpret_cast<void **>(&value));
+				pattern->Release();
+				if (!value)
+					return false;
+				const auto changed = value->SetValue(L"probe-\u03b1");
+				value->Release();
+				editing_id = id;
+				drain();
+				editing_id.clear();
+				if (FAILED(changed))
+					return false;
+				break;
+			}
+		if (edited)
+			break;
+	}
+	IRawElementProviderFragment *child = nullptr;
+	if (FAILED(root->Navigate(NavigateDirection_FirstChild, &child)) || !child)
+		return false;
+	UiaRect bounds{};
+	const bool placed = SUCCEEDED(child->get_BoundingRectangle(&bounds)) && bounds.width > 0 && bounds.height > 0;
+	child->SetFocus();
+	drain();
+	IRawElementProviderSimple *simple = nullptr;
+	child->QueryInterface(__uuidof(IRawElementProviderSimple), reinterpret_cast<void **>(&simple));
+	child->Release();
+	if (!simple)
+		return false;
+	VARIANT name;
+	VariantInit(&name);
+	simple->GetPropertyValue(UIA_NamePropertyId, &name);
+	bool labelled = name.vt == VT_BSTR && name.bstrVal && SysStringLen(name.bstrVal) > 0;
+	VariantClear(&name);
+	IUnknown *pattern = nullptr;
+	simple->GetPatternProvider(UIA_InvokePatternId, &pattern);
+	simple->Release();
+	if (!pattern)
+		return false;
+	IInvokeProvider *invoke = nullptr;
+	pattern->QueryInterface(__uuidof(IInvokeProvider), reinterpret_cast<void **>(&invoke));
+	pattern->Release();
+	if (!invoke)
+		return false;
+	auto result = invoke->Invoke();
+	invoke->Release();
+	drain();
+	return labelled && placed && focused && edited && SUCCEEDED(result) && (probe.at_home && probe.at_home());
+}
+} // namespace phoenix

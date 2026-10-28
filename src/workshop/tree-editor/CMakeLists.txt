@@ -1,0 +1,5 @@
+add_library(phoenix_workshop_tree STATIC tree.cpp)
+target_sources(phoenix_workshop_tree PUBLIC FILE_SET CXX_MODULES FILES tree.cppm)
+target_link_libraries(phoenix_workshop_tree PUBLIC PRIVATE phoenix_workshop_shell phoenix_imgui)
+
+target_link_libraries(phoenix_workshop_tree PUBLIC phoenix_content_documents)

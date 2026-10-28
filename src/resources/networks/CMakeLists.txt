@@ -1,0 +1,17 @@
+add_library(phoenix_resources_networks_definitions STATIC resource_definitions.cpp)
+target_sources(phoenix_resources_networks_definitions PUBLIC FILE_SET CXX_MODULES FILES resources.cppm)
+target_link_libraries(
+	phoenix_resources_networks_definitions
+	PUBLIC phoenix_foundation phoenix_resources_stocks_definitions phoenix_resources_processors_definitions
+)
+set_target_properties(
+	phoenix_resources_networks_definitions
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_resources_networks STATIC resources.cpp)
+target_link_libraries(phoenix_resources_networks PUBLIC phoenix_resources_networks_definitions phoenix_resources_stocks)
+set_target_properties(
+	phoenix_resources_networks
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

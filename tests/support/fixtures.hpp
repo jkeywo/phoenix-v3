@@ -8,7 +8,9 @@
 #include <vector>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
-import phoenix.content;
+import phoenix.content.catalog;
+import phoenix.content.packs;
+import phoenix.content.verification;
 #include "directed_materialisation.hpp"
 #include "rule_materialisation.hpp"
 #include "process_materialisation.hpp"

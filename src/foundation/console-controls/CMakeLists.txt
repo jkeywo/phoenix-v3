@@ -1,0 +1,4 @@
+add_library(phoenix_console_controls STATIC console_controls.cpp)
+target_sources(phoenix_console_controls PUBLIC FILE_SET CXX_MODULES FILES console_controls.cppm)
+target_link_libraries(phoenix_console_controls PUBLIC phoenix_contracts)
+set_property(TARGET phoenix_console_controls PROPERTY CXX_SCAN_FOR_MODULES ON)

@@ -5,8 +5,11 @@
 #include <iostream>
 #include <string>
 #include <type_traits>
+import phoenix.content.combat;
+import phoenix.content.controllers;
+import phoenix.content.sensing;
 import phoenix.simulation;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
 using namespace phoenix;
 using namespace phoenix::test;
 namespace

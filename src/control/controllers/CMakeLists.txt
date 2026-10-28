@@ -1,0 +1,17 @@
+add_library(phoenix_control_controllers STATIC controllers.cpp)
+target_sources(phoenix_control_controllers PUBLIC FILE_SET CXX_MODULES FILES controllers.cppm)
+target_link_libraries(
+	phoenix_control_controllers
+	PUBLIC phoenix_content_controllers_types
+	PRIVATE phoenix_behavior_state_tree
+)
+set_property(TARGET phoenix_control_controllers PROPERTY CXX_SCAN_FOR_MODULES ON)
+
+add_library(phoenix_control_templates STATIC templates.cpp)
+target_sources(phoenix_control_templates PUBLIC FILE_SET CXX_MODULES FILES templates.cppm)
+target_link_libraries(
+	phoenix_control_templates
+	PUBLIC phoenix_control_controllers phoenix_content_catalog
+	PRIVATE phoenix_content_compilers
+)
+set_property(TARGET phoenix_control_templates PROPERTY CXX_SCAN_FOR_MODULES ON)

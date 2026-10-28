@@ -1,9 +1,11 @@
 #include "../support/assertions.hpp"
 #include "../support/away_fixture.hpp"
 #include <iostream>
+import phoenix.content.controllers;
+import phoenix.content.scenarios;
 import phoenix.simulation;
-#include "../../src/network/projection.hpp"
-#include "../../src/simulation/effect_receipts.hpp"
+import phoenix.networking.projection;
+import phoenix.effects.contracts;
 using namespace phoenix;
 using namespace phoenix::test;
 

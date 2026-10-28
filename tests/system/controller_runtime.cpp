@@ -1,7 +1,10 @@
+#include <cmath>
+#include <cstdint>
+#include <stdexcept>
+#include <utility>
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
 #include "../support/combat_fixture.hpp"
-#include "../../src/presentation/navigation_camera.hpp"
 #include <algorithm>
 #include <iostream>
 #include <optional>
@@ -9,13 +12,19 @@
 #include <string>
 #include <vector>
 
+import phoenix.content.controllers;
+import phoenix.content.distribution;
+import phoenix.content.resources;
+import phoenix.ui.engineering_widgets;
+import phoenix.graphics.audio_policy;
+import phoenix.graphics.geometry;
 import phoenix.simulation;
 import phoenix.console;
 import phoenix.console_controls;
 import phoenix.session.execution;
 import phoenix.navigation;
-#include "../../src/network/projection.hpp"
-#include "../../src/presentation/alert_audio.hpp"
+import phoenix.networking.projection;
+import phoenix.knowledge.read_models;
 
 using namespace phoenix;
 using namespace phoenix::test;

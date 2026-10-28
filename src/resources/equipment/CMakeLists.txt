@@ -1,0 +1,8 @@
+add_library(phoenix_resources_equipment STATIC gameplay_resources.cpp)
+target_sources(phoenix_resources_equipment PUBLIC FILE_SET CXX_MODULES FILES equipment.cppm)
+target_link_libraries(
+	phoenix_resources_equipment
+	PUBLIC phoenix_content_resources_types
+	PRIVATE phoenix_resources_networks
+)
+set_property(TARGET phoenix_resources_equipment PROPERTY CXX_SCAN_FOR_MODULES ON)

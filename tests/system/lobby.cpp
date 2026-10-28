@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 #include <nlohmann/json.hpp>
+import phoenix.content.distribution;
 import phoenix.network.lobby;
 import phoenix.network.lobby.protocol;
 import phoenix.network.host;

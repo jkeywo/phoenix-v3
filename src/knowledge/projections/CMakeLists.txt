@@ -1,0 +1,7 @@
+add_library(phoenix_knowledge_projections STATIC projections.cpp)
+target_sources(phoenix_knowledge_projections PUBLIC FILE_SET CXX_MODULES FILES projections.cppm)
+target_link_libraries(
+	phoenix_knowledge_projections
+	PUBLIC phoenix_control_controllers phoenix_knowledge_records_definitions
+)
+set_property(TARGET phoenix_knowledge_projections PROPERTY CXX_SCAN_FOR_MODULES ON)

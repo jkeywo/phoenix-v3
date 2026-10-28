@@ -1,0 +1,124 @@
+module;
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+export module phoenix.knowledge.consoles;
+export import phoenix.content.catalog;
+export import phoenix.content.knowledge.types;
+export import phoenix.content.effects.types;
+export import phoenix.knowledge.projections;
+
+export namespace phoenix
+{
+struct GameplayKnowledgeShipBinding
+{
+	std::string definition;
+	std::map<std::string, KnowledgeId> consoles, stations, systems;
+	std::map<std::string, KnowledgeId> controllers;
+};
+class GameplayKnowledge
+{
+public:
+	// Compile all bindings once through resolved production definitions. configure
+	// resets running state and must run before register_ship/restore.
+	void configure(const Catalog &catalog, SharedPropertyCatalog properties = {});
+	void register_ship(EntityId ship, const std::string &definition, KnowledgeTick tick);
+	bool contains_ship(EntityId ship) const;
+	KnowledgeId console_id(const ConsoleAddress &address) const;
+	KnowledgeId system_id(EntityId ship, const std::string &system) const;
+	KnowledgeId controller_id(const ControllerAddress &address) const;
+	void set_controller_control(const ControllerAddress &address, bool present, bool human);
+	void set_console_presence(const ConsoleAddress &address, bool present);
+	std::vector<CoordinationDelivery> peek_controller(const ControllerAddress &address);
+	void acknowledge_controller(const ControllerAddress &address, KnowledgeId through_message);
+	ConsoleAddress address(KnowledgeId console) const;
+	const CompiledKnowledge &definition() const;
+	const GameplayKnowledgeMessageDefinition &message_definition(const std::string &name) const;
+	KnowledgeKey message_producer(const ConsoleAddress &source, const std::string &sender_system, KnowledgeKey schema,
+	                              ControlOrigin origin, bool controller = false) const;
+	KnowledgeId request_key(const std::string &name) const;
+	std::string request_key_name(KnowledgeId key) const;
+	void clear_control();
+	// Trusted observation ingestion. System observations fan out only to their
+	// owning Console and its explicit authored feed recipients; roles still apply.
+	std::size_t ingest_system(EntityId ship, const std::string &system, KnowledgeRecordInput value, KnowledgeTick tick);
+	bool ingest_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
+	const std::vector<std::string> &telemetry_names() const;
+	void verify_reporter_fields(const std::string &definition, const std::string &system,
+	                            const std::map<std::string, std::int64_t> &values) const;
+	std::size_t ingest_telemetry(EntityId ship, const std::string &system,
+	                             const std::vector<std::optional<KnowledgeValue>> &values, KnowledgeTick tick);
+	std::size_t ingest_telemetry(EntityId ship, const std::string &system,
+	                             const std::map<std::string, std::int64_t> &values, KnowledgeTick tick);
+	// Trusted scenario/objective publication. Human admission must never call it.
+	void set_camera(EntityId ship, ShipCameraState state, KnowledgeTick tick);
+	bool publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick);
+	bool publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
+	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
+	                                 bool execute = true);
+	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
+	                                 KnowledgeId subject, bool live, const std::string &request_key);
+	KnowledgeId publish(const ConsoleAddress &address, KnowledgeKey schema, KnowledgeId subject,
+	                    std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick, bool execute = true);
+	KnowledgeId activate_feed(const ConsoleAddress &source, const ConsoleAddress &target, KnowledgeKey schema,
+	                          KnowledgeId subject, std::vector<KnowledgeKey> fields, KnowledgeTick tick);
+	void stop_publication(const ConsoleAddress &address, KnowledgeId publication);
+	// Human and AI callers pass their actual origin, then use the same authority
+	// gate. The source address comes from World claims/tree ownership, never wire input.
+	KnowledgeId admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick,
+	                          bool execute = true);
+	KnowledgeId admit_template(const ConsoleAddress &source, const std::string &sender_system,
+	                           const std::string &message, KnowledgeRecordInput payload, ControlOrigin origin,
+	                           KnowledgeTick tick, std::map<std::string, std::string> parameters = {},
+	                           bool execute = true, bool controller = false, const std::string &speaker_name = {},
+	                           const Bytes &speaker_avatar = {}, const std::string &speaker_portrait = {});
+	KnowledgeId publish_scenario_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick);
+	bool withdraw_request(const ConsoleAddress &source, const std::string &sender_system, KnowledgeId request_key,
+	                      ControlOrigin origin, bool controller = false);
+	std::vector<CoordinationDelivery> tick(KnowledgeTick tick);
+	std::vector<CoordinationMessage> pending_messages(std::size_t limit = 32) const;
+	bool status_change(EntityId ship, const std::string &system, KnowledgeKey status, bool value, KnowledgeTick tick,
+	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0,
+	                   bool report_initial = true);
+	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
+	GameplayKnowledgeProjection project(const ConsoleAddress &address, bool public_only = false) const;
+	std::vector<const KnowledgeRecord *> sensor_records(const ConsoleAddress &address) const;
+	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;
+	Json project_json(const ConsoleAddress &address, bool public_only = false) const;
+	Json public_board(EntityId entity) const;
+	Json save() const;
+	// Call configure first. Rebuilds named identities, verifies authored ownership,
+	// restores continuations, and clears live human authority before any delivery.
+	void restore(const Json &state);
+
+private:
+	std::map<std::pair<std::string, std::string>, std::string> console_labels_;
+	CompiledKnowledge compiled_;
+	KnowledgeRuntime runtime_;
+	std::map<std::string, GameplayKnowledgeShipDefinition> definitions_;
+	std::map<std::string, GameplayKnowledgeMessageDefinition> messages_;
+	Json reporter_contract_ = Json::object();
+	std::map<std::string, KnowledgeId> request_keys_;
+	std::vector<std::string> telemetry_names_;
+	std::map<std::string, std::size_t> telemetry_indices_;
+	std::map<EntityId, GameplayKnowledgeShipBinding> ships_;
+	std::map<KnowledgeId, ConsoleAddress> addresses_;
+	std::map<KnowledgeId, bool> human_consoles_, human_systems_;
+	std::map<KnowledgeId, KnowledgeId> publication_owners_;
+	std::map<KnowledgeId, std::vector<CoordinationDelivery>> notifications_;
+	KnowledgeId next_binding_ = 1;
+	const GameplayKnowledgeConsoleDefinition &console_definition(const ConsoleAddress &address) const;
+	bool readable(const GameplayKnowledgeConsoleDefinition &console, KnowledgeKey schema) const;
+	void admit_sender(const ConsoleAddress &source, KnowledgeId sender, KnowledgeKey producer, ControlOrigin origin,
+	                  bool known_record = false) const;
+	bool known_evidence(const ConsoleAddress &source, const KnowledgeRecordInput &value) const;
+	void install_ship(EntityId ship, GameplayKnowledgeShipBinding binding, KnowledgeTick tick, bool create_feeds);
+	KnowledgeId binding_id();
+};
+} // namespace phoenix

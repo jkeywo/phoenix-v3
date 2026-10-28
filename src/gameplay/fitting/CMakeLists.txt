@@ -1,0 +1,14 @@
+add_library(phoenix_gameplay_fitting STATIC fitting.cpp)
+target_sources(phoenix_gameplay_fitting PUBLIC FILE_SET CXX_MODULES FILES fitting.cppm)
+target_link_libraries(
+	phoenix_gameplay_fitting
+	PUBLIC
+		phoenix_gameplay_flight
+		phoenix_resources_equipment
+		phoenix_content_operations_types
+		phoenix_content_logistics_types
+		phoenix_content_sensing_types
+		phoenix_gameplay_combat_state
+	PRIVATE phoenix_gameplay_combat_faults flecs_static
+)
+set_property(TARGET phoenix_gameplay_fitting PROPERTY CXX_SCAN_FOR_MODULES ON)

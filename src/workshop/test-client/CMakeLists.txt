@@ -1,0 +1,5 @@
+add_library(phoenix_workshop_test_client STATIC test_client.cpp)
+target_sources(phoenix_workshop_test_client PUBLIC FILE_SET CXX_MODULES FILES test_client.cppm)
+target_link_libraries(phoenix_workshop_test_client PUBLIC phoenix_workshop_shell PRIVATE phoenix_imgui)
+
+target_link_libraries(phoenix_workshop_test_client PUBLIC phoenix_content_documents)

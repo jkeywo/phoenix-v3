@@ -1,0 +1,3 @@
+add_library(phoenix_ui_engineering_widgets STATIC engineering.cpp)
+target_sources(phoenix_ui_engineering_widgets PUBLIC FILE_SET CXX_MODULES FILES engineering.cppm)
+target_link_libraries(phoenix_ui_engineering_widgets PUBLIC phoenix_foundation PRIVATE phoenix_application_preferences)

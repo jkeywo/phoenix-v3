@@ -1,0 +1,6 @@
+add_library(phoenix_effects_contracts STATIC contracts.cpp)
+target_sources(phoenix_effects_contracts PUBLIC FILE_SET CXX_MODULES FILES contracts.cppm)
+target_link_libraries(
+	phoenix_effects_contracts
+	PUBLIC phoenix_content_effects_types phoenix_foundation phoenix_resources_stocks_definitions
+)

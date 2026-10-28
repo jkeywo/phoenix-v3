@@ -1,0 +1,12 @@
+add_library(phoenix_knowledge_consoles STATIC gameplay_knowledge.cpp)
+target_sources(phoenix_knowledge_consoles PUBLIC FILE_SET CXX_MODULES FILES consoles.cppm)
+target_link_libraries(
+	phoenix_knowledge_consoles
+	PUBLIC
+		phoenix_content_catalog
+		phoenix_content_knowledge_types
+		phoenix_content_effects_types
+		phoenix_knowledge_projections
+	PRIVATE phoenix_content_compilers phoenix_knowledge_records
+)
+set_property(TARGET phoenix_knowledge_consoles PROPERTY CXX_SCAN_FOR_MODULES ON)

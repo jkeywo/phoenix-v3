@@ -13,6 +13,7 @@
 #include <vector>
 import phoenix.navigation;
 import phoenix.presentation;
+import phoenix.graphics.scene;
 import phoenix.session.local;
 using namespace phoenix;
 using phoenix::test::require;

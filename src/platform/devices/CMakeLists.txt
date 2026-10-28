@@ -1,0 +1,32 @@
+add_library(phoenix_devices STATIC)
+target_sources(phoenix_devices PUBLIC FILE_SET CXX_MODULES FILES devices.cppm)
+set(phoenix_device_dependencies "")
+if(EMSCRIPTEN)
+	target_sources(phoenix_devices PRIVATE browser_devices.cpp)
+	target_compile_options(phoenix_devices PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+else()
+	target_sources(phoenix_devices PRIVATE native_devices.cpp)
+	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static)
+	list(APPEND phoenix_device_dependencies SDL3::SDL3-static)
+	if(WIN32)
+		target_link_libraries(phoenix_devices PRIVATE comctl32)
+	endif()
+endif()
+set_property(TARGET phoenix_devices PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(TARGET phoenix_devices PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "${phoenix_device_dependencies}")
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_devices)
+
+# Display identity discovery is independent of SDL, input routing and UI state.
+add_library(phoenix_platform_display_identity STATIC display_identity.cpp)
+target_sources(phoenix_platform_display_identity PUBLIC FILE_SET CXX_MODULES FILES display_identity.cppm)
+set_target_properties(
+	phoenix_platform_display_identity
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+if(WIN32)
+	target_link_libraries(phoenix_platform_display_identity PRIVATE user32)
+	set_property(TARGET phoenix_platform_display_identity PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "user32")
+else()
+	set_property(TARGET phoenix_platform_display_identity PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "")
+endif()
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_platform_display_identity)

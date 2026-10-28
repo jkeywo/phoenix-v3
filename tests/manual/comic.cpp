@@ -13,8 +13,13 @@
 #include <span>
 #include <string>
 #include <vector>
-import phoenix.content;
+import phoenix.content.assets;
+import phoenix.content.catalog;
+import phoenix.content.packs;
+import phoenix.content.verification;
 import phoenix.presentation;
+import phoenix.graphics.scene;
+import phoenix.graphics.radar;
 using namespace phoenix;
 namespace
 {

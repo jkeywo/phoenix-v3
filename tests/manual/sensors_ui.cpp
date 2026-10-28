@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 import phoenix.application;
 import phoenix.presentation;
+import phoenix.navigation;
 import phoenix.session.execution;
 using namespace phoenix;
 int main(int argc, char **argv)

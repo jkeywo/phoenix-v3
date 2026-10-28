@@ -1,0 +1,9 @@
+add_library(phoenix_platform_viewport STATIC viewport.cpp)
+target_sources(phoenix_platform_viewport PUBLIC FILE_SET CXX_MODULES FILES viewport.cppm)
+set_target_properties(
+	phoenix_platform_viewport
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+target_link_libraries(phoenix_platform_viewport PUBLIC phoenix_foundation PRIVATE raylib)
+set_property(TARGET phoenix_platform_viewport PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_foundation;raylib")
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_platform_viewport)

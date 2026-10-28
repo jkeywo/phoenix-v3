@@ -1,0 +1,15 @@
+add_library(phoenix_gameplay_craft STATIC native.cpp servicing.cpp)
+target_sources(phoenix_gameplay_craft PUBLIC FILE_SET CXX_MODULES FILES craft.cppm)
+target_link_libraries(
+	phoenix_gameplay_craft
+	PUBLIC phoenix_world_state phoenix_content_logistics_types phoenix_resources_networks
+	PRIVATE phoenix_gameplay_flight
+)
+set_property(TARGET phoenix_gameplay_craft PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(
+	TARGET phoenix_gameplay_craft
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_world_state;phoenix_content_logistics_types;phoenix_resources_networks;phoenix_gameplay_flight"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_craft)

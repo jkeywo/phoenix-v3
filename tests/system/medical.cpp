@@ -3,9 +3,11 @@
 #include "../support/combat_fixture.hpp"
 #include <algorithm>
 #include <iostream>
+import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.console_controls;
-#include "../../src/network/projection.hpp"
+import phoenix.networking.projection;
+import phoenix.knowledge.read_models;
 using namespace phoenix;
 using namespace phoenix::test;
 #include "../support/machinery_baseline.hpp"

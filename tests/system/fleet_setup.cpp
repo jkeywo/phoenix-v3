@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+import phoenix.content.documents;
 import phoenix.fleet_setup;
 import phoenix.wire;
 import phoenix.session.execution;

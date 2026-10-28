@@ -12,6 +12,8 @@
 #include <nlohmann/json.hpp>
 import phoenix.application;
 import phoenix.presentation;
+import phoenix.graphics.scene;
+import phoenix.navigation;
 import phoenix.session.execution;
 using namespace phoenix;
 #include "host_audio_smoke.hpp"

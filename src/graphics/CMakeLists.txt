@@ -1,0 +1,5 @@
+add_subdirectory(geometry)
+add_subdirectory(assets)
+add_subdirectory(scene)
+add_subdirectory(radar)
+add_subdirectory(audio)

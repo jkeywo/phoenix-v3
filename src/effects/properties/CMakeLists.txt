@@ -1,0 +1,4 @@
+add_library(phoenix_effects_properties STATIC properties.cpp)
+target_sources(phoenix_effects_properties PUBLIC FILE_SET CXX_MODULES FILES properties.cppm)
+target_link_libraries(phoenix_effects_properties PUBLIC phoenix_effects_contracts)
+target_link_libraries(phoenix_effects_properties PRIVATE flecs_static)

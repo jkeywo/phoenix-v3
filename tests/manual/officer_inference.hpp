@@ -47,7 +47,7 @@ int officer_journey(int argc, char **argv)
 	}
 	InferenceHost host;
 	if (mode != "tree")
-		host.connection = std::make_shared<InferenceConnection>(argv[3], argv[4]);
+		host.set_connection(std::make_shared<InferenceConnection>(argv[3], argv[4]));
 	const auto start = std::chrono::steady_clock::now();
 	const auto end = start + std::chrono::seconds(std::stoi(argv[5]));
 	auto next_tick = start;

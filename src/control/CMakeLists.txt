@@ -1,0 +1,5 @@
+add_subdirectory(controllers)
+add_subdirectory(coordination)
+add_subdirectory(execution)
+add_subdirectory(ownership)
+add_subdirectory(providers)

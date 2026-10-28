@@ -1,0 +1,9 @@
+add_library(phoenix_workshop_gm STATIC gm.cpp)
+target_sources(phoenix_workshop_gm PUBLIC FILE_SET CXX_MODULES FILES gm.cppm)
+target_link_libraries(
+	phoenix_workshop_gm
+	PUBLIC phoenix_session_api phoenix_workshop_shell
+	PRIVATE phoenix_graphics_assets phoenix_workshop_map_navigation phoenix_imgui raylib
+)
+
+target_link_libraries(phoenix_workshop_gm PRIVATE phoenix_content_assets)

@@ -9,6 +9,8 @@
 #include <cmath>
 #include <string>
 #include <nlohmann/json.hpp>
+import phoenix.content.controllers;
+import phoenix.content.distribution;
 import phoenix.application;
 import phoenix.presentation;
 import phoenix.session.execution;

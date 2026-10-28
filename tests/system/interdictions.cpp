@@ -2,6 +2,7 @@
 #include "../support/interdiction_fixture.hpp"
 #include <iostream>
 #include <utility>
+import phoenix.content.sensing;
 import phoenix.simulation;
 using namespace phoenix;
 using namespace phoenix::test;

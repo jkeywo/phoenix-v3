@@ -1,0 +1,7 @@
+add_library(phoenix_application_displays STATIC displays.cpp)
+target_sources(phoenix_application_displays PUBLIC FILE_SET CXX_MODULES FILES displays.cppm)
+target_link_libraries(
+	phoenix_application_displays
+	PUBLIC phoenix_application_shell phoenix_application_preferences
+	PRIVATE phoenix_application_preference_store
+)

@@ -1,0 +1,9 @@
+add_library(phoenix_ui_operations_widgets STATIC operations.cpp)
+target_sources(phoenix_ui_operations_widgets PUBLIC FILE_SET CXX_MODULES FILES operations.cppm)
+target_link_libraries(
+	phoenix_ui_operations_widgets
+	PUBLIC phoenix_console_model
+	PRIVATE phoenix_ui_rml phoenix_application_preferences RmlUi::RmlUi
+)
+
+target_link_libraries(phoenix_ui_operations_widgets PUBLIC phoenix_content_catalog)

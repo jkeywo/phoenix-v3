@@ -1,0 +1,4 @@
+add_library(phoenix_world_persistence STATIC validation.cpp)
+target_sources(phoenix_world_persistence PUBLIC FILE_SET CXX_MODULES FILES persistence.cppm)
+target_link_libraries(phoenix_world_persistence PUBLIC phoenix_world_state)
+set_property(TARGET phoenix_world_persistence PROPERTY CXX_SCAN_FOR_MODULES ON)

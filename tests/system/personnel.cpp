@@ -4,7 +4,7 @@
 import phoenix.simulation;
 using namespace phoenix;
 using namespace phoenix::test;
-#include "../../src/core/personnel_projection.hpp"
+import phoenix.knowledge.read_models;
 Json fixture()
 {
 	auto source = controller_fixture(true, 12000);

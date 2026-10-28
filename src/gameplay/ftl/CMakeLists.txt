@@ -1,0 +1,13 @@
+add_library(phoenix_gameplay_ftl STATIC reserve.cpp)
+target_sources(phoenix_gameplay_ftl PUBLIC FILE_SET CXX_MODULES FILES ftl.cppm)
+target_link_libraries(phoenix_gameplay_ftl PUBLIC phoenix_resources_equipment)
+set_property(TARGET phoenix_gameplay_ftl PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(TARGET phoenix_gameplay_ftl PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_resources_equipment)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_ftl)
+
+add_library(phoenix_gameplay_ftl_coordinator STATIC coordinator.cpp)
+target_sources(phoenix_gameplay_ftl_coordinator PUBLIC FILE_SET CXX_MODULES FILES coordinator.cppm)
+target_link_libraries(phoenix_gameplay_ftl_coordinator PUBLIC phoenix_contracts)
+set_property(TARGET phoenix_gameplay_ftl_coordinator PROPERTY CXX_SCAN_FOR_MODULES ON)
+set_property(TARGET phoenix_gameplay_ftl_coordinator PROPERTY PHOENIX_ALLOWED_DEPENDENCIES phoenix_contracts)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_ftl_coordinator)

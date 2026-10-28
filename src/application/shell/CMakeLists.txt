@@ -1,0 +1,6 @@
+add_library(phoenix_application_shell STATIC application.cpp)
+target_sources(phoenix_application_shell PUBLIC FILE_SET CXX_MODULES FILES application.cppm)
+target_link_libraries(
+	phoenix_application_shell
+	PUBLIC phoenix_session_api phoenix_application_library phoenix_ui_interaction phoenix_foundation
+)

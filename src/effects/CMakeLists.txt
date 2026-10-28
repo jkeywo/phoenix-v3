@@ -1,0 +1,8 @@
+add_subdirectory(contracts)
+add_subdirectory(rules)
+add_subdirectory(lifecycle)
+add_subdirectory(abilities)
+add_subdirectory(processes)
+add_subdirectory(properties)
+add_subdirectory(transactions)
+add_subdirectory(funding)
