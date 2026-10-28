@@ -3,6 +3,22 @@
 	"entities": [
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "test-3d:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "test-3d:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "test-3d:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "test-3d:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "test-3d:assets/audio/ship_ambient.ogg",
 					"gain": 0.25

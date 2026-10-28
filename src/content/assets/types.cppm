@@ -21,7 +21,7 @@ export namespace phoenix
 {
 struct ShipAudioDefinition
 {
-	AudioClip ambient, engine;
+	AudioClip ambient, engine, ftl_arrival, ftl_departure, comms_attention, critical_warning;
 };
 struct ModelPart
 {

@@ -134,9 +134,16 @@ ShipAudioDefinition compile_ship_audio(const Catalog &catalog, const std::string
 		throw std::runtime_error(id + ".audio: expected object");
 	for (const auto &[key, clip] : audio.items())
 	{
-		if (key != "ambient" && key != "engine")
+		AudioClip *target = key == "ambient"            ? &result.ambient
+		                    : key == "engine"           ? &result.engine
+		                    : key == "ftl_arrival"      ? &result.ftl_arrival
+		                    : key == "ftl_departure"    ? &result.ftl_departure
+		                    : key == "comms_attention"  ? &result.comms_attention
+		                    : key == "critical_warning" ? &result.critical_warning
+		                                                : nullptr;
+		if (!target)
 			throw std::runtime_error(id + ".audio: unsupported field " + key);
-		(key == "ambient" ? result.ambient : result.engine) = compile_audio_clip(catalog, clip, id + ".audio." + key);
+		*target = compile_audio_clip(catalog, clip, id + ".audio." + key, key == "ambient" || key == "engine");
 	}
 	return result;
 }

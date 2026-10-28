@@ -13,6 +13,11 @@ void World::tick()
 	impl_->clear_presentation_snapshots();
 	TickProfile profile;
 	impl_->retire_audio();
+	if (!impl_->audio_baselined)
+	{
+		impl_->refresh_presentation_audio(true);
+		impl_->audio_baselined = true;
+	}
 	// Keep committed frame numbering live after the race, but freeze its world.
 	if (impl_->scenario && impl_->scenario->runtime().mission_complete())
 	{
@@ -233,6 +238,7 @@ void World::tick()
 	impl_->refresh_rule_eligibility();
 	profile.mark("missions_comms_away_sensors");
 	impl_->finalise_finite_native_jobs();
+	impl_->refresh_presentation_audio();
 	impl_->decision_frame.clear();
 }
 } // namespace phoenix

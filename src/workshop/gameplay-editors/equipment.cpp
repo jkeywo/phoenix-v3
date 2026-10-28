@@ -371,6 +371,8 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				ship["audio"] = Json::object();
 			audio_fields(ship["audio"], "ambient");
 			audio_fields(ship["audio"], "engine");
+			for (const auto *key : {"ftl_arrival", "ftl_departure", "comms_attention", "critical_warning"})
+				audio_fields(ship["audio"], key);
 		}
 	}
 	{

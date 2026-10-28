@@ -3,6 +3,22 @@
 	"entities": [
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -2811,6 +2827,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -20112,6 +20144,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -22469,6 +22517,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -26362,6 +26426,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -29874,6 +29954,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -32546,6 +32642,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -32935,6 +33047,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -33377,6 +33505,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -33817,6 +33961,22 @@
 		},
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "phoenix-base:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "phoenix-base:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "phoenix-base:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -63761,6 +63921,10 @@
 			"discrete_energy": 10
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/pdc_firing.wav",
+				"gain": 0.3
+			},
 			"id": "base.equipment.combat-pdc.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -63819,6 +63983,10 @@
 			"discrete_energy": 10
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/pdc_firing.wav",
+				"gain": 0.3
+			},
 			"id": "base.cruiser.pdc-port-1.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -64002,6 +64170,10 @@
 			"energy_per_second": 0
 		},
 		{
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/pdc_firing.wav",
+				"gain": 0.3
+			},
 			"id": "base.interceptor.weapon.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
@@ -64064,6 +64236,10 @@
 			"psychic_kind": "scramble"
 		},
 		{
+			"activation_audio": {
+				"asset": "phoenix-base:assets/audio/psychic_ward_activation.wav",
+				"gain": 0.25
+			},
 			"id": "base.ability.phantoms",
 			"kind": "ability",
 			"label": "Phantom choir",
@@ -64106,6 +64282,10 @@
 			"psychic_kind": "ward"
 		},
 		{
+			"activation_audio": {
+				"asset": "phoenix-base:assets/audio/psychic_ward_activation.wav",
+				"gain": 0.25
+			},
 			"id": "base.ability.ward",
 			"kind": "ability",
 			"label": "Psychic ward",
@@ -64148,6 +64328,10 @@
 			"psychic_kind": "cloak"
 		},
 		{
+			"activation_audio": {
+				"asset": "phoenix-base:assets/audio/psychic_ward_activation.wav",
+				"gain": 0.25
+			},
 			"id": "base.ability.veil",
 			"kind": "ability",
 			"label": "Veil",

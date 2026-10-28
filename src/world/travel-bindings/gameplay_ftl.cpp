@@ -357,6 +357,9 @@ auto Runtime::commit_departures() -> void
 							++m.revision;
 						}
 					}
+				SceneAudio cue{SceneAudioKind::Shot, "ftl:departure", definition(a.ship).audio.ftl_departure};
+				cue.retention_ticks = 3 * rate; // Keep the retired source until its departure sound finishes.
+				emit_audio(ship, std::move(cue));
 				retire_departed(a.ship);
 			}
 	}

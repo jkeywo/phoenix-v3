@@ -13,6 +13,7 @@ export import phoenix.gameplay.away.state;
 export import phoenix.control.controllers;
 export import phoenix.effects.contracts;
 export import phoenix.content.catalog;
+export import phoenix.content.assets;
 export import phoenix.content.equipment.types;
 export import phoenix.content.combat.types;
 export import phoenix.content.operations.types;
@@ -36,6 +37,7 @@ struct CompiledGameplay
 
 struct CompiledDefinition
 {
+	ShipAudioDefinition audio;
 	CustomPropertyState properties;
 	std::map<std::string, CustomPropertyState> equipment_properties, officer_properties, compartment_properties;
 	std::string faction;

@@ -465,6 +465,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		    }
 		    if (kind == "ability")
 		    {
+			    audio_fields(effect, "activation_audio");
 			    string(effect, "label");
 			    boolean(effect, "sustained", false);
 			    boolean(effect, "require_healthy", true);

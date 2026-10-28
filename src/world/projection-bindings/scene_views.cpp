@@ -90,6 +90,28 @@ std::vector<SceneBody> World::scene() const
 				}
 		result.push_back(std::move(item));
 	}
+	for (const auto &[id, events] : impl_->audio_events)
+		if (impl_->departed(id) && !events.empty())
+		{
+			const auto entity = impl_->entities.at(id);
+			const auto &pose = entity.get<Pose>();
+			SceneBody item{};
+			item.id = id;
+			item.definition = entity.get<Definition>().name;
+			item.x = pose.position.x;
+			item.y = pose.position.y;
+			item.heading = pose.heading;
+			item.visual_height_mm = impl_->altitude(id);
+			item.audio_alive = false;
+			item.audio_only = true;
+			item.audio = events;
+			result.push_back(std::move(item));
+		}
+	std::sort(result.begin(), result.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
 	const auto source_count = result.size();
 	for (const auto particle : impl_->projectile_rows())
 	{

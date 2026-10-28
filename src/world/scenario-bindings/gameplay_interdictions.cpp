@@ -248,6 +248,7 @@ auto Runtime::advance_interdictions() -> void
 		{
 			const auto id = world.next_entity++;
 			world.create(id, spawn.definition, {{"x_mm", spawn.x}, {"y_mm", spawn.y}, {"heading_mdeg", spawn.heading}});
+			world.emit_arrival_audio(id);
 			return id;
 		}
 		std::uint64_t open_dialogue(const InterdictionDialogue &request) override

@@ -33,6 +33,7 @@ struct ExplosionEffect
 };
 struct SceneFrame
 {
+	std::optional<BodyView> focus_body;
 	std::vector<SceneBody> bodies;
 	std::shared_ptr<const std::vector<SceneBody>> shared_bodies;
 	std::span<const SceneBody> view() const

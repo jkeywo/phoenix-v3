@@ -3,6 +3,22 @@
 	"entities": [
 		{
 			"audio": {
+				"ftl_arrival": {
+					"asset": "test:assets/audio/ftl_arrival.wav",
+					"gain": 0.45
+				},
+				"ftl_departure": {
+					"asset": "test:assets/audio/ftl_departure.wav",
+					"gain": 0.45
+				},
+				"comms_attention": {
+					"asset": "test:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
+				"critical_warning": {
+					"asset": "test:assets/audio/critical_heat_power_damage_warning.wav",
+					"gain": 0.2
+				},
 				"ambient": {
 					"asset": "test:assets/audio/ship_ambient.ogg",
 					"gain": 0.25
@@ -20952,6 +20968,10 @@
 			"energy_per_second": 0
 		},
 		{
+			"firing_audio": {
+				"asset": "test:assets/audio/pdc_firing.wav",
+				"gain": 0.3
+			},
 			"id": "test.carrier.interceptor.weapon.launch",
 			"kind": "directed_mode",
 			"label": "Fire",

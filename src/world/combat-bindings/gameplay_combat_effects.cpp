@@ -25,7 +25,7 @@ auto Runtime::retire_audio() -> void
 		std::erase_if(events,
 		              [&](const auto &cue)
 		              {
-			              return now > cue.tick + 3;
+			              return now > cue.tick + cue.retention_ticks;
 		              });
 	std::erase_if(audio_events,
 	              [](const auto &entry)

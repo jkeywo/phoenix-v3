@@ -923,7 +923,13 @@ int main(int argc, char **argv)
 			        "withdrawn temporary projection retains observer-local fading evidence");
 		}
 		const auto source = fixture();
-		const auto catalog = load(source);
+		auto audio_source = source;
+		for (auto &effect : audio_source["effects"])
+			if (effect.value("kind", "") == "ability")
+				effect["activation_audio"] = {{"asset", "test-core:assets/audio-tone.wav"}, {"gain", .25}};
+		auto audio_pack = fixture_pack(json_bytes(audio_source), "test-core");
+		audio_pack.files["assets/audio-tone.wav"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/audio-tone.wav");
+		const auto catalog = resolve_packs({read_pack(write_pack(audio_pack))});
 		World w;
 		w.load(catalog, "test.map");
 		claim(w);
@@ -932,6 +938,15 @@ int main(int argc, char **argv)
 		command(w, 101, 1, "choir", "scramble-enabled", 1);
 		command(w, 101, 1, "choir", "cloak-enabled", 1);
 		ticks(w, 3);
+		unsigned activation_cues = 0;
+		for (const auto &body : w.scene())
+			for (const auto &cue : body.audio)
+				if (body.id == 1 && cue.source.starts_with("ability:"))
+				{
+					require(cue.own_only, "psychic activation is local to its ship host");
+					++activation_cues;
+				}
+		require(activation_cues == 2, "two funded psychic abilities each publish one activation sound");
 		require(ghosts(w, 102).size() == 2, "authored moving ghost group received");
 		require(ghosts(w, 104).empty(), "unfed Console cannot observe ghosts");
 		const auto first = w.save();
@@ -953,6 +968,10 @@ int main(int argc, char **argv)
 		resumed.restore(catalog, pending);
 		ticks(w, 5);
 		ticks(resumed, 5);
+		for (const auto &body : resumed.scene())
+			for (const auto &cue : body.audio)
+				require(!cue.source.starts_with("ability:"),
+				        "recovery and continued sustained work never replay activation");
 		require(w.save() == resumed.save(), "exact continuation during moving projection");
 		command(w, 102, 2, "choir", "ward-target", 2);
 		command(w, 102, 2, "choir", "ward-enabled", 1);

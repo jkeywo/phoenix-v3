@@ -385,7 +385,12 @@ int main(int argc, char **argv)
 			restored.tick();
 			require(initial.save() == restored.save(), "Comms and streamed radar continue identically after restore");
 		}
-		auto catalog = load(fixture());
+		auto audio_source = fixture();
+		audio_source["entities"][0]["audio"]["comms_attention"] = {{"asset", "test-core:assets/audio-tone.wav"},
+		                                                           {"gain", .25}};
+		auto audio_pack = fixture_pack(json_bytes(audio_source), "test-core");
+		audio_pack.files["assets/audio-tone.wav"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/audio-tone.wav");
+		auto catalog = resolve_packs({read_pack(write_pack(audio_pack))});
 		World world;
 		world.load(catalog, "test.map");
 		require(world.claim(1, 1, "drive"), "claim caller Comms");
@@ -420,14 +425,26 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 3; ++i)
 			world.tick();
 		require(!view().at("threads")[0].at("incoming").empty(), "authored incoming interval");
+		for (const auto &body : world.scene())
+			for (const auto &cue : body.audio)
+				require(cue.source != "comms:attention", "incoming text does not sound before delivery");
 		auto saved = world.save();
 		World resumed;
 		resumed.restore(catalog, saved);
+		std::set<std::uint64_t> attention;
 		for (int i = 0; i < 6; ++i)
 		{
 			world.tick();
 			resumed.tick();
+			for (const auto &body : world.scene())
+				for (const auto &cue : body.audio)
+					if (body.id == 1 && cue.source == "comms:attention")
+					{
+						require(cue.own_only, "Comms attention is private to its host");
+						attention.insert(cue.event);
+					}
 		}
+		require(attention.size() == 1, "delivered traffic coalesces to one attention cue");
 		require(world.save() == resumed.save(), "exact continuation during incoming indication");
 		auto thread = view().at("threads")[0];
 		require(thread.at("choices").size() == 2, "delivered prompt has choices");

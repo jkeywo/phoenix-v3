@@ -37,6 +37,8 @@ auto Runtime::scenario_spawns() -> void
 			const auto parents = ids;
 			initialise_craft(&ids);
 			scenario->confirm_spawn(request.id, parents);
+			for (const auto id : parents)
+				emit_arrival_audio(id);
 		}
 		catch (const std::exception &error)
 		{

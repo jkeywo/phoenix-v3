@@ -635,6 +635,7 @@ struct GameScreen::State
 	{
 		bind_session(app);
 		frame.visible.clear();
+		frame.focus_body.reset();
 		if (!app.session || !app.session->running() || app.screen == Screen::workshop ||
 		    (!app.can_host && app.screen != Screen::viewscreen && !app.viewscreen_region))
 		{
@@ -643,7 +644,24 @@ struct GameScreen::State
 			return frame;
 		}
 		const auto scene_data_started = GetTime();
+		const auto scene_snapshot_started = GetTime();
+		frame.shared_bodies = app.session->scene_snapshot();
+		if (!frame.shared_bodies)
+		{
+			frame.bodies = app.session->scene();
+			for (auto &body : frame.bodies)
+				if (!body.sound.empty())
+					body.audio.push_back(
+					    {SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
+		}
+		app.frame_metrics["scene-snapshot"] = GetTime() - scene_snapshot_started;
+		const auto previous_focus = environment.own;
 		environment.own = app.session->focus_body();
+		if (!environment.own && previous_focus)
+			for (const auto &body : frame.view())
+				if (body.audio_only && body.id == previous_focus->id)
+					environment.own = static_cast<const BodyView &>(body);
+		frame.focus_body = environment.own;
 		environment.dust_enabled = app.dust_motes;
 		environment.grid_enabled = app.reference_grid;
 		environment.reduced_motion = app.reduced_motion;
@@ -739,17 +757,6 @@ struct GameScreen::State
 		frame_camera = camera;
 		frame_lighting = app.session->scene_lighting();
 		frame_time = GetTime();
-		const auto scene_snapshot_started = GetTime();
-		frame.shared_bodies = app.session->scene_snapshot();
-		if (!frame.shared_bodies)
-		{
-			frame.bodies = app.session->scene();
-			for (auto &body : frame.bodies)
-				if (!body.sound.empty())
-					body.audio.push_back(
-					    {SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
-		}
-		app.frame_metrics["scene-snapshot"] = GetTime() - scene_snapshot_started;
 		const auto r = app.viewscreen_region;
 		const Rectangle region =
 		    r ? Rectangle{r->x, r->y, r->width, r->height}

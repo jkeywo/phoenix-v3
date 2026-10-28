@@ -48,10 +48,8 @@ AudioMixFrame HostAudioMixer::frame(std::span<const SceneBody> bodies, EntityId 
 	std::map<std::string, SceneAudio> shields;
 	for (const auto &body : bodies)
 	{
-		if (!body.audio_alive)
-			continue;
 		const auto prefix = std::to_string(body.id) + ":";
-		if (body.id == own)
+		if (body.id == own && body.audio_alive)
 		{
 			if (!ship.ambient.asset.empty())
 				result.loops[prefix + "ambient"] = ship.ambient;
@@ -68,7 +66,7 @@ AudioMixFrame HostAudioMixer::frame(std::span<const SceneBody> bodies, EntityId 
 		}
 		for (const auto &cue : body.audio)
 		{
-			if (cue.clip.asset.empty())
+			if (cue.clip.asset.empty() || (!body.audio_alive && cue.kind != SceneAudioKind::Shot))
 				continue;
 			const auto key = prefix + cue.source + ":" + cue.clip.asset;
 			bool fresh = false;
@@ -80,7 +78,7 @@ AudioMixFrame HostAudioMixer::frame(std::span<const SceneBody> bodies, EntityId 
 			}
 			// Consume unseen off-screen receipts too: turning the camera must
 			// never replay an earlier shot or impact.
-			if (!visible.contains(body.id))
+			if (!visible.contains(body.id) || (cue.own_only && body.id != own))
 				continue;
 			if (cue.kind == SceneAudioKind::Shot)
 			{

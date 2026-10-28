@@ -9,6 +9,7 @@ target_link_libraries(
 		phoenix_control_controllers
 		phoenix_effects_contracts
 		phoenix_content_catalog
+		phoenix_content_assets
 		phoenix_content_equipment_types
 		phoenix_content_combat_types
 		phoenix_content_operations_types
@@ -16,10 +17,6 @@ target_link_libraries(
 		phoenix_content_sensing_types
 		phoenix_content_resources_types
 		phoenix_gameplay_conversations_definitions
-	PRIVATE
-		phoenix_content_compilers
-		phoenix_content_assets
-		phoenix_control_templates
-		phoenix_resources_networks_definitions
+	PRIVATE phoenix_content_compilers phoenix_control_templates phoenix_resources_networks_definitions
 )
 set_property(TARGET phoenix_world_assembly PROPERTY CXX_SCAN_FOR_MODULES ON)

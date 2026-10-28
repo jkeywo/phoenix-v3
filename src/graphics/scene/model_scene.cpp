@@ -347,7 +347,7 @@ std::set<EntityId> ModelScene::prepare(const Catalog &catalog, std::span<const S
 	{
 		if (body.id == hidden)
 			continue;
-		if (body.definition.empty() && !body.sound.empty())
+		if (body.audio_only || (body.definition.empty() && !body.sound.empty()))
 		{
 			const Vector3 p{body.x / 1000.f - rebase.x, body.visual_height_mm / 1000.f - rebase.y,
 			                -body.y / 1000.f - rebase.z};

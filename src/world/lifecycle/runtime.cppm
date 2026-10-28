@@ -527,6 +527,18 @@ struct Runtime
 	std::uint64_t next_audio_event = 1;
 	void emit_audio(flecs::entity ship, SceneAudio cue);
 	void retire_audio();
+	void refresh_presentation_audio(bool baseline = false);
+	void emit_arrival_audio(EntityId id);
+	struct AudioStatus
+	{
+		std::set<std::uint64_t> delivered;
+		std::map<std::string, std::uint64_t> abilities;
+		std::uint64_t next_comms = 0, next_warning = 0;
+		unsigned power_shortage_ticks = 0;
+		bool critical = false;
+	};
+	std::map<EntityId, AudioStatus> audio_status;
+	bool audio_baselined = false;
 	bool equipment_destroyed(flecs::entity ship, const std::string &equipment) const;
 	bool hard_fault_disabled(flecs::entity ship, const std::string &equipment) const;
 	std::int64_t fault_effectiveness(flecs::entity ship, const std::string &equipment) const;

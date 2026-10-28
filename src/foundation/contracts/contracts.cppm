@@ -378,11 +378,13 @@ struct SceneAudio
 	std::uint64_t event = 0, tick = 0;
 	float peak_gain = .8f, decay = 1.5f;
 	std::int64_t damage = 0, threshold = 1, full_damage = 30;
+	bool own_only = false;
+	std::uint64_t retention_ticks = 3;
 };
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView
 {
-	bool audio_alive = true;
+	bool audio_alive = true, audio_only = false;
 	std::vector<SceneAudio> audio;
 	int forward_thrust = 0; // actual applied forward acceleration, 0..1000
 	std::uint32_t sprite_entry = 0;

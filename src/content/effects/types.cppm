@@ -384,6 +384,7 @@ struct ProcessGrantDefinition
 };
 struct AbilityDefinition
 {
+	AudioClip activation_audio;
 	std::string id, label, target = "self", recovery_on = "activation", interruption = "cancel", shortage = "pause",
 	                       psychic_effect, apparatus_recovery_key;
 	bool sustained = false, require_healthy = true;

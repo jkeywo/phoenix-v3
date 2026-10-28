@@ -817,7 +817,8 @@ struct SpriteScene::State
 		prepare_instances(catalog, bodies);
 		for (const auto &body : bodies)
 		{
-			if (body.id == hidden || body.field_instance || (body.definition.empty() && !body.sound.empty()))
+			if (body.id == hidden || body.field_instance ||
+			    (body.audio_only || (body.definition.empty() && !body.sound.empty())))
 				continue;
 			if (body.line_style)
 			{
@@ -1169,7 +1170,7 @@ std::set<EntityId> SpriteScene::prepare(const Catalog &catalog, std::span<const 
 			visible.insert(item.source);
 	// Effects may deliberately provide sound without a visible sprite.
 	for (const auto &body : bodies)
-		if (body.definition.empty() && !body.sound.empty())
+		if (body.audio_only || (body.definition.empty() && !body.sound.empty()))
 		{
 			const auto p =
 			    Vector3Subtract({body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f}, s.rebase);
@@ -1321,7 +1322,8 @@ void SpriteScene::draw_prepared(const Catalog &catalog, std::span<const SceneBod
 	trace.mark("sprite/background");
 	std::vector<SceneBody> stars;
 	for (const auto &body : bodies)
-		if (!body.definition.empty() && catalog.entities.at(body.definition).at("render").contains("star"))
+		if (!body.audio_only && !body.definition.empty() &&
+		    catalog.entities.at(body.definition).at("render").contains("star"))
 			stars.push_back(body);
 	if (!stars.empty())
 	{

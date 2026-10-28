@@ -35,6 +35,7 @@ EntityAssembly compile_world_entity(const Catalog &source, const Catalog &conten
 	const auto &definition = content.entities.at(name);
 	EntityAssembly assembly;
 	auto &result = assembly.definition;
+	result.audio = compile_ship_audio(content, name);
 	result.properties.bases = compile_property_bindings(*property_catalogue, definition, "entities." + name);
 	for (const auto &[key, fit] : definition.at("systems").items())
 		result.equipment_properties[key].bases =

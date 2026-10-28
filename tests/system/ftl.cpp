@@ -221,7 +221,35 @@ int main(int argc, char **argv)
 		require(!battery(overheated).at("ready").get<bool>() && battery(overheated).at("power_draw") == 0 &&
 		            !overheated.submit(101, command(overheated, "ftl.depart")),
 		        "thermal stop blocks charging and departure");
-		auto catalog = load(source);
+		source["entities"][0]["audio"]["ftl_departure"] = {{"asset", "test-core:assets/audio-tone.wav"}, {"gain", .4}};
+		auto audio_pack = fixture_pack(json_bytes(source), "test-core");
+		audio_pack.files["assets/audio-tone.wav"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/audio-tone.wav");
+		auto catalog = resolve_packs({read_pack(write_pack(audio_pack))});
+		{
+			auto arrival_source = source;
+			arrival_source["entities"][0]["audio"]["ftl_arrival"] = source["entities"][0]["audio"]["ftl_departure"];
+			arrival_source["maps"][0]["scenario"] = {{"tree", "test.arrival"}};
+			arrival_source["trees"].push_back(Json::parse(
+			    R"({"id":"test.arrival","context":"scenario","initial":"spawn","states":[{"id":"spawn","entry":[{"action":"spawn_entity","arguments":["test.controllable","",50000,0,0,"reinforcement"]}]}]})"));
+			auto arrival_pack = fixture_pack(json_bytes(arrival_source), "test-core");
+			arrival_pack.files["assets/audio-tone.wav"] = audio_pack.files.at("assets/audio-tone.wav");
+			const auto arrival_catalog = resolve_packs({read_pack(write_pack(arrival_pack))});
+			World arrivals;
+			arrivals.load(arrival_catalog, "test.map");
+			arrivals.tick();
+			unsigned cues = 0;
+			for (const auto &body : arrivals.scene())
+				for (const auto &cue : body.audio)
+					cues += cue.source == "ftl:arrival";
+			require(cues == 1 && arrivals.inspect().size() == 3,
+			        "successful dynamic FTL reinforcement produces one arrival cue");
+			World recovered;
+			recovered.restore(arrival_catalog, arrivals.save());
+			recovered.tick();
+			for (const auto &body : recovered.scene())
+				for (const auto &cue : body.audio)
+					require(cue.source != "ftl:arrival", "initial and recovered ships do not replay arrival");
+		}
 		World w;
 		w.load(catalog, "test.map");
 		require(w.claim(101, 1, "drive") && w.claim(102, 2, "drive"), "two ships claimed");
@@ -262,6 +290,9 @@ int main(int argc, char **argv)
 		w.tick();
 		require(w.observe(101)->gameplay.at("mission_report").is_null(),
 		        "authoritative tick rechecks changed readiness");
+		for (const auto &body : w.scene())
+			for (const auto &cue : body.audio)
+				require(cue.source != "ftl:departure", "revalidated refused departure stays silent");
 		const auto charged = battery(w).at("energy").get<std::int64_t>();
 		ticks(w, 100);
 		require(battery(w).at("energy").get<std::int64_t>() < charged && battery(w).at("power_draw") == 0,
@@ -286,12 +317,24 @@ int main(int argc, char **argv)
 		const auto report = w.observe(101)->gameplay.at("mission_report");
 		require(report.at("reason") == "ftl" && w.inspect().size() == 1 && !w.submit(101, departure),
 		        "one departure retires ship and closes gameplay commands");
+		unsigned departure_cues = 0;
+		for (const auto &body : w.scene())
+			if (body.id == 1)
+			{
+				require(body.audio_only && !body.audio_alive, "departed source has audio but no visible hull or loops");
+				for (const auto &cue : body.audio)
+					departure_cues += cue.source == "ftl:departure";
+			}
+		require(departure_cues == 1, "duplicate departure inputs produce one committed sound");
 		require(!w.observe(101)->additional_consoles.empty() && navigator(w).gameplay.at("mission_report") == report,
 		        "all crew consoles receive same report");
 		const auto wire = network::observation_json(*w.observe(101));
 		require(network::read_observation(wire, catalog).gameplay.at("mission_report") == report,
 		        "report survives network projection");
 		resumed.restore(catalog, w.save());
+		for (const auto &body : resumed.scene())
+			for (const auto &cue : body.audio)
+				require(cue.source != "ftl:departure", "recovery does not replay departure");
 		ticks(w, 40);
 		ticks(resumed, 40);
 		require(w.save() == resumed.save() && w.observe(102)->gameplay.at("mission_report").is_null(),

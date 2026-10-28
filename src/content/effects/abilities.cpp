@@ -12,6 +12,7 @@ module;
 #include <nlohmann/json.hpp>
 module phoenix.content.effects;
 import phoenix.content.catalog;
+import phoenix.content.assets;
 import phoenix.content.combat;
 import phoenix.content.combat.types;
 import phoenix.content.controllers;
@@ -98,6 +99,7 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	                "preparation_energy_per_second",
 	                "start_effect",
 	                "activation_effect",
+	                "activation_audio",
 	                "psychic_effect",
 	                "exclusions",
 	                "apparatus_recovery_key",
@@ -111,6 +113,9 @@ AbilityDefinition compile_ability_definition(const Catalog &catalog, const std::
 	               path);
 	AbilityDefinition result;
 	result.id = id;
+	if (value.contains("activation_audio"))
+		result.activation_audio =
+		    compile_audio_clip(catalog, value.at("activation_audio"), path + ".activation_audio", false);
 	result.label = value.value("label", std::string{});
 	if (result.label.empty() || result.label.size() > 128)
 		ability_fail(path + ".label", "expected 1..128 characters");
