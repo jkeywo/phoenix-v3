@@ -58,137 +58,20 @@ void process_controller_coordination(EntityId id, std::size_t index)
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
 	const ControllerAddress address{id, controller.definition.console, controller.definition.id};
-	const auto schema = knowledge.definition().schema("phoenix.coordination");
 	const auto inbox = decision_frame.inboxes().contains(address) ? decision_frame.inboxes().at(address)
 	                                                              : knowledge.peek_controller(address);
-	std::set<KnowledgeId> pending_protocol;
-	for (const auto &delivery : inbox)
-		if (delivery.message.value.payload.schema == schema)
-			pending_protocol.insert(delivery.message.id);
-	std::erase_if(controller.coordination_receipts,
-	              [&](const auto message)
-	              {
-		              return !pending_protocol.contains(message);
-	              });
-	bool protocol_prefix = true;
-	for (const auto &delivery : inbox)
-	{
-		const auto &m = delivery.message;
-		if (m.value.payload.schema != schema)
-		{
-			protocol_prefix = false;
-			continue;
-		}
-		if (controller.coordination_receipts.contains(m.id))
-		{
-			if (protocol_prefix)
-			{
-				knowledge.acknowledge_controller(address, m.id);
-				controller.coordination_receipts.erase(m.id);
-			}
-			continue;
-		}
-		const auto &fields = m.value.payload.fields;
-		const auto value = [&](const char *name) -> const KnowledgeValue &
-		{
-			return fields.at(knowledge.definition().field(schema, name));
-		};
-		try
-		{
-			OfficerRequest r;
-			r.operation = static_cast<OfficerOperation>(
-			    officer_index(officer_operations, std::get<std::string>(value("operation"))));
-			r.status =
-			    static_cast<OfficerStatus>(officer_index(officer_statuses, std::get<std::string>(value("status"))));
-			r.peer = m.value.sender_system;
-			r.id = m.id;
-			r.target = std::get<std::int64_t>(value("target"));
-			r.amount = std::get<std::int64_t>(value("amount"));
-			r.requested_amount = r.amount;
-			r.reply_tick = ecs.get<Clock>().tick;
-			r.priority = std::get<std::int64_t>(value("priority"));
-			r.expires = std::get<std::int64_t>(value("expires"));
-			r.reason = std::get<std::string>(value("reason"));
-			const auto correlation = std::get<std::int64_t>(value("request"));
-			if (!r.expires)
-				r.expires = m.value.expires_tick;
-			if (r.priority < 0 || r.priority > 2 || r.amount < 0 || r.amount > 1000000000 ||
-			    r.expires <= ecs.get<Clock>().tick || r.expires > ecs.get<Clock>().tick + 72000 ||
-			    m.value.payload.subject != id ||
-			    std::none_of(entities.at(id).get<EntityControls>().controllers.begin(),
-			                 entities.at(id).get<EntityControls>().controllers.end(),
-			                 [&](const auto &owner)
-			                 {
-				                 return knowledge.controller_id({id, owner.definition.console, owner.definition.id}) ==
-				                        r.peer;
-			                 }))
-				throw std::runtime_error("Invalid or expired request");
-			if (correlation == 0 && r.status == OfficerStatus::Requested)
-			{
-				if (std::none_of(controller.incoming_requests.begin(), controller.incoming_requests.end(),
-				                 [&](const auto &v)
-				                 {
-					                 return v.id == r.id;
-				                 }) &&
-				    controller.incoming_requests.size() < 128)
-				{
-					if (!officer_supports(controller, r.operation))
-					{
-						r.status = OfficerStatus::Refused;
-						r.reason = "unsupported_operation";
-						officer_message(id, controller, r, true);
-					}
-					controller.incoming_requests.push_back(r);
-				}
-			}
-			else
-			{
-				auto &requests =
-				    r.status == OfficerStatus::Cancelled ? controller.incoming_requests : controller.outgoing_requests;
-				for (auto &original : requests)
-					if (original.id == static_cast<KnowledgeId>(correlation) && original.peer == r.peer &&
-					    original.operation == r.operation && original.target == r.target &&
-					    (original.status == OfficerStatus::Requested || original.status == OfficerStatus::Accepted ||
-					     original.status == OfficerStatus::Completed))
-					{
-						original.status = r.status;
-						if (!(m.value.origin == ControlOrigin::Human && r.status == OfficerStatus::Accepted &&
-						      r.reason == "accept_requested_limit"))
-							original.amount = r.amount;
-						original.reason = r.reason;
-						original.reply_tick = ecs.get<Clock>().tick;
-					}
-			}
-		}
-		catch (const std::exception &)
-		{ /* Malformed protocol data is not a command. */
-		}
-		if (protocol_prefix)
-			knowledge.acknowledge_controller(address, m.id);
-		else
-		{
-			if (controller.coordination_receipts.size() >= 65536)
-				throw std::runtime_error("Unbounded officer protocol receipts");
-			controller.coordination_receipts.insert(m.id);
-		}
-	}
-	for (auto *list : {&controller.incoming_requests, &controller.outgoing_requests})
-	{
-		for (auto &r : *list)
-			if (r.expires <= ecs.get<Clock>().tick &&
-			    (r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
-			     (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)))
-			{
-				r.status = OfficerStatus::Failed;
-				r.reason = "expired";
-				r.reply_tick = ecs.get<Clock>().tick;
-			}
-		std::erase_if(*list,
-		              [&](const auto &r)
-		              {
-			              return std::max(r.expires + 20, r.reply_tick + r.retry_ticks) < ecs.get<Clock>().tick;
-		              });
-	}
+	std::vector<KnowledgeId> peers;
+	for (const auto &owner : entities.at(id).get<EntityControls>().controllers)
+		peers.push_back(knowledge.controller_id({id, owner.definition.console, owner.definition.id}));
+	const OfficerProtocolPorts ports{[this, address](KnowledgeId message)
+	                                 {
+		                                 knowledge.acknowledge_controller(address, message);
+	                                 },
+	                                 [this, id, &controller](const OfficerRequest &request)
+	                                 {
+		                                 officer_message(id, controller, request, true);
+	                                 }};
+	process_officer_protocol(id, ecs.get<Clock>().tick, controller, inbox, knowledge.definition(), peers, ports);
 	if (controller.action.id == "officer_support" && controller.action.status == "running")
 	{
 		const auto *next = officer_pending(controller);
@@ -212,273 +95,60 @@ void process_controller_coordination(EntityId id, std::size_t index)
 void controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
                                    std::vector<state_tree::Value> &values) const
 {
-	const auto at = controller.brain->coordination_base;
-	const auto *r = officer_pending(controller);
-	values.at(at) = state_tree::Value::boolean(r != nullptr);
-	for (std::size_t i = 10; i <= 12; ++i)
-		values.at(at + i) = state_tree::Value::boolean(false);
-	for (std::size_t i = 13; i <= 15; ++i)
-		values.at(at + i) = state_tree::Value::integer(0);
-	for (std::size_t i = 0; i < 4; ++i)
+	ControllerCoordinationInputs inputs;
+	const auto *request = officer_pending(controller);
+	if (request)
 	{
-		values.at(at + 16 + i * 2) = state_tree::Value::string("none");
-		values.at(at + 17 + i * 2) = state_tree::Value::integer(0);
-		for (const auto &reply : controller.outgoing_requests)
-			if (static_cast<std::size_t>(reply.operation) == i)
-			{
-				values.at(at + 16 + i * 2) =
-				    state_tree::Value::string(officer_statuses.at(static_cast<std::size_t>(reply.status)));
-				values.at(at + 17 + i * 2) = state_tree::Value::integer(reply.amount);
-			}
-	}
-	if (!r)
-		return;
-	values.at(at + 1) = state_tree::Value::string(officer_operations.at(static_cast<std::size_t>(r->operation)));
-	values.at(at + 2) = state_tree::Value::string(officer_statuses.at(static_cast<std::size_t>(r->status)));
-	values.at(at + 3) = state_tree::Value::string(r->reason);
-	values.at(at + 4) = state_tree::Value::string("request/" + std::to_string(r->id));
-	const std::array<std::int64_t, 5> numbers{static_cast<std::int64_t>(r->id), r->target, r->amount, r->priority,
-	                                          static_cast<std::int64_t>(r->expires)};
-	for (std::size_t i = 0; i < numbers.size(); ++i)
-		values.at(at + 5 + i) = state_tree::Value::integer(numbers[i]);
-	bool feasible = false, done = false, blocked = false;
-	std::int64_t limit = r->requested_amount, bearing = observed.own.heading, range = 0;
-	if (r->operation == OfficerOperation::Power || r->operation == OfficerOperation::Cooling)
-		for (const auto &read : controller.brain->command_reads)
-			if (controller.brain->program.registry.observations.at(read.destination).name == "summary.level" &&
-			    values.at(read.destination).type == state_tree::Type::Integer)
-				limit = std::min(limit, values.at(read.destination).number);
-	const auto &entity = entities.at(observed.own.id);
-	const bool supply = r->operation == OfficerOperation::Power || r->operation == OfficerOperation::Cooling;
-	std::int64_t supply_minimum = 0, supply_maximum = 1000000000;
-	if (supply)
-	{
-		done = true;
-		for (const auto &command : controller.definition.commands)
-			if ((r->operation == OfficerOperation::Power && command.action == OperatingAction::GeneratorOutput) ||
-			    (r->operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation))
-			{
-				supply_minimum = std::max(supply_minimum, command.minimum);
-				supply_maximum = std::min(supply_maximum, command.maximum);
-			}
-		if (supply_minimum <= supply_maximum)
-			limit = std::clamp(limit, supply_minimum, supply_maximum);
-	}
-	for (const auto &command : controller.definition.commands)
-	{
-		const bool supports =
-		    (r->operation == OfficerOperation::Power && command.action == OperatingAction::GeneratorOutput) ||
-		    (r->operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation);
-		if (supports)
+		const auto entity = entities.at(observed.own.id);
+		for (const auto &system : fittings(entity)->values)
+			inputs.systems.push_back(system.id);
+		if (request->operation == OfficerOperation::Manoeuvre &&
+		    std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),
+		                [](const auto &command)
+		                {
+			                return command.action == OperatingAction::FollowContact ||
+			                       command.action == OperatingAction::Heading ||
+			                       command.action == OperatingAction::Speed;
+		                }) &&
+		    std::any_of(observed.contacts.begin(), observed.contacts.end(),
+		                [&](const auto &contact)
+		                {
+			                return contact.id == request->target && contact.disposition == "hostile";
+		                }))
 		{
-			for (const auto consumer : command.consumers)
-			{
-				bool seen = false;
-				for (const auto &system : observed.systems)
-					if (system.id == (*fittings(entity)).values[consumer].id)
-					{
-						const auto &t = system.telemetry;
-						seen = true;
-						feasible = true;
-						blocked = blocked || (t.contains("enabled") && !t.at("enabled")) ||
-						          (t.contains("thermal_stopped") && t.at("thermal_stopped"));
-						const auto field =
-						    r->operation == OfficerOperation::Power ? "actual_output" : "actual_coolant_used";
-						done = done && t.contains(field) &&
-						       (r->operation == OfficerOperation::Power ? t.at(field) == limit : t.at(field) >= limit);
-					}
-				if (!seen)
-				{
-					blocked = true;
-					done = false;
-				}
-			}
+			const auto &bridge = entity.get<BridgeBlackboard>();
+			inputs.navigation_blocked = bridge.navigation.blocked;
+			if (bridge.stances.contains(controller.definition.console))
+				inputs.hold = definition(observed.own.id)
+				                  .console_bridge.at(controller.definition.console)
+				                  .stances.at(bridge.stances.at(controller.definition.console))
+				                  .id == "hold";
 		}
-		if (r->operation == OfficerOperation::Manoeuvre &&
-		    (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Heading ||
-		     command.action == OperatingAction::Speed))
-			for (const auto &contact : observed.contacts)
-				if (contact.id == r->target && contact.disposition == "hostile")
-				{
-					feasible = true;
-					range = fixed::length({contact.x - observed.own.x, contact.y - observed.own.y});
-					bearing = combat_bearing({contact.x - observed.own.x, contact.y - observed.own.y});
-					done = range <= r->amount;
-					const auto &bridge = entity.get<BridgeBlackboard>();
-					blocked = blocked || bridge.navigation.blocked;
-					if (bridge.stances.contains(controller.definition.console))
-						blocked = blocked || definition(observed.own.id)
-						                             .console_bridge.at(controller.definition.console)
-						                             .stances.at(bridge.stances.at(controller.definition.console))
-						                             .id == "hold";
-				}
-		if (r->operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment)
-			for (const auto &compartment : combat_observation(observed).at("compartments"))
-				if (compartment.at("index") == r->target)
-				{
-					feasible = true;
-					done = compartment.at("hp") >= compartment.at("maximum");
-				}
 	}
-	if (r->operation == OfficerOperation::Repair || r->operation == OfficerOperation::Manoeuvre)
-		for (const auto &command : controller.definition.commands)
-			if ((r->operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment) ||
-			    (r->operation == OfficerOperation::Manoeuvre &&
-			     (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Speed ||
-			      command.action == OperatingAction::Heading)))
-				for (const auto consumer : command.consumers)
-					for (const auto &system : observed.systems)
-						if (system.id == (*fittings(entity)).values[consumer].id &&
-						    system.telemetry.contains("enabled") && !system.telemetry.at("enabled"))
-							blocked = true;
-	if (r->operation == OfficerOperation::Repair)
-		for (const auto &fault : combat_observation(observed).at("faults"))
-			if (fault.value("compartment_index", std::int64_t{0}) == r->target)
-			{
-				done = false;
-				if (fault.value("destroyed", false))
-					blocked = true;
-			}
-	const auto &stance = values.at(controller.brain->own[ControllerOwnField::Stance]);
-	if (supply && (supply_minimum > supply_maximum || r->requested_amount < supply_minimum))
-	{
-		feasible = false;
-		blocked = true;
-		done = false;
-	}
-	if (stance.type == state_tree::Type::Text && !stance.text.empty() &&
-	    stance.text != controller.brain->routine_stance)
-		blocked = true;
-	if (r->operation == OfficerOperation::Manoeuvre)
-		for (std::size_t i = 0; i < controller.brain->program.registry.observations.size(); ++i)
-			if (controller.brain->program.registry.observations[i].name == "objective.status" &&
-			    values[i].type == state_tree::Type::Text && values[i].text == "active")
-				blocked = true;
-	values.at(at + 10) = state_tree::Value::boolean(feasible);
-	values.at(at + 11) = state_tree::Value::boolean(done);
-	values.at(at + 12) = state_tree::Value::boolean(blocked);
-	values.at(at + 13) = state_tree::Value::integer(bearing);
-	values.at(at + 14) = state_tree::Value::integer(range);
-	values.at(at + 15) = state_tree::Value::integer(limit);
+	phoenix::controller_coordination_facts(controller, observed, ecs.get<Clock>().tick, inputs, values);
 }
+
 bool controller_coordination_action(EntityId id, std::size_t index, const std::string &name,
                                     std::span<const state_tree::Value> args)
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	if (name == "coordination.request" || name == "coordination.maintain")
-	{
-		const bool maintain = name == "coordination.maintain";
-		OfficerRequest r;
-		r.operation = static_cast<OfficerOperation>(officer_index(officer_operations, args[0].text));
-		r.peer = knowledge.controller_id({id, args[1].text, args[2].text});
-		r.target = args[3].number;
-		r.amount = args[4].number;
-		r.requested_amount = r.amount;
-		r.reply_tick = ecs.get<Clock>().tick;
-		r.retry_ticks = maintain ? args[7].number : 0;
-		r.priority = args[5].number;
-		if (r.amount < 0 || r.amount > 1000000000 || r.priority < 0 || r.priority > 2 || args[6].number < 1 ||
-		    args[6].number > 72000 || (maintain && (args[7].number < 1 || args[7].number > 72000)))
-			return false;
-		if (r.operation == OfficerOperation::Manoeuvre || r.operation == OfficerOperation::Repair)
-		{
-			const ConsoleAddress address{id, controller.definition.console};
-			const auto fallback = decision_frame.observations().contains(address)
-			                          ? std::optional<Observation>{}
-			                          : capture_decision_observation(address);
-			const auto &observed = fallback ? *fallback : decision_frame.observations().at(address);
-			bool permitted = false;
-			if (r.operation == OfficerOperation::Manoeuvre)
-				permitted = std::any_of(observed.contacts.begin(), observed.contacts.end(),
-				                        [&](const auto &contact)
-				                        {
-					                        return contact.id == r.target && contact.disposition == "hostile";
-				                        });
-			else
-				for (const auto &compartment : combat_observation(observed).at("compartments"))
-					if (compartment.at("index") == r.target && compartment.at("hp") < compartment.at("maximum"))
-						permitted = true;
-			if (r.operation == OfficerOperation::Repair)
-				for (const auto &fault : combat_observation(observed).at("faults"))
-					if (fault.value("compartment_index", std::int64_t{0}) == r.target &&
-					    !fault.value("destroyed", false))
-						permitted = true;
-			if (!permitted)
-				return false;
-		}
-		r.expires = ecs.get<Clock>().tick + args[6].number;
-		bool replaced = false;
-		for (auto &old : controller.outgoing_requests)
-			if (old.peer == r.peer && old.operation == r.operation)
-			{
-				const bool same =
-				    old.target == r.target && old.requested_amount == r.requested_amount && old.priority == r.priority;
-				const bool active =
-				    old.expires > ecs.get<Clock>().tick &&
-				    (old.status == OfficerStatus::Requested || old.status == OfficerStatus::Accepted ||
-				     (old.status == OfficerStatus::Completed && old.operation != OfficerOperation::Repair));
-				if (same && active)
-					return true;
-				if (active)
-				{
-					replaced = true;
-					old.status = OfficerStatus::Cancelled;
-					old.reason = "request_replaced";
-					old.reply_tick = ecs.get<Clock>().tick;
-					officer_message(id, controller, old, true);
-				}
-			}
-		if (maintain && !replaced)
-			for (auto old = controller.outgoing_requests.rbegin(); old != controller.outgoing_requests.rend(); ++old)
-				if (old->peer == r.peer && old->operation == r.operation)
-				{
-					if (old->target == r.target && old->requested_amount == r.requested_amount &&
-					    old->priority == r.priority && ecs.get<Clock>().tick < old->reply_tick + args[7].number)
-						return true;
-					break;
-				}
-		if (controller.outgoing_requests.size() >= 128)
-			return false;
-		r.id = officer_message(id, controller, r, false);
-		controller.outgoing_requests.push_back(r);
-		return true;
-	}
-	if (name == "coordination.withdraw" || name == "coordination.withdraw_from")
-	{
-		const auto op = static_cast<OfficerOperation>(officer_index(officer_operations, args[0].text));
-		const auto peer =
-		    name == "coordination.withdraw_from" ? knowledge.controller_id({id, args[1].text, args[2].text}) : 0;
-		for (auto &r : controller.outgoing_requests)
-			if (r.operation == op && (!peer || r.peer == peer) &&
-			    (r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
-			     (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)))
-			{
-				r.status = OfficerStatus::Cancelled;
-				r.reason = "no_longer_required";
-				r.reply_tick = ecs.get<Clock>().tick;
-				officer_message(id, controller, r, true);
-			}
-		return true;
-	}
-	const auto *pending = officer_pending(controller);
-	if (!pending)
-		return false;
-	const auto request_id = pending->id;
-	const auto status = static_cast<OfficerStatus>(officer_index(officer_statuses, args[0].text));
-	if (status == OfficerStatus::Requested || status == OfficerStatus::Cancelled || args[1].number < 0 ||
-	    args[1].number > 1000000000)
-		return false;
-	for (auto &r : controller.incoming_requests)
-		if (r.id == request_id)
-		{
-			if (r.status == status && r.amount == args[1].number && r.reason == args[2].text)
-				return true;
-			r.status = status;
-			r.amount = args[1].number;
-			r.reason = args[2].text;
-			r.reply_tick = ecs.get<Clock>().tick;
-			officer_message(id, controller, r, true);
-			return true;
-		}
-	return false;
+	const ConsoleAddress address{id, controller.definition.console};
+	std::optional<Observation> fallback;
+	const OfficerActionPorts ports{[this, id](const std::string &console, const std::string &owner)
+	                               {
+		                               return knowledge.controller_id({id, console, owner});
+	                               },
+	                               [this, address, &fallback]() -> const Observation &
+	                               {
+		                               if (decision_frame.observations().contains(address))
+			                               return decision_frame.observations().at(address);
+		                               if (!fallback)
+			                               fallback = capture_decision_observation(address);
+		                               return *fallback;
+	                               },
+	                               [this, id, &controller](const OfficerRequest &request, bool reply)
+	                               {
+		                               return officer_message(id, controller, request, reply);
+	                               }};
+	return phoenix::officer_coordination_action(controller, ecs.get<Clock>().tick, name, args, ports);
 }

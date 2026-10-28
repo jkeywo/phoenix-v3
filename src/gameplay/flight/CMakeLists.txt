@@ -8,3 +8,7 @@ target_link_libraries(
 	PRIVATE phoenix_resources_stocks_definitions
 )
 set_property(TARGET phoenix_gameplay_flight PROPERTY CXX_SCAN_FOR_MODULES ON)
+
+add_library(phoenix_gameplay_flight_work STATIC process_work.cpp)
+target_sources(phoenix_gameplay_flight_work PUBLIC FILE_SET CXX_MODULES FILES process_work.cppm)
+target_link_libraries(phoenix_gameplay_flight_work PUBLIC phoenix_gameplay_flight phoenix_resources_equipment)

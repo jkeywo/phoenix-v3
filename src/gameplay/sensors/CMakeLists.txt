@@ -24,3 +24,55 @@ target_link_libraries(
 	phoenix_gameplay_sensor_acquisition
 	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
 )
+
+add_library(phoenix_gameplay_sensor_findings STATIC findings.cpp)
+target_sources(phoenix_gameplay_sensor_findings PUBLIC FILE_SET CXX_MODULES FILES findings.cppm)
+target_link_libraries(
+	phoenix_gameplay_sensor_findings
+	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
+)
+
+add_library(phoenix_gameplay_sensor_validation STATIC validation.cpp)
+target_sources(phoenix_gameplay_sensor_validation PUBLIC FILE_SET CXX_MODULES FILES validation.cppm)
+target_link_libraries(
+	phoenix_gameplay_sensor_validation
+	PUBLIC
+		phoenix_gameplay_sensors_state
+		phoenix_content_sensing_types
+		phoenix_content_combat_types
+		phoenix_gameplay_psychic_state
+	PRIVATE phoenix_gameplay_sensor_findings phoenix_knowledge_read_models
+)
+
+add_library(phoenix_gameplay_sensor_projection STATIC projection.cpp)
+target_sources(phoenix_gameplay_sensor_projection PUBLIC FILE_SET CXX_MODULES FILES projection.cppm)
+target_link_libraries(
+	phoenix_gameplay_sensor_projection
+	PUBLIC phoenix_gameplay_sensors_state phoenix_content_sensing_types
+	PRIVATE phoenix_knowledge_read_models
+)
+
+foreach(
+	target
+	IN
+	ITEMS phoenix_gameplay_sensor_findings phoenix_gameplay_sensor_validation phoenix_gameplay_sensor_projection
+)
+	set_property(TARGET ${target} PROPERTY CXX_SCAN_FOR_MODULES ON)
+	set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES ${target})
+endforeach()
+set_property(
+	TARGET phoenix_gameplay_sensor_findings
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_sensors_state;phoenix_content_sensing_types"
+)
+set_property(
+	TARGET phoenix_gameplay_sensor_validation
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_gameplay_sensors_state;phoenix_content_sensing_types;phoenix_content_combat_types;phoenix_gameplay_psychic_state;phoenix_gameplay_sensor_findings;phoenix_knowledge_read_models"
+)
+set_property(
+	TARGET phoenix_gameplay_sensor_projection
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_gameplay_sensors_state;phoenix_content_sensing_types;phoenix_knowledge_read_models"
+)

@@ -146,10 +146,11 @@ std::int64_t effective_property(flecs::entity ship, const std::string &equipment
 bool modifier_away_target_available(flecs::entity ship, const std::string &equipment) const
 {
 	const auto id = ship.get<StableId>().id;
-	for (std::size_t mission = 0; mission < away_missions.size(); ++mission)
-		if (away_ship(away_definitions[mission]) == id && away_missions[mission].deployed())
-			for (const auto &[slot, asset] : away_missions[mission].assignments)
-				if (asset.starts_with("officer:") && equipment == "away:" + away_definitions[mission].id + ":" + asset)
+	for (std::size_t mission = 0; mission < away_operations.missions().size(); ++mission)
+		if (away_ship(away_operations.definitions()[mission]) == id && away_operations.missions()[mission].deployed())
+			for (const auto &[slot, asset] : away_operations.missions()[mission].assignments)
+				if (asset.starts_with("officer:") &&
+				    equipment == "away:" + away_operations.definitions()[mission].id + ":" + asset)
 					return true;
 	return false;
 }

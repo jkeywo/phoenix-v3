@@ -1,14 +1,5 @@
 // Included inside World::Impl after rule_funding.hpp. Late native jobs use the
 // same prepared transactions and fractional input credits as continuous work.
-struct FiniteNativeWork
-{
-	CustomPropertyAddress owner;
-	ProcessState frozen;
-	std::int64_t work = 0;
-	PreparedEffectGroup prepared;
-	std::vector<RuleUpkeepPlan> payments;
-	bool paid = false;
-};
 NativeProcessView finite_native_driver(EntityId entity, std::string_view kind, const std::string &native,
                                        const RuleActor *target = nullptr) const
 {
@@ -166,17 +157,8 @@ std::optional<FiniteNativeWork> prepare_finite_native_work(EntityId entity, std:
 			const auto plan_for = [&](std::span<const EffectCostDefinition> costs, std::int64_t multiplier,
 			                          std::int64_t denominator, const std::vector<RuleWorkCredit> &credits, bool work)
 			{
-				RuleUpkeepPlan plan;
-				plan.context = process_context(quote.owner, quote.frozen);
-				plan.costs.assign(costs.begin(), costs.end());
-				for (auto &cost : plan.costs)
-					cost.amount = process_cost_product(cost.amount, multiplier);
-				plan.unit_work = denominator;
-				plan.credits = credits;
-				plan.process_owner = quote.owner;
-				plan.process = quote.frozen.id;
-				plan.process_work = work;
-				return plan;
+				return finite_work_plan(quote.owner, quote.frozen, process_context(quote.owner, quote.frozen), costs,
+				                        multiplier, denominator, credits, work);
 			};
 			// Late native demand pays upkeep once for each contributing run in this frame.
 			if (quote.frozen.actual_work == 0)
@@ -243,14 +225,9 @@ bool commit_finite_native_payment(FiniteNativeWork &quote)
 		return false;
 	}
 	auto *state = process_state(quote.owner, quote.frozen.id);
-	if (state && state->generation == quote.frozen.generation && state->run == quote.frozen.run && state->admitted &&
-	    state->requested)
+	if (state && apply_finite_work_credits(quote, *state))
 	{
-		for (const auto &plan : quote.payments)
-		{
-			auto &credits = plan.process_work ? state->work_credits : state->idle_credits;
-			apply_rule_work_credits(credits, plan);
-		}
+
 		(void)stage_process_funding_state(quote.owner, *state, 1000, 1000);
 		state->work_remainder = process_next_work_remainder(quote.owner, quote.frozen, quote.work);
 	}
@@ -260,44 +237,12 @@ bool commit_finite_native_payment(FiniteNativeWork &quote)
 void commit_finite_native_work(const FiniteNativeWork &quote, std::int64_t actual, std::int64_t progress,
                                std::int64_t required, bool completed)
 {
-	if (!quote.paid || actual < 0 || actual > quote.work)
-		throw std::runtime_error("Invalid committed finite native work");
-	auto *state = process_state(quote.owner, quote.frozen.id);
-	const bool active = state && state->generation == quote.frozen.generation && state->run == quote.frozen.run &&
-	                    state->admitted && state->requested;
-	if (active)
-	{
-		state->progress = std::clamp(progress, std::int64_t{0}, std::max(required, progress));
-		state->required_work = required;
-		state->ready = completed;
-		state->work_output = actual ? 1000 : 0;
-		state->actual_work += actual;
-		state->last_work = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	}
-	// Native work and payment already committed atomically. Its frozen receipt
-	// survives removal of the granting process by that same work effect.
+	validate_finite_work_commit(quote, actual);
 	auto *runtime = process_runtime(quote.owner);
 	if (!runtime)
 		return;
-	const auto &definition = process_definition(quote.frozen);
-	if (actual)
-	{
-		auto receipt = std::find_if(runtime->work.begin(), runtime->work.end(),
-		                            [&](const auto &entry)
-		                            {
-			                            return entry.execution == quote.frozen.id &&
-			                                   entry.generation == quote.frozen.generation &&
-			                                   entry.activation == quote.frozen.run;
-		                            });
-		if (receipt == runtime->work.end())
-			runtime->work.push_back({process_owner_kind(quote.owner), process_owner_name(quote.owner),
-			                         definition.family, definition.id, quote.frozen.run, 1000, quote.frozen.id, actual,
-			                         definition.work_unit, quote.frozen.generation});
-		else
-			receipt->work += actual;
-	}
-	runtime->work_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	if (completed && active)
+	if (record_finite_process_work(quote, runtime, process_definition(quote.frozen), actual, progress, required,
+	                               completed, static_cast<std::int64_t>(ecs.get<Clock>().tick)))
 		commit_finite_process_completion(quote.owner, quote.frozen.id, quote.frozen.target);
 }
 

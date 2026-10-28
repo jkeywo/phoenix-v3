@@ -10,3 +10,5 @@ target_link_libraries(phoenix_effects_rule_state PUBLIC phoenix_effects_contract
 add_library(phoenix_effects_bindings STATIC bindings.cpp)
 target_sources(phoenix_effects_bindings PUBLIC FILE_SET CXX_MODULES FILES bindings.cppm)
 target_link_libraries(phoenix_effects_bindings PUBLIC phoenix_effects_contracts phoenix_effects_rules)
+
+target_sources(phoenix_effects_bindings PRIVATE captures.cpp)

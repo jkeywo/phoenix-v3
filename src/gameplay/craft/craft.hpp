@@ -232,15 +232,15 @@ void craft_return(flecs::entity e)
 void complete_craft_recovery(EntityId craft)
 {
 	auto &s = entities.at(craft).get_mut<CraftState>();
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		auto &m = away_missions[i];
-		if (away_definitions[i].id != s.mission || away_ship(away_definitions[i]) != s.home || !m.aboard_craft ||
-		    m.transport != "craft:" + std::to_string(craft) || m.supply_job)
+		auto &m = away_operations.missions()[i];
+		if (away_operations.definitions()[i].id != s.mission || away_ship(away_operations.definitions()[i]) != s.home ||
+		    !m.aboard_craft || m.transport != "craft:" + std::to_string(craft) || m.supply_job)
 			continue;
 		finish_away_recovery(s.home, m);
 	}
-	for (auto &mission : away_missions)
+	for (auto &mission : away_operations.missions())
 		if (std::erase_if(mission.escorts,
 		                  [&](const auto &slot)
 		                  {
@@ -255,7 +255,7 @@ void request_craft_pickup(EntityId craft)
 	auto &s = e.get_mut<CraftState>();
 	if (torpedo_launched(e))
 		return;
-	for (auto &m : away_missions)
+	for (auto &m : away_operations.missions())
 		for (auto at = m.escorts.begin(); at != m.escorts.end(); ++at)
 			if (at->second == craft)
 			{
@@ -265,10 +265,10 @@ void request_craft_pickup(EntityId craft)
 				craft_return(e);
 				return;
 			}
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		auto &m = away_missions[i];
-		const auto &d = away_definitions[i];
+		auto &m = away_operations.missions()[i];
+		const auto &d = away_operations.definitions()[i];
 		if (away_ship(d) != s.home || m.transport != "craft:" + std::to_string(craft) ||
 		    (!s.mission.empty() && s.mission != d.id) ||
 		    (m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Deployed && m.phase != AwayPhase::Inbound))
@@ -306,8 +306,8 @@ void request_craft_pickup(EntityId craft)
 }
 void advance_craft_transport(std::size_t index, EntityId craft)
 {
-	auto &m = away_missions[index];
-	const auto &d = away_definitions[index];
+	auto &m = away_operations.missions()[index];
+	const auto &d = away_operations.definitions()[index];
 	auto e = entities.at(craft);
 	auto &s = e.get_mut<CraftState>();
 	if ((m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Inbound) || s.mission != d.id ||
@@ -508,10 +508,10 @@ void prepare_craft()
 			}
 	}
 	// Released transports compete for actual free craft when departure preparation begins.
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		auto &m = away_missions[i];
-		const auto &d = away_definitions[i];
+		auto &m = away_operations.missions()[i];
+		const auto &d = away_operations.definitions()[i];
 		const auto ship = away_ship(d);
 		if (!ship || !ftl_recall_started(ship) || !m.deployed() || !m.transport.starts_with("craft:") ||
 		    !m.transport_released)
@@ -1050,11 +1050,12 @@ void restore_craft(const Json &saved)
 		       (s.pending_order != "return" || (s.phase != CraftPhase::Docked && s.phase != CraftPhase::Launching) ||
 		        s.pending_target)))))
 			throw std::runtime_error("Invalid saved torpedo continuation");
-		if (!s.mission.empty() && std::none_of(away_definitions.begin(), away_definitions.end(),
-		                                       [&](const auto &d)
-		                                       {
-			                                       return d.id == s.mission && away_ship(d) == s.home;
-		                                       }))
+		if (!s.mission.empty() &&
+		    std::none_of(away_operations.definitions().begin(), away_operations.definitions().end(),
+		                 [&](const auto &d)
+		                 {
+			                 return d.id == s.mission && away_ship(d) == s.home;
+		                 }))
 			throw std::runtime_error("Invalid saved craft commitment");
 		e.set<CraftState>(s).set<VerticalMotion>(v);
 		e.get_mut<Pose>().altitude = v.altitude;
@@ -1084,10 +1085,10 @@ void restore_craft(const Json &saved)
 void validate_craft_transports() const
 {
 	std::set<EntityId> reserved;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &m = away_missions[i];
-		const auto &d = away_definitions[i];
+		const auto &m = away_operations.missions()[i];
+		const auto &d = away_operations.definitions()[i];
 		const auto home = away_ship(d);
 		const auto id = home ? away_transport_entity(home, m.transport) : 0;
 		if (m.aboard_craft &&
@@ -1121,10 +1122,11 @@ void validate_craft_transports() const
 		if (state.mission.empty())
 			continue;
 		bool committed = false;
-		for (std::size_t i = 0; i < away_missions.size(); ++i)
+		for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 		{
-			const auto &mission = away_missions[i];
-			committed |= away_definitions[i].id == state.mission && away_ship(away_definitions[i]) == state.home &&
+			const auto &mission = away_operations.missions()[i];
+			committed |= away_operations.definitions()[i].id == state.mission &&
+			             away_ship(away_operations.definitions()[i]) == state.home &&
 			             (mission.transport == "craft:" + std::to_string(id) ||
 			              std::any_of(mission.escorts.begin(), mission.escorts.end(),
 			                          [&](const auto &s)

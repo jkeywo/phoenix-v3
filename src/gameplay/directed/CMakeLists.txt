@@ -1,0 +1,9 @@
+add_library(phoenix_gameplay_directed STATIC directed.cpp)
+target_sources(phoenix_gameplay_directed PUBLIC FILE_SET CXX_MODULES FILES directed.cppm)
+target_link_libraries(phoenix_gameplay_directed PUBLIC phoenix_gameplay_combat_state)
+set_target_properties(
+	phoenix_gameplay_directed
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+set_property(TARGET phoenix_gameplay_directed PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_combat_state")
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_directed)

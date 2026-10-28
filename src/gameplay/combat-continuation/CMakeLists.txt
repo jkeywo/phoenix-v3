@@ -1,0 +1,17 @@
+add_library(phoenix_gameplay_combat_continuation STATIC continuation.cpp)
+target_sources(phoenix_gameplay_combat_continuation PUBLIC FILE_SET CXX_MODULES FILES continuation.cppm)
+target_link_libraries(
+	phoenix_gameplay_combat_continuation
+	PUBLIC phoenix_gameplay_directed phoenix_gameplay_combat_shields
+	PRIVATE phoenix_behavior_state_tree
+)
+set_target_properties(
+	phoenix_gameplay_combat_continuation
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+set_property(
+	TARGET phoenix_gameplay_combat_continuation
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_directed;phoenix_gameplay_combat_shields;phoenix_behavior_state_tree"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_combat_continuation)

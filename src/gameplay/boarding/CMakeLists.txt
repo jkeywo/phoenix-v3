@@ -5,3 +5,15 @@ set_target_properties(
 	phoenix_gameplay_boarding_state
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+
+add_library(phoenix_gameplay_boarding_runtime STATIC runtime.cpp)
+target_sources(phoenix_gameplay_boarding_runtime PUBLIC FILE_SET CXX_MODULES FILES runtime.cppm)
+target_link_libraries(
+	phoenix_gameplay_boarding_runtime
+	PUBLIC phoenix_gameplay_boarding_state phoenix_gameplay_combat_state phoenix_gameplay_personnel_state
+	PRIVATE phoenix_gameplay_personnel_runtime phoenix_gameplay_team_routes
+)
+set_target_properties(
+	phoenix_gameplay_boarding_runtime
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

@@ -41,10 +41,6 @@ std::int64_t ability_upkeep_output(EntityId ship, const std::string &grant) cons
 	const auto at = rule_upkeep_plans.find(ability_upkeep_key(ship, grant));
 	return at == rule_upkeep_plans.end() || at->second.rejected ? 0 : at->second.payment.output;
 }
-std::string process_funding_key(const CustomPropertyAddress &address, const ProcessState &state, bool work) const
-{
-	return process_instance_key(address, state) + (work ? ":work" : ":idle");
-}
 void stage_process_costs(const CustomPropertyAddress &address, const ProcessState &state,
                          const ProcessDefinition &definition, bool work, std::int64_t actual_work, std::int64_t scale)
 {
@@ -486,22 +482,17 @@ void request_rule_upkeep()
 					}
 					inputs.back().unit_work = input.unit_work;
 				}
-			auto maximum = plan.maximum_output;
+			std::optional<std::int64_t> dependency_output;
 			if (!plan.depends_on.empty())
 			{
 				const auto dependency = rule_upkeep_plans.find(plan.depends_on);
-				maximum = std::min(maximum, dependency == rule_upkeep_plans.end() || dependency->second.rejected ? 0
-				                            : dependency->second.requested_output > 0 ? std::int64_t{1000}
-				                                                                      : std::int64_t{0});
+				if (dependency != rule_upkeep_plans.end() && !dependency->second.rejected)
+					dependency_output = dependency->second.requested_output;
 			}
-			const auto bound = quote_rule_work(inputs, true, maximum);
-			plan.requested_output = bound.output;
-			if (bound.shortage && plan.shortage != "proportional")
-			{
-				reject_rule_upkeep(plan, "Required upkeep stock unavailable");
-				plan.provisional_shortage = true;
+			const auto bound = quote_raw_upkeep(plan, inputs, dependency_output);
+			if (plan.provisional_shortage)
 				continue;
-			}
+
 			std::size_t raw_index = 0;
 			for (const auto &input : plan.inputs)
 				if (input.electrical == no_resource)
@@ -523,9 +514,7 @@ void request_rule_upkeep()
 			for (const auto &input : plan.inputs)
 				if (input.electrical != no_resource)
 				{
-					const auto outstanding = std::max(std::int64_t{0}, input.rate * bound.output - input.credit);
-					const auto conversion = input.unit_work / resource_work_unit * 1000;
-					const auto rate = outstanding / conversion + (outstanding % conversion != 0);
+					const auto rate = rule_upkeep_request_rate(input, bound.output);
 					request_named_resource(entities.at(input.payer).get_mut<ShipResources>(), input.request,
 					                       input.electrical, rate);
 				}
@@ -612,40 +601,15 @@ bool prepare_rule_upkeep_payments(std::map<EntityId, std::optional<ShipResourceA
 				}
 				inputs.push_back(work);
 			}
-			auto maximum = plan.maximum_output;
+			std::optional<std::int64_t> dependency_output;
 			if (!plan.depends_on.empty())
 			{
 				const auto dependency = rule_upkeep_plans.find(plan.depends_on);
-				maximum = std::min(maximum, dependency == rule_upkeep_plans.end() || dependency->second.rejected ? 0
-				                            : dependency->second.payment.output > 0 ? std::int64_t{1000}
-				                                                                    : std::int64_t{0});
+				if (dependency != rule_upkeep_plans.end() && !dependency->second.rejected)
+					dependency_output = dependency->second.payment.output;
 			}
-			plan.payment = quote_rule_work(inputs, plan.shortage == "proportional", maximum);
-			if (blocked && plan.shortage == "proportional")
-			{
-				plan.payment.output = 0;
-				plan.payment.shortage = true;
-				for (std::size_t i = 0; i < inputs.size(); ++i)
-				{
-					plan.payment.debits[i] = 0;
-					plan.payment.credits[i] = inputs[i].credit + inputs[i].purchased;
-				}
-			}
-			if ((plan.payment.shortage || blocked) && plan.shortage != "proportional")
-				throw std::runtime_error("Required upkeep work unavailable");
-			if (plan.payment.output < plan.requested_output && std::any_of(
-			                                                       plan.inputs.begin(), plan.inputs.end(),
-			                                                       [](const auto &input)
-			                                                       {
-				                                                       return input.electrical == no_resource;
-			                                                       }))
-			{
-				// A partially funded bundle must release the provisional quantity
-				// reservation before subsequent plans are admitted. This bound only
-				// decreases while the admitted request set remains fixed.
-				plan.maximum_output = plan.payment.output;
-				removed = true;
-			}
+			removed = quote_funded_upkeep(plan, inputs, blocked, dependency_output) || removed;
+
 			for (std::size_t i = 0; i < inputs.size(); ++i)
 				if (!plan.inputs[i].property.empty() && plan.payment.debits[i])
 				{

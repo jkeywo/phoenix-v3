@@ -466,4 +466,9 @@ void from_json(const Json &value, ProcessState &state)
 	if (!alias.is_boolean() || alias.get<bool>() != state.completed)
 		throw std::runtime_error("Invalid process completion alias");
 }
+std::string process_funding_key(const CustomPropertyAddress &address, const ProcessState &state, bool work)
+{
+	return process_instance_key(address, state) + (work ? ":work" : ":idle");
+}
+
 } // namespace phoenix

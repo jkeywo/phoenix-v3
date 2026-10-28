@@ -1,10 +1,8 @@
 // World adapter. All mutable mission state is authoritative and saved.
-std::vector<AwayDefinition> away_definitions;
-std::vector<AwayMission> away_missions;
-std::uint64_t away_sequence = 0;
+AwayOperations away_operations;
 EntityId away_ship(const AwayDefinition &d) const
 {
-	return d.origin ? d.origin : slot_entities.contains(d.slot) ? slot_entities.at(d.slot) : 0;
+	return away_operations.origin(d, slot_entities);
 }
 EntityId away_transport_entity(EntityId ship, const std::string &transport) const
 {
@@ -69,17 +67,7 @@ std::string away_officer_location(EntityId ship, const std::string &officer) con
 		return personnel_postings.at(ship).at("officer:" + officer).status;
 	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains("officer:" + officer))
 		return "Lost";
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == ship && away_missions[i].absent())
-		{
-			const auto &m = away_missions[i];
-			if (std::find(m.accompanying.begin(), m.accompanying.end(), officer) != m.accompanying.end())
-				return "Away";
-			for (const auto &[slot, asset] : m.assignments)
-				if (asset == "officer:" + officer)
-					return "Away";
-		}
-	return {};
+	return away_operations.officer_away(ship, officer, slot_entities) ? "Away" : std::string{};
 }
 bool away_reserved(EntityId ship, const std::string &asset) const
 {
@@ -90,25 +78,15 @@ bool away_reserved(EntityId ship, const std::string &asset) const
 		return true;
 	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(asset))
 		return true;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == ship)
-		{
-			const auto &m = away_missions[i];
-			for (const auto &[slot, a] : m.assignments)
-				if (a == asset)
-					return true;
-			if (asset.starts_with("officer:") &&
-			    std::find(m.accompanying.begin(), m.accompanying.end(), asset.substr(8)) != m.accompanying.end())
-				return true;
-		}
-	return false;
+	return away_operations.asset_assigned(ship, asset, slot_entities);
 }
 bool away_transport_requested(EntityId ship, const std::string &system) const
 {
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &m = away_missions[i];
-		if (away_ship(away_definitions[i]) != ship || (m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Inbound))
+		const auto &m = away_operations.missions()[i];
+		if (away_ship(away_operations.definitions()[i]) != ship ||
+		    (m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Inbound))
 			continue;
 		const auto craft = away_transport_entity(ship, m.transport);
 		if ((m.transport == system || (craft && craft != ship && entities.at(craft).get<CraftState>().bay == system)) &&
@@ -120,22 +98,7 @@ bool away_transport_requested(EntityId ship, const std::string &system) const
 bool away_craft_reserved(EntityId craft, const std::string &except = {}) const
 {
 	const auto &state = entities.at(craft).get<CraftState>();
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-	{
-		const auto &d = away_definitions[i];
-		const auto &m = away_missions[i];
-		if (away_ship(d) != state.home || d.id == except)
-			continue;
-		if ((!m.transport_released && m.transport == "craft:" + std::to_string(craft) && m.phase != AwayPhase::Lost &&
-		     !(m.phase == AwayPhase::Recovered && !m.outcome.empty())) ||
-		    std::any_of(m.escorts.begin(), m.escorts.end(),
-		                [&](const auto &pair)
-		                {
-			                return pair.second == craft;
-		                }))
-			return true;
-	}
-	return false;
+	return away_operations.craft_reserved(state.home, craft, except, slot_entities);
 }
 void return_away_escorts(AwayMission &m)
 {
@@ -146,21 +109,10 @@ void return_away_escorts(AwayMission &m)
 bool away_qualified(EntityId ship, const std::string &system) const
 {
 	const auto owner = enabled_system_owner(ship, system);
-	const auto &pd = definition(ship).personnel;
-	const auto &ps = entities.at(ship).get<PersonnelState>();
-	for (const auto &d : pd.duties)
-		if (d.console == owner.console && !d.required_trait.empty())
-			for (std::size_t i = 0; i < pd.officers.size(); ++i)
-				if (ps.officers[i].duty == d.id && ps.officers[i].present && officer_healthy(ps.officers[i]) &&
-				    std::find(pd.officers[i].traits.begin(), pd.officers[i].traits.end(), d.required_trait) !=
-				        pd.officers[i].traits.end())
-					for (const auto &c : definition(ship).layout->controllers)
-						if (c.console == d.console && c.id == d.controller)
-							for (const auto &command : c.commands)
-								for (auto consumer : command.consumers)
-									if (definition(ship).fitted->values.at(consumer).id == system)
-										return true;
-	return false;
+	const auto &resolved = definition(ship);
+	const auto &personnel = entities.at(ship).get<PersonnelState>();
+	return away_navigator_qualified(resolved.personnel, personnel, resolved.layout ? &*resolved.layout : nullptr,
+	                                resolved.fitted ? &*resolved.fitted : nullptr, owner.console, system);
 }
 std::string away_dispatch_system(EntityId ship, const std::string &route = {}) const
 {
@@ -248,46 +200,32 @@ bool away_has_capability(EntityId ship, const AwayMission &m, const std::string 
 }
 bool away_asset_healthy(EntityId ship, const std::string &asset) const
 {
-	const auto &pd = definition(ship).personnel;
-	const auto &ps = entities.at(ship).get<PersonnelState>();
+	const auto &definition_personnel = definition(ship).personnel;
+	const auto &personnel = entities.at(ship).get<PersonnelState>();
+	bool available = false;
+	const PersonnelDuty *duty = nullptr;
 	if (asset.starts_with("team:"))
 	{
-		const auto team = away_equipment(ship, asset.substr(5));
-		if (!team || !team_available(team.get<CombatMechanism>()))
-			return false;
+		if (const auto team = away_equipment(ship, asset.substr(5)); team)
+			available = team_available(team.get<CombatMechanism>());
+		duty = away_team_duty(ship, asset.substr(5));
 	}
-	if (asset.starts_with("team:"))
-		for (const auto &o : ps.officers)
-			if (o.escort == asset.substr(5))
-				return false;
-	for (std::size_t i = 0; i < pd.officers.size(); ++i)
-	{
-		if (asset == "officer:" + pd.officers[i].id && !officer_healthy(ps.officers[i]))
-			return false;
-		if (asset.starts_with("team:"))
-			if (const auto *duty = away_team_duty(ship, asset.substr(5));
-			    duty && ps.officers[i].duty == duty->id && !officer_healthy(ps.officers[i]))
-				return false;
-	}
-	return true;
+	return away_crew_healthy(definition_personnel, personnel, asset, available, duty);
 }
 bool away_slot_accepts(EntityId ship, const AwaySlot &s, const std::string &asset) const
 {
-	if (!asset.starts_with(s.kind + ":"))
-		return false;
-	if (s.kind == "team")
+	const TeamDefinition *definition_team = nullptr;
+	bool duty = false;
+	if (s.kind == "team" && asset.starts_with("team:"))
 	{
-		const auto team = away_equipment(ship, asset.substr(5));
-		if (!team || !away_team_duty(ship, asset.substr(5)) || !s.trait.empty())
-			return false;
-		const auto &d = team.get<CombatMechanism>().definition.get<TeamDefinition>();
-		return (s.team_type.empty() || s.team_type == d.type) &&
-		       (s.capability.empty() || d.capabilities.contains(s.capability));
+		if (const auto team = away_equipment(ship, asset.substr(5)); team)
+		{
+			duty = away_team_duty(ship, asset.substr(5)) != nullptr;
+			if (duty && s.trait.empty())
+				definition_team = &team.get<CombatMechanism>().definition.get<TeamDefinition>();
+		}
 	}
-	for (const auto &o : definition(ship).personnel.officers)
-		if (o.id == asset.substr(8))
-			return s.trait.empty() || std::find(o.traits.begin(), o.traits.end(), s.trait) != o.traits.end();
-	return false;
+	return away_crew_slot_accepts(s, asset, definition(ship).personnel, definition_team, duty);
 }
 std::size_t away_origin(EntityId ship, const std::string &transport) const
 {
@@ -366,21 +304,10 @@ void mark_away_deployed(const AwayDefinition &definition, AwayMission &m)
 			        .combat->compartment_ids.at(
 			            this->definition(definition.target).docking.at(dock->remote_port).compartment);
 	}
-	if (definition.boarding)
-	{
-		m.boarding.location = definition.boarding->compartments.at(definition.boarding->entry);
-		m.boarding.travel = 0;
-		m.boarding.edge_to = -1;
-	}
-	m.phase = AwayPhase::Deployed;
-	m.recovered = false;
-	m.ever_deployed = true;
-	m.transfer = 0;
-	for (const auto &[slot, asset] : m.assignments)
-		m.participants.insert(asset);
-	for (const auto &officer : m.accompanying)
-		m.participants.insert("officer:" + officer);
-	++m.revision;
+	away_operations.mark_deployed(
+	    m, definition.boarding
+	           ? std::optional<std::int64_t>(definition.boarding->compartments.at(definition.boarding->entry))
+	           : std::nullopt);
 }
 void finish_away_recovery(EntityId ship, AwayMission &m)
 {
@@ -418,19 +345,11 @@ void finish_away_recovery(EntityId ship, AwayMission &m)
 			p.officers[o].edge_to = -1;
 		}
 	++p.revision;
-	m.aboard_craft = false;
-	m.phase = AwayPhase::Recovered;
-	m.recovered = true;
-	m.transport_released = false;
-	m.transfer = 0;
-	m.assignments.clear();
-	m.accompanying.clear();
-	m.care.clear();
-	++m.revision;
+	away_operations.finish_recovery(m);
 }
 std::string boarding_insertion_blocker(std::size_t index, const std::string &transport) const
 {
-	const auto &d = away_definitions[index];
+	const auto &d = away_operations.definitions()[index];
 	const auto ship = away_ship(d);
 	const auto physical = away_transport_entity(ship, transport);
 	if (physical)
@@ -464,8 +383,8 @@ std::string boarding_insertion_blocker(std::size_t index, const std::string &tra
 }
 std::string away_blocker(std::size_t index, bool power = true) const
 {
-	const auto &d = away_definitions[index];
-	const auto &m = away_missions[index];
+	const auto &d = away_operations.definitions()[index];
+	const auto &m = away_operations.missions()[index];
 	const auto ship = away_ship(d);
 	if (!ship || !entities.contains(d.target))
 		return "Destination unavailable";
@@ -527,9 +446,9 @@ void prepare_away_officers(const ConsoleAddress &address, std::size_t index)
 {
 	if (station_stars(address) >= 3 && console_operator(address) != 0)
 		return;
-	const auto &d = away_definitions.at(index);
+	const auto &d = away_operations.definitions().at(index);
 	for (const auto &slot : d.slots)
-		if (slot.kind == "officer" && !away_missions.at(index).assignments.contains(slot.id))
+		if (slot.kind == "officer" && !away_operations.mission(index).assignments.contains(slot.id))
 			for (const auto &officer : definition(address.ship).personnel.officers)
 			{
 				const auto asset = "officer:" + officer.id;
@@ -541,7 +460,8 @@ void prepare_away_officers(const ConsoleAddress &address, std::size_t index)
 					if (controller.definition.console == address.console)
 					{
 						OperatingCommand command{address.ship, "away.assign",
-						                         static_cast<std::int64_t>(away_missions.at(index).revision), d.id};
+						                         static_cast<std::int64_t>(away_operations.mission(index).revision),
+						                         d.id};
 						command.text = slot.id + "/" + asset;
 						command.controller = controller.definition.id;
 						command.generation = controller.generation;
@@ -557,8 +477,8 @@ void prepare_away_officers(const ConsoleAddress &address, std::size_t index)
 }
 void prepare_away_contribution(const ConsoleAddress &a, std::size_t index)
 {
-	auto &m = away_missions.at(index);
-	const auto &d = away_definitions.at(index);
+	auto &m = away_operations.mission(index);
+	const auto &d = away_operations.definitions().at(index);
 	if (!m.authorised_departments.contains(a.console) ||
 	    (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || !m.outcome.empty())
 		return;
@@ -614,16 +534,16 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		return false;
 	if (!entities.at(a.ship).has<EntityControls>())
 		return false;
-	auto it = std::find_if(away_definitions.begin(), away_definitions.end(),
+	auto it = std::find_if(away_operations.definitions().begin(), away_operations.definitions().end(),
 	                       [&](const auto &d)
 	                       {
 		                       return d.id == c.system && away_ship(d) == a.ship;
 	                       });
-	if (it == away_definitions.end())
+	if (it == away_operations.definitions().end())
 		return false;
-	const auto index = it - away_definitions.begin();
+	const auto index = it - away_operations.definitions().begin();
 	const auto &d = *it;
-	auto &m = away_missions[index];
+	auto &m = away_operations.missions()[index];
 	std::string controlled_system;
 	if (c.action == "away.transport" || c.action == "away.escort")
 	{
@@ -667,10 +587,11 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	}
 	else if (c.action == "away.withdraw")
 	{
-		for (std::size_t i = 0; i < away_definitions.size(); ++i)
-			if (away_definitions[i].id == c.system && away_ship(away_definitions[i]) == a.ship)
+		for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
+			if (away_operations.definitions()[i].id == c.system &&
+			    away_ship(away_operations.definitions()[i]) == a.ship)
 			{
-				const auto &m = away_missions[i];
+				const auto &m = away_operations.missions()[i];
 				if (m.assignments.contains(c.text) && m.assignments.at(c.text).starts_with("team:"))
 					controlled_system = m.assignments.at(c.text).substr(5);
 			}
@@ -706,8 +627,8 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		}
 	if (!authority)
 		return false;
-	if (m.phase == AwayPhase::Hidden || m.revision >= 9007199254740991ULL || away_sequence >= 9007199254740991ULL ||
-	    c.value != static_cast<std::int64_t>(m.revision))
+	if (m.phase == AwayPhase::Hidden || m.revision >= 9007199254740991ULL ||
+	    away_operations.sequence() >= 9007199254740991ULL || c.value != static_cast<std::int64_t>(m.revision))
 		return false;
 	const auto action = c.action.substr(5);
 	if (action == "quantity")
@@ -811,7 +732,7 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		if (execute)
 		{
 			m.phase = AwayPhase::Outbound;
-			m.sequence = ++away_sequence;
+			m.sequence = away_operations.next_sequence();
 			m.transfer = 0;
 			if (supply)
 			{
@@ -889,7 +810,7 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		{
 			m.phase = AwayPhase::Inbound;
 			return_away_escorts(m);
-			m.sequence = ++away_sequence;
+			m.sequence = away_operations.next_sequence();
 			m.transfer = 0;
 			++m.revision;
 			if (craft && craft != a.ship)
@@ -1155,21 +1076,11 @@ void stage_away(EntityId ship, AwayMission &m)
 void advance_away()
 {
 	const auto tick = ecs.get<Clock>().tick;
-	std::map<std::pair<EntityId, std::string>, std::size_t> active;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	auto active = away_operations.active_transfers(slot_entities);
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &m = away_missions[i];
-		if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
-		{
-			auto key = std::pair{away_ship(away_definitions[i]), m.transport};
-			if (!active.contains(key) || m.sequence < away_missions[active.at(key)].sequence)
-				active[key] = i;
-		}
-	}
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-	{
-		auto &m = away_missions[i];
-		const auto &d = away_definitions[i];
+		auto &m = away_operations.missions()[i];
+		const auto &d = away_operations.definitions()[i];
 		const auto ship = away_ship(d);
 		if (!ship || (departed(ship) && !m.absent()) || m.phase == AwayPhase::Lost || m.phase == AwayPhase::Captured)
 			continue;
@@ -1599,10 +1510,10 @@ std::string away_asset_label(EntityId ship, const std::string &asset) const
 Json away_board(const ConsoleAddress &a) const
 {
 	Json out = Json::array();
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &d = away_definitions[i];
-		const auto &m = away_missions[i];
+		const auto &d = away_operations.definitions()[i];
+		const auto &m = away_operations.missions()[i];
 		if (away_ship(d) != a.ship || m.phase == AwayPhase::Hidden)
 			continue;
 		Json row{{"id", d.id},
@@ -1787,15 +1698,12 @@ Json away_board(const ConsoleAddress &a) const
 Json save_away() const
 {
 	Json out = Json::array();
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		Json row = away_missions[i];
-		row["schema"] = 11;
-		row["id"] = away_definitions[i].id;
-		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
-		for (const auto &[team, care] : away_missions[i].care)
+		Json row = away_operations.mission_record(i);
+		for (const auto &[team, care] : away_operations.missions()[i].care)
 		{
-			const auto equipment = away_equipment(away_ship(away_definitions[i]), team);
+			const auto equipment = away_equipment(away_ship(away_operations.definitions()[i]), team);
 			const auto *order = team_order_definition(equipment.get<CombatMechanism>(), care.order);
 			if (!order)
 				throw std::runtime_error("Missing away medical order");
@@ -1807,29 +1715,10 @@ Json save_away() const
 }
 void restore_away(const Json &rows)
 {
-	if (!rows.is_array() || rows.size() != away_definitions.size())
-		throw std::runtime_error("Invalid saved away missions");
-	// Dynamic target templates can have been discovered over several spawn ticks.
-	// Restore their saved ordering by stable identity, rather than reconstruction order.
-	std::vector<AwayDefinition> ordered;
-	std::set<std::string> identities;
-	for (const auto &row : rows)
-	{
-		const auto id = row.at("id").get<std::string>();
-		const auto found = std::find_if(away_definitions.begin(), away_definitions.end(),
-		                                [&](const auto &d)
-		                                {
-			                                return d.id == id;
-		                                });
-		if (!identities.insert(id).second || found == away_definitions.end())
-			throw std::runtime_error("Away mission identity mismatch");
-		ordered.push_back(*found);
-	}
-	away_definitions = std::move(ordered);
-	away_sequence = 0;
+	away_operations.restore_order(rows);
 	for (std::size_t i = 0; i < rows.size(); ++i)
 	{
-		const auto &d = away_definitions[i];
+		const auto &d = away_operations.definitions()[i];
 		const auto &record = rows[i];
 		if (record.at("schema") != 11)
 			throw std::runtime_error("Saved away mission schema retired; start a new session (schema 11 required)");
@@ -1984,7 +1873,7 @@ void restore_away(const Json &rows)
 		}
 		validate_boarding_state(d, m);
 		m.continuation = state_tree::load(d.program, rows[i].at("continuation"));
-		away_sequence = std::max(away_sequence, m.sequence);
-		away_missions[i] = std::move(m);
+		away_operations.observe_sequence(m.sequence);
+		away_operations.missions()[i] = std::move(m);
 	}
 }

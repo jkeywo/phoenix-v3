@@ -29,13 +29,13 @@ void refresh_boarding_templates()
 				for (const auto &b : definition(target).boarding)
 				{
 					const auto id = "board." + std::to_string(origin) + "." + std::to_string(target) + "." + b.id;
-					if (std::any_of(away_definitions.begin(), away_definitions.end(),
+					if (std::any_of(away_operations.definitions().begin(), away_operations.definitions().end(),
 					                [&](const auto &d)
 					                {
 						                return d.id == id;
 					                }))
 						continue;
-					if (away_definitions.size() >= 256)
+					if (away_operations.definitions().size() >= 256)
 						throw std::runtime_error("Too many instantiated away operations");
 					AwayDefinition d;
 					d.id = d.conversation = id;
@@ -49,8 +49,7 @@ void refresh_boarding_templates()
 					d.program = b.program;
 					d.slots = b.slots;
 					d.repair_compartments = b.compartments;
-					away_definitions.push_back(d);
-					away_missions.emplace_back();
+					away_operations.append_definition(d);
 					const auto character = "party-" + id;
 					const auto participant = "ship:" + std::to_string(target) + "/" + character;
 					conversations.participants.emplace(
@@ -69,27 +68,11 @@ void refresh_boarding_templates()
 }
 bool boarding_conversation_requested(const std::string &id) const
 {
-	for (std::size_t i = 0; i < away_definitions.size(); ++i)
-		if (away_definitions[i].boarding && away_definitions[i].conversation == id)
-			return away_missions[i].phase != AwayPhase::Hidden && away_missions[i].phase != AwayPhase::Available;
-	return false;
+	return away_operations.conversation_requested(id);
 }
 bool boarding_defender_reserved(EntityId target, const std::string &asset) const
 {
-	if (!asset.starts_with("team:"))
-		return false;
-	for (std::size_t i = 0; i < away_definitions.size(); ++i)
-	{
-		const auto &d = away_definitions[i];
-		const auto &m = away_missions[i];
-		if (!d.boarding || d.target != target || !m.deployed() || m.boarding.encounter.empty() ||
-		    m.boarding.encounter_done)
-			continue;
-		const auto &e = d.boarding->encounters.at(m.boarding.encounter);
-		if (std::find(e.defenders.begin(), e.defenders.end(), asset.substr(5)) != e.defenders.end())
-			return true;
-	}
-	return false;
+	return away_operations.defender_reserved(target, asset);
 }
 std::vector<flecs::entity> boarding_party_teams(EntityId origin, const AwayMission &m,
                                                 const std::string &capability) const
@@ -108,50 +91,19 @@ std::vector<flecs::entity> boarding_party_teams(EntityId origin, const AwayMissi
 }
 std::int64_t boarding_roll(EntityId target)
 {
-	auto &rng = entities.at(target).get_mut<CombatStructure>().random;
-	rng = rng * 6364136223846793005ULL + 1;
-	return (rng >> 16) % 1000;
+	auto &random = entities.at(target).get_mut<CombatStructure>().random;
+	return boarding_random_roll(random);
 }
 void boarding_casualty(EntityId ship, flecs::entity team, const BoardingEncounter &e, bool medical)
 {
 	auto &mechanism = team.get_mut<CombatMechanism>();
 	auto &state = mechanism.get<TeamState>();
-	const auto roll = boarding_roll(ship);
-	const auto injury = std::max<std::int64_t>(0, e.injury - (medical ? e.medical_reduction : 0));
-	if (roll < e.loss)
-		state.condition = "lost";
-	else if (roll < e.loss + injury)
-		state.condition = "injured";
-	else
-		return;
-	state.treatment = 0;
-	if (state.condition == "lost")
-		mission_ledger.lost[ship].insert("team:" + mechanism.definition.id);
-	++state.revision;
-	const auto &pd = definition(ship).personnel;
-	auto &ps = entities.at(ship).get_mut<PersonnelState>();
-	for (std::size_t i = 0; i < ps.officers.size(); ++i)
-		if (const auto *duty = personnel_duty(ship, ps.officers[i].duty); duty && duty->team == mechanism.definition.id)
-		{
-			auto &officer = ps.officers[i];
-			const auto fate = boarding_roll(ship);
-			if (fate < e.officer_loss)
-			{
-				officer.condition = "dead";
-				officer.duty.clear();
-				officer.present = false;
-			}
-			else if (fate < e.officer_loss + e.officer_injury)
-				officer.condition = "minor";
-			if (state.condition == "lost")
-			{
-				// A survivor remains physically missing; it is not returned to a reserve slot.
-				mission_ledger.lost[ship].insert("officer:" + pd.officers[i].id);
-				officer.present = false;
-				officer.duty.clear();
-			}
-		}
-	personnel_changed(ship);
+	auto &random = entities.at(ship).get_mut<CombatStructure>().random;
+	const auto &definition_personnel = definition(ship).personnel;
+	auto &personnel = entities.at(ship).get_mut<PersonnelState>();
+	apply_boarding_casualties(
+	    {ship, mechanism.definition.id, state, definition_personnel, personnel, random, mission_ledger.lost}, e,
+	    medical);
 }
 void boarding_field_care(EntityId origin, AwayMission &mission, bool can_work)
 {
@@ -221,17 +173,12 @@ bool boarding_defender_available(EntityId ship, flecs::entity team) const
 	    !m->definition.get<TeamDefinition>().capabilities.contains("security") || !team_available(*m) ||
 	    m->get<TeamState>().detained)
 		return false;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == ship)
-			for (const auto &[slot, asset] : away_missions[i].assignments)
-				if (asset == "team:" + m->definition.id)
-					return false;
-	return true;
+	return !away_operations.asset_assigned(ship, "team:" + m->definition.id, slot_entities);
 }
 void advance_boarding(std::size_t index)
 {
-	const auto &d = away_definitions[index];
-	auto &m = away_missions[index];
+	const auto &d = away_operations.definitions()[index];
+	auto &m = away_operations.missions()[index];
 	auto &s = m.boarding;
 	const auto origin = away_ship(d), target = d.target;
 	const auto &pd = definition(target).personnel;
@@ -247,21 +194,16 @@ void advance_boarding(std::size_t index)
 		m.outcome = "fail:Boarding party lost";
 		return;
 	}
-	if (s.travel && physical_edge_open(target, s.location, s.edge_to) && --s.travel == 0)
+	const bool traversable = !s.travel || physical_edge_open(target, s.location, s.edge_to);
+	std::vector<PersonnelDefinition::Link> open_links;
+	if (boarding_route_required_after_tick(s, traversable))
+		for (const auto &link : pd.links)
+			if (physical_edge_open(target, link.from, link.to))
+				open_links.push_back(link);
+	if (!advance_boarding_route(s, pd.compartments.size(), open_links, traversable))
 	{
-		s.location = s.edge_to;
-		s.edge_to = -1;
-	}
-	if (s.destination >= 0 && s.location != s.destination && !s.travel)
-	{
-		const auto route = physical_route(target, pd.compartments.size(), pd.links, s.location, s.destination);
-		if (route.first < 0)
-		{
-			m.outcome = "fail:Boarding route unavailable";
-			return;
-		}
-		s.edge_to = route.first;
-		s.travel = route.second;
+		m.outcome = "fail:Boarding route unavailable";
+		return;
 	}
 	boarding_field_care(origin, m, !s.travel && (s.encounter.empty() || s.encounter_done));
 	if (s.travel)
@@ -290,42 +232,22 @@ void advance_boarding(std::size_t index)
 		defenders.push_back(team);
 	}
 	{
-		const auto previous = s.factors;
+		BoardingAssessmentFacts facts;
 		const auto attackers = boarding_party_teams(origin, m, "security");
-		std::int64_t strength = 0;
-		for (auto a : attackers)
-			strength += team_work(entities.at(origin), a.get<CombatMechanism>(), PropertyKey::security, 1000);
-		s.factors = {{"Base chance", e.success},
-		             {"Security support", (strength - 1000) * e.team_bonus / 1000},
-		             {"Defending teams", 0}};
-		s.chance = e.success + s.factors.at("Security support");
+		for (auto attacker : attackers)
+			facts.security_strength +=
+			    team_work(entities.at(origin), attacker.get<CombatMechanism>(), PropertyKey::security, 1000);
 		for (auto defender : defenders)
-		{
-			const auto penalty = team_work(entities.at(target), defender.get<CombatMechanism>(), PropertyKey::security,
-			                               e.defender_penalty);
-			s.chance -= penalty;
-			s.factors["Defending teams"] -= penalty;
-		}
+			facts.defender_penalties.push_back(team_work(entities.at(target), defender.get<CombatMechanism>(),
+			                                             PropertyKey::security, e.defender_penalty));
 		for (const auto &[system, penalty] : e.defences)
 			if (away_equipment(target, system).get<Equipment>().enabled &&
 			    !structurally_disabled(entities.at(target), system))
-			{
-				const auto effect = penalty * fault_effectiveness(entities.at(target), system) / 1000;
-				s.chance -= effect;
-				s.factors[system] = -effect;
-			}
-		s.chance = std::clamp<std::int64_t>(s.chance, 0, 1000);
-		s.defenders = defenders.size();
-		if (!s.assessed)
-			s.assessment = e.assessment_ticks;
-		s.assessed = true;
-		if (previous != s.factors)
-		{
-			s.reported = false;
-			s.assessment_message = 0;
+				facts.defence_effects.emplace_back(system,
+				                                   penalty * fault_effectiveness(entities.at(target), system) / 1000);
+		if (assess_boarding(s, e, facts))
 			if (const auto cid = away_conversation(d); cid && !e.report.empty() && conversations.report(cid, e.report))
 				s.assessment_message = conversations.conversations.at(cid).messages.back().id;
-		}
 	}
 	const auto cid = away_conversation(d);
 	if (cid && conversations.conversations.contains(cid))
@@ -368,8 +290,8 @@ void advance_boarding(std::size_t index)
 }
 bool boarding_action(std::size_t index, const std::string &action, const std::string &key)
 {
-	auto &m = away_missions[index];
-	const auto &d = away_definitions[index];
+	auto &m = away_operations.missions()[index];
+	const auto &d = away_operations.definitions()[index];
 	auto &s = m.boarding;
 	if (action != "move_to" && action != "encounter" && action != "secure" && action != "release" &&
 	    action != "capture")
@@ -496,8 +418,8 @@ void validate_boarding_state(const AwayDefinition &d, const AwayMission &m) cons
 std::map<EntityId, EntityId> captured_by;
 void capture_boarded_ship(std::size_t index, bool prize)
 {
-	const auto &d = away_definitions[index];
-	auto &m = away_missions[index];
+	const auto &d = away_operations.definitions()[index];
+	auto &m = away_operations.missions()[index];
 	if (m.boarding.captured)
 		return;
 	const auto target = entities.at(d.target);
@@ -514,10 +436,10 @@ void capture_boarded_ship(std::size_t index, bool prize)
 }
 bool boarding_inhibited(EntityId target, const std::string &system) const
 {
-	for (std::size_t i = 0; i < away_definitions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
 	{
-		const auto &d = away_definitions[i];
-		const auto &m = away_missions[i];
+		const auto &d = away_operations.definitions()[i];
+		const auto &m = away_operations.missions()[i];
 		if (!d.boarding || d.target != target || !m.deployed() || m.boarding.travel ||
 		    boarding_party_teams(away_ship(d), m, "security").empty())
 			continue;
@@ -535,8 +457,8 @@ bool boarding_inhibited(EntityId target, const std::string &system) const
 
 bool boarding_contested(std::size_t index, std::size_t location) const
 {
-	const auto &d = away_definitions[index];
-	const auto &s = away_missions[index].boarding;
+	const auto &d = away_operations.definitions()[index];
+	const auto &s = away_operations.missions()[index].boarding;
 	for (auto child : entities.at(d.target).get<EquipmentIndex>().values)
 		if (boarding_defender_available(d.target, child))
 		{

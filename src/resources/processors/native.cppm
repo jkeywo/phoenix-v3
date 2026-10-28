@@ -1,5 +1,11 @@
-#pragma once
-namespace phoenix
+module;
+#include <map>
+#include <string>
+
+export module phoenix.resources.processing;
+export import phoenix.resources.processors;
+
+export namespace phoenix
 {
 struct ShipProcessors
 {

@@ -116,6 +116,34 @@ WebAssembly execution, the threaded configuration and actual browser rendering
 remain separate pending gates; the native counterpart of these fixes is checked
 in `native-browser-fixes-25.log`.
 
+## Second native ownership checkpoint
+
+Twenty requested standalone targets passed before one guarded source switch
+activated the next owners. These include immutable World entity assembly;
+Controller protocol, coordination facts, handover and views; Away registry,
+boarding and crew policy; directed/ordnance/weapons/continuation; physical
+processor components, machinery/flight work books, finite work and process
+validation; and sensor findings, projection and continuation validation.
+
+- Full native build/link passed: `batch2-native-build-28.log`.
+- All 48 native system/architecture checks passed in one run (339.21 seconds):
+  `batch2-native-tests-29.log`.
+- All 23 freshly regenerated continuation traces exactly match revision
+  `34883ac`, retaining schema 32: `batch2-native-traces-30.log` and
+  `batch2-trace-comparison-30.json`.
+- Source ownership passed with 102 remaining exact migration exceptions:
+  `batch2-source-boundaries-28.log`. Two removed state-header edges were retired;
+  no new private-boundary exceptions were introduced.
+- Integration compilation caught an optional-view/pointer mismatch, two old
+  sensor registry reads, and a substring replacement in a phase helper name.
+  These call sites were corrected. The preparation helper now matches identifier
+  boundaries; a read-only audit found no remaining identifier/string corruption.
+
+The live-network group was not repeated at this intermediate checkpoint: all 12
+passed at the preceding checkpoint, networking implementation was unchanged,
+and the final integration gate will rerun it. Authoritative/browser execution
+and the private World implementation split remain pending.
+
 ## Generic ownership and environment activation
 
 State trees, vocabulary, knowledge records, resource networks, conversations,

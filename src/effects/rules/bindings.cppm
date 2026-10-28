@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,6 +17,17 @@ export namespace phoenix
 NativeRuleContext rule_applied_context(const NativeRuleContext &);
 std::string rule_application_equipment(const NativeRuleContext &, const std::string &binding);
 NativeRuleContext merge_rule_event_context(const NativeRuleSource &, const NativeRuleContext &event);
+struct PayloadCaptureDefinitions
+{
+	const std::map<std::string, PayloadDefinition> &payloads;
+	const RulesCatalog &rules;
+	const std::map<std::string, std::vector<RuleBinding>> &native_rules;
+	const std::map<std::string, PeriodicEffectDefinition> &periodic;
+};
+std::vector<RuleFactBinding> payload_capture_layout(const std::vector<std::string> &,
+                                                    const PayloadCaptureDefinitions &);
+void validate_rule_captures(const std::vector<RuleCapturedFact> &, std::span<const RuleFactBinding>);
+
 class RuleApplications
 {
 public:

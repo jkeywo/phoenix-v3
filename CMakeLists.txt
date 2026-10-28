@@ -343,6 +343,12 @@ add_subdirectory(src/gameplay/boarding)
 add_subdirectory(src/gameplay/away)
 add_subdirectory(src/world/persistence)
 add_subdirectory(src/scenarios/objectives)
+add_subdirectory(src/world/lifecycle)
+add_subdirectory(src/gameplay/directed)
+add_subdirectory(src/gameplay/ordnance)
+add_subdirectory(src/gameplay/combat-continuation)
+add_subdirectory(src/gameplay/weapons)
+add_subdirectory(src/gameplay/machinery)
 add_library(phoenix_simulation STATIC src/world/lifecycle/world.cpp)
 target_link_libraries(
 	phoenix_simulation
@@ -1466,3 +1472,32 @@ else()
 	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_content_distribution)
 	target_link_libraries(phoenix_lobby_tests PRIVATE phoenix_content_distribution)
 endif()
+
+# Batch 2 typed owners; activate their adapters only after standalone compilation.
+target_link_libraries(
+	phoenix_simulation
+	PRIVATE
+		phoenix_world_assembly
+		phoenix_control_protocol
+		phoenix_control_coordination_facts
+		phoenix_control_handover
+		phoenix_control_views
+		phoenix_gameplay_away_operations
+		phoenix_gameplay_boarding_runtime
+		phoenix_gameplay_away_crew
+		phoenix_gameplay_directed
+		phoenix_gameplay_ordnance
+		phoenix_gameplay_combat_continuation
+		phoenix_gameplay_weapons
+		phoenix_resources_processing
+		phoenix_gameplay_machinery
+		phoenix_gameplay_flight_work
+		phoenix_effects_machinery
+		phoenix_effects_finite_work
+		phoenix_effects_process_validation
+)
+
+target_link_libraries(
+	phoenix_simulation
+	PRIVATE phoenix_gameplay_sensor_findings phoenix_gameplay_sensor_validation phoenix_gameplay_sensor_projection
+)

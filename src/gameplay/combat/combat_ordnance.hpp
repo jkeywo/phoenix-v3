@@ -38,37 +38,7 @@ std::optional<std::int64_t> volume_hit(fixed::Vec a, fixed::Vec b, std::int64_t 
                                        CollisionBody target, fixed::Vec target_start, std::int64_t tz_start,
                                        std::int64_t tz_end, std::int64_t half_height, std::int64_t radius = 1) const
 {
-	// Intersect the planar swept interval with the vertical slab interval.
-	constexpr std::int64_t unit = fixed::unit;
-	CollisionBody shot;
-	shot.position = b;
-	shot.radius = radius;
-	shot.mass = 1;
-	const auto enter = sweep_contact_time(shot, target, a, target_start);
-	if (!enter)
-		return {};
-	CollisionBody reverse = shot;
-	reverse.position = a;
-	auto reverse_target = target;
-	reverse_target.position = target_start;
-	const auto back = sweep_contact_time(reverse, reverse_target, b, target.position);
-	auto lo = *enter, hi = back ? unit - *back : unit;
-	const auto start = za - tz_start, end = zb - tz_end, delta = end - start;
-	if (!delta)
-	{
-		if (std::abs(start) > half_height + radius)
-			return {};
-	}
-	else
-	{
-		auto zlo = (-half_height - radius - start) * unit / delta, zhi = (half_height + radius - start) * unit / delta;
-		if (zlo > zhi)
-			std::swap(zlo, zhi);
-		lo = std::max(lo, zlo);
-		hi = std::min(hi, zhi);
-	}
-	return lo <= hi && hi >= 0 && lo <= unit ? std::optional<std::int64_t>{std::max<std::int64_t>(0, lo)}
-	                                         : std::nullopt;
+	return ordnance_volume_hit(a, b, za, zb, target, target_start, tz_start, tz_end, half_height, radius);
 }
 bool blast_occluded(fixed::Vec origin, std::int64_t z, fixed::Vec end, std::int64_t ez, EntityId ignore) const
 {
@@ -88,32 +58,10 @@ bool blast_occluded(fixed::Vec origin, std::int64_t z, fixed::Vec end, std::int6
 	    });
 	return blocked;
 }
-struct BlastExposure
-{
-	fixed::Vec point;
-	std::int64_t altitude, distance;
-};
 BlastExposure blast_exposure(fixed::Vec origin, std::int64_t altitude, flecs::entity target) const
 {
-	const auto &shape = target.get<Collider>();
-	const auto &pose = target.get<Pose>();
-	const auto local = combat_local(origin, pose);
-	fixed::Vec point;
-	if (shape.box)
-		point = {std::clamp(local.x, -shape.half_width, shape.half_width),
-		         std::clamp(local.y, -shape.half_length, shape.half_length)};
-	else
-	{
-		const auto distance = fixed::length(local);
-		point = distance > shape.radius ? fixed::scale(fixed::normal(local), shape.radius) : local;
-	}
-	point = combat_world(point, pose);
-	const auto extent = definitions.at(target.get<Definition>().name).half_height;
-	const auto z = std::clamp(altitude, pose.altitude - extent, pose.altitude + extent);
-	const auto delta = point - origin;
-	const auto dz = z - altitude;
-	return {point, z,
-	        static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + dz * dz)))};
+	return blast_surface_exposure(origin, altitude, target.get<Collider>(), target.get<Pose>(),
+	                              definitions.at(target.get<Definition>().name).half_height);
 }
 void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefinition &d, EntityId source = 0,
                 const std::string &weapon = {}, const std::vector<RuleCapturedFact> *origin_captures = nullptr)
@@ -228,22 +176,8 @@ void destroy_missile(flecs::entity row, bool warhead)
 	const auto sources = rule_sources(row, true);
 	component.destroyed_tick = ecs.get<Clock>().tick;
 	emit_native_destroy_rules(row, {p.id, {}, {}, true}, &sources);
-	component.processed = true;
-	p.life = 0;
-	component.durability = 0;
-	p.random = p.random * 6364136223846793005ULL + 1;
-	auto effect = component.definition;
-	if (warhead)
-	{
-		effect.chance = 1000;
-		effect.damage = p.definition.damage;
-		effect.radius = p.definition.blast_radius;
-		effect.shield_bypass = p.definition.shield_bypass;
-		effect.affects_missiles = true;
-		effect.payloads = p.payloads;
-	}
-	if ((p.random >> 16) % 1000 < static_cast<std::uint64_t>(effect.chance))
-		emit_blast(p.position, p.altitude, effect, p.source, p.weapon,
+	if (const auto effect = retire_projectile_native(p, component, warhead))
+		emit_blast(p.position, p.altitude, *effect, p.source, p.weapon,
 		           warhead ? &p.rule_captures : &p.destruction_rule_captures);
 }
 void resolve_destructions()
@@ -260,11 +194,9 @@ void resolve_destructions()
 				if (d->destroyed_tick < 0)
 					continue;
 				emit_native_destroy_rules(e, {id});
-				d->processed = true;
+				const bool blast = retire_destroyed_structure(*d, id);
 				changed = true;
-				const auto roll =
-				    (id * 7919ULL + static_cast<std::uint64_t>(d->destroyed_tick) * 6364136223846793005ULL) >> 16;
-				if (roll % 1000 < static_cast<std::uint64_t>(d->definition.chance))
+				if (blast)
 				{
 					emit_blast(e.get<Pose>().position, altitude(id), d->definition, id);
 				}
@@ -280,15 +212,13 @@ void resolve_destructions()
 		}
 	}
 	for (auto e : projectile_rows())
-		if (e.get<Projectile>().life <= 0 ||
-		    ((e.get<Projectile>().damage <= 0 || e.get<Projectile>().penetration <= 0) &&
-		     e.get<Projectile>().definition.damage > 0))
+		if (projectile_finished(e.get<Projectile>()))
 			e.destruct();
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	std::erase_if(blast_visuals,
 	              [&](const auto &v)
 	              {
-		              return tick - v.tick >= v.definition.growth_ticks + v.definition.fade_ticks;
+		              return blast_visual_finished(v, tick);
 	              });
 }
 void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::int64_t bearing)
@@ -377,60 +307,11 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 }
 void advance_ordnance(Projectile &p)
 {
-	const auto old_z = p.altitude;
-	if (p.definition.durability)
-	{
-		auto desired = p.heading;
-		if (p.definition.guidance == "homing" && entities.contains(p.target) && !combat_dead(entities.at(p.target)))
-		{
-			const auto target = entities.at(p.target).get<Pose>().position;
-			if (fixed::length(target - p.position) + std::abs(p.altitude - altitude(p.target)) <=
-			    p.definition.seeker_range)
-			{
-				desired = combat_bearing(target - p.position);
-				p.seeker_altitude = altitude(p.target);
-				if (p.bearing_launch && !p.seeker_acquired)
-				{
-					p.seeker_acquired = true;
-					p.arc_start_age = p.age;
-					p.launch_altitude = p.altitude;
-					p.initial_distance = std::max<std::int64_t>(1, fixed::length(target - p.position));
-				}
-			}
-		}
-		if (p.definition.guidance == "chaotic")
-		{
-			p.random = p.random * 6364136223846793005ULL + 1;
-			desired = combat_angle(p.base_heading +
-			                       static_cast<std::int64_t>((p.random >> 16) % (p.definition.chaos * 2 + 1)) -
-			                       p.definition.chaos);
-		}
-		p.turn_remainder += p.definition.turn_rate;
-		const auto step = p.turn_remainder / rate;
-		p.turn_remainder %= rate;
-		p.heading = combat_angle(p.heading + std::clamp(combat_delta(desired, p.heading), -step, step));
-		p.velocity = fixed::scale(fixed::direction(p.heading), p.definition.speed);
-		const auto progress = std::clamp<std::int64_t>((p.age - p.arc_start_age) * p.definition.speed * 1000 /
-		                                                   (std::max<std::int64_t>(1, p.initial_distance) * rate),
-		                                               0, 1000);
-		const auto launch_altitude = p.launch_altitude;
-		const auto target_altitude =
-		    p.bearing_launch ? p.seeker_altitude : (entities.contains(p.target) ? altitude(p.target) : 0);
-		p.altitude = launch_altitude + (target_altitude - launch_altitude) * progress / 1000 +
-		             4 * p.definition.arc_height * progress * (1000 - progress) / 1000000;
-		p.vz = (p.altitude - old_z) * rate;
-	}
-	else
-	{
-		p.z_remainder += p.vz;
-		p.altitude += p.z_remainder / rate;
-		p.z_remainder %= rate;
-	}
-	p.remainder = p.remainder + p.velocity;
-	p.position = p.position + fixed::Vec{p.remainder.x / rate, p.remainder.y / rate};
-	p.remainder.x %= rate;
-	p.remainder.y %= rate;
-	++p.age;
+	std::optional<OrdnanceTarget> target;
+	if (entities.contains(p.target))
+		target = OrdnanceTarget{entities.at(p.target).get<Pose>().position, altitude(p.target),
+		                        !combat_dead(entities.at(p.target))};
+	advance_projectile(p, target);
 }
 void step_ordnance()
 {

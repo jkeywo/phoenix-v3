@@ -98,10 +98,10 @@ void refresh_comms(bool disclose = true)
 							if (line.text == message.text && !line.received_tag.empty())
 								conversations.received_tags[id].insert(line.received_tag);
 	}
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &d = away_definitions[i];
-		const auto &m = away_missions[i];
+		const auto &d = away_operations.definitions()[i];
+		const auto &m = away_operations.missions()[i];
 		const auto ship = away_ship(d);
 		const auto cid = away_conversation(d);
 		if (!ship || !cid)

@@ -1,3 +1,17 @@
 add_library(phoenix_effects_processes STATIC processes.cpp)
 target_sources(phoenix_effects_processes PUBLIC FILE_SET CXX_MODULES FILES processes.cppm)
 target_link_libraries(phoenix_effects_processes PUBLIC phoenix_effects_contracts)
+
+add_library(phoenix_effects_machinery STATIC machinery.cpp)
+target_sources(phoenix_effects_machinery PUBLIC FILE_SET CXX_MODULES FILES machinery.cppm)
+target_link_libraries(phoenix_effects_machinery PUBLIC phoenix_effects_funding phoenix_world_state)
+add_library(phoenix_effects_finite_work STATIC finite_work.cpp)
+target_sources(phoenix_effects_finite_work PUBLIC FILE_SET CXX_MODULES FILES finite_work.cppm)
+target_link_libraries(phoenix_effects_finite_work PUBLIC phoenix_effects_funding)
+add_library(phoenix_effects_process_validation STATIC validation.cpp)
+target_sources(phoenix_effects_process_validation PUBLIC FILE_SET CXX_MODULES FILES validation.cppm)
+target_link_libraries(
+	phoenix_effects_process_validation
+	PUBLIC phoenix_effects_processes phoenix_effects_continuation_validation
+	PRIVATE phoenix_foundation
+)

@@ -77,6 +77,7 @@ RuleActor process_actor(const CustomPropertyAddress &);
 std::string process_owner_kind(const CustomPropertyAddress &);
 std::string process_owner_name(const CustomPropertyAddress &);
 std::string process_instance_key(const CustomPropertyAddress &, const ProcessState &);
+std::string process_funding_key(const CustomPropertyAddress &, const ProcessState &, bool work);
 std::string process_run_source(const CustomPropertyAddress &, const ProcessState &);
 ProcessRuntime initial_process_runtime(std::span<const ProcessBinding>, const ProcessCatalog &);
 std::string install_process_grant(ProcessRuntime &, const ProcessCatalog &, const ProcessGrantDefinition &,

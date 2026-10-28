@@ -417,76 +417,12 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 			p.life = 0;
 		return;
 	}
-	if (!p.decks.contains(id))
+	PenetrationTraversal traversal(p, s, id, ship.get<Pose>(), start, end);
+	while (const auto contact = traversal.next(p, s))
 	{
-		std::map<std::string, std::int64_t> weights;
-		for (const auto &c : s.definition.compartments)
-			weights[c.deck] = c.deck_weight;
-		std::int64_t total = 0;
-		for (const auto &[deck, w] : weights)
-			total += w;
-		s.random = s.random * 6364136223846793005ULL + 1;
-		auto roll = static_cast<std::int64_t>((s.random >> 16) % static_cast<std::uint64_t>(total));
-		for (const auto &[deck, w] : weights)
-		{
-			if (roll < w)
-			{
-				p.decks[id] = deck;
-				break;
-			}
-			roll -= w;
-		}
-	}
-	const auto a = combat_local(start, ship.get<Pose>()), b = combat_local(end, ship.get<Pose>());
-	const auto length = fixed::length(b - a);
-	struct Traversal
-	{
-		std::int64_t from, to;
-		std::size_t index;
-	};
-	std::vector<Traversal> lines;
-	for (std::size_t i = 0; i < s.definition.compartments.size(); ++i)
-		if (const auto &c = s.definition.compartments[i]; c.deck == p.decks.at(id))
-			if (auto hit = compartment_segment(a, b, c))
-				lines.push_back({hit->first, hit->second, i});
-	std::sort(lines.begin(), lines.end(),
-	          [](const auto &x, const auto &y)
-	          {
-		          return std::pair{x.from, x.index} < std::pair{y.from, y.index};
-	          });
-	for (const auto &line : lines)
-	{
-		if (!p.damage || !p.penetration)
-			break;
-		const auto &d = s.definition.compartments[line.index];
-		auto &c = s.compartments[line.index];
-		if (c.hp <= 0)
-			continue; // Destroyed compartments are empty traversal, not another material hit.
-		const auto distance = length * (line.to - line.from) / 1000000;
-		const auto resistance = std::max<std::int64_t>(1, d.resistance * c.hp / d.maximum);
-		const auto damage = p.damage, penetration = p.penetration;
-		const auto deposit_remainder = p.deposit_remainder, resistance_remainder = p.resistance_remainder;
-		const auto deposit = deposit_material(p, distance, resistance);
-		const auto absorbed = combat_damage(ship, line.index, deposit, &p, nullptr, &sources, &native_inflicted);
-		if (deposit > absorbed && ship.get<CombatStructure>().compartments.at(line.index).hp == 0)
-		{
-			// Retire only the material crossed before the compartment failed. A shot
-			// that exhausted its penetration still stops; otherwise its unused budget continues.
-			auto traversed = distance;
-			if (p.definition.deposition > 0)
-				traversed = std::min(traversed, std::max<std::int64_t>(0, absorbed * 1000 - deposit_remainder +
-				                                                              p.definition.deposition - 1) /
-				                                    p.definition.deposition);
-			if (p.penetration == 0)
-				traversed =
-				    std::min(traversed, (penetration * 1000 - resistance_remainder + resistance - 1) / resistance);
-			p.damage = damage;
-			p.penetration = penetration;
-			p.deposit_remainder = deposit_remainder;
-			p.resistance_remainder = resistance_remainder;
-			deposit_material(p, traversed, resistance);
-			p.damage = damage - absorbed;
-		}
+		const auto absorbed =
+		    combat_damage(ship, contact->compartment, contact->deposit, &p, nullptr, &sources, &native_inflicted);
+		traversal.resolve(p, absorbed, ship.get<CombatStructure>().compartments.at(contact->compartment).hp == 0);
 	}
 	finish_entity_hit();
 }
@@ -1087,176 +1023,19 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 }
 Json save_combat(flecs::entity ship) const
 {
-	const auto &s = ship.get<CombatStructure>();
-	Json j = {{"random", s.random}, {"faults", s.faults}, {"compartments", Json::array()}, {"systems", Json::object()}};
-	j["closed_routes"] = s.closed_routes;
-	j["access_revision"] = s.access_revision;
-	for (const auto &c : s.compartments)
-		j["compartments"].push_back({{"hp", c.hp}, {"work", c.work}, {"disabled", c.disabled}});
+	auto result = save_combat_structure(ship.get<CombatStructure>());
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
-			j["systems"][m->definition.id] = std::visit(
-			    [](const auto &state)
-			    {
-				    if constexpr (std::is_same_v<std::decay_t<decltype(state)>, ShieldBindingState>)
-					    return Json::object();
-				    else
-					    return Json(state);
-			    },
-			    m->state);
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
-			if (const auto *order = team_order_definition(*m, m->get<TeamState>().order))
-				j["systems"][m->definition.id]["order_continuation"] =
-				    state_tree::save(order->program, m->get<TeamState>().continuation);
-	return j;
+			result["systems"][m->definition.id] = save_combat_mechanism(*m);
+	return result;
 }
 void restore_combat(flecs::entity ship, const Json &j)
 {
 	auto &s = ship.get_mut<CombatStructure>();
-	s.closed_routes = j.at("closed_routes").get<std::set<std::string>>();
-	s.access_revision = j.at("access_revision");
-	if (!s.access_revision || s.access_revision >= 9007199254740991ULL ||
-	    s.closed_routes.size() > s.definition.connections.size())
-		throw std::runtime_error("Invalid compartment access continuation");
-	for (const auto &key : s.closed_routes)
-	{
-		bool found = false;
-		for (const auto &edge : s.definition.connections)
-			found |= key == compartment_edge_key(edge.from, edge.to);
-		if (!found)
-			throw std::runtime_error("Unknown closed compartment route");
-	}
-	s.random = j.at("random");
-	s.faults = j.value("faults", Json(s.faults)).get<std::map<std::string, std::vector<FaultState>>>();
-	for (const auto &[id, defs] : s.definition.faults)
-		if (!s.faults.contains(id) || s.faults.at(id).size() != defs.size())
-			throw std::runtime_error("Fault roster mismatch");
-	if (j.at("compartments").size() != s.compartments.size())
-		throw std::runtime_error("Combat compartment roster mismatch");
-	for (std::size_t i = 0; i < s.compartments.size(); ++i)
-	{
-		const auto &v = j.at("compartments")[i];
-		auto &c = s.compartments[i];
-		c.hp = checked_integer(v.at("hp"), 0, s.definition.compartments[i].maximum, "compartment.hp");
-		c.work = checked_integer(v.at("work"), 0, rate * 1000 - 1, "compartment.work");
-		c.disabled = v.at("disabled");
-		if ((c.hp == 0 && !c.disabled) || (c.hp >= s.definition.compartments[i].recovery && c.disabled))
-			throw std::runtime_error("Invalid structural disablement");
-	}
-	const auto destroyed = std::all_of(s.compartments.begin(), s.compartments.end(),
-	                                   [](const auto &c)
-	                                   {
-		                                   return c.hp == 0;
-	                                   });
-	if (destroyed != combat_dead(ship))
-		throw std::runtime_error("Inconsistent ship destruction continuation");
-	if (j.at("systems").size() != s.definition.systems.size())
-		throw std::runtime_error("Combat equipment roster mismatch");
+	restore_combat_structure(s, j, combat_dead(ship));
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>())
-		{
-			const auto &v = j.at("systems").at(m->definition.id);
-			const auto n = static_cast<std::int64_t>(s.compartments.size());
-			std::visit(
-			    [&](auto &state)
-			    {
-				    using State = std::decay_t<decltype(state)>;
-				    if constexpr (std::is_same_v<State, ShieldBindingState>)
-				    {
-					    if (!v.is_object() || !v.empty())
-						    throw std::runtime_error("Invalid shield binding state");
-				    }
-				    else
-				    {
-					    state = v.get<State>();
-					    Json expected = Json(state), actual = v;
-					    if constexpr (std::is_same_v<State, TeamState>)
-					    {
-						    actual.erase("order_continuation");
-						    for (const auto *key :
-						         {"revision", "order", "activity", "patient", "work_done", "condition", "treatment",
-						          "detained", "compartment_assignment", "medical_compartment"})
-							    if (!actual.contains(key))
-								    actual[key] = expected.at(key);
-					    }
-					    if (expected != actual)
-						    throw std::runtime_error("Unexpected combat state fields");
-				    }
-			    },
-			    m->state);
-			const auto bounded = [&](const char *key, std::int64_t low, std::int64_t high)
-			{
-				checked_integer(v.at(key), low, high, m->definition.id + "." + key);
-			};
-			switch (m->definition.kind)
-			{
-			case OperatingSystem::Weapon:
-			{
-				const auto &w = m->get<WeaponState>();
-				bounded("cooldown", 0, 1000000000);
-				bounded("shots", 0, 1000000000000LL);
-				bounded(
-				    "selected_magazine", 0,
-				    std::max<std::int64_t>(0, m->definition.get<WeaponDefinition>().magazines.size() -
-				                                  (m->definition.get<WeaponDefinition>().magazines.empty() ? 0 : 1)));
-				bounded("loaded_magazine", -1,
-				        static_cast<std::int64_t>(m->definition.get<WeaponDefinition>().magazines.size()) - 1);
-				bounded("beam_remainder", 0, rate * 1000 - 1);
-				bounded("beam_tick", -1, 1000000000000LL);
-				bounded("bypass_remainder", 0, 999);
-				if (w.loading < 0 || w.unloading < 0)
-					throw std::runtime_error("Invalid ammunition progress");
-				break;
-			}
-			case OperatingSystem::Turret:
-				bounded("heading", 0, 359999);
-				bounded("turn_remainder", 0, rate - 1);
-				break;
-			case OperatingSystem::Magazine:
-			{
-				const auto &a = m->get<MagazineState>();
-				if (a.stock != "system:" + m->definition.id)
-					throw std::runtime_error("Invalid magazine stock binding");
-				break;
-			}
-			case OperatingSystem::Team:
-			{
-				auto &r = m->get<TeamState>();
-				if (!r.revision || r.revision > 9007199254740991ULL || r.patient.size() > 72)
-					throw std::runtime_error("Invalid team revision/patient");
-				if (!r.order.empty())
-				{
-					const auto *order = team_order_definition(*m, r.order);
-					if (!order || !v.contains("order_continuation") || r.repair_auto || r.destination < 0)
-						throw std::runtime_error("Invalid saved team order");
-					if (!r.activity.empty() &&
-					    std::none_of(order->program.registry.actions.begin(), order->program.registry.actions.end(),
-					                 [&](const auto &a)
-					                 {
-						                 return a.name == r.activity;
-					                 }))
-						throw std::runtime_error("Invalid team activity");
-					r.continuation = state_tree::load(order->program, v.at("order_continuation"));
-				}
-				else if (!r.activity.empty() || !r.patient.empty() || v.contains("order_continuation"))
-					throw std::runtime_error("Orphaned team continuation");
-				bounded("location", 0, n - 1);
-				bounded("destination", -1, n - 1);
-				bounded("edge_to", -1, n - 1);
-				bounded("travel", 0, 1000000);
-				bounded("edge_total", 0, 1000000);
-				bounded("repair_system", -2, static_cast<std::int64_t>(s.definition.equipment_compartments.size()) - 1);
-				if ((r.travel > 0) != (r.edge_to >= 0) || r.travel > r.edge_total)
-					throw std::runtime_error("Invalid team traversal");
-				break;
-			}
-			case OperatingSystem::Shield:
-				break;
-			default:
-				throw std::runtime_error("Unexpected combat mechanism");
-			}
-		}
+			restore_combat_mechanism(*m, s.definition, j.at("systems").at(m->definition.id));
 
 	std::map<std::string, std::map<std::string, StockClaim>> reserved;
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -1319,256 +1098,43 @@ void restore_combat(flecs::entity ship, const Json &j)
 }
 Json save_projectiles() const
 {
-	Json out = Json::array();
-	for (const auto particle : projectile_rows())
-	{
-		const auto &p = particle.get<Projectile>();
-		out.push_back({{"id", p.id},
-		               {"source", p.source},
-		               {"weapon", p.weapon},
-		               {"payloads", p.payloads},
-		               {"rule_captures", p.rule_captures},
-		               {"destruction_rule_captures", p.destruction_rule_captures},
-		               {"position", p.position},
-		               {"velocity", p.velocity},
-		               {"remainder", p.remainder},
-		               {"heading", p.heading},
-		               {"life", p.life},
-		               {"penetration", p.penetration},
-		               {"damage", p.damage},
-		               {"deposit_remainder", p.deposit_remainder},
-		               {"resistance_remainder", p.resistance_remainder},
-		               {"decks", p.decks},
-		               {"definition", p.definition},
-		               {"target", p.target},
-		               {"altitude", p.altitude},
-		               {"launch_altitude", p.launch_altitude},
-		               {"bearing_launch", p.bearing_launch},
-		               {"seeker_acquired", p.seeker_acquired},
-		               {"arc_start_age", p.arc_start_age},
-		               {"seeker_altitude", p.seeker_altitude},
-		               {"vz", p.vz},
-		               {"z_remainder", p.z_remainder},
-		               {"durability", particle.get<Destructible>().durability},
-		               {"rule_notified", particle.get<Destructible>().rule_notified},
-		               {"age", p.age},
-		               {"initial_distance", p.initial_distance},
-		               {"base_heading", p.base_heading},
-		               {"turn_remainder", p.turn_remainder},
-		               {"random", p.random},
-		               {"shield_hits", p.shield_hits},
-		               {"missile_hits", p.missile_hits}});
-	}
-	return out;
+	Json result = Json::array();
+	for (auto particle : projectile_rows())
+		result.push_back(save_projectile_continuation(particle.get<Projectile>(), particle.get<Destructible>()));
+	return result;
 }
 void restore_projectiles(const Json &saved)
 {
-	next_projectile = checked_integer(saved.at("next_projectile"), 1, 9007199254740991LL, "next_projectile");
-	const auto list = saved.value("projectiles", Json::array());
-	if (!list.is_array() || list.size() > 8192)
-		throw std::runtime_error("Invalid projectile list");
-	std::set<std::uint64_t> seen;
-	for (const auto &v : list)
+	OrdnanceRestoreCatalogue catalogue;
+	for (const auto &[id, definition] : definitions)
+		catalogue.visuals.insert(id);
+	for (const auto &[id, payload] : payload_templates)
+		catalogue.payloads.insert(id);
+	for (const auto &[id, entity] : entities)
+		if (const auto *structure = entity.try_get<CombatStructure>())
+			for (const auto &compartment : structure->definition.compartments)
+				catalogue.decks[id].insert(compartment.deck);
+	auto restored =
+	    restore_projectile_continuations(saved, static_cast<std::int64_t>(ecs.get<Clock>().tick), catalogue);
+	next_projectile = restored.next_projectile;
+	for (auto &value : restored.values)
 	{
-		Projectile p;
-		p.id = v.at("id");
-		p.source = v.at("source");
-		p.weapon = v.value("weapon", std::string{});
-		if (p.weapon.size() > 256 || !v.at("payloads").is_array() || v.at("payloads").size() > 256)
-			throw std::runtime_error("Invalid captured projectile payloads");
-		p.payloads = v.at("payloads").get<std::vector<std::string>>();
-		const auto validate_payloads = [&](const std::vector<std::string> &payloads)
-		{
-			std::set<std::string> captured;
-			if (payloads.size() > 256)
-				throw std::runtime_error("Too many projectile payloads");
-			for (const auto &payload : payloads)
-				if (!captured.insert(payload).second || !payload_templates.contains(payload))
-					throw std::runtime_error("Invalid captured payload identity");
-		};
-		validate_payloads(p.payloads);
-		for (const auto *field : {"rule_captures", "destruction_rule_captures"})
-			if (!v.at(field).is_array() || v.at(field).size() > rule_expression_node_limit)
-				throw std::runtime_error("Invalid projectile capture roster");
-		p.rule_captures = v.at("rule_captures").get<std::vector<RuleCapturedFact>>();
-		validate_rule_captures(p.rule_captures, p.payloads);
-		p.position = v.at("position").get<fixed::Vec>();
-		p.velocity = v.at("velocity").get<fixed::Vec>();
-		p.remainder = v.at("remainder").get<fixed::Vec>();
-		p.heading = v.at("heading");
-		p.life = v.at("life");
-		p.penetration = v.at("penetration");
-		p.damage = v.at("damage");
-		p.deposit_remainder = v.at("deposit_remainder");
-		p.resistance_remainder = v.at("resistance_remainder");
-		p.decks = v.at("decks").get<std::map<EntityId, std::string>>();
-		p.definition = v.at("definition").get<ProjectileDefinition>();
-		validate_payloads(p.definition.payloads);
-		validate_payloads(p.definition.destruction.payloads);
-		p.destruction_rule_captures = v.at("destruction_rule_captures").get<std::vector<RuleCapturedFact>>();
-		validate_rule_captures(p.destruction_rule_captures, p.definition.destruction.payloads);
-		p.target = v.at("target").get<decltype(p.target)>();
-		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
-		p.launch_altitude =
-		    checked_integer(v.value("launch_altitude", Json(0)), -1000000, 1000000, "projectile.launch_altitude");
-		p.bearing_launch = v.value("bearing_launch", false);
-		p.seeker_acquired = v.value("seeker_acquired", false);
-		p.arc_start_age = checked_integer(v.value("arc_start_age", Json(0)), 0, v.at("age").get<std::int64_t>(),
-		                                  "projectile.arc_start_age");
-		p.seeker_altitude = checked_integer(v.value("seeker_altitude", Json(p.launch_altitude)), -1000000, 1000000,
-		                                    "projectile.seeker_altitude");
-		p.vz = v.at("vz").get<decltype(p.vz)>();
-		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
-		const auto durability =
-		    checked_integer(v.at("durability"), 0, p.definition.durability, "projectile.durability");
-		if (!v.at("rule_notified").is_boolean())
-			throw std::runtime_error("Invalid projectile destruction notification");
-		const auto notified = v.at("rule_notified").get<bool>();
-		if (notified && durability > 0)
-			throw std::runtime_error("Living projectile has a destruction notification");
-		p.age = v.at("age").get<decltype(p.age)>();
-		p.initial_distance = v.at("initial_distance").get<decltype(p.initial_distance)>();
-		p.base_heading = v.at("base_heading").get<decltype(p.base_heading)>();
-		p.turn_remainder = v.at("turn_remainder").get<decltype(p.turn_remainder)>();
-		p.random = v.at("random").get<decltype(p.random)>();
-		p.shield_hits = v.at("shield_hits").get<decltype(p.shield_hits)>();
-		p.missile_hits = v.at("missile_hits").get<decltype(p.missile_hits)>();
-		checked_integer(v.at("id"), 1, next_projectile - 1, "projectile.id");
-		checked_integer(v.at("source"), 0, 9007199254740991LL, "projectile.source");
-		const bool effect_only = p.definition.damage == 0;
-		if (!seen.insert(p.id).second || p.id >= next_projectile || !definitions.contains(p.definition.visual) ||
-		    p.life < 1 || p.life > p.definition.lifetime || p.damage < (effect_only ? 0 : 1) ||
-		    p.damage > p.definition.damage || p.penetration < (effect_only ? 0 : 1) ||
-		    p.penetration > p.definition.penetration || std::abs(p.position.x) > fixed::unit ||
-		    std::abs(p.position.y) > fixed::unit || std::abs(p.velocity.x) > fixed::unit ||
-		    std::abs(p.velocity.y) > fixed::unit || std::abs(p.remainder.x) >= rate ||
-		    std::abs(p.remainder.y) >= rate || p.deposit_remainder < 0 || p.deposit_remainder >= 1000 ||
-		    p.resistance_remainder < 0 || p.resistance_remainder >= 1000)
-			throw std::runtime_error("Invalid projectile continuation");
-		for (const auto &[id, deck] : p.decks)
-			if (!entities.contains(id) || !entities.at(id).has<CombatStructure>() ||
-			    std::none_of(entities.at(id).get<CombatStructure>().definition.compartments.begin(),
-			                 entities.at(id).get<CombatStructure>().definition.compartments.end(),
-			                 [&](const auto &c)
-			                 {
-				                 return c.deck == deck;
-			                 }))
-				throw std::runtime_error("Invalid projectile deck selection");
-		Destructible native{p.definition.destruction, durability};
-		native.rule_notified = notified;
-		if (notified)
-			native.destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-		ecs.entity().set<Projectile>(p).set<Destructible>(std::move(native));
+		validate_rule_captures(value.projectile.rule_captures, value.projectile.payloads);
+		validate_rule_captures(value.projectile.destruction_rule_captures,
+		                       value.projectile.definition.destruction.payloads);
+		ecs.entity().set<Projectile>(value.projectile).set<Destructible>(std::move(value.native));
 	}
 }
 
 Json save_shields(flecs::entity ship) const
 {
-	const auto &owner = ship.get<ShieldComponent>();
-	Json result = {{"next_effect", owner.next_effect}, {"contributions", Json::array()}};
-	for (const auto &c : owner.contributions)
-		result["contributions"].push_back({{"effect_id", c.effect_id},
-		                                   {"name", c.definition.name},
-		                                   {"equipment", c.equipment},
-		                                   {"definition", c.definition_id},
-		                                   {"source", c.source},
-		                                   {"expiry", c.expiry},
-		                                   {"state", c.state},
-		                                   {"operating", c.operating},
-		                                   {"protection", c.protection},
-		                                   {"quoted_rate", c.quoted_rate},
-		                                   {"quoted_sustain", c.quoted_sustain},
-		                                   {"quoted_discharge", c.quoted_discharge}});
-	return result;
+	return save_shield_continuation(ship.get<ShieldComponent>());
 }
 void restore_shields(flecs::entity ship, const Json &value)
 {
-	ShieldComponent restored;
-	restored.next_effect = checked_integer(value.at("next_effect"), 1, 9007199254740991LL, "shield.next_effect");
-	if (!value.at("contributions").is_array() || value.at("contributions").size() > 8192)
-		throw std::runtime_error("Invalid shield contribution roster");
-	std::set<std::pair<std::uint64_t, std::string>> identities;
-	for (const auto &v : value.at("contributions"))
-	{
-		ShieldContribution c;
-		c.effect_id = checked_integer(v.at("effect_id"), 1, static_cast<std::int64_t>(restored.next_effect) - 1,
-		                              "shield.effect_id");
-		c.definition.name = v.at("name").get<std::string>();
-		c.equipment = v.at("equipment").get<std::string>();
-		c.definition_id = v.at("definition").get<std::string>();
-		if (!identities.emplace(c.effect_id, c.definition.name).second)
-			throw std::runtime_error("Duplicate shield contribution");
-		const ShieldEffectDefinition *base = nullptr;
-		if (!c.equipment.empty())
-		{
-			const auto fitted = instance(ship, c.equipment);
-			if (!fitted || !fitted->entity.has<CombatMechanism>())
-				throw std::runtime_error("Unknown shield equipment binding");
-			const auto &equipment = fitted->entity.get<CombatMechanism>().definition;
-			if (equipment.kind != OperatingSystem::Shield || equipment.shield_effect != c.definition_id)
-				throw std::runtime_error("Invalid shield definition binding");
-			base = &equipment.shield_definition;
-		}
-		else
-		{
-			const auto at = shield_templates.find(c.definition_id);
-			if (at == shield_templates.end())
-				throw std::runtime_error("Unknown saved shield effect");
-			base = &at->second;
-		}
-		c.definition = shield_contribution(*base, c.definition.name);
-		c.source = v.at("source").get<std::string>();
-		if (!c.equipment.empty() && c.source != c.equipment)
-			throw std::runtime_error("Invalid shield equipment source");
-		if (c.source.empty() || c.source.size() > 512)
-			throw std::runtime_error("Invalid shield source identity");
-		c.expiry = checked_integer(v.at("expiry"), -1, 9007199254740991LL, "shield.expiry");
-		c.state = v.at("state").get<ShieldState>();
-		if (Json(c.state) != v.at("state"))
-			throw std::runtime_error("Unexpected shield state fields");
-		const auto &d = c.definition.shield;
-		checked_integer(v.at("state").at("strength"), 0, d.reserve.capacity, "shield.strength");
-		checked_integer(v.at("state").at("warmup"), 0, d.warmup_ticks, "shield.warmup");
-		checked_integer(v.at("state").at("recharge_remainder"), 0, rate * 1000 - 1, "shield.recharge_remainder");
-		checked_integer(v.at("state").at("discharge_remainder"), 0, rate * 1000, "shield.discharge_remainder");
-		checked_integer(v.at("state").at("discharge_credit"), 0, d.recharge_energy * d.discharge_efficiency - 1,
-		                "shield.discharge_credit");
-		c.operating = v.at("operating").get<bool>();
-		c.protection = checked_integer(v.at("protection"), 0, 1000, "shield.protection");
-		c.quoted_rate = checked_integer(v.at("quoted_rate"), 0, 1000000000000LL, "shield.quoted_rate");
-		c.quoted_sustain = checked_integer(v.at("quoted_sustain"), 0, 1000000000000LL, "shield.quoted_sustain");
-		c.quoted_discharge = checked_integer(v.at("quoted_discharge"), 0, 1000000000000LL, "shield.quoted_discharge");
-		restored.contributions.push_back(std::move(c));
-	}
-	std::map<std::uint64_t, std::vector<const ShieldContribution *>> groups;
-	std::map<std::string, std::uint64_t> equipment_grants;
-	for (const auto &c : restored.contributions)
-	{
-		groups[c.effect_id].push_back(&c);
-		if (!c.equipment.empty())
-		{
-			const auto [entry, inserted] = equipment_grants.emplace(c.equipment, c.effect_id);
-			if (!inserted && entry->second != c.effect_id)
-				throw std::runtime_error("Duplicate equipment shield grant");
-		}
-	}
-	for (const auto &[id, group] : groups)
-	{
-		const auto &first = *group.front();
-		const auto &base =
-		    first.equipment.empty()
-		        ? shield_templates.at(first.definition_id)
-		        : instance(ship, first.equipment)->entity.get<CombatMechanism>().definition.shield_definition;
-		if (group.size() != base.contributions.size())
-			throw std::runtime_error("Incomplete shield effect group");
-		for (const auto *c : group)
-			if (c->equipment != first.equipment || c->definition_id != first.definition_id ||
-			    c->source != first.source || c->expiry != first.expiry)
-				throw std::runtime_error("Inconsistent shield effect group");
-	}
+	CombatMechanismDefinitions equipment;
 	for (auto child : ship.get<EquipmentIndex>().values)
-		if (const auto *m = child.try_get<CombatMechanism>();
-		    m && m->definition.kind == OperatingSystem::Shield && !equipment_grants.contains(m->definition.id))
-			throw std::runtime_error("Missing equipment shield grant");
-	ship.set<ShieldComponent>(std::move(restored));
+		if (const auto *m = child.try_get<CombatMechanism>())
+			equipment.emplace(m->definition.id, m->definition);
+	ship.set<ShieldComponent>(restore_shield_continuation(value, equipment, shield_templates));
 }

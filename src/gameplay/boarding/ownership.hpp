@@ -104,11 +104,11 @@ void detained_asset(EntityId ship, const std::string &asset, bool detained)
 }
 void capture_visitors(EntityId target, EntityId captor)
 {
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		auto &m = away_missions[i];
-		const auto ship = away_ship(away_definitions[i]);
-		if (away_definitions[i].target != target || !m.deployed() ||
+		auto &m = away_operations.missions()[i];
+		const auto ship = away_ship(away_operations.definitions()[i]);
+		if (away_operations.definitions()[i].target != target || !m.deployed() ||
 		    operational_owner(ship) == operational_owner(captor))
 			continue;
 		for (const auto &[slot, asset] : m.assignments)
@@ -151,7 +151,7 @@ void capture_visitors(EntityId target, EntityId captor)
 		m.transfer = 0;
 		m.care.clear();
 		++m.revision;
-		mission_transition("personnel.captured", ship, target, away_definitions[i].id, "captured");
+		mission_transition("personnel.captured", ship, target, away_operations.definitions()[i].id, "captured");
 	}
 }
 void free_captives(EntityId target, EntityId owner)
@@ -165,18 +165,19 @@ void free_captives(EntityId target, EntityId owner)
 					detained_asset(ship, asset, false);
 					mission_transition("personnel.freed", ship, target, asset, "freed");
 				}
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_definitions[i].target == target && away_missions[i].phase == AwayPhase::Captured &&
-		    operational_owner(away_ship(away_definitions[i])) == owner)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+		if (away_operations.definitions()[i].target == target &&
+		    away_operations.missions()[i].phase == AwayPhase::Captured &&
+		    operational_owner(away_ship(away_operations.definitions()[i])) == owner)
 		{
-			away_missions[i].phase = AwayPhase::Deployed;
-			++away_missions[i].revision;
+			away_operations.missions()[i].phase = AwayPhase::Deployed;
+			++away_operations.missions()[i].revision;
 		}
 }
 void claim_away_target(std::size_t index, const std::string &capability)
 {
-	const auto &d = away_definitions[index];
-	auto &m = away_missions[index];
+	const auto &d = away_operations.definitions()[index];
+	auto &m = away_operations.missions()[index];
 	const auto ship = away_ship(d);
 	if (!m.deployed() || !away_has_capability(ship, m, capability))
 		throw std::runtime_error("Claim requires a deployed qualified team");

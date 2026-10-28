@@ -1,8 +1,8 @@
 // Collection and barter extend cargo jobs; all goods travel through MaterialBatch.
 std::optional<CargoDelivery> supply_manifest(std::size_t index, std::int64_t requested = -1) const
 {
-	const auto &d = away_definitions.at(index);
-	const auto &m = away_missions.at(index);
+	const auto &d = away_operations.definitions().at(index);
+	const auto &m = away_operations.mission(index);
 	if (!d.supply)
 		return {};
 	const auto ship = away_ship(d), craft = away_transport_entity(ship, m.transport);
@@ -124,7 +124,7 @@ void supply_return(CargoDelivery &job)
 		}
 	}
 	craft_return(craft);
-	for (auto &mission : away_missions)
+	for (auto &mission : away_operations.missions())
 		if (mission.supply_job == job.id)
 			return_away_escorts(mission);
 }
@@ -167,7 +167,7 @@ void step_supply_cargo(CargoDelivery &job)
 			return;
 		if (supply_pending(job) || !craft_link(job.carrier) || !bay_working(job.source, e.get<CraftState>().bay))
 			return;
-		for (const auto &mission : away_missions)
+		for (const auto &mission : away_operations.missions())
 			if (mission.supply_job == job.id)
 				for (const auto &[slot, escort] : mission.escorts)
 					if (entities.at(escort).get<CraftState>().phase != CraftPhase::Flying)
@@ -238,7 +238,7 @@ void step_supply_cargo(CargoDelivery &job)
 }
 void advance_supply_mission(std::size_t index)
 {
-	auto &m = away_missions.at(index);
+	auto &m = away_operations.mission(index);
 	if (!m.supply_job)
 		return;
 	for (const auto &job : cargo_deliveries)
@@ -256,7 +256,7 @@ void advance_supply_mission(std::size_t index)
 			}
 			else if (job.phase == "complete" && m.phase != AwayPhase::Recovered)
 			{
-				finish_away_recovery(away_ship(away_definitions.at(index)), m);
+				finish_away_recovery(away_ship(away_operations.definitions().at(index)), m);
 				m.outcome = job.delivered == job.amount && job.paid == job.payment_amount && !job.cancelled
 				                ? "complete:Supplies delivered"
 				                : "fail:Supply exchange incomplete";

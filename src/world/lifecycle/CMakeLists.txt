@@ -1,0 +1,25 @@
+add_library(phoenix_world_assembly STATIC assembly.cpp)
+target_sources(phoenix_world_assembly PUBLIC FILE_SET CXX_MODULES FILES assembly.cppm)
+target_link_libraries(
+	phoenix_world_assembly
+	PUBLIC
+		phoenix_world_state
+		phoenix_gameplay_flight_definitions
+		phoenix_gameplay_away_state
+		phoenix_control_controllers
+		phoenix_effects_contracts
+		phoenix_content_catalog
+		phoenix_content_equipment_types
+		phoenix_content_combat_types
+		phoenix_content_operations_types
+		phoenix_content_logistics_types
+		phoenix_content_sensing_types
+		phoenix_content_resources_types
+		phoenix_gameplay_conversations_definitions
+	PRIVATE
+		phoenix_content_compilers
+		phoenix_content_assets
+		phoenix_control_templates
+		phoenix_resources_networks_definitions
+)
+set_property(TARGET phoenix_world_assembly PROPERTY CXX_SCAN_FOR_MODULES ON)

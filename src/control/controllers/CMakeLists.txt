@@ -15,3 +15,12 @@ target_link_libraries(
 	PRIVATE phoenix_content_compilers
 )
 set_property(TARGET phoenix_control_templates PROPERTY CXX_SCAN_FOR_MODULES ON)
+
+add_library(phoenix_control_views STATIC views.cpp)
+target_sources(phoenix_control_views PUBLIC FILE_SET CXX_MODULES FILES views.cppm)
+target_link_libraries(
+	phoenix_control_views
+	PUBLIC phoenix_control_controllers
+	PRIVATE phoenix_control_coordination phoenix_behavior_state_tree phoenix_behavior_vocabulary
+)
+set_property(TARGET phoenix_control_views PROPERTY CXX_SCAN_FOR_MODULES ON)

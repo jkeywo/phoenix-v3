@@ -31,34 +31,20 @@ std::string lifecycle(EntityId id) const
 }
 std::map<std::string, std::string> personnel_dispositions(EntityId ship) const
 {
-	std::map<std::string, std::string> dispositions;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == ship)
-		{
-			const auto &m = away_missions[i];
-			for (const auto &asset : m.participants)
-				dispositions.try_emplace(asset, "recovered");
-			if (m.absent())
-			{
-				for (const auto &[slot, asset] : m.assignments)
-					dispositions[asset] = m.boarding.prize_crew ? "prize_crew" : "deployed";
-				for (const auto &officer : m.accompanying)
-					dispositions["officer:" + officer] = m.boarding.prize_crew ? "prize_crew" : "deployed";
-			}
-		}
+	std::map<std::string, std::string> postings;
 	if (personnel_postings.contains(ship))
 		for (const auto &[asset, posting] : personnel_postings.at(ship))
-			dispositions[asset] = posting.status;
-	// Loss is permanent and takes precedence over history or a current manifest.
-	if (auto lost = mission_ledger.lost.find(ship); lost != mission_ledger.lost.end())
-		for (const auto &asset : lost->second)
-			dispositions[asset] = "lost";
-	const auto &pd = definition(ship).personnel;
-	const auto &ps = entities.at(ship).get<PersonnelState>();
-	for (std::size_t i = 0; i < pd.officers.size(); ++i)
-		if (ps.officers[i].condition == "dead" && dispositions.contains("officer:" + pd.officers[i].id))
-			dispositions["officer:" + pd.officers[i].id] = "dead";
-	return dispositions;
+			postings.emplace(asset, posting.status);
+	std::vector<std::string> dead;
+	const auto &definition_personnel = definition(ship).personnel;
+	const auto &personnel = entities.at(ship).get<PersonnelState>();
+	for (std::size_t i = 0; i < definition_personnel.officers.size(); ++i)
+		if (personnel.officers[i].condition == "dead")
+			dead.push_back(definition_personnel.officers[i].id);
+	const std::set<std::string> no_losses;
+	const auto lost = mission_ledger.lost.find(ship);
+	return away_operations.personnel_dispositions(ship, slot_entities, postings,
+	                                              lost == mission_ledger.lost.end() ? no_losses : lost->second, dead);
 }
 state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b) const
 {
@@ -136,10 +122,10 @@ state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding
 		return {};
 	}
 	if (b.kind == "away")
-		for (std::size_t i = 0; i < away_missions.size(); ++i)
-			if (away_ship(away_definitions[i]) == id && away_definitions[i].id == b.operation)
+		for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+			if (away_ship(away_operations.definitions()[i]) == id && away_operations.definitions()[i].id == b.operation)
 			{
-				const auto &m = away_missions[i];
+				const auto &m = away_operations.missions()[i];
 				if (b.field == "phase")
 				{
 					Json p = m.phase;
@@ -225,21 +211,33 @@ void resolve_lost_parties()
 			}
 			else
 				++it;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		auto &m = away_missions[i];
-		const auto &d = away_definitions[i];
+		auto &m = away_operations.missions()[i];
+		const auto &d = away_operations.definitions()[i];
 		auto ship = away_ship(d);
 		const auto transport = away_transport_entity(ship, m.transport);
 		const bool lost_transport =
 		    m.aboard_craft && transport &&
 		    (combat_dead(entities.at(transport)) || entities.at(transport).get<CraftState>().phase == CraftPhase::Lost);
-		if (!ship || m.phase == AwayPhase::Lost ||
-		    (m.phase == AwayPhase::Inbound && m.aboard_craft && !lost_transport) ||
-		    (!truly_destroyed(d.target) && !lost_transport))
+		AwayLossFacts loss_facts;
+		loss_facts.origin_assigned = static_cast<bool>(ship);
+		loss_facts.lost_transport = lost_transport;
+		loss_facts.transport_present = static_cast<bool>(transport);
+		// Capture only facts reachable under the original short-circuit guards.
+		// Retired targets may be absent on already-lost or returning missions.
+		if (ship && m.phase != AwayPhase::Lost && !(m.phase == AwayPhase::Inbound && m.aboard_craft && !lost_transport))
+		{
+			loss_facts.target_destroyed = truly_destroyed(d.target);
+			if ((loss_facts.target_destroyed || lost_transport) &&
+			    !((m.deployed() || m.phase == AwayPhase::Captured) && loss_facts.target_destroyed) && !lost_transport &&
+			    m.aboard_craft && transport)
+				loss_facts.torpedo_launched = torpedo_launched(entities.at(transport));
+		}
+		const auto decision = away_operations.loss_decision(m, loss_facts);
+		if (decision == AwayLossDecision::None)
 			continue;
-		if (((m.deployed() || m.phase == AwayPhase::Captured) && truly_destroyed(d.target)) || lost_transport ||
-		    (m.aboard_craft && transport && torpedo_launched(entities.at(transport)) && truly_destroyed(d.target)))
+		if (decision == AwayLossDecision::Lost)
 		{
 			for (const auto &[slot, a] : m.assignments)
 			{
@@ -290,13 +288,13 @@ void resolve_lost_parties()
 			++m.revision;
 			mission_transition("personnel.lost", ship, d.target, d.id, "target_destroyed");
 		}
-		else if (m.phase == AwayPhase::Outbound)
+		else if (decision == AwayLossDecision::Pickup)
 		{
-			if (m.aboard_craft && transport)
-			{
-				request_craft_pickup(transport);
-				continue;
-			}
+			request_craft_pickup(transport);
+			continue;
+		}
+		else if (decision == AwayLossDecision::Reopen)
+		{
 			m.phase = AwayPhase::Open;
 			m.transfer = 0;
 			++m.revision;
@@ -326,13 +324,13 @@ void update_mission_facts()
 					mission_change("ftl/" + std::to_string(id) + "/" + system, ready ? "ready" : "blocked",
 					               ready ? "ftl.ready" : "", id, id, system);
 				}
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &d = away_definitions[i];
+		const auto &d = away_operations.definitions()[i];
 		auto ship = away_ship(d);
 		if (!ship)
 			continue;
-		const auto &m = away_missions[i];
+		const auto &m = away_operations.missions()[i];
 		Json p = m.phase;
 		const auto phase = p.get<std::string>();
 		const auto key = "away/" + std::to_string(ship) + "/" + d.id;

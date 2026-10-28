@@ -344,10 +344,11 @@ void validate_cargo() const
 		if (job.collection)
 		{
 			bool found = false;
-			for (std::size_t i = 0; i < away_missions.size(); ++i)
-				if (away_definitions[i].id == job.mission && away_ship(away_definitions[i]) == job.source &&
-				    away_definitions[i].supply && away_missions[i].supply_job == job.id &&
-				    away_transport_entity(job.source, away_missions[i].transport) == job.carrier)
+			for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+				if (away_operations.definitions()[i].id == job.mission &&
+				    away_ship(away_operations.definitions()[i]) == job.source &&
+				    away_operations.definitions()[i].supply && away_operations.missions()[i].supply_job == job.id &&
+				    away_transport_entity(job.source, away_operations.missions()[i].transport) == job.carrier)
 					found = true;
 			if (!found)
 				throw std::runtime_error("Supply commitment without owning mission");
@@ -374,7 +375,7 @@ void validate_cargo() const
 			                                return job.id == batch.cargo;
 		                                }))
 			throw std::runtime_error("Cargo batch without commitment");
-	for (const auto &mission : away_missions)
+	for (const auto &mission : away_operations.missions())
 		if (mission.supply_job && std::none_of(cargo_deliveries.begin(), cargo_deliveries.end(),
 		                                       [&](const auto &job)
 		                                       {

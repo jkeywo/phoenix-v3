@@ -1,0 +1,12 @@
+add_library(phoenix_gameplay_ordnance STATIC ordnance.cpp)
+target_sources(phoenix_gameplay_ordnance PUBLIC FILE_SET CXX_MODULES FILES ordnance.cppm)
+target_link_libraries(phoenix_gameplay_ordnance PUBLIC phoenix_gameplay_directed phoenix_world_spatial)
+set_target_properties(
+	phoenix_gameplay_ordnance
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+set_property(
+	TARGET phoenix_gameplay_ordnance
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_directed;phoenix_world_spatial"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_ordnance)

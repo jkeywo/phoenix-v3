@@ -106,9 +106,9 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[brain.own[ControllerOwnField::Console]] = Value::reference(Type::Console, knowledge.console_id(address));
 	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
 	EntityId scan_objective = 0;
-	for (const auto &finding : sensor_findings)
+	for (const auto &finding : sensor_findings.definitions())
 		if (!finding.requires_event.empty() && finding_available(finding) &&
-		    !sensor_discoveries.contains({id, finding.target, finding.id}))
+		    !sensor_findings.discoveries().contains({id, finding.target, finding.id}))
 		{
 			scan_objective = finding.target;
 			break;
@@ -641,81 +641,34 @@ void refresh_controllers(EntityId id, bool validate = false)
 		const auto claimant = console_operator(address);
 		const bool present = claimant != 0;
 		const bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
-		// A lower workload relinquishes settings whose individual controls are no longer available.
-		if (human && !validate)
-			for (std::size_t j = 0; j < controller.commands.size(); ++j)
-			{
-				const auto &spec = controller.definition.commands[j];
-				auto &state = controller.commands[j];
-				if (spec.semantics == CommandSemantics::Setting && station_stars(address) < spec.individual_stars &&
-				    (state.value != spec.initial || state.arguments != spec.initial_arguments))
-				{
-					state.value = spec.initial;
-					state.arguments = spec.initial_arguments;
-					state.target_override = false;
-					++state.revision;
-				}
-			}
-		if (validate && human != controller.human)
-			throw std::runtime_error("Saved Controller operator differs from profile/claims");
-		if (validate)
-			controller.operator_claimant = claimant;
-		if (human == controller.human && (!human || claimant == controller.operator_claimant))
-		{
-			controller.operator_claimant = claimant;
-			knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
-			continue;
-		}
-		if (!controller.human && controller.brain)
-		{
-			const auto observations = controller_observations(id, controller);
-			cancel_controller_action(id, i, "operator_changed", observations);
-			const auto result =
-			    state_tree::interrupt(controller.brain->program, controller.brain->continuation, observations);
-			for (const auto &output : result.outputs)
-				controller_output(id, i, output, observations);
-			cancel_controller_action(id, i, "operator_changed", observations);
-			for (auto &request : controller.incoming_requests)
-				if (request.status == OfficerStatus::Accepted || request.status == OfficerStatus::Completed)
-				{
-					request.status = OfficerStatus::Failed;
-					request.reason = "operator_changed";
-					officer_message(id, controller, request, true);
-				}
-			for (auto &request : controller.outgoing_requests)
-				if (request.status == OfficerStatus::Requested || request.status == OfficerStatus::Accepted ||
-				    request.status == OfficerStatus::Completed)
-				{
-					request.status = OfficerStatus::Cancelled;
-					request.reason = "operator_changed";
-					officer_message(id, controller, request, true);
-				}
-		}
-		if (controller.generation == std::numeric_limits<std::uint64_t>::max())
-			throw std::runtime_error("Controller operator generation exhausted");
-		++controller.generation;
-		auto &bridge = entity.get_mut<BridgeBlackboard>();
-		if (bridge.epochs.contains(address.console))
-		{
-			auto &epoch = bridge.epochs.at(address.console);
-			if (epoch >= 9007199254740991ULL)
-				throw std::runtime_error("Console stance authority generation exhausted");
-			++epoch;
-		}
-		controller.human = human;
-		controller.operator_claimant = claimant;
-		knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
-		for (std::size_t j = 0; j < controller.commands.size(); ++j)
-		{
-			const auto action = controller.definition.commands[j].action;
-			if (action == OperatingAction::Longitudinal || action == OperatingAction::Lateral ||
-			    action == OperatingAction::ManualSteering || action == OperatingAction::Boost)
-			{
-				auto &command = controller.commands[j];
-				command.value = 0;
-				++command.revision;
-			}
-		}
+		const ControllerHandoverPorts ports{
+		    [this, id, &controller]
+		    {
+			    return controller_observations(id, controller);
+		    },
+		    [this, id, i](std::span<const state_tree::Value> observations)
+		    {
+			    cancel_controller_action(id, i, "operator_changed", observations);
+		    },
+		    [this, id, i](const state_tree::Output &output, std::span<const state_tree::Value> observations)
+		    {
+			    controller_output(id, i, output, observations);
+		    },
+		    [this, id, &controller](const OfficerRequest &request)
+		    {
+			    officer_message(id, controller, request, true);
+		    },
+		    [entity, console = address.console]() mutable
+		    {
+			    advance_controller_stance_epoch(entity.get_mut<BridgeBlackboard>(), console);
+		    },
+		    [this, id, address, &controller](bool current_present, bool current_human)
+		    {
+			    knowledge.set_controller_control({id, address.console, controller.definition.id}, current_present,
+			                                     current_human);
+		    }};
+		refresh_controller_operator(controller, claimant, human, human && !validate ? station_stars(address) : 0,
+		                            validate, ports);
 	}
 	// Presence also matters for readers and human-seeking offers on Consoles
 	// that own no command Controller. Update after outgoing AI cleanup.
@@ -949,95 +902,39 @@ void consume_controller_commands(flecs::entity entity)
 }
 Json project_controllers(const ConsoleAddress &address, const Observation &projected)
 {
-	const auto &controls = entities.at(address.ship).get<EntityControls>();
+	const auto entity = entities.at(address.ship);
+	const auto &controls = entity.get<EntityControls>();
 	Json result = Json::array();
-	// Availability is a read-only pass: all Controllers on this Console read
-	// the same permitted physical and knowledge projections.
 	const auto board = knowledge.project(address);
 	for (const auto &controller : controls.controllers)
 	{
 		if (controller.definition.console != address.console)
 			continue;
-		Json commands = Json::object();
-		for (std::size_t i = 0; i < controller.commands.size(); ++i)
-		{
-			const auto &spec = controller.definition.commands[i];
-			const auto &state = controller.commands[i];
-			commands[spec.id] = {{"value", state.value},
-			                     {"arguments", state.arguments},
-			                     {"action", std::string(operating_action(spec.action).name)},
-			                     {"minimum", spec.minimum},
-			                     {"maximum", spec.maximum},
-			                     {"revision", state.revision},
-			                     {"consumed", state.consumed},
-			                     {"pending", state.consumed < state.revision},
-			                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
-			                     {"accepted", state.accepted},
-			                     {"request_id", state.request_id}};
-			if (!spec.ui_system.empty())
-				commands[spec.id]["ui_system"] = spec.ui_system;
-			auto &consumers = commands[spec.id]["consumers"] = Json::array();
-			for (const auto index : spec.consumers)
-				consumers.push_back((*fittings(entities.at(address.ship))).values[index].id);
-		}
-		result.push_back({{"id", controller.definition.id},
-		                  {"console", address.console},
-		                  {"human", controller.human},
-		                  {"generation", controller.generation},
-		                  {"commands", commands}});
-		result.back()["conversation_authority"] =
+		ControllerViewFacts facts;
+		if (const auto fitted = fittings(entity))
+			for (const auto &system : fitted->values)
+				facts.systems.push_back(system.id);
+		facts.conversation_authority =
 		    comms_controller(address.ship, controller.definition) && conversation_operator(address.ship, controller);
-		bool contributes = false;
-		for (const auto &command : controller.definition.commands)
-			for (auto consumer : command.consumers)
-				contributes |= definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::Team ||
-				               definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::ShuttleBay;
-		result.back()["contribution_authority"] = contributes && console_operator(address) != 0;
-		bool bay = false;
+		bool contributes = false, bay = false;
 		for (const auto &command : controller.definition.commands)
 			for (const auto consumer : command.consumers)
-				bay |= definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::ShuttleBay;
-		result.back()["craft_authority"] = bay && assisted_workload(address, "craft");
-		result.back()["transport_authority"] = bay && assisted_workload(address, "transport");
-		result.back()["action"] = {
-		    {"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
-		auto &available = result.back()["actions"] = Json::array();
-		const auto action_observations = controller.brain && !controller.human && !controller.actions.empty()
-		                                     ? controller_observations(address.ship, controller, &projected, &board)
-		                                     : std::vector<state_tree::Value>{};
-		if (controller.brain)
-			for (const auto &action : controller.actions)
 			{
-				Json inputs = Json::array();
-				for (const auto index : action.inputs)
-				{
-					const auto &field = controller.brain->program.registry.observations.at(index);
-					inputs.push_back({{"name", field.name.substr(6)},
-					                  {"type", field.type == state_tree::Type::Text      ? "text"
-					                           : field.type == state_tree::Type::Boolean ? "boolean"
-					                                                                     : "integer"}});
-				}
-				bool usable = false;
-				if (!controller.human)
-				{
-					state_tree::Instance probe;
-					const auto check = state_tree::step(action.availability, probe, action_observations);
-					usable = !check.debug.active.empty() && check.debug.active.back() == "available";
-				}
-				available.push_back({{"id", action.id},
-				                     {"definition", action.tree},
-				                     {"label", action.label},
-				                     {"inputs", inputs},
-				                     {"available", usable}});
+				const auto kind = definition(address.ship).fitted->values.at(consumer).kind;
+				contributes |= kind == OperatingSystem::Team || kind == OperatingSystem::ShuttleBay;
+				bay |= kind == OperatingSystem::ShuttleBay;
 			}
-		result.back()["provider"] = {{"selected", controller.selected_provider},
-		                             {"effective", controller.effective_provider},
-		                             {"reason", controller.fallback_reason}};
-		result.back()["action"]["invocation"] = controller.action.invocation;
-		result.back()["coordination"] = save_controller_coordination(controller);
+		facts.contribution_authority = contributes && console_operator(address) != 0;
+		facts.craft_authority = bay && assisted_workload(address, "craft");
+		facts.transport_authority = bay && assisted_workload(address, "transport");
+		const auto observations = controller.brain && !controller.human && !controller.actions.empty()
+		                              ? controller_observations(address.ship, controller, &projected, &board)
+		                              : std::vector<state_tree::Value>{};
+		result.push_back(project_controller_runtime(controller, facts, observations));
 	}
 	return result;
 }
+
 void restore_controllers(flecs::entity entity, const Json &saved)
 {
 	const auto id = entity.get<StableId>().id;

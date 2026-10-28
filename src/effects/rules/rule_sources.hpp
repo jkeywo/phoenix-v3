@@ -363,10 +363,10 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 					for (const auto &role : roles)
 						target(equipment, role);
 			if (healthy)
-				for (std::size_t mission = 0; mission < away_missions.size(); ++mission)
+				for (std::size_t mission = 0; mission < away_operations.missions().size(); ++mission)
 				{
-					const auto &away = away_missions[mission];
-					if (away_ship(away_definitions[mission]) != id || !away.deployed())
+					const auto &away = away_operations.missions()[mission];
+					if (away_ship(away_operations.definitions()[mission]) != id || !away.deployed())
 						continue;
 					if (duty && !duty->team.empty() &&
 					    std::find(away.accompanying.begin(), away.accompanying.end(), officer.id) !=
@@ -379,7 +379,8 @@ std::vector<NativeRuleSource> rule_sources(flecs::entity ship, bool retiring = f
 					for (const auto &[slot, asset] : away.assignments)
 						if (asset == "officer:" + officer.id)
 						{
-							target("away:" + away_definitions[mission].id + ":officer:" + officer.id, {}, "repair");
+							target("away:" + away_operations.definitions()[mission].id + ":officer:" + officer.id, {},
+							       "repair");
 							for (const auto &[team_slot, team_asset] : away.assignments)
 								if (team_asset.starts_with("team:"))
 								{

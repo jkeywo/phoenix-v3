@@ -40,20 +40,6 @@
 		{
 			"source": "src/world/lifecycle/world.cpp",
 			"rule": "cross-module-include",
-			"target": "src/gameplay/combat/directed_state.hpp",
-			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
-			"chunk": "30"
-		},
-		{
-			"source": "src/world/lifecycle/world.cpp",
-			"rule": "cross-module-include",
-			"target": "src/resources/equipment/processors_state.hpp",
-			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
-			"chunk": "30"
-		},
-		{
-			"source": "src/world/lifecycle/world.cpp",
-			"rule": "cross-module-include",
 			"target": "src/world/schedule/tick_profile.hpp",
 			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
 			"chunk": "30"

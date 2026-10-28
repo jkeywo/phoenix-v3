@@ -4,4 +4,6 @@
 
 World installs those records into its authoritative registry in the existing entity order and retains exception-safe native child construction. The facade also composes the explicit tick phases and staged candidate restore. Domain runtime algorithms belong to their gameplay/effects/control/knowledge owners; remaining included native integration fragments are ongoing migration work.
 
-Assembly is prepared but not activated until the coordinated compilation checkpoint.
+Assembly is active and passed the second native system/continuation checkpoint.
+The private World partition and remaining native binding outline are still pending;
+their compiler feasibility probe is recorded separately in the migration evidence.

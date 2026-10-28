@@ -143,12 +143,14 @@ std::string ftl_blocker(EntityId id, flecs::entity child) const
 	const auto ship = entities.at(id);
 	const auto &fit = child.get<Equipment>();
 	bool displacement = false;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if ((away_ship(away_definitions[i]) == id || away_definitions[i].target == id) &&
-		    away_ship(away_definitions[i]) &&
-		    definition(away_ship(away_definitions[i])).displacements.contains(away_missions[i].transport) &&
-		    away_missions[i].transfer > 0 &&
-		    (away_missions[i].phase == AwayPhase::Outbound || away_missions[i].phase == AwayPhase::Inbound))
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+		if ((away_ship(away_operations.definitions()[i]) == id || away_operations.definitions()[i].target == id) &&
+		    away_ship(away_operations.definitions()[i]) &&
+		    definition(away_ship(away_operations.definitions()[i]))
+		        .displacements.contains(away_operations.missions()[i].transport) &&
+		    away_operations.missions()[i].transfer > 0 &&
+		    (away_operations.missions()[i].phase == AwayPhase::Outbound ||
+		     away_operations.missions()[i].phase == AwayPhase::Inbound))
 		{
 			displacement = true;
 			break;
@@ -245,10 +247,10 @@ std::pair<bool, std::int64_t> ftl_local_facts(EntityId id) const
 {
 	bool completed = false;
 	std::int64_t visitors = 0;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_definitions[i].target == id)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+		if (away_operations.definitions()[i].target == id)
 		{
-			const auto &m = away_missions[i];
+			const auto &m = away_operations.missions()[i];
 			completed |= m.outcome.starts_with("complete:");
 			if (m.deployed() && !m.boarding.prize_crew)
 				visitors += m.assignments.size() + m.accompanying.size();
@@ -365,10 +367,10 @@ void commit_departures()
 				const auto store = child.get<FtlReserve>().definition.store;
 				p.network.dissipate(store, p.network.stores().at(store).energy(), false);
 				ship.set<MissionDeparture>({ftl_projection::report(report)});
-				for (std::size_t i = 0; i < away_missions.size(); ++i)
-					if (away_ship(away_definitions[i]) == a.ship)
+				for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+					if (away_ship(away_operations.definitions()[i]) == a.ship)
 					{
-						auto &m = away_missions[i];
+						auto &m = away_operations.missions()[i];
 						if (!m.transport.starts_with("craft:") &&
 						    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound))
 						{

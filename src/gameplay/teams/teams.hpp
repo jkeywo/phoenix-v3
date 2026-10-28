@@ -131,9 +131,9 @@ ClinicalRoster clinical_roster(EntityId ship) const
 		{
 			const auto &r = m->get<TeamState>();
 			bool away = false;
-			for (std::size_t i = 0; i < away_missions.size(); ++i)
-				if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed())
-					for (const auto &[slot, asset] : away_missions[i].assignments)
+			for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+				if (away_ship(away_operations.definitions()[i]) == ship && away_operations.missions()[i].deployed())
+					for (const auto &[slot, asset] : away_operations.missions()[i].assignments)
 						if (asset == "team:" + m->definition.id)
 							away = true;
 			roster.append_team(m->definition.id, r.location, r.condition, away);
@@ -747,8 +747,8 @@ bool team_map_allowed(const ConsoleAddress &a) const
 
 void advance_away_medical(std::size_t index)
 {
-	auto &mission = away_missions[index];
-	const auto &definition_mission = away_definitions[index];
+	auto &mission = away_operations.missions()[index];
+	const auto &definition_mission = away_operations.definitions()[index];
 	const auto origin = away_ship(definition_mission), target = definition_mission.target;
 	const auto &pd = definition(target).personnel;
 	if (pd.compartments.empty())

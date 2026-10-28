@@ -97,10 +97,10 @@ bool dock_permitted(EntityId ship, std::size_t port, EntityId target, std::size_
 				return true;
 	// A target-authored boarding port can be forced only once the ordinary
 	// boarding insertion condition is met and the crew has opened that mission.
-	for (std::size_t i = 0; i < away_definitions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
 	{
-		const auto &mission = away_definitions[i];
-		const auto phase = away_missions[i].phase;
+		const auto &mission = away_operations.definitions()[i];
+		const auto phase = away_operations.missions()[i].phase;
 		if (mission.boarding && mission.allow_ship_transport && mission.target == target &&
 		    away_ship(mission) == ship &&
 		    (phase == AwayPhase::Open || phase == AwayPhase::Recovered || phase == AwayPhase::Outbound ||
@@ -121,9 +121,10 @@ bool dock_known(const ConsoleAddress &a, EntityId target) const
 	for (const auto &contact : capture_sensor_contacts(a))
 		if (contact.id == target)
 			return true;
-	for (std::size_t i = 0; i < away_definitions.size(); ++i)
-		if (away_ship(away_definitions[i]) == a.ship && away_definitions[i].target == target &&
-		    away_missions[i].phase != AwayPhase::Hidden)
+	for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
+		if (away_ship(away_operations.definitions()[i]) == a.ship &&
+		    away_operations.definitions()[i].target == target &&
+		    away_operations.missions()[i].phase != AwayPhase::Hidden)
 			return true;
 	if (const auto *c = entities.at(a.ship).try_get<CraftState>(); c && (c->home == target || c->target == target))
 		return true;
@@ -425,10 +426,10 @@ bool dock_crossing_busy(EntityId a, EntityId b) const
 		if (batch.source != batch.destination && batch.crossing &&
 		    ((batch.source == a && batch.destination == b) || (batch.source == b && batch.destination == a)))
 			return true;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{
-		const auto &m = away_missions[i];
-		const auto &d = away_definitions[i];
+		const auto &m = away_operations.missions()[i];
+		const auto &d = away_operations.definitions()[i];
 		if (m.transport == "ship" && m.transfer > 0 &&
 		    ((away_ship(d) == a && d.target == b) || (away_ship(d) == b && d.target == a)) &&
 		    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound))

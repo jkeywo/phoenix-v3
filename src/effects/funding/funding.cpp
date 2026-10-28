@@ -277,7 +277,7 @@ RuleUpkeepPlan make_process_upkeep_plan(const CustomPropertyAddress &address, co
 		reject_rule_upkeep(plan, error.what());
 	}
 	if (work)
-		plan.depends_on = process_instance_key(address, state) + ":idle";
+		plan.depends_on = process_funding_key(address, state, false);
 	if (previous)
 	{
 		if (previous->quoted_work == actual_work && previous->quoted_scale == scale)

@@ -10,3 +10,7 @@ set_property(
 	TARGET phoenix_resources_processors_definitions phoenix_resources_processors
 	PROPERTY CXX_SCAN_FOR_MODULES ON
 )
+
+add_library(phoenix_resources_processing STATIC)
+target_sources(phoenix_resources_processing PUBLIC FILE_SET CXX_MODULES FILES native.cppm)
+target_link_libraries(phoenix_resources_processing PUBLIC phoenix_resources_processors)

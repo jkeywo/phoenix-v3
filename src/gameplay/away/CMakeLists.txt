@@ -8,3 +8,30 @@ set_target_properties(
 	phoenix_gameplay_away_state
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+
+add_library(phoenix_gameplay_away_operations STATIC operations.cpp)
+target_sources(phoenix_gameplay_away_operations PUBLIC FILE_SET CXX_MODULES FILES operations.cppm)
+target_link_libraries(
+	phoenix_gameplay_away_operations
+	PUBLIC phoenix_gameplay_away_state phoenix_content_operations_types
+	PRIVATE phoenix_behavior_state_tree
+)
+set_target_properties(
+	phoenix_gameplay_away_operations
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+
+add_library(phoenix_gameplay_away_crew STATIC crew.cpp)
+target_sources(phoenix_gameplay_away_crew PUBLIC FILE_SET CXX_MODULES FILES crew.cppm)
+target_link_libraries(
+	phoenix_gameplay_away_crew
+	PUBLIC
+		phoenix_gameplay_personnel_state
+		phoenix_content_combat_types
+		phoenix_content_controllers_types
+		phoenix_world_state
+)
+set_target_properties(
+	phoenix_gameplay_away_crew
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

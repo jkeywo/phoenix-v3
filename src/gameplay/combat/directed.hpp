@@ -1,23 +1,3 @@
-// World::Impl shared directed intent, qualification and native-operation dispatch.
-struct DirectedAim
-{
-	BodyView body;
-	std::int64_t altitude = 0, vz = 0;
-	std::optional<std::int64_t> bearing;
-};
-// Prepared during the ordinary physical-input phase, consumed in this tick's
-// actuation phase. No save can expose these transient stock claims.
-struct PreparedDirectedOperation
-{
-	DirectedAim aim;
-	fixed::Vec origin;
-	std::int64_t bearing = 0, cycle_ticks = 1;
-	std::string magazine, resource;
-	AmmunitionDefinition ammunition;
-	ProjectileDefinition projectile;
-	std::vector<std::string> payloads;
-	bool stock_claim = false, loaded = false;
-};
 std::map<std::pair<EntityId, std::string>, PreparedDirectedOperation> directed_operations;
 void release_directed_operations(flecs::entity ship)
 {
@@ -52,21 +32,8 @@ std::optional<DirectedAim> directed_contact(EntityId ship, const std::string &id
 {
 	if (!wanted)
 		return {};
-	const auto &observation = console_detection(system_owner(ship, id), cache);
-	for (const auto &contact : observation.contacts)
-		if (contact.id == wanted)
-			return DirectedAim{contact, contact.altitude, contact.vz};
-	if (allow_bearing)
-		for (const auto &bearing : observation.bearing_contacts)
-			if (bearing.id == wanted)
-			{
-				DirectedAim aim;
-				aim.body.id = wanted;
-				aim.bearing = bearing.bearing_mdeg;
-				aim.altitude = altitude(ship);
-				return aim;
-			}
-	return {};
+	return select_directed_contact(console_detection(system_owner(ship, id), cache), wanted, altitude(ship),
+	                               allow_bearing);
 }
 const DirectedDefinition *directed_definition(EntityId ship, const std::string &id) const
 {
@@ -94,10 +61,7 @@ bool directed_operation(EntityId ship, const std::string &id, DirectedOperationK
 }
 bool directed_compatible(const DirectedDefinition &d, std::size_t mode, std::size_t targeting) const
 {
-	if (mode >= d.modes.size() || targeting >= d.targeting.size())
-		return false;
-	const auto &allowed = d.modes[mode].targeting;
-	return allowed.empty() || std::find(allowed.begin(), allowed.end(), d.targeting[targeting].id) != allowed.end();
+	return directed_mode_compatible(d, mode, targeting);
 }
 DirectedTargetingKind directed_targeting(EntityId ship, const std::string &id) const
 {
@@ -112,7 +76,7 @@ EntityId directed_mount_target(flecs::entity ship, flecs::entity mount) const
 	const auto *binding = mount.try_get<DirectedMountOwner>();
 	if (!binding || !mount.get<Equipment>().enabled || structurally_disabled(ship, mount.get<Equipment>().id))
 		return 0;
-	const auto owner = binding->equipment;
+	const auto owner = ecs.entity(binding->equipment);
 	const auto &id = owner.get<Equipment>().id;
 	if (!owner.get<Equipment>().enabled || structurally_disabled(ship, id))
 		return 0;
@@ -132,25 +96,7 @@ void apply_directed_mode(flecs::entity ship, flecs::entity child, bool restoring
 	if (auto *mechanism = child.try_get_mut<CombatMechanism>();
 	    mechanism && mechanism->definition.kind == OperatingSystem::Weapon)
 	{
-		auto &weapon = mechanism->definition.get<WeaponDefinition>();
-		weapon.range = mode.range;
-		if (mode.operation != DirectedOperationKind::Scan)
-		{
-			weapon.ammunition = mode.ammunition;
-			weapon.ammo_use = mode.ammo_use;
-		}
-		weapon.standby_energy = mode.standby_energy;
-		weapon.beam_damage = mode.beam_damage;
-		if (mode.operation != DirectedOperationKind::Scan)
-			weapon.family = mode.operation == DirectedOperationKind::Beam ? "beam" : "projectile";
-		if (!restoring)
-		{
-			mechanism->get<WeaponState>().ready = false;
-			mechanism->get<WeaponState>().beam_tick = -1;
-		}
-		if (!restoring && mode.operation == DirectedOperationKind::Launch &&
-		    mechanism->get<WeaponState>().loaded_magazine >= 0 &&
-		    mechanism->get<WeaponState>().loaded_quantity != mode.ammo_use && !mechanism->get<WeaponState>().unloading)
+		if (apply_directed_weapon_mode(*mechanism, mode, restoring))
 			mechanism->get<WeaponState>().unloading = std::max<std::int64_t>(
 			    1, load_duration(ship, *mechanism, mechanism->get<WeaponState>().loaded_magazine));
 	}
@@ -171,9 +117,7 @@ void initialize_directed(flecs::entity ship)
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto at = all.find(child.get<Equipment>().id); at != all.end())
 		{
-			DirectedRuntime state;
-			state.operating_mode = at->second.initial_mode;
-			state.targeting_mode = at->second.initial_targeting;
+			const auto state = initial_directed_runtime(at->second);
 			child.set<DirectedRuntime>(state);
 			std::string turret;
 			if (const auto *weapon = child.try_get<CombatMechanism>();
@@ -183,7 +127,7 @@ void initialize_directed(flecs::entity ship)
 			         sensor != definition(ship.get<StableId>().id).sensors.end())
 				turret = sensor->second.turret;
 			if (!turret.empty())
-				instance(ship, turret)->entity.set<DirectedMountOwner>({child});
+				instance(ship, turret)->entity.set<DirectedMountOwner>({child.id()});
 			apply_directed_mode(ship, child);
 		}
 }
@@ -196,23 +140,10 @@ bool directed_setting(EntityId ship, const std::string &id, const std::string &s
 	auto &state = fit->entity.get_mut<DirectedRuntime>();
 	if (suffix == "operating_mode" || suffix == "targeting_mode")
 	{
-		const auto mode = suffix == "operating_mode" ? static_cast<std::size_t>(value) : state.operating_mode;
-		const auto targeting = suffix == "targeting_mode" ? static_cast<std::size_t>(value) : state.targeting_mode;
-		if (!directed_compatible(*d, mode, targeting))
-			return false;
-		if (execute)
-		{
-			const bool changed = state.operating_mode != mode || state.targeting_mode != targeting;
-			state.operating_mode = mode;
-			state.targeting_mode = targeting;
-			if (changed)
-			{
-				state.ready = false;
-				state.blocker = "Mode changed";
-				apply_directed_mode(entities.at(ship), fit->entity);
-			}
-		}
-		return true;
+		const auto selection = select_directed_modes(state, *d, suffix, value, execute);
+		if (selection.accepted && execute && selection.changed)
+			apply_directed_mode(entities.at(ship), fit->entity);
+		return selection.accepted;
 	}
 	if (suffix == "target")
 	{
@@ -225,17 +156,7 @@ bool directed_setting(EntityId ship, const std::string &id, const std::string &s
 			const auto *sensor = fit->entity.try_get<SensorRuntime>();
 			const bool retained = sensor && (sensor->tracks.contains(target) ||
 			                                 (sensor->last_bearing && sensor->last_bearing->id == target));
-			if (!retained &&
-			    std::none_of(observation.contacts.begin(), observation.contacts.end(),
-			                 [&](const auto &c)
-			                 {
-				                 return c.id == target;
-			                 }) &&
-			    std::none_of(observation.bearing_contacts.begin(), observation.bearing_contacts.end(),
-			                 [&](const auto &c)
-			                 {
-				                 return c.id == target;
-			                 }))
+			if (!directed_target_visible(observation, target, retained))
 				return false;
 		}
 		if (execute)
@@ -271,23 +192,17 @@ void request_directed_resources(flecs::entity ship)
 			const auto &mode = *directed_mode(ship.get<StableId>().id, id);
 			const bool enabled = (mode.operation == DirectedOperationKind::Scan || !duel_ended()) &&
 			                     directed_enabled(ship, child, mode.operation);
-			bool working = enabled;
-			if (mode.operation != DirectedOperationKind::Scan)
-				working =
-				    working && child.has<CombatMechanism>() && child.get<CombatMechanism>().get<WeaponState>().ready;
-			const auto standby =
-			    enabled && directed_targeting(ship.get<StableId>().id, id) == DirectedTargetingKind::Intercept
-			        ? mode.standby_energy
-			        : 0;
+			const bool weapon_ready = enabled && mode.operation != DirectedOperationKind::Scan &&
+			                          child.has<CombatMechanism>() &&
+			                          child.get<CombatMechanism>().get<WeaponState>().ready;
 			const bool broad = child.get<Equipment>().kind == OperatingSystem::Radar &&
 			                   child.get<Equipment>().enabled && (!child.has<Radar>() || child.get<Radar>().enabled) &&
 			                   !structurally_disabled(ship, id);
-			const auto operation_rate = working ? mode.energy_per_second : 0;
-			if (operation_rate > resource_limit - standby)
-				throw std::runtime_error("Directed operating rate exceeds supported bound");
-			request_system_resource(*power, child.get<ResourceBinding>().slot, broad ? 1000 : 0,
-			                        working && mode.operation == DirectedOperationKind::Launch,
-			                        operation_rate + standby);
+			const auto demand = directed_resource_demand(
+			    mode, enabled ? directed_targeting(ship.get<StableId>().id, id) : DirectedTargetingKind::Off, enabled,
+			    weapon_ready, broad);
+			request_system_resource(*power, child.get<ResourceBinding>().slot, demand.activity, demand.discrete,
+			                        demand.energy);
 		}
 }
 template <class Operation>
@@ -297,40 +212,19 @@ bool execute_directed(flecs::entity ship, flecs::entity child, DirectedOperation
 	if (!child.has<DirectedRuntime>())
 		return false;
 	auto &state = child.get_mut<DirectedRuntime>();
-	state.ready = false;
-	if (!directed_enabled(ship, child, kind))
-	{
-		state.blocker = "Directed operation inactive";
-		return false;
-	}
-	if (!qualified)
-	{
-		state.blocker = "Target or operation not ready";
-		return false;
-	}
-	if (const auto *power = ship.try_get<ShipResources>(); power && child.has<ResourceBinding>())
-	{
-		const auto slot = child.get<ResourceBinding>().slot;
-		const auto &grant = power->grants.at(slot);
-		if (grant.blocked ||
-		    (kind == DirectedOperationKind::Beam ? grant.supply_permille <= 0 : grant.supply_permille < 1000) ||
-		    (kind == DirectedOperationKind::Launch && power->definition.systems.at(slot).discrete_energy &&
-		     !grant.discrete_paid))
+	const bool enabled = directed_enabled(ship, child, kind);
+	DirectedPower funding;
+	if (enabled && qualified)
+		if (const auto *power = ship.try_get<ShipResources>(); power && child.has<ResourceBinding>())
 		{
-			state.blocker = "Insufficient operating power";
-			return false;
+			const auto slot = child.get<ResourceBinding>().slot;
+			const auto &grant = power->grants.at(slot);
+			funding = {true, grant.blocked, power->definition.systems.at(slot).discrete_energy != 0,
+			           grant.discrete_paid, static_cast<int>(grant.supply_permille)};
 		}
-	}
-	state.ready = true;
-	state.blocker.clear();
-	if (!operation())
-	{
-		state.ready = false;
-		state.blocker = "Required operation unavailable";
+	if (!begin_directed_operation(state, kind, enabled, qualified, funding))
 		return false;
-	}
-	state.sequence = std::min<std::uint64_t>(9007199254740991ULL, state.sequence + 1);
-	return true;
+	return finish_directed_operation(state, operation());
 }
 Json directed_projection(EntityId ship, const std::string &id) const
 {
@@ -338,26 +232,7 @@ Json directed_projection(EntityId ship, const std::string &id) const
 	const auto fit = instance(entities.at(ship), id);
 	if (!d || !fit || !fit->entity.has<DirectedRuntime>())
 		return Json::object();
-	const auto &state = fit->entity.get<DirectedRuntime>();
-	Json result{{"operating_modes", Json::array()},
-	            {"targeting_modes", Json::array()},
-	            {"operating_mode", state.operating_mode},
-	            {"targeting_mode", state.targeting_mode},
-	            {"target", state.target},
-	            {"ready", state.ready},
-	            {"blocker", state.blocker},
-	            {"sequence", state.sequence}};
-	for (std::size_t i = 0; i < d->modes.size(); ++i)
-		result["operating_modes"].push_back({{"id", d->modes[i].id},
-		                                     {"label", d->modes[i].label},
-		                                     {"value", i},
-		                                     {"compatible", directed_compatible(*d, i, state.targeting_mode)}});
-	for (std::size_t i = 0; i < d->targeting.size(); ++i)
-		result["targeting_modes"].push_back({{"id", d->targeting[i].id},
-		                                     {"label", d->targeting[i].label},
-		                                     {"value", i},
-		                                     {"compatible", directed_compatible(*d, state.operating_mode, i)}});
-	return result;
+	return project_directed_runtime(*d, fit->entity.get<DirectedRuntime>());
 }
 Json save_directed() const
 {
@@ -366,17 +241,7 @@ Json save_directed() const
 		if (entity.has<EquipmentIndex>())
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *state = child.try_get<DirectedRuntime>())
-					result.push_back({{"ship", id},
-					                  {"system", child.get<Equipment>().id},
-					                  {"operating_mode", state->operating_mode},
-					                  {"targeting_mode", state->targeting_mode},
-					                  {"target", state->target},
-					                  {"sequence", state->sequence},
-					                  {"loading_mode", state->loading_mode},
-					                  {"loaded_mode", state->loaded_mode},
-					                  {"beam_funding_remainder", state->beam_funding_remainder},
-					                  {"ready", state->ready},
-					                  {"blocker", state->blocker}});
+					result.push_back(save_directed_runtime(id, child.get<Equipment>().id, *state));
 	return result;
 }
 void restore_directed(const Json &rows)
@@ -392,29 +257,9 @@ void restore_directed(const Json &rows)
 			throw std::runtime_error("Invalid saved directed owner");
 		const auto *d = directed_definition(ship, id);
 		const auto fit = instance(entities.at(ship), id);
-		DirectedRuntime state;
-		state.operating_mode = checked_integer(row.at("operating_mode"), 0, 255, "directed.operating_mode");
-		state.targeting_mode = checked_integer(row.at("targeting_mode"), 0, 255, "directed.targeting_mode");
-		state.target = checked_integer(row.at("target"), 0, 7999999999999999LL, "directed.target");
-		if (!d || !fit || !fit->entity.has<DirectedRuntime>() ||
-		    !directed_compatible(*d, state.operating_mode, state.targeting_mode) || state.target == ship)
+		if (!d || !fit || !fit->entity.has<DirectedRuntime>())
 			throw std::runtime_error("Invalid saved directed selection");
-		state.sequence = checked_integer(row.at("sequence"), 0, 9007199254740991LL, "directed.sequence");
-		state.loading_mode = row.at("loading_mode").get<std::string>();
-		state.loaded_mode = row.at("loaded_mode").get<std::string>();
-		state.beam_funding_remainder =
-		    checked_integer(row.at("beam_funding_remainder"), 0, 999, "directed.beam_funding_remainder");
-		for (const auto &mode : {state.loading_mode, state.loaded_mode})
-			if (!mode.empty() && std::none_of(d->modes.begin(), d->modes.end(),
-			                                  [&](const auto &m)
-			                                  {
-				                                  return m.id == mode && m.operation == DirectedOperationKind::Launch;
-			                                  }))
-				throw std::runtime_error("Invalid saved loading mode");
-		state.ready = row.at("ready").get<bool>();
-		state.blocker = row.at("blocker").get<std::string>();
-		if (state.blocker.size() > 256)
-			throw std::runtime_error("Invalid saved directed blocker");
+		const auto state = restore_directed_runtime(row, *d, ship);
 		fit->entity.set<DirectedRuntime>(state);
 		apply_directed_mode(entities.at(ship), fit->entity, true);
 	}
@@ -438,12 +283,9 @@ void validate_directed_commitments() const
 					if (const auto *weapon = child.try_get<CombatMechanism>();
 					    weapon && weapon->definition.kind == OperatingSystem::Weapon)
 					{
-						const auto &native = weapon->get<WeaponState>();
-						if ((native.loading > 0) != !state->loading_mode.empty() ||
-						    (native.loaded_magazine >= 0) != !state->loaded_mode.empty())
-							throw std::runtime_error("Saved weapon loading state disagrees with its committed mode");
+						validate_directed_ammunition_commitment(*state, &weapon->get<WeaponState>());
 					}
-					else if (!state->loading_mode.empty() || !state->loaded_mode.empty())
-						throw std::runtime_error("Saved non-weapon has committed ammunition modes");
+					else
+						validate_directed_ammunition_commitment(*state, nullptr);
 				}
 }
