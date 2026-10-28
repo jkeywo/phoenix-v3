@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<meta name="color-scheme" content="dark light" />
+		<title>Phoenix V3 · Module map</title>
+		<style>
+			:root {
+				color-scheme: dark;
+				--bg: #10171e;
+				--card: #19232c;
+				--node: #202e39;
+				--fg: #e8f0f3;
+				--muted: #a7bac6;
+				--border: #415564;
+				--out: #68d4ea;
+				--in: #ffbd7b;
+				--edge: #829baa;
+				--selected: #263f4b;
+				--shadow: #0006;
+			}
+			:root.light {
+				color-scheme: light;
+				--bg: #f3f6f8;
+				--card: #e6edf1;
+				--node: #fff;
+				--fg: #172b38;
+				--muted: #4f6573;
+				--border: #afc0ca;
+				--out: #006f85;
+				--in: #9b4800;
+				--edge: #667f90;
+				--selected: #dceff3;
+				--shadow: #20354422;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				height: 100dvh;
+				display: flex;
+				flex-direction: column;
+				margin: 0;
+				background: var(--bg);
+				color: var(--fg);
+				font:
+					14px/1.5 system-ui,
+					sans-serif;
+			}
+			button,
+			input,
+			select {
+				font: inherit;
+				color: inherit;
+			}
+			button,
+			select,
+			input {
+				background: var(--node);
+				border: 1px solid var(--border);
+				border-radius: 7px;
+				padding: 7px 10px;
+			}
+			button {
+				cursor: pointer;
+			}
+			button:hover {
+				border-color: var(--out);
+			}
+			button:focus-visible,
+			input:focus-visible,
+			select:focus-visible {
+				outline: 3px solid var(--out);
+				outline-offset: 2px;
+			}
+			header {
+				padding: 20px 26px 12px;
+				display: flex;
+				justify-content: space-between;
+				gap: 16px;
+				align-items: center;
+			}
+			h1 {
+				font-size: 24px;
+				line-height: 1.2;
+				margin: 0 0 6px;
+				font-weight: 650;
+				letter-spacing: -0.6px;
+			}
+			h1 span {
+				font-weight: 400;
+				color: var(--muted);
+			}
+			p {
+				margin: 0;
+			}
+			.muted {
+				color: var(--muted);
+			}
+			.stats {
+				display: flex;
+				gap: 24px;
+			}
+			.stats strong {
+				display: block;
+				font-size: 23px;
+				line-height: 1.15;
+				font-variant-numeric: tabular-nums;
+			}
+			.stats span {
+				font-size: 12px;
+				color: var(--muted);
+			}
+			.toolbar {
+				display: flex;
+				align-items: end;
+				gap: 12px;
+				padding: 10px 26px 16px;
+				flex-wrap: wrap;
+			}
+			.field {
+				display: grid;
+				gap: 4px;
+				font-size: 12px;
+			}
+			.field input {
+				width: 230px;
+			}
+			.field select {
+				min-width: 150px;
+			}
+			.check {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				padding-bottom: 7px;
+			}
+			.check input {
+				accent-color: var(--out);
+			}
+			.spacer {
+				flex: 1;
+			}
+			.workspace {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) 310px;
+				height: auto;
+				flex: 1;
+				min-height: 350px;
+				border-top: 1px solid var(--border);
+			}
+			.map-pane {
+				position: relative;
+				min-width: 0;
+				overflow: hidden;
+				background: radial-gradient(circle at 1px 1px, var(--border) 0.6px, transparent 0.8px);
+				background-size: 24px 24px;
+			}
+			#map {
+				display: block;
+				width: 100%;
+				height: 100%;
+				touch-action: none;
+				user-select: none;
+				cursor: grab;
+			}
+			#map.dragging {
+				cursor: grabbing;
+			}
+			.view-tools {
+				position: absolute;
+				top: 14px;
+				left: 16px;
+				display: flex;
+				gap: 5px;
+				z-index: 1;
+				padding: 5px;
+				background: var(--bg);
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				box-shadow: 0 3px 14px var(--shadow);
+			}
+			.view-tools button {
+				padding: 5px 9px;
+			}
+			.view-tools output {
+				min-width: 50px;
+				text-align: center;
+				padding: 5px;
+				font-variant-numeric: tabular-nums;
+			}
+			.legend {
+				position: absolute;
+				left: 16px;
+				bottom: 13px;
+				background: var(--bg);
+				padding: 6px 10px;
+				border-radius: 7px;
+				font-size: 12px;
+				pointer-events: none;
+			}
+			.out {
+				color: var(--out);
+			}
+			.in {
+				color: var(--in);
+			}
+			aside {
+				overflow: auto;
+				border-left: 1px solid var(--border);
+				padding: 20px;
+				background: var(--bg);
+			}
+			aside h2 {
+				font-size: 20px;
+				line-height: 1.2;
+				margin: 4px 0 12px;
+				overflow-wrap: anywhere;
+			}
+			aside h3 {
+				font-size: 12px;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				margin: 24px 0 8px;
+			}
+			aside .big {
+				font-size: 30px;
+				font-weight: 650;
+				font-variant-numeric: tabular-nums;
+				line-height: 1.1;
+				margin: 14px 0 2px;
+			}
+			.path {
+				font:
+					12px/1.5 ui-monospace,
+					monospace;
+				overflow-wrap: anywhere;
+			}
+			.items {
+				display: grid;
+				gap: 5px;
+			}
+			.items button {
+				text-align: left;
+				display: flex;
+				justify-content: space-between;
+				gap: 8px;
+				padding: 7px 9px;
+				font-size: 12px;
+			}
+			.items button span {
+				overflow-wrap: anywhere;
+			}
+			.items small {
+				white-space: nowrap;
+				color: var(--muted);
+			}
+			.summary {
+				margin: 14px 0;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.counts {
+				display: flex;
+				gap: 15px;
+				margin: 16px 0;
+				font-size: 12px;
+			}
+			.counts strong {
+				font-size: 20px;
+				display: block;
+			}
+			details {
+				font-size: 12px;
+				margin: 18px 0;
+			}
+			summary {
+				cursor: pointer;
+			}
+			code {
+				font-family: ui-monospace, monospace;
+				font-size: 11px;
+				overflow-wrap: anywhere;
+			}
+			details ul {
+				padding-left: 18px;
+			}
+			.family-box {
+				fill: var(--card);
+				stroke: var(--border);
+				stroke-width: 1;
+			}
+			.family-title {
+				fill: var(--fg);
+				font:
+					600 18px system-ui,
+					sans-serif;
+			}
+			.family-subtitle {
+				fill: var(--muted);
+				font:
+					11px system-ui,
+					sans-serif;
+			}
+			.edge {
+				fill: none;
+				stroke: var(--edge);
+				stroke-width: 1.1;
+				opacity: 0.2;
+				pointer-events: none;
+			}
+			.edge.outgoing {
+				stroke: var(--out);
+				stroke-width: 2;
+				opacity: 0.9;
+			}
+			.edge.incoming {
+				stroke: var(--in);
+				stroke-width: 2;
+				opacity: 0.9;
+			}
+			.edge.quiet {
+				opacity: 0.025;
+			}
+			.node {
+				cursor: pointer;
+				outline: none;
+				transition: opacity 0.12s;
+			}
+			.node rect {
+				fill: var(--node);
+				stroke: var(--border);
+				stroke-width: 1;
+			}
+			.node .accent {
+				fill: var(--family);
+				stroke: none;
+			}
+			.node text {
+				fill: var(--fg);
+				font:
+					500 13px system-ui,
+					sans-serif;
+				pointer-events: none;
+			}
+			.node .size {
+				fill: var(--muted);
+				font:
+					11px system-ui,
+					sans-serif;
+				font-variant-numeric: tabular-nums;
+			}
+			.node.selected rect {
+				fill: var(--selected);
+				stroke: var(--out);
+				stroke-width: 2;
+			}
+			.node:focus-visible rect,
+			.node:hover rect {
+				stroke: var(--out);
+				stroke-width: 2;
+			}
+			.node.dim {
+				opacity: 0.18;
+			}
+			.node.dependency rect {
+				stroke: var(--out);
+			}
+			.node.dependent rect {
+				stroke: var(--in);
+			}
+			#table-wrap {
+				height: 100%;
+				overflow: auto;
+				padding: 14px 22px;
+				background: var(--bg);
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+			th,
+			td {
+				text-align: left;
+				padding: 10px;
+				border-bottom: 1px solid var(--border);
+				font-size: 12px;
+			}
+			th {
+				position: sticky;
+				top: 0;
+				background: var(--bg);
+				z-index: 1;
+			}
+			td.number {
+				text-align: right;
+				font-variant-numeric: tabular-nums;
+			}
+			td button {
+				padding: 2px 0;
+				border: 0;
+				background: none;
+				text-align: left;
+				color: var(--out);
+			}
+			[hidden] {
+				display: none !important;
+			}
+			.footnote {
+				font-size: 11px;
+				padding: 7px 20px;
+				color: var(--muted);
+			}
+			@media (max-width: 850px) {
+				body {
+					height: auto;
+					min-height: 100dvh;
+				}
+				header {
+					align-items: start;
+				}
+				.stats {
+					gap: 12px;
+				}
+				.stats strong {
+					font-size: 18px;
+				}
+				.toolbar {
+					padding: 8px 16px;
+				}
+				.field input {
+					width: 170px;
+				}
+				.workspace {
+					height: auto;
+					grid-template-columns: 1fr;
+					grid-template-rows: 65vh auto;
+					min-height: 0;
+				}
+				aside {
+					border-left: 0;
+					border-top: 1px solid var(--border);
+					max-height: 50vh;
+				}
+				header {
+					padding: 16px;
+				}
+				.spacer {
+					display: none;
+				}
+				.check {
+					font-size: 12px;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.node {
+					transition: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<div>
+				<h1>Phoenix V3 <span>/ module map</span></h1>
+				<p class="muted">Module folders grouped by family · arrows point to imported dependencies</p>
+			</div>
+			<div class="stats" id="stats"></div>
+		</header>
+		<div class="toolbar">
+			<label class="field"
+				>Find a module<input
+					id="search"
+					type="search"
+					placeholder="Name, family or C++ module…"
+					autocomplete="off"
+			/></label>
+			<label class="field"
+				>Family<select id="family">
+					<option value="">All families</option>
+				</select></label
+			>
+			<label class="check"><input id="neighbors" type="checkbox" checked />Include linked modules</label>
+			<label class="field"
+				>Links<select id="links">
+					<option value="all">All imports</option>
+					<option value="focus">Selected module only</option>
+					<option value="none">Hidden</option>
+				</select></label
+			>
+			<div class="spacer"></div>
+			<button id="view" type="button">List view</button><button id="reset" type="button">Reset</button
+			><button id="theme" type="button" aria-label="Toggle light and dark theme">Light theme</button>
+		</div>
+		<main class="workspace">
+			<section class="map-pane" aria-label="Module dependency graph">
+				<div class="view-tools" id="view-tools">
+					<button id="minus" aria-label="Zoom out">−</button
+					><output id="zoom" aria-label="Zoom level">100%</output
+					><button id="plus" aria-label="Zoom in">+</button><button id="fit">Fit all</button
+					><button id="actual">100%</button>
+				</div>
+				<svg id="map" aria-labelledby="map-title map-desc">
+					<title id="map-title">Phoenix module families and directed C++ import links</title>
+					<desc id="map-desc">
+						Select a node to highlight its dependencies and dependents. Drag the background to pan; scroll
+						or use the zoom controls to zoom. Each node displays its nonblank C++ line count. A searchable
+						table is available through List view.
+					</desc>
+					<defs>
+						<marker
+							id="arrow"
+							viewBox="0 0 8 6"
+							refX="8"
+							refY="3"
+							markerWidth="7"
+							markerHeight="6"
+							orient="auto"
+						>
+							<path d="M0,0 L8,3 L0,6" fill="var(--edge)" />
+						</marker>
+						<marker
+							id="arrow-out"
+							viewBox="0 0 8 6"
+							refX="8"
+							refY="3"
+							markerWidth="7"
+							markerHeight="6"
+							orient="auto"
+						>
+							<path d="M0,0 L8,3 L0,6" fill="var(--out)" />
+						</marker>
+						<marker
+							id="arrow-in"
+							viewBox="0 0 8 6"
+							refX="8"
+							refY="3"
+							markerWidth="7"
+							markerHeight="6"
+							orient="auto"
+						>
+							<path d="M0,0 L8,3 L0,6" fill="var(--in)" />
+						</marker>
+					</defs>
+					<g id="world">
+						<g id="families"></g>
+						<g id="edges"></g>
+						<g id="nodes"></g>
+					</g>
+				</svg>
+				<div class="legend" id="legend">
+					<span class="out">Selected → dependency</span> · <span class="in">Dependent → selected</span>
+				</div>
+				<div id="table-wrap" hidden>
+					<table>
+						<thead>
+							<tr>
+								<th>Module / family</th>
+								<th>Nonblank lines</th>
+								<th>Physical lines</th>
+								<th>Imports / imported by</th>
+							</tr>
+						</thead>
+						<tbody id="table"></tbody>
+					</table>
+				</div>
+			</section>
+			<aside id="details" aria-live="polite"></aside>
+		</main>
+		<footer class="footnote" id="footnote"></footer>
+		<!-- prettier-ignore -->
+		<script id="graph-data" type="application/json">__MODULE_GRAPH_DATA__</script>
+		<script>
+			"use strict";
+			const data = JSON.parse(document.getElementById("graph-data").textContent);
+			const $ = (id) => document.getElementById(id),
+				NS = "http://www.w3.org/2000/svg",
+				fmt = (n) => n.toLocaleString("en-GB");
+			const svg = (tag, attrs = {}, text) => {
+				const e = document.createElementNS(NS, tag);
+				for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+				if (text !== undefined) e.textContent = text;
+				return e;
+			};
+			const html = (tag, text, cls) => {
+				const e = document.createElement(tag);
+				if (text !== undefined) e.textContent = text;
+				if (cls) e.className = cls;
+				return e;
+			};
+			const nodes = new Map(data.nodes.map((n) => [n.id, n])),
+				outgoing = new Map(),
+				incoming = new Map(),
+				nodeElements = new Map(),
+				edgeElements = [],
+				tableRows = new Map();
+			for (const n of data.nodes) {
+				outgoing.set(n.id, []);
+				incoming.set(n.id, []);
+			}
+			for (const e of data.edges) {
+				outgoing.get(e.source).push(e);
+				incoming.get(e.target).push(e);
+			}
+			const familyOrder = [
+				"foundation",
+				"content",
+				"resources",
+				"knowledge",
+				"behavior",
+				"effects",
+				"control",
+				"gameplay",
+				"world",
+				"scenarios",
+				"networking",
+				"application",
+				"ui",
+				"graphics",
+				"workshop",
+				"platform",
+				"executables",
+			];
+			const families = [...new Set(data.nodes.map((n) => n.family))].sort((a, b) => {
+				const rank = (f) => (familyOrder.includes(f) ? familyOrder.indexOf(f) : 999);
+				return rank(a) - rank(b) || a.localeCompare(b);
+			});
+			const W = 190,
+				H = 62,
+				GAP = 12,
+				FW = 430,
+				COL = 480,
+				ROWGAP = 60;
+			let familyBoxes = [],
+				selected = null,
+				visible = new Set(nodes.keys()),
+				query = "",
+				listView = false,
+				view = { x: 0, y: 0, k: 1 },
+				fitted = false;
+			const columnBottoms = [40, 40, 40, 40];
+			for (const family of families) {
+				const c = columnBottoms.indexOf(Math.min(...columnBottoms)),
+					y = columnBottoms[c];
+				const members = data.nodes
+					.filter((n) => n.family === family)
+					.sort((a, b) => a.name.localeCompare(b.name));
+				const x = 40 + c * COL,
+					height = 78 + Math.ceil(members.length / 2) * (H + GAP),
+					lines = members.reduce((s, n) => s + n.lines, 0),
+					hue = (families.indexOf(family) * 137.508) % 360;
+				familyBoxes.push({ family, x, y, width: FW, height, members });
+				columnBottoms[c] = y + height + ROWGAP;
+				const group = svg("g", { "data-family": family });
+				group.append(
+					svg("rect", { class: "family-box", x, y, width: FW, height, rx: 12 }),
+					svg("text", { class: "family-title", x: x + 18, y: y + 29 }, family),
+					svg(
+						"text",
+						{ class: "family-subtitle", x: x + 18, y: y + 49 },
+						`${members.length} modules · ${fmt(lines)} nonblank lines`,
+					),
+				);
+				$("families").append(group);
+				members.forEach((n, i) => {
+					n.x = x + 18 + (i % 2) * (W + GAP);
+					n.y = y + 66 + Math.floor(i / 2) * (H + GAP);
+					n.hue = hue;
+				});
+			}
+			function curve(a, b) {
+				let sx, sy, tx, ty, d;
+				if (Math.abs(a.x - b.x) < W) {
+					sx = a.x + W / 2;
+					tx = b.x + W / 2;
+					const down = b.y > a.y;
+					sy = a.y + (down ? H : 0);
+					ty = b.y + (down ? 0 : H);
+					d = Math.max(25, Math.abs(ty - sy) * 0.45);
+					return `M${sx},${sy} C${sx},${sy + (down ? d : -d)} ${tx},${ty + (down ? -d : d)} ${tx},${ty}`;
+				}
+				const right = b.x > a.x;
+				sx = a.x + (right ? W : 0);
+				tx = b.x + (right ? 0 : W);
+				sy = a.y + H / 2;
+				ty = b.y + H / 2;
+				d = Math.max(40, Math.abs(tx - sx) * 0.45);
+				return `M${sx},${sy} C${sx + (right ? d : -d)},${sy} ${tx + (right ? -d : d)},${ty} ${tx},${ty}`;
+			}
+			for (const edge of data.edges) {
+				const p = svg("path", {
+					class: "edge",
+					d: curve(nodes.get(edge.source), nodes.get(edge.target)),
+					"marker-end": "url(#arrow)",
+				});
+				$("edges").append(p);
+				edgeElements.push({ edge, element: p });
+			}
+			function nameLines(name) {
+				if (name.length <= 24) return [name];
+				const words = name.split(/(?<=-)/),
+					lines = [""];
+				for (const word of words) {
+					if (lines.at(-1).length + word.length > 24) lines.push(word);
+					else lines[lines.length - 1] += word;
+				}
+				return lines;
+			}
+			for (const n of data.nodes) {
+				const g = svg("g", {
+					class: "node",
+					transform: `translate(${n.x} ${n.y})`,
+					tabindex: 0,
+					role: "button",
+					"aria-label": `${n.family}/${n.name}, ${fmt(n.lines)} nonblank C++ lines`,
+					"data-node": n.id,
+					style: `--family:hsl(${n.hue} 60% 58%)`,
+				});
+				g.append(
+					svg(
+						"title",
+						{},
+						`${n.id}\n${fmt(n.lines)} nonblank / ${fmt(n.physical)} physical lines\n${outgoing.get(n.id).length} dependencies · ${incoming.get(n.id).length} dependents`,
+					),
+					svg("rect", { width: W, height: H, rx: 7 }),
+					svg("rect", { class: "accent", x: 0, y: 8, width: 3, height: H - 16, rx: 1 }),
+				);
+				const lines = nameLines(n.name);
+				lines.forEach((line, i) =>
+					g.append(svg("text", { x: 13, y: lines.length > 1 ? 19 + i * 15 : 25 }, line)),
+				);
+				g.append(svg("text", { class: "size", x: 13, y: 49 }, `${fmt(n.lines)} lines · ${n.files} files`));
+				g.addEventListener("click", () => select(n.id));
+				g.addEventListener("keydown", (e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						select(n.id);
+					}
+				});
+				$("nodes").append(g);
+				nodeElements.set(n.id, g);
+				const row = html("tr"),
+					name = html("td"),
+					button = html("button", n.name);
+				button.type = "button";
+				button.addEventListener("click", () => {
+					setList(false);
+					select(n.id);
+					center(n);
+				});
+				name.append(button, html("div", n.family, "muted"));
+				row.append(name);
+				for (const value of [
+					fmt(n.lines),
+					fmt(n.physical),
+					`${outgoing.get(n.id).length} / ${incoming.get(n.id).length}`,
+				])
+					row.append(html("td", value, "number"));
+				$("table").append(row);
+				tableRows.set(n.id, row);
+			}
+			for (const family of families) {
+				const option = html("option", family);
+				option.value = family;
+				$("family").append(option);
+			}
+			for (const [value, label] of [
+				[data.nodes.length, "module folders"],
+				[families.length, "families"],
+				[data.totals.nonblank_lines, "nonblank C++ lines"],
+			]) {
+				const stat = html("div");
+				stat.append(html("strong", fmt(value)), html("span", label));
+				$("stats").append(stat);
+			}
+			$("footnote").textContent =
+				`Source ${data.revision} · ${data.edges.length} distinct directed folder links from actual C++ imports. Same-folder imports, external libraries, CMake-only links and runtime calls are not drawn. Sizes include comments/directives; exclude tests, generated/vendor code and assets. One folder can contain several named modules/private partitions.`;
+			function match(n) {
+				return (
+					!query ||
+					[n.name, n.family, n.id, ...n.modules, ...n.partitions].join(" ").toLowerCase().includes(query)
+				);
+			}
+			function update() {
+				const family = $("family").value,
+					base = new Set(data.nodes.filter((n) => !family || n.family === family).map((n) => n.id));
+				visible = new Set(base);
+				if (family && $("neighbors").checked)
+					for (const e of data.edges) {
+						if (base.has(e.source)) visible.add(e.target);
+						if (base.has(e.target)) visible.add(e.source);
+					}
+				const deps = new Set(selected ? outgoing.get(selected).map((e) => e.target) : []),
+					users = new Set(selected ? incoming.get(selected).map((e) => e.source) : []);
+				for (const n of data.nodes) {
+					const el = nodeElements.get(n.id),
+						on = visible.has(n.id);
+					el.style.display = on ? "" : "none";
+					el.setAttribute("aria-hidden", String(!on));
+					el.setAttribute("aria-pressed", String(selected === n.id));
+					el.classList.toggle("selected", selected === n.id);
+					el.classList.toggle("dependency", deps.has(n.id));
+					el.classList.toggle("dependent", users.has(n.id));
+					el.classList.toggle(
+						"dim",
+						(!selected && !match(n)) ||
+							(!!selected && n.id !== selected && !deps.has(n.id) && !users.has(n.id)),
+					);
+					tableRows.get(n.id).hidden = !on || !match(n);
+				}
+				for (const { edge, element } of edgeElements) {
+					const out = edge.source === selected,
+						inc = edge.target === selected,
+						mode = $("links").value;
+					const show =
+						visible.has(edge.source) &&
+						visible.has(edge.target) &&
+						mode !== "none" &&
+						(mode !== "focus" || out || inc);
+					element.style.display = show ? "" : "none";
+					element.classList.toggle("outgoing", out);
+					element.classList.toggle("incoming", inc);
+					element.classList.toggle("quiet", !!selected && !out && !inc);
+					element.setAttribute("marker-end", `url(#${out ? "arrow-out" : inc ? "arrow-in" : "arrow"})`);
+				}
+				for (const box of familyBoxes) {
+					const show = box.members.some((n) => visible.has(n.id));
+					$("families").querySelector(`[data-family="${box.family}"]`).style.display = show ? "" : "none";
+				}
+				$("fit").textContent = family ? "Fit visible" : "Fit all";
+				details();
+			}
+			function moduleButton(n, extra) {
+				const button = html("button"),
+					name = html("span", `${n.family}/${n.name}`);
+				button.type = "button";
+				button.append(name, html("small", extra ?? `${fmt(n.lines)} lines`));
+				button.addEventListener("click", () => {
+					if (!visible.has(n.id)) $("family").value = "";
+					select(n.id);
+					center(n);
+				});
+				return button;
+			}
+			function section(title, links, direction) {
+				const root = html("section"),
+					heading = html("h3", `${title} (${links.length})`, direction);
+				root.append(heading);
+				const list = html("div", undefined, "items");
+				for (const edge of [...links].sort((a, b) =>
+					(direction === "out" ? a.target : a.source).localeCompare(
+						direction === "out" ? b.target : b.source,
+					),
+				)) {
+					const n = nodes.get(direction === "out" ? edge.target : edge.source),
+						button = moduleButton(n);
+					button.title = edge.imports.join("\n");
+					list.append(button);
+				}
+				root.append(list);
+				return root;
+			}
+			function details() {
+				const pane = $("details");
+				pane.replaceChildren();
+				if (selected) {
+					const n = nodes.get(selected);
+					pane.append(
+						html("div", n.family, "muted"),
+						html("h2", n.name),
+						html("div", n.id, "path"),
+						html("div", fmt(n.lines), "big"),
+						html("div", "nonblank C++ lines", "muted"),
+						html("div", `${fmt(n.physical)} physical lines · ${n.files} source files`, "summary"),
+					);
+					const clear = html("button", "Clear selection");
+					clear.type = "button";
+					clear.onclick = () => select(null);
+					pane.append(
+						clear,
+						section("Imports / depends on", outgoing.get(n.id), "out"),
+						section("Imported by", incoming.get(n.id), "in"),
+					);
+					const info = html("details"),
+						summary = html("summary", "Named modules & partitions");
+					info.append(summary);
+					for (const m of [...n.modules, ...n.partitions]) info.append(html("p", m, "path"));
+					pane.append(info);
+					const evidence = html("details");
+					evidence.append(html("summary", "Outgoing import evidence"));
+					for (const e of outgoing.get(n.id)) {
+						evidence.append(html("h4", e.target));
+						for (const name of e.imports) evidence.append(html("p", name, "path"));
+						for (const file of e.files) evidence.append(html("p", file, "path"));
+					}
+					pane.append(evidence);
+				} else {
+					pane.append(
+						html("div", "Architecture / reading map", "muted"),
+						html("h2", query ? "Search results" : "Explore the modules"),
+						html(
+							"p",
+							"Select a node to see its size, dependencies and dependents. Drag the background to pan; scroll or use + / − to zoom.",
+							"summary",
+						),
+					);
+					const matches = data.nodes
+						.filter((n) => visible.has(n.id) && match(n))
+						.sort((a, b) => (query ? a.name.localeCompare(b.name) : b.lines - a.lines));
+					pane.append(html("h3", query ? `${matches.length} matches` : "Largest modules"));
+					const list = html("div", undefined, "items");
+					for (const n of matches.slice(0, query ? 148 : 12)) list.append(moduleButton(n));
+					pane.append(list);
+					if (query && !matches.length) pane.append(html("p", "No modules match this search.", "summary"));
+					pane.append(
+						html("h3", "What a link means"),
+						html(
+							"p",
+							"A → B means a source file in folder A imports a named C++ module or partition owned by folder B. It is not a runtime call graph or a claim that each folder is an independent library.",
+							"summary",
+						),
+					);
+				}
+			}
+			function select(id) {
+				if (id) {
+					query = "";
+					$("search").value = "";
+				}
+				selected = id;
+				update();
+			}
+			function transform() {
+				const { x, y, k } = view;
+				$("world").setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
+				$("zoom").textContent = `${Math.round(k * 100)}%`;
+			}
+			function fit() {
+				if (listView) return;
+				const shown = data.nodes.filter((n) => visible.has(n.id));
+				if (!shown.length) return;
+				const bounds = {
+					x: Math.min(...shown.map((n) => n.x)) - 24,
+					y: Math.min(...shown.map((n) => n.y)) - 66,
+					right: Math.max(...shown.map((n) => n.x + W)) + 24,
+					bottom: Math.max(...shown.map((n) => n.y + H)) + 34,
+				};
+				const w = $("map").clientWidth,
+					h = $("map").clientHeight,
+					k = Math.min(1.15, (w - 50) / (bounds.right - bounds.x), (h - 95) / (bounds.bottom - bounds.y));
+				view = {
+					k,
+					x: (w - (bounds.right - bounds.x) * k) / 2 - bounds.x * k,
+					y: 65 + (h - 80 - (bounds.bottom - bounds.y) * k) / 2 - bounds.y * k,
+				};
+				fitted = true;
+				transform();
+			}
+			function zoom(factor, cx = $("map").clientWidth / 2, cy = $("map").clientHeight / 2) {
+				const k = Math.min(2.8, Math.max(0.12, view.k * factor)),
+					ratio = k / view.k;
+				view = { k, x: cx - (cx - view.x) * ratio, y: cy - (cy - view.y) * ratio };
+				fitted = false;
+				transform();
+			}
+			function center(n) {
+				view.k = Math.max(0.9, view.k);
+				view.x = $("map").clientWidth / 2 - (n.x + W / 2) * view.k;
+				view.y = $("map").clientHeight / 2 - (n.y + H / 2) * view.k;
+				fitted = false;
+				transform();
+			}
+			function setList(on) {
+				listView = on;
+				$("table-wrap").hidden = !on;
+				$("map").style.display = on ? "none" : "block";
+				$("view-tools").hidden = on;
+				$("legend").hidden = on;
+				$("view").textContent = on ? "Graph view" : "List view";
+				if (!on) fit();
+			}
+			$("search").addEventListener("input", (e) => {
+				query = e.target.value.trim().toLowerCase();
+				selected = null;
+				update();
+			});
+			$("family").addEventListener("change", () => {
+				selected = null;
+				update();
+				fit();
+			});
+			$("neighbors").addEventListener("change", () => {
+				update();
+				fit();
+			});
+			$("links").addEventListener("change", update);
+			$("fit").onclick = fit;
+			$("plus").onclick = () => zoom(1.25);
+			$("minus").onclick = () => zoom(0.8);
+			$("actual").onclick = () => zoom(1 / view.k);
+			$("view").onclick = () => setList(!listView);
+			$("reset").onclick = () => {
+				$("search").value = "";
+				$("family").value = "";
+				$("links").value = "all";
+				$("neighbors").checked = true;
+				query = "";
+				selected = null;
+				setList(false);
+				update();
+				fit();
+			};
+			$("theme").onclick = () => {
+				const light = document.documentElement.classList.toggle("light");
+				$("theme").textContent = light ? "Dark theme" : "Light theme";
+			};
+			$("map").addEventListener(
+				"wheel",
+				(e) => {
+					e.preventDefault();
+					const r = $("map").getBoundingClientRect();
+					zoom(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+				},
+				{ passive: false },
+			);
+			let drag = null;
+			$("map").addEventListener("pointerdown", (e) => {
+				if (e.target.closest(".node")) return;
+				drag = { id: e.pointerId, x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+				$("map").setPointerCapture(e.pointerId);
+				$("map").classList.add("dragging");
+			});
+			$("map").addEventListener("pointermove", (e) => {
+				if (!drag || drag.id !== e.pointerId) return;
+				view.x = drag.vx + e.clientX - drag.x;
+				view.y = drag.vy + e.clientY - drag.y;
+				fitted = false;
+				transform();
+			});
+			function endDrag() {
+				drag = null;
+				$("map").classList.remove("dragging");
+			}
+			$("map").addEventListener("pointerup", endDrag);
+			$("map").addEventListener("pointercancel", endDrag);
+			new ResizeObserver(() => {
+				if (fitted && !listView) fit();
+			}).observe($("map").parentElement);
+			update();
+			requestAnimationFrame(() => {
+				view = { x: 12, y: 68, k: 0.9 };
+				fitted = false;
+				transform();
+			});
+		</script>
+	</body>
+</html>

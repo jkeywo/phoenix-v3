@@ -4,6 +4,8 @@
 
 [World and Console refinement](docs/understandability-refactor.md) records the workflow folders, panel owners, presentation data and measured code growth from making the two largest modules easier to follow.
 
+The offline [interactive module graph](docs/module-graph.html) groups modules by family, shows their code sizes and traces actual C++ imports. Select a node to explore its dependencies and dependents.
+
 [GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
 
 [Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.

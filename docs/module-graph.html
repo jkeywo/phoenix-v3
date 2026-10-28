@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<meta name="color-scheme" content="dark light" />
+		<title>Phoenix V3 · Module map</title>
+		<style>
+			:root {
+				color-scheme: dark;
+				--bg: #10171e;
+				--card: #19232c;
+				--node: #202e39;
+				--fg: #e8f0f3;
+				--muted: #a7bac6;
+				--border: #415564;
+				--out: #68d4ea;
+				--in: #ffbd7b;
+				--edge: #829baa;
+				--selected: #263f4b;
+				--shadow: #0006;
+			}
+			:root.light {
+				color-scheme: light;
+				--bg: #f3f6f8;
+				--card: #e6edf1;
+				--node: #fff;
+				--fg: #172b38;
+				--muted: #4f6573;
+				--border: #afc0ca;
+				--out: #006f85;
+				--in: #9b4800;
+				--edge: #667f90;
+				--selected: #dceff3;
+				--shadow: #20354422;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				height: 100dvh;
+				display: flex;
+				flex-direction: column;
+				margin: 0;
+				background: var(--bg);
+				color: var(--fg);
+				font:
+					14px/1.5 system-ui,
+					sans-serif;
+			}
+			button,
+			input,
+			select {
+				font: inherit;
+				color: inherit;
+			}
+			button,
+			select,
+			input {
+				background: var(--node);
+				border: 1px solid var(--border);
+				border-radius: 7px;
+				padding: 7px 10px;
+			}
+			button {
+				cursor: pointer;
+			}
+			button:hover {
+				border-color: var(--out);
+			}
+			button:focus-visible,
+			input:focus-visible,
+			select:focus-visible {
+				outline: 3px solid var(--out);
+				outline-offset: 2px;
+			}
+			header {
+				padding: 20px 26px 12px;
+				display: flex;
+				justify-content: space-between;
+				gap: 16px;
+				align-items: center;
+			}
+			h1 {
+				font-size: 24px;
+				line-height: 1.2;
+				margin: 0 0 6px;
+				font-weight: 650;
+				letter-spacing: -0.6px;
+			}
+			h1 span {
+				font-weight: 400;
+				color: var(--muted);
+			}
+			p {
+				margin: 0;
+			}
+			.muted {
+				color: var(--muted);
+			}
+			.stats {
+				display: flex;
+				gap: 24px;
+			}
+			.stats strong {
+				display: block;
+				font-size: 23px;
+				line-height: 1.15;
+				font-variant-numeric: tabular-nums;
+			}
+			.stats span {
+				font-size: 12px;
+				color: var(--muted);
+			}
+			.toolbar {
+				display: flex;
+				align-items: end;
+				gap: 12px;
+				padding: 10px 26px 16px;
+				flex-wrap: wrap;
+			}
+			.field {
+				display: grid;
+				gap: 4px;
+				font-size: 12px;
+			}
+			.field input {
+				width: 230px;
+			}
+			.field select {
+				min-width: 150px;
+			}
+			.check {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				padding-bottom: 7px;
+			}
+			.check input {
+				accent-color: var(--out);
+			}
+			.spacer {
+				flex: 1;
+			}
+			.workspace {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) 310px;
+				height: auto;
+				flex: 1;
+				min-height: 350px;
+				border-top: 1px solid var(--border);
+			}
+			.map-pane {
+				position: relative;
+				min-width: 0;
+				overflow: hidden;
+				background: radial-gradient(circle at 1px 1px, var(--border) 0.6px, transparent 0.8px);
+				background-size: 24px 24px;
+			}
+			#map {
+				display: block;
+				width: 100%;
+				height: 100%;
+				touch-action: none;
+				user-select: none;
+				cursor: grab;
+			}
+			#map.dragging {
+				cursor: grabbing;
+			}
+			.view-tools {
+				position: absolute;
+				top: 14px;
+				left: 16px;
+				display: flex;
+				gap: 5px;
+				z-index: 1;
+				padding: 5px;
+				background: var(--bg);
+				border: 1px solid var(--border);
+				border-radius: 10px;
+				box-shadow: 0 3px 14px var(--shadow);
+			}
+			.view-tools button {
+				padding: 5px 9px;
+			}
+			.view-tools output {
+				min-width: 50px;
+				text-align: center;
+				padding: 5px;
+				font-variant-numeric: tabular-nums;
+			}
+			.legend {
+				position: absolute;
+				left: 16px;
+				bottom: 13px;
+				background: var(--bg);
+				padding: 6px 10px;
+				border-radius: 7px;
+				font-size: 12px;
+				pointer-events: none;
+			}
+			.out {
+				color: var(--out);
+			}
+			.in {
+				color: var(--in);
+			}
+			aside {
+				overflow: auto;
+				border-left: 1px solid var(--border);
+				padding: 20px;
+				background: var(--bg);
+			}
+			aside h2 {
+				font-size: 20px;
+				line-height: 1.2;
+				margin: 4px 0 12px;
+				overflow-wrap: anywhere;
+			}
+			aside h3 {
+				font-size: 12px;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				margin: 24px 0 8px;
+			}
+			aside .big {
+				font-size: 30px;
+				font-weight: 650;
+				font-variant-numeric: tabular-nums;
+				line-height: 1.1;
+				margin: 14px 0 2px;
+			}
+			.path {
+				font:
+					12px/1.5 ui-monospace,
+					monospace;
+				overflow-wrap: anywhere;
+			}
+			.items {
+				display: grid;
+				gap: 5px;
+			}
+			.items button {
+				text-align: left;
+				display: flex;
+				justify-content: space-between;
+				gap: 8px;
+				padding: 7px 9px;
+				font-size: 12px;
+			}
+			.items button span {
+				overflow-wrap: anywhere;
+			}
+			.items small {
+				white-space: nowrap;
+				color: var(--muted);
+			}
+			.summary {
+				margin: 14px 0;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.counts {
+				display: flex;
+				gap: 15px;
+				margin: 16px 0;
+				font-size: 12px;
+			}
+			.counts strong {
+				font-size: 20px;
+				display: block;
+			}
+			details {
+				font-size: 12px;
+				margin: 18px 0;
+			}
+			summary {
+				cursor: pointer;
+			}
+			code {
+				font-family: ui-monospace, monospace;
+				font-size: 11px;
+				overflow-wrap: anywhere;
+			}
+			details ul {
+				padding-left: 18px;
+			}
+			.family-box {
+				fill: var(--card);
+				stroke: var(--border);
+				stroke-width: 1;
+			}
+			.family-title {
+				fill: var(--fg);
+				font:
+					600 18px system-ui,
+					sans-serif;
+			}
+			.family-subtitle {
+				fill: var(--muted);
+				font:
+					11px system-ui,
+					sans-serif;
+			}
+			.edge {
+				fill: none;
+				stroke: var(--edge);
+				stroke-width: 1.1;
+				opacity: 0.2;
+				pointer-events: none;
+			}
+			.edge.outgoing {
+				stroke: var(--out);
+				stroke-width: 2;
+				opacity: 0.9;
+			}
+			.edge.incoming {
+				stroke: var(--in);
+				stroke-width: 2;
+				opacity: 0.9;
+			}
+			.edge.quiet {
+				opacity: 0.025;
+			}
+			.node {
+				cursor: pointer;
+				outline: none;
+				transition: opacity 0.12s;
+			}
+			.node rect {
+				fill: var(--node);
+				stroke: var(--border);
+				stroke-width: 1;
+			}
+			.node .accent {
+				fill: var(--family);
+				stroke: none;
+			}
+			.node text {
+				fill: var(--fg);
+				font:
+					500 13px system-ui,
+					sans-serif;
+				pointer-events: none;
+			}
+			.node .size {
+				fill: var(--muted);
+				font:
+					11px system-ui,
+					sans-serif;
+				font-variant-numeric: tabular-nums;
+			}
+			.node.selected rect {
+				fill: var(--selected);
+				stroke: var(--out);
+				stroke-width: 2;
+			}
+			.node:focus-visible rect,
+			.node:hover rect {
+				stroke: var(--out);
+				stroke-width: 2;
+			}
+			.node.dim {
+				opacity: 0.18;
+			}
+			.node.dependency rect {
+				stroke: var(--out);
+			}
+			.node.dependent rect {
+				stroke: var(--in);
+			}
+			#table-wrap {
+				height: 100%;
+				overflow: auto;
+				padding: 14px 22px;
+				background: var(--bg);
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+			th,
+			td {
+				text-align: left;
+				padding: 10px;
+				border-bottom: 1px solid var(--border);
+				font-size: 12px;
+			}
+			th {
+				position: sticky;
+				top: 0;
+				background: var(--bg);
+				z-index: 1;
+			}
+			td.number {
+				text-align: right;
+				font-variant-numeric: tabular-nums;
+			}
+			td button {
+				padding: 2px 0;
+				border: 0;
+				background: none;
+				text-align: left;
+				color: var(--out);
+			}
+			[hidden] {
+				display: none !important;
+			}
+			.footnote {
+				font-size: 11px;
+				padding: 7px 20px;
+				color: var(--muted);
+			}
+			@media (max-width: 850px) {
+				body {
+					height: auto;
+					min-height: 100dvh;
+				}
+				header {
+					align-items: start;
+				}
+				.stats {
+					gap: 12px;
+				}
+				.stats strong {
+					font-size: 18px;
+				}
+				.toolbar {
+					padding: 8px 16px;
+				}
+				.field input {
+					width: 170px;
+				}
+				.workspace {
+					height: auto;
+					grid-template-columns: 1fr;
+					grid-template-rows: 65vh auto;
+					min-height: 0;
+				}
+				aside {
+					border-left: 0;
+					border-top: 1px solid var(--border);
+					max-height: 50vh;
+				}
+				header {
+					padding: 16px;
+				}
+				.spacer {
+					display: none;
+				}
+				.check {
+					font-size: 12px;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.node {
+					transition: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<div>
+				<h1>Phoenix V3 <span>/ module map</span></h1>
+				<p class="muted">Module folders grouped by family · arrows point to imported dependencies</p>
+			</div>
+			<div class="stats" id="stats"></div>
+		</header>
+		<div class="toolbar">
+			<label class="field"
+				>Find a module<input
+					id="search"
+					type="search"
+					placeholder="Name, family or C++ module…"
+					autocomplete="off"
+			/></label>
+			<label class="field"
+				>Family<select id="family">
+					<option value="">All families</option>
+				</select></label
+			>
+			<label class="check"><input id="neighbors" type="checkbox" checked />Include linked modules</label>
+			<label class="field"
+				>Links<select id="links">
+					<option value="all">All imports</option>
+					<option value="focus">Selected module only</option>
+					<option value="none">Hidden</option>
+				</select></label
+			>
+			<div class="spacer"></div>
+			<button id="view" type="button">List view</button><button id="reset" type="button">Reset</button
+			><button id="theme" type="button" aria-label="Toggle light and dark theme">Light theme</button>
+		</div>
+		<main class="workspace">
+			<section class="map-pane" aria-label="Module dependency graph">
+				<div class="view-tools" id="view-tools">
+					<button id="minus" aria-label="Zoom out">−</button
+					><output id="zoom" aria-label="Zoom level">100%</output
+					><button id="plus" aria-label="Zoom in">+</button><button id="fit">Fit all</button
+					><button id="actual">100%</button>
+				</div>
+				<svg id="map" aria-labelledby="map-title map-desc">
+					<title id="map-title">Phoenix module families and directed C++ import links</title>
+					<desc id="map-desc">
+						Select a node to highlight its dependencies and dependents. Drag the background to pan; scroll
+						or use the zoom controls to zoom. Each node displays its nonblank C++ line count. A searchable
+						table is available through List view.
+					</desc>
+					<defs>
+						<marker
+							id="arrow"
+							viewBox="0 0 8 6"
+							refX="8"
+							refY="3"
+							markerWidth="7"
+							markerHeight="6"
+							orient="auto"
+						>
+							<path d="M0,0 L8,3 L0,6" fill="var(--edge)" />
+						</marker>
+						<marker
+							id="arrow-out"
+							viewBox="0 0 8 6"
+							refX="8"
+							refY="3"
+							markerWidth="7"
+							markerHeight="6"
+							orient="auto"
+						>
+							<path d="M0,0 L8,3 L0,6" fill="var(--out)" />
+						</marker>
+						<marker
+							id="arrow-in"
+							viewBox="0 0 8 6"
+							refX="8"
+							refY="3"
+							markerWidth="7"
+							markerHeight="6"
+							orient="auto"
+						>
+							<path d="M0,0 L8,3 L0,6" fill="var(--in)" />
+						</marker>
+					</defs>
+					<g id="world">
+						<g id="families"></g>
+						<g id="edges"></g>
+						<g id="nodes"></g>
+					</g>
+				</svg>
+				<div class="legend" id="legend">
+					<span class="out">Selected → dependency</span> · <span class="in">Dependent → selected</span>
+				</div>
+				<div id="table-wrap" hidden>
+					<table>
+						<thead>
+							<tr>
+								<th>Module / family</th>
+								<th>Nonblank lines</th>
+								<th>Physical lines</th>
+								<th>Imports / imported by</th>
+							</tr>
+						</thead>
+						<tbody id="table"></tbody>
+					</table>
+				</div>
+			</section>
+			<aside id="details" aria-live="polite"></aside>
+		</main>
+		<footer class="footnote" id="footnote"></footer>
+		<!-- prettier-ignore -->
+		<script id="graph-data" type="application/json">{"nodes":[{"id":"src/application/connections","family":"application","name":"connections","lines":81,"physical":87,"files":2,"modules":["phoenix.application.connections"],"partitions":[]},{"id":"src/application/displays","family":"application","name":"displays","lines":188,"physical":195,"files":2,"modules":["phoenix.application.displays"],"partitions":[]},{"id":"src/application/library","family":"application","name":"library","lines":701,"physical":705,"files":2,"modules":["phoenix.menu"],"partitions":[]},{"id":"src/application/preference-store","family":"application","name":"preference-store","lines":130,"physical":138,"files":2,"modules":["phoenix.application.preference_store"],"partitions":[]},{"id":"src/application/preferences","family":"application","name":"preferences","lines":134,"physical":139,"files":2,"modules":["phoenix.application.preferences"],"partitions":[]},{"id":"src/application/shell","family":"application","name":"shell","lines":172,"physical":176,"files":2,"modules":["phoenix.application"],"partitions":[]},{"id":"src/behavior/state-tree","family":"behavior","name":"state-tree","lines":1215,"physical":1224,"files":4,"modules":["phoenix.state_tree"],"partitions":[]},{"id":"src/behavior/vocabulary","family":"behavior","name":"vocabulary","lines":879,"physical":884,"files":2,"modules":["phoenix.gameplay_vocabulary"],"partitions":[]},{"id":"src/content/assets","family":"content","name":"assets","lines":1466,"physical":1477,"files":6,"modules":["phoenix.content.image_codec","phoenix.content.assets"],"partitions":[]},{"id":"src/content/catalog","family":"content","name":"catalog","lines":181,"physical":191,"files":2,"modules":["phoenix.content.catalog"],"partitions":[]},{"id":"src/content/combat","family":"content","name":"combat","lines":1544,"physical":1555,"files":5,"modules":["phoenix.content.combat","phoenix.content.combat.types"],"partitions":[]},{"id":"src/content/controllers","family":"content","name":"controllers","lines":2503,"physical":2520,"files":6,"modules":["phoenix.content.controllers","phoenix.content.controllers.types"],"partitions":[]},{"id":"src/content/distribution","family":"content","name":"distribution","lines":696,"physical":708,"files":3,"modules":["phoenix.content.distribution"],"partitions":[]},{"id":"src/content/documents","family":"content","name":"documents","lines":1180,"physical":1193,"files":3,"modules":["phoenix.content.documents"],"partitions":[]},{"id":"src/content/effects","family":"content","name":"effects","lines":3265,"physical":3295,"files":9,"modules":["phoenix.content.effects","phoenix.content.effects.types"],"partitions":[]},{"id":"src/content/equipment","family":"content","name":"equipment","lines":1496,"physical":1516,"files":6,"modules":["phoenix.content.equipment","phoenix.content.equipment.types"],"partitions":[]},{"id":"src/content/knowledge","family":"content","name":"knowledge","lines":1845,"physical":1856,"files":4,"modules":["phoenix.content.knowledge","phoenix.content.knowledge.types"],"partitions":[]},{"id":"src/content/logistics","family":"content","name":"logistics","lines":784,"physical":791,"files":5,"modules":["phoenix.content.logistics","phoenix.content.logistics.types"],"partitions":[]},{"id":"src/content/operations","family":"content","name":"operations","lines":1148,"physical":1154,"files":4,"modules":["phoenix.content.operations","phoenix.content.operations.types"],"partitions":[]},{"id":"src/content/packs","family":"content","name":"packs","lines":483,"physical":489,"files":2,"modules":["phoenix.content.packs"],"partitions":[]},{"id":"src/content/resources","family":"content","name":"resources","lines":732,"physical":744,"files":4,"modules":["phoenix.content.resources","phoenix.content.resources.types"],"partitions":[]},{"id":"src/content/scenarios","family":"content","name":"scenarios","lines":841,"physical":847,"files":3,"modules":["phoenix.content.scenarios"],"partitions":[]},{"id":"src/content/sensing","family":"content","name":"sensing","lines":728,"physical":738,"files":6,"modules":["phoenix.content.sensing","phoenix.content.sensing.types"],"partitions":[]},{"id":"src/content/ui","family":"content","name":"ui","lines":967,"physical":979,"files":3,"modules":["phoenix.content.ui"],"partitions":[]},{"id":"src/content/verification","family":"content","name":"verification","lines":1110,"physical":1122,"files":2,"modules":["phoenix.content.verification"],"partitions":[]},{"id":"src/control/command-shapes","family":"control","name":"command-shapes","lines":31,"physical":31,"files":2,"modules":["phoenix.control.native_commands"],"partitions":[]},{"id":"src/control/controllers","family":"control","name":"controllers","lines":493,"physical":508,"files":6,"modules":["phoenix.control.controllers","phoenix.control.templates","phoenix.control.views"],"partitions":[]},{"id":"src/control/coordination","family":"control","name":"coordination","lines":607,"physical":622,"files":6,"modules":["phoenix.control.coordination","phoenix.control.coordination_facts","phoenix.control.protocol"],"partitions":[]},{"id":"src/control/execution","family":"control","name":"execution","lines":1097,"physical":1117,"files":6,"modules":["phoenix.control.execution"],"partitions":[]},{"id":"src/control/ownership","family":"control","name":"ownership","lines":295,"physical":319,"files":4,"modules":["phoenix.control.handover","phoenix.control.ownership"],"partitions":[]},{"id":"src/control/providers","family":"control","name":"providers","lines":344,"physical":356,"files":4,"modules":["phoenix.control.inference_host","phoenix.control.providers"],"partitions":[]},{"id":"src/effects/abilities","family":"effects","name":"abilities","lines":679,"physical":711,"files":6,"modules":["phoenix.effects.abilities","phoenix.effects.ability_lifecycle","phoenix.effects.ability_validation"],"partitions":[]},{"id":"src/effects/contracts","family":"effects","name":"contracts","lines":605,"physical":644,"files":2,"modules":["phoenix.effects.contracts"],"partitions":[]},{"id":"src/effects/funding","family":"effects","name":"funding","lines":433,"physical":445,"files":2,"modules":["phoenix.effects.funding"],"partitions":[]},{"id":"src/effects/lifecycle","family":"effects","name":"lifecycle","lines":1131,"physical":1175,"files":10,"modules":["phoenix.effects.active_rules","phoenix.effects.clocks","phoenix.effects.events","phoenix.effects.grants","phoenix.effects.continuation_validation"],"partitions":[]},{"id":"src/effects/processes","family":"effects","name":"processes","lines":1147,"physical":1196,"files":8,"modules":["phoenix.effects.finite_work","phoenix.effects.machinery","phoenix.effects.processes","phoenix.effects.process_validation"],"partitions":[]},{"id":"src/effects/properties","family":"effects","name":"properties","lines":677,"physical":706,"files":4,"modules":["phoenix.effects.properties","phoenix.effects.properties.runtime"],"partitions":[]},{"id":"src/effects/rules","family":"effects","name":"rules","lines":779,"physical":813,"files":7,"modules":["phoenix.effects.bindings","phoenix.effects.rules","phoenix.effects.rule_state"],"partitions":[]},{"id":"src/effects/transactions","family":"effects","name":"transactions","lines":1301,"physical":1336,"files":6,"modules":["phoenix.effects.native","phoenix.effects.preparation","phoenix.effects.transactions"],"partitions":[]},{"id":"src/executables/browser","family":"executables","name":"browser","lines":273,"physical":277,"files":1,"modules":[],"partitions":[]},{"id":"src/executables/diagnostics","family":"executables","name":"diagnostics","lines":294,"physical":301,"files":5,"modules":["phoenix.diagnostics.browser_profile","phoenix.diagnostics.native_profile"],"partitions":[]},{"id":"src/executables/inference-bridge","family":"executables","name":"inference-bridge","lines":192,"physical":193,"files":1,"modules":[],"partitions":[]},{"id":"src/executables/native","family":"executables","name":"native","lines":1177,"physical":1194,"files":5,"modules":["phoenix.native.displays","phoenix.native.workshop_bridge"],"partitions":[]},{"id":"src/executables/pack","family":"executables","name":"pack","lines":76,"physical":78,"files":1,"modules":[],"partitions":[]},{"id":"src/executables/verify","family":"executables","name":"verify","lines":33,"physical":35,"files":1,"modules":[],"partitions":[]},{"id":"src/executables/workshop-host","family":"executables","name":"workshop-host","lines":446,"physical":453,"files":3,"modules":["phoenix.workshop_test"],"partitions":[]},{"id":"src/foundation/console-controls","family":"foundation","name":"console-controls","lines":611,"physical":615,"files":2,"modules":["phoenix.console_controls"],"partitions":[]},{"id":"src/foundation/contracts","family":"foundation","name":"contracts","lines":620,"physical":626,"files":3,"modules":["phoenix.contracts"],"partitions":[]},{"id":"src/foundation/data","family":"foundation","name":"data","lines":343,"physical":350,"files":4,"modules":["phoenix.data"],"partitions":[]},{"id":"src/foundation/input","family":"foundation","name":"input","lines":284,"physical":291,"files":2,"modules":["phoenix.input"],"partitions":[]},{"id":"src/gameplay/away","family":"gameplay","name":"away","lines":1842,"physical":1863,"files":10,"modules":["phoenix.gameplay.away.crew","phoenix.gameplay.away.operations","phoenix.gameplay.away.runtime","phoenix.gameplay.away.state"],"partitions":[]},{"id":"src/gameplay/boarding","family":"gameplay","name":"boarding","lines":238,"physical":246,"files":4,"modules":["phoenix.gameplay.boarding.runtime","phoenix.gameplay.boarding.state"],"partitions":[]},{"id":"src/gameplay/combat","family":"gameplay","name":"combat","lines":638,"physical":659,"files":8,"modules":["phoenix.gameplay.combat.faults","phoenix.gameplay.combat.outcomes","phoenix.gameplay.combat.shields","phoenix.gameplay.combat.state"],"partitions":[]},{"id":"src/gameplay/combat-continuation","family":"gameplay","name":"combat-continuation","lines":481,"physical":484,"files":2,"modules":["phoenix.gameplay.combat.continuation"],"partitions":[]},{"id":"src/gameplay/conversations","family":"gameplay","name":"conversations","lines":1008,"physical":1013,"files":3,"modules":["phoenix.conversations"],"partitions":[]},{"id":"src/gameplay/craft","family":"gameplay","name":"craft","lines":379,"physical":387,"files":3,"modules":["phoenix.gameplay.craft"],"partitions":[]},{"id":"src/gameplay/damage","family":"gameplay","name":"damage","lines":200,"physical":200,"files":2,"modules":["phoenix.gameplay.damage"],"partitions":[]},{"id":"src/gameplay/directed","family":"gameplay","name":"directed","lines":307,"physical":307,"files":2,"modules":["phoenix.gameplay.directed"],"partitions":[]},{"id":"src/gameplay/docking","family":"gameplay","name":"docking","lines":431,"physical":440,"files":3,"modules":["phoenix.gameplay.docking"],"partitions":[]},{"id":"src/gameplay/fitting","family":"gameplay","name":"fitting","lines":228,"physical":235,"files":2,"modules":["phoenix.gameplay.fitting"],"partitions":[]},{"id":"src/gameplay/flight","family":"gameplay","name":"flight","lines":1919,"physical":1937,"files":9,"modules":["phoenix.flight","phoenix.gameplay.flight.native","phoenix.gameplay.flight.work","phoenix.gameplay.flight"],"partitions":[]},{"id":"src/gameplay/ftl","family":"gameplay","name":"ftl","lines":445,"physical":456,"files":5,"modules":["phoenix.gameplay.ftl.coordinator","phoenix.gameplay.ftl"],"partitions":[]},{"id":"src/gameplay/logistics","family":"gameplay","name":"logistics","lines":597,"physical":605,"files":4,"modules":["phoenix.gameplay.logistics","phoenix.gameplay.logistics.state"],"partitions":[]},{"id":"src/gameplay/machinery","family":"gameplay","name":"machinery","lines":128,"physical":132,"files":2,"modules":["phoenix.gameplay.machinery"],"partitions":[]},{"id":"src/gameplay/ordnance","family":"gameplay","name":"ordnance","lines":365,"physical":368,"files":2,"modules":["phoenix.gameplay.ordnance"],"partitions":[]},{"id":"src/gameplay/ordnance-contacts","family":"gameplay","name":"ordnance-contacts","lines":174,"physical":176,"files":2,"modules":["phoenix.gameplay.ordnance.contacts"],"partitions":[]},{"id":"src/gameplay/personnel","family":"gameplay","name":"personnel","lines":534,"physical":562,"files":10,"modules":["phoenix.gameplay.personnel.clinical","phoenix.gameplay.personnel.outcomes","phoenix.gameplay.personnel.runtime","phoenix.gameplay.personnel.state","phoenix.gameplay.personnel.treatment"],"partitions":[]},{"id":"src/gameplay/projectiles","family":"gameplay","name":"projectiles","lines":144,"physical":145,"files":2,"modules":["phoenix.gameplay.projectiles"],"partitions":[]},{"id":"src/gameplay/psychic","family":"gameplay","name":"psychic","lines":718,"physical":728,"files":12,"modules":["phoenix.gameplay.psychic.contributions","phoenix.gameplay.psychic.emission","phoenix.gameplay.psychic.interference","phoenix.gameplay.psychic.projection","phoenix.gameplay.psychic.receptions","phoenix.gameplay.psychic.state"],"partitions":[]},{"id":"src/gameplay/repairs","family":"gameplay","name":"repairs","lines":193,"physical":193,"files":2,"modules":["phoenix.gameplay.repairs"],"partitions":[]},{"id":"src/gameplay/sensors","family":"gameplay","name":"sensors","lines":1034,"physical":1046,"files":16,"modules":["phoenix.gameplay.sensors.acquisition","phoenix.gameplay.sensors.coverage","phoenix.gameplay.sensors.envelopes","phoenix.gameplay.sensors.evidence","phoenix.gameplay.sensors.findings","phoenix.gameplay.sensors.projection","phoenix.gameplay.sensors.state","phoenix.gameplay.sensors.validation"],"partitions":[]},{"id":"src/gameplay/teams","family":"gameplay","name":"teams","lines":39,"physical":41,"files":1,"modules":["phoenix.gameplay.teams.routes"],"partitions":[]},{"id":"src/gameplay/weapons","family":"gameplay","name":"weapons","lines":236,"physical":236,"files":2,"modules":["phoenix.gameplay.weapons"],"partitions":[]},{"id":"src/graphics/assets","family":"graphics","name":"assets","lines":123,"physical":128,"files":2,"modules":["phoenix.graphics.assets"],"partitions":[]},{"id":"src/graphics/audio","family":"graphics","name":"audio","lines":591,"physical":602,"files":4,"modules":["phoenix.graphics.audio","phoenix.graphics.audio_policy"],"partitions":[]},{"id":"src/graphics/geometry","family":"graphics","name":"geometry","lines":100,"physical":105,"files":2,"modules":["phoenix.graphics.geometry"],"partitions":[]},{"id":"src/graphics/radar","family":"graphics","name":"radar","lines":789,"physical":801,"files":4,"modules":["phoenix.graphics.radar"],"partitions":[]},{"id":"src/graphics/scene","family":"graphics","name":"scene","lines":2818,"physical":2840,"files":10,"modules":["phoenix.graphics.scene"],"partitions":[]},{"id":"src/knowledge/consoles","family":"knowledge","name":"consoles","lines":1091,"physical":1097,"files":2,"modules":["phoenix.knowledge.consoles"],"partitions":[]},{"id":"src/knowledge/projections","family":"knowledge","name":"projections","lines":133,"physical":141,"files":2,"modules":["phoenix.knowledge.projections"],"partitions":[]},{"id":"src/knowledge/read-models","family":"knowledge","name":"read-models","lines":1772,"physical":1846,"files":19,"modules":["phoenix.knowledge.read_models"],"partitions":[]},{"id":"src/knowledge/records","family":"knowledge","name":"records","lines":1493,"physical":1504,"files":3,"modules":["phoenix.knowledge"],"partitions":[]},{"id":"src/networking/consensus","family":"networking","name":"consensus","lines":989,"physical":994,"files":2,"modules":["phoenix.replication"],"partitions":[]},{"id":"src/networking/durability","family":"networking","name":"durability","lines":115,"physical":120,"files":2,"modules":["phoenix.persistence"],"partitions":[]},{"id":"src/networking/fleet","family":"networking","name":"fleet","lines":1149,"physical":1162,"files":5,"modules":["phoenix.fleet","phoenix.fleet_setup"],"partitions":[]},{"id":"src/networking/inference","family":"networking","name":"inference","lines":218,"physical":220,"files":2,"modules":["phoenix.inference"],"partitions":[]},{"id":"src/networking/lobby","family":"networking","name":"lobby","lines":1941,"physical":1946,"files":4,"modules":["phoenix.network.lobby","phoenix.network.lobby.protocol"],"partitions":[]},{"id":"src/networking/local-session","family":"networking","name":"local-session","lines":1499,"physical":1515,"files":5,"modules":["phoenix.session.execution","phoenix.session.local"],"partitions":[]},{"id":"src/networking/projection","family":"networking","name":"projection","lines":513,"physical":519,"files":3,"modules":["phoenix.networking.projection"],"partitions":[]},{"id":"src/networking/remote-session","family":"networking","name":"remote-session","lines":1910,"physical":1923,"files":4,"modules":["phoenix.network.client","phoenix.network.host"],"partitions":[]},{"id":"src/networking/session-api","family":"networking","name":"session-api","lines":357,"physical":396,"files":2,"modules":["phoenix.session.api"],"partitions":[]},{"id":"src/networking/wire","family":"networking","name":"wire","lines":651,"physical":663,"files":3,"modules":["phoenix.wire"],"partitions":[]},{"id":"src/platform/accessibility","family":"platform","name":"accessibility","lines":1246,"physical":1258,"files":4,"modules":["phoenix.platform.accessibility"],"partitions":[]},{"id":"src/platform/devices","family":"platform","name":"devices","lines":419,"physical":426,"files":5,"modules":["phoenix.devices","phoenix.platform.display_identity"],"partitions":[]},{"id":"src/platform/files","family":"platform","name":"files","lines":691,"physical":706,"files":7,"modules":["phoenix.files","phoenix.platform.user_paths"],"partitions":[]},{"id":"src/platform/lifecycle","family":"platform","name":"lifecycle","lines":97,"physical":102,"files":1,"modules":["phoenix.platform.lifecycle"],"partitions":[]},{"id":"src/platform/storage","family":"platform","name":"storage","lines":1090,"physical":1122,"files":11,"modules":["phoenix.blobs","phoenix.platform.storage"],"partitions":[]},{"id":"src/platform/transport","family":"platform","name":"transport","lines":1306,"physical":1328,"files":6,"modules":["phoenix.transport"],"partitions":[]},{"id":"src/platform/viewport","family":"platform","name":"viewport","lines":48,"physical":48,"files":2,"modules":["phoenix.platform.viewport"],"partitions":[]},{"id":"src/resources/equipment","family":"resources","name":"equipment","lines":681,"physical":699,"files":2,"modules":["phoenix.resources.equipment"],"partitions":[]},{"id":"src/resources/networks","family":"resources","name":"networks","lines":1786,"physical":1803,"files":4,"modules":["phoenix.resources"],"partitions":[]},{"id":"src/resources/processors","family":"resources","name":"processors","lines":785,"physical":792,"files":3,"modules":["phoenix.resources.processing","phoenix.resources.processors"],"partitions":[]},{"id":"src/resources/stocks","family":"resources","name":"stocks","lines":689,"physical":697,"files":3,"modules":["phoenix.resources.stocks"],"partitions":[]},{"id":"src/scenarios/environment","family":"scenarios","name":"environment","lines":899,"physical":911,"files":5,"modules":["phoenix.scenarios.environment","phoenix.scenarios.environment.streaming"],"partitions":[]},{"id":"src/scenarios/integration","family":"scenarios","name":"integration","lines":1355,"physical":1361,"files":2,"modules":["phoenix.gameplay_scenario"],"partitions":[]},{"id":"src/scenarios/interdictions","family":"scenarios","name":"interdictions","lines":599,"physical":601,"files":4,"modules":["phoenix.scenario.interdictions"],"partitions":[]},{"id":"src/scenarios/objectives","family":"scenarios","name":"objectives","lines":250,"physical":259,"files":4,"modules":["phoenix.scenarios.objectives"],"partitions":[]},{"id":"src/scenarios/runtime","family":"scenarios","name":"runtime","lines":1954,"physical":1969,"files":5,"modules":["phoenix.scenario"],"partitions":[]},{"id":"src/ui/console-model","family":"ui","name":"console-model","lines":2840,"physical":2864,"files":8,"modules":["phoenix.console"],"partitions":[]},{"id":"src/ui/console-surface","family":"ui","name":"console-surface","lines":6688,"physical":6838,"files":8,"modules":["phoenix.ui.console_surface"],"partitions":[]},{"id":"src/ui/engineering-widgets","family":"ui","name":"engineering-widgets","lines":248,"physical":250,"files":2,"modules":["phoenix.ui.engineering_widgets"],"partitions":[]},{"id":"src/ui/flight-widgets","family":"ui","name":"flight-widgets","lines":135,"physical":138,"files":2,"modules":["phoenix.ui.flight_widgets"],"partitions":[]},{"id":"src/ui/information-widgets","family":"ui","name":"information-widgets","lines":536,"physical":545,"files":4,"modules":["phoenix.ui.conversation_panel","phoenix.ui.information_widgets"],"partitions":[]},{"id":"src/ui/interaction","family":"ui","name":"interaction","lines":468,"physical":485,"files":4,"modules":["phoenix.ui.interaction","phoenix.navigation"],"partitions":[]},{"id":"src/ui/navigation-panel","family":"ui","name":"navigation-panel","lines":667,"physical":675,"files":2,"modules":["phoenix.ui.navigation_panel"],"partitions":[]},{"id":"src/ui/operations-widgets","family":"ui","name":"operations-widgets","lines":763,"physical":779,"files":2,"modules":["phoenix.ui.operations_widgets"],"partitions":[]},{"id":"src/ui/preview","family":"ui","name":"preview","lines":360,"physical":366,"files":2,"modules":["phoenix.ui.preview"],"partitions":[]},{"id":"src/ui/runtime","family":"ui","name":"runtime","lines":2864,"physical":2914,"files":8,"modules":["phoenix.ui.pad_dispatch","phoenix.presentation","phoenix.ui.rml"],"partitions":[]},{"id":"src/ui/screens","family":"ui","name":"screens","lines":2989,"physical":3013,"files":10,"modules":["phoenix.ui.screens","phoenix.ui.settings","phoenix.ui.skin","phoenix.ui.theme"],"partitions":[]},{"id":"src/ui/surface-host","family":"ui","name":"surface-host","lines":191,"physical":192,"files":4,"modules":["phoenix.ui.choice_specs","phoenix.ui.surface_host"],"partitions":[]},{"id":"src/ui/tactical-widgets","family":"ui","name":"tactical-widgets","lines":186,"physical":189,"files":2,"modules":["phoenix.ui.tactical_widgets"],"partitions":[]},{"id":"src/ui/viewscreen","family":"ui","name":"viewscreen","lines":1178,"physical":1184,"files":3,"modules":["phoenix.ui.viewscreen"],"partitions":[]},{"id":"src/workshop/gameplay-editors","family":"workshop","name":"gameplay-editors","lines":3225,"physical":3281,"files":11,"modules":["phoenix.workshop.gameplay"],"partitions":[]},{"id":"src/workshop/gm","family":"workshop","name":"gm","lines":188,"physical":193,"files":2,"modules":["phoenix.workshop.gm"],"partitions":[]},{"id":"src/workshop/layout-editor","family":"workshop","name":"layout-editor","lines":860,"physical":868,"files":2,"modules":["phoenix.workshop.layout"],"partitions":[]},{"id":"src/workshop/map-editor","family":"workshop","name":"map-editor","lines":396,"physical":406,"files":4,"modules":["phoenix.workshop.map","phoenix.workshop.map_navigation"],"partitions":[]},{"id":"src/workshop/preview","family":"workshop","name":"preview","lines":591,"physical":603,"files":4,"modules":["phoenix.workshop.asset_preview","phoenix.workshop.material_preview"],"partitions":[]},{"id":"src/workshop/shell","family":"workshop","name":"shell","lines":1328,"physical":1383,"files":9,"modules":["phoenix.workshop.authoring","phoenix.workshop.shell","phoenix.tools"],"partitions":[]},{"id":"src/workshop/test-client","family":"workshop","name":"test-client","lines":394,"physical":405,"files":4,"modules":["phoenix.workshop.browser_test_client","phoenix.workshop.test_client"],"partitions":[]},{"id":"src/workshop/tree-editor","family":"workshop","name":"tree-editor","lines":885,"physical":907,"files":2,"modules":["phoenix.workshop.tree"],"partitions":[]},{"id":"src/workshop/workflow","family":"workshop","name":"workflow","lines":2048,"physical":2089,"files":7,"modules":["phoenix.workshop.workflow"],"partitions":[]},{"id":"src/world/combat-bindings","family":"world","name":"combat-bindings","lines":2441,"physical":2539,"files":8,"modules":[],"partitions":["phoenix.simulation:combat_bindings"]},{"id":"src/world/command-routing","family":"world","name":"command-routing","lines":2070,"physical":2139,"files":12,"modules":[],"partitions":["phoenix.simulation:command_routing"]},{"id":"src/world/crew-bindings","family":"world","name":"crew-bindings","lines":3637,"physical":3764,"files":12,"modules":[],"partitions":["phoenix.simulation:crew_bindings"]},{"id":"src/world/effect-applications","family":"world","name":"effect-applications","lines":1899,"physical":2001,"files":11,"modules":[],"partitions":["phoenix.simulation:effect_applications"]},{"id":"src/world/effect-lifecycle","family":"world","name":"effect-lifecycle","lines":3261,"physical":3371,"files":12,"modules":[],"partitions":["phoenix.simulation:effect_lifecycle"]},{"id":"src/world/effect-work","family":"world","name":"effect-work","lines":2820,"physical":2955,"files":10,"modules":[],"partitions":["phoenix.simulation:effect_work"]},{"id":"src/world/lifecycle","family":"world","name":"lifecycle","lines":2958,"physical":3078,"files":9,"modules":["phoenix.world.assembly","phoenix.simulation"],"partitions":["phoenix.simulation:runtime"]},{"id":"src/world/native-actors","family":"world","name":"native-actors","lines":1181,"physical":1204,"files":4,"modules":[],"partitions":["phoenix.simulation:native_actors"]},{"id":"src/world/persistence","family":"world","name":"persistence","lines":679,"physical":695,"files":5,"modules":["phoenix.world.persistence"],"partitions":["phoenix.simulation:persistence"]},{"id":"src/world/projection-bindings","family":"world","name":"projection-bindings","lines":1471,"physical":1508,"files":8,"modules":[],"partitions":["phoenix.simulation:projection_bindings"]},{"id":"src/world/resource-bindings","family":"world","name":"resource-bindings","lines":650,"physical":672,"files":5,"modules":[],"partitions":["phoenix.simulation:resource_bindings"]},{"id":"src/world/scenario-bindings","family":"world","name":"scenario-bindings","lines":1286,"physical":1332,"files":6,"modules":[],"partitions":["phoenix.simulation:scenario_bindings"]},{"id":"src/world/schedule","family":"world","name":"schedule","lines":337,"physical":342,"files":5,"modules":["phoenix.world.schedule.profiling"],"partitions":["phoenix.simulation:schedule"]},{"id":"src/world/sensor-bindings","family":"world","name":"sensor-bindings","lines":968,"physical":1023,"files":5,"modules":[],"partitions":["phoenix.simulation:sensor_bindings"]},{"id":"src/world/spatial","family":"world","name":"spatial","lines":421,"physical":427,"files":2,"modules":["phoenix.world.spatial"],"partitions":[]},{"id":"src/world/state","family":"world","name":"state","lines":393,"physical":399,"files":2,"modules":["phoenix.world.state"],"partitions":[]},{"id":"src/world/travel-bindings","family":"world","name":"travel-bindings","lines":3808,"physical":3949,"files":12,"modules":[],"partitions":["phoenix.simulation:travel_bindings"]}],"edges":[{"source":"src/application/connections","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/application/connections/connections.cppm"]},{"source":"src/application/connections","target":"src/application/shell","imports":["phoenix.application"],"files":["src/application/connections/connections.cppm"]},{"source":"src/application/displays","target":"src/application/preference-store","imports":["phoenix.application.preference_store"],"files":["src/application/displays/displays.cpp"]},{"source":"src/application/displays","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/application/displays/displays.cppm"]},{"source":"src/application/displays","target":"src/application/shell","imports":["phoenix.application"],"files":["src/application/displays/displays.cppm"]},{"source":"src/application/library","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/application/library/menu.cppm"]},{"source":"src/application/library","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/application/library/menu.cpp"]},{"source":"src/application/library","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/application/library/menu.cpp","src/application/library/menu.cppm"]},{"source":"src/application/library","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/application/library/menu.cpp"]},{"source":"src/application/library","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/application/library/menu.cpp","src/application/library/menu.cppm"]},{"source":"src/application/library","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/application/library/menu.cpp"]},{"source":"src/application/library","target":"src/platform/devices","imports":["phoenix.platform.display_identity"],"files":["src/application/library/menu.cppm"]},{"source":"src/application/library","target":"src/platform/files","imports":["phoenix.platform.user_paths"],"files":["src/application/library/menu.cppm"]},{"source":"src/application/preference-store","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/application/preference-store/preference_store.cppm"]},{"source":"src/application/preference-store","target":"src/application/shell","imports":["phoenix.application"],"files":["src/application/preference-store/preference_store.cppm"]},{"source":"src/application/preferences","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/application/preferences/preferences.cppm"]},{"source":"src/application/shell","target":"src/application/library","imports":["phoenix.menu"],"files":["src/application/shell/application.cppm"]},{"source":"src/application/shell","target":"src/foundation/input","imports":["phoenix.input"],"files":["src/application/shell/application.cppm"]},{"source":"src/application/shell","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/application/shell/application.cppm"]},{"source":"src/application/shell","target":"src/ui/interaction","imports":["phoenix.ui.interaction"],"files":["src/application/shell/application.cppm"]},{"source":"src/behavior/state-tree","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/behavior/state-tree/state_tree.cppm"]},{"source":"src/behavior/vocabulary","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/behavior/vocabulary/gameplay_vocabulary.cppm"]},{"source":"src/behavior/vocabulary","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/behavior/vocabulary/gameplay_vocabulary.cppm"]},{"source":"src/content/assets","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/assets/audio.cpp","src/content/assets/model.cpp","src/content/assets/sprite.cpp","src/content/assets/types.cppm"]},{"source":"src/content/assets","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/assets/types.cppm"]},{"source":"src/content/assets","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/assets/image_codec.cppm","src/content/assets/types.cppm"]},{"source":"src/content/catalog","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/content/controllers","imports":["phoenix.content.controllers.types"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/gameplay/conversations","imports":["phoenix.conversations"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/catalog","target":"src/scenarios/runtime","imports":["phoenix.scenario"],"files":["src/content/catalog/types.cppm"]},{"source":"src/content/combat","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/content/combat/combat.cpp","src/content/combat/directed.cpp"]},{"source":"src/content/combat","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/combat/combat.cpp","src/content/combat/compiler.cppm","src/content/combat/directed.cpp"]},{"source":"src/content/combat","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/content/combat/combat.cpp"]},{"source":"src/content/combat","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/combat/combat.cpp","src/content/combat/compiler.cppm","src/content/combat/directed.cpp","src/content/combat/types.cppm"]},{"source":"src/content/combat","target":"src/content/operations","imports":["phoenix.content.operations.types"],"files":["src/content/combat/combat.cpp","src/content/combat/types.cppm"]},{"source":"src/content/combat","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/combat/combat.cpp"]},{"source":"src/content/combat","target":"src/content/sensing","imports":["phoenix.content.sensing"],"files":["src/content/combat/combat.cpp"]},{"source":"src/content/combat","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/combat/compiler.cppm","src/content/combat/types.cppm"]},{"source":"src/content/combat","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/combat/compiler.cppm","src/content/combat/types.cppm"]},{"source":"src/content/combat","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/combat/types.cppm"]},{"source":"src/content/controllers","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/controllers/compiler.cppm","src/content/controllers/types.cppm"]},{"source":"src/content/controllers","target":"src/behavior/vocabulary","imports":["phoenix.gameplay_vocabulary"],"files":["src/content/controllers/types.cppm"]},{"source":"src/content/controllers","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/content/controllers/bridge.cpp"]},{"source":"src/content/controllers","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/controllers/bridge.cpp","src/content/controllers/compiler.cppm","src/content/controllers/controller_actions.cpp","src/content/controllers/controllers.cpp","src/content/controllers/stations.cpp"]},{"source":"src/content/controllers","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/controllers/compiler.cppm","src/content/controllers/controllers.cpp"]},{"source":"src/content/controllers","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/controllers/compiler.cppm","src/content/controllers/controllers.cpp"]},{"source":"src/content/controllers","target":"src/content/equipment","imports":["phoenix.content.equipment"],"files":["src/content/controllers/controllers.cpp"]},{"source":"src/content/controllers","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/content/controllers/controller_actions.cpp","src/content/controllers/controllers.cpp"]},{"source":"src/content/controllers","target":"src/content/resources","imports":["phoenix.content.resources","phoenix.content.resources.types"],"files":["src/content/controllers/compiler.cppm","src/content/controllers/controllers.cpp","src/content/controllers/stations.cpp"]},{"source":"src/content/controllers","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/content/controllers/bridge.cpp"]},{"source":"src/content/controllers","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/controllers/types.cppm"]},{"source":"src/content/controllers","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/controllers/compiler.cppm","src/content/controllers/types.cppm"]},{"source":"src/content/controllers","target":"src/gameplay/flight","imports":["phoenix.flight"],"files":["src/content/controllers/controllers.cpp"]},{"source":"src/content/controllers","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/content/controllers/types.cppm"]},{"source":"src/content/distribution","target":"src/content/assets","imports":["phoenix.content.assets","phoenix.content.image_codec"],"files":["src/content/distribution/console_assets.cpp","src/content/distribution/metadata.cpp"]},{"source":"src/content/distribution","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/distribution/compiler.cppm","src/content/distribution/console_assets.cpp"]},{"source":"src/content/distribution","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/content/distribution/console_assets.cpp","src/content/distribution/metadata.cpp"]},{"source":"src/content/distribution","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/content/distribution/compiler.cppm","src/content/distribution/console_assets.cpp"]},{"source":"src/content/distribution","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/content/distribution/metadata.cpp"]},{"source":"src/content/distribution","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/content/distribution/console_assets.cpp","src/content/distribution/metadata.cpp"]},{"source":"src/content/distribution","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/distribution/compiler.cppm"]},{"source":"src/content/documents","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/documents/types.cppm"]},{"source":"src/content/documents","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/documents/types.cppm","src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/equipment","imports":["phoenix.content.equipment"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/content/documents/types.cppm","src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/scenarios","imports":["phoenix.content.scenarios"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/documents","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/documents/types.cppm"]},{"source":"src/content/documents","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/content/documents/workshop.cpp"]},{"source":"src/content/effects","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/effects/types.cppm"]},{"source":"src/content/effects","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/effects/abilities.cpp","src/content/effects/compiler.cppm","src/content/effects/effect_groups.cpp","src/content/effects/processes.cpp","src/content/effects/properties.cpp","src/content/effects/rules.cpp"]},{"source":"src/content/effects","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/effects/abilities.cpp","src/content/effects/compiler.cppm","src/content/effects/effect_groups.cpp"]},{"source":"src/content/effects","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/content/effects/abilities.cpp","src/content/effects/compiler.cppm","src/content/effects/processes.cpp"]},{"source":"src/content/effects","target":"src/content/operations","imports":["phoenix.content.operations","phoenix.content.operations.types"],"files":["src/content/effects/abilities.cpp","src/content/effects/compiler.cppm"]},{"source":"src/content/effects","target":"src/content/resources","imports":["phoenix.content.resources","phoenix.content.resources.types"],"files":["src/content/effects/abilities.cpp"]},{"source":"src/content/effects","target":"src/content/sensing","imports":["phoenix.content.sensing","phoenix.content.sensing.types"],"files":["src/content/effects/abilities.cpp","src/content/effects/compiler.cppm"]},{"source":"src/content/effects","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/effects/types.cppm"]},{"source":"src/content/effects","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/effects/compiler.cppm","src/content/effects/types.cppm"]},{"source":"src/content/effects","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/effects/types.cppm"]},{"source":"src/content/equipment","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/equipment/compiler.cppm","src/content/equipment/equipment.cpp","src/content/equipment/gameplay.cpp"]},{"source":"src/content/equipment","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/equipment/compiler.cppm","src/content/equipment/equipment.cpp","src/content/equipment/gameplay.cpp"]},{"source":"src/content/equipment","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/content/equipment/gameplay.cpp"]},{"source":"src/content/equipment","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/equipment/compiler.cppm","src/content/equipment/equipment.cpp"]},{"source":"src/content/equipment","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/content/equipment/gameplay.cpp"]},{"source":"src/content/equipment","target":"src/content/resources","imports":["phoenix.content.resources","phoenix.content.resources.types"],"files":["src/content/equipment/equipment.cpp","src/content/equipment/gameplay.cpp"]},{"source":"src/content/equipment","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/equipment/types.cppm"]},{"source":"src/content/equipment","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/equipment/compiler.cppm","src/content/equipment/types.cppm"]},{"source":"src/content/equipment","target":"src/gameplay/flight","imports":["phoenix.flight"],"files":["src/content/equipment/equipment.cpp","src/content/equipment/gameplay.cpp"]},{"source":"src/content/equipment","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/equipment/equipment.cpp","src/content/equipment/gameplay.cpp"]},{"source":"src/content/knowledge","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/knowledge/compiler.cppm","src/content/knowledge/types.cppm"]},{"source":"src/content/knowledge","target":"src/behavior/vocabulary","imports":["phoenix.gameplay_vocabulary"],"files":["src/content/knowledge/compiler.cppm"]},{"source":"src/content/knowledge","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/knowledge/compiler.cppm","src/content/knowledge/gameplay_knowledge.cpp","src/content/knowledge/tree_bindings.cpp"]},{"source":"src/content/knowledge","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/content/knowledge/compiler.cppm","src/content/knowledge/gameplay_knowledge.cpp","src/content/knowledge/tree_bindings.cpp","src/content/knowledge/types.cppm"]},{"source":"src/content/knowledge","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/knowledge/compiler.cppm","src/content/knowledge/gameplay_knowledge.cpp","src/content/knowledge/tree_bindings.cpp"]},{"source":"src/content/knowledge","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/knowledge/gameplay_knowledge.cpp"]},{"source":"src/content/knowledge","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/knowledge/compiler.cppm","src/content/knowledge/types.cppm"]},{"source":"src/content/knowledge","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/content/knowledge/types.cppm"]},{"source":"src/content/logistics","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/logistics/compiler.cppm","src/content/logistics/craft.cpp","src/content/logistics/docking.cpp","src/content/logistics/logistics.cpp"]},{"source":"src/content/logistics","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/logistics/compiler.cppm","src/content/logistics/craft.cpp","src/content/logistics/docking.cpp","src/content/logistics/logistics.cpp"]},{"source":"src/content/logistics","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/content/logistics/craft.cpp"]},{"source":"src/content/logistics","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/logistics/compiler.cppm","src/content/logistics/craft.cpp","src/content/logistics/docking.cpp","src/content/logistics/logistics.cpp"]},{"source":"src/content/logistics","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/content/logistics/craft.cpp"]},{"source":"src/content/logistics","target":"src/content/operations","imports":["phoenix.content.operations"],"files":["src/content/logistics/craft.cpp"]},{"source":"src/content/logistics","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/logistics/logistics.cpp"]},{"source":"src/content/logistics","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/logistics/compiler.cppm","src/content/logistics/types.cppm"]},{"source":"src/content/logistics","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/logistics/types.cppm"]},{"source":"src/content/operations","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/operations/compiler.cppm","src/content/operations/types.cppm"]},{"source":"src/content/operations","target":"src/content/assets","imports":["phoenix.content.image_codec"],"files":["src/content/operations/personnel.cpp"]},{"source":"src/content/operations","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/operations/away.cpp","src/content/operations/compiler.cppm","src/content/operations/personnel.cpp"]},{"source":"src/content/operations","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/operations/away.cpp","src/content/operations/compiler.cppm","src/content/operations/personnel.cpp"]},{"source":"src/content/operations","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/content/operations/away.cpp","src/content/operations/personnel.cpp"]},{"source":"src/content/operations","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/operations/away.cpp","src/content/operations/compiler.cppm","src/content/operations/personnel.cpp","src/content/operations/types.cppm"]},{"source":"src/content/operations","target":"src/content/logistics","imports":["phoenix.content.logistics"],"files":["src/content/operations/away.cpp"]},{"source":"src/content/operations","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/operations/personnel.cpp"]},{"source":"src/content/operations","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/operations/types.cppm"]},{"source":"src/content/operations","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/operations/compiler.cppm","src/content/operations/types.cppm"]},{"source":"src/content/packs","target":"src/content/assets","imports":["phoenix.content.image_codec"],"files":["src/content/packs/pack.cpp","src/content/packs/types.cppm"]},{"source":"src/content/packs","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/packs/pack.cpp"]},{"source":"src/content/packs","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/packs/types.cppm"]},{"source":"src/content/resources","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/resources/types.cppm"]},{"source":"src/content/resources","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/resources/compiler.cppm","src/content/resources/resource_bindings.cpp","src/content/resources/stock_catalog.cpp"]},{"source":"src/content/resources","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/resources/compiler.cppm","src/content/resources/stock_catalog.cpp"]},{"source":"src/content/resources","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/content/resources/resource_bindings.cpp"]},{"source":"src/content/resources","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/resources/compiler.cppm","src/content/resources/stock_catalog.cpp"]},{"source":"src/content/resources","target":"src/content/equipment","imports":["phoenix.content.equipment"],"files":["src/content/resources/resource_bindings.cpp"]},{"source":"src/content/resources","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/content/resources/resource_bindings.cpp"]},{"source":"src/content/resources","target":"src/content/logistics","imports":["phoenix.content.logistics"],"files":["src/content/resources/stock_catalog.cpp"]},{"source":"src/content/resources","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/content/resources/resource_bindings.cpp"]},{"source":"src/content/resources","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/resources/types.cppm"]},{"source":"src/content/resources","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/resources/compiler.cppm","src/content/resources/types.cppm"]},{"source":"src/content/resources","target":"src/gameplay/flight","imports":["phoenix.flight"],"files":["src/content/resources/resource_bindings.cpp"]},{"source":"src/content/resources","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/resources/compiler.cppm","src/content/resources/resource_bindings.cpp","src/content/resources/stock_catalog.cpp","src/content/resources/types.cppm"]},{"source":"src/content/scenarios","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/scenarios/compiler.cppm","src/content/scenarios/conversations.cpp","src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/scenarios/compiler.cppm","src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/content/scenarios/conversations.cpp","src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/scenarios/compiler.cppm","src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/equipment","imports":["phoenix.content.equipment"],"files":["src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/knowledge","imports":["phoenix.content.knowledge","phoenix.content.knowledge.types"],"files":["src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/logistics","imports":["phoenix.content.logistics"],"files":["src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/scenarios/scenario.cpp"]},{"source":"src/content/scenarios","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/scenarios/compiler.cppm"]},{"source":"src/content/sensing","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/types.cppm"]},{"source":"src/content/sensing","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/interdictions.cpp","src/content/sensing/psychic.cpp","src/content/sensing/sensors.cpp"]},{"source":"src/content/sensing","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/interdictions.cpp","src/content/sensing/psychic.cpp","src/content/sensing/sensors.cpp"]},{"source":"src/content/sensing","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/interdictions.cpp","src/content/sensing/psychic.cpp","src/content/sensing/sensors.cpp"]},{"source":"src/content/sensing","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/interdictions.cpp","src/content/sensing/psychic.cpp","src/content/sensing/types.cppm"]},{"source":"src/content/sensing","target":"src/content/logistics","imports":["phoenix.content.logistics"],"files":["src/content/sensing/interdictions.cpp"]},{"source":"src/content/sensing","target":"src/content/operations","imports":["phoenix.content.operations","phoenix.content.operations.types"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/psychic.cpp"]},{"source":"src/content/sensing","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/sensing/interdictions.cpp"]},{"source":"src/content/sensing","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/content/sensing/types.cppm"]},{"source":"src/content/sensing","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/sensing/compiler.cppm","src/content/sensing/types.cppm"]},{"source":"src/content/ui","target":"src/content/assets","imports":["phoenix.content.image_codec"],"files":["src/content/ui/ui_layout.cpp"]},{"source":"src/content/ui","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/ui/types.cppm","src/content/ui/ui_layout.cpp"]},{"source":"src/content/ui","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/ui/types.cppm"]},{"source":"src/content/verification","target":"src/content/assets","imports":["phoenix.content.assets","phoenix.content.image_codec"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/content/verification/catalog_resolution.cpp","src/content/verification/compiler.cppm"]},{"source":"src/content/verification","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/content/verification/catalog_resolution.cpp","src/content/verification/compiler.cppm"]},{"source":"src/content/verification","target":"src/content/equipment","imports":["phoenix.content.equipment"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/logistics","imports":["phoenix.content.logistics"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/operations","imports":["phoenix.content.operations"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/content/verification/catalog_resolution.cpp","src/content/verification/compiler.cppm"]},{"source":"src/content/verification","target":"src/content/resources","imports":["phoenix.content.resources"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/scenarios","imports":["phoenix.content.scenarios"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/sensing","imports":["phoenix.content.sensing"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/content/verification/compiler.cppm"]},{"source":"src/content/verification","target":"src/gameplay/conversations","imports":["phoenix.conversations"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/content/verification","target":"src/scenarios/runtime","imports":["phoenix.scenario"],"files":["src/content/verification/catalog_resolution.cpp"]},{"source":"src/control/command-shapes","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/control/command-shapes/envelope.cppm"]},{"source":"src/control/controllers","target":"src/behavior/vocabulary","imports":["phoenix.gameplay_vocabulary"],"files":["src/control/controllers/views.cpp"]},{"source":"src/control/controllers","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/control/controllers/templates.cppm"]},{"source":"src/control/controllers","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/control/controllers/controllers.cppm","src/control/controllers/templates.cpp"]},{"source":"src/control/controllers","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/control/controllers/templates.cpp"]},{"source":"src/control/controllers","target":"src/control/coordination","imports":["phoenix.control.coordination"],"files":["src/control/controllers/views.cpp"]},{"source":"src/control/coordination","target":"src/control/controllers","imports":["phoenix.control.controllers"],"files":["src/control/coordination/coordination.cppm","src/control/coordination/facts.cppm","src/control/coordination/protocol.cppm"]},{"source":"src/control/coordination","target":"src/control/execution","imports":["phoenix.control.execution"],"files":["src/control/coordination/facts.cpp","src/control/coordination/protocol.cpp"]},{"source":"src/control/coordination","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/control/coordination/protocol.cppm"]},{"source":"src/control/coordination","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/control/coordination/facts.cpp"]},{"source":"src/control/execution","target":"src/content/effects","imports":["phoenix.content.effects.types"],"files":["src/control/execution/execution.cppm"]},{"source":"src/control/execution","target":"src/control/controllers","imports":["phoenix.control.controllers"],"files":["src/control/execution/execution.cppm"]},{"source":"src/control/execution","target":"src/control/coordination","imports":["phoenix.control.coordination"],"files":["src/control/execution/persistence.cpp"]},{"source":"src/control/execution","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/control/execution/persistence.cpp"]},{"source":"src/control/execution","target":"src/effects/processes","imports":["phoenix.effects.processes"],"files":["src/control/execution/observations.cpp"]},{"source":"src/control/execution","target":"src/gameplay/flight","imports":["phoenix.gameplay.flight"],"files":["src/control/execution/decisions.cpp"]},{"source":"src/control/execution","target":"src/knowledge/projections","imports":["phoenix.knowledge.projections"],"files":["src/control/execution/execution.cppm"]},{"source":"src/control/execution","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/control/execution/execution.cpp","src/control/execution/execution.cppm"]},{"source":"src/control/ownership","target":"src/control/controllers","imports":["phoenix.control.controllers"],"files":["src/control/ownership/handover.cppm"]},{"source":"src/control/ownership","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/control/ownership/ownership.cppm"]},{"source":"src/control/providers","target":"src/control/controllers","imports":["phoenix.control.controllers"],"files":["src/control/providers/providers.cppm"]},{"source":"src/control/providers","target":"src/control/coordination","imports":["phoenix.control.coordination"],"files":["src/control/providers/providers.cpp"]},{"source":"src/control/providers","target":"src/networking/inference","imports":["phoenix.inference"],"files":["src/control/providers/inference_host.cppm"]},{"source":"src/control/providers","target":"src/world/lifecycle","imports":["phoenix.simulation"],"files":["src/control/providers/inference_host.cppm"]},{"source":"src/effects/abilities","target":"src/control/controllers","imports":["phoenix.control.controllers"],"files":["src/effects/abilities/lifecycle.cpp"]},{"source":"src/effects/abilities","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/effects/abilities/abilities.cppm"]},{"source":"src/effects/contracts","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/effects/contracts/contracts.cppm"]},{"source":"src/effects/contracts","target":"src/content/effects","imports":["phoenix.content.effects.types"],"files":["src/effects/contracts/contracts.cppm"]},{"source":"src/effects/contracts","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/effects/contracts/contracts.cppm"]},{"source":"src/effects/contracts","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/effects/contracts/contracts.cppm"]},{"source":"src/effects/funding","target":"src/effects/transactions","imports":["phoenix.effects.native","phoenix.effects.transactions"],"files":["src/effects/funding/funding.cppm"]},{"source":"src/effects/lifecycle","target":"src/effects/rules","imports":["phoenix.effects.bindings","phoenix.effects.rule_state","phoenix.effects.rules"],"files":["src/effects/lifecycle/clocks.cppm","src/effects/lifecycle/events.cppm","src/effects/lifecycle/grants.cppm","src/effects/lifecycle/validation.cppm"]},{"source":"src/effects/lifecycle","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/effects/lifecycle/validation.cppm"]},{"source":"src/effects/lifecycle","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/effects/lifecycle/validation.cppm"]},{"source":"src/effects/processes","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/effects/processes/processes.cppm"]},{"source":"src/effects/processes","target":"src/effects/funding","imports":["phoenix.effects.funding"],"files":["src/effects/processes/finite_work.cppm","src/effects/processes/machinery.cppm"]},{"source":"src/effects/processes","target":"src/effects/lifecycle","imports":["phoenix.effects.continuation_validation"],"files":["src/effects/processes/validation.cppm"]},{"source":"src/effects/processes","target":"src/effects/rules","imports":["phoenix.effects.rules"],"files":["src/effects/processes/processes.cpp"]},{"source":"src/effects/processes","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/effects/processes/validation.cpp"]},{"source":"src/effects/processes","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/effects/processes/machinery.cppm"]},{"source":"src/effects/properties","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/effects/properties/properties.cppm"]},{"source":"src/effects/properties","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/effects/properties/runtime.cpp"]},{"source":"src/effects/properties","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/effects/properties/runtime.cpp"]},{"source":"src/effects/properties","target":"src/gameplay/fitting","imports":["phoenix.gameplay.fitting"],"files":["src/effects/properties/runtime.cpp"]},{"source":"src/effects/properties","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/effects/properties/runtime.cppm"]},{"source":"src/effects/rules","target":"src/content/effects","imports":["phoenix.content.effects.types"],"files":["src/effects/rules/rules.cppm"]},{"source":"src/effects/rules","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/effects/rules/bindings.cppm","src/effects/rules/state.cppm"]},{"source":"src/effects/transactions","target":"src/effects/abilities","imports":["phoenix.effects.abilities"],"files":["src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/effects/transactions/native.cppm"]},{"source":"src/effects/transactions","target":"src/effects/lifecycle","imports":["phoenix.effects.events","phoenix.effects.grants"],"files":["src/effects/transactions/preparation.cppm","src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/effects/processes","imports":["phoenix.effects.processes"],"files":["src/effects/transactions/native.cppm","src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/effects/properties","imports":["phoenix.effects.properties"],"files":["src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/effects/rules","imports":["phoenix.effects.rule_state"],"files":["src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.outcomes","phoenix.gameplay.combat.shields","phoenix.gameplay.combat.state"],"files":["src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/gameplay/fitting","imports":["phoenix.gameplay.fitting"],"files":["src/effects/transactions/native.cppm"]},{"source":"src/effects/transactions","target":"src/gameplay/logistics","imports":["phoenix.gameplay.logistics.state"],"files":["src/effects/transactions/native.cppm"]},{"source":"src/effects/transactions","target":"src/gameplay/personnel","imports":["phoenix.gameplay.personnel.outcomes","phoenix.gameplay.personnel.state"],"files":["src/effects/transactions/native.cppm","src/effects/transactions/transactions.cppm"]},{"source":"src/effects/transactions","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/effects/transactions/transactions.cppm"]},{"source":"src/executables/browser","target":"src/executables/diagnostics","imports":["phoenix.diagnostics.browser_profile"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/networking/lobby","imports":["phoenix.network.lobby","phoenix.network.lobby.protocol"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/networking/local-session","imports":["phoenix.session.local"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/ui/interaction","imports":["phoenix.navigation"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/ui/runtime","imports":["phoenix.presentation"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/workshop/shell","imports":["phoenix.tools"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/browser","target":"src/workshop/test-client","imports":["phoenix.workshop.browser_test_client"],"files":["src/executables/browser/web.cpp"]},{"source":"src/executables/diagnostics","target":"src/application/shell","imports":["phoenix.application"],"files":["src/executables/diagnostics/browser_profile.cppm","src/executables/diagnostics/native_profile.cppm"]},{"source":"src/executables/diagnostics","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/executables/diagnostics/native_profile.cpp"]},{"source":"src/executables/diagnostics","target":"src/networking/local-session","imports":["phoenix.session.local"],"files":["src/executables/diagnostics/native_profile.cpp"]},{"source":"src/executables/diagnostics","target":"src/world/lifecycle","imports":["phoenix.simulation"],"files":["src/executables/diagnostics/build_check.cpp"]},{"source":"src/executables/inference-bridge","target":"src/networking/inference","imports":["phoenix.inference"],"files":["src/executables/inference-bridge/inference_bridge.cpp"]},{"source":"src/executables/inference-bridge","target":"src/networking/wire","imports":["phoenix.wire"],"files":["src/executables/inference-bridge/inference_bridge.cpp"]},{"source":"src/executables/native","target":"src/application/displays","imports":["phoenix.application.displays"],"files":["src/executables/native/displays.cpp"]},{"source":"src/executables/native","target":"src/application/shell","imports":["phoenix.application"],"files":["src/executables/native/displays.cppm","src/executables/native/workshop_bridge.cppm"]},{"source":"src/executables/native","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/executables/diagnostics","imports":["phoenix.diagnostics.native_profile"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/executables/workshop-host","imports":["phoenix.workshop_test"],"files":["src/executables/native/native.cpp","src/executables/native/workshop_bridge.cpp"]},{"source":"src/executables/native","target":"src/networking/lobby","imports":["phoenix.network.lobby"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/networking/local-session","imports":["phoenix.session.local"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/networking/remote-session","imports":["phoenix.network.client","phoenix.network.host"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/platform/devices","imports":["phoenix.platform.display_identity"],"files":["src/executables/native/displays.cpp"]},{"source":"src/executables/native","target":"src/ui/interaction","imports":["phoenix.navigation"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/ui/runtime","imports":["phoenix.presentation"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/native","target":"src/workshop/shell","imports":["phoenix.tools"],"files":["src/executables/native/native.cpp","src/executables/native/workshop_bridge.cpp"]},{"source":"src/executables/native","target":"src/world/lifecycle","imports":["phoenix.simulation"],"files":["src/executables/native/native.cpp"]},{"source":"src/executables/pack","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/executables/pack/pack.cpp"]},{"source":"src/executables/pack","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/executables/pack/pack.cpp"]},{"source":"src/executables/pack","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/executables/pack/pack.cpp"]},{"source":"src/executables/pack","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/executables/pack/pack.cpp"]},{"source":"src/executables/verify","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/executables/verify/verify.cpp"]},{"source":"src/executables/verify","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/executables/verify/verify.cpp"]},{"source":"src/executables/workshop-host","target":"src/application/library","imports":["phoenix.menu"],"files":["src/executables/workshop-host/main.cpp"]},{"source":"src/executables/workshop-host","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/executables/workshop-host/main.cpp"]},{"source":"src/executables/workshop-host","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/executables/workshop-host/main.cpp"]},{"source":"src/executables/workshop-host","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/executables/workshop-host/main.cpp"]},{"source":"src/executables/workshop-host","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/executables/workshop-host/main.cpp","src/executables/workshop-host/workshop_test.cpp"]},{"source":"src/executables/workshop-host","target":"src/world/lifecycle","imports":["phoenix.simulation"],"files":["src/executables/workshop-host/workshop_test.cpp","src/executables/workshop-host/workshop_test.cppm"]},{"source":"src/foundation/console-controls","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/foundation/console-controls/console_controls.cppm"]},{"source":"src/foundation/contracts","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/foundation/contracts/contracts.cppm"]},{"source":"src/gameplay/away","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/gameplay/away/persistence.cpp","src/gameplay/away/runtime.cpp","src/gameplay/away/state.cppm"]},{"source":"src/gameplay/away","target":"src/content/combat","imports":["phoenix.content.combat.types"],"files":["src/gameplay/away/crew.cppm"]},{"source":"src/gameplay/away","target":"src/content/controllers","imports":["phoenix.content.controllers.types"],"files":["src/gameplay/away/crew.cppm","src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/content/operations","imports":["phoenix.content.operations.types"],"files":["src/gameplay/away/operations.cppm"]},{"source":"src/gameplay/away","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/gameplay/away/state.cppm"]},{"source":"src/gameplay/away","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/gameplay/away/state.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/boarding","imports":["phoenix.gameplay.boarding.state"],"files":["src/gameplay/away/state.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/conversations","imports":["phoenix.conversations"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/craft","imports":["phoenix.gameplay.craft"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/docking","imports":["phoenix.gameplay.docking"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/personnel","imports":["phoenix.gameplay.personnel.state"],"files":["src/gameplay/away/crew.cppm","src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/repairs","imports":["phoenix.gameplay.repairs"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/gameplay/teams","imports":["phoenix.gameplay.teams.routes"],"files":["src/gameplay/away/runtime.cpp"]},{"source":"src/gameplay/away","target":"src/scenarios/objectives","imports":["phoenix.scenarios.objectives"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/scenarios/runtime","imports":["phoenix.scenario"],"files":["src/gameplay/away/runtime.cppm"]},{"source":"src/gameplay/away","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/away/crew.cppm"]},{"source":"src/gameplay/boarding","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/gameplay/boarding/state.cppm"]},{"source":"src/gameplay/boarding","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/gameplay/boarding/runtime.cppm"]},{"source":"src/gameplay/boarding","target":"src/gameplay/personnel","imports":["phoenix.gameplay.personnel.runtime","phoenix.gameplay.personnel.state"],"files":["src/gameplay/boarding/runtime.cpp","src/gameplay/boarding/runtime.cppm"]},{"source":"src/gameplay/boarding","target":"src/gameplay/teams","imports":["phoenix.gameplay.teams.routes"],"files":["src/gameplay/boarding/runtime.cpp"]},{"source":"src/gameplay/combat","target":"src/content/combat","imports":["phoenix.content.combat.types"],"files":["src/gameplay/combat/state.cppm"]},{"source":"src/gameplay/combat","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/gameplay/combat/state.cppm"]},{"source":"src/gameplay/combat","target":"src/effects/processes","imports":["phoenix.effects.processes"],"files":["src/gameplay/combat/state.cppm"]},{"source":"src/gameplay/combat","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/combat/state.cppm"]},{"source":"src/gameplay/combat-continuation","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/gameplay/combat-continuation/continuation.cpp"]},{"source":"src/gameplay/combat-continuation","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.shields"],"files":["src/gameplay/combat-continuation/continuation.cppm"]},{"source":"src/gameplay/combat-continuation","target":"src/gameplay/directed","imports":["phoenix.gameplay.directed"],"files":["src/gameplay/combat-continuation/continuation.cppm"]},{"source":"src/gameplay/conversations","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/gameplay/conversations/conversations.cppm"]},{"source":"src/gameplay/conversations","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/gameplay/conversations/conversations.cppm"]},{"source":"src/gameplay/craft","target":"src/content/logistics","imports":["phoenix.content.logistics.types"],"files":["src/gameplay/craft/craft.cppm"]},{"source":"src/gameplay/craft","target":"src/gameplay/flight","imports":["phoenix.gameplay.flight"],"files":["src/gameplay/craft/native.cpp"]},{"source":"src/gameplay/craft","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/gameplay/craft/craft.cppm"]},{"source":"src/gameplay/craft","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/craft/craft.cppm"]},{"source":"src/gameplay/damage","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/gameplay/damage/damage.cppm"]},{"source":"src/gameplay/directed","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/gameplay/directed/directed.cppm"]},{"source":"src/gameplay/docking","target":"src/content/logistics","imports":["phoenix.content.logistics.types"],"files":["src/gameplay/docking/docking.cppm"]},{"source":"src/gameplay/docking","target":"src/gameplay/flight","imports":["phoenix.gameplay.flight"],"files":["src/gameplay/docking/guidance.cpp"]},{"source":"src/gameplay/docking","target":"src/world/spatial","imports":["phoenix.world.spatial"],"files":["src/gameplay/docking/guidance.cpp"]},{"source":"src/gameplay/docking","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/docking/docking.cppm"]},{"source":"src/gameplay/fitting","target":"src/content/logistics","imports":["phoenix.content.logistics.types"],"files":["src/gameplay/fitting/fitting.cppm"]},{"source":"src/gameplay/fitting","target":"src/content/operations","imports":["phoenix.content.operations.types"],"files":["src/gameplay/fitting/fitting.cppm"]},{"source":"src/gameplay/fitting","target":"src/content/sensing","imports":["phoenix.content.sensing.types"],"files":["src/gameplay/fitting/fitting.cppm"]},{"source":"src/gameplay/fitting","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.faults","phoenix.gameplay.combat.state"],"files":["src/gameplay/fitting/fitting.cpp","src/gameplay/fitting/fitting.cppm"]},{"source":"src/gameplay/fitting","target":"src/gameplay/flight","imports":["phoenix.gameplay.flight"],"files":["src/gameplay/fitting/fitting.cppm"]},{"source":"src/gameplay/fitting","target":"src/resources/equipment","imports":["phoenix.resources.equipment"],"files":["src/gameplay/fitting/fitting.cppm"]},{"source":"src/gameplay/flight","target":"src/effects/processes","imports":["phoenix.effects.machinery"],"files":["src/gameplay/flight/native_actuators.cppm"]},{"source":"src/gameplay/flight","target":"src/effects/properties","imports":["phoenix.effects.properties"],"files":["src/gameplay/flight/native_actuators.cpp"]},{"source":"src/gameplay/flight","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/gameplay/flight/flight.cppm"]},{"source":"src/gameplay/flight","target":"src/gameplay/fitting","imports":["phoenix.gameplay.fitting"],"files":["src/gameplay/flight/native_actuators.cppm"]},{"source":"src/gameplay/flight","target":"src/resources/equipment","imports":["phoenix.resources.equipment"],"files":["src/gameplay/flight/process_work.cppm"]},{"source":"src/gameplay/flight","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/gameplay/flight/flight.cpp"]},{"source":"src/gameplay/flight","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/flight/runtime.cppm"]},{"source":"src/gameplay/ftl","target":"src/content/controllers","imports":["phoenix.content.controllers.types"],"files":["src/gameplay/ftl/coordinator.cppm"]},{"source":"src/gameplay/ftl","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/gameplay/ftl/coordinator.cppm"]},{"source":"src/gameplay/ftl","target":"src/resources/equipment","imports":["phoenix.resources.equipment"],"files":["src/gameplay/ftl/ftl.cppm"]},{"source":"src/gameplay/logistics","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/gameplay/logistics/state.cppm"]},{"source":"src/gameplay/logistics","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/gameplay/logistics/state.cppm"]},{"source":"src/gameplay/machinery","target":"src/content/operations","imports":["phoenix.content.operations.types"],"files":["src/gameplay/machinery/machinery.cppm"]},{"source":"src/gameplay/machinery","target":"src/effects/processes","imports":["phoenix.effects.processes"],"files":["src/gameplay/machinery/machinery.cppm"]},{"source":"src/gameplay/machinery","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.faults"],"files":["src/gameplay/machinery/machinery.cpp"]},{"source":"src/gameplay/machinery","target":"src/gameplay/fitting","imports":["phoenix.gameplay.fitting"],"files":["src/gameplay/machinery/machinery.cpp"]},{"source":"src/gameplay/machinery","target":"src/gameplay/ftl","imports":["phoenix.gameplay.ftl"],"files":["src/gameplay/machinery/machinery.cpp"]},{"source":"src/gameplay/machinery","target":"src/resources/processors","imports":["phoenix.resources.processing"],"files":["src/gameplay/machinery/machinery.cpp"]},{"source":"src/gameplay/ordnance","target":"src/gameplay/directed","imports":["phoenix.gameplay.directed"],"files":["src/gameplay/ordnance/ordnance.cppm"]},{"source":"src/gameplay/ordnance","target":"src/world/spatial","imports":["phoenix.world.spatial"],"files":["src/gameplay/ordnance/ordnance.cppm"]},{"source":"src/gameplay/ordnance-contacts","target":"src/gameplay/ordnance","imports":["phoenix.gameplay.ordnance"],"files":["src/gameplay/ordnance-contacts/contacts.cppm"]},{"source":"src/gameplay/personnel","target":"src/content/combat","imports":["phoenix.content.combat.types"],"files":["src/gameplay/personnel/treatment.cppm"]},{"source":"src/gameplay/personnel","target":"src/content/operations","imports":["phoenix.content.operations.types"],"files":["src/gameplay/personnel/state.cppm"]},{"source":"src/gameplay/personnel","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/gameplay/personnel/state.cppm"]},{"source":"src/gameplay/personnel","target":"src/effects/processes","imports":["phoenix.effects.processes"],"files":["src/gameplay/personnel/state.cppm"]},{"source":"src/gameplay/personnel","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/gameplay/personnel/outcomes.cppm"]},{"source":"src/gameplay/personnel","target":"src/gameplay/teams","imports":["phoenix.gameplay.teams.routes"],"files":["src/gameplay/personnel/runtime.cpp"]},{"source":"src/gameplay/projectiles","target":"src/gameplay/combat-continuation","imports":["phoenix.gameplay.combat.continuation"],"files":["src/gameplay/projectiles/projectiles.cppm"]},{"source":"src/gameplay/projectiles","target":"src/gameplay/ordnance-contacts","imports":["phoenix.gameplay.ordnance.contacts"],"files":["src/gameplay/projectiles/projectiles.cppm"]},{"source":"src/gameplay/projectiles","target":"src/gameplay/weapons","imports":["phoenix.gameplay.weapons"],"files":["src/gameplay/projectiles/projectiles.cppm"]},{"source":"src/gameplay/psychic","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/gameplay/psychic/state.cppm"]},{"source":"src/gameplay/psychic","target":"src/content/sensing","imports":["phoenix.content.sensing.types"],"files":["src/gameplay/psychic/contributions.cppm","src/gameplay/psychic/projection.cppm"]},{"source":"src/gameplay/psychic","target":"src/effects/abilities","imports":["phoenix.effects.abilities"],"files":["src/gameplay/psychic/contributions.cppm","src/gameplay/psychic/receptions.cppm"]},{"source":"src/gameplay/psychic","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/gameplay/psychic/emission.cppm"]},{"source":"src/gameplay/psychic","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.faults","phoenix.gameplay.combat.state"],"files":["src/gameplay/psychic/emission.cpp","src/gameplay/psychic/projection.cpp"]},{"source":"src/gameplay/psychic","target":"src/gameplay/conversations","imports":["phoenix.conversations"],"files":["src/gameplay/psychic/emission.cppm"]},{"source":"src/gameplay/psychic","target":"src/gameplay/directed","imports":["phoenix.gameplay.directed"],"files":["src/gameplay/psychic/emission.cpp"]},{"source":"src/gameplay/psychic","target":"src/gameplay/fitting","imports":["phoenix.gameplay.fitting"],"files":["src/gameplay/psychic/emission.cpp"]},{"source":"src/gameplay/psychic","target":"src/gameplay/flight","imports":["phoenix.gameplay.flight"],"files":["src/gameplay/psychic/projection.cpp"]},{"source":"src/gameplay/psychic","target":"src/resources/equipment","imports":["phoenix.resources.equipment"],"files":["src/gameplay/psychic/emission.cpp"]},{"source":"src/gameplay/psychic","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/psychic/state.cppm"]},{"source":"src/gameplay/repairs","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.faults","phoenix.gameplay.combat.state"],"files":["src/gameplay/repairs/repairs.cpp","src/gameplay/repairs/repairs.cppm"]},{"source":"src/gameplay/sensors","target":"src/content/combat","imports":["phoenix.content.combat.types"],"files":["src/gameplay/sensors/validation.cppm"]},{"source":"src/gameplay/sensors","target":"src/content/sensing","imports":["phoenix.content.sensing.types"],"files":["src/gameplay/sensors/acquisition.cppm","src/gameplay/sensors/findings.cppm","src/gameplay/sensors/projection.cppm","src/gameplay/sensors/validation.cppm"]},{"source":"src/gameplay/sensors","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.state"],"files":["src/gameplay/sensors/coverage.cpp"]},{"source":"src/gameplay/sensors","target":"src/gameplay/psychic","imports":["phoenix.gameplay.psychic.state"],"files":["src/gameplay/sensors/validation.cppm"]},{"source":"src/gameplay/sensors","target":"src/knowledge/consoles","imports":["phoenix.knowledge.consoles"],"files":["src/gameplay/sensors/evidence.cppm"]},{"source":"src/gameplay/sensors","target":"src/knowledge/read-models","imports":["phoenix.knowledge.read_models"],"files":["src/gameplay/sensors/projection.cpp","src/gameplay/sensors/validation.cpp"]},{"source":"src/gameplay/sensors","target":"src/scenarios/environment","imports":["phoenix.scenarios.environment"],"files":["src/gameplay/sensors/coverage.cppm","src/gameplay/sensors/envelopes.cppm"]},{"source":"src/gameplay/sensors","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/gameplay/sensors/coverage.cppm","src/gameplay/sensors/state.cppm"]},{"source":"src/gameplay/weapons","target":"src/gameplay/directed","imports":["phoenix.gameplay.directed"],"files":["src/gameplay/weapons/weapons.cppm"]},{"source":"src/gameplay/weapons","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/gameplay/weapons/weapons.cppm"]},{"source":"src/graphics/assets","target":"src/content/assets","imports":["phoenix.content.image_codec"],"files":["src/graphics/assets/assets.cpp"]},{"source":"src/graphics/assets","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/graphics/assets/assets.cppm"]},{"source":"src/graphics/audio","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/graphics/audio/audio_policy.cppm","src/graphics/audio/music.cpp"]},{"source":"src/graphics/audio","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/graphics/audio/audio.cppm"]},{"source":"src/graphics/audio","target":"src/graphics/scene","imports":["phoenix.graphics.scene"],"files":["src/graphics/audio/audio.cppm"]},{"source":"src/graphics/radar","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/graphics/radar/plots.cpp"]},{"source":"src/graphics/radar","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/graphics/radar/icons.cpp","src/graphics/radar/plots.cpp","src/graphics/radar/radar.cppm"]},{"source":"src/graphics/radar","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/graphics/radar/radar.cppm"]},{"source":"src/graphics/radar","target":"src/graphics/geometry","imports":["phoenix.graphics.geometry"],"files":["src/graphics/radar/radar.cppm"]},{"source":"src/graphics/scene","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/graphics/scene/model_scene.cpp","src/graphics/scene/scene.cpp","src/graphics/scene/scene.cppm","src/graphics/scene/sprite_scene.cpp"]},{"source":"src/graphics/scene","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/graphics/scene/environment.cpp","src/graphics/scene/model_scene.cpp","src/graphics/scene/scene.cpp","src/graphics/scene/scene.cppm","src/graphics/scene/sprite_scene.cpp"]},{"source":"src/graphics/scene","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/graphics/scene/environment.cpp","src/graphics/scene/model_scene.cpp","src/graphics/scene/scene.cpp","src/graphics/scene/sprite_scene.cpp"]},{"source":"src/graphics/scene","target":"src/graphics/geometry","imports":["phoenix.graphics.geometry"],"files":["src/graphics/scene/sprite_scene.cpp"]},{"source":"src/knowledge/consoles","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/knowledge/consoles/consoles.cppm"]},{"source":"src/knowledge/consoles","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/knowledge/consoles/gameplay_knowledge.cpp"]},{"source":"src/knowledge/consoles","target":"src/content/effects","imports":["phoenix.content.effects.types"],"files":["src/knowledge/consoles/consoles.cppm"]},{"source":"src/knowledge/consoles","target":"src/content/knowledge","imports":["phoenix.content.knowledge","phoenix.content.knowledge.types"],"files":["src/knowledge/consoles/consoles.cppm","src/knowledge/consoles/gameplay_knowledge.cpp"]},{"source":"src/knowledge/consoles","target":"src/knowledge/projections","imports":["phoenix.knowledge.projections"],"files":["src/knowledge/consoles/consoles.cppm"]},{"source":"src/knowledge/projections","target":"src/control/controllers","imports":["phoenix.control.controllers"],"files":["src/knowledge/projections/projections.cppm"]},{"source":"src/knowledge/projections","target":"src/knowledge/records","imports":["phoenix.knowledge"],"files":["src/knowledge/projections/projections.cppm"]},{"source":"src/knowledge/read-models","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/knowledge/read-models/read_models.cppm"]},{"source":"src/knowledge/records","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/knowledge/records/knowledge.cppm"]},{"source":"src/networking/consensus","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/networking/consensus/replication.cppm"]},{"source":"src/networking/durability","target":"src/networking/consensus","imports":["phoenix.replication"],"files":["src/networking/durability/persistence.cppm"]},{"source":"src/networking/durability","target":"src/platform/storage","imports":["phoenix.platform.storage"],"files":["src/networking/durability/persistence.cppm"]},{"source":"src/networking/fleet","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/networking/fleet/fleet_setup.cpp"]},{"source":"src/networking/fleet","target":"src/networking/consensus","imports":["phoenix.replication"],"files":["src/networking/fleet/fleet.cppm"]},{"source":"src/networking/fleet","target":"src/networking/durability","imports":["phoenix.persistence"],"files":["src/networking/fleet/fleet.cpp","src/networking/fleet/fleet_runtime.cpp"]},{"source":"src/networking/fleet","target":"src/networking/local-session","imports":["phoenix.session.local"],"files":["src/networking/fleet/fleet_setup.cppm"]},{"source":"src/networking/fleet","target":"src/networking/wire","imports":["phoenix.wire"],"files":["src/networking/fleet/fleet.cpp","src/networking/fleet/fleet_runtime.cpp","src/networking/fleet/fleet_setup.cpp"]},{"source":"src/networking/fleet","target":"src/platform/storage","imports":["phoenix.blobs"],"files":["src/networking/fleet/fleet_runtime.cpp"]},{"source":"src/networking/fleet","target":"src/platform/transport","imports":["phoenix.transport"],"files":["src/networking/fleet/fleet.cppm"]},{"source":"src/networking/inference","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/networking/inference/inference.cppm"]},{"source":"src/networking/inference","target":"src/networking/wire","imports":["phoenix.wire"],"files":["src/networking/inference/inference.cpp"]},{"source":"src/networking/inference","target":"src/platform/transport","imports":["phoenix.transport"],"files":["src/networking/inference/inference.cppm"]},{"source":"src/networking/lobby","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/lobby","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/lobby","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/lobby","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/lobby","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/lobby","target":"src/networking/fleet","imports":["phoenix.fleet_setup"],"files":["src/networking/lobby/lobby_host.cpp"]},{"source":"src/networking/lobby","target":"src/networking/local-session","imports":["phoenix.session.local"],"files":["src/networking/lobby/lobby_host.cpp"]},{"source":"src/networking/lobby","target":"src/networking/remote-session","imports":["phoenix.network.client","phoenix.network.host"],"files":["src/networking/lobby/lobby.cpp","src/networking/lobby/lobby_host.cpp"]},{"source":"src/networking/lobby","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/networking/lobby/lobby.cppm","src/networking/lobby/lobby_protocol.cppm"]},{"source":"src/networking/lobby","target":"src/networking/wire","imports":["phoenix.wire"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/lobby","target":"src/platform/storage","imports":["phoenix.blobs"],"files":["src/networking/lobby/lobby.cpp"]},{"source":"src/networking/local-session","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/networking/local-session/local.cpp"]},{"source":"src/networking/local-session","target":"src/control/providers","imports":["phoenix.control.inference_host"],"files":["src/networking/local-session/local.cpp"]},{"source":"src/networking/local-session","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/networking/local-session/local.cpp","src/networking/local-session/local.cppm"]},{"source":"src/networking/local-session","target":"src/platform/lifecycle","imports":["phoenix.platform.lifecycle"],"files":["src/networking/local-session/frame.cpp"]},{"source":"src/networking/local-session","target":"src/world/lifecycle","imports":["phoenix.simulation"],"files":["src/networking/local-session/local.cpp","src/networking/local-session/local.cppm"]},{"source":"src/networking/projection","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/networking/projection/projection.cppm"]},{"source":"src/networking/projection","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/networking/projection/observation.cpp"]},{"source":"src/networking/projection","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/networking/projection/projection.cppm"]},{"source":"src/networking/projection","target":"src/knowledge/read-models","imports":["phoenix.knowledge.read_models"],"files":["src/networking/projection/gameplay.cpp","src/networking/projection/observation.cpp"]},{"source":"src/networking/remote-session","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/networking/remote-session/client.cpp","src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/networking/remote-session/client.cpp","src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/control/providers","imports":["phoenix.control.inference_host"],"files":["src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/foundation/console-controls","imports":["phoenix.console_controls"],"files":["src/networking/remote-session/client.cpp"]},{"source":"src/networking/remote-session","target":"src/networking/consensus","imports":["phoenix.replication"],"files":["src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/networking/durability","imports":["phoenix.persistence"],"files":["src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/networking/fleet","imports":["phoenix.fleet_setup"],"files":["src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/networking/local-session","imports":["phoenix.session.execution","phoenix.session.local"],"files":["src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/networking/projection","imports":["phoenix.networking.projection"],"files":["src/networking/remote-session/client.cpp","src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/networking/remote-session/client.cpp","src/networking/remote-session/client.cppm","src/networking/remote-session/host.cpp","src/networking/remote-session/host.cppm"]},{"source":"src/networking/remote-session","target":"src/networking/wire","imports":["phoenix.wire"],"files":["src/networking/remote-session/client.cpp","src/networking/remote-session/host.cpp"]},{"source":"src/networking/remote-session","target":"src/platform/storage","imports":["phoenix.blobs"],"files":["src/networking/remote-session/client.cpp"]},{"source":"src/networking/session-api","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/networking/session-api/api.cppm"]},{"source":"src/networking/session-api","target":"src/content/controllers","imports":["phoenix.content.controllers.types"],"files":["src/networking/session-api/api.cppm"]},{"source":"src/networking/session-api","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/networking/session-api/api.cppm"]},{"source":"src/networking/session-api","target":"src/networking/inference","imports":["phoenix.inference"],"files":["src/networking/session-api/api.cppm"]},{"source":"src/networking/session-api","target":"src/platform/transport","imports":["phoenix.transport"],"files":["src/networking/session-api/api.cppm"]},{"source":"src/networking/wire","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/networking/wire/wire.cppm"]},{"source":"src/networking/wire","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/networking/wire/wire.cppm"]},{"source":"src/networking/wire","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/networking/wire/transfer.cpp"]},{"source":"src/platform/accessibility","target":"src/ui/interaction","imports":["phoenix.ui.interaction"],"files":["src/platform/accessibility/accessibility.cppm"]},{"source":"src/platform/files","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/platform/files/browser_files.cpp"]},{"source":"src/platform/files","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/platform/files/files.cppm"]},{"source":"src/platform/storage","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/platform/storage/blobs.cppm","src/platform/storage/journal.cpp"]},{"source":"src/platform/storage","target":"src/networking/consensus","imports":["phoenix.replication"],"files":["src/platform/storage/storage.cppm"]},{"source":"src/platform/storage","target":"src/platform/lifecycle","imports":["phoenix.platform.lifecycle"],"files":["src/platform/storage/browser_blobs.cpp","src/platform/storage/browser_store.cpp"]},{"source":"src/platform/transport","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/platform/transport/content_download.cpp","src/platform/transport/options.cpp","src/platform/transport/policy.cpp"]},{"source":"src/platform/transport","target":"src/platform/lifecycle","imports":["phoenix.platform.lifecycle"],"files":["src/platform/transport/browser_transport.cpp"]},{"source":"src/resources/equipment","target":"src/content/resources","imports":["phoenix.content.resources.types"],"files":["src/resources/equipment/equipment.cppm"]},{"source":"src/resources/networks","target":"src/resources/processors","imports":["phoenix.resources.processors"],"files":["src/resources/networks/resources.cppm"]},{"source":"src/resources/networks","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/resources/networks/resources.cppm"]},{"source":"src/resources/processors","target":"src/resources/stocks","imports":["phoenix.resources.stocks"],"files":["src/resources/processors/processors.cppm"]},{"source":"src/resources/stocks","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/resources/stocks/stocks.cppm"]},{"source":"src/scenarios/environment","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/scenarios/environment/environment.cppm"]},{"source":"src/scenarios/environment","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/scenarios/environment/environment.cppm"]},{"source":"src/scenarios/environment","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/scenarios/environment/streaming.cppm"]},{"source":"src/scenarios/integration","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/scenarios/integration/gameplay_scenario.cppm"]},{"source":"src/scenarios/integration","target":"src/content/effects","imports":["phoenix.content.effects","phoenix.content.effects.types"],"files":["src/scenarios/integration/gameplay_scenario.cpp","src/scenarios/integration/gameplay_scenario.cppm"]},{"source":"src/scenarios/integration","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/scenarios/integration/gameplay_scenario.cpp"]},{"source":"src/scenarios/integration","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/scenarios/integration/gameplay_scenario.cppm"]},{"source":"src/scenarios/interdictions","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/scenarios/interdictions/book.cpp"]},{"source":"src/scenarios/interdictions","target":"src/content/sensing","imports":["phoenix.content.sensing.types"],"files":["src/scenarios/interdictions/interdictions.cppm"]},{"source":"src/scenarios/interdictions","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/scenarios/interdictions/interdictions.cppm"]},{"source":"src/scenarios/interdictions","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/scenarios/interdictions/interdictions.cppm"]},{"source":"src/scenarios/objectives","target":"src/scenarios/runtime","imports":["phoenix.scenario"],"files":["src/scenarios/objectives/objectives.cppm"]},{"source":"src/scenarios/runtime","target":"src/behavior/state-tree","imports":["phoenix.state_tree"],"files":["src/scenarios/runtime/scenario.cppm"]},{"source":"src/scenarios/runtime","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/scenarios/runtime/scenario.cppm"]},{"source":"src/scenarios/runtime","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/scenarios/runtime/scenario.cppm"]},{"source":"src/scenarios/runtime","target":"src/scenarios/environment","imports":["phoenix.scenarios.environment"],"files":["src/scenarios/runtime/scenario.cppm"]},{"source":"src/ui/console-model","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/console-model/availability.cpp","src/ui/console-model/commands.cpp","src/ui/console-model/console.cpp","src/ui/console-model/formatting.cpp","src/ui/console-model/operations.cpp","src/ui/console-model/presentation.cpp"]},{"source":"src/ui/console-model","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/ui/console-model/formatting.cpp"]},{"source":"src/ui/console-model","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/ui/console-model/console.cpp","src/ui/console-model/console.cppm"]},{"source":"src/ui/console-model","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/ui/console-model/availability.cpp","src/ui/console-model/console.cpp","src/ui/console-model/console.cppm"]},{"source":"src/ui/console-model","target":"src/foundation/console-controls","imports":["phoenix.console_controls"],"files":["src/ui/console-model/availability.cpp","src/ui/console-model/commands.cpp","src/ui/console-model/console.cpp","src/ui/console-model/formatting.cpp","src/ui/console-model/operations.cpp","src/ui/console-model/presentation.cpp"]},{"source":"src/ui/console-model","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/ui/console-model/console.cppm"]},{"source":"src/ui/console-surface","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/application/shell","imports":["phoenix.application"],"files":["src/ui/console-surface/surface.cppm"]},{"source":"src/ui/console-surface","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/content/controllers","imports":["phoenix.content.controllers","phoenix.content.controllers.types"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp","src/ui/console-surface/surface.cppm"]},{"source":"src/ui/console-surface","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/graphics/radar","imports":["phoenix.graphics.radar"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/graphics/scene","imports":["phoenix.graphics.scene"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/platform/devices","imports":["phoenix.devices"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp","src/ui/console-surface/surface.cppm"]},{"source":"src/ui/console-surface","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/console-surface/surface.cppm"]},{"source":"src/ui/console-surface","target":"src/ui/engineering-widgets","imports":["phoenix.ui.engineering_widgets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/flight-widgets","imports":["phoenix.ui.flight_widgets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/information-widgets","imports":["phoenix.ui.conversation_panel","phoenix.ui.information_widgets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/interaction","imports":["phoenix.navigation","phoenix.ui.interaction"],"files":["src/ui/console-surface/interaction.cpp","src/ui/console-surface/surface.cppm"]},{"source":"src/ui/console-surface","target":"src/ui/navigation-panel","imports":["phoenix.ui.navigation_panel"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/operations-widgets","imports":["phoenix.ui.operations_widgets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/runtime","imports":["phoenix.ui.rml"],"files":["src/ui/console-surface/surface.cppm"]},{"source":"src/ui/console-surface","target":"src/ui/screens","imports":["phoenix.ui.theme"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/surface-host","imports":["phoenix.ui.choice_specs","phoenix.ui.surface_host"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/console-surface","target":"src/ui/tactical-widgets","imports":["phoenix.ui.tactical_widgets"],"files":["src/ui/console-surface/drawing.cpp","src/ui/console-surface/interaction.cpp","src/ui/console-surface/layout.cpp","src/ui/console-surface/panels.cpp","src/ui/console-surface/probes.cpp","src/ui/console-surface/surface.cpp"]},{"source":"src/ui/engineering-widgets","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/engineering-widgets/engineering.cpp"]},{"source":"src/ui/engineering-widgets","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/ui/engineering-widgets/engineering.cppm"]},{"source":"src/ui/flight-widgets","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/flight-widgets/flight.cppm"]},{"source":"src/ui/information-widgets","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/information-widgets/conversations.cpp","src/ui/information-widgets/messages.cpp"]},{"source":"src/ui/information-widgets","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/ui/information-widgets/conversations.cppm","src/ui/information-widgets/messages.cpp","src/ui/information-widgets/messages.cppm"]},{"source":"src/ui/information-widgets","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/ui/information-widgets/conversations.cppm"]},{"source":"src/ui/information-widgets","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/information-widgets/conversations.cppm","src/ui/information-widgets/messages.cppm"]},{"source":"src/ui/information-widgets","target":"src/ui/runtime","imports":["phoenix.ui.rml"],"files":["src/ui/information-widgets/messages.cpp"]},{"source":"src/ui/information-widgets","target":"src/ui/surface-host","imports":["phoenix.ui.surface_host"],"files":["src/ui/information-widgets/conversations.cppm"]},{"source":"src/ui/interaction","target":"src/application/connections","imports":["phoenix.application.connections"],"files":["src/ui/interaction/navigation.cppm"]},{"source":"src/ui/interaction","target":"src/application/displays","imports":["phoenix.application.displays"],"files":["src/ui/interaction/navigation.cppm"]},{"source":"src/ui/interaction","target":"src/application/preference-store","imports":["phoenix.application.preference_store"],"files":["src/ui/interaction/navigation.cppm"]},{"source":"src/ui/interaction","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/interaction/navigation.cppm","src/ui/interaction/semantics.cpp"]},{"source":"src/ui/interaction","target":"src/application/shell","imports":["phoenix.application"],"files":["src/ui/interaction/navigation.cppm"]},{"source":"src/ui/navigation-panel","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/navigation-panel/navigation.cpp"]},{"source":"src/ui/navigation-panel","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/ui/navigation-panel/navigation.cppm"]},{"source":"src/ui/navigation-panel","target":"src/graphics/geometry","imports":["phoenix.graphics.geometry"],"files":["src/ui/navigation-panel/navigation.cppm"]},{"source":"src/ui/navigation-panel","target":"src/graphics/radar","imports":["phoenix.graphics.radar"],"files":["src/ui/navigation-panel/navigation.cpp"]},{"source":"src/ui/navigation-panel","target":"src/platform/devices","imports":["phoenix.devices"],"files":["src/ui/navigation-panel/navigation.cppm"]},{"source":"src/ui/navigation-panel","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/navigation-panel/navigation.cppm"]},{"source":"src/ui/navigation-panel","target":"src/ui/surface-host","imports":["phoenix.ui.surface_host"],"files":["src/ui/navigation-panel/navigation.cppm"]},{"source":"src/ui/operations-widgets","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/operations-widgets/operations.cpp"]},{"source":"src/ui/operations-widgets","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/ui/operations-widgets/operations.cppm"]},{"source":"src/ui/operations-widgets","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/operations-widgets/operations.cppm"]},{"source":"src/ui/operations-widgets","target":"src/ui/runtime","imports":["phoenix.ui.rml"],"files":["src/ui/operations-widgets/operations.cpp"]},{"source":"src/ui/preview","target":"src/application/shell","imports":["phoenix.application"],"files":["src/ui/preview/preview.cpp"]},{"source":"src/ui/preview","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/ui/preview/preview.cpp","src/ui/preview/preview.cppm"]},{"source":"src/ui/preview","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/ui/preview/preview.cpp","src/ui/preview/preview.cppm"]},{"source":"src/ui/preview","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/preview/preview.cpp"]},{"source":"src/ui/preview","target":"src/ui/console-surface","imports":["phoenix.ui.console_surface"],"files":["src/ui/preview/preview.cpp"]},{"source":"src/ui/preview","target":"src/ui/runtime","imports":["phoenix.ui.rml"],"files":["src/ui/preview/preview.cpp"]},{"source":"src/ui/runtime","target":"src/application/shell","imports":["phoenix.application"],"files":["src/ui/runtime/presentation.cppm","src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/ui/runtime/rml.cppm"]},{"source":"src/ui/runtime","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/graphics/audio","imports":["phoenix.graphics.audio"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/graphics/radar","imports":["phoenix.graphics.radar"],"files":["src/ui/runtime/pad_dispatch.cpp"]},{"source":"src/ui/runtime","target":"src/platform/accessibility","imports":["phoenix.platform.accessibility"],"files":["src/ui/runtime/accessibility.cpp","src/ui/runtime/pad_dispatch.cpp","src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/platform/devices","imports":["phoenix.devices"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/platform/viewport","imports":["phoenix.platform.viewport"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/console-surface","imports":["phoenix.ui.console_surface"],"files":["src/ui/runtime/pad_dispatch.cppm","src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/engineering-widgets","imports":["phoenix.ui.engineering_widgets"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/information-widgets","imports":["phoenix.ui.information_widgets"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/interaction","imports":["phoenix.navigation","phoenix.ui.interaction"],"files":["src/ui/runtime/accessibility.cpp","src/ui/runtime/pad_dispatch.cpp","src/ui/runtime/pad_dispatch.cppm","src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/preview","imports":["phoenix.ui.preview"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/screens","imports":["phoenix.ui.screens","phoenix.ui.settings","phoenix.ui.theme"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/runtime","target":"src/ui/viewscreen","imports":["phoenix.ui.viewscreen"],"files":["src/ui/runtime/screen.cpp"]},{"source":"src/ui/screens","target":"src/application/shell","imports":["phoenix.application"],"files":["src/ui/screens/screens.cppm"]},{"source":"src/ui/screens","target":"src/content/assets","imports":["phoenix.content.assets","phoenix.content.image_codec"],"files":["src/ui/screens/menu.cpp","src/ui/screens/theme.cpp"]},{"source":"src/ui/screens","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/ui/screens/menu.cpp","src/ui/screens/theme.cpp","src/ui/screens/theme.cppm"]},{"source":"src/ui/screens","target":"src/content/distribution","imports":["phoenix.content.distribution"],"files":["src/ui/screens/menu.cpp"]},{"source":"src/ui/screens","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/ui/screens/menu.cpp"]},{"source":"src/ui/screens","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/ui/screens/theme.cpp"]},{"source":"src/ui/screens","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/ui/screens/menu.cpp"]},{"source":"src/ui/screens","target":"src/foundation/data","imports":["phoenix.data"],"files":["src/ui/screens/skin.cppm"]},{"source":"src/ui/screens","target":"src/platform/files","imports":["phoenix.files"],"files":["src/ui/screens/menu.cpp"]},{"source":"src/ui/screens","target":"src/ui/interaction","imports":["phoenix.navigation","phoenix.ui.interaction"],"files":["src/ui/screens/screens.cppm","src/ui/screens/settings.cppm"]},{"source":"src/ui/screens","target":"src/ui/runtime","imports":["phoenix.ui.rml"],"files":["src/ui/screens/menu.cpp","src/ui/screens/theme.cppm"]},{"source":"src/ui/surface-host","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/ui/surface-host/choices.cppm"]},{"source":"src/ui/surface-host","target":"src/foundation/input","imports":["phoenix.input"],"files":["src/ui/surface-host/host.cppm"]},{"source":"src/ui/surface-host","target":"src/ui/interaction","imports":["phoenix.ui.interaction"],"files":["src/ui/surface-host/host.cppm"]},{"source":"src/ui/tactical-widgets","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/tactical-widgets/tactical.cpp"]},{"source":"src/ui/tactical-widgets","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/ui/tactical-widgets/tactical.cpp","src/ui/tactical-widgets/tactical.cppm"]},{"source":"src/ui/tactical-widgets","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/ui/tactical-widgets/tactical.cpp"]},{"source":"src/ui/tactical-widgets","target":"src/foundation/input","imports":["phoenix.input"],"files":["src/ui/tactical-widgets/tactical.cppm"]},{"source":"src/ui/tactical-widgets","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/tactical-widgets/tactical.cppm"]},{"source":"src/ui/tactical-widgets","target":"src/ui/engineering-widgets","imports":["phoenix.ui.engineering_widgets"],"files":["src/ui/tactical-widgets/tactical.cpp"]},{"source":"src/ui/viewscreen","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/application/shell","imports":["phoenix.application"],"files":["src/ui/viewscreen/game.cpp","src/ui/viewscreen/viewscreen.cppm"]},{"source":"src/ui/viewscreen","target":"src/content/assets","imports":["phoenix.content.assets","phoenix.content.image_codec"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/content/scenarios","imports":["phoenix.content.scenarios"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/graphics/geometry","imports":["phoenix.graphics.geometry"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/graphics/radar","imports":["phoenix.graphics.radar"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/graphics/scene","imports":["phoenix.graphics.scene"],"files":["src/ui/viewscreen/viewscreen.cppm"]},{"source":"src/ui/viewscreen","target":"src/knowledge/read-models","imports":["phoenix.knowledge.read_models"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/platform/files","imports":["phoenix.files"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/ui/console-model","imports":["phoenix.console"],"files":["src/ui/viewscreen/game.cpp"]},{"source":"src/ui/viewscreen","target":"src/ui/interaction","imports":["phoenix.ui.interaction"],"files":["src/ui/viewscreen/viewscreen.cppm"]},{"source":"src/workshop/gameplay-editors","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/workshop/gameplay-editors/equipment.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/gameplay-editors/combat.cpp","src/workshop/gameplay-editors/consoles.cpp","src/workshop/gameplay-editors/effects.cpp","src/workshop/gameplay-editors/equipment.cpp","src/workshop/gameplay-editors/gameplay.cppm","src/workshop/gameplay-editors/gameplay_editor.cpp","src/workshop/gameplay-editors/knowledge.cpp","src/workshop/gameplay-editors/operations.cpp","src/workshop/gameplay-editors/resources.cpp","src/workshop/gameplay-editors/scenarios.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/content/effects","imports":["phoenix.content.effects.types"],"files":["src/workshop/gameplay-editors/effects.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/content/operations","imports":["phoenix.content.operations"],"files":["src/workshop/gameplay-editors/gameplay_editor.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/content/sensing","imports":["phoenix.content.sensing"],"files":["src/workshop/gameplay-editors/gameplay_editor.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/workshop/shell","imports":["phoenix.workshop.authoring","phoenix.workshop.shell"],"files":["src/workshop/gameplay-editors/combat.cpp","src/workshop/gameplay-editors/consoles.cpp","src/workshop/gameplay-editors/effects.cpp","src/workshop/gameplay-editors/equipment.cpp","src/workshop/gameplay-editors/gameplay.cppm","src/workshop/gameplay-editors/gameplay_editor.cpp","src/workshop/gameplay-editors/knowledge.cpp","src/workshop/gameplay-editors/operations.cpp","src/workshop/gameplay-editors/resources.cpp","src/workshop/gameplay-editors/scenarios.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/workshop/test-client","imports":["phoenix.workshop.test_client"],"files":["src/workshop/gameplay-editors/combat.cpp","src/workshop/gameplay-editors/consoles.cpp","src/workshop/gameplay-editors/effects.cpp","src/workshop/gameplay-editors/equipment.cpp","src/workshop/gameplay-editors/gameplay.cppm","src/workshop/gameplay-editors/gameplay_editor.cpp","src/workshop/gameplay-editors/knowledge.cpp","src/workshop/gameplay-editors/operations.cpp","src/workshop/gameplay-editors/resources.cpp","src/workshop/gameplay-editors/scenarios.cpp"]},{"source":"src/workshop/gameplay-editors","target":"src/workshop/tree-editor","imports":["phoenix.workshop.tree"],"files":["src/workshop/gameplay-editors/combat.cpp","src/workshop/gameplay-editors/consoles.cpp","src/workshop/gameplay-editors/effects.cpp","src/workshop/gameplay-editors/equipment.cpp","src/workshop/gameplay-editors/gameplay_editor.cpp","src/workshop/gameplay-editors/knowledge.cpp","src/workshop/gameplay-editors/operations.cpp","src/workshop/gameplay-editors/resources.cpp","src/workshop/gameplay-editors/scenarios.cpp"]},{"source":"src/workshop/gm","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/workshop/gm/gm.cpp"]},{"source":"src/workshop/gm","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/workshop/gm/gm.cpp"]},{"source":"src/workshop/gm","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/workshop/gm/gm.cppm"]},{"source":"src/workshop/gm","target":"src/workshop/map-editor","imports":["phoenix.workshop.map_navigation"],"files":["src/workshop/gm/gm.cpp"]},{"source":"src/workshop/gm","target":"src/workshop/shell","imports":["phoenix.workshop.shell"],"files":["src/workshop/gm/gm.cppm"]},{"source":"src/workshop/layout-editor","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/layout-editor/layout.cpp","src/workshop/layout-editor/layout.cppm"]},{"source":"src/workshop/layout-editor","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/workshop/layout-editor/layout.cpp"]},{"source":"src/workshop/layout-editor","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/workshop/layout-editor/layout.cpp"]},{"source":"src/workshop/layout-editor","target":"src/platform/files","imports":["phoenix.files"],"files":["src/workshop/layout-editor/layout.cppm"]},{"source":"src/workshop/layout-editor","target":"src/ui/preview","imports":["phoenix.ui.preview"],"files":["src/workshop/layout-editor/layout.cpp"]},{"source":"src/workshop/layout-editor","target":"src/workshop/shell","imports":["phoenix.workshop.shell"],"files":["src/workshop/layout-editor/layout.cppm"]},{"source":"src/workshop/map-editor","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/workshop/map-editor/map.cpp"]},{"source":"src/workshop/map-editor","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/workshop/map-editor/map.cpp"]},{"source":"src/workshop/map-editor","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/map-editor/map.cpp","src/workshop/map-editor/map.cppm"]},{"source":"src/workshop/map-editor","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/workshop/map-editor/navigation.cppm"]},{"source":"src/workshop/map-editor","target":"src/graphics/radar","imports":["phoenix.graphics.radar"],"files":["src/workshop/map-editor/navigation.cpp"]},{"source":"src/workshop/map-editor","target":"src/ui/interaction","imports":["phoenix.ui.interaction"],"files":["src/workshop/map-editor/navigation.cppm"]},{"source":"src/workshop/map-editor","target":"src/workshop/preview","imports":["phoenix.workshop.asset_preview"],"files":["src/workshop/map-editor/map.cpp"]},{"source":"src/workshop/map-editor","target":"src/workshop/shell","imports":["phoenix.workshop.shell"],"files":["src/workshop/map-editor/map.cppm"]},{"source":"src/workshop/preview","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/workshop/preview/assets.cpp"]},{"source":"src/workshop/preview","target":"src/content/assets","imports":["phoenix.content.assets","phoenix.content.image_codec"],"files":["src/workshop/preview/assets.cpp","src/workshop/preview/material.cpp"]},{"source":"src/workshop/preview","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/workshop/preview/material.cpp"]},{"source":"src/workshop/preview","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/preview/assets.cpp","src/workshop/preview/assets.cppm","src/workshop/preview/material.cpp","src/workshop/preview/material.cppm"]},{"source":"src/workshop/preview","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/workshop/preview/assets.cpp"]},{"source":"src/workshop/preview","target":"src/graphics/scene","imports":["phoenix.graphics.scene"],"files":["src/workshop/preview/material.cpp"]},{"source":"src/workshop/preview","target":"src/workshop/shell","imports":["phoenix.workshop.shell"],"files":["src/workshop/preview/material.cppm"]},{"source":"src/workshop/shell","target":"src/application/preferences","imports":["phoenix.application.preferences"],"files":["src/workshop/shell/shell.cppm"]},{"source":"src/workshop/shell","target":"src/application/shell","imports":["phoenix.application"],"files":["src/workshop/shell/tools.cppm"]},{"source":"src/workshop/shell","target":"src/content/assets","imports":["phoenix.content.image_codec"],"files":["src/workshop/shell/workshop.cpp"]},{"source":"src/workshop/shell","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/workshop/shell/shell.cppm","src/workshop/shell/workshop.cpp"]},{"source":"src/workshop/shell","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/shell/editor_composition.cpp","src/workshop/shell/tools.cppm"]},{"source":"src/workshop/shell","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/workshop/shell/workshop.cpp"]},{"source":"src/workshop/shell","target":"src/graphics/assets","imports":["phoenix.graphics.assets"],"files":["src/workshop/shell/workshop.cpp"]},{"source":"src/workshop/shell","target":"src/platform/files","imports":["phoenix.files"],"files":["src/workshop/shell/workshop.cpp"]},{"source":"src/workshop/shell","target":"src/ui/interaction","imports":["phoenix.navigation"],"files":["src/workshop/shell/composition.cpp"]},{"source":"src/workshop/shell","target":"src/ui/runtime","imports":["phoenix.presentation"],"files":["src/workshop/shell/composition.cpp"]},{"source":"src/workshop/shell","target":"src/workshop/gm","imports":["phoenix.workshop.gm"],"files":["src/workshop/shell/composition.cpp"]},{"source":"src/workshop/shell","target":"src/workshop/test-client","imports":["phoenix.workshop.test_client"],"files":["src/workshop/shell/tools.cppm"]},{"source":"src/workshop/shell","target":"src/workshop/workflow","imports":["phoenix.workshop.workflow"],"files":["src/workshop/shell/composition.cpp","src/workshop/shell/editor_composition.cpp"]},{"source":"src/workshop/test-client","target":"src/application/shell","imports":["phoenix.application"],"files":["src/workshop/test-client/browser_test_client.cppm"]},{"source":"src/workshop/test-client","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/test-client/test_client.cpp","src/workshop/test-client/test_client.cppm"]},{"source":"src/workshop/test-client","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/workshop/test-client/browser_workshop_test.cpp"]},{"source":"src/workshop/test-client","target":"src/workshop/shell","imports":["phoenix.tools","phoenix.workshop.authoring","phoenix.workshop.shell"],"files":["src/workshop/test-client/browser_workshop_test.cpp","src/workshop/test-client/test_client.cpp","src/workshop/test-client/test_client.cppm"]},{"source":"src/workshop/tree-editor","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/tree-editor/tree.cpp","src/workshop/tree-editor/tree.cppm"]},{"source":"src/workshop/tree-editor","target":"src/workshop/shell","imports":["phoenix.workshop.authoring"],"files":["src/workshop/tree-editor/tree.cpp"]},{"source":"src/workshop/workflow","target":"src/application/library","imports":["phoenix.menu"],"files":["src/workshop/workflow/workflow.cppm"]},{"source":"src/workshop/workflow","target":"src/content/assets","imports":["phoenix.content.assets","phoenix.content.image_codec"],"files":["src/workshop/workflow/appearance.cpp","src/workshop/workflow/diagnostics.cpp"]},{"source":"src/workshop/workflow","target":"src/content/documents","imports":["phoenix.content.documents"],"files":["src/workshop/workflow/consoles.cpp","src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp","src/workshop/workflow/workflow.cppm"]},{"source":"src/workshop/workflow","target":"src/content/packs","imports":["phoenix.content.packs"],"files":["src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp"]},{"source":"src/workshop/workflow","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/workshop/workflow/consoles.cpp","src/workshop/workflow/diagnostics.cpp"]},{"source":"src/workshop/workflow","target":"src/networking/session-api","imports":["phoenix.session.api"],"files":["src/workshop/workflow/workflow.cppm"]},{"source":"src/workshop/workflow","target":"src/ui/preview","imports":["phoenix.ui.preview"],"files":["src/workshop/workflow/appearance.cpp","src/workshop/workflow/consoles.cpp","src/workshop/workflow/diagnostics.cpp","src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp"]},{"source":"src/workshop/workflow","target":"src/workshop/gameplay-editors","imports":["phoenix.workshop.gameplay"],"files":["src/workshop/workflow/appearance.cpp","src/workshop/workflow/consoles.cpp","src/workshop/workflow/diagnostics.cpp","src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp"]},{"source":"src/workshop/workflow","target":"src/workshop/layout-editor","imports":["phoenix.workshop.layout"],"files":["src/workshop/workflow/appearance.cpp","src/workshop/workflow/consoles.cpp","src/workshop/workflow/diagnostics.cpp","src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp"]},{"source":"src/workshop/workflow","target":"src/workshop/map-editor","imports":["phoenix.workshop.map"],"files":["src/workshop/workflow/appearance.cpp","src/workshop/workflow/consoles.cpp","src/workshop/workflow/diagnostics.cpp","src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp"]},{"source":"src/workshop/workflow","target":"src/workshop/preview","imports":["phoenix.workshop.asset_preview","phoenix.workshop.material_preview"],"files":["src/workshop/workflow/appearance.cpp","src/workshop/workflow/consoles.cpp","src/workshop/workflow/diagnostics.cpp","src/workshop/workflow/editor.cpp","src/workshop/workflow/io.cpp"]},{"source":"src/workshop/workflow","target":"src/workshop/shell","imports":["phoenix.workshop.shell"],"files":["src/workshop/workflow/workflow.cppm"]},{"source":"src/workshop/workflow","target":"src/workshop/test-client","imports":["phoenix.workshop.test_client"],"files":["src/workshop/workflow/workflow.cppm"]},{"source":"src/world/combat-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/combat-bindings/integration.cppm"]},{"source":"src/world/command-routing","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/command-routing/integration.cppm"]},{"source":"src/world/crew-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/crew-bindings/integration.cppm"]},{"source":"src/world/effect-applications","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/effect-applications/integration.cppm"]},{"source":"src/world/effect-lifecycle","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/effect-lifecycle/integration.cppm"]},{"source":"src/world/effect-work","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/effect-work/integration.cppm"]},{"source":"src/world/lifecycle","target":"src/behavior/vocabulary","imports":["phoenix.gameplay_vocabulary"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/assets","imports":["phoenix.content.assets"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/catalog","imports":["phoenix.content.catalog"],"files":["src/world/lifecycle/assembly.cppm","src/world/lifecycle/simulation.cppm"]},{"source":"src/world/lifecycle","target":"src/content/combat","imports":["phoenix.content.combat","phoenix.content.combat.types"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/controllers","imports":["phoenix.content.controllers"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/effects","imports":["phoenix.content.effects"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/equipment","imports":["phoenix.content.equipment","phoenix.content.equipment.types"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/knowledge","imports":["phoenix.content.knowledge"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/logistics","imports":["phoenix.content.logistics","phoenix.content.logistics.types"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/operations","imports":["phoenix.content.operations","phoenix.content.operations.types"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/resources","imports":["phoenix.content.resources","phoenix.content.resources.types"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/scenarios","imports":["phoenix.content.scenarios"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/sensing","imports":["phoenix.content.sensing","phoenix.content.sensing.types"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/ui","imports":["phoenix.content.ui"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/content/verification","imports":["phoenix.content.verification"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/control/command-shapes","imports":["phoenix.control.native_commands"],"files":["src/world/lifecycle/runtime.cppm"]},{"source":"src/world/lifecycle","target":"src/control/controllers","imports":["phoenix.control.controllers","phoenix.control.templates","phoenix.control.views"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/simulation.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/control/coordination","imports":["phoenix.control.coordination","phoenix.control.coordination_facts","phoenix.control.protocol"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/control/execution","imports":["phoenix.control.execution"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/control/ownership","imports":["phoenix.control.handover","phoenix.control.ownership"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/control/providers","imports":["phoenix.control.providers"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/abilities","imports":["phoenix.effects.abilities","phoenix.effects.ability_lifecycle","phoenix.effects.ability_validation"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/contracts","imports":["phoenix.effects.contracts"],"files":["src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/funding","imports":["phoenix.effects.funding"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/lifecycle","imports":["phoenix.effects.active_rules","phoenix.effects.clocks","phoenix.effects.continuation_validation","phoenix.effects.events","phoenix.effects.grants"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/processes","imports":["phoenix.effects.finite_work","phoenix.effects.machinery","phoenix.effects.process_validation","phoenix.effects.processes"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/properties","imports":["phoenix.effects.properties","phoenix.effects.properties.runtime"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/rules","imports":["phoenix.effects.bindings","phoenix.effects.rule_state","phoenix.effects.rules"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/effects/transactions","imports":["phoenix.effects.native","phoenix.effects.preparation","phoenix.effects.transactions"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/world/lifecycle/simulation.cppm"]},{"source":"src/world/lifecycle","target":"src/gameplay/away","imports":["phoenix.gameplay.away.crew","phoenix.gameplay.away.operations","phoenix.gameplay.away.runtime","phoenix.gameplay.away.state"],"files":["src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/boarding","imports":["phoenix.gameplay.boarding.runtime"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/combat","imports":["phoenix.gameplay.combat.faults","phoenix.gameplay.combat.outcomes","phoenix.gameplay.combat.shields","phoenix.gameplay.combat.state"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/combat-continuation","imports":["phoenix.gameplay.combat.continuation"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/conversations","imports":["phoenix.conversations"],"files":["src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/craft","imports":["phoenix.gameplay.craft"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/damage","imports":["phoenix.gameplay.damage"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/directed","imports":["phoenix.gameplay.directed"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/docking","imports":["phoenix.gameplay.docking"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/fitting","imports":["phoenix.gameplay.fitting"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/flight","imports":["phoenix.flight","phoenix.gameplay.flight","phoenix.gameplay.flight.native","phoenix.gameplay.flight.work"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/ftl","imports":["phoenix.gameplay.ftl","phoenix.gameplay.ftl.coordinator"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/logistics","imports":["phoenix.gameplay.logistics"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/machinery","imports":["phoenix.gameplay.machinery"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/ordnance","imports":["phoenix.gameplay.ordnance"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/ordnance-contacts","imports":["phoenix.gameplay.ordnance.contacts"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/personnel","imports":["phoenix.gameplay.personnel.clinical","phoenix.gameplay.personnel.outcomes","phoenix.gameplay.personnel.runtime","phoenix.gameplay.personnel.state","phoenix.gameplay.personnel.treatment"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/projectiles","imports":["phoenix.gameplay.projectiles"],"files":["src/world/lifecycle/runtime.cppm"]},{"source":"src/world/lifecycle","target":"src/gameplay/psychic","imports":["phoenix.gameplay.psychic.contributions","phoenix.gameplay.psychic.emission","phoenix.gameplay.psychic.interference","phoenix.gameplay.psychic.projection","phoenix.gameplay.psychic.receptions","phoenix.gameplay.psychic.state"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/repairs","imports":["phoenix.gameplay.repairs"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/sensors","imports":["phoenix.gameplay.sensors.acquisition","phoenix.gameplay.sensors.coverage","phoenix.gameplay.sensors.envelopes","phoenix.gameplay.sensors.evidence","phoenix.gameplay.sensors.findings","phoenix.gameplay.sensors.projection","phoenix.gameplay.sensors.state","phoenix.gameplay.sensors.validation"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/teams","imports":["phoenix.gameplay.teams.routes"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/gameplay/weapons","imports":["phoenix.gameplay.weapons"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/knowledge/consoles","imports":["phoenix.knowledge.consoles"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/knowledge/projections","imports":["phoenix.knowledge.projections"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/knowledge/read-models","imports":["phoenix.knowledge.read_models"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/resources/equipment","imports":["phoenix.resources.equipment"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/resources/networks","imports":["phoenix.resources"],"files":["src/world/lifecycle/assembly.cpp","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/resources/processors","imports":["phoenix.resources.processing"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/scenarios/environment","imports":["phoenix.scenarios.environment.streaming"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/scenarios/integration","imports":["phoenix.gameplay_scenario"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/scenarios/interdictions","imports":["phoenix.scenario.interdictions"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/scenarios/objectives","imports":["phoenix.scenarios.objectives"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/world/persistence","imports":["phoenix.world.persistence"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/world/schedule","imports":["phoenix.world.schedule.profiling"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/world/spatial","imports":["phoenix.world.spatial"],"files":["src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/lifecycle","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/world/lifecycle/assembly.cppm","src/world/lifecycle/queries.cpp","src/world/lifecycle/runtime.cppm","src/world/lifecycle/world.cpp"]},{"source":"src/world/native-actors","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/native-actors/integration.cppm"]},{"source":"src/world/persistence","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/persistence/bindings.cppm"]},{"source":"src/world/persistence","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/world/persistence/persistence.cppm"]},{"source":"src/world/projection-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/projection-bindings/integration.cppm"]},{"source":"src/world/resource-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/resource-bindings/integration.cppm"]},{"source":"src/world/scenario-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/scenario-bindings/integration.cppm"]},{"source":"src/world/schedule","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/schedule/schedule.cppm"]},{"source":"src/world/sensor-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/sensor-bindings/integration.cppm"]},{"source":"src/world/spatial","target":"src/world/state","imports":["phoenix.world.state"],"files":["src/world/spatial/spatial.cppm"]},{"source":"src/world/state","target":"src/foundation/contracts","imports":["phoenix.contracts"],"files":["src/world/state/state.cppm"]},{"source":"src/world/travel-bindings","target":"src/world/lifecycle","imports":["phoenix.simulation:runtime"],"files":["src/world/travel-bindings/integration.cppm"]}],"totals":{"module_folders":148,"source_files":682,"primary_modules":216,"partitions":15,"physical_lines":146143,"nonblank_lines":143170},"fingerprint":"35c5a36d0f333d07a93bdd751ea693a4e9e1590203ff9f389931e2f452f8d5f5","revision":"92f3e06"}</script>
+		<script>
+			"use strict";
+			const data = JSON.parse(document.getElementById("graph-data").textContent);
+			const $ = (id) => document.getElementById(id),
+				NS = "http://www.w3.org/2000/svg",
+				fmt = (n) => n.toLocaleString("en-GB");
+			const svg = (tag, attrs = {}, text) => {
+				const e = document.createElementNS(NS, tag);
+				for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+				if (text !== undefined) e.textContent = text;
+				return e;
+			};
+			const html = (tag, text, cls) => {
+				const e = document.createElement(tag);
+				if (text !== undefined) e.textContent = text;
+				if (cls) e.className = cls;
+				return e;
+			};
+			const nodes = new Map(data.nodes.map((n) => [n.id, n])),
+				outgoing = new Map(),
+				incoming = new Map(),
+				nodeElements = new Map(),
+				edgeElements = [],
+				tableRows = new Map();
+			for (const n of data.nodes) {
+				outgoing.set(n.id, []);
+				incoming.set(n.id, []);
+			}
+			for (const e of data.edges) {
+				outgoing.get(e.source).push(e);
+				incoming.get(e.target).push(e);
+			}
+			const familyOrder = [
+				"foundation",
+				"content",
+				"resources",
+				"knowledge",
+				"behavior",
+				"effects",
+				"control",
+				"gameplay",
+				"world",
+				"scenarios",
+				"networking",
+				"application",
+				"ui",
+				"graphics",
+				"workshop",
+				"platform",
+				"executables",
+			];
+			const families = [...new Set(data.nodes.map((n) => n.family))].sort((a, b) => {
+				const rank = (f) => (familyOrder.includes(f) ? familyOrder.indexOf(f) : 999);
+				return rank(a) - rank(b) || a.localeCompare(b);
+			});
+			const W = 190,
+				H = 62,
+				GAP = 12,
+				FW = 430,
+				COL = 480,
+				ROWGAP = 60;
+			let familyBoxes = [],
+				selected = null,
+				visible = new Set(nodes.keys()),
+				query = "",
+				listView = false,
+				view = { x: 0, y: 0, k: 1 },
+				fitted = false;
+			const columnBottoms = [40, 40, 40, 40];
+			for (const family of families) {
+				const c = columnBottoms.indexOf(Math.min(...columnBottoms)),
+					y = columnBottoms[c];
+				const members = data.nodes
+					.filter((n) => n.family === family)
+					.sort((a, b) => a.name.localeCompare(b.name));
+				const x = 40 + c * COL,
+					height = 78 + Math.ceil(members.length / 2) * (H + GAP),
+					lines = members.reduce((s, n) => s + n.lines, 0),
+					hue = (families.indexOf(family) * 137.508) % 360;
+				familyBoxes.push({ family, x, y, width: FW, height, members });
+				columnBottoms[c] = y + height + ROWGAP;
+				const group = svg("g", { "data-family": family });
+				group.append(
+					svg("rect", { class: "family-box", x, y, width: FW, height, rx: 12 }),
+					svg("text", { class: "family-title", x: x + 18, y: y + 29 }, family),
+					svg(
+						"text",
+						{ class: "family-subtitle", x: x + 18, y: y + 49 },
+						`${members.length} modules · ${fmt(lines)} nonblank lines`,
+					),
+				);
+				$("families").append(group);
+				members.forEach((n, i) => {
+					n.x = x + 18 + (i % 2) * (W + GAP);
+					n.y = y + 66 + Math.floor(i / 2) * (H + GAP);
+					n.hue = hue;
+				});
+			}
+			function curve(a, b) {
+				let sx, sy, tx, ty, d;
+				if (Math.abs(a.x - b.x) < W) {
+					sx = a.x + W / 2;
+					tx = b.x + W / 2;
+					const down = b.y > a.y;
+					sy = a.y + (down ? H : 0);
+					ty = b.y + (down ? 0 : H);
+					d = Math.max(25, Math.abs(ty - sy) * 0.45);
+					return `M${sx},${sy} C${sx},${sy + (down ? d : -d)} ${tx},${ty + (down ? -d : d)} ${tx},${ty}`;
+				}
+				const right = b.x > a.x;
+				sx = a.x + (right ? W : 0);
+				tx = b.x + (right ? 0 : W);
+				sy = a.y + H / 2;
+				ty = b.y + H / 2;
+				d = Math.max(40, Math.abs(tx - sx) * 0.45);
+				return `M${sx},${sy} C${sx + (right ? d : -d)},${sy} ${tx + (right ? -d : d)},${ty} ${tx},${ty}`;
+			}
+			for (const edge of data.edges) {
+				const p = svg("path", {
+					class: "edge",
+					d: curve(nodes.get(edge.source), nodes.get(edge.target)),
+					"marker-end": "url(#arrow)",
+				});
+				$("edges").append(p);
+				edgeElements.push({ edge, element: p });
+			}
+			function nameLines(name) {
+				if (name.length <= 24) return [name];
+				const words = name.split(/(?<=-)/),
+					lines = [""];
+				for (const word of words) {
+					if (lines.at(-1).length + word.length > 24) lines.push(word);
+					else lines[lines.length - 1] += word;
+				}
+				return lines;
+			}
+			for (const n of data.nodes) {
+				const g = svg("g", {
+					class: "node",
+					transform: `translate(${n.x} ${n.y})`,
+					tabindex: 0,
+					role: "button",
+					"aria-label": `${n.family}/${n.name}, ${fmt(n.lines)} nonblank C++ lines`,
+					"data-node": n.id,
+					style: `--family:hsl(${n.hue} 60% 58%)`,
+				});
+				g.append(
+					svg(
+						"title",
+						{},
+						`${n.id}\n${fmt(n.lines)} nonblank / ${fmt(n.physical)} physical lines\n${outgoing.get(n.id).length} dependencies · ${incoming.get(n.id).length} dependents`,
+					),
+					svg("rect", { width: W, height: H, rx: 7 }),
+					svg("rect", { class: "accent", x: 0, y: 8, width: 3, height: H - 16, rx: 1 }),
+				);
+				const lines = nameLines(n.name);
+				lines.forEach((line, i) =>
+					g.append(svg("text", { x: 13, y: lines.length > 1 ? 19 + i * 15 : 25 }, line)),
+				);
+				g.append(svg("text", { class: "size", x: 13, y: 49 }, `${fmt(n.lines)} lines · ${n.files} files`));
+				g.addEventListener("click", () => select(n.id));
+				g.addEventListener("keydown", (e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						select(n.id);
+					}
+				});
+				$("nodes").append(g);
+				nodeElements.set(n.id, g);
+				const row = html("tr"),
+					name = html("td"),
+					button = html("button", n.name);
+				button.type = "button";
+				button.addEventListener("click", () => {
+					setList(false);
+					select(n.id);
+					center(n);
+				});
+				name.append(button, html("div", n.family, "muted"));
+				row.append(name);
+				for (const value of [
+					fmt(n.lines),
+					fmt(n.physical),
+					`${outgoing.get(n.id).length} / ${incoming.get(n.id).length}`,
+				])
+					row.append(html("td", value, "number"));
+				$("table").append(row);
+				tableRows.set(n.id, row);
+			}
+			for (const family of families) {
+				const option = html("option", family);
+				option.value = family;
+				$("family").append(option);
+			}
+			for (const [value, label] of [
+				[data.nodes.length, "module folders"],
+				[families.length, "families"],
+				[data.totals.nonblank_lines, "nonblank C++ lines"],
+			]) {
+				const stat = html("div");
+				stat.append(html("strong", fmt(value)), html("span", label));
+				$("stats").append(stat);
+			}
+			$("footnote").textContent =
+				`Source ${data.revision} · ${data.edges.length} distinct directed folder links from actual C++ imports. Same-folder imports, external libraries, CMake-only links and runtime calls are not drawn. Sizes include comments/directives; exclude tests, generated/vendor code and assets. One folder can contain several named modules/private partitions.`;
+			function match(n) {
+				return (
+					!query ||
+					[n.name, n.family, n.id, ...n.modules, ...n.partitions].join(" ").toLowerCase().includes(query)
+				);
+			}
+			function update() {
+				const family = $("family").value,
+					base = new Set(data.nodes.filter((n) => !family || n.family === family).map((n) => n.id));
+				visible = new Set(base);
+				if (family && $("neighbors").checked)
+					for (const e of data.edges) {
+						if (base.has(e.source)) visible.add(e.target);
+						if (base.has(e.target)) visible.add(e.source);
+					}
+				const deps = new Set(selected ? outgoing.get(selected).map((e) => e.target) : []),
+					users = new Set(selected ? incoming.get(selected).map((e) => e.source) : []);
+				for (const n of data.nodes) {
+					const el = nodeElements.get(n.id),
+						on = visible.has(n.id);
+					el.style.display = on ? "" : "none";
+					el.setAttribute("aria-hidden", String(!on));
+					el.setAttribute("aria-pressed", String(selected === n.id));
+					el.classList.toggle("selected", selected === n.id);
+					el.classList.toggle("dependency", deps.has(n.id));
+					el.classList.toggle("dependent", users.has(n.id));
+					el.classList.toggle(
+						"dim",
+						(!selected && !match(n)) ||
+							(!!selected && n.id !== selected && !deps.has(n.id) && !users.has(n.id)),
+					);
+					tableRows.get(n.id).hidden = !on || !match(n);
+				}
+				for (const { edge, element } of edgeElements) {
+					const out = edge.source === selected,
+						inc = edge.target === selected,
+						mode = $("links").value;
+					const show =
+						visible.has(edge.source) &&
+						visible.has(edge.target) &&
+						mode !== "none" &&
+						(mode !== "focus" || out || inc);
+					element.style.display = show ? "" : "none";
+					element.classList.toggle("outgoing", out);
+					element.classList.toggle("incoming", inc);
+					element.classList.toggle("quiet", !!selected && !out && !inc);
+					element.setAttribute("marker-end", `url(#${out ? "arrow-out" : inc ? "arrow-in" : "arrow"})`);
+				}
+				for (const box of familyBoxes) {
+					const show = box.members.some((n) => visible.has(n.id));
+					$("families").querySelector(`[data-family="${box.family}"]`).style.display = show ? "" : "none";
+				}
+				$("fit").textContent = family ? "Fit visible" : "Fit all";
+				details();
+			}
+			function moduleButton(n, extra) {
+				const button = html("button"),
+					name = html("span", `${n.family}/${n.name}`);
+				button.type = "button";
+				button.append(name, html("small", extra ?? `${fmt(n.lines)} lines`));
+				button.addEventListener("click", () => {
+					if (!visible.has(n.id)) $("family").value = "";
+					select(n.id);
+					center(n);
+				});
+				return button;
+			}
+			function section(title, links, direction) {
+				const root = html("section"),
+					heading = html("h3", `${title} (${links.length})`, direction);
+				root.append(heading);
+				const list = html("div", undefined, "items");
+				for (const edge of [...links].sort((a, b) =>
+					(direction === "out" ? a.target : a.source).localeCompare(
+						direction === "out" ? b.target : b.source,
+					),
+				)) {
+					const n = nodes.get(direction === "out" ? edge.target : edge.source),
+						button = moduleButton(n);
+					button.title = edge.imports.join("\n");
+					list.append(button);
+				}
+				root.append(list);
+				return root;
+			}
+			function details() {
+				const pane = $("details");
+				pane.replaceChildren();
+				if (selected) {
+					const n = nodes.get(selected);
+					pane.append(
+						html("div", n.family, "muted"),
+						html("h2", n.name),
+						html("div", n.id, "path"),
+						html("div", fmt(n.lines), "big"),
+						html("div", "nonblank C++ lines", "muted"),
+						html("div", `${fmt(n.physical)} physical lines · ${n.files} source files`, "summary"),
+					);
+					const clear = html("button", "Clear selection");
+					clear.type = "button";
+					clear.onclick = () => select(null);
+					pane.append(
+						clear,
+						section("Imports / depends on", outgoing.get(n.id), "out"),
+						section("Imported by", incoming.get(n.id), "in"),
+					);
+					const info = html("details"),
+						summary = html("summary", "Named modules & partitions");
+					info.append(summary);
+					for (const m of [...n.modules, ...n.partitions]) info.append(html("p", m, "path"));
+					pane.append(info);
+					const evidence = html("details");
+					evidence.append(html("summary", "Outgoing import evidence"));
+					for (const e of outgoing.get(n.id)) {
+						evidence.append(html("h4", e.target));
+						for (const name of e.imports) evidence.append(html("p", name, "path"));
+						for (const file of e.files) evidence.append(html("p", file, "path"));
+					}
+					pane.append(evidence);
+				} else {
+					pane.append(
+						html("div", "Architecture / reading map", "muted"),
+						html("h2", query ? "Search results" : "Explore the modules"),
+						html(
+							"p",
+							"Select a node to see its size, dependencies and dependents. Drag the background to pan; scroll or use + / − to zoom.",
+							"summary",
+						),
+					);
+					const matches = data.nodes
+						.filter((n) => visible.has(n.id) && match(n))
+						.sort((a, b) => (query ? a.name.localeCompare(b.name) : b.lines - a.lines));
+					pane.append(html("h3", query ? `${matches.length} matches` : "Largest modules"));
+					const list = html("div", undefined, "items");
+					for (const n of matches.slice(0, query ? 148 : 12)) list.append(moduleButton(n));
+					pane.append(list);
+					if (query && !matches.length) pane.append(html("p", "No modules match this search.", "summary"));
+					pane.append(
+						html("h3", "What a link means"),
+						html(
+							"p",
+							"A → B means a source file in folder A imports a named C++ module or partition owned by folder B. It is not a runtime call graph or a claim that each folder is an independent library.",
+							"summary",
+						),
+					);
+				}
+			}
+			function select(id) {
+				if (id) {
+					query = "";
+					$("search").value = "";
+				}
+				selected = id;
+				update();
+			}
+			function transform() {
+				const { x, y, k } = view;
+				$("world").setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
+				$("zoom").textContent = `${Math.round(k * 100)}%`;
+			}
+			function fit() {
+				if (listView) return;
+				const shown = data.nodes.filter((n) => visible.has(n.id));
+				if (!shown.length) return;
+				const bounds = {
+					x: Math.min(...shown.map((n) => n.x)) - 24,
+					y: Math.min(...shown.map((n) => n.y)) - 66,
+					right: Math.max(...shown.map((n) => n.x + W)) + 24,
+					bottom: Math.max(...shown.map((n) => n.y + H)) + 34,
+				};
+				const w = $("map").clientWidth,
+					h = $("map").clientHeight,
+					k = Math.min(1.15, (w - 50) / (bounds.right - bounds.x), (h - 95) / (bounds.bottom - bounds.y));
+				view = {
+					k,
+					x: (w - (bounds.right - bounds.x) * k) / 2 - bounds.x * k,
+					y: 65 + (h - 80 - (bounds.bottom - bounds.y) * k) / 2 - bounds.y * k,
+				};
+				fitted = true;
+				transform();
+			}
+			function zoom(factor, cx = $("map").clientWidth / 2, cy = $("map").clientHeight / 2) {
+				const k = Math.min(2.8, Math.max(0.12, view.k * factor)),
+					ratio = k / view.k;
+				view = { k, x: cx - (cx - view.x) * ratio, y: cy - (cy - view.y) * ratio };
+				fitted = false;
+				transform();
+			}
+			function center(n) {
+				view.k = Math.max(0.9, view.k);
+				view.x = $("map").clientWidth / 2 - (n.x + W / 2) * view.k;
+				view.y = $("map").clientHeight / 2 - (n.y + H / 2) * view.k;
+				fitted = false;
+				transform();
+			}
+			function setList(on) {
+				listView = on;
+				$("table-wrap").hidden = !on;
+				$("map").style.display = on ? "none" : "block";
+				$("view-tools").hidden = on;
+				$("legend").hidden = on;
+				$("view").textContent = on ? "Graph view" : "List view";
+				if (!on) fit();
+			}
+			$("search").addEventListener("input", (e) => {
+				query = e.target.value.trim().toLowerCase();
+				selected = null;
+				update();
+			});
+			$("family").addEventListener("change", () => {
+				selected = null;
+				update();
+				fit();
+			});
+			$("neighbors").addEventListener("change", () => {
+				update();
+				fit();
+			});
+			$("links").addEventListener("change", update);
+			$("fit").onclick = fit;
+			$("plus").onclick = () => zoom(1.25);
+			$("minus").onclick = () => zoom(0.8);
+			$("actual").onclick = () => zoom(1 / view.k);
+			$("view").onclick = () => setList(!listView);
+			$("reset").onclick = () => {
+				$("search").value = "";
+				$("family").value = "";
+				$("links").value = "all";
+				$("neighbors").checked = true;
+				query = "";
+				selected = null;
+				setList(false);
+				update();
+				fit();
+			};
+			$("theme").onclick = () => {
+				const light = document.documentElement.classList.toggle("light");
+				$("theme").textContent = light ? "Dark theme" : "Light theme";
+			};
+			$("map").addEventListener(
+				"wheel",
+				(e) => {
+					e.preventDefault();
+					const r = $("map").getBoundingClientRect();
+					zoom(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+				},
+				{ passive: false },
+			);
+			let drag = null;
+			$("map").addEventListener("pointerdown", (e) => {
+				if (e.target.closest(".node")) return;
+				drag = { id: e.pointerId, x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+				$("map").setPointerCapture(e.pointerId);
+				$("map").classList.add("dragging");
+			});
+			$("map").addEventListener("pointermove", (e) => {
+				if (!drag || drag.id !== e.pointerId) return;
+				view.x = drag.vx + e.clientX - drag.x;
+				view.y = drag.vy + e.clientY - drag.y;
+				fitted = false;
+				transform();
+			});
+			function endDrag() {
+				drag = null;
+				$("map").classList.remove("dragging");
+			}
+			$("map").addEventListener("pointerup", endDrag);
+			$("map").addEventListener("pointercancel", endDrag);
+			new ResizeObserver(() => {
+				if (fitted && !listView) fit();
+			}).observe($("map").parentElement);
+			update();
+			requestAnimationFrame(() => {
+				view = { x: 12, y: 68, k: 0.9 };
+				fitted = false;
+				transform();
+			});
+		</script>
+	</body>
+</html>
