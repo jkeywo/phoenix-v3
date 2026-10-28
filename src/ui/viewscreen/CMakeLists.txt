@@ -5,6 +5,7 @@ target_link_libraries(
 	PUBLIC phoenix_application_shell RmlUi::RmlUi raylib phoenix_graphics_scene
 	PRIVATE
 		phoenix_console_model
+		phoenix_graphics_geometry
 		phoenix_graphics_assets
 		phoenix_graphics_radar
 		phoenix_application_preferences

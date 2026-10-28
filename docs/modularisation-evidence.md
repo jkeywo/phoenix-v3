@@ -397,3 +397,71 @@ knowledge message formatting. Their explicit Console imports and model target
 links were restored without changing test assertions or behavior. The full
 Console public function/type consumer list was then inspected, including calls
 inside test helper headers; the retry remains an integration-owner gate.
+
+## Migration review follow-up - 28 October 2026
+
+The review found a production-private implementation include still used by the
+synthetic camera case. `ShipCameraPose` and `ship_camera_pose` now belong to the
+existing renderer-free `phoenix.graphics.geometry` module, with the function
+compiled once in `ship_camera.cpp`. Viewscreen and the existing camera case
+import/link that owner. The former private header is retired; camera assertions
+and geometry arithmetic are unchanged.
+
+The source checker now refuses tests reaching into production private headers,
+and recognizes class-body includes after `alignas` and standard attributes.
+CMake policy coverage also includes object and loadable module libraries.
+Registered first-party link properties must use literal targets and supported
+branch/decorator expressions: property evaluation, computed names and unsupported
+operators fail closed. Vendor/include/compile properties are not constrained by
+that authored-link subset. Synthetic refusal cases exercise each gap.
+
+The actual root configure also rejected a deliberately injected late client link
+to authoritative flight, even after that direct edge was temporarily allowed.
+This proves the real final role hook is installed, beyond helper fixtures.
+`review-root-negative-79.log` records the expected refusal; the hook clears its
+own cache key and `review-root-restored-79.log` records successful normal
+configuration. No injected link or audit hook remains in the source/build graph.
+
+Independent production-caller review found no reproducible migration defect in
+property/active rule stores, clock source frames, psychic memory or flight query
+lifetimes. Low-level restores remain incremental by design; public World restore
+uses a disposable candidate and swaps only after validation. Module guides now
+state that contract, current ownership, and completed migration gates instead of
+stale activation/pending claims. Native Linux and physical acceptance limitations
+remain unchanged.
+
+Review verification:
+
+- Complete native build: `review-native-final-build-80.log`, passed.
+- All 48 native system/architecture tests: `review-native-tests-80.log`, passed
+  in 463.65 seconds.
+- Threaded WASM camera and all three role builds:
+  `review-threaded-final-build-81.log`, passed. The existing production-path
+  camera case passed in `review-threaded-camera-81.log`.
+- The 62 baseline C++ test/manual/support bodies still have zero unexpected
+  token/literal changes; all 47 baseline non-ASCII literal occurrences remain.
+- Source checking reports 644 files, 215 module units, zero exceptions and zero
+  violations. Module reading-map links resolve. The refreshed 134-folder size
+  inventory records 145,547 physical and 142,605 nonblank C++ lines, fingerprint
+  `c1f5eb6c5301bc0b77f1a1e88395e529048d150c0d14a80d2e157fff55426989`.
+  Every baseline origin remains reconciled; the camera ledger row now names
+  graphics geometry.
+
+These review checks are additional to the full migration gates above; unchanged
+network/continuation suites were not relabelled as rerun. The camera case covers
+its existing save compatibility, projections, admission and recovery assertions.
+
+- Ordinary WASM camera and all three role builds:
+  `review-ordinary-build-83.log`, passed; `review-ordinary-camera-83.log` passed
+  the same production-path camera assertions. Browser rendering itself remains
+  a manual journey.
+- Full formatting check `review-format-check-84.log` passed across 781 C/C++,
+  156 CMake, 11 PowerShell and 442 web/data/document files. The final computed
+  namespace-name refusal cases also passed the architecture fixture gate.
+
+The final namespace-construction refusal fix was followed by successful real
+native and ordinary-WASM reconfiguration/affected-target builds in
+`review-final-native-policy-build-85.log` and
+`review-final-ordinary-policy-build-85.log`. The moved camera function body is
+byte-identical to the retired header body, and all source inventory hashes still
+match after formatting.

@@ -21,8 +21,9 @@ NAME = r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*"
 DECLARATION = re.compile(rf"(?m)^\s*(export\s+)?module\s+({NAME}(?::{NAME})?)\s*;")
 IMPORT = re.compile(rf"(?m)^\s*(?:export\s+)?import\s+(:?{NAME}(?::{NAME})?)\s*;")
 LOCAL_INCLUDE = re.compile(r'(?m)^[ \t]*#[ \t]*include[ \t]*(?:\\\r?\n[ \t]*)?"([^"\r\n]+)"')
+CLASS_ATTRIBUTE = r"(?:\[\[(?:[^\]]|\](?!\]))*\]\]|alignas\s*\((?:[^()]|\([^()]*\))*\))"
 CLASS_OPEN = re.compile(
-    r"\b(?:class|struct|union)\s+(?:[A-Za-z_]\w*\s*(?:final\s*)?)?(?::[^;{}]+)?\{"
+    rf"\b(?:class|struct|union)\s+(?:{CLASS_ATTRIBUTE}\s*)*(?:[A-Za-z_]\w*\s*(?:final\s*)?)?(?::[^;{{}}]+)?\{{"
 )
 RAW_STRING = re.compile(r'(?:u8|u|U|L)?R"([^ ()\\\t\r\n]{0,16})\(')
 
@@ -154,6 +155,30 @@ def inspect(root: Path) -> tuple[list[Diagnostic], int, int]:
     def report(unit: Unit, position: int, rule: str, target: str, message: str) -> None:
         diagnostics.append(Diagnostic(unit.source, source_line(unit.text, position), rule, target, message))
 
+    def inspect_includes(unit: Unit, *, external: bool = False) -> None:
+        includes = []
+        for include in LOCAL_INCLUDE.finditer(unit.text):
+            hash_position = unit.text.find("#", include.start(), include.end())
+            if unit.masked[hash_position] == "#":
+                includes.append((hash_position, include))
+        class_includes = inside_class(unit.masked, [position for position, _ in includes])
+        for position, include in includes:
+            included = (unit.path.parent / include.group(1)).resolve()
+            try:
+                relative = included.relative_to(root)
+            except ValueError:
+                continue  # Third-party headers may use compiler include paths.
+            target = relative.as_posix()
+            if relative.parts and relative.parts[0] == "src":
+                if external:
+                    report(unit, position, "external-private-include", target, "tests must import the production owner's interface")
+                elif not included.is_file():
+                    report(unit, position, "missing-local-include", target, "local first-party include does not exist")
+                elif module_folder(relative) != unit.owner:
+                    report(unit, position, "cross-module-include", target, "use the owning module's interface")
+            if not external and position in class_includes:
+                report(unit, position, "class-body-include", target, "compile implementation independently of its enclosing class")
+
     for path in sorted(source_root.rglob("*")):
         if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
             continue
@@ -234,28 +259,16 @@ def inspect(root: Path) -> tuple[list[Diagnostic], int, int]:
             if unit.declaration in graph and (unit.interface or ":" in unit.declaration):
                 graph[unit.declaration].add(name)
 
-        includes = []
-        for include in LOCAL_INCLUDE.finditer(unit.text):
-            hash_position = unit.text.find("#", include.start(), include.end())
-            if unit.masked[hash_position] != "#":
-                continue  # Text in a comment, string or embedded shader/JS body.
-            includes.append((hash_position, include))
-        class_includes = inside_class(unit.masked, [position for position, _ in includes])
-        for position, include in includes:
-            included = (unit.path.parent / include.group(1)).resolve()
-            try:
-                relative = included.relative_to(root)
-            except ValueError:
-                # Third-party headers may be found through compiler include paths.
-                continue
-            target = relative.as_posix()
-            if relative.parts and relative.parts[0] == "src":
-                if not included.is_file():
-                    report(unit, position, "missing-local-include", target, "local first-party include does not exist")
-                elif module_folder(relative) != unit.owner:
-                    report(unit, position, "cross-module-include", target, "use the owning module's interface")
-            if position in class_includes:
-                report(unit, position, "class-body-include", target, "compile implementation independently of its enclosing class")
+        inspect_includes(unit)
+
+    # Tests use the same compiled interfaces as production callers. Keep their
+    # support headers private to tests without counting them as production units.
+    for path in sorted((root / "tests").rglob("*")):
+        if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        unit = Unit(path, path.relative_to(root).as_posix(), "", text, mask_cpp(text))
+        inspect_includes(unit, external=True)
 
     visiting: list[str] = []
     visited: set[str] = set()

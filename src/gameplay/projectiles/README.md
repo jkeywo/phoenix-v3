@@ -6,4 +6,4 @@ Launch preparation consumes the identity and firing ship random state before nat
 
 The guidance lookup supplies effective altitude and current target liveness immediately before advancing each projectile. The expiry operation invokes the existing native destruction path before boundary culling. Collision impact, pre/post damage reactions and blast chain traversal remain in the native adapter; this owner does not defer or reorder those effects.
 
-The store and its cached query must be destroyed before the Flecs world. Native integration declares the world before the store. This prepared provider is unregistered until its standalone compilation gate is released.
+The store and its cached query must be destroyed before the Flecs world. Native integration declares the world before the store. The store is registered and active. The final native and ordinary/threaded WASM project gates passed, including projectile and continuation cases; see the [verification record](../../../docs/modularisation-evidence.md).

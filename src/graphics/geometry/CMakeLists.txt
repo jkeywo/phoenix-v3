@@ -1,3 +1,3 @@
-add_library(phoenix_graphics_geometry STATIC)
+add_library(phoenix_graphics_geometry STATIC ship_camera.cpp)
 target_sources(phoenix_graphics_geometry PUBLIC FILE_SET CXX_MODULES FILES geometry.cppm)
 target_link_libraries(phoenix_graphics_geometry PUBLIC phoenix_foundation)

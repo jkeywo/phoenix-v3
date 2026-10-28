@@ -4,7 +4,6 @@ module;
 #ifdef __EMSCRIPTEN__
 #include <GLES3/gl3.h>
 #endif
-#include "ship_camera.hpp"
 #include <rlgl.h>
 #include <cmath>
 #include <algorithm>
@@ -35,6 +34,7 @@ import phoenix.application;
 import phoenix.console;
 import phoenix.files;
 import phoenix.session.api;
+import phoenix.graphics.geometry;
 import phoenix.graphics.assets;
 import phoenix.graphics.radar;
 import phoenix.application.preferences;

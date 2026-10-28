@@ -7,9 +7,9 @@ This inventory records the final ownership cohort and includes-only header dedup
 - A module row is a family/module folder. One folder can own several named modules/targets; executable and private composition folders can have no primary named module. Partitions are counted separately from primary modules. Target independence is not inferred from these counts.
 - The four maintained World `native_headers.hpp` files contain shared standard/third-party includes only. They count as authored source, not build-generated implementation. Native Runtime bodies compile in ordinary CPP units, not class-body includes.
 
-Totals: **644 files**, **134 module folders**, **211 primary named modules + 4 private partitions**, **145,538 physical lines**, **142,598 nonblank lines**.
+Totals: **644 files**, **134 module folders**, **211 primary named modules + 4 private partitions**, **145,547 physical lines**, **142,605 nonblank lines**.
 
-The source fingerprint hashes sorted relative paths and UTF-8 contents with line endings normalized to LF: `7a723fc0ddfacad6dab84ba6f0ae0e2342031b1691ef4789b58b182cbd60ee89`. Recompute after any gate-driven source fix; CMake-only edits do not change this snapshot.
+The source fingerprint hashes sorted relative paths and UTF-8 contents with line endings normalized to LF: `c1f5eb6c5301bc0b77f1a1e88395e529048d150c0d14a80d2e157fff55426989`. Recompute after any gate-driven source fix; CMake-only edits do not change this snapshot.
 
 Machine-readable [module sizes](module-sizes.csv) and [individual files](module-files.csv) provide the same counts. The latter includes per-file normalized hashes.
 
@@ -25,13 +25,13 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files](module-
 | `executables` |       7 |    17 |                        5 / 0 |    2,531 |    2,491 |
 | `foundation`  |       4 |    11 |                        4 / 0 |    1,882 |    1,858 |
 | `gameplay`    |      23 |   108 |                       51 / 0 |   12,459 |   12,278 |
-| `graphics`    |       5 |    21 |                        6 / 0 |    4,425 |    4,373 |
+| `graphics`    |       5 |    22 |                        6 / 0 |    4,476 |    4,421 |
 | `knowledge`   |       4 |    26 |                        4 / 0 |    4,588 |    4,489 |
 | `networking`  |      10 |    32 |                       14 / 0 |    9,458 |    9,342 |
 | `platform`    |       7 |    36 |                       10 / 0 |    4,990 |    4,897 |
 | `resources`   |       4 |    12 |                        5 / 0 |    3,967 |    3,918 |
 | `scenarios`   |       5 |    20 |                        6 / 0 |    5,101 |    5,057 |
-| `ui`          |      12 |    54 |                       18 / 0 |   20,292 |   19,975 |
+| `ui`          |      12 |    53 |                       18 / 0 |   20,250 |   19,934 |
 | `workshop`    |       9 |    45 |                       14 / 0 |   10,135 |    9,915 |
 | `world`       |       6 |   100 |                        6 / 4 |   31,039 |   29,948 |
 
@@ -157,7 +157,7 @@ Read the module README for its public front door and dependency direction. Large
 | ---------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
 | [assets](../src/graphics/assets/README.md)     |     2 |      128 |      123 |                        1 / 0 |
 | [audio](../src/graphics/audio/README.md)       |     4 |      602 |      591 |                        2 / 0 |
-| [geometry](../src/graphics/geometry/README.md) |     1 |       54 |       52 |                        1 / 0 |
+| [geometry](../src/graphics/geometry/README.md) |     2 |      105 |      100 |                        1 / 0 |
 | [radar](../src/graphics/radar/README.md)       |     4 |      801 |      789 |                        1 / 0 |
 | [scene](../src/graphics/scene/README.md)       |    10 |    2,840 |    2,818 |                        1 / 0 |
 
@@ -231,7 +231,7 @@ Read the module README for its public front door and dependency direction. Large
 | [runtime](../src/ui/runtime/README.md)                         |     8 |    2,914 |    2,864 |                        3 / 0 |
 | [screens](../src/ui/screens/README.md)                         |    10 |    3,013 |    2,989 |                        4 / 0 |
 | [tactical-widgets](../src/ui/tactical-widgets/README.md)       |     2 |      189 |      186 |                        1 / 0 |
-| [viewscreen](../src/ui/viewscreen/README.md)                   |     4 |    1,226 |    1,219 |                        1 / 0 |
+| [viewscreen](../src/ui/viewscreen/README.md)                   |     3 |    1,184 |    1,178 |                        1 / 0 |
 
 ### workshop
 

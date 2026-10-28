@@ -1,7 +1,7 @@
 # Psychic apparatus
 
 `state.cppm` owns apparatus contributions, ghost continuation and reception
-records, plus interdiction continuation records. Fitted apparatus and the
+records. Scenario interdiction continuation belongs to `scenarios/interdictions`. Fitted apparatus and the
 authoritative World own their instances; ability execution remains the activation
 authority. Derived funded work is intentionally omitted from saved contributions.
 
@@ -18,6 +18,11 @@ native apparatus, recent weapons and sent messages.
 World currently binds those operations to fitted apparatus and permitted sensor
 feeds through ordinary `src/world/bindings/gameplay_psychic.cpp` and
 `gameplay_interdictions.cpp` units. Native board, save/restore and encounter
-integration still contain policy pending further extraction. The three newest providers passed
-standalone native compilation; their integrated system and continuation checks
-are running. The earlier projection/reception owners passed those checks.
+integration retain explicit native policy. `PsychicInterferenceMemory` owns
+the derived ordered-source cache; `PsychicEmissionMemory` owns recent weapon
+and message memory, its 20-tick retention and continuation. The final native
+and ordinary/threaded WASM project gates passed, including psychic and
+interdiction continuation checks; see the
+[verification record](../../../docs/modularisation-evidence.md).
+
+Emission-memory restore installs records incrementally into a fresh candidate. Public World restore validates the complete candidate before swapping it into the live session; the low-level memory restore alone does not provide an in-place rollback guarantee.

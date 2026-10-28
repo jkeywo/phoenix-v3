@@ -667,6 +667,7 @@ phoenix_intended_module(
 )
 phoenix_intended_module(
 	phoenix_ui_viewscreen
+	phoenix_graphics_geometry
 	phoenix_application_shell
 	RmlUi::RmlUi
 	raylib

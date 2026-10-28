@@ -16,7 +16,10 @@ native identity/definition facts. `projection.cppm` builds the board from the
 Console's permitted scanner feeds. Borrowed scanner/state pointers live for one
 projection or restore call; returned continuation owns its values.
 
-`sensors.hpp` still binds physical ECS queries, admission and publication at the
-existing phases. That contextual fragment remains migration work. The existing
-sensor/environment cases and exact baseline continuation passed in native;
-browser execution remains a separate gate.
+`src/world/bindings/gameplay_sensors.cpp` binds physical ECS queries, admission
+and publication at the existing phases. It compiles through the private World
+partition; the former contextual `sensors.hpp` fragment is retired. This native
+integration policy remains explicit rather than exposed through an unrestricted
+World interface. The final native and ordinary/threaded WASM project gates
+passed, including sensor/environment cases and continuation comparisons; see
+the [verification record](../../../docs/modularisation-evidence.md).

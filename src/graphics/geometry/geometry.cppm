@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <cmath>
+#include <array>
 export module phoenix.graphics.geometry;
 
 export namespace phoenix
@@ -51,4 +52,17 @@ inline float velocity_billboard_rotation(float dx, float dy, float forward_x, fl
 {
 	return dx * dx + dy * dy > .0001f ? std::atan2(dy, dx) - std::atan2(forward_y, forward_x) : previous;
 }
+} // namespace phoenix
+
+export namespace phoenix
+{
+struct ShipCameraPose
+{
+	std::array<double, 3> position{}, target{};
+	double bearing = 0;
+};
+// World millimetres/heading become renderer metres; directions are clockwise
+// from the ship's forward bearing. No graphics or simulation ownership here.
+ShipCameraPose ship_camera_pose(double x, double y, double heading, double scale, double aspect, int mode,
+                                int direction);
 } // namespace phoenix

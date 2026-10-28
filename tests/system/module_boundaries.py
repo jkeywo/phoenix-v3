@@ -71,6 +71,20 @@ const auto budget = 1'000;
     write(root, "src/ui/model/partition.cpp", "module phoenix.model;\nimport :detail;\nimport :internal;\n")
     source_check(root, set())
 
+    # A test must cross the compiled production interface, not compile another
+    # copy of a private implementation by reaching into its source folder.
+    write(root, "tests/support/helper.hpp", "struct TestHelper {};\n")
+    write(root, "tests/system/model.cpp", '#include "../support/helper.hpp"\nimport phoenix.model;\n')
+    source_check(root, set())
+    write(root, "tests/system/model.cpp", '#include "../../src/ui/model/detail.hpp"\n')
+    source_check(root, {"external-private-include"})
+    (root / "tests/system/model.cpp").unlink()
+
+    for declaration in ("struct alignas(16) Aligned", "struct [[nodiscard]] Attributed", "struct alignas(sizeof(double)) Nested"):
+        write(root, "src/ui/model/context.cpp", declaration + ' {\n#include "detail.hpp"\n};\n')
+        source_check(root, {"class-body-include"})
+    (root / "src/ui/model/context.cpp").unlink()
+
     # Named private interface partitions may own another composition folder in
     # the same family. An ordinary unit must directly import its local owner.
     write(root, "src/ui/bindings/bindings.cppm", "export module phoenix.model:bindings;\nimport :detail;\n")
@@ -161,6 +175,25 @@ phoenix_module_dependencies(frontend ALLOW adapter)
 phoenix_module_dependencies(adapter)
 phoenix_validate_module_dependencies()
 ''', "Undeclared module dependency")
+    # Property expansion and name construction cannot be validated by reading
+    # literal target names. Refuse these even when a carrier target is allowed.
+    for expression in (
+        "$<GENEX_EVAL:$<TARGET_PROPERTY:adapter,BACKEND>>",
+        "$<TARGET_PROPERTY:adapter,BACKEND>",
+        "$<LOWER_CASE:AUTHORITY>",
+        "$<IF:1,Authority,Other>::Server",
+        "$<IF:1,Authority::$<IF:1,Server,Other>,frontend>",
+        "auth$<IF:1,ority,other>",
+        "$<IF:1,auth,other>ority",
+        "$<IF:1,auth,other>$<IF:1,ority,other>",
+        "$<IF:1,auth$<IF:1,ority,other>,frontend>",
+    ):
+        configure('set_property(TARGET adapter PROPERTY BACKEND authority)\n'
+                  + f'target_link_libraries(frontend INTERFACE "{expression}")\n'
+                  + '''phoenix_module_dependencies(frontend ALLOW adapter)
+phoenix_module_dependencies(adapter)
+phoenix_validate_module_dependencies()
+''', "Unsupported computed link dependency")
     configure('''target_link_libraries(adapter INTERFACE Authority::Server)
 phoenix_module_dependencies(frontend ALLOW adapter)
 phoenix_module_dependencies(adapter ALLOW Authority::Server)
@@ -211,6 +244,15 @@ phoenix_forbid_dependencies(frontend "authority;not_present")
     configure('''add_subdirectory(src/new-owner)
 phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")
 ''', "Module target has no intentional dependency policy")
+    # Every compiled library kind needs policy, including object libraries and
+    # loadable modules. Refusal happens before compiler/generator selection.
+    write(fixture, "src/new-owner/owner.cpp", "int owner() { return 0; }\n")
+    for kind in ("OBJECT", "MODULE"):
+        write(fixture, "src/new-owner/CMakeLists.txt", f"add_library(phoenix_new_owner {kind} owner.cpp)\n")
+        configure('''add_subdirectory(src/new-owner)
+phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")
+''', "Module target has no intentional dependency policy")
+    write(fixture, "src/new-owner/CMakeLists.txt", "add_library(phoenix_new_owner INTERFACE)\n")
     configure('''add_subdirectory(src/new-owner)
 set_property(TARGET phoenix_new_owner PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "")
 phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")

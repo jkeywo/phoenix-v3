@@ -6,4 +6,4 @@ These targets depend on physical state and combat/effect/process contracts. They
 
 Current native phase wiring is in the ordinary implementation units `src/world/bindings/gameplay_combat_*.cpp` and `gameplay_directed.cpp`. They replace the former included class-body headers. Some integration policy still remains there; importing the public combat mechanisms does not grant or complete the entire World adapter.
 
-Combat, shield, directed, personnel and swept-ordnance journeys plus exact saves are the behavioral checks. Preserve grant identity, layer order, damage/fault semantics and serialization defaults. The central evidence distinguishes verified owner checkpoints from pending final World/platform gates.
+Combat, shield, directed, personnel and swept-ordnance journeys plus exact saves are the behavioral checks. Preserve grant identity, layer order, damage/fault semantics and serialization defaults. The [verification record](../../../docs/modularisation-evidence.md) records the completed native and ordinary/threaded WASM project gates and remaining environmental checks.

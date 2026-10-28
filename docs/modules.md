@@ -4,7 +4,7 @@ Code is grouped as `src/<family>/<module>/`. Start with a family's README, then 
 
 The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record intended work, actual ownership and checks performed. The ordinary World outline and domain interfaces are active. Native bindings intentionally retain cross-domain integration policy; that policy is visible in the reading map rather than presented as independent domain libraries. Source ownership and execution acceptance are recorded separately.
 
-The pinned final source passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM full build/runtime/continuation gates also passed (72/74). These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
+The migration cohort passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM full build/runtime/continuation gates also passed (72/74). These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
 
 ## Reading map
 
@@ -128,7 +128,7 @@ The implementation refines the plan's original folder sketch with these concrete
 | `gameplay/ordnance-contacts`   | Tick-local contact indexes and deterministic fuse/contact ordering are separate from participant authority                         |
 | `gameplay/repairs`             | Native structural/fault repair progress is separate from team scheduling and access                                                |
 | `gameplay/weapons`             | Magazine/ammunition commitment and projectile initialization use bounded store/definition views                                    |
-| `graphics/geometry`            | Local camera and sprite-facing calculations need no GPU or Application                                                             |
+| `graphics/geometry`            | Local navigation/ship camera and sprite-facing calculations need no GPU or Application                                             |
 | `knowledge/read-models`        | Clients decode already-permitted information without acquiring authoritative knowledge execution                                   |
 | `networking/projection`        | Bounded observation/public-board envelopes and permission validation stay outside mutable sessions                                 |
 | `platform/viewport`            | Focus and CSS/drawing-surface synchronization stay outside UI/Application state                                                    |

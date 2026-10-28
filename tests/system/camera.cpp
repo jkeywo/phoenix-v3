@@ -1,7 +1,7 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
-#include "../../src/ui/viewscreen/ship_camera.hpp"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <optional>
 #include <memory>
@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+import phoenix.graphics.geometry;
 import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.console;

@@ -3,6 +3,41 @@
 # of this repository, even when the currently selected configuration omits it.
 function(phoenix_link_targets target result)
 	set(dependencies "")
+	# These operators select literal branches or decorate a named link target.
+	# Computed names/property evaluation need a real evaluator; refuse them rather
+	# than silently approving an incomplete graph from their spelling.
+	set(
+		branch_operators
+		AND
+		OR
+		NOT
+		BOOL
+		IF
+		CONFIG
+		STREQUAL
+		EQUAL
+		VERSION_LESS
+		VERSION_GREATER
+		VERSION_EQUAL
+		VERSION_LESS_EQUAL
+		VERSION_GREATER_EQUAL
+		PLATFORM_ID
+		C_COMPILER_ID
+		CXX_COMPILER_ID
+		LINK_LANGUAGE
+		LINK_LANG_AND_ID
+		TARGET_EXISTS
+		TARGET_NAME_IF_EXISTS
+		BUILD_INTERFACE
+		BUILD_LOCAL_INTERFACE
+		INSTALL_INTERFACE
+		LINK_ONLY
+		COMPILE_ONLY
+		LINK_LIBRARY
+		LINK_GROUP
+		HOST_LINK
+		DEVICE_LINK
+	)
 	if(NOT TARGET "${target}")
 		set(${result} "" PARENT_SCOPE)
 		return()
@@ -11,6 +46,7 @@ function(phoenix_link_targets target result)
 	if(aliased)
 		set(target "${aliased}")
 	endif()
+	get_property(has_policy TARGET "${target}" PROPERTY PHOENIX_ALLOWED_DEPENDENCIES SET)
 	foreach(property LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INTERFACE_LINK_LIBRARIES_DIRECT)
 		get_target_property(links "${target}" "${property}")
 		if(links)
@@ -18,7 +54,19 @@ function(phoenix_link_targets target result)
 			foreach(link IN LISTS links)
 				if(TARGET "${link}" OR link MATCHES "^phoenix_[A-Za-z0-9_.+-]+$")
 					list(APPEND candidates "${link}")
-				elseif(link MATCHES "^\\$<")
+				elseif(link MATCHES "\\$<")
+					if(has_policy)
+						if(NOT link MATCHES "^\\$<" OR link MATCHES "[A-Za-z0-9_.+-]\\$<|>[A-Za-z0-9_.+-]|>\\$<|>::|::\\$<")
+							message(FATAL_ERROR "Unsupported computed link dependency: ${target} -> ${link}")
+						endif()
+						string(REGEX MATCHALL "\\$<[A-Za-z_][A-Za-z0-9_]*" operators "${link}")
+						foreach(expression IN LISTS operators)
+							string(SUBSTRING "${expression}" 2 -1 operator)
+							if(NOT operator IN_LIST branch_operators)
+								message(FATAL_ERROR "Unsupported computed link dependency: ${target} -> ${link} (${operator})")
+							endif()
+						endforeach()
+					endif()
 					# Single ':' separates operators; '::' remains part of an
 					# imported target name. Ordinary flags/file paths are ignored.
 					string(REGEX MATCHALL "[A-Za-z_][A-Za-z0-9_.+-]*(::[A-Za-z_][A-Za-z0-9_.+-]*)*" branch_targets "${link}")
@@ -149,7 +197,7 @@ function(phoenix_require_module_policies directory)
 			continue()
 		endif()
 		get_target_property(kind "${target}" TYPE)
-		if(NOT kind MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|INTERFACE_LIBRARY)$")
+		if(NOT kind MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|INTERFACE_LIBRARY|OBJECT_LIBRARY|MODULE_LIBRARY)$")
 			continue()
 		endif()
 		string(FIND "${directory}/" "${PROJECT_SOURCE_DIR}/src/" source_prefix)

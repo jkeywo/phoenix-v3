@@ -17,6 +17,7 @@ dissipates any reserve, freezes reports, changes Away transfer state or withdraw
 scenario actors. Restore validates members, performs the existing obsolete
 encounter-goal cleanup, then validates authority in that order.
 
-The provider passed standalone native compilation and the ordinary native
-adapters are activated. Full-cohort system and continuation gates remain
-separate evidence; this guide does not claim those checks have passed.
+The owner and its ordinary native adapters passed the final native and
+ordinary/threaded WASM project gates, including continuation comparisons.
+See the [verification record](../../../docs/modularisation-evidence.md) for
+executed checks and environmental limits.

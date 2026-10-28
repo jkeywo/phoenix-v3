@@ -1036,7 +1036,7 @@ if(EMSCRIPTEN)
 endif()
 
 add_executable(phoenix_camera_tests tests/system/camera.cpp)
-target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_console_model)
+target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_console_model phoenix_graphics_geometry)
 phoenix_fixture(phoenix_camera_tests)
 add_executable(phoenix_missions_tests tests/system/missions.cpp)
 target_link_libraries(phoenix_missions_tests PRIVATE phoenix_simulation)

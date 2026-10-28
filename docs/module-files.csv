@@ -303,7 +303,8 @@ src/graphics/audio/audio.cppm,graphics,audio,43,41,interface,phoenix.graphics.au
 src/graphics/audio/audio_policy.cpp,graphics,audio,126,125,implementation,,,06a999d95f5010eabae2b7d1017378a15e488fbd79c86ecc2bf92d7608507061
 src/graphics/audio/audio_policy.cppm,graphics,audio,48,45,interface,phoenix.graphics.audio_policy,,f5cea3236375e868a1eb6bf7032ccee5231caf68e39c4a43651c96fbaef0b084
 src/graphics/audio/music.cpp,graphics,audio,385,380,implementation,,,7dcf081831c3708884a718b1f04b09f1969e5faa02a92cb8d45e0f86a99b52bd
-src/graphics/geometry/geometry.cppm,graphics,geometry,54,52,interface,phoenix.graphics.geometry,,000e07a9437da7d30f408defab1b2af59eb5e40d431677f0dd9071a32170a5b7
+src/graphics/geometry/geometry.cppm,graphics,geometry,68,65,interface,phoenix.graphics.geometry,,68b101decb0bffdfe828c616138b6c117d3890908ebb6ac860e3625f904d75b7
+src/graphics/geometry/ship_camera.cpp,graphics,geometry,37,35,implementation,,,43716189c6823fa3104600929ed06067e3613ca1d4661fd54f7bb20b808a95ab
 src/graphics/radar/icons.cpp,graphics,radar,93,92,implementation,,,ac42aaec8270d0666950a4bacfeeaaad6e6600cd75c3dc1f0b3611fabddee90e
 src/graphics/radar/plots.cpp,graphics,radar,348,345,implementation,,,4c67478c7886f69e21c2c8185cfb42e4e49bc0be032150d9e3baae46e3cbb2f8
 src/graphics/radar/radar.cppm,graphics,radar,71,65,interface,phoenix.graphics.radar,,fc0b5172fd88e2812bdc8eefd3c961599b5a4d8db7ce77ae119ca535fda77ede
@@ -494,9 +495,8 @@ src/ui/screens/theme.cpp,ui,screens,178,176,implementation,,,1747f67ab2e76b4b8d7
 src/ui/screens/theme.cppm,ui,screens,91,85,interface,phoenix.ui.theme,,0ec176b2ca8775b591291831514d513697250b998bfae44a0459aa5201bbd750
 src/ui/tactical-widgets/tactical.cpp,ui,tactical-widgets,151,150,implementation,,,1fcd1c72b8a66c242a9168cd159c895c780337384f806a2206bbf60bd18a3d67
 src/ui/tactical-widgets/tactical.cppm,ui,tactical-widgets,38,36,interface,phoenix.ui.tactical_widgets,,d69d6f10dd0028eb74fb51b0f1062bd4b83cf87b5a74045effa4bd7c0ee87fb6
-src/ui/viewscreen/game.cpp,ui,viewscreen,1131,1128,implementation,,,7f8067b26860e268c6f23a878f164c1a9cc68e1bd5a25310202c715daa1f1ccb
+src/ui/viewscreen/game.cpp,ui,viewscreen,1131,1128,implementation,,,b936ab9bcad357a08f25376d59a7965239c9be56ed23131323d5ec1dfa8a6cb5
 src/ui/viewscreen/geometry.cpp,ui,viewscreen,16,15,implementation,,,6425bac0d650951a72f7ca661ecb7b173f761c0b630a4176fa0b97ac4d51db9f
-src/ui/viewscreen/ship_camera.hpp,ui,viewscreen,42,41,header,,,7bb04ed706dc2b2d34b94d9eab0069b7c9dd439c396a15ec8052482d58a5f926
 src/ui/viewscreen/viewscreen.cppm,ui,viewscreen,37,35,interface,phoenix.ui.viewscreen,,a6d88c84dea239f9254a53632cf7a4fbbd11c1475b544804da74be95910214d0
 src/workshop/gameplay-editors/combat.cpp,workshop,gameplay-editors,160,156,implementation,,,fe4e35859bfd66591def2287852bafc5721a6e38e5b78671294d1bdb632540d2
 src/workshop/gameplay-editors/consoles.cpp,workshop,gameplay-editors,381,376,implementation,,,cadb8d726adce2952143453961771ba0d68968ff4dde4bed4533633cf13484cd
