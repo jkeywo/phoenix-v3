@@ -392,8 +392,10 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 				            .preview_definition(WorkshopDefinitionKind::Effect, effect.at("extends").get<std::string>())
 				            .value("kind", std::string{});
 			    }
-			    catch (const std::exception &)
+			    catch (const std::exception &error)
 			    {
+				    text("Cannot preview inherited effect.");
+				    text(error.what());
 			    }
 		    }
 		    if (kind == "shield" || kind == "modifier" || kind == "ability_grant" || kind == "process" ||
