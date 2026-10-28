@@ -11,9 +11,9 @@ module;
 #include <utility>
 #include <vector>
 
-module phoenix.tools;
-import phoenix.presentation;
-import phoenix.navigation;
+module phoenix.workshop.browser_test_client;
+import phoenix.tools;
+import phoenix.content.packs;
 
 namespace
 {

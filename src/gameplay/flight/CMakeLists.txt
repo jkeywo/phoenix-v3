@@ -12,3 +12,15 @@ set_property(TARGET phoenix_gameplay_flight PROPERTY CXX_SCAN_FOR_MODULES ON)
 add_library(phoenix_gameplay_flight_work STATIC process_work.cpp)
 target_sources(phoenix_gameplay_flight_work PUBLIC FILE_SET CXX_MODULES FILES process_work.cppm)
 target_link_libraries(phoenix_gameplay_flight_work PUBLIC phoenix_gameplay_flight phoenix_resources_equipment)
+
+add_library(phoenix_gameplay_flight_native STATIC native_actuators.cpp)
+target_sources(phoenix_gameplay_flight_native PUBLIC FILE_SET CXX_MODULES FILES native_actuators.cppm)
+target_link_libraries(
+	phoenix_gameplay_flight_native
+	PUBLIC phoenix_gameplay_fitting phoenix_gameplay_flight_work phoenix_effects_machinery
+	PRIVATE phoenix_effects_properties flecs_static
+)
+set_target_properties(
+	phoenix_gameplay_flight_native
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

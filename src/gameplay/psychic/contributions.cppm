@@ -20,4 +20,7 @@ void refresh_psychic_contribution_work(PsychicChoirState &state, const AbilityRu
 void reconcile_psychic_contributions(PsychicChoirState &state, EntityId ship, const std::string &apparatus,
                                      const AbilityRuntime *runtime, const PsychicDefinition &definition,
                                      const PsychicTargetPort &targets);
+bool valid_psychic_shape(const PsychicGhostShape &shape);
+PsychicChoirState restore_psychic_contributions(const Json &saved, EntityId ship, const std::string &apparatus,
+                                                const AbilityRuntime *runtime, const PsychicDefinition &definition);
 } // namespace phoenix

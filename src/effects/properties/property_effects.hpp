@@ -17,92 +17,26 @@ std::int64_t property_fault_delta(flecs::entity ship, const std::string &equipme
 }
 PropertyTargetKey property_target_key(flecs::entity ship, const std::string &name) const
 {
-	if (const auto *equipment = ship.try_get<EquipmentIndex>())
-		if (const auto at = equipment->by_id.find(name); at != equipment->by_id.end())
-			return {PropertyTargetKind::Equipment, at->second.id(), {}};
-	if (name.starts_with("effect:"))
-	{
-		const auto separator = name.find(':', 7);
-		std::uint64_t id = 0;
-		if (separator != std::string::npos)
-		{
-			const auto parsed = std::from_chars(name.data() + 7, name.data() + separator, id);
-			if (parsed.ec == std::errc{} && parsed.ptr == name.data() + separator)
-				return {PropertyTargetKind::Shield, id, name.substr(separator + 1)};
-		}
-	}
-	return {PropertyTargetKind::Logical, 0, name};
-}
-static PropertyTargetKey property_target_key(const EffectTarget &target)
-{
-	if (target.kind == EffectTargetKind::Equipment)
-		return {PropertyTargetKind::Equipment, target.equipment.id(), {}};
-	if (target.kind == EffectTargetKind::Shield)
-		return {PropertyTargetKind::Shield, target.contribution, target.contribution_name};
-	return {PropertyTargetKind::Logical, 0, target.equipment_name};
+	return modifier_target_key(ship, name);
 }
 
-const PropertyEffectOwner *property_aggregates(flecs::entity ship) const
-{
-	const auto *owner = ship.try_get<PropertyEffectOwner>();
-	if (!owner || owner->aggregate_valid)
-		return owner;
-	owner->independent.clear();
-	owner->guarded.clear();
-	for (const auto &[id, effect] : owner->applications)
-	{
-		const auto &identity = effect.get<ActiveEffectIdentity>();
-		const auto key = property_target_key(effect.get<EffectTarget>());
-		auto &totals =
-		    identity.source.starts_with("rule.") ? owner->guarded[key][identity.source] : owner->independent[key];
-		for (const auto &row : effect.get<ModifierValues>().values)
-			if (row.custom.empty())
-				totals.native[static_cast<std::size_t>(row.property)] += row.delta;
-			else
-				merge_property_aggregate(totals.custom[row.custom], {row.delta, row.override_value, row.priority, id});
-	}
-	owner->aggregate_valid = true;
-	return owner;
-}
 PropertyAggregateValue read_property_aggregate(flecs::entity ship, const PropertyTargetKey &key, PropertyKey property,
                                                const std::string &custom, RuleSourceAvailabilityCache &sources,
                                                std::map<std::string, bool> &grants, bool retiring = false) const
 {
-	PropertyAggregateValue result;
-	const auto *owner = property_aggregates(ship);
-	if (!owner)
-		return result;
-	const auto select = [&](const PropertyTotals &totals)
-	{
-		if (custom.empty())
-			return PropertyAggregateValue{totals.native[static_cast<std::size_t>(property)]};
-		const auto at = totals.custom.find(custom);
-		return at == totals.custom.end() ? PropertyAggregateValue{} : at->second;
-	};
-	if (const auto at = owner->independent.find(key); at != owner->independent.end())
-		result = select(at->second);
-	if (const auto at = owner->guarded.find(key); at != owner->guarded.end())
-		for (const auto &[source, totals] : at->second)
-		{
-			const auto value = select(totals);
-			if (!value.delta && !value.override_value)
-				continue;
-			auto known = grants.find(source);
-			if (known == grants.end())
-			{
-				bool available = rule_grant_available(ship.get<StableId>().id, source, &sources);
-				if (!available && retiring)
-				{
-					const auto *previous = readonly_rule_execution(parent_rule_execution_key(source));
-					available =
-					    previous && previous->eligible && previous->active && !previous->stopped && previous->output;
-				}
-				known = grants.emplace(source, available).first;
-			}
-			if (known->second)
-				merge_property_aggregate(result, value);
-		}
-	return result;
+	return read_modifier_aggregate(ship, key, property, custom, grants,
+	                               [this, ship, &sources, retiring](const std::string &source)
+	                               {
+		                               bool available = rule_grant_available(ship.get<StableId>().id, source, &sources);
+		                               if (!available && retiring)
+		                               {
+			                               const auto *previous =
+			                                   readonly_rule_execution(parent_rule_execution_key(source));
+			                               available = previous && previous->eligible && previous->active &&
+			                                           !previous->stopped && previous->output;
+		                               }
+		                               return available;
+	                               });
 }
 std::int64_t property_delta(flecs::entity ship, const std::string &equipment, PropertyKey property,
                             const std::string &contribution = {}) const
@@ -241,253 +175,69 @@ std::uint64_t install_modifier_grant(PropertyEffects &owner, const ModifierEffec
 	return phoenix::install_modifier_grant(owner, definition, *property_catalogue, source, equipment, tick, maintained);
 }
 
-EffectTarget resolve_modifier_target(flecs::entity ship, const std::string &equipment) const
+PropertyMutationObserver property_mutation_observer()
 {
-	EffectTarget target;
-	target.body = ship;
-	target.equipment_name = equipment;
-	if (const auto fitted = instance(ship, equipment))
+	PropertyMutationObserver observer;
+	observer.before_owner_change = [this](flecs::entity ship)
 	{
-		target.kind = EffectTargetKind::Equipment;
-		target.equipment = fitted->entity;
-	}
-	else if (const auto key = property_target_key(ship, equipment); key.kind == PropertyTargetKind::Shield)
+		begin_custom_property_batch();
+		for (const auto &address : custom_property_addresses(ship.get<StableId>().id))
+			capture_custom_property_owner(address);
+	};
+	observer.before_removal = [this](const EffectTarget &target)
 	{
-		target.kind = EffectTargetKind::Shield;
-		target.contribution = key.identity;
-		target.contribution_name = key.name;
-	}
-	return target;
+		mark_custom_property_rates_dirty();
+		begin_custom_property_batch();
+		if (target.body.is_alive())
+			capture_custom_property_owner(
+			    custom_property_address(custom_property_actor(target.body.get<StableId>().id, target.equipment_name)),
+			    true);
+	};
+	observer.after_change = [this]
+	{
+		finish_custom_property_batch();
+	};
+	return observer;
 }
 void erase_modifier(flecs::entity effect)
 {
-	const auto effect_target = effect.get<EffectTarget>();
-	mark_custom_property_rates_dirty();
-	begin_custom_property_batch();
-	if (effect_target.body.is_alive())
-		capture_custom_property_owner(custom_property_address(custom_property_actor(
-		                                  effect_target.body.get<StableId>().id, effect_target.equipment_name)),
-		                              true);
-	const auto target = effect.get<EffectTarget>();
-	const auto id = effect.get<ActiveEffectIdentity>().id;
-	if (target.body.is_alive())
-		if (auto *owner = target.body.try_get_mut<PropertyEffectOwner>())
-		{
-			const auto &identity = effect.get<ActiveEffectIdentity>();
-			owner->grants.erase({identity.source, target.equipment_name});
-			owner->applications.erase(id);
-			owner->aggregate_valid = false;
-		}
-	effect.destruct();
-	finish_custom_property_batch();
+	property_applications.erase(effect, property_mutation_observer());
 }
 void commit_property_effects(flecs::entity ship, const PropertyEffects &snapshot)
 {
-	begin_custom_property_batch();
-	for (const auto &address : custom_property_addresses(ship.get<StableId>().id))
-		capture_custom_property_owner(address);
-	std::set<std::uint64_t> retained;
-	for (const auto &application : snapshot.applications)
-		retained.insert(application.id);
-	std::vector<flecs::entity> removed;
-	for (const auto &[id, effect] : ship.get<PropertyEffectOwner>().applications)
-		if (!retained.contains(id))
-			removed.push_back(effect);
-	for (auto effect : removed)
-		erase_modifier(effect);
-	for (const auto &application : snapshot.applications)
-	{
-		const auto &applications = ship.get<PropertyEffectOwner>().applications;
-		if (const auto at = applications.find(application.id); at != applications.end())
-		{
-			auto effect = at->second;
-			if (effect.get<EffectLifetime>().expiry != application.expiry)
-				effect.set<EffectLifetime>({application.expiry});
-			if (!(effect.get<ModifierValues>() == application.modifier))
-			{
-				effect.set<ModifierValues>(application.modifier);
-				ship.get_mut<PropertyEffectOwner>().aggregate_valid = false;
-			}
-		}
-		else
-		{
-			auto effect = ecs.entity()
-			                  .set<ActiveEffectIdentity>(
-			                      {application.id, ship.get<StableId>().id, application.source, application.definition})
-			                  .set<EffectTarget>(resolve_modifier_target(ship, application.equipment))
-			                  .set<EffectLifetime>({application.expiry})
-			                  .set<ModifierValues>(application.modifier);
-			auto &owner = ship.get_mut<PropertyEffectOwner>();
-			owner.applications.emplace(application.id, effect);
-			owner.grants.emplace(std::pair{application.source, application.equipment}, effect);
-			owner.aggregate_valid = false;
-		}
-	}
-	ship.get_mut<PropertyEffectOwner>().next_id = snapshot.next_id;
-	finish_custom_property_batch();
+	property_applications.commit(ecs, ship, snapshot, property_mutation_observer());
 }
 void step_property_effects()
 {
-	std::vector<flecs::entity> expired;
-	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	modifier_query.each(
-	    [&](flecs::entity e, const ActiveEffectIdentity &, const EffectTarget &, const EffectLifetime &life,
-	        const ModifierValues &)
-	    {
-		    if (life.expiry >= 0 && life.expiry <= tick)
-			    expired.push_back(e);
-	    });
-	for (auto effect : expired)
-		erase_modifier(effect);
+	property_applications.expire(static_cast<std::int64_t>(ecs.get<Clock>().tick), property_mutation_observer());
 }
 void prune_property_targets()
 {
-	std::vector<flecs::entity> invalid;
-	modifier_query.each(
-	    [&](flecs::entity effect, const ActiveEffectIdentity &, const EffectTarget &target, const EffectLifetime &,
-	        const ModifierValues &)
+	property_applications.prune(
+	    [this](flecs::entity body, const std::string &name)
 	    {
-		    bool available = target.body.is_alive();
-		    if (available && target.kind == EffectTargetKind::Equipment)
-			    available = target.equipment.is_alive() && target.equipment.has<Equipment>() &&
-			                target.equipment.parent() == target.body;
-		    if (available && target.kind == EffectTargetKind::Shield)
-		    {
-			    const auto *shields = target.body.try_get<ShieldComponent>();
-			    available = shields && std::any_of(shields->contributions.begin(), shields->contributions.end(),
-			                                       [&](const auto &c)
-			                                       {
-				                                       return c.effect_id == target.contribution &&
-				                                              c.definition.name == target.contribution_name;
-			                                       });
-		    }
-		    if (available && target.kind == EffectTargetKind::Logical)
-			    available = (target.equipment_name.starts_with("away:") &&
-			                 modifier_away_target_available(target.body, target.equipment_name)) ||
-			                custom_property_state(custom_property_address(
-			                    custom_property_actor(target.body.get<StableId>().id, target.equipment_name)));
-		    if (!available)
-			    invalid.push_back(effect);
-	    });
-	for (auto effect : invalid)
-		erase_modifier(effect);
+		    return (name.starts_with("away:") && modifier_away_target_available(body, name)) ||
+		           custom_property_state(custom_property_address(custom_property_actor(body.get<StableId>().id, name)));
+	    },
+	    property_mutation_observer());
 }
 Json save_active_modifiers() const
 {
-	Json owners = Json::array(), applications = Json::array();
-	std::map<EntityId, flecs::entity> ordered;
-	property_owners.each(
-	    [&](flecs::entity ship, const StableId &id, const PropertyEffectOwner &)
-	    {
-		    ordered.emplace(id.id, ship);
-	    });
-	for (const auto &[id, ship] : ordered)
-	{
-		const auto &owner = ship.get<PropertyEffectOwner>();
-		owners.push_back({{"owner", id}, {"next_id", owner.next_id}});
-		for (const auto &[key, effect] : owner.applications)
-		{
-			const auto &identity = effect.get<ActiveEffectIdentity>();
-			const auto &values = effect.get<ModifierValues>();
-			Json named = Json::array();
-			for (const auto &v : values.values)
-				named.push_back({{"name", v.name}, {"delta_permille", v.delta}});
-			applications.push_back({{"owner", id},
-			                        {"id", key},
-			                        {"source", identity.source},
-			                        {"definition", identity.definition},
-			                        {"equipment", effect.get<EffectTarget>().equipment_name},
-			                        {"expiry", effect.get<EffectLifetime>().expiry},
-			                        {"maintained", values.maintained},
-			                        {"values", named}});
-		}
-	}
-	return {{"modifier_owners", owners}, {"modifiers", applications}};
+	return property_applications.save();
 }
 void restore_active_modifiers(const Json &saved)
 {
-	if (saved.size() != 4 || !saved.at("modifier_owners").is_array() || !saved.at("modifiers").is_array() ||
-	    saved.at("modifier_owners").size() > entities.size())
-		throw std::runtime_error("Invalid active modifier roster");
-	std::map<EntityId, PropertyEffects> staged;
-	for (const auto &owner : saved.at("modifier_owners"))
-	{
-		const auto id = checked_integer(owner.at("owner"), 1, 9007199254740991LL, "modifier.owner");
-		if (owner.size() != 2 || !entities.contains(id) || !entities.at(id).has<PropertyEffectOwner>() ||
-		    !staged
-		         .emplace(id, PropertyEffects{static_cast<std::uint64_t>(checked_integer(
-		                                          owner.at("next_id"), 1, 9007199254740991LL, "modifier.next_id")),
-		                                      {}})
-		         .second)
-			throw std::runtime_error("Invalid modifier owner");
-	}
-	std::size_t expected = 0;
-	property_owners.each(
-	    [&](const StableId &, const PropertyEffectOwner &)
+	property_applications.restore(
+	    ecs, saved, entities.size(),
+	    [this](EntityId id)
 	    {
-		    ++expected;
-	    });
-	if (staged.size() != expected || saved.at("modifiers").size() > expected * modifier_contribution_limit)
-		throw std::runtime_error("Incomplete modifier owner roster");
-	std::set<std::pair<EntityId, std::uint64_t>> identities;
-	for (const auto &row : saved.at("modifiers"))
-	{
-		const auto owner = checked_integer(row.at("owner"), 1, 9007199254740991LL, "modifier.owner");
-		const auto id = checked_integer(row.at("id"), 1, 9007199254740991LL, "modifier.id");
-		if (row.size() != 8 || !staged.contains(owner) || !identities.emplace(owner, id).second ||
-		    !row.at("values").is_array() || row.at("values").empty() || row.at("values").size() > 64)
-			throw std::runtime_error("Invalid modifier application");
-		auto &properties = staged.at(owner);
-		ModifierApplication application;
-		application.id = checked_integer(row.at("id"), 1, properties.next_id - 1, "modifier.id");
-		application.source = row.at("source").get<std::string>();
-		application.definition = row.at("definition").get<std::string>();
-		application.equipment = row.at("equipment").get<std::string>();
-		validate_effect_identity(application.source, application.equipment, false);
-		application.expiry = checked_integer(row.at("expiry"), -1, 9007199254740991LL, "modifier.expiry");
-		if (!row.at("maintained").is_boolean())
-			throw std::runtime_error("Invalid modifier lifetime owner");
-		application.modifier.maintained = row.at("maintained").get<bool>();
-		const auto &definition = modifier_templates.at(application.definition);
-		if ((definition.duration_ticks == 0) != (application.expiry == -1))
-			throw std::runtime_error("Invalid saved modifier expiry");
-		std::set<std::string> names;
-		for (const auto &value : row.at("values"))
-		{
-			if (value.size() != 2)
-				throw std::runtime_error("Invalid modifier named value");
-			const auto name = value.at("name").get<std::string>();
-			const auto entry = std::find_if(definition.contributions.begin(), definition.contributions.end(),
-			                                [&](const auto &d)
-			                                {
-				                                return d.name == name;
-			                                });
-			if (entry == definition.contributions.end() || !names.insert(name).second)
-				throw std::runtime_error("Invalid saved modifier contribution");
-			const auto delta = checked_integer(value.at("delta_permille"), -100000, 100000, "modifier.delta_permille");
-			if (property_catalogue->contains(entry->property))
-				application.modifier.values.push_back(
-				    {name, PropertyKey::count, delta, entry->property, entry->value, entry->priority});
-			else
-				application.modifier.values.push_back({name, property_key(entry->property), delta});
-		}
-		if (!modifier_target_compatible(entities.at(owner), application.equipment, application.modifier.values))
-			throw std::runtime_error("Incompatible saved modifier target/subset");
-		properties.applications.push_back(std::move(application));
-	}
-	for (const auto &[owner, properties] : staged)
-	{
-		std::size_t independent = 0, maintained = 0;
-		std::set<std::pair<std::string, std::string>> grants;
-		for (const auto &application : properties.applications)
-		{
-			if (!grants.emplace(application.source, application.equipment).second)
-				throw std::runtime_error("Duplicate modifier application");
-			(application.modifier.maintained ? maintained : independent) += application.modifier.values.size();
-		}
-		if (independent > independent_modifier_contribution_limit ||
-		    maintained > maintained_modifier_contribution_limit)
-			throw std::runtime_error("Modifier application capacity exceeded");
-		commit_property_effects(entities.at(owner), properties);
-	}
+		    const auto owner = entities.find(id);
+		    return owner == entities.end() ? flecs::entity{} : owner->second;
+	    },
+	    modifier_templates, *property_catalogue,
+	    [this](flecs::entity owner, const std::string &equipment, std::span<const PropertyValue> values)
+	    {
+		    return modifier_target_compatible(owner, equipment, values);
+	    },
+	    property_mutation_observer());
 }

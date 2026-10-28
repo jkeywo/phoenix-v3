@@ -1,88 +1,56 @@
 // Domain operation driven by an authored state tree. Flight, firing, docking and
 // departure retain their ordinary Controller and physical execution paths.
-std::vector<InterdictionDefinition> interdiction_definitions;
-std::vector<InterdictionState> interdictions;
+InterdictionBook interdiction_book;
 bool interdiction_docking_permission(EntityId ship, EntityId target) const
 {
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
-		if (interdiction_definitions[i].target == target && interdictions[i].boarder == ship &&
-		    !interdictions[i].captured && !interdictions[i].finished &&
-		    (interdictions[i].posture == "truce" || interdictions[i].posture == "hostile") && !interdictions[i].blocked)
-			return true;
-	return false;
+	return interdiction_book.docking_permission(ship, target);
 }
 void restore_interdiction_ships(const Json &rows, const Json &bodies)
 {
-	if (!rows.is_array() || rows.size() != interdiction_definitions.size())
-		throw std::runtime_error("Interdiction roster mismatch");
-	for (std::size_t i = 0; i < rows.size(); ++i)
+	std::map<std::string, std::string> fittings;
+	std::set<EntityId> existing;
+	for (const auto &[id, entity] : entities)
+		existing.insert(id);
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 	{
-		const auto &d = interdiction_definitions[i];
-		const auto fit = entities.at(slot_entities.at(d.slot)).get<Definition>().name;
-		const auto &ships = d.variants.at(d.variants.contains(fit) ? fit : "default");
-		const auto &ids = rows[i].at("ships");
-		if (!ids.empty() && ids.size() != ships.size())
-			throw std::runtime_error("Invalid interdiction fleet size");
-		for (std::size_t n = 0; n < ids.size(); ++n)
-		{
-			const auto id = ids[n].get<EntityId>();
-			const auto body = std::find_if(bodies.begin(), bodies.end(),
-			                               [&](const auto &b)
-			                               {
-				                               return b.at("body").at("id") == id;
-			                               });
-			if (!id || entities.contains(id) || body == bodies.end() ||
-			    body->at("body").at("definition") != ships[n].definition)
-				throw std::runtime_error("Invalid interdiction ship identity");
-			create(id, ships[n].definition, {{"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}});
-		}
+		const auto &d = interdiction_book.definition(i);
+		fittings.emplace(d.slot, entities.at(slot_entities.at(d.slot)).get<Definition>().name);
 	}
+	for (const auto &ship : interdiction_book.restore_ships(rows, bodies, fittings, existing))
+		create(ship.id, ship.definition, {{"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}});
 }
 void record_interdiction_attack(EntityId source, EntityId target)
 {
 	if (entities.contains(source) && entities.at(source).has<CraftState>())
 		source = entities.at(source).get<CraftState>().home;
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 	{
-		auto &s = interdictions[i];
-		const auto player = slot_entities.at(interdiction_definitions[i].slot);
-		if (operational_owner(source) == operational_owner(player) &&
-		    std::find(s.ships.begin(), s.ships.end(), target) != s.ships.end())
-			s.attacked = true;
+		const auto player = slot_entities.at(interdiction_book.definition(i).slot);
+		interdiction_book.record_attack(i, operational_owner(source), operational_owner(player), target);
 	}
 }
 void record_interdiction_insertion(EntityId ship, EntityId target)
 {
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
-		if (interdictions[i].posture == "truce" && interdiction_definitions[i].target == target &&
-		    ship == slot_entities.at(interdiction_definitions[i].slot))
-			interdictions[i].reinforced = true;
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
+		interdiction_book.record_insertion(i, ship, slot_entities.at(interdiction_book.definition(i).slot), target);
 }
 // Encounter goals own the relevant AI Controllers, not human Console slots.
 // Machinery, repairs and defensive fire retain their ordinary policies.
 bool encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const
 {
 	bool owned = false;
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 	{
-		const auto &operation = interdictions[i];
-		owned |= std::find(operation.ships.begin(), operation.ships.end(), ship) != operation.ships.end();
-		if (ship == interdiction_definitions[i].target && operation.captured && captured_by.contains(ship))
-			owned |= std::find(operation.ships.begin(), operation.ships.end(), operational_owner(ship)) !=
-			         operation.ships.end();
+		owned |= interdiction_book.participant(i, ship);
+		if (ship == interdiction_book.definition(i).target && interdiction_book.state(i).captured &&
+		    captured_by.contains(ship))
+			owned |= interdiction_book.participant(i, operational_owner(ship));
 	}
-	if (!owned)
-		return false;
-	return std::any_of(controller.commands.begin(), controller.commands.end(),
-	                   [](const auto &command)
-	                   {
-		                   return command.action == OperatingAction::Speed ||
-		                          command.action == OperatingAction::Heading ||
-		                          command.action == OperatingAction::Destination ||
-		                          command.action == OperatingAction::FollowContact ||
-		                          command.action == OperatingAction::MatchSpeed ||
-		                          command.action == OperatingAction::WeaponTarget;
-	                   });
+	return owned && std::any_of(controller.commands.begin(), controller.commands.end(),
+	                            [](const auto &command)
+	                            {
+		                            return encounter_manages_action(command.action);
+	                            });
 }
 void release_encounter_navigation(EntityId ship)
 {
@@ -145,15 +113,10 @@ void encounter_move(EntityId ship, fixed::Vec destination, std::int64_t stop_rad
 {
 	if (entities.at(ship).has<DockConnection>())
 		return;
-	const auto delta = destination - entities.at(ship).get<Pose>().position;
-	const auto distance = fixed::length(delta);
-	const auto heading = distance > stop_radius ? combat_bearing(delta) : entities.at(ship).get<Pose>().heading;
-	const auto difference = std::abs((heading - entities.at(ship).get<Pose>().heading + 540000) % 360000 - 180000);
-	encounter_command(ship, OperatingAction::Heading, heading);
-	encounter_command(ship, OperatingAction::Speed,
-	                  difference < 5000 && distance > stop_radius
-	                      ? std::min<std::int64_t>(cruise_speed, (distance - stop_radius) / 8)
-	                      : 0);
+	const auto demand =
+	    encounter_motion_demand(entities.at(ship).get<Pose>(), {destination, stop_radius, cruise_speed});
+	encounter_command(ship, OperatingAction::Heading, demand.heading);
+	encounter_command(ship, OperatingAction::Speed, demand.speed);
 }
 bool encounter_dock_order(EntityId ship, const std::string &action, EntityId target = 0)
 {
@@ -229,170 +192,117 @@ void restore_repairable_ship(EntityId target)
 		for (std::size_t i = 0; i < faults.size(); ++i)
 			finish_fault_repair(s, system, i);
 }
-void reset_interdiction_attempt(InterdictionState &s)
-{
-	s.progress = 0;
-	if (s.conversation && conversations.conversations.contains(s.conversation))
-		for (auto &message : conversations.conversations.at(s.conversation).messages)
-			if (std::find(s.plea_messages.begin(), s.plea_messages.end(), message.id) != s.plea_messages.end())
-				for (const auto &recipient : message.recipients)
-					if (!message.delivered.contains(recipient))
-						message.expired.insert(recipient);
-	s.plea_messages.clear();
-}
-bool open_interdiction_conversation(InterdictionState &s, const InterdictionDefinition &d, EntityId player)
-{
-	if (!s.conversation && s.boarder)
-	{
-		const auto pirate = "ship:" + std::to_string(s.boarder);
-		const auto engineer =
-		    "ship:" + std::to_string(d.target) + (d.target_character.empty() ? "" : "/" + d.target_character);
-		const auto self = "ship:" + std::to_string(player);
-		s.conversation = conversations.open(d.dialogue, {{"pirate", pirate}, {"engineer", engineer}, {"ship", self}},
-		                                    {pirate, engineer, self});
-	}
-	return s.conversation != 0;
-}
+
 void advance_interdictions()
 {
-	using state_tree::Value;
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	struct Native final : InterdictionNative
 	{
-		auto &s = interdictions[i];
-		const auto &d = interdiction_definitions[i];
-		if (s.finished)
-			continue;
-		const auto player = slot_entities.at(d.slot);
-		std::vector<EntityId> live;
-		for (auto id : s.ships)
-			if (!truly_destroyed(id) && !departed(id))
-				live.push_back(id);
-		if (live.empty() && s.boarder)
+		Impl &world;
+		explicit Native(Impl &owner) : world(owner)
 		{
-			s.boarder = 0;
-			if (!s.captured)
-				reset_interdiction_attempt(s);
 		}
-		if (!live.empty() && std::find(live.begin(), live.end(), s.boarder) == live.end())
+		InterdictionTickFacts observe(const InterdictionDefinition &d, const InterdictionState &s) const override
 		{
-			s.boarder = live.front();
-			reset_interdiction_attempt(s);
+			InterdictionTickFacts facts;
+			facts.player = world.slot_entities.at(d.slot);
+			facts.player_definition = world.entities.at(facts.player).get<Definition>().name;
+			for (auto id : s.ships)
+				if (!world.truly_destroyed(id) && !world.departed(id))
+					facts.live_ships.push_back(id);
+			facts.target_lost = world.truly_destroyed(d.target) || world.departed(d.target);
+			facts.claimed = world.captured_by.contains(d.target) &&
+			                world.operational_owner(d.target) == world.operational_owner(facts.player);
+			facts.player_active = !world.truly_destroyed(facts.player) && !world.departed(facts.player);
+			facts.player_position = world.entities.at(facts.player).get<Pose>().position;
+			facts.target_position = world.entities.at(d.target).get<Pose>().position;
+			if (s.boarder)
+			{
+				facts.boarder_alive = !world.truly_destroyed(s.boarder);
+				facts.boarder_position = world.entities.at(s.boarder).get<Pose>().position;
+				facts.boarder_docked = world.entities.at(s.boarder).has<DockConnection>();
+				if (facts.boarder_alive)
+					facts.dock_ready = world.dock_ready(s.boarder, d.target);
+			}
+			facts.start =
+			    d.start_event.empty() || (world.scenario && !world.scenario->runtime().events(d.start_event).empty());
+			if (s.conversation && world.conversations.conversations.contains(s.conversation))
+				facts.answer = world.conversations.conversations.at(s.conversation).prompt.answer;
+			return facts;
 		}
-		const bool lost = truly_destroyed(d.target) || departed(d.target);
-		const bool claimed = captured_by.contains(d.target) && operational_owner(d.target) == operational_owner(player);
-		std::string answer;
-		if (s.conversation && conversations.conversations.contains(s.conversation))
-			answer = conversations.conversations.at(s.conversation).prompt.answer;
-		const bool player_active = !truly_destroyed(player) && !departed(player);
-		const bool close_threat =
-		    s.boarder && player_active && s.posture == "hostile" &&
-		    fixed::length(entities.at(player).get<Pose>().position - entities.at(s.boarder).get<Pose>().position) <=
-		        (live.size() == 1 ? d.engagement
-		         : s.blocked      ? d.clearance
-		                          : d.threat);
-		const bool ready = !lost && !claimed && !close_threat && s.boarder && !truly_destroyed(s.boarder) &&
-		                   dock_ready(s.boarder, d.target) && s.progress + 1 >= d.takeover_ticks;
-		const bool start = d.start_event.empty() || (scenario && !scenario->runtime().events(d.start_event).empty());
-		std::vector<Value> observations{Value::boolean(start),
-		                                Value::boolean(s.attacked),
-		                                Value::boolean(s.reinforced),
-		                                Value::boolean(s.captured),
-		                                Value::boolean(lost),
-		                                Value::boolean(claimed),
-		                                Value::boolean(ready),
-		                                Value::string(answer),
-		                                Value::integer(player_active && !lost
-		                                                   ? fixed::length(entities.at(player).get<Pose>().position -
-		                                                                   entities.at(d.target).get<Pose>().position)
-		                                                   : std::numeric_limits<std::int64_t>::max())};
-		const auto outputs = state_tree::step(d.program, s.continuation, observations);
-		for (const auto &o : outputs.outputs)
+		EntityId spawn_ship(const InterdictionShip &spawn) override
 		{
-			if (!admit_effect(s.effects, o))
-				continue;
-			const auto name = d.program.registry.actions.at(o.action).name;
-			const auto value = o.arguments.at(0).text;
-			if (name == "spawn" && s.ships.empty())
+			const auto id = world.next_entity++;
+			world.create(id, spawn.definition, {{"x_mm", spawn.x}, {"y_mm", spawn.y}, {"heading_mdeg", spawn.heading}});
+			return id;
+		}
+		std::uint64_t open_dialogue(const InterdictionDialogue &request) override
+		{
+			return world.conversations.open(request.program, request.roles, request.participants);
+		}
+		std::optional<std::uint64_t> report_dialogue(std::uint64_t conversation, const std::string &line) override
+		{
+			if (!world.conversations.report(conversation, line))
+				return {};
+			return world.conversations.conversations.at(conversation).messages.back().id;
+		}
+		void offer_dialogue(std::uint64_t conversation, const std::string &line) override
+		{
+			world.conversations.offer(conversation, line);
+		}
+		void clear_prompt(std::uint64_t conversation) override
+		{
+			world.conversations.conversations.at(conversation).prompt = {};
+		}
+		void expire_pleas(std::uint64_t conversation, std::span<const std::uint64_t> receipts) override
+		{
+			if (conversation && world.conversations.conversations.contains(conversation))
+				for (auto &message : world.conversations.conversations.at(conversation).messages)
+					if (std::find(receipts.begin(), receipts.end(), message.id) != receipts.end())
+						for (const auto &recipient : message.recipients)
+							if (!message.delivered.contains(recipient))
+								message.expired.insert(recipient);
+		}
+		bool take_over(const InterdictionDefinition &d, EntityId boarder) override
+		{
+			if (!world.dock_ready(boarder, d.target))
+				return false;
+			if (d.repair_on_takeover)
+				world.restore_repairable_ship(d.target);
+			world.set_operational_owner(d.target, boarder);
+			world.apply_occupation(d.target, d.occupation_teams, d.kill_original_crew);
+			if (d.capture_visiting_personnel)
+				world.capture_visitors(d.target, boarder);
+			return true;
+		}
+		void publish(const InterdictionReceipt &receipt) override
+		{
+			switch (receipt.kind)
 			{
-				const auto fit = entities.at(player).get<Definition>().name;
-				const auto &ships = d.variants.at(d.variants.contains(fit) ? fit : "default");
-				for (const auto &spawn : ships)
-				{
-					const auto id = next_entity++;
-					create(id, spawn.definition,
-					       {{"x_mm", spawn.x}, {"y_mm", spawn.y}, {"heading_mdeg", spawn.heading}});
-					s.ships.push_back(id);
-				}
-				s.boarder = s.ships.front();
-			}
-			else if (name == "posture")
-			{
-				s.posture = value;
-				if (value != "watch" && s.conversation)
-					conversations.conversations.at(s.conversation).prompt = {};
-			}
-			else if (name == "say" && open_interdiction_conversation(s, d, player))
-				conversations.report(s.conversation, value);
-			else if (name == "offer" && open_interdiction_conversation(s, d, player))
-				conversations.offer(s.conversation, value);
-			else if (name == "log" && s.effects.insert("log/" + value).second)
-				mission_transition("mission.log", player, d.target, d.id, value);
-			else if (name == "emit" && scenario)
-				scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0}, value,
-				                         {{"ship", static_cast<std::int64_t>(player)}});
-			else if (name == "finish")
-			{
-				s.finished = true;
-				reset_interdiction_attempt(s);
-			}
-			else if (name == "takeover" && !s.captured && !lost && ready && s.boarder &&
-			         dock_ready(s.boarder, d.target))
-			{
-				if (d.repair_on_takeover)
-					restore_repairable_ship(d.target);
-				set_operational_owner(d.target, s.boarder);
-				apply_occupation(d.target, d.occupation_teams, d.kill_original_crew);
-				if (d.capture_visiting_personnel)
-					capture_visitors(d.target, s.boarder);
-				s.captured = true;
-				s.progress = d.takeover_ticks;
-				mission_transition("ship.taken", player, d.target, d.id, "taken_by_pirates");
+			case InterdictionReceiptKind::Log:
+				world.mission_transition("mission.log", receipt.player, receipt.target, receipt.encounter,
+				                         receipt.text);
+				break;
+			case InterdictionReceiptKind::Taken:
+				world.mission_transition("ship.taken", receipt.player, receipt.target, receipt.encounter, receipt.text);
+				break;
+			case InterdictionReceiptKind::Emit:
+				if (world.scenario)
+					world.scenario->runtime().emit(
+					    {world.conversation_instance, ++world.conversation_event_sequence, 0}, receipt.text,
+					    {{"ship", static_cast<std::int64_t>(receipt.player)}});
+				break;
 			}
 		}
-		if (s.posture == "hostile" || s.posture == "truce")
+		void dock(EntityId ship, InterdictionDockOrder order, EntityId target) override
 		{
-			if (!s.boarder || lost || claimed || truly_destroyed(s.boarder))
-				continue;
-			const auto separation =
-			    fixed::length(entities.at(player).get<Pose>().position - entities.at(s.boarder).get<Pose>().position);
-			const bool threat = player_active && s.posture == "hostile" &&
-			                    separation <= (live.size() == 1 ? d.engagement
-			                                   : s.blocked      ? d.clearance
-			                                                    : d.threat);
-			s.blocked = threat;
-			if (threat || s.captured)
-			{
-				if (entities.at(s.boarder).has<DockConnection>())
-					encounter_dock_order(s.boarder, "dock.undock");
-				if (!s.captured)
-					reset_interdiction_attempt(s);
-			}
-			else if (dock_ready(s.boarder, d.target))
-			{
-				s.progress = std::min(d.takeover_ticks, s.progress + 1);
-				for (const auto &[tick, line] : d.pleas)
-					if (s.progress == tick && open_interdiction_conversation(s, d, player) &&
-					    conversations.report(s.conversation, line))
-						s.plea_messages.push_back(conversations.conversations.at(s.conversation).messages.back().id);
-			}
+			if (order == InterdictionDockOrder::Undock)
+				world.encounter_dock_order(ship, "dock.undock");
 			else
-			{
-				reset_interdiction_attempt(s);
-				if (!entities.at(s.boarder).has<DockConnection>())
-					encounter_dock_order(s.boarder, "dock.assist", d.target);
-			}
+				world.encounter_dock_order(ship, "dock.assist", target);
 		}
-	}
+	};
+	Native native(*this);
+	interdiction_book.advance(native);
 }
 void charge_encounter_drive(EntityId ship)
 {
@@ -441,28 +351,31 @@ void prepare_encounter_departure(EntityId leader, const std::set<EntityId> &grou
 void apply_interdiction_orders()
 {
 	prune_departure_groups();
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 	{
-		auto &s = interdictions[i];
-		const auto &d = interdiction_definitions[i];
+		const auto &s = interdiction_book.state(i);
+		const auto &d = interdiction_book.definition(i);
 		const auto player = slot_entities.at(d.slot);
-		const auto target_position = entities.at(d.target).get<Pose>().position;
-		if (s.captured && captured_by.contains(d.target) &&
-		    std::find(s.ships.begin(), s.ships.end(), operational_owner(d.target)) != s.ships.end() &&
-		    !truly_destroyed(d.target) && !departed(d.target))
+		InterdictionOrderFacts facts;
+		facts.player = player;
+		facts.player_position = entities.at(player).get<Pose>().position;
+		facts.target_position = entities.at(d.target).get<Pose>().position;
+		facts.target_captured = captured_by.contains(d.target);
+		if (s.captured && facts.target_captured)
+			facts.target_owner = operational_owner(d.target);
+		facts.target_available = !truly_destroyed(d.target) && !departed(d.target);
+		for (auto id : s.ships)
+			if (!truly_destroyed(id) && !departed(id))
+				facts.live_ships.push_back(id);
+		if (const auto departure = interdiction_book.departure_order(i, facts))
 		{
-			release_encounter_navigation(d.target);
-			std::set<EntityId> group{d.target};
-			for (auto id : s.ships)
-				if (!truly_destroyed(id) && !departed(id))
-					group.insert(id);
-			const auto leader = s.boarder ? s.boarder : d.target;
-			if (group.contains(leader))
+			release_encounter_navigation(departure->prize);
+			if (departure->ready)
 			{
-				assign_departure_group(leader, group);
-				const auto away = target_position - entities.at(player).get<Pose>().position;
-				encounter_move(d.target, target_position + away, 10000);
-				prepare_encounter_departure(leader, group);
+				assign_departure_group(departure->leader, departure->group);
+				encounter_move(departure->prize, departure->movement.destination, departure->movement.stop_radius,
+				               departure->movement.cruise_speed);
+				prepare_encounter_departure(departure->leader, departure->group);
 			}
 		}
 		for (std::size_t n = 0; n < s.ships.size(); ++n)
@@ -475,26 +388,17 @@ void apply_interdiction_orders()
 				apply_docking_controller(entities.at(id));
 			if (s.finished && entities.at(id).has<DockConnection>())
 				encounter_dock_order(id, "dock.undock");
-			const auto delta = entities.at(player).get<Pose>().position - entities.at(id).get<Pose>().position;
-			const auto contact = encounter_contact(id, player);
-			const bool attack = contact && s.posture == "hostile" && fixed::length(delta) <= d.engagement &&
-			                    (id != s.boarder || s.blocked || s.captured);
-			encounter_command(id, OperatingAction::WeaponTarget, attack ? player : 0);
+			facts.player_position = entities.at(player).get<Pose>().position;
+			const InterdictionShipFacts ship{id, entities.at(id).get<Pose>().position, encounter_contact(id, player)};
+			const auto order = interdiction_book.ship_order(i, facts, ship);
+			encounter_command(id, OperatingAction::WeaponTarget, order.weapon_target);
 			encounter_command(id, OperatingAction::GeneratorOutput, std::numeric_limits<std::int64_t>::max());
-			if (id == s.boarder && entities.at(id).has<DockConnection>())
+			if (order.hold_if_docked && entities.at(id).has<DockConnection>())
 				continue;
-			if (attack)
-				encounter_move(id, *contact, d.combat_standoff, d.cruise_speed);
-			else
-			{
-				const auto fit = entities.at(player).get<Definition>().name;
-				const auto &variant = d.variants.at(d.variants.contains(fit) ? fit : "default");
-				const auto offset = fixed::direction(variant[n].formation_bearing);
-				encounter_move(id,
-				               target_position + fixed::Vec{offset.x * d.formation / fixed::unit,
-				                                            offset.y * d.formation / fixed::unit},
-				               40000);
-			}
+			if (!order.attack)
+				facts.player_definition = entities.at(player).get<Definition>().name;
+			const auto movement = interdiction_book.ship_movement(i, n, facts, ship, order);
+			encounter_move(id, movement.destination, movement.stop_radius, movement.cruise_speed);
 		}
 	}
 	for (const auto &[leader, group] : departures.groups())
@@ -508,93 +412,44 @@ void apply_interdiction_orders()
 }
 Json save_interdictions() const
 {
-	Json rows = Json::array();
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
-	{
-		const auto &s = interdictions[i];
-		rows.push_back({{"id", interdiction_definitions[i].id},
-		                {"ships", s.ships},
-		                {"boarder", s.boarder},
-		                {"posture", s.posture},
-		                {"conversation", s.conversation},
-		                {"progress", s.progress},
-		                {"attacked", s.attacked},
-		                {"reinforced", s.reinforced},
-		                {"captured", s.captured},
-		                {"blocked", s.blocked},
-		                {"finished", s.finished},
-		                {"effects", s.effects},
-		                {"plea_messages", s.plea_messages},
-		                {"continuation", state_tree::save(interdiction_definitions[i].program, s.continuation)}});
-	}
-	return rows;
+	return interdiction_book.save();
 }
 void restore_interdictions(const Json &rows, const Catalog &content)
 {
-	if (!rows.is_array() || rows.size() != interdictions.size())
+	if (!rows.is_array() || rows.size() != interdiction_book.size())
 		throw std::runtime_error("Invalid interdiction continuation");
+	InterdictionRestoreFacts facts;
+	for (const auto &[id, entity] : entities)
+		facts.entities.insert(id);
+	for (const auto &[id, owner] : captured_by)
+		facts.captured_targets.insert(id);
+	for (const auto &[id, conversation] : conversations.conversations)
+	{
+		auto &receipt = facts.conversations[id];
+		receipt.program = conversation.program;
+		for (const auto &message : conversation.messages)
+			receipt.messages.insert(message.id);
+	}
 	for (std::size_t i = 0; i < rows.size(); ++i)
 	{
-		const auto &j = rows[i];
-		auto &s = interdictions[i];
-		const auto &d = interdiction_definitions[i];
-		if (j.at("id") != d.id)
-			throw std::runtime_error("Interdiction identity mismatch");
-		s.ships = j.at("ships").get<std::vector<EntityId>>();
-		s.boarder = j.at("boarder");
-		s.posture = j.at("posture");
-		s.conversation = j.at("conversation");
-		s.progress = j.at("progress");
-		s.attacked = j.at("attacked");
-		s.reinforced = j.at("reinforced");
-		s.captured = j.at("captured");
-		s.blocked = j.at("blocked");
-		s.finished = j.at("finished");
-		s.effects = j.at("effects").get<std::set<std::string>>();
-		s.plea_messages = j.value("plea_messages", std::vector<std::uint64_t>{});
-		if (s.ships.size() > 8 || s.progress < 0 || s.progress > d.takeover_ticks ||
-		    s.effects.size() > effect_receipt_limit ||
-		    (s.posture != "watch" && s.posture != "hostile" && s.posture != "truce") ||
-		    (s.boarder && std::find(s.ships.begin(), s.ships.end(), s.boarder) == s.ships.end()) ||
-		    (s.ships.empty() && (s.boarder || s.conversation || s.progress || s.captured)) ||
-		    s.plea_messages.size() > d.pleas.size() ||
-		    (s.conversation && !conversations.conversations.contains(s.conversation)))
-			throw std::runtime_error("Invalid interdiction state");
-		if ((s.captured && !captured_by.contains(d.target)) ||
-		    (s.conversation && conversations.conversations.at(s.conversation).program != d.dialogue))
-			throw std::runtime_error("Interdiction ownership or conversation receipt mismatch");
-		for (const auto id : s.ships)
-			if (!entities.contains(id))
-				throw std::runtime_error("Unknown interdiction ship");
-		for (const auto message : s.plea_messages)
-			if (!s.conversation || std::none_of(conversations.conversations.at(s.conversation).messages.begin(),
-			                                    conversations.conversations.at(s.conversation).messages.end(),
-			                                    [&](const auto &m)
-			                                    {
-				                                    return m.id == message;
-			                                    }))
-				throw std::runtime_error("Unknown takeover plea receipt");
-		auto continuation = j.at("continuation");
-		if (continuation.at("program") != d.program.signature)
+		const auto &d = interdiction_book.definition(i);
+		if (rows[i].at("continuation").at("program") != d.program.signature)
 		{
-			// The appended read-only distance field must not invalidate older embedded trees.
-			// Recompile the exact same source with its former registry; no state or timer is reset.
 			auto legacy_registry = interdiction_registry();
 			legacy_registry.observations.pop_back();
 			const auto legacy = state_tree::compile(content.trees.at(d.tree), legacy_registry, content.trees);
-			if (continuation.at("program") == legacy.signature)
-				continuation["program"] = d.program.signature;
+			facts.legacy_signatures.emplace(d.id, legacy.signature);
 		}
-		s.continuation = state_tree::load(d.program, continuation);
 	}
+	interdiction_book.restore(rows, facts);
 }
 void validate_interdiction_physics() const
 {
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
 	{
-		const auto &s = interdictions[i];
+		const auto &s = interdiction_book.state(i);
 		if (!s.captured && s.progress &&
-		    (!s.boarder || s.blocked || !dock_ready(s.boarder, interdiction_definitions[i].target)))
+		    (!s.boarder || s.blocked || !dock_ready(s.boarder, interdiction_book.definition(i).target)))
 			throw std::runtime_error("Takeover progress without eligible physical docking");
 	}
 }

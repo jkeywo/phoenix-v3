@@ -119,7 +119,7 @@ std::int64_t quote_native_flight_work(flecs::entity child, const SystemResourceG
 bool capture_process_native_work(const std::map<EntityId, std::optional<ShipResourceAllocation>> &allocations,
                                  bool stage)
 {
-	quote_basic_process_work();
+	flight_native->quote_basic_process_work(process_machinery);
 	bool changed = false;
 	for (auto &quote : process_machinery.rows())
 	{

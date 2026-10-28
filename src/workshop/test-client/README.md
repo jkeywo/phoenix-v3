@@ -6,9 +6,14 @@ is `test_client.cppm`; it prepares a verified draft/dependency bundle and queues
 request rather than executing simulation.
 
 Application composition delivers requests to the existing native test host or
-the browser adapter in `browser_workshop_test.cpp`. Browser callbacks retain
-their public names. The host remains a separate executable/authoritative target,
-and no authority enters the browser Workshop UI through this module.
+`phoenix.workshop.browser_test_client`, whose front door is
+`browser_test_client.cppm` (target `phoenix_workshop_browser_test_client`). The
+browser adapter owns worker transfer/feedback in `browser_workshop_test.cpp`
+and imports the tools request API; tools no longer owns that implementation.
+The adapter sits above application composition, while the lower generic test
+client retains its document/UI responsibility. Browser callbacks keep their
+public names. The host remains a separate authoritative executable; the browser
+adapter does not link World or local simulation.
 
 Existing Workshop-host, content and network transfer system cases remain the
 behavioural checks. A browser Test start/pause/step/restart journey is manual smoke.

@@ -332,14 +332,6 @@ void retire_rule_state(RuleExecutionState &state, bool deactivate)
 	state.lease_permille = 0;
 	state.credits.clear();
 }
-struct FrozenRuleSourceFrame
-{
-	std::string key;
-	RuleEvaluation evaluation;
-	bool native_eligible = false;
-	bool active_owner = false;
-	bool new_clock = false;
-};
 void discover_active_rule_clocks()
 {
 	rebuild_rule_clock_addresses();
@@ -367,31 +359,17 @@ void discover_active_rule_clocks()
 void retire_active_rule_effects()
 {
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	std::vector<std::uint64_t> expired;
-	for (auto effect_entity : active_rule_rows())
+	ActiveRuleRetirementObserver retirement;
+	retirement.withdraw = [this](RuleExecutionState &state)
 	{
-		const auto &effect = effect_entity.get<ActiveRuleEffect>();
-		if (effect.expiry <= now || !active_rule_target_available(effect))
-			expired.push_back(effect.id);
-	}
-	for (const auto id : expired)
+		retire_rule_state(state, true);
+	};
+	retirement.transaction_changed = [this]
 	{
-		const auto entity = active_rule_entity(id);
-		if (!entity)
-			continue;
-		const auto &owner = entity.get<ActiveRuleEffect>();
-		std::vector<RuleExecutionState> clocks;
-		for (const auto &[key, state] : owner.clocks)
-			clocks.push_back(state);
-		for (auto &state : clocks)
-		{
-			retire_rule_state(state, true);
-			rule_clocks.forget(state.key);
-		}
-		if (entity.is_alive())
-			erase_active_rule_effect(entity);
 		effect_transactions.invalidate();
-	}
+	};
+	active_rules.retire_expired(now, active_rule_target_validity(), rule_clocks, active_rule_mutation_observer(),
+	                            retirement);
 	std::erase_if(rule_origins,
 	              [&](const auto &entry)
 	              {
@@ -409,36 +387,15 @@ void prepare_rule_sources()
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	const auto sources = lifecycle_rule_sources();
 	prune_custom_property_rates(sources);
-	std::set<std::string> seen;
-	std::vector<FrozenRuleSourceFrame> frames;
-	for (const auto &source : sources)
-		if (source.bindings)
-			for (const auto &binding : *source.bindings)
-			{
-				const auto &rule = rule_templates.at(binding.rule);
-				if (rule.trigger != RuleTrigger::Maintain && rule.trigger != RuleTrigger::Tick &&
-				    rule.trigger != RuleTrigger::Occupancy && rule.trigger != RuleTrigger::Activate &&
-				    rule.trigger != RuleTrigger::Deactivate)
-					continue;
-				auto context = bind_rule_context(binding, source.context);
-				const bool eligible = source.eligible && rule_binding_matches(binding, source.context);
-				const bool fresh = !find_rule_execution(rule_key(source.key, binding.id, context.subject));
-				auto *state = ensure_rule_execution(source, binding, context, eligible);
-				if (!state)
-					continue;
-				seen.insert(state->key);
-				context.tick = now;
-				context.elapsed = std::max<std::int64_t>(0, now - state->started);
-				const bool retarget = rule.phase == RulePhase::Maintained && state->active &&
-				                      !same_rule_application(rule, state->applied_context, context);
-				context.output =
-				    rule.funding ? (!retarget && state->lease_tick == now ? state->lease_permille : 0) : 1000;
-				state->context = context;
-				frames.push_back({state->key,
-				                  eligible ? evaluate_source_rule(rule, context)
-				                           : RuleEvaluation{RuleEvaluationStatus::Unmatched, {}},
-				                  eligible, source.active_effect != 0, fresh});
-			}
+	auto prepared_frames = rule_clocks.freeze_sources(
+	    sources, rule_templates, periodic_templates, rule_clock_storage(), rule_applications(),
+	    [this](const RuleBinding &binding, const NativeRuleContext &context)
+	    {
+		    return rule_binding_matches(binding, context);
+	    },
+	    now);
+	auto &seen = prepared_frames.seen;
+	auto &frames = prepared_frames.frames;
 	// Every source evaluation above observes the same pre-commit phase.
 	std::vector<std::string> retired;
 	for (const auto &[key, address] : rule_clocks.addresses())
@@ -601,7 +558,7 @@ void refresh_rule_eligibility()
 		rebuild_rule_clock_addresses();
 		const auto before_epoch = effect_transactions.epoch();
 		const auto before_clocks = rule_clocks.size();
-		const auto before_active = active_rule_index.size();
+		const auto before_active = active_rules.size();
 		retire_active_rule_effects();
 		std::map<std::string, bool> available;
 		const auto sources = lifecycle_rule_sources();
@@ -630,7 +587,7 @@ void refresh_rule_eligibility()
 		prune_custom_property_rates(sources);
 		rebuild_rule_clock_addresses();
 		if (before_epoch == effect_transactions.epoch() && before_clocks == rule_clocks.size() &&
-		    before_active == active_rule_index.size())
+		    before_active == active_rules.size())
 			return;
 	}
 	throw std::runtime_error("rules: native source retirement did not converge");

@@ -7,9 +7,9 @@ module;
 module phoenix.gameplay.psychic.interference;
 namespace phoenix
 {
-PsychicCoveragePort::~PsychicCoveragePort() = default;
+PsychicInterferencePort::~PsychicInterferencePort() = default;
 PsychicSource select_psychic_interference(EntityId receiver, std::span<const PsychicInterferenceSource> sources,
-                                          const PsychicCoveragePort &coverage)
+                                          const PsychicInterferencePort &port)
 {
 	std::int64_t strength = 0;
 	PsychicSource winner{};
@@ -19,10 +19,10 @@ PsychicSource select_psychic_interference(EntityId receiver, std::span<const Psy
 			const auto &s = *source.contribution;
 			if (s.work <= strength)
 				continue;
-			const bool ward = source.power->kind == "ward";
+			const bool ward = port.is_ward(source);
 			if (ward != wards ||
 			    (ward ? source.execution->target != receiver : source.ship == receiver || s.shapes.empty()) ||
-			    !coverage.covers(source, receiver))
+			    !port.covers(source, receiver))
 				continue;
 			strength = s.work;
 			if (!ward)

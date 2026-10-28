@@ -4,18 +4,11 @@ bool departure_member_authorised(EntityId leader, EntityId member) const
 {
 	if (operational_owner(leader) == operational_owner(member))
 		return true;
-	for (std::size_t i = 0; i < interdictions.size(); ++i)
-	{
-		const auto &operation = interdictions[i];
-		const auto target = interdiction_definitions[i].target;
-		const auto pirate = [&](EntityId id)
-		{
-			return std::find(operation.ships.begin(), operation.ships.end(), id) != operation.ships.end();
-		};
-		if (operation.captured && pirate(operational_owner(target)) && (leader == target || pirate(leader)) &&
-		    (member == target || pirate(member)))
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
+		if (interdiction_book.state(i).captured &&
+		    interdiction_book.departure_members_allowed(i, leader, member,
+		                                                operational_owner(interdiction_book.definition(i).target)))
 			return true;
-	}
 	return false;
 }
 // Older saves could retain the pirate-only remainder after the prize changed owner.
@@ -26,20 +19,11 @@ void discard_obsolete_encounter_departures()
 	for (const auto &[leader, group] : departures.groups())
 	{
 		bool obsolete = false;
-		for (std::size_t i = 0; i < interdictions.size(); ++i)
-		{
-			const auto &operation = interdictions[i];
-			const auto participant = [&](EntityId id)
-			{
-				return std::find(operation.ships.begin(), operation.ships.end(), id) != operation.ships.end();
-			};
-			if (operation.captured && !participant(operational_owner(interdiction_definitions[i].target)) &&
-			    participant(leader) && std::all_of(group.begin(), group.end(), participant))
-			{
+		for (std::size_t i = 0; i < interdiction_book.size(); ++i)
+			if (interdiction_book.state(i).captured &&
+			    interdiction_book.obsolete_departure(i, leader, group,
+			                                         operational_owner(interdiction_book.definition(i).target)))
 				obsolete = true;
-				break;
-			}
-		}
 		if (obsolete)
 			obsolete_groups.push_back(leader);
 	}

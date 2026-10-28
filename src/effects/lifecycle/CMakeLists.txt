@@ -15,4 +15,8 @@ target_link_libraries(
 
 add_library(phoenix_effects_clocks STATIC clocks.cpp)
 target_sources(phoenix_effects_clocks PUBLIC FILE_SET CXX_MODULES FILES clocks.cppm)
-target_link_libraries(phoenix_effects_clocks PUBLIC phoenix_effects_rule_state)
+target_link_libraries(phoenix_effects_clocks PUBLIC phoenix_effects_rule_state phoenix_effects_bindings)
+
+add_library(phoenix_effects_active_rules STATIC active.cpp)
+target_sources(phoenix_effects_active_rules PUBLIC FILE_SET CXX_MODULES FILES active.cppm)
+target_link_libraries(phoenix_effects_active_rules PUBLIC phoenix_effects_clocks PRIVATE flecs_static)

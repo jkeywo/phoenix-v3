@@ -1,5 +1,6 @@
 // World adapter. All mutable mission state is authoritative and saved.
-AwayOperations away_operations;
+AwayRuntime away_operations;
+#include "native_bridge.hpp"
 EntityId away_ship(const AwayDefinition &d) const
 {
 	return away_operations.origin(d, slot_entities);
@@ -229,123 +230,28 @@ bool away_slot_accepts(EntityId ship, const AwaySlot &s, const std::string &asse
 }
 std::size_t away_origin(EntityId ship, const std::string &transport) const
 {
-	const auto &d = definition(ship);
-	const auto physical = away_transport_entity(ship, transport);
-	if (physical == ship)
-	{
-		if (const auto *dock = entities.at(ship).try_get<DockConnection>())
-			return d.combat->compartment_ids.at(d.docking.at(dock->port).compartment);
-		if (!d.docking.empty())
-			return d.combat->compartment_ids.at(d.docking.front().compartment);
-	}
-	const auto &name = physical == ship ? d.transport.compartment
-	                   : physical       ? d.craft_bays.at(entities.at(physical).get<CraftState>().bay).compartment
-	                                    : d.displacements.at(transport).compartment;
-	return std::find(d.personnel.compartments.begin(), d.personnel.compartments.end(), name) -
-	       d.personnel.compartments.begin();
+	NativeAwayReadBinding binding(*this);
+	return away_operations.staging_location(ship, transport, binding.observation);
 }
 bool away_staged(EntityId ship, const AwayMission &m) const
 {
-	if (m.transport.empty())
-		return false;
-	const auto location = away_origin(ship, m.transport);
-	for (const auto &[slot, asset] : m.assignments)
-		if (asset.starts_with("team:"))
-		{
-			const auto &r = away_equipment(ship, asset.substr(5)).get<CombatMechanism>().get<TeamState>();
-			if (r.location != static_cast<std::int64_t>(location) || r.travel)
-				return false;
-		}
-		else
-		{
-			const auto &pd = definition(ship).personnel;
-			const auto &ps = entities.at(ship).get<PersonnelState>();
-			for (std::size_t i = 0; i < pd.officers.size(); ++i)
-				if (pd.officers[i].id == asset.substr(8) &&
-				    (!officer_healthy(ps.officers[i]) || ps.officers[i].location != location ||
-				     ps.officers[i].remaining))
-					return false;
-		}
-	for (const auto &key : m.accompanying)
-	{
-		const auto &pd = definition(ship).personnel;
-		const auto &ps = entities.at(ship).get<PersonnelState>();
-		for (std::size_t i = 0; i < pd.officers.size(); ++i)
-			if (pd.officers[i].id == key &&
-			    (!officer_healthy(ps.officers[i]) || !ps.officers[i].present || ps.officers[i].remaining))
-				return false;
-	}
-	return true;
+	NativeAwayReadBinding binding(*this);
+	return away_operations.staged(ship, m, binding.observation);
 }
 std::int64_t away_transfer_ticks(const AwayDefinition &d, const AwayMission &m) const
 {
-	const auto ship = away_ship(d);
-	const auto craft = away_transport_entity(ship, m.transport);
-	if (!craft)
-		return definition(ship).displacements.at(m.transport).ticks;
-	if (craft != ship)
-	{
-		const auto &bay = definition(ship).craft_bays.at(entities.at(craft).get<CraftState>().bay);
-		if (bay.legacy_transport)
-			return bay.transfer_ticks;
-	}
-	return d.deployment_ticks;
+	NativeAwayReadBinding binding(*this);
+	return away_operations.transfer_ticks(d, m, binding.observation);
 }
 void mark_away_deployed(const AwayDefinition &definition, AwayMission &m)
 {
-	m.care.clear();
-	m.entry_compartment = 0;
-	if (m.transport == "ship")
-	{
-		const auto ship = away_ship(definition);
-		if (const auto *dock = entities.at(ship).try_get<DockConnection>())
-			m.entry_compartment =
-			    this->definition(definition.target)
-			        .combat->compartment_ids.at(
-			            this->definition(definition.target).docking.at(dock->remote_port).compartment);
-	}
-	away_operations.mark_deployed(
-	    m, definition.boarding
-	           ? std::optional<std::int64_t>(definition.boarding->compartments.at(definition.boarding->entry))
-	           : std::nullopt);
+	NativeAwayReadBinding binding(*this);
+	away_operations.deploy(definition, m, binding.observation);
 }
 void finish_away_recovery(EntityId ship, AwayMission &m)
 {
-	for (const auto &[slot, asset] : m.assignments)
-		personnel_postings[ship].erase(asset);
-	for (const auto &officer : m.accompanying)
-		personnel_postings[ship].erase("officer:" + officer);
-	const auto location = away_origin(ship, m.transport);
-	for (const auto &[slot, asset] : m.assignments)
-		if (asset.starts_with("team:"))
-		{
-			auto &r = away_equipment(ship, asset.substr(5)).get_mut<CombatMechanism>().get<TeamState>();
-			r.location = location;
-			r.destination = r.edge_to = -1;
-			r.travel = r.edge_total = 0;
-			r.order.clear();
-			r.activity.clear();
-			r.patient.clear();
-			r.continuation = {};
-			r.repair_auto = station_stars(enabled_system_owner(ship, asset.substr(5))) < 3;
-			r.repair_system = -1;
-		}
-	auto &p = entities.at(ship).get_mut<PersonnelState>();
-	const auto &d = definition(ship).personnel;
-	for (std::size_t o = 0; o < d.officers.size(); ++o)
-		if (std::find(m.accompanying.begin(), m.accompanying.end(), d.officers[o].id) != m.accompanying.end() ||
-		    std::any_of(m.assignments.begin(), m.assignments.end(),
-		                [&](const auto &a)
-		                {
-			                return a.second == "officer:" + d.officers[o].id;
-		                }))
-		{
-			p.officers[o].location = location;
-			p.officers[o].remaining = 0;
-			p.officers[o].edge_to = -1;
-		}
-	++p.revision;
-	away_operations.finish_recovery(m);
+	NativeAwayBinding binding(*this);
+	away_operations.recover(ship, m, binding.execution);
 }
 std::string boarding_insertion_blocker(std::size_t index, const std::string &transport) const
 {
@@ -1032,466 +938,87 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	}
 	return false;
 }
+void prepare_away_tick_contributions(std::size_t i)
+{
+	auto &m = away_operations.missions()[i];
+	const auto &d = away_operations.definitions()[i];
+	const auto ship = away_ship(d);
+	if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
+		for (const auto &console : definition(ship).consoles)
+		{
+			const ConsoleAddress owner{ship, console.id};
+			if (!m.authorised_departments.contains(console.id))
+				for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+					if (controller.definition.console == console.id && !controller.human)
+					{
+						bool team_controller = false;
+						for (const auto &command : controller.definition.commands)
+							for (const auto consumer : command.consumers)
+								team_controller |=
+								    definition(ship).fitted->values.at(consumer).kind == OperatingSystem::Team;
+						if (console_operator(owner) && !team_controller)
+							continue;
+						OperatingCommand c{ship, "away.contribute", static_cast<std::int64_t>(m.revision), d.id};
+						c.controller = controller.definition.id;
+						c.generation = controller.generation;
+						c.text = "1";
+						if (away_command(owner, c, true, true))
+							break;
+					}
+			prepare_away_contribution(owner, i);
+		}
+	if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
+		for (const auto &slot : d.slots)
+			if (slot.assign_ai && slot.kind == "team" && !m.assignments.contains(slot.id) && m.outcome.empty())
+				for (const auto &duty : definition(ship).personnel.duties)
+				{
+					if (duty.team.empty())
+						continue;
+					const auto asset = "team:" + duty.team;
+					if (away_reserved(ship, asset) || !away_asset_healthy(ship, asset) ||
+					    !away_slot_accepts(ship, slot, asset))
+						continue;
+					const auto owner = enabled_system_owner(ship, duty.team);
+					for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+						if (controller.definition.console == owner.console && !controller.human &&
+						    !m.assignments.contains(slot.id))
+						{
+							OperatingCommand command{ship, "away.assign", static_cast<std::int64_t>(m.revision), d.id};
+							command.text = slot.id + "/" + asset;
+							command.controller = controller.definition.id;
+							command.generation = controller.generation;
+							away_command(owner, command, true, true);
+						}
+				}
+}
+bool prepare_away_assisted_send(std::size_t i)
+{
+	auto &m = away_operations.missions()[i];
+	const auto &d = away_operations.definitions()[i];
+	const auto ship = away_ship(d);
+	const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
+	if (station_stars(owner) == 1)
+		for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
+			if (controller.definition.console == owner.console)
+			{
+				OperatingCommand command{ship, "away.send", static_cast<std::int64_t>(m.revision), d.id};
+				command.controller = controller.definition.id;
+				command.generation = controller.generation;
+				if (away_command(owner, command, true, !controller.human, true))
+					return true;
+			}
+	return false;
+}
+
 void stage_away(EntityId ship, AwayMission &m)
 {
-	if (m.transport.empty() || m.absent())
-		return;
-	const auto target = away_origin(ship, m.transport);
-	const auto &pd = definition(ship).personnel;
-	for (const auto &[slot, asset] : m.assignments)
-	{
-		if (asset.starts_with("team:"))
-		{
-			const auto team = away_equipment(ship, asset.substr(5));
-			auto &r = team.get_mut<CombatMechanism>().get<TeamState>();
-			r.order.clear();
-			r.activity.clear();
-			r.patient.clear();
-			r.continuation = {};
-			r.repair_auto = false;
-			r.repair_system = -1;
-			r.destination = -1;
-			if (advance_repair_team(entities.at(ship), team) && r.location != static_cast<std::int64_t>(target))
-				route_repair_team(entities.at(ship), r, target);
-		}
-		else
-		{
-			auto &ps = entities.at(ship).get_mut<PersonnelState>();
-			for (std::size_t i = 0; i < pd.officers.size(); ++i)
-				if (pd.officers[i].id == asset.substr(8))
-				{
-					if (!officer_healthy(ps.officers[i]))
-						continue;
-					auto &o = ps.officers[i];
-					if (o.remaining == 0 && o.location != target)
-					{
-						auto route = physical_route(ship, pd.compartments.size(), pd.links, o.location, target);
-						o.edge_to = route.first;
-						o.remaining = route.second;
-					}
-				}
-		}
-	}
+	NativeAwayBinding binding(*this);
+	away_operations.stage(ship, m, binding.execution);
 }
 void advance_away()
 {
-	const auto tick = ecs.get<Clock>().tick;
-	auto active = away_operations.active_transfers(slot_entities);
-	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
-	{
-		auto &m = away_operations.missions()[i];
-		const auto &d = away_operations.definitions()[i];
-		const auto ship = away_ship(d);
-		if (!ship || (departed(ship) && !m.absent()) || m.phase == AwayPhase::Lost || m.phase == AwayPhase::Captured)
-			continue;
-		const auto cid = away_conversation(d);
-		for (auto at = m.escorts.begin(); at != m.escorts.end();)
-			if (entities.at(at->second).get<CraftState>().phase == CraftPhase::Lost)
-			{
-				auto &lost = entities.at(at->second).get_mut<CraftState>();
-				if (lost.mission == d.id)
-				{
-					lost.mission.clear();
-					lost.pending_order.clear();
-					lost.pending_target = 0;
-					++lost.revision;
-				}
-				m.flags.insert("escort_lost." + at->first);
-				at = m.escorts.erase(at);
-				++m.revision;
-			}
-			else
-				++at;
-		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
-			for (const auto &console : definition(ship).consoles)
-			{
-				const ConsoleAddress owner{ship, console.id};
-				if (!m.authorised_departments.contains(console.id))
-					for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
-						if (controller.definition.console == console.id && !controller.human)
-						{
-							bool team_controller = false;
-							for (const auto &command : controller.definition.commands)
-								for (const auto consumer : command.consumers)
-									team_controller |=
-									    definition(ship).fitted->values.at(consumer).kind == OperatingSystem::Team;
-							if (console_operator(owner) && !team_controller)
-								continue;
-							OperatingCommand c{ship, "away.contribute", static_cast<std::int64_t>(m.revision), d.id};
-							c.controller = controller.definition.id;
-							c.generation = controller.generation;
-							c.text = "1";
-							if (away_command(owner, c, true, true))
-								break;
-						}
-				prepare_away_contribution(owner, i);
-			}
-		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
-			for (const auto &slot : d.slots)
-				if (slot.assign_ai && slot.kind == "team" && !m.assignments.contains(slot.id) && m.outcome.empty())
-					for (const auto &duty : definition(ship).personnel.duties)
-					{
-						if (duty.team.empty())
-							continue;
-						const auto asset = "team:" + duty.team;
-						if (away_reserved(ship, asset) || !away_asset_healthy(ship, asset) ||
-						    !away_slot_accepts(ship, slot, asset))
-							continue;
-						const auto owner = enabled_system_owner(ship, duty.team);
-						for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
-							if (controller.definition.console == owner.console && !controller.human &&
-							    !m.assignments.contains(slot.id))
-							{
-								OperatingCommand command{ship, "away.assign", static_cast<std::int64_t>(m.revision),
-								                         d.id};
-								command.text = slot.id + "/" + asset;
-								command.controller = controller.definition.id;
-								command.generation = controller.generation;
-								away_command(owner, command, true, true);
-							}
-					}
-		if (m.phase == AwayPhase::Hidden)
-		{
-			if (d.boarding && boarding_visible(ship, d.target))
-			{
-				m.phase = AwayPhase::Available;
-				++m.revision;
-			}
-			// Ordinary missions retain their delivered-introduction disclosure.
-			if (cid && conversations.conversations.contains(cid))
-			{
-				const auto &c = conversations.conversations.at(cid);
-				const auto self = "ship:" + std::to_string(ship);
-				for (const auto &msg : c.messages)
-					if (msg.text == d.reveal_event && msg.delivered.contains(self))
-					{
-						m.phase = AwayPhase::Available;
-						++m.revision;
-						break;
-					}
-			}
-			if (m.phase == AwayPhase::Hidden)
-				continue;
-		}
-		if (d.supply)
-		{
-			if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
-				stage_away(ship, m);
-			advance_supply_mission(i);
-			continue;
-		}
-		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered || m.phase == AwayPhase::Outbound)
-			stage_away(ship, m);
-		// Activating an assisted docking mission authorises its first insertion. The normal
-		// send path still checks staging, capacity, capability and the physical dock.
-		if (m.phase == AwayPhase::Open && m.transport == "ship" && !d.supply && m.outcome.empty())
-		{
-			const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
-			if (station_stars(owner) == 1)
-				for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
-					if (controller.definition.console == owner.console)
-					{
-						OperatingCommand command{ship, "away.send", static_cast<std::int64_t>(m.revision), d.id};
-						command.controller = controller.definition.id;
-						command.generation = controller.generation;
-						if (away_command(owner, command, true, !controller.human, true))
-						{
-							active.try_emplace(std::pair{ship, m.transport}, i);
-							break;
-						}
-					}
-		}
-		const auto transport = away_transport_entity(ship, m.transport);
-		if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
-		    entities.at(transport).get<CraftState>().phase == CraftPhase::Docked &&
-		    entities.at(transport).get<CraftState>().order == "transport" &&
-		    std::all_of(m.escorts.begin(), m.escorts.end(),
-		                [&](const auto &s)
-		                {
-			                return entities.at(s.second).template get<CraftState>().phase == CraftPhase::Flying;
-		                }))
-		{
-			launch_craft(entities.at(transport));
-		}
-		if (transport && transport != ship && !m.transport_released &&
-		    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound || m.phase == AwayPhase::Deployed) &&
-		    entities.at(transport).get<CraftState>().phase == CraftPhase::Lost)
-		{
-			m.outcome = "fail:Transport lost";
-			m.phase = AwayPhase::Lost;
-			return_away_escorts(m);
-			++m.revision;
-		}
-		if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
-		    entities.at(transport).get<CraftState>().phase == CraftPhase::Flying)
-			record_interdiction_insertion(ship, d.target);
-		if (transport && transport != ship)
-			advance_craft_transport(i, transport);
-		else if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound) &&
-		         active.at({ship, m.transport}) == i && away_blocker(i).empty() &&
-		         (m.deployed() || away_staged(ship, m)))
-		{
-			if (m.phase == AwayPhase::Outbound)
-				record_interdiction_insertion(ship, d.target);
-			if (++m.transfer >= away_transfer_ticks(d, m))
-			{
-				if (m.phase == AwayPhase::Inbound)
-					finish_away_recovery(ship, m);
-				else
-					mark_away_deployed(d, m);
-			}
-		}
-		if (m.phase == AwayPhase::Deployed)
-		{
-			if (d.boarding)
-				advance_boarding(i);
-			else
-				advance_away_medical(i);
-		}
-		if (m.outcome.empty())
-		{
-			const bool work_ready = m.work_capability.empty() || away_has_capability(ship, m, m.work_capability);
-			if (m.deployed() && work_ready && m.work > 0 && m.timed_work)
-				m.progress = std::min(m.work, m.progress + 1000);
-			if (m.deployed() && work_ready && m.work > 0 && !m.timed_work)
-			{
-				std::vector<flecs::entity> teams;
-				std::int64_t officer_work = 0;
-				for (const auto &[slot, asset] : m.assignments)
-					if (asset.starts_with("team:"))
-					{
-						const auto team = away_equipment(ship, asset.substr(5));
-						if (team.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
-						        "repair"))
-							teams.push_back(team);
-					}
-					else
-						for (const auto &officer : definition(ship).personnel.officers)
-							if (asset == "officer:" + officer.id &&
-							    officer_healthy(entities.at(ship).get<PersonnelState>().officers.at(
-							        &officer - definition(ship).personnel.officers.data())))
-							{
-								officer_work +=
-								    effective_property(entities.at(ship), "away:" + d.id + ":officer:" + officer.id,
-								                       PropertyKey::repair, 1000);
-							}
-				const auto repair_at = m.repair_compartment.empty()
-				                           ? std::int64_t{-1}
-				                           : static_cast<std::int64_t>(d.repair_compartments.at(m.repair_compartment));
-				const auto effort = structural_repair_work(entities.at(ship), teams, d.target, repair_at,
-				                                           d.id + "/" + m.work_key, m.progress * rate, m.work * rate);
-				// Standalone officers can perform generic work, but structural repair needs a team.
-				const auto progress = teams.empty() ? officer_work : effort / rate;
-				m.progress = std::min(m.work, m.progress + progress);
-			}
-			const bool repaired =
-			    m.repair_compartment.empty() ||
-			    entities.at(d.target)
-			            .get<CombatStructure>()
-			            .compartments.at(d.repair_compartments.at(m.repair_compartment))
-			            .hp == entities.at(d.target)
-			                       .get<CombatStructure>()
-			                       .definition.compartments.at(d.repair_compartments.at(m.repair_compartment))
-			                       .maximum;
-			if (scenario && !scenario->runtime().definition().event_bindings.empty() && m.work > 0 &&
-			    m.progress >= m.work && repaired && work_ready)
-				mission_change("work/" + std::to_string(ship) + "/" + d.id + "/" + m.work_key, "completed",
-				               "away.work_completed", ship, d.target, d.id, m.work_key);
-			const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
-			using state_tree::Value;
-			std::vector<Value> obs{Value::boolean(m.deployed()),
-			                       Value::boolean(m.recovered),
-			                       Value::boolean(m.work > 0 && m.progress >= m.work && repaired && work_ready),
-			                       Value::integer(tick),
-			                       Value::integer(m.progress),
-			                       Value::string(answer),
-			                       Value::string(m.checkpoint)};
-			const bool present = !m.transport_released && transport && !combat_dead(entities.at(transport)) &&
-			                     (transport == ship ? away_dock_ready(ship, d)
-			                                        : distance_3d(transport, d.target) <= d.deployment_range) &&
-			                     (transport == ship || !craft_dormant(entities.at(transport)));
-			obs.push_back(Value::boolean(present));
-			obs.push_back(Value::boolean(transport && !combat_dead(entities.at(transport)) &&
-			                             (transport == ship || craft_available(transport, d.id))));
-			for (std::size_t field = obs.size(); field < d.program.registry.observations.size() - (d.boarding ? 4 : 0);
-			     ++field)
-			{
-				const auto &name = d.program.registry.observations[field].name;
-				if (name.starts_with("flags."))
-				{
-					obs.push_back(Value::boolean(m.flags.contains(name.substr(6))));
-					continue;
-				}
-				if (name.starts_with("events."))
-				{
-					obs.push_back(Value::boolean(scenario && scenario->runtime().has_event(name.substr(7), {})));
-					continue;
-				}
-				if (name.starts_with("team_capabilities."))
-				{
-					obs.push_back(Value::boolean(away_has_capability(ship, m, name.substr(18))));
-					continue;
-				}
-				const bool operational = name.starts_with("transport.operational.");
-				const auto tag = name.substr(operational ? 22 : 21);
-				bool has = false;
-				if (transport)
-				{
-					const auto &t = definition(transport).transport;
-					has = std::find(t.capabilities.begin(), t.capabilities.end(), tag) != t.capabilities.end();
-					if (operational)
-					{
-						has &= present;
-						if (t.capability_systems.contains(tag))
-							for (const auto &system : t.capability_systems.at(tag))
-								has &= away_equipment(transport, system).get<Equipment>().enabled &&
-								       !structurally_disabled(entities.at(transport), system) &&
-								       fault_effectiveness(entities.at(transport), system) > 0;
-					}
-				}
-				obs.push_back(Value::boolean(has));
-			}
-			if (d.boarding)
-			{
-				obs.push_back(Value::boolean(!m.boarding.travel && m.boarding.destination == m.boarding.location));
-				obs.push_back(Value::boolean(m.boarding.encounter_done));
-				obs.push_back(Value::boolean(m.boarding.encounter_success));
-				obs.push_back(Value::integer(m.boarding.defenders));
-			}
-			const auto outputs = state_tree::step(d.program, m.continuation, obs);
-			for (const auto &o : outputs.outputs)
-			{
-				if (!m.outcome.empty())
-					break;
-				if (!admit_effect(m.effects, o))
-					continue;
-				const auto &name = d.program.registry.actions.at(o.action).name;
-				const auto &arg = o.arguments.at(0);
-				if (name == "apply_effect_group")
-				{
-					NativeRuleContext context;
-					context.owner = context.source = context.instigator = {ship};
-					context.subject = context.target = {o.arguments.at(1).text == "self" ? ship : d.target};
-					context.hit = PayloadHitContext{context.target.entity};
-					context.tick = tick;
-					execute_tree_effect(
-					    arg.text, tree_effect_identity(o, "away." + d.id + "." + std::to_string(ship) + "."), context);
-					continue;
-				}
-				if (d.boarding && boarding_action(i, name, arg.text))
-					continue;
-				if (name == "work" || name == "timed_work")
-				{
-					m.timed_work = name == "timed_work";
-					if (arg.number < 1 || arg.number > 1728000)
-						throw std::runtime_error("Invalid away work duration");
-					if (m.work_key != m.checkpoint || m.work != arg.number * 1000)
-					{
-						m.work_key = m.checkpoint;
-						m.work = arg.number * 1000;
-						m.progress = std::min(m.work, m.saved_progress[m.checkpoint]);
-					}
-				}
-				else if (name == "restore_compartment")
-				{
-					if (!m.deployed())
-						throw std::runtime_error("Away repairs require a deployed party");
-					m.repair_compartment = arg.text;
-				}
-				else if (name == "checkpoint")
-				{
-					m.work_capability.clear();
-					if (m.checkpoint != arg.text)
-					{
-						if (m.work > 0 && !m.work_key.empty())
-							m.saved_progress[m.work_key] = m.progress;
-						m.work = 0;
-						m.progress = 0;
-						m.repair_compartment.clear();
-					}
-					m.checkpoint = arg.text;
-				}
-				else if (name == "pause")
-				{
-					if (m.work > 0 && !m.work_key.empty())
-						m.saved_progress[m.work_key] = m.progress;
-					m.work = 0;
-					m.progress = 0;
-				}
-				else if (name == "mark")
-					m.flags.insert(arg.text);
-				else if (name == "claim")
-					claim_away_target(i, arg.text);
-				else if (name == "require_team")
-					m.work_capability = arg.text;
-				else if (name == "crew_deaths")
-				{
-					if (arg.number < 0 || arg.number > 4096)
-						throw std::runtime_error("Invalid away casualty count");
-					m.crew_deaths = arg.number;
-				}
-				else if (name == "offer" && cid)
-					conversations.offer(cid, arg.text);
-				else if (name == "say" && cid)
-					conversations.report(cid, arg.text);
-				else if (name == "log")
-					mission_transition("mission.log", ship, d.target, d.id, arg.text);
-				else if ((name == "injure_duty" || name == "kill_duty") && m.deployed())
-				{
-					if (m.assignments.contains(arg.text) && m.assignments.at(arg.text).starts_with("team:"))
-						if (const auto *duty = away_team_duty(ship, m.assignments.at(arg.text).substr(5)))
-						{
-							auto &ps = entities.at(ship).get_mut<PersonnelState>();
-							const auto &pd = definition(ship).personnel;
-							for (std::size_t oi = 0; oi < pd.officers.size(); ++oi)
-								if (ps.officers[oi].duty == duty->id && ps.officers[oi].condition != "dead" &&
-								    std::find(m.accompanying.begin(), m.accompanying.end(), pd.officers[oi].id) !=
-								        m.accompanying.end())
-								{
-									auto &officer = ps.officers[oi];
-									officer.condition = name == "kill_duty" ? "dead" : "severe";
-									officer.present = false;
-									officer.casualty_tick = tick;
-									officer.stun_until = officer.treatment = officer.recovery = officer.remaining = 0;
-									officer.stabilised = false;
-									officer.edge_to = -1;
-									officer.facility.clear();
-									officer.escort.clear();
-									if (name == "kill_duty")
-									{
-										officer.duty.clear();
-										std::erase(m.accompanying, pd.officers[oi].id);
-									}
-									++ps.revision;
-									mission_transition("mission.casualty", ship, ship, pd.officers[oi].id,
-									                   officer.condition);
-									break;
-								}
-						}
-				}
-				else if (name == "release_transport" && m.phase == AwayPhase::Deployed && transport &&
-				         transport != ship && !m.aboard_craft)
-				{
-					m.transport_released = true;
-					auto e = entities.at(transport);
-					e.get_mut<CraftState>().mission.clear();
-					craft_return(e);
-					++m.revision;
-				}
-				else if (name == "report" && cid)
-					conversations.event(cid, arg.text);
-				else if (name == "complete" || name == "fail")
-				{
-					m.outcome = name + ":" + arg.text;
-					if (cid)
-						conversations.conversations.at(cid).prompt = {};
-				}
-				else if (name == "emit" && scenario)
-					scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0}, arg.text,
-					                         {{"ship", static_cast<std::int64_t>(ship)}});
-			}
-		}
-	}
+	NativeAwayBinding binding(*this);
+	away_operations.advance(ecs.get<Clock>().tick, binding.execution);
 }
 std::string away_asset_label(EntityId ship, const std::string &asset) const
 {

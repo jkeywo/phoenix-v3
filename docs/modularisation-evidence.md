@@ -218,6 +218,59 @@ and explicit model dependencies were restored without changing assertions.
 Ubuntu is installed under WSL, but the inspected environment lacks Clang, CMake,
 Ninja and PowerShell. Native Linux module compilation remains unverified.
 
+## Fourth ownership checkpoint
+
+The integrated graph now includes property application and active-rule stores
+with their real ECS queries, a flight actuator service with four owned queries,
+the Away lifecycle and its canonical staging/recovery policies, and the full
+interdiction book/tree driver/order planner. World supplies typed physical and
+cross-domain operations at the original execution points. Profiling and the
+native/browser Workshop diagnostic bridges also have compiled owners.
+
+The flight service borrows the machinery book only for a phase call; it retains
+no reference whose destruction order could outlive that book. Away read paths
+use const actors and separate execution-local bindings, with no mutable ECS or
+peer actions. Independent reviews found no concrete effects or interdiction
+ordering/continuation regression.
+
+- Independent native provider compilation passed before adapter activation.
+- Complete native integration build: `batch4-native-build-48.log`, passed.
+- Complete native system and strengthened architecture suite:
+  `batch4-native-tests-50.log`, all 48 passed in 352.37 seconds.
+- Fresh continuation run: `batch4-native-traces-51.log`; all 23 traces exactly
+  match `34883ac`, with freshness and digests recorded in
+  `batch4-trace-comparison-51.json`.
+- Dependency ceilings, complete leaf coverage, raw-system-library handling and
+  final deferred frontend/platform/runtime barriers are enforced. Native
+  configuration and the expanded positive/negative fixture suite passed.
+- Source ownership: 606 C++ sources, 209 module units, 97 exact temporary
+  exceptions, no additional violations. Five retired exceptions were removed;
+  remaining World fragments still represent unfinished separation.
+- Every current code folder and family has a reading guide. The reading map and
+  counts are snapshots; final counts must follow outline/retirement cleanup.
+
+The ordinary browser runtime gate (`batch3-wasm-runtime-40.log`) reached the
+Controller case after the preceding subsystem cases passed, then trapped on an
+out-of-bounds access. A symbolized relink of the same object code located the
+failure in `EquipmentRange::operator[]` called by Controller coordination facts.
+The newly introduced range expression dereferenced a temporary optional view;
+the optional died before iteration. The loop now names that view in its C++20
+initializer for the entire iteration. The other uses of both fitted-view APIs
+were audited. Native tests pass with the correction; the actual browser case
+was rebuilt successfully (`batch4-wasm-controller-build-49.log`) and passed its
+full system journey (`controller-wasm-fixed-53.log`). Its continuation digest
+`dfcd28c4d881f9569fca360b2df832660b3b9012b7fd26eb6987f2146deb44fa`
+matches the fresh native trace. This is a targeted browser pass; the complete
+ordinary and threaded browser gates remain required after the final graph.
+
+The first integration build also exposed an unconditional Emscripten exception
+flag on the new profiling owner. Its propagation is now restricted to
+Emscripten, and the corrected native build has no such linker warning.
+
+Formatting check passed for 743 C/C++, 150 CMake, 11 PowerShell and 439
+web/data/document files (`batch4-format-check-52.log`). The source ledger still
+retains all 342 baseline origins and separately records new owner files.
+
 ## Aggregate retirement activation
 
 The unused `phoenix.content` re-export interface and its build target are now

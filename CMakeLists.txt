@@ -243,6 +243,7 @@ add_subdirectory(src/scenarios/runtime)
 add_subdirectory(src/gameplay/conversations)
 
 add_subdirectory(src/application)
+add_subdirectory(src/executables/diagnostics)
 
 if(WIN32)
 endif()
@@ -1519,3 +1520,30 @@ target_link_libraries(phoenix_controller_runtime_tests PRIVATE phoenix_ui_naviga
 # These integration cases also call the Console free-function contracts.
 target_link_libraries(phoenix_craft_tests PRIVATE phoenix_console_model)
 target_link_libraries(phoenix_gameplay_knowledge_tests PRIVATE phoenix_console_model)
+
+# Executable-level native and browser adapters own their implementation modules.
+add_subdirectory(src/scenarios/interdictions)
+add_subdirectory(src/world/schedule)
+
+# Native World composition delegates state and policy to their family owners.
+target_link_libraries(
+	phoenix_simulation
+	PRIVATE
+		phoenix_effects_properties_runtime
+		phoenix_effects_active_rules
+		phoenix_scenario_interdictions
+		phoenix_gameplay_flight_native
+		phoenix_gameplay_away_runtime
+		phoenix_world_profiling
+)
+
+if(EMSCRIPTEN)
+	target_link_libraries(server PRIVATE phoenix_browser_frame_profile phoenix_workshop_browser_test_client)
+	target_link_libraries(client PRIVATE phoenix_browser_frame_profile)
+	target_link_libraries(workshop PRIVATE phoenix_browser_frame_profile phoenix_workshop_browser_test_client)
+else()
+	target_link_libraries(native PRIVATE phoenix_native_frame_profile phoenix_native_workshop_bridge)
+endif()
+
+# Explicit module ceilings and role guards validate the final configured graph.
+include(cmake/ModulePolicy.cmake)

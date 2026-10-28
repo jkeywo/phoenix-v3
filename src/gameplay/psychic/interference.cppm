@@ -15,15 +15,15 @@ struct PsychicInterferenceSource
 	const ChoirDefinition *choir;
 	const PsychicContribution *contribution;
 	const AbilityGrantState *execution;
-	const PsychicPowerDefinition *power;
 };
-class PsychicCoveragePort
+class PsychicInterferencePort
 {
 public:
-	virtual ~PsychicCoveragePort();
+	virtual ~PsychicInterferencePort();
+	virtual bool is_ward(const PsychicInterferenceSource &source) const = 0;
 	virtual bool covers(const PsychicInterferenceSource &source, EntityId receiver) const = 0;
 };
 // Sources retain fitted apparatus/grant order; wards win equal-strength ties.
 PsychicSource select_psychic_interference(EntityId receiver, std::span<const PsychicInterferenceSource> sources,
-                                          const PsychicCoveragePort &coverage);
+                                          const PsychicInterferencePort &port);
 } // namespace phoenix

@@ -18,9 +18,6 @@ target_link_libraries(
 	PUBLIC phoenix_application_shell phoenix_workshop_shell phoenix_workshop_test_client
 	PRIVATE phoenix_presentation phoenix_ui_navigation phoenix_workshop_workflow phoenix_workshop_gm
 )
-if(EMSCRIPTEN)
-	target_sources(phoenix_tools PRIVATE test-client/browser_workshop_test.cpp)
-endif()
 
 # The root deliberately disables scanning for third-party dependencies. Targets
 # created in child directories must opt in for their implementation imports too.

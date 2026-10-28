@@ -1,0 +1,1254 @@
+# Explicit module dependency ceilings. Include after target registration;
+# final checks are deferred to the end of the root directory so later links
+# cannot bypass the rules. Never populate these sets from LINK_LIBRARIES.
+include_guard(GLOBAL)
+function(phoenix_intended_module target)
+	# Some platform/executable adapters do not exist in every configuration.
+	# A typo cannot hide a real leaf: final coverage separately refuses it.
+	if(TARGET "${target}")
+		phoenix_module_dependencies("${target}" ALLOW ${ARGN})
+	endif()
+endfunction()
+
+# Foundation and portable definition engines.
+phoenix_intended_module(phoenix_data nlohmann_json::nlohmann_json)
+phoenix_intended_module(phoenix_contracts phoenix_data)
+phoenix_intended_module(phoenix_input)
+phoenix_intended_module(phoenix_console_controls phoenix_contracts)
+phoenix_intended_module(phoenix_foundation phoenix_data phoenix_contracts phoenix_input phoenix_console_controls)
+phoenix_intended_module(phoenix_behavior_state_tree_definitions phoenix_foundation)
+phoenix_intended_module(phoenix_behavior_state_tree phoenix_behavior_state_tree_definitions)
+phoenix_intended_module(phoenix_behavior_vocabulary phoenix_foundation phoenix_behavior_state_tree_definitions)
+phoenix_intended_module(phoenix_resources_stocks_definitions phoenix_foundation)
+phoenix_intended_module(phoenix_resources_stocks phoenix_resources_stocks_definitions)
+phoenix_intended_module(phoenix_resources_processors_definitions phoenix_resources_stocks_definitions)
+phoenix_intended_module(phoenix_resources_processors phoenix_resources_processors_definitions phoenix_resources_stocks)
+phoenix_intended_module(
+	phoenix_resources_networks_definitions
+	phoenix_foundation
+	phoenix_resources_stocks_definitions
+	phoenix_resources_processors_definitions
+)
+phoenix_intended_module(phoenix_resources_networks phoenix_resources_networks_definitions phoenix_resources_stocks)
+phoenix_intended_module(phoenix_resources_processing phoenix_resources_processors)
+phoenix_intended_module(phoenix_resources_equipment phoenix_content_resources_types phoenix_resources_networks)
+phoenix_intended_module(phoenix_gameplay_flight_definitions phoenix_foundation)
+phoenix_intended_module(
+	phoenix_gameplay_conversations_definitions
+	phoenix_foundation
+	phoenix_behavior_state_tree_definitions
+)
+phoenix_intended_module(
+	phoenix_gameplay_conversations
+	phoenix_gameplay_conversations_definitions
+	phoenix_behavior_state_tree
+)
+phoenix_intended_module(phoenix_knowledge_records_definitions phoenix_foundation)
+phoenix_intended_module(phoenix_knowledge_records phoenix_knowledge_records_definitions)
+phoenix_intended_module(phoenix_scenarios_environment phoenix_foundation)
+phoenix_intended_module(
+	phoenix_scenarios_runtime_definitions
+	phoenix_foundation
+	phoenix_behavior_state_tree_definitions
+	phoenix_scenarios_environment
+)
+phoenix_intended_module(phoenix_scenarios_runtime phoenix_scenarios_runtime_definitions)
+phoenix_intended_module(phoenix_scenarios_streaming phoenix_scenarios_environment phoenix_world_state)
+phoenix_intended_module(phoenix_scenarios_objectives phoenix_scenarios_runtime_definitions phoenix_scenarios_runtime)
+
+# Catalogue definitions, codec and authoring compilers; no physical execution.
+phoenix_intended_module(phoenix_content_image_codec phoenix_foundation webp)
+phoenix_intended_module(phoenix_content_assets phoenix_content_catalog phoenix_content_image_codec phoenix_foundation)
+phoenix_intended_module(
+	phoenix_content_catalog
+	phoenix_content_controllers_types
+	phoenix_content_packs
+	phoenix_foundation
+	phoenix_resources_networks_definitions
+	phoenix_knowledge_records_definitions
+	phoenix_scenarios_runtime_definitions
+	phoenix_behavior_state_tree_definitions
+	phoenix_gameplay_conversations_definitions
+)
+phoenix_intended_module(
+	phoenix_content_combat_types
+	phoenix_content_effects_types
+	phoenix_content_operations_types
+	phoenix_foundation
+	phoenix_resources_networks_definitions
+)
+phoenix_intended_module(
+	phoenix_content_controllers_types
+	phoenix_foundation
+	phoenix_knowledge_records_definitions
+	phoenix_behavior_state_tree_definitions
+	phoenix_behavior_vocabulary
+)
+phoenix_intended_module(
+	phoenix_content_effects_types
+	phoenix_foundation
+	phoenix_resources_networks_definitions
+	phoenix_behavior_state_tree_definitions
+)
+phoenix_intended_module(phoenix_content_equipment_types phoenix_foundation)
+phoenix_intended_module(
+	phoenix_content_knowledge_types
+	phoenix_content_controllers_types
+	phoenix_foundation
+	phoenix_knowledge_records_definitions
+	phoenix_behavior_state_tree_definitions
+)
+phoenix_intended_module(phoenix_content_logistics_types phoenix_foundation phoenix_resources_networks_definitions)
+phoenix_intended_module(
+	phoenix_content_operations_types
+	phoenix_content_effects_types
+	phoenix_foundation
+	phoenix_behavior_state_tree_definitions
+)
+phoenix_intended_module(
+	phoenix_content_resources_types
+	phoenix_foundation
+	phoenix_resources_networks_definitions
+	phoenix_behavior_state_tree_definitions
+)
+phoenix_intended_module(
+	phoenix_content_sensing_types
+	phoenix_content_effects_types
+	phoenix_foundation
+	phoenix_behavior_state_tree_definitions
+)
+phoenix_intended_module(phoenix_content_packs phoenix_content_image_codec phoenix_foundation phoenix_zip)
+phoenix_intended_module(phoenix_content_ui phoenix_content_catalog phoenix_content_image_codec phoenix_foundation)
+phoenix_intended_module(
+	phoenix_content_compilers
+	phoenix_foundation
+	phoenix_resources_networks_definitions
+	phoenix_knowledge_records_definitions
+	phoenix_scenarios_runtime_definitions
+	phoenix_behavior_state_tree_definitions
+	phoenix_behavior_vocabulary
+	phoenix_gameplay_conversations_definitions
+	phoenix_gameplay_flight_definitions
+	phoenix_content_assets
+	phoenix_content_catalog
+	phoenix_content_combat_types
+	phoenix_content_controllers_types
+	phoenix_content_effects_types
+	phoenix_content_equipment_types
+	phoenix_content_image_codec
+	phoenix_content_knowledge_types
+	phoenix_content_logistics_types
+	phoenix_content_operations_types
+	phoenix_content_packs
+	phoenix_content_resources_types
+	phoenix_content_sensing_types
+	phoenix_content_ui
+)
+phoenix_intended_module(
+	phoenix_content_distribution
+	phoenix_content_assets
+	phoenix_content_catalog
+	phoenix_content_compilers
+	phoenix_content_image_codec
+	phoenix_content_packs
+	phoenix_content_ui
+	phoenix_foundation
+)
+phoenix_intended_module(
+	phoenix_content_documents
+	phoenix_content_assets
+	phoenix_content_catalog
+	phoenix_content_compilers
+	phoenix_content_distribution
+	phoenix_content_packs
+	phoenix_foundation
+	phoenix_behavior_state_tree_definitions
+	phoenix_knowledge_records_definitions
+)
+
+# Control consumes permitted values; host inference remains a separate higher owner.
+phoenix_intended_module(phoenix_control_controllers phoenix_content_controllers_types phoenix_behavior_state_tree)
+phoenix_intended_module(
+	phoenix_control_templates
+	phoenix_control_controllers
+	phoenix_content_catalog
+	phoenix_content_compilers
+)
+phoenix_intended_module(
+	phoenix_control_views
+	phoenix_control_controllers
+	phoenix_control_coordination
+	phoenix_behavior_state_tree
+	phoenix_behavior_vocabulary
+)
+phoenix_intended_module(phoenix_control_ownership phoenix_foundation)
+phoenix_intended_module(phoenix_control_handover phoenix_control_controllers phoenix_behavior_state_tree)
+phoenix_intended_module(phoenix_control_coordination phoenix_control_controllers)
+phoenix_intended_module(
+	phoenix_control_protocol
+	phoenix_control_controllers
+	phoenix_knowledge_records_definitions
+	phoenix_control_coordination
+	phoenix_control_execution
+)
+phoenix_intended_module(
+	phoenix_control_coordination_facts
+	phoenix_control_controllers
+	phoenix_control_coordination
+	phoenix_control_execution
+	phoenix_world_state
+)
+phoenix_intended_module(
+	phoenix_control_providers
+	phoenix_control_controllers
+	phoenix_control_coordination
+	phoenix_behavior_state_tree
+)
+phoenix_intended_module(
+	phoenix_control_execution
+	phoenix_control_controllers
+	phoenix_world_state
+	phoenix_knowledge_projections
+	phoenix_content_effects_types
+	phoenix_control_coordination
+	phoenix_effects_contracts
+	phoenix_effects_processes
+	phoenix_gameplay_flight
+	phoenix_behavior_state_tree
+)
+phoenix_intended_module(phoenix_control_inference_host phoenix_simulation phoenix_inference)
+phoenix_intended_module(phoenix_knowledge_read_models phoenix_foundation)
+phoenix_intended_module(phoenix_knowledge_projections phoenix_control_controllers phoenix_knowledge_records_definitions)
+phoenix_intended_module(
+	phoenix_knowledge_consoles
+	phoenix_content_catalog
+	phoenix_content_knowledge_types
+	phoenix_content_effects_types
+	phoenix_knowledge_projections
+	phoenix_content_compilers
+	phoenix_knowledge_records
+)
+
+# Effect lifecycle, prepared transactions and native collaborators retain one execution path.
+phoenix_intended_module(
+	phoenix_effects_contracts
+	phoenix_content_effects_types
+	phoenix_foundation
+	phoenix_resources_stocks_definitions
+)
+phoenix_intended_module(phoenix_effects_rules phoenix_content_effects_types)
+phoenix_intended_module(phoenix_effects_rule_state phoenix_effects_contracts flecs_static)
+phoenix_intended_module(phoenix_effects_bindings phoenix_effects_contracts phoenix_effects_rules)
+phoenix_intended_module(phoenix_effects_abilities phoenix_effects_contracts)
+phoenix_intended_module(phoenix_effects_ability_validation phoenix_effects_abilities)
+phoenix_intended_module(phoenix_effects_processes phoenix_effects_contracts phoenix_effects_rules)
+phoenix_intended_module(
+	phoenix_effects_process_validation
+	phoenix_effects_processes
+	phoenix_effects_continuation_validation
+	phoenix_foundation
+)
+phoenix_intended_module(phoenix_effects_properties phoenix_effects_contracts flecs_static)
+phoenix_intended_module(phoenix_effects_events phoenix_effects_rule_state phoenix_effects_rules)
+phoenix_intended_module(phoenix_effects_grants phoenix_effects_rule_state)
+phoenix_intended_module(
+	phoenix_effects_continuation_validation
+	phoenix_effects_rule_state
+	phoenix_foundation
+	phoenix_resources_stocks_definitions
+)
+phoenix_intended_module(phoenix_effects_clocks phoenix_effects_rule_state phoenix_effects_bindings)
+phoenix_intended_module(
+	phoenix_effects_transactions
+	phoenix_resources_networks
+	phoenix_effects_properties
+	phoenix_effects_abilities
+	phoenix_effects_processes
+	phoenix_effects_rule_state
+	phoenix_gameplay_combat_state
+	phoenix_gameplay_combat_shields
+	phoenix_gameplay_combat_outcomes
+	phoenix_gameplay_personnel_outcomes
+	phoenix_effects_events
+)
+phoenix_intended_module(
+	phoenix_effects_native
+	phoenix_effects_contracts
+	phoenix_effects_processes
+	phoenix_gameplay_fitting
+	phoenix_gameplay_personnel_state
+	phoenix_gameplay_logistics_state
+	flecs_static
+	phoenix_resources_networks
+	phoenix_resources_stocks
+)
+phoenix_intended_module(
+	phoenix_effects_preparation
+	phoenix_effects_transactions
+	phoenix_effects_native
+	phoenix_effects_grants
+	flecs_static
+)
+phoenix_intended_module(phoenix_effects_funding phoenix_effects_transactions phoenix_effects_native flecs_static)
+phoenix_intended_module(phoenix_effects_machinery phoenix_effects_funding phoenix_world_state)
+phoenix_intended_module(phoenix_effects_finite_work phoenix_effects_funding)
+
+# Native domain state, algorithms and physical work; no renderer or application.
+phoenix_intended_module(
+	phoenix_gameplay_away_state
+	phoenix_foundation
+	phoenix_behavior_state_tree_definitions
+	phoenix_gameplay_boarding_state
+)
+phoenix_intended_module(
+	phoenix_gameplay_away_operations
+	phoenix_gameplay_away_state
+	phoenix_content_operations_types
+	phoenix_behavior_state_tree
+)
+phoenix_intended_module(
+	phoenix_gameplay_away_crew
+	phoenix_gameplay_personnel_state
+	phoenix_content_combat_types
+	phoenix_content_controllers_types
+	phoenix_world_state
+)
+phoenix_intended_module(phoenix_gameplay_boarding_state phoenix_foundation)
+phoenix_intended_module(
+	phoenix_gameplay_boarding_runtime
+	phoenix_gameplay_boarding_state
+	phoenix_gameplay_combat_state
+	phoenix_gameplay_personnel_state
+	phoenix_gameplay_personnel_runtime
+	phoenix_gameplay_team_routes
+)
+phoenix_intended_module(
+	phoenix_gameplay_combat_state
+	phoenix_world_state
+	phoenix_content_combat_types
+	phoenix_effects_contracts
+	phoenix_effects_processes
+)
+phoenix_intended_module(phoenix_gameplay_combat_outcomes phoenix_gameplay_combat_state)
+phoenix_intended_module(phoenix_gameplay_combat_shields phoenix_gameplay_combat_state)
+phoenix_intended_module(phoenix_gameplay_combat_faults phoenix_gameplay_combat_state)
+phoenix_intended_module(
+	phoenix_gameplay_combat_continuation
+	phoenix_gameplay_directed
+	phoenix_gameplay_combat_shields
+	phoenix_behavior_state_tree
+)
+phoenix_intended_module(phoenix_gameplay_damage phoenix_gameplay_combat_state)
+phoenix_intended_module(phoenix_gameplay_directed phoenix_gameplay_combat_state)
+phoenix_intended_module(phoenix_gameplay_repairs phoenix_gameplay_combat_state phoenix_gameplay_combat_faults)
+phoenix_intended_module(phoenix_gameplay_ordnance phoenix_gameplay_directed phoenix_world_spatial)
+phoenix_intended_module(phoenix_gameplay_ordnance_contacts phoenix_gameplay_ordnance)
+phoenix_intended_module(phoenix_gameplay_weapons phoenix_gameplay_directed phoenix_resources_stocks)
+phoenix_intended_module(
+	phoenix_gameplay_craft
+	phoenix_world_state
+	phoenix_content_logistics_types
+	phoenix_resources_networks
+	phoenix_gameplay_flight
+)
+phoenix_intended_module(
+	phoenix_gameplay_docking
+	phoenix_world_state
+	phoenix_content_logistics_types
+	phoenix_world_spatial
+	phoenix_gameplay_flight
+)
+phoenix_intended_module(
+	phoenix_gameplay_fitting
+	phoenix_gameplay_flight
+	phoenix_resources_equipment
+	phoenix_content_operations_types
+	phoenix_content_logistics_types
+	phoenix_content_sensing_types
+	phoenix_gameplay_combat_state
+	phoenix_gameplay_combat_faults
+	flecs_static
+)
+phoenix_intended_module(
+	phoenix_gameplay_flight
+	phoenix_gameplay_flight_definitions
+	phoenix_world_state
+	phoenix_resources_stocks_definitions
+)
+phoenix_intended_module(phoenix_gameplay_flight_work phoenix_gameplay_flight phoenix_resources_equipment)
+phoenix_intended_module(phoenix_gameplay_ftl phoenix_resources_equipment)
+phoenix_intended_module(phoenix_gameplay_ftl_coordinator phoenix_contracts)
+phoenix_intended_module(phoenix_gameplay_logistics_state phoenix_contracts phoenix_resources_stocks)
+phoenix_intended_module(phoenix_gameplay_logistics phoenix_gameplay_logistics_state)
+phoenix_intended_module(
+	phoenix_gameplay_machinery
+	phoenix_effects_processes
+	phoenix_content_operations_types
+	phoenix_gameplay_fitting
+	phoenix_gameplay_combat_faults
+	phoenix_gameplay_ftl
+	phoenix_resources_processing
+	phoenix_resources_networks
+	flecs_static
+)
+phoenix_intended_module(
+	phoenix_gameplay_personnel_state
+	phoenix_content_operations_types
+	phoenix_effects_contracts
+	phoenix_effects_processes
+)
+phoenix_intended_module(
+	phoenix_gameplay_personnel_outcomes
+	phoenix_gameplay_combat_state
+	phoenix_gameplay_personnel_state
+)
+phoenix_intended_module(phoenix_gameplay_personnel_clinical phoenix_gameplay_personnel_state)
+phoenix_intended_module(
+	phoenix_gameplay_personnel_runtime
+	phoenix_gameplay_personnel_state
+	phoenix_gameplay_team_routes
+)
+phoenix_intended_module(
+	phoenix_gameplay_personnel_treatment
+	phoenix_gameplay_personnel_outcomes
+	phoenix_content_combat_types
+	phoenix_gameplay_personnel_clinical
+)
+phoenix_intended_module(phoenix_gameplay_psychic_state phoenix_world_state phoenix_behavior_state_tree_definitions)
+phoenix_intended_module(
+	phoenix_gameplay_psychic_projection
+	phoenix_gameplay_psychic_state
+	phoenix_content_sensing_types
+	phoenix_gameplay_flight
+	phoenix_gameplay_combat_state
+)
+phoenix_intended_module(phoenix_gameplay_psychic_receptions phoenix_gameplay_psychic_state phoenix_effects_abilities)
+phoenix_intended_module(
+	phoenix_gameplay_psychic_contributions
+	phoenix_gameplay_psychic_state
+	phoenix_effects_abilities
+	phoenix_content_sensing_types
+)
+phoenix_intended_module(phoenix_gameplay_psychic_interference phoenix_gameplay_psychic_contributions)
+phoenix_intended_module(
+	phoenix_gameplay_psychic_emission
+	phoenix_contracts
+	phoenix_gameplay_conversations_definitions
+	flecs_static
+	phoenix_gameplay_fitting
+	phoenix_gameplay_directed
+	phoenix_gameplay_combat_faults
+	phoenix_resources_equipment
+	phoenix_resources_networks
+)
+phoenix_intended_module(phoenix_gameplay_sensors_state phoenix_world_state)
+phoenix_intended_module(phoenix_gameplay_sensor_envelopes phoenix_gameplay_sensors_state phoenix_scenarios_environment)
+phoenix_intended_module(phoenix_gameplay_sensor_evidence phoenix_gameplay_sensors_state phoenix_knowledge_consoles)
+phoenix_intended_module(
+	phoenix_gameplay_sensor_coverage
+	phoenix_world_state
+	phoenix_scenarios_environment
+	phoenix_gameplay_combat_state
+)
+phoenix_intended_module(
+	phoenix_gameplay_sensor_acquisition
+	phoenix_gameplay_sensors_state
+	phoenix_content_sensing_types
+)
+phoenix_intended_module(phoenix_gameplay_sensor_findings phoenix_gameplay_sensors_state phoenix_content_sensing_types)
+phoenix_intended_module(
+	phoenix_gameplay_sensor_validation
+	phoenix_gameplay_sensors_state
+	phoenix_content_sensing_types
+	phoenix_content_combat_types
+	phoenix_gameplay_psychic_state
+	phoenix_gameplay_sensor_findings
+	phoenix_knowledge_read_models
+)
+phoenix_intended_module(
+	phoenix_gameplay_sensor_projection
+	phoenix_gameplay_sensors_state
+	phoenix_content_sensing_types
+	phoenix_knowledge_read_models
+)
+phoenix_intended_module(phoenix_gameplay_team_routes)
+
+# World value contracts, geometry, assembly and restore envelope.
+phoenix_intended_module(phoenix_world_state phoenix_foundation)
+phoenix_intended_module(phoenix_world_spatial phoenix_world_state)
+phoenix_intended_module(phoenix_world_persistence phoenix_world_state)
+phoenix_intended_module(
+	phoenix_world_assembly
+	phoenix_world_state
+	phoenix_gameplay_flight_definitions
+	phoenix_gameplay_away_state
+	phoenix_control_controllers
+	phoenix_effects_contracts
+	phoenix_content_catalog
+	phoenix_content_equipment_types
+	phoenix_content_combat_types
+	phoenix_content_operations_types
+	phoenix_content_logistics_types
+	phoenix_content_sensing_types
+	phoenix_content_resources_types
+	phoenix_gameplay_conversations_definitions
+	phoenix_content_compilers
+	phoenix_content_assets
+	phoenix_control_templates
+	phoenix_resources_networks_definitions
+)
+
+# Application owns routes/preferences, not host or local execution.
+phoenix_intended_module(phoenix_application_preferences phoenix_foundation)
+phoenix_intended_module(
+	phoenix_application_library
+	phoenix_application_preferences
+	phoenix_content_catalog
+	phoenix_content_packs
+	phoenix_content_assets
+	phoenix_content_distribution
+	phoenix_content_compilers
+	phoenix_platform_user_paths
+	phoenix_platform_display_identity
+)
+phoenix_intended_module(
+	phoenix_application_shell
+	phoenix_session_api
+	phoenix_application_library
+	phoenix_ui_interaction
+	phoenix_foundation
+)
+phoenix_intended_module(phoenix_application_preference_store phoenix_application_shell phoenix_application_preferences)
+phoenix_intended_module(phoenix_application_connections phoenix_application_shell phoenix_application_preferences)
+phoenix_intended_module(
+	phoenix_application_displays
+	phoenix_application_shell
+	phoenix_application_preferences
+	phoenix_application_preference_store
+)
+
+# Renderers and permitted Console views; shared semantic identities.
+phoenix_intended_module(phoenix_graphics_geometry phoenix_foundation)
+phoenix_intended_module(phoenix_graphics_assets phoenix_data raylib phoenix_content_image_codec)
+phoenix_intended_module(
+	phoenix_graphics_scene
+	phoenix_content_catalog
+	phoenix_content_assets
+	phoenix_graphics_assets
+	phoenix_graphics_geometry
+	raylib
+)
+phoenix_intended_module(
+	phoenix_graphics_radar
+	phoenix_content_catalog
+	phoenix_graphics_assets
+	phoenix_graphics_geometry
+	phoenix_application_preferences
+	raylib
+)
+phoenix_intended_module(phoenix_graphics_audio_policy phoenix_content_assets)
+phoenix_intended_module(
+	phoenix_graphics_audio
+	phoenix_graphics_audio_policy
+	phoenix_graphics_scene
+	raylib
+	phoenix_content_catalog
+	phoenix_content_assets
+)
+phoenix_intended_module(phoenix_ui_interaction phoenix_foundation)
+phoenix_intended_module(
+	phoenix_ui_navigation
+	phoenix_application_shell
+	phoenix_ui_interaction
+	phoenix_application_preferences
+	phoenix_application_preference_store
+	phoenix_application_displays
+	phoenix_application_connections
+)
+phoenix_intended_module(phoenix_ui_rml phoenix_foundation RmlUi::RmlUi raylib phoenix_shaping)
+phoenix_intended_module(phoenix_ui_skin phoenix_foundation)
+phoenix_intended_module(
+	phoenix_ui_theme
+	phoenix_ui_skin
+	phoenix_ui_rml
+	phoenix_content_catalog
+	raylib
+	phoenix_content_image_codec
+	phoenix_content_ui
+)
+phoenix_intended_module(phoenix_ui_settings phoenix_ui_navigation RmlUi::RmlUi)
+phoenix_intended_module(
+	phoenix_console_model
+	phoenix_session_api
+	phoenix_foundation
+	phoenix_application_preferences
+	phoenix_content_controllers_types
+	phoenix_content_ui
+	phoenix_content_assets
+	phoenix_content_compilers
+)
+phoenix_intended_module(phoenix_ui_engineering_widgets phoenix_foundation phoenix_application_preferences)
+phoenix_intended_module(phoenix_ui_flight_widgets phoenix_console_model)
+phoenix_intended_module(
+	phoenix_ui_tactical_widgets
+	phoenix_console_model
+	phoenix_input
+	phoenix_ui_engineering_widgets
+	phoenix_application_preferences
+	phoenix_content_catalog
+	phoenix_content_compilers
+)
+phoenix_intended_module(
+	phoenix_ui_information_widgets
+	phoenix_console_model
+	RmlUi::RmlUi
+	phoenix_ui_rml
+	phoenix_application_preferences
+	raylib
+	phoenix_content_catalog
+)
+phoenix_intended_module(
+	phoenix_ui_operations_widgets
+	phoenix_console_model
+	phoenix_ui_rml
+	phoenix_application_preferences
+	RmlUi::RmlUi
+	phoenix_content_catalog
+)
+phoenix_intended_module(
+	phoenix_ui_console_surface
+	phoenix_application_shell
+	phoenix_console_model
+	phoenix_ui_rml
+	phoenix_ui_interaction
+	phoenix_devices
+	phoenix_graphics_assets
+	phoenix_graphics_radar
+	phoenix_graphics_scene
+	phoenix_ui_theme
+	phoenix_ui_engineering_widgets
+	phoenix_ui_information_widgets
+	phoenix_ui_operations_widgets
+	phoenix_ui_tactical_widgets
+	phoenix_ui_flight_widgets
+	phoenix_application_preferences
+	phoenix_ui_navigation
+	phoenix_content_ui
+	phoenix_content_assets
+	phoenix_content_compilers
+	phoenix_content_controllers_types
+	phoenix_content_packs
+)
+phoenix_intended_module(
+	phoenix_ui_pad_dispatch
+	phoenix_ui_console_surface
+	phoenix_ui_interaction
+	phoenix_ui_navigation
+	phoenix_graphics_radar
+	phoenix_accessibility
+	RmlUi::RmlUi
+	raylib
+)
+phoenix_intended_module(
+	phoenix_ui_screens
+	phoenix_application_shell
+	RmlUi::RmlUi
+	raylib
+	phoenix_ui_theme
+	phoenix_ui_settings
+	phoenix_ui_rml
+	phoenix_qr
+	phoenix_files
+	phoenix_content_assets
+	phoenix_content_catalog
+	phoenix_content_compilers
+	phoenix_content_distribution
+	phoenix_content_packs
+)
+phoenix_intended_module(
+	phoenix_ui_viewscreen
+	phoenix_application_shell
+	RmlUi::RmlUi
+	raylib
+	phoenix_graphics_scene
+	phoenix_console_model
+	phoenix_graphics_assets
+	phoenix_graphics_radar
+	phoenix_application_preferences
+	phoenix_knowledge_read_models
+	phoenix_files
+	phoenix_qr
+	phoenix_content_assets
+	phoenix_content_catalog
+	phoenix_content_compilers
+	phoenix_content_image_codec
+)
+phoenix_intended_module(
+	phoenix_ui_preview
+	phoenix_content_catalog
+	raylib
+	phoenix_ui_console_surface
+	phoenix_ui_rml
+	phoenix_application_shell
+	phoenix_content_ui
+)
+phoenix_intended_module(phoenix_accessibility phoenix_ui_interaction RmlUi::RmlUi)
+phoenix_intended_module(
+	phoenix_native_displays
+	phoenix_application_shell
+	phoenix_application_displays
+	phoenix_platform_display_identity
+	raylib
+)
+
+# Workshop document editing and disposable test client remain separate from host execution.
+phoenix_intended_module(
+	phoenix_workshop_shell
+	phoenix_application_preferences
+	phoenix_imgui
+	raylib
+	phoenix_files
+	phoenix_graphics_assets
+	phoenix_content_catalog
+	phoenix_content_image_codec
+	phoenix_content_ui
+)
+phoenix_intended_module(phoenix_workshop_test_client phoenix_workshop_shell phoenix_imgui phoenix_content_documents)
+phoenix_intended_module(phoenix_workshop_tree phoenix_workshop_shell phoenix_imgui phoenix_content_documents)
+phoenix_intended_module(
+	phoenix_workshop_gameplay
+	phoenix_workshop_shell
+	phoenix_workshop_test_client
+	phoenix_workshop_tree
+	phoenix_imgui
+	phoenix_content_documents
+	phoenix_content_catalog
+	phoenix_content_compilers
+	phoenix_content_effects_types
+)
+phoenix_intended_module(
+	phoenix_workshop_gm
+	phoenix_session_api
+	phoenix_workshop_shell
+	phoenix_graphics_assets
+	phoenix_workshop_map_navigation
+	phoenix_imgui
+	raylib
+	phoenix_content_assets
+)
+phoenix_intended_module(
+	phoenix_workshop_layout
+	phoenix_files
+	phoenix_workshop_shell
+	phoenix_ui_preview
+	phoenix_imgui
+	raylib
+	phoenix_content_documents
+	phoenix_content_packs
+	phoenix_content_ui
+)
+phoenix_intended_module(
+	phoenix_workshop_map_navigation
+	phoenix_foundation
+	phoenix_ui_interaction
+	phoenix_imgui
+	raylib
+	phoenix_graphics_radar
+)
+phoenix_intended_module(
+	phoenix_workshop_map
+	phoenix_workshop_shell
+	phoenix_workshop_asset_preview
+	phoenix_workshop_map_navigation
+	phoenix_imgui
+	raylib
+	phoenix_content_documents
+	phoenix_content_assets
+	phoenix_content_catalog
+)
+phoenix_intended_module(
+	phoenix_workshop_asset_preview
+	raylib
+	phoenix_graphics_assets
+	phoenix_application_preferences
+	phoenix_imgui
+	phoenix_content_documents
+	phoenix_content_image_codec
+)
+phoenix_intended_module(
+	phoenix_workshop_material_preview
+	phoenix_workshop_shell
+	phoenix_graphics_scene
+	phoenix_workshop_asset_preview
+	phoenix_imgui
+	raylib
+	phoenix_content_documents
+	phoenix_content_assets
+	phoenix_content_catalog
+)
+phoenix_intended_module(
+	phoenix_workshop_workflow
+	phoenix_application_library
+	phoenix_session_api
+	phoenix_workshop_shell
+	phoenix_workshop_test_client
+	phoenix_files
+	phoenix_workshop_map
+	phoenix_workshop_layout
+	phoenix_workshop_asset_preview
+	phoenix_workshop_material_preview
+	phoenix_workshop_gameplay
+	phoenix_ui_preview
+	phoenix_imgui
+	raylib
+	phoenix_content_documents
+	phoenix_content_assets
+	phoenix_content_image_codec
+	phoenix_content_packs
+	phoenix_content_ui
+)
+phoenix_intended_module(
+	phoenix_tools
+	phoenix_application_shell
+	phoenix_workshop_shell
+	phoenix_workshop_test_client
+	phoenix_presentation
+	phoenix_ui_navigation
+	phoenix_workshop_workflow
+	phoenix_workshop_gm
+	phoenix_content_documents
+)
+
+# Networking/platform leaves retain their reviewed local conditional sets:
+# native transport uses datachannel/CURL, browser transport uses main-thread
+# dispatch; OS UI adapters select their own concrete external libraries. Their
+# local policies are validated by coverage and the same final direct-set gate.
+# No new target can rely on this comment in place of its own registration.
+
+# Entry-point diagnostics and native disposable-host adapters stay outside the
+# shared frontend. Browser diagnostics accept an explicit optional background
+# callback; they never acquire a local session or authoritative worker.
+phoenix_intended_module(
+	phoenix_native_frame_profile
+	phoenix_application_shell
+	raylib
+	phoenix_session
+	phoenix_content_packs
+)
+phoenix_intended_module(phoenix_browser_frame_profile phoenix_application_shell raylib)
+phoenix_intended_module(
+	phoenix_native_workshop_bridge
+	phoenix_application_shell
+	phoenix_tools
+	phoenix_workshop_test_host
+)
+phoenix_intended_module(
+	phoenix_workshop_browser_test_client
+	phoenix_application_shell
+	phoenix_tools
+	phoenix_content_packs
+)
+
+# Prepared native flight system (only registered if its owner is activated).
+phoenix_intended_module(
+	phoenix_gameplay_flight_native
+	phoenix_gameplay_fitting
+	phoenix_gameplay_flight_work
+	phoenix_effects_machinery
+	phoenix_effects_properties
+	flecs_static
+)
+
+# Batch-four native owners; these ceilings come from their scoped contracts.
+phoenix_intended_module(
+	phoenix_gameplay_away_runtime
+	phoenix_gameplay_away_operations
+	phoenix_gameplay_personnel_state
+	phoenix_gameplay_combat_state
+	phoenix_gameplay_craft
+	phoenix_gameplay_docking
+	phoenix_gameplay_repairs
+	phoenix_gameplay_conversations_definitions
+	phoenix_scenarios_runtime_definitions
+	phoenix_effects_contracts
+	phoenix_scenarios_objectives
+	phoenix_gameplay_conversations
+	phoenix_scenarios_runtime
+	phoenix_behavior_state_tree
+	phoenix_gameplay_team_routes
+)
+phoenix_intended_module(
+	phoenix_effects_properties_runtime
+	phoenix_effects_properties
+	phoenix_world_state
+	phoenix_gameplay_fitting
+	phoenix_gameplay_combat_state
+	phoenix_foundation
+	flecs_static
+)
+phoenix_intended_module(phoenix_effects_active_rules phoenix_effects_clocks flecs_static)
+phoenix_intended_module(
+	phoenix_scenario_interdictions
+	phoenix_content_sensing_types
+	phoenix_world_state
+	phoenix_effects_contracts
+	phoenix_behavior_state_tree
+)
+phoenix_intended_module(phoenix_world_profiling nlohmann_json::nlohmann_json)
+
+# Root-level composition owners are also explicit. World is the only broad
+# authoritative composition; native/browser UI owns permitted projections.
+phoenix_intended_module(
+	phoenix_scenario_bridge
+	phoenix_content_catalog
+	phoenix_content_effects_types
+	phoenix_effects_contracts
+	phoenix_content_compilers
+	phoenix_scenarios_runtime
+	phoenix_behavior_state_tree
+	phoenix_knowledge_records_definitions
+)
+phoenix_intended_module(phoenix_workshop_test_host phoenix_simulation phoenix_content_compilers)
+phoenix_intended_module(
+	phoenix_presentation
+	phoenix_application_shell
+	phoenix_ui_navigation
+	phoenix_console_model
+	phoenix_graphics_assets
+	phoenix_graphics_scene
+	phoenix_graphics_radar
+	phoenix_graphics_audio
+	phoenix_ui_rml
+	phoenix_knowledge_read_models
+	phoenix_ui_console_surface
+	phoenix_ui_viewscreen
+	phoenix_ui_screens
+	phoenix_ui_settings
+	phoenix_ui_theme
+	phoenix_ui_engineering_widgets
+	phoenix_ui_information_widgets
+	phoenix_ui_preview
+	phoenix_accessibility
+	phoenix_files
+	raylib
+	RmlUi::RmlUi
+	phoenix_qr
+	phoenix_devices
+	phoenix_shaping
+	phoenix_content_packs
+	phoenix_ui_pad_dispatch
+	phoenix_platform_viewport
+)
+phoenix_intended_module(
+	phoenix_simulation
+	phoenix_foundation
+	phoenix_content_catalog
+	phoenix_control_controllers
+	phoenix_effects_contracts
+	phoenix_effects_processes
+	flecs_static
+	phoenix_content_compilers
+	phoenix_content_assets
+	phoenix_scenario_bridge
+	phoenix_world_state
+	phoenix_world_spatial
+	phoenix_world_persistence
+	phoenix_world_assembly
+	phoenix_behavior_state_tree
+	phoenix_knowledge_records
+	phoenix_resources_stocks
+	phoenix_resources_processors
+	phoenix_resources_networks
+	phoenix_scenarios_runtime
+	phoenix_gameplay_conversations
+	phoenix_knowledge_consoles
+	phoenix_knowledge_read_models
+	phoenix_control_templates
+	phoenix_control_providers
+	phoenix_control_ownership
+	phoenix_control_coordination
+	phoenix_control_execution
+	phoenix_control_protocol
+	phoenix_control_coordination_facts
+	phoenix_control_handover
+	phoenix_control_views
+	phoenix_effects_rules
+	phoenix_effects_rule_state
+	phoenix_effects_abilities
+	phoenix_effects_properties
+	phoenix_effects_events
+	phoenix_effects_transactions
+	phoenix_effects_grants
+	phoenix_effects_native
+	phoenix_effects_preparation
+	phoenix_effects_funding
+	phoenix_effects_bindings
+	phoenix_effects_ability_validation
+	phoenix_effects_continuation_validation
+	phoenix_effects_clocks
+	phoenix_effects_machinery
+	phoenix_effects_finite_work
+	phoenix_effects_process_validation
+	phoenix_resources_equipment
+	phoenix_resources_processing
+	phoenix_gameplay_combat_state
+	phoenix_gameplay_personnel_state
+	phoenix_gameplay_combat_outcomes
+	phoenix_gameplay_personnel_outcomes
+	phoenix_gameplay_team_routes
+	phoenix_gameplay_combat_shields
+	phoenix_gameplay_combat_faults
+	phoenix_gameplay_damage
+	phoenix_gameplay_repairs
+	phoenix_gameplay_ordnance_contacts
+	phoenix_gameplay_fitting
+	phoenix_gameplay_ftl
+	phoenix_gameplay_docking
+	phoenix_gameplay_craft
+	phoenix_gameplay_logistics_state
+	phoenix_gameplay_logistics
+	phoenix_gameplay_sensor_envelopes
+	phoenix_gameplay_psychic_state
+	phoenix_gameplay_personnel_treatment
+	phoenix_gameplay_personnel_clinical
+	phoenix_gameplay_personnel_runtime
+	phoenix_gameplay_psychic_contributions
+	phoenix_gameplay_psychic_interference
+	phoenix_gameplay_psychic_emission
+	phoenix_gameplay_away_state
+	phoenix_gameplay_away_operations
+	phoenix_gameplay_boarding_runtime
+	phoenix_gameplay_away_crew
+	phoenix_gameplay_directed
+	phoenix_gameplay_ordnance
+	phoenix_gameplay_combat_continuation
+	phoenix_gameplay_weapons
+	phoenix_gameplay_machinery
+	phoenix_gameplay_flight
+	phoenix_gameplay_flight_work
+	phoenix_gameplay_ftl_coordinator
+	phoenix_scenarios_objectives
+	phoenix_scenarios_streaming
+	phoenix_gameplay_sensor_evidence
+	phoenix_gameplay_sensor_coverage
+	phoenix_gameplay_sensor_acquisition
+	phoenix_gameplay_psychic_projection
+	phoenix_gameplay_psychic_receptions
+	phoenix_gameplay_sensor_findings
+	phoenix_gameplay_sensor_validation
+	phoenix_gameplay_sensor_projection
+)
+
+# These provider registrations are optional during the incremental adoption
+# window. World composes them only when the corresponding target exists.
+foreach(
+	phoenix_composition_owner
+	phoenix_gameplay_flight_native
+	phoenix_gameplay_away_runtime
+	phoenix_effects_properties_runtime
+	phoenix_effects_active_rules
+	phoenix_scenario_interdictions
+	phoenix_world_profiling
+)
+	if(TARGET "${phoenix_composition_owner}" AND TARGET phoenix_simulation)
+		set_property(TARGET phoenix_simulation APPEND PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "${phoenix_composition_owner}")
+	endif()
+endforeach()
+
+# A role barrier is independent of the direct sets. A client cannot acquire a
+# physical leaf merely because a future aggregate stops using the old facade.
+# Generic definition-only libraries and permitted read models remain allowed.
+function(phoenix_validate_final_module_policy)
+	phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")
+	phoenix_validate_module_dependencies()
+	set(
+		authoritative
+		phoenix_simulation
+		phoenix_session
+		phoenix_network_host
+		phoenix_network_lobby
+		phoenix_fleet_setup
+		phoenix_workshop_test_host
+		phoenix_native_frame_profile
+		phoenix_native_workshop_bridge
+		phoenix_control_inference_host
+		phoenix_control_execution
+		phoenix_control_protocol
+		phoenix_control_coordination_facts
+		phoenix_control_handover
+		phoenix_behavior_state_tree
+		phoenix_knowledge_records
+		phoenix_resources_stocks
+		phoenix_resources_processors
+		phoenix_resources_networks
+		phoenix_scenarios_runtime
+		phoenix_gameplay_conversations
+		phoenix_effects_transactions
+		phoenix_effects_native
+		phoenix_effects_preparation
+		phoenix_effects_funding
+		phoenix_effects_processes
+		phoenix_effects_abilities
+		phoenix_effects_grants
+		phoenix_effects_events
+		phoenix_effects_clocks
+		phoenix_effects_rule_state
+		phoenix_effects_properties
+		phoenix_effects_properties_runtime
+		phoenix_effects_active_rules
+		phoenix_effects_machinery
+		phoenix_effects_finite_work
+		phoenix_resources_equipment
+		phoenix_resources_processing
+		phoenix_gameplay_flight
+		phoenix_gameplay_flight_work
+		phoenix_gameplay_flight_native
+		phoenix_gameplay_docking
+		phoenix_gameplay_craft
+		phoenix_gameplay_logistics
+		phoenix_gameplay_ftl
+		phoenix_gameplay_ftl_coordinator
+		phoenix_gameplay_fitting
+		phoenix_gameplay_directed
+		phoenix_gameplay_damage
+		phoenix_gameplay_repairs
+		phoenix_gameplay_weapons
+		phoenix_gameplay_ordnance
+		phoenix_gameplay_ordnance_contacts
+		phoenix_gameplay_combat_outcomes
+		phoenix_gameplay_combat_shields
+		phoenix_gameplay_combat_faults
+		phoenix_gameplay_combat_continuation
+		phoenix_gameplay_personnel_outcomes
+		phoenix_gameplay_personnel_clinical
+		phoenix_gameplay_personnel_runtime
+		phoenix_gameplay_personnel_treatment
+		phoenix_gameplay_away_operations
+		phoenix_gameplay_away_runtime
+		phoenix_gameplay_boarding_runtime
+		phoenix_gameplay_away_crew
+		phoenix_gameplay_machinery
+		phoenix_gameplay_sensor_acquisition
+		phoenix_gameplay_sensor_coverage
+		phoenix_gameplay_sensor_evidence
+		phoenix_gameplay_sensor_findings
+		phoenix_gameplay_psychic_receptions
+		phoenix_gameplay_psychic_contributions
+		phoenix_gameplay_psychic_interference
+		phoenix_gameplay_psychic_emission
+		phoenix_world_assembly
+		phoenix_scenarios_objectives
+		phoenix_scenarios_streaming
+		phoenix_scenario_bridge
+		phoenix_scenario_interdictions
+		flecs_static
+	)
+	foreach(
+		frontend
+		phoenix_application_shell
+		phoenix_ui_navigation
+		phoenix_console_model
+		phoenix_presentation
+		phoenix_tools
+		phoenix_network_client
+		phoenix_lobby_protocol
+		phoenix_network_projection
+	)
+		phoenix_forbid_dependencies("${frontend}" "${authoritative}")
+	endforeach()
+	if(EMSCRIPTEN)
+		foreach(frontend client workshop)
+			phoenix_forbid_dependencies("${frontend}" "${authoritative}")
+		endforeach()
+	endif()
+	set(
+		presentation
+		raylib
+		RmlUi::RmlUi
+		imgui
+		phoenix_imgui
+		phoenix_tools
+		phoenix_presentation
+		phoenix_application_shell
+		phoenix_ui_navigation
+		phoenix_console_model
+		phoenix_graphics_assets
+		phoenix_graphics_scene
+		phoenix_graphics_radar
+		phoenix_graphics_audio
+		phoenix_ui_rml
+		phoenix_ui_console_surface
+		phoenix_ui_viewscreen
+		phoenix_ui_screens
+		phoenix_ui_settings
+		phoenix_accessibility
+		phoenix_devices
+		phoenix_files
+		phoenix_platform_viewport
+		phoenix_platform_user_paths
+		phoenix_platform_display_identity
+	)
+	phoenix_forbid_dependencies(phoenix_simulation "${presentation}")
+	# Portable generic owners and transport cannot depend up into native execution
+	# or graphics merely because a higher composition target happens to be safe.
+	foreach(
+		portable
+		phoenix_data
+		phoenix_contracts
+		phoenix_input
+		phoenix_console_controls
+		phoenix_foundation
+		phoenix_behavior_state_tree_definitions
+		phoenix_knowledge_records_definitions
+		phoenix_resources_stocks_definitions
+		phoenix_resources_networks_definitions
+		phoenix_resources_processors_definitions
+		phoenix_gameplay_flight_definitions
+		phoenix_gameplay_conversations_definitions
+		phoenix_transport
+		phoenix_wire
+		phoenix_replication
+		phoenix_platform_storage
+		phoenix_blobs
+		phoenix_platform_lifecycle
+		phoenix_knowledge_read_models
+	)
+		phoenix_forbid_dependencies("${portable}" "${authoritative};${presentation}")
+	endforeach()
+	set(
+		platform_adapters
+		phoenix_transport
+		phoenix_blobs
+		phoenix_platform_storage
+		phoenix_platform_lifecycle
+		phoenix_files
+		phoenix_devices
+		phoenix_accessibility
+		phoenix_platform_viewport
+		phoenix_platform_user_paths
+		phoenix_platform_display_identity
+	)
+	foreach(
+		foundation_owner
+		phoenix_data
+		phoenix_contracts
+		phoenix_input
+		phoenix_console_controls
+		phoenix_foundation
+		phoenix_behavior_state_tree_definitions
+		phoenix_behavior_vocabulary
+		phoenix_knowledge_records_definitions
+		phoenix_resources_stocks_definitions
+		phoenix_resources_networks_definitions
+		phoenix_resources_processors_definitions
+		phoenix_gameplay_flight_definitions
+		phoenix_gameplay_conversations_definitions
+		phoenix_knowledge_read_models
+	)
+		phoenix_forbid_dependencies("${foundation_owner}" "${platform_adapters}")
+	endforeach()
+endfunction()
+
+# Running only when this file is included would miss target_link_libraries calls
+# below that include. CMake's root-directory deferred callback sees the final DAG.
+cmake_language(DEFER DIRECTORY "${PROJECT_SOURCE_DIR}" CALL phoenix_validate_final_module_policy)

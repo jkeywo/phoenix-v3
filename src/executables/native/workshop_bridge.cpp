@@ -1,8 +1,23 @@
-#pragma once
-// Include after imports phoenix.tools and phoenix.workshop_test in native.cpp.
+module;
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+#include <nlohmann/json.hpp>
+
+module phoenix.native.workshop_bridge;
+import phoenix.tools;
+import phoenix.workshop_test;
 namespace phoenix
 {
-inline void pump_native_workshop_test(Application &app, double elapsed_seconds)
+void pump_native_workshop_test(Application &app, double elapsed_seconds)
 {
 	static GameplayTestHost test;
 	static double milliseconds = 0;

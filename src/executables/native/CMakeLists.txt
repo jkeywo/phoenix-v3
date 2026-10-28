@@ -10,3 +10,15 @@ set_target_properties(
 	phoenix_native_displays
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+
+add_library(phoenix_native_workshop_bridge STATIC workshop_bridge.cpp)
+target_sources(phoenix_native_workshop_bridge PUBLIC FILE_SET CXX_MODULES FILES workshop_bridge.cppm)
+target_link_libraries(
+	phoenix_native_workshop_bridge
+	PUBLIC phoenix_application_shell
+	PRIVATE phoenix_tools phoenix_workshop_test_host
+)
+set_target_properties(
+	phoenix_native_workshop_bridge
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

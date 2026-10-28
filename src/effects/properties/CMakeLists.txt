@@ -2,3 +2,11 @@ add_library(phoenix_effects_properties STATIC properties.cpp)
 target_sources(phoenix_effects_properties PUBLIC FILE_SET CXX_MODULES FILES properties.cppm)
 target_link_libraries(phoenix_effects_properties PUBLIC phoenix_effects_contracts)
 target_link_libraries(phoenix_effects_properties PRIVATE flecs_static)
+
+add_library(phoenix_effects_properties_runtime STATIC runtime.cpp)
+target_sources(phoenix_effects_properties_runtime PUBLIC FILE_SET CXX_MODULES FILES runtime.cppm)
+target_link_libraries(
+	phoenix_effects_properties_runtime
+	PUBLIC phoenix_effects_properties phoenix_world_state
+	PRIVATE phoenix_gameplay_fitting phoenix_gameplay_combat_state phoenix_foundation flecs_static
+)

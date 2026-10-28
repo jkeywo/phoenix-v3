@@ -25,8 +25,9 @@ import phoenix.network.lobby.protocol;
 #endif
 #if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 import phoenix.tools;
+import phoenix.workshop.browser_test_client;
 #endif
-#include "../diagnostics/browser_performance.hpp"
+import phoenix.diagnostics.browser_profile;
 
 phoenix::Application app;
 double session_work_seconds = 0;
@@ -72,7 +73,11 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 }
 void frame()
 {
-	static BrowserFrameProfile profile;
+#if defined(PHOENIX_SERVER) && defined(PHOENIX_BROWSER_THREADS)
+	static phoenix::BrowserFrameProfile profile(phoenix::frame_session_profile);
+#else
+	static phoenix::BrowserFrameProfile profile;
+#endif
 	const double started = GetTime();
 	if (profile.enabled)
 		app.frame_metrics.clear();

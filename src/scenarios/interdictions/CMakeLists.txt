@@ -1,0 +1,18 @@
+add_library(phoenix_scenario_interdictions STATIC book.cpp orders.cpp advance.cpp)
+target_sources(phoenix_scenario_interdictions PUBLIC FILE_SET CXX_MODULES FILES interdictions.cppm)
+target_link_libraries(
+	phoenix_scenario_interdictions
+	PUBLIC phoenix_content_sensing_types phoenix_world_state phoenix_effects_contracts
+	PRIVATE phoenix_behavior_state_tree
+)
+set_target_properties(
+	phoenix_scenario_interdictions
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+set_property(
+	TARGET phoenix_scenario_interdictions
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_content_sensing_types;phoenix_world_state;phoenix_effects_contracts;phoenix_behavior_state_tree"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_scenario_interdictions)

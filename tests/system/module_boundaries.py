@@ -71,6 +71,23 @@ const auto budget = 1'000;
     write(root, "src/ui/model/partition.cpp", "module phoenix.model;\nimport :detail;\nimport :internal;\n")
     source_check(root, set())
 
+    # Named private interface partitions may own another composition folder in
+    # the same family. An ordinary unit must directly import its local owner.
+    write(root, "src/ui/bindings/bindings.cppm", "export module phoenix.model:bindings;\nimport :detail;\n")
+    write(root, "src/ui/bindings/adapter.cpp", "module phoenix.model;\nimport :bindings;\n")
+    source_check(root, set())
+    write(root, "src/ui/bindings/adapter.cpp", "module phoenix.model;\nimport phoenix.model:bindings;\n")
+    source_check(root, set())
+    write(root, "src/ui/bindings/adapter.cpp", "module phoenix.model;\nimport :detail;\n")
+    source_check(root, {"implementation-owner"})
+    write(root, "src/ui/bindings/adapter.cpp", "module phoenix.model;\nimport :bindings;\n")
+    write(root, "src/base/data/escape.cppm", "export module phoenix.model:escape;\nimport :detail;\n")
+    source_check(root, {"implementation-owner"})
+    (root / "src/base/data/escape.cppm").unlink()
+    write(root, "src/base/data/escape.cpp", "module phoenix.model;\nimport :bindings;\n")
+    source_check(root, {"implementation-owner"})
+    (root / "src/base/data/escape.cpp").unlink()
+
     write(root, "src/base/data/partition.cpp", "module phoenix.data;\nimport phoenix.model:detail;\n")
     source_check(root, {"partition-import"})
     (root / "src/base/data/partition.cpp").unlink()
@@ -173,6 +190,53 @@ endif()
     # traversal may hide a newly forbidden edge.
     configure(diamond + '''target_link_libraries(right_11 INTERFACE "$<$<CONFIG:Debug>:authority>")
 phoenix_forbid_dependency(frontend authority "")
+''', "Forbidden link dependency")
+
+
+    # Platform system-library names are linker inputs, not CMake target edges.
+    configure('''target_link_libraries(adapter INTERFACE user32 ole32)
+phoenix_module_dependencies(frontend ALLOW adapter)
+phoenix_module_dependencies(adapter ALLOW user32 ole32)
+phoenix_validate_module_dependencies()
+''')
+    configure('''phoenix_module_dependencies(adapter ALLOW phoenix_misspelled_owner)
+phoenix_validate_module_dependencies()
+''', "Allowed dependency of adapter is not a target")
+    configure('''target_link_libraries(adapter INTERFACE Authority::Server)
+phoenix_forbid_dependencies(frontend "authority;not_present")
+''', "Forbidden link dependency")
+    # A property alone is sufficient registration, including an intentionally
+    # empty set. Omitting the property must never exempt a new module target.
+    write(fixture, "src/new-owner/CMakeLists.txt", "add_library(phoenix_new_owner INTERFACE)\n")
+    configure('''add_subdirectory(src/new-owner)
+phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")
+''', "Module target has no intentional dependency policy")
+    configure('''add_subdirectory(src/new-owner)
+set_property(TARGET phoenix_new_owner PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "")
+phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")
+phoenix_validate_module_dependencies()
+''')
+    configure('''add_subdirectory(src/new-owner)
+set_property(TARGET phoenix_new_owner PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "")
+target_link_libraries(phoenix_new_owner INTERFACE adapter)
+phoenix_require_module_policies("${PROJECT_SOURCE_DIR}")
+phoenix_validate_module_dependencies()
+''', "Undeclared module dependency")
+    # Use empty synthetic owners to exercise the production final-policy hook.
+    # This creates names, never allows actual edges from observed links.
+    policy_file = ROOT / "cmake/ModulePolicy.cmake"
+    import re
+    target_names = sorted(set(re.findall(r"phoenix_[A-Za-z0-9_]+|RmlUi::RmlUi|nlohmann_json::nlohmann_json|raylib|webp|flecs_static", policy_file.read_text())))
+    empty_owners = "".join(
+        f"add_library({name} INTERFACE" + (" IMPORTED" if "::" in name else "") + ")\n"
+        for name in target_names
+    )
+    include_policy = f'include("{policy_file.as_posix()}")\n'
+    configure(empty_owners + include_policy)
+    # Even an explicitly allowed late link into a native leaf must fail the
+    # independent frontend role guard at the end of the root directory.
+    configure(empty_owners + '''phoenix_module_dependencies(phoenix_network_client ALLOW phoenix_gameplay_flight)
+''' + include_policy + '''target_link_libraries(phoenix_network_client INTERFACE phoenix_gameplay_flight)
 ''', "Forbidden link dependency")
 
 

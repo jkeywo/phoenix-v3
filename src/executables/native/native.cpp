@@ -29,8 +29,8 @@ import phoenix.session.local;
 import phoenix.simulation;
 import phoenix.tools;
 import phoenix.workshop_test;
-#include "../browser/workshop_bridge.hpp"
-#include "../diagnostics/performance.hpp"
+import phoenix.native.workshop_bridge;
+import phoenix.diagnostics.native_profile;
 #include "../../../tests/manual/native_smokes.hpp"
 
 int main(int argc, char **argv)

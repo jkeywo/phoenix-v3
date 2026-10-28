@@ -6,6 +6,7 @@ module;
 #include <map>
 #include <optional>
 #include <span>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -13,6 +14,7 @@ module;
 
 export module phoenix.effects.clocks;
 export import phoenix.effects.rule_state;
+export import phoenix.effects.bindings;
 
 export namespace phoenix
 {
@@ -38,6 +40,20 @@ struct RuleClockSources
 };
 // A derived index only. Native RuleRuntime and ActiveRuleEffect records retain
 // their authoritative clocks; addresses never hold ECS handles or pointers.
+struct FrozenRuleSourceFrame
+{
+	std::string key;
+	RuleEvaluation evaluation;
+	bool native_eligible = false;
+	bool active_owner = false;
+	bool new_clock = false;
+};
+struct PreparedRuleSourceFrames
+{
+	std::set<std::string> seen;
+	std::vector<FrozenRuleSourceFrame> frames;
+};
+
 class RuleClockStore
 {
 public:
@@ -57,6 +73,10 @@ public:
 	advance_due(std::span<const NativeRuleSource>, const RulesCatalog &,
 	            const std::map<std::string, PeriodicEffectDefinition> &, const RuleClockStorage &,
 	            const std::function<bool(const RuleBinding &, const NativeRuleContext &)> &matches, std::int64_t now);
+	PreparedRuleSourceFrames freeze_sources(
+	    std::span<const NativeRuleSource>, const RulesCatalog &,
+	    const std::map<std::string, PeriodicEffectDefinition> &, const RuleClockStorage &, const RuleApplications &,
+	    const std::function<bool(const RuleBinding &, const NativeRuleContext &)> &matches, std::int64_t now);
 	void erase(const std::string &, const RuleClockStorage &);
 	void forget(const std::string &);
 	void invalidate_capacity();

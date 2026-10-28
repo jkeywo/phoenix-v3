@@ -1,49 +1,58 @@
-# C++20 module ownership
+# Modules and reading guide
 
-The [modularisation implementation plan](modularisation-plan.md) proposes a staged migration to family/module folders and stronger ownership seams. It is a future delivery plan; the ownership below describes the current implementation until each migration chunk is verified.
+Code is grouped as `src/<family>/<module>/`. Start with a family's README, then the selected module's named interface and its implementation. Folders group related reading; named modules define declaration ownership; CMake targets define compiled/link ownership. These are related boundaries, not interchangeable counts.
 
-`phoenix.console` is owned by `phoenix_core`. `ConsoleModel` holds one route's permitted observation, authored layout, pending desired values and semantic announcement. It resolves commands through `SessionPort` and has no renderer, platform input or authoritative dependency. Session replacement, content identity, generation, route and claim changes invalidate its state. `GameScreen` renders this model and retains graphics resource ownership.
+The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record intended work, actual ownership and checks performed. Most domain interfaces are active, but the final World private outline and several native integration bindings remain migration work. A folder, README or successful provider build does not establish that work as complete.
 
-`phoenix.console_controls` is owned by `phoenix_foundation`. It normalizes and checks proposed commands against a permitted Observation, resolved Console layout and public display state. Both `ConsoleModel` and the remote client use this interface for descriptor, numeric-widget, manual-flight, conversation and display eligibility. Manual sibling channels resolve by overlapping physical consumers; ambiguous identities or bindings refuse. Malformed required evidence refuses without throwing to callers. The module owns no session, content resolver or authority. Adapters retain input state, connection readiness and transport sequencing; the host independently validates authority and execution conditions at commit.
+## Reading map
 
-Phoenix's first-party public interfaces are named C++20 modules. Import them by name; the previous public `include/phoenix/*.hpp` headers have been removed. The binaries still link static libraries. Third-party dependencies retain their normal headers and pinned versions.
+| Family      | Start here                                                            | Owns                                                                           |
+| ----------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Foundation  | [data, contracts, input and eligibility](../src/foundation/README.md) | Portable values, bounded IO, shared commands/observations and logical input    |
+| Behavior    | [programs and vocabulary](../src/behavior/README.md)                  | Typed state-tree compilation/execution and stable gameplay vocabulary          |
+| Content     | [compiler layers](../src/content/README.md)                           | Packs, immutable definitions, verification, assets and editable documents      |
+| Resources   | [stocks and native accounting](../src/resources/README.md)            | Finite stores, processor claims, power/cooling networks and fitted allocation  |
+| Knowledge   | [record/Console owners](../src/knowledge/README.md)                   | Scoped records, provenance, messages and permitted decision projections        |
+| Control     | [Controller integration](../src/control/README.md)                    | Claims, bindings, proposals, tree actions, coordination and admission          |
+| Effects     | [shared effect mechanisms](../src/effects/README.md)                  | Rules, properties, invocation, work/funding, grants and transactions           |
+| Gameplay    | [native domain mechanisms](../src/gameplay/README.md)                 | Flight, combat, personnel, logistics, sensors and other native services        |
+| World       | [authoritative composition](../src/world/README.md)                   | Actor lifetime, registry ownership, fixed phase order and candidate restore    |
+| Scenarios   | [regions, execution and integration](../src/scenarios/README.md)      | Exact environment geometry, situations, objectives and native adapters         |
+| Networking  | [protocol and role separation](../src/networking/README.md)           | Wire transfer, consensus, durability, client/host sessions and lobby           |
+| Graphics    | [render resources and scene](../src/graphics/README.md)               | GPU/audio resources and permitted scene/radar rendering                        |
+| UI          | [models, surfaces and widgets](../src/ui/README.md)                   | Renderer-free Console state, per-route interaction and presentation            |
+| Workshop    | [authoring and GM surfaces](../src/workshop/README.md)                | Documents, editors, previews and disposable test requests                      |
+| Application | [composition services](../src/application/README.md)                  | Screen/session state, installed content, preferences, displays and connections |
+| Platform    | [OS/browser adapters](../src/platform/README.md)                      | Files, devices, storage, transport, accessibility and lifecycle                |
+| Executables | [runnable roles](../src/executables/README.md)                        | Native/browser startup, content tools, worker hosts and explicit diagnostics   |
 
-## Interfaces and dependencies
+## Public owners and dependencies
 
-| Modules                                              | Owning target            | Responsibility                                                                                |
-| ---------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
-| `phoenix.input`, `phoenix.contracts`, `phoenix.data` | `phoenix_foundation`     | Console routing, shared command rules, JSON/bytes, hashes, bounded file IO and secure tokens. |
-| `phoenix.content`                                    | `phoenix_content`        | Packs, catalog verification, behavior trees and Workshop documents.                           |
-| `phoenix.simulation`                                 | `phoenix_simulation`     | Authoritative world; Flecs and collision helpers remain internal.                             |
-| `phoenix.transport`                                  | `phoenix_transport`      | Opaque native/browser peer links.                                                             |
-| `phoenix.wire`                                       | `phoenix_wire`           | Authenticated packets and bounded content transfer.                                           |
-| `phoenix.blobs`                                      | `phoenix_blobs`          | Asynchronous persistent byte storage.                                                         |
-| `phoenix.replication`                                | `phoenix_replication`    | Transport-independent consensus actor and durable transactions.                               |
-| `phoenix.persistence`                                | `phoenix_persistence`    | Native/browser peer journals and their shared consensus durability coordinator.               |
-| `phoenix.fleet`                                      | `phoenix_fleet`          | Authenticated fixed-roster driver, without simulation.                                        |
-| `phoenix.session.api`                                | `phoenix_session_api`    | Shared session interface and setup/network options, without authority.                        |
-| `phoenix.session.local`                              | `phoenix_session`        | Local session factory and server-only `HostAccess`.                                           |
-| `phoenix.network.host`                               | `phoenix_network_host`   | Network host factory and implementation.                                                      |
-| `phoenix.network.client`                             | `phoenix_network_client` | Network client/GM factory and implementation.                                                 |
-| `phoenix.fleet_setup`                                | `phoenix_fleet_setup`    | Server-only prepared fleets, bundles and durable runtime.                                     |
-| `phoenix.application`, `phoenix.navigation`          | `phoenix_core`           | Application state, translation and permitted navigation.                                      |
-| `phoenix.presentation`                               | `phoenix_presentation`   | Screens and native/browser accessibility adapters.                                            |
-| `phoenix.tools`                                      | `phoenix_tools`          | Workshop/GM tool UI.                                                                          |
-| `phoenix.files`                                      | `phoenix_files`          | Native/browser user file and clipboard services.                                              |
+First-party APIs are C++20 named modules. Import the owner you use and link its actual target. Implementations often need private imports in addition to the types exposed by their public interface; a visible Catalog or Observation does not implicitly export every compiler or runtime operation.
 
-`SessionPort` has one declaration owner: `phoenix.session.api`. Application state imports that interface instead of redeclaring the class. Session factories belong to their implementations, so importing the shared interface does not offer authoritative factories. `HostAccess` is exported only by the server-side local-session module for use by host/fleet composition.
+| API                                                                              | Target or target choice                                                                                | Reading seam                                                                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `phoenix.data`, `phoenix.contracts`, `phoenix.input`, `phoenix.console_controls` | `phoenix_data`, `phoenix_contracts`, `phoenix_input`, `phoenix_console_controls`                       | Foundation leaves; the remaining foundation link convenience groups these targets without owning declarations |
+| `phoenix.state_tree`                                                             | `phoenix_behavior_state_tree_definitions` for compilation; `phoenix_behavior_state_tree` for execution | Same named contract, distinct compile/runtime ownership                                                       |
+| `phoenix.resources.stocks`, `phoenix.resources.processors`, `phoenix.resources`  | Corresponding stocks/processors/networks definition targets, with runtime targets only when executing  | Generic accounting remains below content/equipment adapters                                                   |
+| `phoenix.knowledge`, `phoenix.conversations`, `phoenix.scenario`                 | Record/conversation/scenario definition targets or their runtime counterparts                          | Definition inspection need not link authoritative execution                                                   |
+| `phoenix.scenarios.environment`                                                  | `phoenix_scenarios_environment`                                                                        | Pure regions, exact geometry, attenuation and deterministic field generation                                  |
+| `phoenix.content.<domain>.types`                                                 | `phoenix_content_<domain>_types`                                                                       | Unique compiled definition owners                                                                             |
+| `phoenix.content.<domain>` compiler APIs                                         | `phoenix_content_compilers` for the mutually recursive compiler implementation group                   | Separate acyclic public APIs; a deliberate compiler SCC is not independent domain libraries                   |
+| Packs/catalogue/assets/UI/documents/distribution                                 | Their `phoenix_content_<module>` targets                                                               | Separate archive, model, asset, layout, editing and permitted packaging ownership                             |
+| `phoenix.application`, `phoenix.navigation`, `phoenix.console`                   | `phoenix_application_shell`, `phoenix_ui_navigation`, `phoenix_console_model`                          | Application state, semantic navigation and per-route Console model are separate                               |
+| `phoenix.session.api`                                                            | `phoenix_session_api`                                                                                  | Shared permitted session contract; local/host implementations remain separate                                 |
+| `phoenix.simulation`                                                             | `phoenix_simulation`                                                                                   | Public World facade and authoritative composition                                                             |
 
-Content, transport and replication depend on the foundation rather than application state. Application depends on the shared session API. This keeps the import/link graph acyclic. CMake rejects simulation, Flecs, local-session, network-host and fleet-setup dependencies in shared frontend layers; client and Workshop executable guards remain in place. Simulation continues to exclude graphics and tools.
+The content re-export facade, generic gameplay definition/runtime aliases and Core compatibility target have been retired. New dependencies should name an actual owner. Console's renderer-free API includes eligibility, message and public-readout free functions as well as ConsoleModel; inspect the whole interface when deciding whether its dependency is needed.
 
-Blob storage depends only on the foundation; journal storage depends on replication. Neither needs the content/archive stack for hashing or file IO. Native and browser transports share a private C++ policy for discovery, signalling envelopes and route selection. Platform adapters retain socket and WebRTC mechanics. `DurableConsensus` owns journal recovery and write acknowledgements; host/fleet drivers retain their application-specific commit handling.
+Content compiler implementations retain real recursive relationships among combat/directed definitions, effects/rules/abilities/processes and stock/logistics resolution. Their shared implementation target is intentional and documented. Packs, image codec, catalogue model, assets, UI, documents and distribution remain separately owned. Public declaration ownership must not be duplicated to disguise a cycle.
 
-## Authoring module code
+World still includes native integration fragments from domain folders while the remaining policies and private outline are finalized. Those headers are not additional public module interfaces. Domain providers must be compiled first, then adopted through guarded World edits and behavioral/continuation checks. The exact temporary boundaries remain visible in the source checker exceptions and migration ledger.
 
-Public interfaces live beside their implementation in `.cppm` files and are registered using public `CXX_MODULES` file sets. `cmake/Modules.cmake` records the target ownership and enables scanning for first-party consumers; foundation interfaces are registered when their target is created. Keep dependencies represented in both imports and CMake target links.
+## Authoring a module
 
-Each exported declaration has exactly one module owner. Implementation `.cpp` files use `module phoenix.name;`; consumers use `import phoenix.name;`. Do not introduce parallel compatibility headers or attach another declaration of the same class to a different named module.
-
-Standard-library and third-party includes precede the named-module declaration in a global module fragment:
+Keep the interface beside its implementations and register it with a public `CXX_MODULES` file set in the module's local CMake. Put standard/third-party includes in the global module fragment; import the Phoenix APIs whose declarations you use. Importing a module does not promise incidental standard-library includes.
 
 ```cpp
 module;
@@ -58,21 +67,66 @@ std::string describe(const BodyView &body);
 }
 ```
 
-Consumers include standard-library headers for the operations they use, then import Phoenix modules. Imports do not promise the old headers' incidental transitive includes. JSON stays the same `nlohmann::json` type through `Json` and `WireJson`; units using JSON templates may include its header in the global fragment. There is no header-unit conversion, `import std`, or custom BMI cache.
+The implementation attaches to `module phoenix.example;`. Give each exported class, record and free function one owner. Canonical serializers belong with their records; do not copy their declarations/bodies into another named module. Keep non-template JSON operations out of exported method bodies when an out-of-line implementation is appropriate. Shared template/constant definitions use explicit inline semantics where required by named modules.
 
-Remaining private helper headers are implementation fragments included after the module declaration/imports. Their standard-library/third-party dependencies belong in the including unit's global fragment. Shared inline constants and methods must be explicitly inline: named modules change the usual header linkage rules. Projection helpers shared by host and client have internal linkage.
+Track both imports and target links. The source checker checks named ownership/private-header boundaries; CMake checks linked dependency reachability. Neither replaces compilation, runtime integration or permission/continuation checks. Use the build commands and compiler constraints in [building.md](building.md), with test policy in [testing.md](testing.md).
 
-Windows headers/macros and Emscripten headers remain local to their adapters. Browser callbacks retain their existing `extern "C"`, `EMSCRIPTEN_KEEPALIVE`, exported names and JavaScript bodies. No packet, save, content or storage schema changes accompany this conversion.
+## Checkpoint size inventory
 
-## Building and verification
+The following snapshot is **before the final World outline**. It counts physical lines, including blanks/comments, across current first-party C++ interfaces, implementations and private headers. It excludes dependencies, references and build output. These are reading sizes, not executable-code size, target independence or an acceptance metric. Final counts must be regenerated after the outline/adoption checkpoint.
 
-The minimum CMake version is 3.28; bootstrap continues to pin 3.31.6, Ninja 1.11.1.3 and Emscripten 6.0.12. The native generator remains Visual Studio 2022. Use the normal [build and check commands](building.md). Emscripten's `emscan-deps` wrapper supplies module dependency scanning, including its target flags. First-party WASM consumers inherit consistent exception settings from the foundation.
+| Family        | Module folders | Named modules | Physical lines |
+| ------------- | -------------: | ------------: | -------------: |
+| `application` |              6 |             6 |          1,440 |
+| `behavior`    |              2 |             2 |          2,108 |
+| `content`     |             17 |            27 |         21,175 |
+| `control`     |              5 |            11 |          4,506 |
+| `effects`     |              8 |            21 |         15,136 |
+| `executables` |              7 |             5 |          2,531 |
+| `foundation`  |              4 |             4 |          1,882 |
+| `gameplay`    |             22 |            50 |         23,650 |
+| `graphics`    |              5 |             6 |          4,425 |
+| `knowledge`   |              4 |             4 |          4,903 |
+| `networking`  |             10 |            14 |          9,458 |
+| `platform`    |              7 |            10 |          4,990 |
+| `resources`   |              4 |             5 |          4,585 |
+| `scenarios`   |              5 |             6 |          5,739 |
+| `ui`          |             12 |            18 |         20,292 |
+| `workshop`    |              9 |            14 |         10,135 |
+| `world`       |              5 |             6 |          6,042 |
 
-Module interfaces are compiled for each toolchain/configuration in its own build tree. Do not copy native IFCs to WASM, or reuse BMIs across compiler/configuration changes. CMake orders interfaces before consumers and tracks changes to both interfaces and implementations. The formatter and existing source-root CI filters include `.cppm` files.
+The checkpoint inventory has 132 module folders, 209 named modules and 142,997 physical lines. Detailed current per-folder/per-file data is prepared locally in `build/modularisation-baseline/module-size-inventory.prepared.{json,csv}`; it is not the final inventory deliverable.
 
-The automatic gate runs the existing synthetic behavioral tests and compares native/WASM continuation. It also executes input/semantics on WASM. Network-service tests exercise real native peers, client/GM sessions and verified WSS. Browser storage, real screen readers, devices and performance smoke journeys remain separately invoked evidence; compilation does not establish those requirements.
+The implementation refines the plan's original folder sketch with these concrete seams. They remain inside the intended family and have their own reading guides.
 
-## Conversion evidence — 17 October 2026
+| Additional folder              | Reason for the boundary                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `application/preference-store` | Application-aware settings persistence stays above portable preference/localisation values                                         |
+| `content/distribution`         | Permitted launcher/client packaging sits above verification and asset compilation, avoiding a reverse asset-to-verifier dependency |
+| `effects/funding`              | Input identities, fractional credits and fee plans are shared by rule/ability/process funding without owning native stores         |
+| `gameplay/combat-continuation` | Native restore/schema validation uses explicit immutable identities rather than World lookup                                       |
+| `gameplay/damage`              | Shield interception, ordered absorption and structural damage plans are reusable native mechanisms                                 |
+| `gameplay/directed`            | Directed mode selection, qualification and operation receipts have one owner                                                       |
+| `gameplay/machinery`           | Native process eligibility consumes bounded actor facts instead of a World context                                                 |
+| `gameplay/ordnance`            | Missile/contact geometry, blast exposure and material traversal stay below native phase composition                                |
+| `gameplay/ordnance-contacts`   | Tick-local contact indexes and deterministic fuse/contact ordering are separate from participant authority                         |
+| `gameplay/repairs`             | Native structural/fault repair progress is separate from team scheduling and access                                                |
+| `gameplay/weapons`             | Magazine/ammunition commitment and projectile initialization use bounded store/definition views                                    |
+| `graphics/geometry`            | Local camera and sprite-facing calculations need no GPU or Application                                                             |
+| `knowledge/read-models`        | Clients decode already-permitted information without acquiring authoritative knowledge execution                                   |
+| `networking/projection`        | Bounded observation/public-board envelopes and permission validation stay outside mutable sessions                                 |
+| `platform/viewport`            | Focus and CSS/drawing-surface synchronization stay outside UI/Application state                                                    |
+| `scenarios/interdictions`      | Encounter orders, rosters and continuation are separate from physical psychic simulation                                           |
+
+Record a new owner's responsibility and dependency direction rather than renaming it merely to resemble the initial sketch.
+
+## Validation status
+
+Per-revision build, system, trace and role receipts are maintained in [modularisation-evidence.md](modularisation-evidence.md). Native, ordinary WebAssembly and threaded WebAssembly are separate gates. Browser rendering, real screen readers, device routing, OS-native adapters and performance captures require their own explicitly invoked evidence. No current full-browser/runtime acceptance is inferred from this guide or a compiled export table.
+
+The section below preserves an earlier compiler-conversion receipt. Its timings and case counts describe 17 October, not the present family migration or its performance.
+
+## Historical conversion evidence — 17 October 2026
 
 The pre-conversion baseline and converted automatic gate passed: ten native integration cases, the WASM checks (including the newly added input/semantics case), native/WASM continuation comparison, and five network-service cases covering discovery/relay, plaintext-bind refusal, live fleet recovery, client/GM sessions and trusted/untrusted WSS.
 

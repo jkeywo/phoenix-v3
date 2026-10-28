@@ -28,5 +28,4 @@ bool probe_gameplay_controller_test(WorkshopDocument &, unsigned stage);
 std::optional<GameplayTestRequest> take_gameplay_test_request();
 void set_gameplay_authoring_vocabulary(const Json &);
 void set_gameplay_test_feedback(const Json &);
-void pump_browser_workshop_test(Application &);
 } // namespace phoenix

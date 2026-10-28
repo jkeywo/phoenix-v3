@@ -5,110 +5,59 @@ std::map<std::string, PeriodicEffectDefinition> periodic_templates;
 // are a query-derived cache; stable effect IDs govern execution and persistence.
 const std::vector<flecs::entity> &active_rule_rows() const
 {
-	if (active_rule_order_dirty)
-	{
-		active_rule_order.clear();
-		active_rule_query.each(
-		    [&](flecs::entity e, const ActiveRuleEffect &)
-		    {
-			    active_rule_order.push_back(e);
-		    });
-		std::sort(active_rule_order.begin(), active_rule_order.end(),
-		          [](auto a, auto b)
-		          {
-			          return a.template get<ActiveRuleEffect>().id < b.template get<ActiveRuleEffect>().id;
-		          });
-		active_rule_order_dirty = false;
-	}
-	return active_rule_order;
+	return active_rules.rows();
 }
 std::vector<ActiveRuleEffect> active_rule_snapshot() const
 {
-	std::vector<ActiveRuleEffect> values;
-	for (auto effect_entity : active_rule_rows())
-	{
-		const auto &effect = effect_entity.get<ActiveRuleEffect>();
-		values.push_back(effect);
-	}
-	return values;
+	return active_rules.snapshot();
 }
 flecs::entity active_rule_entity(std::uint64_t id) const
 {
-	const auto at = active_rule_index.find(id);
-	return at == active_rule_index.end() ? flecs::entity{} : at->second;
+	return active_rules.find(id);
+}
+ActiveRuleMutationObserver active_rule_mutation_observer()
+{
+	return {[this](const ActiveRuleEffect &retired)
+	        {
+		        mark_custom_property_rates_dirty();
+		        for (const auto &[key, state] : retired.clocks)
+			        erase_custom_property_rate_source(key);
+	        }};
 }
 void erase_active_rule_effect(flecs::entity entity)
 {
-	const auto &retired = entity.get<ActiveRuleEffect>();
-	mark_custom_property_rates_dirty();
-	for (const auto &[key, state] : retired.clocks)
-		erase_custom_property_rate_source(key);
-	rule_clocks.invalidate_capacity();
-	active_rule_index.erase(entity.get<ActiveRuleEffect>().id);
-	entity.destruct();
-	active_rule_order_dirty = true;
+	active_rules.erase(entity, rule_clocks, active_rule_mutation_observer());
 }
 template <typename Predicate> std::size_t erase_active_rule_effects_if(Predicate predicate)
 {
-	std::vector<flecs::entity> removed;
-	for (auto entity : active_rule_rows())
-		if (predicate(entity.get<ActiveRuleEffect>()))
-			removed.push_back(entity);
-	for (auto entity : removed)
-		erase_active_rule_effect(entity);
-	return removed.size();
+	return active_rules.erase_if(predicate, rule_clocks, active_rule_mutation_observer());
 }
 void commit_active_rule_effects(const std::vector<ActiveRuleEffect> &prepared)
 {
-	rule_clocks.invalidate_capacity();
-	std::set<std::uint64_t> retained;
-	for (const auto &effect : prepared)
-		retained.insert(effect.id);
-	erase_active_rule_effects_if(
-	    [&](const auto &effect)
+	active_rules.commit(
+	    ecs, prepared,
+	    [this](const PayloadHitContext &context)
 	    {
-		    return !retained.contains(effect.id);
-	    });
-	for (const auto &effect : prepared)
-		if (auto entity = active_rule_entity(effect.id))
-		{
-			if (!(entity.get<ActiveRuleEffect>() == effect))
-				entity.set<ActiveRuleEffect>(effect);
-		}
-		else
-		{
-			auto created =
-			    ecs.entity().set<ActiveRuleEffect>(effect).set<ActiveRuleTarget>({payload_target(effect.context)});
-			active_rule_index.emplace(effect.id, created);
-			active_rule_order_dirty = true;
-		}
+		    return payload_target(context);
+	    },
+	    rule_clocks, active_rule_mutation_observer());
 }
 bool active_rule_effect_exists(const std::vector<ActiveRuleEffect> *prepared, const std::string &source,
                                EntityId target) const
 {
-	if (prepared)
-		return std::any_of(prepared->begin(), prepared->end(),
-		                   [&](const auto &effect)
-		                   {
-			                   return effect.source == source && effect.context.target == target;
-		                   });
-	for (auto effect_entity : active_rule_rows())
+	return active_rules.exists(prepared, source, target);
+}
+RuleTargetValidity active_rule_target_validity() const
+{
+	return [this](const PayloadHitContext &context, flecs::entity body)
 	{
-		const auto &effect = effect_entity.get<ActiveRuleEffect>();
-		if (effect.source == source && effect.context.target == target)
-			return true;
-	}
-	return false;
+		return payload_context_available(context, body);
+	};
 }
 bool active_rule_target_available(const ActiveRuleEffect &effect) const
 {
-	const auto entity = active_rule_entity(effect.id);
-	if (!entity)
-		return false;
-	const auto body = entity.get<ActiveRuleTarget>().body;
-	return body.is_alive() && payload_context_available(effect.context, body);
+	return active_rules.target_available(effect, active_rule_target_validity());
 }
-std::uint64_t next_rule_instance = 1;
 
 std::vector<RuleFactBinding> payload_capture_layout(const std::vector<std::string> &payloads) const
 {

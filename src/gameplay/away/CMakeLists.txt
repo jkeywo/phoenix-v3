@@ -35,3 +35,29 @@ set_target_properties(
 	phoenix_gameplay_away_crew
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+
+add_library(phoenix_gameplay_away_runtime STATIC runtime.cpp)
+target_sources(phoenix_gameplay_away_runtime PUBLIC FILE_SET CXX_MODULES FILES runtime.cppm)
+target_link_libraries(
+	phoenix_gameplay_away_runtime
+	PUBLIC
+		phoenix_gameplay_away_operations
+		phoenix_gameplay_personnel_state
+		phoenix_gameplay_combat_state
+		phoenix_gameplay_craft
+		phoenix_gameplay_docking
+		phoenix_gameplay_repairs
+		phoenix_gameplay_conversations_definitions
+		phoenix_scenarios_runtime_definitions
+		phoenix_effects_contracts
+		phoenix_scenarios_objectives
+	PRIVATE
+		phoenix_gameplay_conversations
+		phoenix_scenarios_runtime
+		phoenix_behavior_state_tree
+		phoenix_gameplay_team_routes
+)
+set_target_properties(
+	phoenix_gameplay_away_runtime
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

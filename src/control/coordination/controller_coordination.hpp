@@ -100,7 +100,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 	if (request)
 	{
 		const auto entity = entities.at(observed.own.id);
-		for (const auto &system : fittings(entity)->values)
+		for (const auto fitted = fittings(entity); const auto &system : fitted->values)
 			inputs.systems.push_back(system.id);
 		if (request->operation == OfficerOperation::Manoeuvre &&
 		    std::any_of(controller.definition.commands.begin(), controller.definition.commands.end(),

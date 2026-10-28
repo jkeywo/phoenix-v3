@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <cstdlib>
 #include <span>
+#include <algorithm>
 module phoenix.gameplay.sensors.coverage;
 import phoenix.gameplay.combat.state;
 namespace phoenix
@@ -26,5 +27,20 @@ SensorContact sensor_coverage_contact(const SensorCoverage &coverage, fixed::Vec
 	if (outer > normal && distance <= outer && sensor_coverage_contains(coverage, target, coverage.outer, regions))
 		return SensorContact::Bearing;
 	return SensorContact::None;
+}
+
+SensorContactAssessment assess_sensor_contact(const SensorCoverage &coverage, std::int64_t source_altitude,
+                                              const BodyView &body, std::int64_t visibility,
+                                              std::span<const ScenarioRegion> regions)
+{
+	const auto delta = fixed::Vec{body.x, body.y} - coverage.origin;
+	const auto z = body.altitude - source_altitude;
+	const auto distance =
+	    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z)));
+	const auto surface_distance = std::max<std::int64_t>(0, distance - body.radius);
+	const fixed::Vec surface = distance ? coverage.origin + fixed::Vec{delta.x * surface_distance / distance,
+	                                                                   delta.y * surface_distance / distance}
+	                                    : coverage.origin;
+	return {sensor_coverage_contact(coverage, surface, surface_distance, visibility, regions), distance};
 }
 } // namespace phoenix

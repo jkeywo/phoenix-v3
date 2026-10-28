@@ -450,7 +450,7 @@ PreparedEffectGroup prepare_effect_groups(std::span<const EffectGroupInvocation>
 			frame.hit_context = frame.rule_context->hit;
 	quote.tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 	quote.epoch = effect_transactions.epoch();
-	quote.next_active = quote.original_next_active = next_rule_instance;
+	quote.next_active = quote.original_next_active = active_rules.next_identity();
 	try
 	{
 		std::vector<std::vector<PreparedEffectCost>> costs;
@@ -548,7 +548,7 @@ bool effect_group_quote_stale(const PreparedEffectGroup &quote) const
 			return true;
 	}
 	if (quote.original_active_effects &&
-	    (next_rule_instance != quote.original_next_active ||
+	    (active_rules.next_identity() != quote.original_next_active ||
 	     !same_effect_active_rules(active_rule_snapshot(), *quote.original_active_effects)))
 		return true;
 	for (const auto &[id, equipment] : quote.equipment)
@@ -607,7 +607,7 @@ std::string commit_effect_group(PreparedEffectGroup &quote)
 		if (quote.active_effects)
 		{
 			commit_active_rule_effects(*quote.active_effects);
-			next_rule_instance = quote.next_active;
+			active_rules.set_next_identity(quote.next_active);
 		}
 		finish_custom_property_batch();
 		for (auto &[id, value] : quote.abilities)

@@ -3,46 +3,11 @@
 	"description": "Exact baseline migration exceptions. Remove each edge as its owning module is extracted; strict checking rejects stale entries.",
 	"exceptions": [
 		{
-			"source": "src/executables/browser/web.cpp",
-			"rule": "cross-module-include",
-			"target": "src/executables/diagnostics/browser_performance.hpp",
-			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
-			"chunk": "18"
-		},
-		{
-			"source": "src/executables/native/native.cpp",
-			"rule": "cross-module-include",
-			"target": "src/executables/browser/workshop_bridge.hpp",
-			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
-			"chunk": "18"
-		},
-		{
-			"source": "src/executables/native/native.cpp",
-			"rule": "cross-module-include",
-			"target": "src/executables/diagnostics/performance.hpp",
-			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
-			"chunk": "18"
-		},
-		{
 			"source": "src/gameplay/combat/combat_effects.hpp",
 			"rule": "cross-module-include",
 			"target": "src/effects/rules/damage_rules.hpp",
 			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
 			"chunk": "26"
-		},
-		{
-			"source": "src/workshop/test-client/browser_workshop_test.cpp",
-			"rule": "implementation-owner",
-			"target": "src/workshop/shell",
-			"reason": "Baseline umbrella named module still owns this implementation; attach it to its independently compiled destination module during extraction.",
-			"chunk": "10"
-		},
-		{
-			"source": "src/world/lifecycle/world.cpp",
-			"rule": "cross-module-include",
-			"target": "src/world/schedule/tick_profile.hpp",
-			"reason": "Baseline private include crosses relocated module folders; replace with the owning public contract during extraction.",
-			"chunk": "30"
 		},
 		{
 			"source": "src/world/lifecycle/world.cpp",

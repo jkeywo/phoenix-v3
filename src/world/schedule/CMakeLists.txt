@@ -1,0 +1,8 @@
+add_library(phoenix_world_profiling STATIC profiling.cpp)
+target_sources(phoenix_world_profiling PUBLIC FILE_SET CXX_MODULES FILES profiling.cppm)
+target_link_libraries(phoenix_world_profiling PRIVATE nlohmann_json::nlohmann_json)
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_world_profiling PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_world_profiling INTERFACE ${PHOENIX_EXCEPTION_FLAG})
+endif()
+set_property(TARGET phoenix_world_profiling PROPERTY CXX_SCAN_FOR_MODULES ON)

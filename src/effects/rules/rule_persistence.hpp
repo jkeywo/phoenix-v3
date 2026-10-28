@@ -438,7 +438,7 @@ void restore_rules(const Json &saved, const Json &conditions, const Json &next_c
 		check_grant_clock(effect.source);
 	}
 	rule_events.restore(std::move(pending), std::move(results), job_next);
-	next_rule_instance = instance_next;
+	active_rules.set_next_identity(instance_next);
 	clear_rule_upkeep();
 	rebuild_rule_clock_addresses();
 }

@@ -193,13 +193,30 @@ def inspect(root: Path) -> tuple[list[Diagnostic], int, int]:
             if primary not in owners:
                 report(unit, 0, "missing-interface", primary, "named implementation has no primary interface")
             elif unit.owner != owners[primary].owner:
-                report(
-                    unit,
-                    0,
-                    "implementation-owner",
-                    owners[primary].owner,
-                    f"{primary} is owned by {owners[primary].owner}",
-                )
+                # A private interface partition owns a composition folder only
+                # within its primary module's family. Ordinary units there must
+                # directly import that folder's partition; importing an unrelated
+                # partition or crossing a family never grants ownership.
+                same_family = unit.owner.split("/")[:2] == owners[primary].owner.split("/")[:2]
+                owned_partition = ":" in unit.declaration and unit.interface and same_family
+                direct_imports = {
+                    primary + name if name.startswith(":") else name
+                    for imported in IMPORT.finditer(unit.masked)
+                    for name in [imported.group(1)]
+                }
+                local_partitions = {
+                    name for name, partition in owners.items()
+                    if name.startswith(primary + ":") and partition.owner == unit.owner and partition.interface
+                }
+                imports_owned_partition = bool(direct_imports & local_partitions)
+                if not (owned_partition or (same_family and imports_owned_partition)):
+                    report(
+                        unit,
+                        0,
+                        "implementation-owner",
+                        owners[primary].owner,
+                        f"{primary} requires its primary folder or a directly imported private partition owner",
+                    )
         for imported in IMPORT.finditer(unit.masked):
             name = imported.group(1)
             if name.startswith(":"):

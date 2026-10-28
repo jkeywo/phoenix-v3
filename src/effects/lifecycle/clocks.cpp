@@ -6,6 +6,7 @@ module;
 #include <map>
 #include <optional>
 #include <span>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -237,6 +238,45 @@ std::vector<PendingRuleExecution> RuleClockStore::advance_due(
 				due.push_back({0, now, RuleEventPhase::Periodic, state->definition, key, 0, std::move(context)});
 			}
 	return due;
+}
+
+PreparedRuleSourceFrames
+RuleClockStore::freeze_sources(std::span<const NativeRuleSource> sources, const RulesCatalog &rules,
+                               const std::map<std::string, PeriodicEffectDefinition> &periodic,
+                               const RuleClockStorage &storage, const RuleApplications &applications,
+                               const std::function<bool(const RuleBinding &, const NativeRuleContext &)> &matches,
+                               std::int64_t now)
+{
+	PreparedRuleSourceFrames prepared;
+	for (const auto &source : sources)
+		if (source.bindings)
+			for (const auto &binding : *source.bindings)
+			{
+				const auto &rule = rules.at(binding.rule);
+				if (rule.trigger != RuleTrigger::Maintain && rule.trigger != RuleTrigger::Tick &&
+				    rule.trigger != RuleTrigger::Occupancy && rule.trigger != RuleTrigger::Activate &&
+				    rule.trigger != RuleTrigger::Deactivate)
+					continue;
+				auto context = bind_rule_context(binding, source.context);
+				const bool eligible = source.eligible && matches(binding, source.context);
+				const bool fresh = !find(rule_key(source.key, binding.id, context.subject), storage);
+				auto *state = ensure(source, binding, context, eligible, rules, periodic, storage);
+				if (!state)
+					continue;
+				prepared.seen.insert(state->key);
+				context.tick = now;
+				context.elapsed = std::max<std::int64_t>(0, now - state->started);
+				const bool retarget = rule.phase == RulePhase::Maintained && state->active &&
+				                      !applications.same(rule, state->applied_context, context);
+				context.output =
+				    rule.funding ? (!retarget && state->lease_tick == now ? state->lease_permille : 0) : 1000;
+				state->context = context;
+				prepared.frames.push_back({state->key,
+				                           eligible ? applications.evaluate(rule, context)
+				                                    : RuleEvaluation{RuleEvaluationStatus::Unmatched, {}},
+				                           eligible, source.active_effect != 0, fresh});
+			}
+	return prepared;
 }
 
 } // namespace phoenix

@@ -187,13 +187,6 @@ void publish_sensor(EntityId ship, const std::string &system, EntityId target, c
 			knowledge.publish_scenario_console({ship, console.id}, record, tick);
 }
 // A receiver's apparent bodies use the same sensor admission as physical bodies.
-struct SensorContactInput
-{
-	BodyView body;
-	bool apparent = false;
-	SensorContact detection = SensorContact::Position;
-	bool focused_only = false;
-};
 template <typename Visitor>
 void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bool include_outer = false,
                          bool focused = false) const
@@ -220,21 +213,15 @@ void for_sensor_contacts(EntityId ship, const std::string &id, Visitor visit, bo
 			                                    return std::find(shows.begin(), shows.end(), tag) != shows.end();
 		                                    }))
 			return;
-		const auto delta = fixed::Vec{body.x, body.y} - origin;
-		const auto z = body.altitude - source_altitude;
-		const auto distance =
-		    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + z * z)));
 		if (!apparent)
 		{
 			const auto &shape = definition(body.id).collider;
 			body.radius = shape.box ? 0 : shape.radius;
 		}
-		const auto surface_distance = std::max<std::int64_t>(0, distance - body.radius);
-		const fixed::Vec surface =
-		    distance ? origin + fixed::Vec{delta.x * surface_distance / distance, delta.y * surface_distance / distance}
-		             : origin;
 		const auto visibility = apparent ? 1000 : 1000 - concealment(body.id);
-		const auto detection = sensor_contact(coverage, surface, surface_distance, visibility);
+		const auto assessment = assess_sensor_contact(coverage, source_altitude, body, visibility, regions);
+		const auto distance = assessment.distance;
+		const auto detection = assessment.detection;
 		const bool focused_only = detection == SensorContact::None && acquiring &&
 		                          body.id == child.get<DirectedRuntime>().target &&
 		                          distance <= focused_range * visibility / 1000 && directed_scan_covers(ship, id, body);

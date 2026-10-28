@@ -3,6 +3,7 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 module phoenix.gameplay.psychic.contributions;
@@ -80,5 +81,51 @@ void reconcile_psychic_contributions(PsychicChoirState &state, EntityId ship, co
 				}
 		contributions.insert_or_assign(grant, std::move(contribution));
 	}
+}
+bool valid_psychic_shape(const PsychicGhostShape &shape)
+{
+	const auto in = [](std::int64_t value, std::int64_t lo, std::int64_t hi)
+	{
+		return value >= lo && value <= hi;
+	};
+	return in(shape.pose.position.x, -1000000000, 1000000000) && in(shape.pose.position.y, -1000000000, 1000000000) &&
+	       in(shape.motion.velocity.x, -1000000, 1000000) && in(shape.motion.velocity.y, -1000000, 1000000) &&
+	       in(shape.pose.altitude, -1000000, 1000000) && in(shape.pose.heading, 0, 359999) &&
+	       in(shape.motion.remainder.x, 1 - simulation_tick_hz, simulation_tick_hz - 1) &&
+	       in(shape.motion.remainder.y, 1 - simulation_tick_hz, simulation_tick_hz - 1) &&
+	       in(shape.acceleration_remainder, 0, simulation_tick_hz - 1) &&
+	       in(shape.turn_remainder, 0, simulation_tick_hz - 1);
+}
+
+PsychicChoirState restore_psychic_contributions(const Json &saved, EntityId ship, const std::string &apparatus,
+                                                const AbilityRuntime *runtime, const PsychicDefinition &definition)
+{
+	auto state = saved.get<PsychicChoirState>();
+	if (Json(state) != saved || state.contributions.size() > 256)
+		throw std::runtime_error("Invalid saved psychic contributions");
+	for (const auto &[grant, contribution] : state.contributions)
+	{
+		const auto *execution = find_psychic_execution(runtime, contribution);
+		if (grant != contribution.grant || !execution || execution->apparatus != apparatus ||
+		    !definition.has_power(contribution.ability) || !contribution.activation ||
+		    (execution->phase != "active" && !(execution->phase == "paused" && execution->resume_phase == "active")) ||
+		    contribution.aim_x != execution->aim_x || contribution.aim_y != execution->aim_y)
+			throw std::runtime_error("Invalid psychic execution link");
+		const auto &profile = definition.power(contribution.ability);
+		if ((profile.kind == "scramble" && (contribution.shapes.size() != static_cast<std::size_t>(profile.ghosts) ||
+		                                    !execution->target || execution->target == ship)) ||
+		    (profile.kind != "scramble" && !contribution.shapes.empty()))
+			throw std::runtime_error("Contradictory psychic projection");
+		for (const auto &shape : contribution.shapes)
+			if (!valid_psychic_shape(shape))
+				throw std::runtime_error("Invalid apparent trajectory");
+	}
+	if (runtime)
+		for (const auto &[grant, execution] : runtime->grants)
+			if (execution.apparatus == apparatus && definition.has_power(execution.definition) &&
+			    (execution.phase == "active" || (execution.phase == "paused" && execution.resume_phase == "active")) &&
+			    !state.contributions.contains(grant))
+				throw std::runtime_error("Missing saved psychic contribution");
+	return state;
 }
 } // namespace phoenix
