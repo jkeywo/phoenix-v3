@@ -3,6 +3,7 @@ module;
 #include <misc/cpp/imgui_stdlib.h>
 #include <raylib.h>
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <map>
@@ -582,12 +583,17 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					else
 					{
 						auto value = token.value().get<std::string>();
-						if (value.size() == 7 || value.size() == 9)
+						if (!value.empty() && value.front() == '#')
 						{
-							try
+							std::uint32_t packed = 0;
+							const auto parsed =
+							    std::from_chars(value.data() + 1, value.data() + value.size(), packed, 16);
+							if ((value.size() == 7 || value.size() == 9) && parsed.ec == std::errc{} &&
+							    parsed.ptr == value.data() + value.size())
 							{
-								const auto colour = GetColor(static_cast<unsigned>(
-								    std::stoul(value.substr(1) + (value.size() == 7 ? "ff" : ""), nullptr, 16)));
+								if (value.size() == 7)
+									packed = (packed << 8) | 0xff;
+								const auto colour = GetColor(packed);
 								float rgba[] = {colour.r / 255.f, colour.g / 255.f, colour.b / 255.f, colour.a / 255.f};
 								if (ImGui::ColorEdit4(tool_label(token.key() + " colour").c_str(), rgba))
 								{
@@ -603,9 +609,10 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 									token.value() = value;
 								}
 							}
-							catch (const std::exception &)
-							{
-							}
+							else
+								ImGui::TextWrapped(
+								    "%s",
+								    localise("Colour must be #RRGGBB or #RRGGBBAA using hexadecimal digits.").c_str());
 						}
 						if (ImGui::InputText(tool_label(token.key()).c_str(), &value))
 							token.value() = value;
