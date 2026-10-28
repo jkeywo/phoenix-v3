@@ -1029,8 +1029,7 @@ Json periodic_stop_transition()
             "per_second":{"value":20,"unit":"resource:test.runtime.supply"}}]}})json"));
 	source["effects"].push_back(Json::parse(R"json({"id":"test.runtime.refill","kind":"operations","operations":[
         {"kind":"add","target":"protected","store":"mag","resource":"test.runtime.supply","amount":10}]})json"));
-	source["trees"].push_back(
-	    Json::parse(R"json({"id":"test.runtime.refill-tree","context":"scenario","initial":"wait",
+	source["trees"].push_back(Json::parse(R"json({"id":"test.runtime.refill-tree","context":"scenario","initial":"wait",
         "states":[{"id":"wait","transitions":[{"target":"refill","conditions":[
             {"left":{"observation":"tick"},"op":"ge","right":4}]}]},
         {"id":"refill","entry":[{"action":"apply_effect_group","arguments":[

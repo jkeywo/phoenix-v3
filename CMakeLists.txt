@@ -242,34 +242,6 @@ add_subdirectory(src/scenarios/environment)
 add_subdirectory(src/scenarios/runtime)
 add_subdirectory(src/gameplay/conversations)
 
-add_library(phoenix_gameplay_definitions INTERFACE)
-target_link_libraries(
-	phoenix_gameplay_definitions
-	INTERFACE
-		phoenix_behavior_state_tree_definitions
-		phoenix_behavior_vocabulary
-		phoenix_knowledge_records_definitions
-		phoenix_resources_stocks_definitions
-		phoenix_resources_processors_definitions
-		phoenix_resources_networks_definitions
-		phoenix_scenarios_environment
-		phoenix_scenarios_runtime_definitions
-		phoenix_gameplay_conversations_definitions
-		phoenix_gameplay_flight_definitions
-)
-add_library(phoenix_gameplay_runtime INTERFACE)
-target_link_libraries(
-	phoenix_gameplay_runtime
-	INTERFACE
-		phoenix_behavior_state_tree
-		phoenix_knowledge_records
-		phoenix_resources_stocks
-		phoenix_resources_processors
-		phoenix_resources_networks
-		phoenix_scenarios_runtime
-		phoenix_gameplay_conversations
-)
-
 add_subdirectory(src/application)
 
 if(WIN32)
@@ -348,6 +320,9 @@ add_subdirectory(src/gameplay/directed)
 add_subdirectory(src/gameplay/ordnance)
 add_subdirectory(src/gameplay/combat-continuation)
 add_subdirectory(src/gameplay/weapons)
+add_subdirectory(src/gameplay/damage)
+add_subdirectory(src/gameplay/repairs)
+add_subdirectory(src/gameplay/ordnance-contacts)
 add_subdirectory(src/gameplay/machinery)
 add_library(phoenix_simulation STATIC src/world/lifecycle/world.cpp)
 target_link_libraries(
@@ -362,7 +337,13 @@ target_link_libraries(
 		flecs_static
 		phoenix_content_compilers
 		phoenix_content_assets
-		phoenix_gameplay_runtime
+		phoenix_behavior_state_tree
+		phoenix_knowledge_records
+		phoenix_resources_stocks
+		phoenix_resources_processors
+		phoenix_resources_networks
+		phoenix_scenarios_runtime
+		phoenix_gameplay_conversations
 		phoenix_scenario_bridge
 		phoenix_world_state
 		phoenix_world_spatial
@@ -389,6 +370,9 @@ target_link_libraries(
 		phoenix_effects_native
 		phoenix_gameplay_combat_shields
 		phoenix_gameplay_combat_faults
+		phoenix_gameplay_damage
+		phoenix_gameplay_repairs
+		phoenix_gameplay_ordnance_contacts
 		phoenix_gameplay_fitting
 		phoenix_gameplay_ftl
 		phoenix_gameplay_docking
@@ -466,10 +450,7 @@ foreach(
 		combat
 )
 	add_executable(phoenix_${case}_tests tests/system/${case}.cpp)
-	target_link_libraries(
-		phoenix_${case}_tests
-		PRIVATE phoenix_simulation phoenix_core phoenix_workshop_test_host phoenix_session
-	)
+	target_link_libraries(phoenix_${case}_tests PRIVATE phoenix_simulation phoenix_workshop_test_host phoenix_session)
 	phoenix_fixture(phoenix_${case}_tests)
 	if(NOT EMSCRIPTEN)
 		add_test(NAME system.${case} COMMAND phoenix_${case}_tests)
@@ -511,11 +492,11 @@ if(EMSCRIPTEN)
 else()
 	enable_testing()
 	add_executable(phoenix_menu_tests tests/system/menu.cpp)
-	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_core phoenix_session)
+	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_application_library phoenix_session)
 	phoenix_fixture(phoenix_menu_tests)
 	add_test(NAME system.native-menu-library COMMAND phoenix_menu_tests)
 	add_executable(phoenix_system_tests tests/system/input_and_semantics.cpp)
-	target_link_libraries(phoenix_system_tests PRIVATE phoenix_core)
+	target_link_libraries(phoenix_system_tests PRIVATE phoenix_ui_navigation phoenix_console_model)
 	add_test(NAME system.input-and-semantics COMMAND phoenix_system_tests)
 	add_executable(phoenix_content_tests tests/system/content.cpp)
 	target_link_libraries(
@@ -538,7 +519,7 @@ else()
 	phoenix_fixture(phoenix_simulation_tests)
 	add_test(NAME system.motion-radar-trees COMMAND phoenix_simulation_tests)
 	add_executable(phoenix_session_tests tests/system/session.cpp)
-	target_link_libraries(phoenix_session_tests PRIVATE phoenix_session phoenix_core)
+	target_link_libraries(phoenix_session_tests PRIVATE phoenix_session phoenix_ui_navigation phoenix_console_model)
 	phoenix_fixture(phoenix_session_tests)
 	add_test(NAME system.local-session COMMAND phoenix_session_tests)
 	add_executable(phoenix_file_tests tests/system/file_imports.cpp)
@@ -677,8 +658,8 @@ endif()
 
 target_link_libraries(
 	phoenix_presentation
-	PUBLIC phoenix_core phoenix_files raylib RmlUi::RmlUi
-	PRIVATE phoenix_qr phoenix_devices phoenix_shaping phoenix_content_packs
+	PUBLIC phoenix_application_shell phoenix_files raylib RmlUi::RmlUi
+	PRIVATE phoenix_ui_navigation phoenix_console_model phoenix_qr phoenix_devices phoenix_shaping phoenix_content_packs
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
 # Retire archives left by older builds before any asset directory is preloaded.
@@ -795,7 +776,7 @@ add_subdirectory(src/workshop)
 
 if(EMSCRIPTEN)
 	add_executable(phoenix_workshop_test src/executables/workshop-host/main.cpp)
-	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host phoenix_core)
+	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host phoenix_application_library)
 	target_link_options(
 		phoenix_workshop_test
 		PRIVATE
@@ -855,7 +836,7 @@ if(EMSCRIPTEN)
 	target_link_libraries(phoenix_replication_check PRIVATE phoenix_replication phoenix_simulation)
 	phoenix_fixture(phoenix_replication_check)
 	add_executable(phoenix_session_check tests/system/session.cpp)
-	target_link_libraries(phoenix_session_check PRIVATE phoenix_session phoenix_core)
+	target_link_libraries(phoenix_session_check PRIVATE phoenix_session phoenix_ui_navigation phoenix_console_model)
 	phoenix_fixture(phoenix_session_check)
 	add_executable(phoenix_file_check tests/system/file_imports.cpp)
 	target_link_libraries(phoenix_file_check PRIVATE phoenix_files phoenix_session)
@@ -1019,7 +1000,10 @@ endif()
 
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_lobby_tests tests/system/lobby.cpp)
-	target_link_libraries(phoenix_lobby_tests PRIVATE phoenix_network_lobby phoenix_core)
+	target_link_libraries(
+		phoenix_lobby_tests
+		PRIVATE phoenix_network_lobby phoenix_application_displays phoenix_console_model
+	)
 	phoenix_fixture(phoenix_lobby_tests)
 	add_test(NAME system.lobby-worker-consoles COMMAND phoenix_lobby_tests --local-consoles)
 endif()
@@ -1059,7 +1043,19 @@ foreach(forbidden raylib phoenix_presentation phoenix_tools)
 endforeach()
 if(EMSCRIPTEN)
 	foreach(frontend client workshop)
-		foreach(forbidden phoenix_simulation phoenix_gameplay_runtime phoenix_scenario_bridge flecs_static)
+		foreach(
+			forbidden
+			phoenix_simulation
+			phoenix_behavior_state_tree
+			phoenix_knowledge_records
+			phoenix_resources_stocks
+			phoenix_resources_processors
+			phoenix_resources_networks
+			phoenix_scenarios_runtime
+			phoenix_gameplay_conversations
+			phoenix_scenario_bridge
+			flecs_static
+		)
 			phoenix_forbid_dependency("${frontend}" "${forbidden}" "")
 		endforeach()
 	endforeach()
@@ -1067,18 +1063,18 @@ endif()
 
 if(EMSCRIPTEN)
 	add_executable(phoenix_input_check tests/system/input_and_semantics.cpp)
-	target_link_libraries(phoenix_input_check PRIVATE phoenix_core)
+	target_link_libraries(phoenix_input_check PRIVATE phoenix_ui_navigation phoenix_console_model)
 	set_property(TARGET phoenix_input_check PROPERTY CXX_SCAN_FOR_MODULES ON)
 endif()
 
 add_executable(phoenix_camera_tests tests/system/camera.cpp)
-target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_core)
+target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_console_model)
 phoenix_fixture(phoenix_camera_tests)
 add_executable(phoenix_missions_tests tests/system/missions.cpp)
-target_link_libraries(phoenix_missions_tests PRIVATE phoenix_simulation phoenix_core)
+target_link_libraries(phoenix_missions_tests PRIVATE phoenix_simulation)
 phoenix_fixture(phoenix_missions_tests)
 add_executable(phoenix_interdictions_tests tests/system/interdictions.cpp)
-target_link_libraries(phoenix_interdictions_tests PRIVATE phoenix_simulation phoenix_core)
+target_link_libraries(phoenix_interdictions_tests PRIVATE phoenix_simulation)
 phoenix_fixture(phoenix_interdictions_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.missions COMMAND phoenix_missions_tests)
@@ -1294,7 +1290,9 @@ include(cmake/BuildPerformance.cmake)
 foreach(
 	frontend
 	phoenix_session_api
-	phoenix_core
+	phoenix_application_shell
+	phoenix_ui_navigation
+	phoenix_console_model
 	phoenix_presentation
 	phoenix_tools
 	phoenix_network_client
@@ -1322,14 +1320,17 @@ endif()
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_boarding_smoke EXCLUDE_FROM_ALL tests/manual/boarding_ui.cpp)
 	set_property(TARGET phoenix_boarding_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
-	target_link_libraries(phoenix_boarding_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+	target_link_libraries(phoenix_boarding_smoke PRIVATE phoenix_session phoenix_presentation phoenix_application_shell)
 	add_dependencies(phoenix_boarding_smoke base_pack)
 	add_executable(phoenix_away_smoke EXCLUDE_FROM_ALL tests/manual/away_ui.cpp)
 	set_property(TARGET phoenix_away_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
 	add_executable(phoenix_ftl_smoke EXCLUDE_FROM_ALL tests/manual/ftl_ui.cpp)
 	target_link_libraries(phoenix_ftl_smoke PRIVATE phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_ftl_smoke base_pack)
-	target_link_libraries(phoenix_away_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+	target_link_libraries(
+		phoenix_away_smoke
+		PRIVATE phoenix_session phoenix_presentation phoenix_application_shell phoenix_console_model
+	)
 	add_dependencies(phoenix_away_smoke base_pack)
 	add_executable(phoenix_comms_smoke EXCLUDE_FROM_ALL tests/manual/comms_ui.cpp)
 	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation)
@@ -1340,7 +1341,7 @@ include(cmake/cruiser-smoke.cmake)
 
 add_executable(phoenix_psychic_smoke EXCLUDE_FROM_ALL tests/manual/psychic_ui.cpp)
 set_property(TARGET phoenix_psychic_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
-target_link_libraries(phoenix_psychic_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+target_link_libraries(phoenix_psychic_smoke PRIVATE phoenix_session phoenix_presentation phoenix_application_shell)
 if(NOT EMSCRIPTEN)
 	add_dependencies(phoenix_psychic_smoke base_pack)
 endif()
@@ -1350,6 +1351,14 @@ include(cmake/runtime-profile.cmake)
 # Existing synthetic cases import these narrow production contracts directly.
 target_link_libraries(phoenix_simulation PRIVATE phoenix_gameplay_logistics)
 target_link_libraries(phoenix_simulation PRIVATE phoenix_gameplay_sensor_envelopes phoenix_gameplay_psychic_state)
+target_link_libraries(
+	phoenix_simulation
+	PRIVATE
+		phoenix_gameplay_personnel_treatment
+		phoenix_gameplay_psychic_contributions
+		phoenix_gameplay_psychic_interference
+		phoenix_gameplay_psychic_emission
+)
 target_link_libraries(
 	phoenix_simulation
 	PRIVATE phoenix_gameplay_away_state phoenix_world_persistence phoenix_control_templates
@@ -1501,3 +1510,12 @@ target_link_libraries(
 	phoenix_simulation
 	PRIVATE phoenix_gameplay_sensor_findings phoenix_gameplay_sensor_validation phoenix_gameplay_sensor_projection
 )
+
+# Synthetic cases link only the presentation contracts they exercise.
+target_link_libraries(phoenix_gameplay_flight_tests PRIVATE phoenix_console_model)
+target_link_libraries(phoenix_sensors_tests PRIVATE phoenix_console_model)
+target_link_libraries(phoenix_controller_runtime_tests PRIVATE phoenix_ui_navigation phoenix_console_model)
+
+# These integration cases also call the Console free-function contracts.
+target_link_libraries(phoenix_craft_tests PRIVATE phoenix_console_model)
+target_link_libraries(phoenix_gameplay_knowledge_tests PRIVATE phoenix_console_model)

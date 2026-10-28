@@ -14,8 +14,8 @@
 #include <string>
 #include <vector>
 
-import phoenix.simulation;
 import phoenix.console;
+import phoenix.simulation;
 
 using namespace phoenix;
 namespace

@@ -321,11 +321,7 @@ void step_ordnance()
 			e.destruct();
 		return;
 	}
-	struct Previous
-	{
-		fixed::Vec position;
-		std::int64_t altitude;
-	};
+	using Previous = OrdnancePrevious;
 	std::map<std::uint64_t, Previous> previous;
 	auto rows = projectile_rows();
 	for (auto row : rows)
@@ -334,44 +330,31 @@ void step_ordnance()
 		previous[p.id] = {p.position, p.altitude};
 		advance_ordnance(p);
 	}
-	struct Target
-	{
-		EntityId id;
-		flecs::entity entity;
-		CollisionBody body;
-		fixed::Vec start;
-		std::int64_t half_height;
-	};
-	std::vector<Target> targets;
-	std::vector<Bounds> bounds;
+	std::vector<flecs::entity> target_entities;
+	std::vector<OrdnanceBodySweep> targets;
 	bodies.each(
 	    [&](flecs::entity e, const StableId &id, const Definition &, const Pose &pose, const Motion &)
 	    {
 		    if (combat_dead(e))
 			    return;
-		    CollisionBody b;
-		    static_cast<Pose &>(b) = pose;
-		    static_cast<Collider &>(b) = e.get<Collider>();
+		    CollisionBody body;
+		    static_cast<Pose &>(body) = pose;
+		    static_cast<Collider &>(body) = e.get<Collider>();
 		    const auto start = step_starts.contains(id.id) ? step_starts.at(id.id) : pose.position;
-		    targets.push_back({id.id, e, b, start, definitions.at(e.get<Definition>().name).half_height});
-		    const auto radius = b.box ? b.half_width + b.half_length : b.radius;
-		    bounds.push_back(Bounds::merge(Bounds::around(start, radius), Bounds::around(pose.position, radius)));
+		    target_entities.push_back(e);
+		    targets.push_back({id.id, body, start, definitions.at(e.get<Definition>().name).half_height});
 	    });
-	SpatialIndex spatial;
-	spatial.rebuild(bounds);
 	std::vector<flecs::entity> missiles;
-	std::vector<Bounds> missile_bounds;
+	std::vector<OrdnanceMissileSweep> missile_geometry;
 	for (auto row : rows)
 	{
 		const auto &p = row.get<Projectile>();
 		if (!p.definition.durability)
 			continue;
 		missiles.push_back(row);
-		missile_bounds.push_back(Bounds::merge(Bounds::around(previous.at(p.id).position, p.definition.radius),
-		                                       Bounds::around(p.position, p.definition.radius)));
+		missile_geometry.push_back({p.id, p.source, p.position, p.altitude, p.definition.radius, previous.at(p.id)});
 	}
-	SpatialIndex missile_index;
-	missile_index.rebuild(missile_bounds);
+	OrdnanceContactIndex contact_index(std::move(targets), std::move(missile_geometry));
 	for (auto row : rows)
 	{
 		auto &p = row.get_mut<Projectile>();
@@ -385,50 +368,19 @@ void step_ordnance()
 			flecs::entity entity;
 			bool missile;
 		};
-		std::vector<Hit> hits;
-		const auto query = Bounds::merge(Bounds::around(from.position, p.definition.radius),
-		                                 Bounds::around(p.position, p.definition.radius));
-		for (auto at = spatial.first(query, 0); at != SpatialIndex::none; at = spatial.first(query, at + 1))
+		auto contacts = contact_index.contacts(p, from);
+		std::erase_if(
+		    contacts,
+		    [&](const auto &contact)
+		    {
+			    const auto entity = contact.missile ? missiles.at(contact.index) : target_entities.at(contact.index);
+			    return contact.missile ? entity.template get<Destructible>().durability <= 0 : combat_dead(entity);
+		    });
+		for (const auto &contact : contacts)
 		{
-			const auto &t = targets[at];
-			if (t.id == p.source || combat_dead(t.entity))
-				continue;
-			if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, t.body, t.start,
-			                          t.body.altitude, t.body.altitude, t.half_height, p.definition.radius))
-				hits.push_back({*hit, t.id, t.entity, false});
-			else if (p.definition.durability && t.id == p.target && p.definition.fuse_radius)
-			{
-				auto fuse = t.body;
-				fuse.box = false;
-				fuse.radius = p.definition.fuse_radius;
-				if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, fuse, t.start,
-				                          t.body.altitude, t.body.altitude, p.definition.fuse_radius))
-					hits.push_back({*hit, t.id, t.entity, false});
-			}
-		}
-		for (auto at = missile_index.first(query, 0); at != SpatialIndex::none; at = missile_index.first(query, at + 1))
-		{
-			auto e = missiles[at];
-			const auto &target = e.get<Projectile>();
-			if (target.id == p.id || target.source == p.source || e.get<Destructible>().durability <= 0 ||
-			    p.missile_hits.contains(target.id))
-				continue;
-			CollisionBody shape;
-			shape.position = target.position;
-			shape.radius = target.definition.radius;
-			shape.mass = 1;
-			const auto old = previous.at(target.id);
-			if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, shape, old.position,
-			                          old.altitude, target.altitude, target.definition.radius, p.definition.radius))
-				hits.push_back({*hit, target.id, e, true});
-		}
-		std::sort(hits.begin(), hits.end(),
-		          [](const auto &a, const auto &b)
-		          {
-			          return std::tuple{a.time, a.missile, a.id} < std::tuple{b.time, b.missile, b.id};
-		          });
-		for (const auto &hit : hits)
-		{
+			const Hit hit{contact.time, contact.id,
+			              contact.missile ? missiles.at(contact.index) : target_entities.at(contact.index),
+			              contact.missile};
 			if (p.life <= 0 || ((!p.damage || !p.penetration) && p.definition.damage > 0))
 				break;
 			const auto impact = from.position + fixed::Vec{(p.position.x - from.position.x) * hit.time / fixed::unit,

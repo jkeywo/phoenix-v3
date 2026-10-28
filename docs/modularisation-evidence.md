@@ -10,7 +10,7 @@ The initial relocation is one mechanical integration step across all existing so
 
 Current compiler functions contain genuine strongly connected call groups (including effects/abilities/processes and combat/directed definitions). Narrow declaration and compiler interfaces will be split first; mutually recursive implementations may temporarily share an explicitly documented compilation target. This is not permission for interface-import cycles, duplicate declarations or permanently unrestricted dependencies.
 
-## Chunk 00 — baseline
+## Chunk 00 - baseline
 
 - Starting revision: `34883ac` (`Record obsolete effect cleanup verification`).
 - Inventory: 342 first-party files under `src/`; destination ownership mapping is retained locally at `build/modularisation-baseline/source-map.json` before relocation.
@@ -174,3 +174,71 @@ such as existing tests. The ledger preserves all 342 baseline origins, records
 mixed-source splits explicitly, and adds separate entries for new owner files;
 statuses distinguish the earlier native content checkpoint from pending wider
 integration.
+
+## Third native extraction checkpoint
+
+Damage allocation, repair work policy, ordnance contacts, clinical treatment,
+psychic contribution reconciliation, interference selection and native emission
+measurement now compile as independent providers. The existing periodic-clock
+owner advances due frontiers, and process-expression evaluation lives in the
+process owner. Native adapters delegate to those providers without changing
+physical payment or event publication order.
+
+Unused content/gameplay umbrella targets and Core were retired. Their consumers
+now name actual owner targets. The first integrated build exposed two test
+consumers of Console free functions missed by the import audit; their imports
+and explicit model dependencies were restored without changing assertions.
+
+- Complete native build: `batch3-native-build-33.log`, passed.
+- Native system and architecture suite: `batch3-native-tests-34.log`, all 48
+  passed in 541.78 seconds.
+- Source ownership: 588 C++ sources, 199 module units, 102 exact temporary
+  exceptions, zero additional violations. These exceptions remain unfinished
+  extraction work.
+- Existing test-body comparison against `34883ac`: 62 modified existing test,
+  manual and support bodies checked; zero unexpected token/literal differences.
+  The four previously documented API adaptations are accounted for explicitly.
+- Fresh continuation comparison: all 23 traces are byte-for-byte identical to
+  `34883ac`; receipt `batch3-trace-comparison-36.json` verifies fresh write times
+  and records each digest. The native build check also passed.
+- Non-ASCII source-literal audit: all 47 baseline occurrences remain unchanged,
+  with no added or removed distinct literals. This checks encoding preservation
+  separately from the runtime traces.
+- Formatting check passed after correcting three reported files: 725 C/C++,
+  147 CMake, 11 PowerShell and 412 web/data/document files checked.
+- The full ordinary WebAssembly build found a Clang dependent-template lookup
+  error in the new ordnance binding. Added the required `template` keyword;
+  the native simulation counterpart rebuilt successfully in
+  `batch3-native-portability-38.log`. The complete ordinary WebAssembly retry
+  passed in `batch3-wasm-build-37.log`, including the authoritative server,
+  client, Workshop and all test binaries. The unchanged browser runtime gate
+  and native/WASM continuation comparisons are running separately; compilation
+  alone is not recorded as a runtime pass.
+
+Ubuntu is installed under WSL, but the inspected environment lacks Clang, CMake,
+Ninja and PowerShell. Native Linux module compilation remains unverified.
+
+## Aggregate retirement activation
+
+The unused `phoenix.content` re-export interface and its build target are now
+removed. The generic gameplay definition/runtime compatibility targets and
+`phoenix_core` are also removed. Their callers name actual module targets. World
+retains the exact seven generic runtime dependencies from the former alias;
+this retirement does not alter authoritative phase order or execution.
+
+Application shell, navigation and Console model consumers now link only the
+services their APIs use. The synthetic case loop no longer acquires all three
+through a blanket dependency; the five cases using Console/navigation add
+those owners explicitly. Unused imports were removed with their dependencies.
+
+Source/CMake inspection found no active references to the retired targets or
+content facade imports. Focused formatting and whitespace checks passed. This
+receipt records activation only: the post-retirement native/browser builds,
+runtime suites and continuation comparisons remain integration-owner gates.
+
+The first post-retirement full build exposed two Console free-function callers
+missed by the initial type-focused dependency audit: craft eligibility and
+knowledge message formatting. Their explicit Console imports and model target
+links were restored without changing test assertions or behavior. The full
+Console public function/type consumer list was then inspected, including calls
+inside test helper headers; the retry remains an integration-owner gate.

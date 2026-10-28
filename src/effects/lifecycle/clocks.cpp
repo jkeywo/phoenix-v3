@@ -5,6 +5,7 @@ module;
 #include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -195,6 +196,47 @@ std::size_t RuleClockStore::capacity(const RuleClockSources &sources, const std:
 		capacity_ = clocks;
 	}
 	return clocks;
+}
+
+std::vector<PendingRuleExecution> RuleClockStore::advance_due(
+    std::span<const NativeRuleSource> sources, const RulesCatalog &rules,
+    const std::map<std::string, PeriodicEffectDefinition> &periodic, const RuleClockStorage &storage,
+    const std::function<bool(const RuleBinding &, const NativeRuleContext &)> &matches, std::int64_t now)
+{
+	std::vector<PendingRuleExecution> due;
+	for (const auto &source : sources)
+		if (source.eligible && source.bindings)
+			for (const auto &binding : *source.bindings)
+			{
+				const auto &rule = rules.at(binding.rule);
+				if (rule.phase != RulePhase::Periodic ||
+				    (rule.trigger != RuleTrigger::Tick && rule.trigger != RuleTrigger::Occupancy))
+					continue;
+				auto context = bind_rule_context(binding, source.context);
+				const auto key = rule_key(source.key, binding.id, context.subject);
+				const bool fresh = !find(key, storage);
+				auto *state = ensure(source, binding, context, true, rules, periodic, storage);
+				if (!state)
+					continue;
+				if (fresh)
+				{
+					state->eligible = true;
+					state->active = true;
+					state->output = rule.funding ? 0 : 1000;
+				}
+				if (!state->eligible || state->stopped || state->next > now || state->last == now)
+					continue;
+				state->next = now + rule.period_ticks;
+				state->last = now;
+				if (!matches(binding, source.context) || (rule.funding && !state->output))
+					continue;
+				context.tick = now;
+				context.elapsed = std::max<std::int64_t>(0, now - state->started);
+				context.output = state->output;
+				state->context = context;
+				due.push_back({0, now, RuleEventPhase::Periodic, state->definition, key, 0, std::move(context)});
+			}
+	return due;
 }
 
 } // namespace phoenix

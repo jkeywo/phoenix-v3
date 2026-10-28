@@ -18,7 +18,7 @@ import phoenix.network.client;
 import phoenix.session.local;
 import phoenix.fleet_setup;
 import phoenix.console;
-import phoenix.navigation;
+import phoenix.application.displays;
 using namespace phoenix;
 using phoenix::test::require;
 int main(int argc, char **argv)

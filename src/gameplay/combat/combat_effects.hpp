@@ -60,21 +60,7 @@ void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t dam
 		    damage, 0, nullptr, origin);
 		const auto system_damage =
 		    damage > 0 ? apply_pre_damage_rules(ship, RuleTrigger::PreSystemDamage, context, sources) : 0;
-		auto &states = s.faults.at(equipment);
-		bool struck = false;
-		for (std::size_t i = 0; i < definitions.size(); ++i)
-		{
-			const auto &d = definitions[i];
-			if (system_damage <= 0 || system_damage < d.threshold)
-				continue;
-			s.random = s.random * 6364136223846793005ULL + 1;
-			if ((s.random >> 16) % 1000 >= static_cast<std::uint64_t>(d.chance))
-				continue;
-			states[i].active = true;
-			states[i].diagnosed = false;
-			states[i].work = 0;
-			struck = true;
-		}
+		const bool struck = apply_native_fault_damage(s, equipment, system_damage);
 		if (struck && affected)
 			affected->push_back(equipment);
 		if (damage > 0)
@@ -242,11 +228,9 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 	const auto local_sources = sources ? std::vector<NativeRuleSource>{} : rule_sources(ship);
 	if (!sources)
 		sources = &local_sources;
-	const auto budget = damage * bypass + (carry ? *carry : 0);
-	const auto bypassed = budget / 1000;
-	if (carry)
-		*carry = budget % 1000;
-	auto remaining = damage - bypassed;
+	const auto budget = native_shield_budget(damage, bypass, carry);
+	const auto bypassed = budget.bypassed;
+	auto remaining = budget.remaining;
 	const auto *owner = ship.try_get<ShieldComponent>();
 	if (!owner)
 		return damage;
@@ -255,9 +239,7 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 	std::vector<ShieldContribution> layers;
 	std::map<std::pair<std::uint64_t, std::string>, NativeRuleContext> shield_origins;
 	for (auto c : owner->contributions)
-		if (shield_available(ship, c) && c.state.warmup && c.state.strength &&
-		    std::abs(combat_delta(combat_angle(heading + 180000 - ship.get<Pose>().heading), c.definition.bearing)) <=
-		        c.definition.arc / 2)
+		if (shield_available(ship, c) && native_shield_intercepts(c, heading, ship.get<Pose>().heading))
 		{
 			c.protection = std::clamp<std::int64_t>(
 			    shield_property(ship, c, "protection", 1000, c.definition.shield.protection_modifier), 0, 1000);
@@ -267,12 +249,7 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 			                                          NativeEffectKind::Shield, c.effect_id));
 			layers.push_back(std::move(c));
 		}
-	std::sort(layers.begin(), layers.end(),
-	          [](const auto &a, const auto &b)
-	          {
-		          return std::tuple{a.definition.shield.layer, a.effect_id, a.definition.name} <
-		                 std::tuple{b.definition.shield.layer, b.effect_id, b.definition.name};
-	          });
+	order_native_shield_layers(layers);
 	for (std::size_t begin = 0; begin < layers.size() && remaining;)
 	{
 		auto end = begin + 1;
@@ -290,42 +267,15 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 			frames[i - begin] = freeze_damage_rules(ship, RuleTrigger::PreShieldDamage, context, &c, sources,
 			                                        &shield_origins.at({c.effect_id, c.definition.name}));
 		}
-		std::vector<std::int64_t> capacity(end - begin), absorbed(end - begin), factors(end - begin);
+		std::vector<std::int64_t> absorbed(end - begin), factors(end - begin);
 		for (;;)
 		{
-			remaining = incoming;
-			std::fill(absorbed.begin(), absorbed.end(), 0);
 			for (std::size_t i = begin; i < end; ++i)
-			{
-				const auto &c = layers[i];
-				const auto &d = c.definition.shield;
-				const auto usable = std::min(c.state.strength,
-				                             c.state.strength * c.state.warmup / d.warmup_ticks * c.protection / 1000);
-				const auto factor = factors[i - begin] = damage_rule_factor(frames[i - begin]);
-				capacity[i - begin] = factor == 0 ? incoming : std::min(incoming, ((usable + 1) * 1000 - 1) / factor);
-			}
-			// Existing equal-share water-fill, including deterministic residue.
-			for (;;)
-			{
-				std::int64_t count = 0;
-				for (std::size_t i = 0; i < capacity.size(); ++i)
-					if (capacity[i] > absorbed[i])
-						++count;
-				if (!count || !remaining)
-					break;
-				const auto share = remaining / count, residue = remaining % count;
-				std::int64_t rank = 0, used = 0;
-				for (std::size_t i = 0; i < capacity.size(); ++i)
-					if (capacity[i] > absorbed[i])
-					{
-						const auto amount = std::min(capacity[i] - absorbed[i], share + (rank++ < residue ? 1 : 0));
-						absorbed[i] += amount;
-						used += amount;
-					}
-				remaining -= used;
-				if (!used)
-					break;
-			}
+				factors[i - begin] = damage_rule_factor(frames[i - begin]);
+			auto allocation = allocate_native_shield_layer(
+			    std::span<const ShieldContribution>(layers).subspan(begin, end - begin), incoming, factors);
+			remaining = allocation.remaining;
+			absorbed = std::move(allocation.absorbed);
 			std::vector<EffectGroupInvocation> invocations;
 			std::vector<std::pair<std::size_t, std::size_t>> indices;
 			for (std::size_t i = 0; i < frames.size(); ++i)
@@ -369,14 +319,8 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 			if (!assigned)
 				continue;
 			const auto &definition = c.definition.shield;
-			const auto stopped = assigned * factors[i - begin] / 1000;
-			c.state.strength -= stopped;
-			if (native_inflicted)
-				*native_inflicted += stopped;
-			if (auto *live = ship.try_get_mut<ShieldComponent>())
-				for (auto &current : live->contributions)
-					if (current.effect_id == c.effect_id && current.definition.name == c.definition.name)
-						current.state.strength = c.state.strength;
+			const auto stopped = apply_native_shield_share(c, ship.try_get_mut<ShieldComponent>(), assigned,
+			                                               factors[i - begin], native_inflicted);
 			auto context = damage_rule_context(
 			    {ship.get<StableId>().id, PayloadOutcomeKind::Shield, -1, {}, c.effect_id, c.definition.name}, assigned,
 			    source, payload, origin);

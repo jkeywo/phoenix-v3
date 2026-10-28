@@ -14,3 +14,48 @@ target_link_libraries(
 	phoenix_gameplay_psychic_receptions
 	PUBLIC phoenix_gameplay_psychic_state phoenix_effects_abilities
 )
+
+add_library(phoenix_gameplay_psychic_contributions STATIC contributions.cpp)
+target_sources(phoenix_gameplay_psychic_contributions PUBLIC FILE_SET CXX_MODULES FILES contributions.cppm)
+target_link_libraries(
+	phoenix_gameplay_psychic_contributions
+	PUBLIC phoenix_gameplay_psychic_state phoenix_effects_abilities phoenix_content_sensing_types
+)
+add_library(phoenix_gameplay_psychic_interference STATIC interference.cpp)
+target_sources(phoenix_gameplay_psychic_interference PUBLIC FILE_SET CXX_MODULES FILES interference.cppm)
+target_link_libraries(phoenix_gameplay_psychic_interference PUBLIC phoenix_gameplay_psychic_contributions)
+add_library(phoenix_gameplay_psychic_emission STATIC emission.cpp)
+target_sources(phoenix_gameplay_psychic_emission PUBLIC FILE_SET CXX_MODULES FILES emission.cppm)
+target_link_libraries(
+	phoenix_gameplay_psychic_emission
+	PUBLIC phoenix_contracts phoenix_gameplay_conversations_definitions flecs_static
+	PRIVATE
+		phoenix_gameplay_fitting
+		phoenix_gameplay_directed
+		phoenix_gameplay_combat_faults
+		phoenix_resources_equipment
+		phoenix_resources_networks
+)
+foreach(
+	target
+	IN
+	ITEMS phoenix_gameplay_psychic_contributions phoenix_gameplay_psychic_interference phoenix_gameplay_psychic_emission
+)
+	set_property(TARGET ${target} PROPERTY CXX_SCAN_FOR_MODULES ON)
+	set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES ${target})
+endforeach()
+set_property(
+	TARGET phoenix_gameplay_psychic_contributions
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_psychic_state;phoenix_effects_abilities;phoenix_content_sensing_types"
+)
+set_property(
+	TARGET phoenix_gameplay_psychic_interference
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_psychic_contributions"
+)
+set_property(
+	TARGET phoenix_gameplay_psychic_emission
+	PROPERTY
+		PHOENIX_ALLOWED_DEPENDENCIES
+			"phoenix_contracts;phoenix_gameplay_conversations_definitions;flecs_static;phoenix_gameplay_fitting;phoenix_gameplay_directed;phoenix_gameplay_combat_faults;phoenix_resources_equipment;phoenix_resources_networks"
+)

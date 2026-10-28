@@ -9,10 +9,16 @@ if(NOT EMSCRIPTEN)
 	add_executable(phoenix_console_transition_smoke EXCLUDE_FROM_ALL tests/manual/console_transition.cpp)
 	target_link_libraries(phoenix_console_transition_smoke PRIVATE phoenix_network_lobby phoenix_presentation)
 	add_executable(phoenix_away_assignment_smoke EXCLUDE_FROM_ALL tests/manual/away_assignments.cpp)
-	target_link_libraries(phoenix_away_assignment_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+	target_link_libraries(
+		phoenix_away_assignment_smoke
+		PRIVATE phoenix_session phoenix_presentation phoenix_application_shell phoenix_console_model
+	)
 	phoenix_fixture(phoenix_away_assignment_smoke)
 	add_executable(phoenix_context_docking_smoke EXCLUDE_FROM_ALL tests/manual/context_docking.cpp)
-	target_link_libraries(phoenix_context_docking_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+	target_link_libraries(
+		phoenix_context_docking_smoke
+		PRIVATE phoenix_session phoenix_presentation phoenix_application_shell phoenix_console_model
+	)
 	phoenix_fixture(phoenix_context_docking_smoke)
 endif()
 if(EMSCRIPTEN)
@@ -52,6 +58,9 @@ else()
 	# Simulation-only diagnostic: no window, graphics context, pacing or UI work.
 	add_executable(phoenix_headless_profile EXCLUDE_FROM_ALL tests/manual/headless_profile.cpp)
 	set_property(TARGET phoenix_headless_profile PROPERTY CXX_SCAN_FOR_MODULES ON)
-	target_link_libraries(phoenix_headless_profile PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_compilers)
+	target_link_libraries(
+		phoenix_headless_profile
+		PRIVATE phoenix_simulation phoenix_content_packs phoenix_content_compilers
+	)
 	add_dependencies(phoenix_headless_profile base_pack)
 endif()

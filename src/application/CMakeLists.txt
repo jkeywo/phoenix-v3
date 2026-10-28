@@ -21,7 +21,3 @@ foreach(
 		PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 	)
 endforeach()
-
-# Compatibility link name only; each named module is compiled by its owner.
-add_library(phoenix_core INTERFACE)
-target_link_libraries(phoenix_core INTERFACE phoenix_application_shell phoenix_ui_navigation phoenix_console_model)

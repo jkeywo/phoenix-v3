@@ -639,45 +639,14 @@ void step_rule_clocks()
 {
 	refresh_rule_eligibility();
 	const auto now = static_cast<std::int64_t>(ecs.get<Clock>().tick);
-	struct Due
-	{
-		std::string key, definition;
-		NativeRuleContext context;
-	};
-	std::vector<Due> due;
-	for (const auto &source : lifecycle_rule_sources())
-		if (source.eligible && source.bindings)
-			for (const auto &binding : *source.bindings)
-			{
-				const auto &rule = rule_templates.at(binding.rule);
-				if (rule.phase != RulePhase::Periodic ||
-				    (rule.trigger != RuleTrigger::Tick && rule.trigger != RuleTrigger::Occupancy))
-					continue;
-				auto context = bind_rule_context(binding, source.context);
-				const auto key = rule_key(source.key, binding.id, context.subject);
-				const bool fresh = !find_rule_execution(key);
-				auto *state = ensure_rule_execution(source, binding, context, true);
-				if (!state)
-					continue;
-				if (fresh)
-				{
-					state->eligible = true;
-					state->active = true;
-					state->output = rule.funding ? 0 : 1000;
-				}
-				if (!state->eligible || state->stopped || state->next > now || state->last == now)
-					continue;
-				state->next = now + rule.period_ticks;
-				state->last = now;
-				if (!rule_binding_matches(binding, source.context) || (rule.funding && !state->output))
-					continue;
-				context.tick = now;
-				context.elapsed = std::max<std::int64_t>(0, now - state->started);
-				context.output = state->output;
-				state->context = context;
-				due.push_back({key, state->definition, std::move(context)});
-			}
-	// Queue first; the common phase drain freezes all due quotes before committing.
+	const auto due = rule_clocks.advance_due(
+	    lifecycle_rule_sources(), rule_templates, periodic_templates, rule_clock_storage(),
+	    [this](const RuleBinding &binding, const NativeRuleContext &context)
+	    {
+		    return rule_binding_matches(binding, context);
+	    },
+	    now);
+	// Every clock frontier is advanced before the common phase queue is drained.
 	for (const auto &event : due)
-		enqueue_rule(event.definition, event.key, event.context, RuleEventPhase::Periodic, now);
+		enqueue_rule(event.rule, event.source_key, event.context, event.phase, event.due);
 }

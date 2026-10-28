@@ -7,3 +7,7 @@ World gathers duty destinations from currently located teams, the accessibility 
 `phoenix.gameplay.personnel.clinical` owns the ordered clinical roster, officer/team patient projection, order filters and triage priorities. World supplies located personnel/team state and away eligibility. Severity, explicit patient priority and stable identity tie-breaking are applied in the compiled domain owner. Treatment payment and commit remain in the finite-work transaction path.
 
 These modules do not own ECS handles or a World context and do not invoke callbacks into World. Existing personnel, medical, away and boarding integration fixtures remain the validation paths; no new save fields are added by clinical or movement snapshots.
+
+The active Away crew and Boarding runtime owners consume this family's typed state for eligibility and casualties; they do not acquire a World dependency through personnel. The native checkpoint covers these integrations and paired save/restore traces. Browser validation remains a separate gate.
+
+`phoenix.gameplay.personnel.treatment` owns clinical admission, severe/minor action choice, requested work and prepared outcome progression, using the existing personnel outcomes owner. Its standalone compilation passed and the native binding is activated pending the next integration gate. Payment and native commit remain in the finite-work transaction path; prepared changes do not mutate native personnel before payment succeeds.

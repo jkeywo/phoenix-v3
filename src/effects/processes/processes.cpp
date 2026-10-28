@@ -16,6 +16,7 @@ module;
 #include <vector>
 
 module phoenix.effects.processes;
+import phoenix.effects.rules;
 
 namespace phoenix
 {
@@ -469,6 +470,33 @@ void from_json(const Json &value, ProcessState &state)
 std::string process_funding_key(const CustomPropertyAddress &address, const ProcessState &state, bool work)
 {
 	return process_instance_key(address, state) + (work ? ":work" : ":idle");
+}
+
+std::optional<std::int64_t> process_scale(const std::optional<RuleExpression> &expression, const RuleContext &context,
+                                          std::int64_t fallback)
+{
+	if (!expression)
+		return fallback;
+	state_tree::Value value;
+	if (!evaluate_rule_expression(*expression, context, value) || value.type != state_tree::Type::Integer ||
+	    value.number < 0 || value.number > 1000000)
+		return {};
+	return value.number;
+}
+
+std::string evaluate_process_requirements(const ProcessDefinition &definition, const RuleContext &context)
+{
+	if (definition.evaluation.condition)
+	{
+		state_tree::Value value;
+		if (!evaluate_rule_expression(*definition.evaluation.condition, context, value) ||
+		    value.type != state_tree::Type::Boolean || !value.number)
+			return "Process requirements unavailable";
+	}
+	if (!process_scale(definition.rate, context) || !process_scale(definition.upkeep_scale, context) ||
+	    !process_scale(definition.work_scale, context))
+		return "Invalid process arithmetic or missing fact";
+	return {};
 }
 
 } // namespace phoenix

@@ -1,0 +1,12 @@
+add_library(phoenix_gameplay_ordnance_contacts STATIC contacts.cpp)
+target_sources(phoenix_gameplay_ordnance_contacts PUBLIC FILE_SET CXX_MODULES FILES contacts.cppm)
+target_link_libraries(phoenix_gameplay_ordnance_contacts PUBLIC phoenix_gameplay_ordnance)
+set_target_properties(
+	phoenix_gameplay_ordnance_contacts
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)
+set_property(
+	TARGET phoenix_gameplay_ordnance_contacts
+	PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "phoenix_gameplay_ordnance"
+)
+set_property(GLOBAL APPEND PROPERTY PHOENIX_DEPENDENCY_MODULES phoenix_gameplay_ordnance_contacts)

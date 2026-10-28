@@ -8,38 +8,11 @@ void psychic_weapon_emission(EntityId ship)
 }
 std::int64_t emission(EntityId ship) const
 {
-	std::int64_t result = 0;
+	const auto tick = ecs.get<Clock>().tick;
 	const auto entity = entities.at(ship);
-	for (auto child : entity.get<EquipmentIndex>().values)
-	{
-		const auto &e = child.get<Equipment>();
-		if (!e.enabled || structurally_disabled(entity, e.id))
-			continue;
-		std::int64_t funded = 1000;
-		if (const auto *p = entity.try_get<ShipResources>(); p && child.has<ResourceBinding>())
-			funded = p->grants.at(child.get<ResourceBinding>().slot).supply_permille;
-		if (e.kind == OperatingSystem::Generator)
-			if (const auto *power = entity.try_get<ShipResources>(); power && child.has<ResourceBinding>())
-			{
-				const auto generator = power->definition.systems[child.get<ResourceBinding>().slot].generator;
-				if (generator != no_resource)
-					result += std::min<std::int64_t>(
-					    200,
-					    power->network.generators()[generator].actual_rate * 200 /
-					        std::max<std::int64_t>(1, power->definition.network.generators[generator].maximum_rate));
-			}
-		if (child.has<Engine>())
-			result += std::abs(child.get<Engine>().forward_output) * funded / 2000;
-		if (child.has<Radar>() && child.get<Radar>().enabled && directed_target(ship, e.id))
-			result += funded / 4;
-	}
-	if (weapon_emissions.contains(ship) && weapon_emissions.at(ship) > ecs.get<Clock>().tick)
-		result += 500;
-	for (const auto &[id, c] : conversations.conversations)
-		for (const auto &m : c.messages)
-			if (m.sender == "ship:" + std::to_string(ship) && m.sent + 20 >= ecs.get<Clock>().tick)
-				result += 250;
-	return std::min<std::int64_t>(1000, result);
+	return native_psychic_emission(entity, ship, combat_dead(entity),
+	                               weapon_emissions.contains(ship) && weapon_emissions.at(ship) > tick, conversations,
+	                               tick);
 }
 const OfficerDefinition *choir_officer(EntityId ship, const std::string &duty) const
 {
@@ -63,11 +36,8 @@ bool choir_assignment(EntityId ship, const OfficerDefinition &officer, const Per
 }
 const AbilityGrantState *psychic_execution(EntityId ship, const PsychicContribution &contribution) const
 {
-	const auto *execution = ability_execution(ship, contribution.grant);
-	return execution && execution->definition == contribution.ability &&
-	               execution->activation == contribution.activation
-	           ? execution
-	           : nullptr;
+	const auto *runtime = entities.contains(ship) ? entities.at(ship).try_get<AbilityRuntime>() : nullptr;
+	return find_psychic_execution(runtime, contribution);
 }
 const PsychicPowerDefinition &contribution_power(EntityId ship, const PsychicContribution &contribution) const
 {
@@ -78,71 +48,32 @@ void refresh_psychic_work()
 	for (auto child : ordered_equipment(choir_query))
 	{
 		const auto ship = child.parent().get<StableId>().id;
-		for (auto &[grant, contribution] : child.get_mut<PsychicChoirState>().contributions)
-		{
-			const auto *execution = psychic_execution(ship, contribution);
-			contribution.work = execution && execution->phase == "active" && !departed(ship)
-			                        ? contribution_power(ship, contribution).strength * execution->funding_permille /
-			                              1000 * execution->fault_permille / 1000
-			                        : 0;
-			if (execution)
-			{
-				contribution.aim_x = execution->aim_x;
-				contribution.aim_y = execution->aim_y;
-			}
-		}
+		refresh_psychic_contribution_work(child.get_mut<PsychicChoirState>(),
+		                                  entities.at(ship).try_get<AbilityRuntime>(), definition(ship).psychic,
+		                                  departed(ship));
 	}
 }
 // Native state follows committed ability executions. A funded pause keeps the same
 // activation/shapes; only a new execution can create a new projection identity.
 void sync_psychic_contributions()
 {
+	struct Targets final : PsychicTargetPort
+	{
+		const Impl &world;
+		explicit Targets(const Impl &world) : world(world)
+		{
+		}
+		std::optional<Pose> projection_target_pose(EntityId target) const override
+		{
+			return world.entities.contains(target) ? std::optional<Pose>{world.entities.at(target).get<Pose>()}
+			                                       : std::nullopt;
+		}
+	} targets{*this};
 	for (auto child : ordered_equipment(choir_query))
 	{
 		const auto ship = child.parent().get<StableId>().id;
-		const auto &apparatus = child.get<Equipment>().id;
-		auto &contributions = child.get_mut<PsychicChoirState>().contributions;
-		std::erase_if(contributions,
-		              [&](const auto &entry)
-		              {
-			              const auto *execution = psychic_execution(ship, entry.second);
-			              return !execution || execution->apparatus != apparatus ||
-			                     (execution->phase != "active" &&
-			                      !(execution->phase == "paused" && execution->resume_phase == "active"));
-		              });
-		const auto *runtime = entities.at(ship).try_get<AbilityRuntime>();
-		if (!runtime)
-			continue;
-		for (const auto &[grant, execution] : runtime->grants)
-		{
-			if (execution.apparatus != apparatus || execution.phase != "active" ||
-			    !definition(ship).psychic.has_power(execution.definition))
-				continue;
-			auto found = contributions.find(grant);
-			if (found != contributions.end() && found->second.activation == execution.activation)
-				continue;
-			PsychicContribution contribution;
-			contribution.grant = grant;
-			contribution.ability = execution.definition;
-			contribution.activation = execution.activation;
-			contribution.aim_x = execution.aim_x;
-			contribution.aim_y = execution.aim_y;
-			const auto &profile = contribution_power(ship, contribution);
-			if (profile.kind == "scramble" && execution.target != ship && entities.contains(execution.target))
-			{
-				const auto &pose = entities.at(execution.target).get<Pose>();
-				for (std::int64_t g = 0; g < profile.ghosts; ++g)
-				{
-					PsychicGhostShape shape;
-					shape.pose.position.x = contribution.aim_x + profile.offset;
-					shape.pose.position.y = contribution.aim_y + (g - (profile.ghosts - 1) / 2) * profile.spacing;
-					shape.pose.heading = pose.heading;
-					shape.pose.altitude = pose.altitude;
-					contribution.shapes.push_back(shape);
-				}
-			}
-			contributions.insert_or_assign(grant, std::move(contribution));
-		}
+		reconcile_psychic_contributions(child.get_mut<PsychicChoirState>(), ship, child.get<Equipment>().id,
+		                                entities.at(ship).try_get<AbilityRuntime>(), definition(ship).psychic, targets);
 	}
 	refresh_psychic_work();
 	// Stops/removals can commit between ticks. End only receipts whose execution
@@ -221,43 +152,34 @@ bool ghost_live(const GhostReception &g) const
 {
 	return psychic_ghost_live(g, ecs.get<Clock>().tick);
 }
-using PsychicSource = std::tuple<EntityId, std::string, std::string>;
 std::map<EntityId, PsychicSource> scrambler_winners;
 void refresh_psychic_reception()
 {
 	scrambler_winners.clear();
-	const auto choirs = ordered_equipment(choir_query);
-	for (const auto &[receiver, entity] : entities)
+	std::vector<PsychicInterferenceSource> sources;
+	for (auto child : ordered_equipment(choir_query))
 	{
-		if (!entity.has<EquipmentIndex>())
-			continue;
-		std::int64_t strength = 0;
-		PsychicSource winner{};
-		for (bool wards : {true, false})
-			for (auto child : choirs)
-			{
-				const auto ship = child.parent().get<StableId>().id;
-				const auto &c = definition(ship).psychic.choirs.at(child.get<Equipment>().id);
-				const auto &contributions = child.get<PsychicChoirState>().contributions;
-				for (const auto &[grant, s] : contributions)
-				{
-					const auto *execution = psychic_execution(ship, s);
-					if (!execution)
-						continue;
-					if (s.work <= strength)
-						continue;
-					const bool ward = contribution_power(ship, s).kind == "ward";
-					if (ward != wards ||
-					    (ward ? execution->target != receiver : ship == receiver || s.shapes.empty()) ||
-					    !psychic_coverage(ship, c, s, receiver))
-						continue;
-					strength = s.work;
-					if (!ward)
-						winner = {ship, c.id, grant};
-				}
-			}
-		scrambler_winners.emplace(receiver, winner);
+		const auto ship = child.parent().get<StableId>().id;
+		const auto &choir = definition(ship).psychic.choirs.at(child.get<Equipment>().id);
+		for (const auto &[grant, contribution] : child.get<PsychicChoirState>().contributions)
+			if (const auto *execution = psychic_execution(ship, contribution); execution && contribution.work > 0)
+				sources.push_back(
+				    {ship, &grant, &choir, &contribution, execution, &contribution_power(ship, contribution)});
 	}
+	struct Coverage final : PsychicCoveragePort
+	{
+		const Impl &world;
+		explicit Coverage(const Impl &world) : world(world)
+		{
+		}
+		bool covers(const PsychicInterferenceSource &source, EntityId receiver) const override
+		{
+			return world.psychic_coverage(source.ship, *source.choir, *source.contribution, receiver);
+		}
+	} coverage{*this};
+	for (const auto &[receiver, entity] : entities)
+		if (entity.has<EquipmentIndex>())
+			scrambler_winners.emplace(receiver, select_psychic_interference(receiver, sources, coverage));
 }
 PsychicSource strongest_scrambler(EntityId receiver) const
 {

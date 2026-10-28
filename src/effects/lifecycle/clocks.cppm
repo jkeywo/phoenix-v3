@@ -5,6 +5,7 @@ module;
 #include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -52,6 +53,10 @@ public:
 	RuleExecutionState *ensure(const NativeRuleSource &, const RuleBinding &, const NativeRuleContext &, bool create,
 	                           const RulesCatalog &, const std::map<std::string, PeriodicEffectDefinition> &,
 	                           const RuleClockStorage &);
+	std::vector<PendingRuleExecution>
+	advance_due(std::span<const NativeRuleSource>, const RulesCatalog &,
+	            const std::map<std::string, PeriodicEffectDefinition> &, const RuleClockStorage &,
+	            const std::function<bool(const RuleBinding &, const NativeRuleContext &)> &matches, std::int64_t now);
 	void erase(const std::string &, const RuleClockStorage &);
 	void forget(const std::string &);
 	void invalidate_capacity();

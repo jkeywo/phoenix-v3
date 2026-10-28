@@ -96,6 +96,10 @@ void record_process_completion(ProcessState &, const ProcessDefinition &, const 
 bool record_process_work(ProcessRuntime &, const CustomPropertyAddress &, const ProcessDefinition &,
                          const ProcessState &frozen, std::int64_t tick, std::int64_t work, std::int64_t activity);
 
+std::optional<std::int64_t> process_scale(const std::optional<RuleExpression> &, const RuleContext &,
+                                          std::int64_t fallback = 1000);
+std::string evaluate_process_requirements(const ProcessDefinition &, const RuleContext &);
+
 Json process_row_decision_facts(const Json &row);
 bool process_has_finite_work(const ProcessDefinition &);
 bool process_is_native_driver(const ProcessDefinition &, const ProcessState &);

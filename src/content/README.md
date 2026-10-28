@@ -18,7 +18,7 @@ The compiler implementations currently contain genuine recursive relationships: 
 
 Packs, image codecs, catalogue operations, UI layout, asset compilation, distribution and Workshop documents have separate targets. None links Flecs, World execution, raylib rendering, RmlUi or ImGui. Their private third-party image/model/audio decoders are content verification facilities, not graphics ownership.
 
-`catalog/content.cppm` is a compatibility facade containing only re-exports, retained for existing test callers. Production sources import the domain interface they use. It owns no definitions or implementation.
+Production and test callers import the narrow named interface they use. The former catalogue-wide re-export facade and its build target have been retired; declaration ownership remains with the domain interfaces above.
 
 For build ownership, link `phoenix_content_<domain>_types` when only compiled domain definitions are needed. Link `phoenix_content_compilers` when calling a domain compiler; its distinct named interfaces remain the API entry points. Pack, catalogue, assets, image codec, UI, distribution and documents each have their own `phoenix_content_<module>` target. Distribution is above verification/compilation; packs and the image codec remain below them.
 

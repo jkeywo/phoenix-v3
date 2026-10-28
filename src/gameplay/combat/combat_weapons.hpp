@@ -101,7 +101,7 @@ std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinit
 {
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
-	std::pair<std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(), 0};
+	std::vector<PointDefenceCandidate> candidates;
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
@@ -119,18 +119,10 @@ std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinit
 			                 return c.id == 7000000000000000ULL + p.id;
 		                 }))
 			continue;
-		const auto offset = p.position - pose.position;
-		const auto distance = fixed::length(offset) + std::abs(p.altitude - altitude(id));
-		if (distance > d.get<WeaponDefinition>().range)
-			continue;
-		const auto closing = std::max<std::int64_t>(
-		    1, -fixed::dot(p.velocity - ship.get<Motion>().velocity, fixed::normal(offset)) / fixed::unit);
-		const auto time = p.target == id ? distance * 1000 / closing : 1000000000 + distance;
-		const auto score = std::pair{time, p.id};
-		if (score < best)
-			best = score;
+		candidates.push_back({p.id, p.target, p.position, p.velocity, p.altitude});
 	}
-	return best.second;
+	return select_native_point_defence_target(id, pose.position, ship.get<Motion>().velocity, altitude(id),
+	                                          d.get<WeaponDefinition>().range, candidates);
 }
 void prepare_weapons(flecs::entity ship)
 {

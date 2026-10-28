@@ -73,7 +73,7 @@ std::int64_t combat_damage(flecs::entity ship, std::size_t compartment, std::int
 	if (amount > 0)
 		amount = apply_pre_damage_rules(ship, RuleTrigger::PreCompartmentDamage, context, sources);
 	auto &s = ship.get_mut<CombatStructure>();
-	const auto actual = std::min(amount, s.compartments.at(compartment).hp);
+	const auto actual = native_compartment_absorption(s, compartment, amount);
 	if (native_inflicted)
 		*native_inflicted += actual;
 	if (payload)
@@ -89,15 +89,7 @@ std::int64_t combat_damage(flecs::entity ship, std::size_t compartment, std::int
 				                      {ship.get<StableId>().id, PayloadOutcomeKind::System,
 				                       static_cast<std::int64_t>(compartment), equipment},
 				                      actual);
-		auto &c = s.compartments.at(compartment);
-		c.hp = std::max<std::int64_t>(0, c.hp - amount);
-		if (!c.hp)
-			c.disabled = true;
-		if (std::all_of(s.compartments.begin(), s.compartments.end(),
-		                [](const auto &v)
-		                {
-			                return v.hp == 0;
-		                }))
+		if (apply_native_compartment_damage(s, compartment, amount))
 		{
 			ship.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 			emit_native_destroy_rules(ship, {ship.get<StableId>().id}, sources);
@@ -112,7 +104,7 @@ std::int64_t combat_damage(flecs::entity ship, std::size_t compartment, std::int
 	}
 	// Translate actual hull absorption back into the incoming projectile budget.
 	// Damage rules still see the complete presented hit exactly once.
-	return amount > 0 ? std::min(context.presented, (actual * context.presented + amount - 1) / amount) : 0;
+	return incoming_damage_absorbed(actual, context.presented, amount);
 }
 
 bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute)
@@ -435,39 +427,10 @@ std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size
 	                      total_cost);
 }
 
-using RepairFault = std::pair<std::string, std::size_t>;
-struct RepairCandidate
-{
-	std::int64_t score = 0;
-	std::optional<RepairFault> fault;
-};
 RepairCandidate repair_candidate(flecs::entity ship, std::size_t compartment, const std::string &equipment = {},
                                  const std::set<RepairFault> &claimed = {}) const
 {
-	const auto &s = ship.get<CombatStructure>();
-	const auto &c = s.compartments[compartment];
-	const auto &d = s.definition.compartments[compartment];
-	RepairCandidate best;
-	if (equipment.empty() && c.hp < d.maximum)
-		best.score = c.disabled ? 10000 : (d.maximum - c.hp) * 1000 / d.maximum;
-	for (const auto &[id, defs] : s.definition.faults)
-	{
-		if (equipment_destroyed(ship, id) || (!equipment.empty() && equipment != id) ||
-		    s.definition.compartment_ids.at(s.definition.equipment_compartments.at(id)) != compartment)
-			continue;
-		for (std::size_t i = 0; i < defs.size(); ++i)
-		{
-			const RepairFault key{id, i};
-			if (!s.faults.at(id)[i].active || defs[i].destroys || claimed.contains(key))
-				continue;
-			const auto score =
-			    (defs[i].effect == "disabled" || defs[i].effect == "feed" || !defs[i].effectiveness ? 10000 : 1000) +
-			    defs[i].severity;
-			if (score > best.score)
-				best = {score, key};
-		}
-	}
-	return best;
+	return native_repair_candidate(ship.get<CombatStructure>(), compartment, equipment, claimed);
 }
 // Shared by ordinary repair orders and away staging. Inspect at each arrival.
 bool advance_repair_team(flecs::entity ship, flecs::entity child)
@@ -477,25 +440,9 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 	if (combat_dead(ship) || !child.get<Equipment>().enabled || structurally_disabled(ship, m.definition.id) ||
 	    !team_available(m))
 		return false;
-	auto &r = m.get<TeamState>();
-	if (r.travel > 0)
-	{
-		if (!physical_edge_open(ship.get<StableId>().id, r.location, r.edge_to))
-			return false;
-		if (--r.travel > 0)
-			return false;
-		r.location = r.edge_to;
-		r.edge_to = -1;
-		r.edge_total = 0;
-	}
-	if (m.definition.get<TeamDefinition>().capabilities.contains("repair"))
-		for (auto &[equipment, states] : s.faults)
-			if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
-			    static_cast<std::size_t>(r.location))
-				for (auto &state : states)
-					if (state.active)
-						state.diagnosed = true;
-	return true;
+	const auto &r = m.get<TeamState>();
+	return advance_native_repair_team(
+	    s, m, r.travel <= 0 || physical_edge_open(ship.get<StableId>().id, r.location, r.edge_to));
 }
 void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 {
@@ -532,9 +479,9 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		const auto &d = mechanism.definition;
 		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
 			continue;
-		const auto contribution =
-		    team_work(ship, mechanism, PropertyKey::repair, d.get<TeamDefinition>().repair_rate * 1000000) /
-		    (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank));
+		const auto contribution = native_repair_contribution(
+		    d.get<TeamDefinition>(),
+		    team_work(ship, mechanism, PropertyKey::repair, d.get<TeamDefinition>().repair_rate * 1000000), rank);
 		std::int64_t credit = 0;
 		if (const auto *inventory = ship.try_get<MaterialInventory>();
 		    inventory && inventory->work_credit.contains(d.id))
@@ -543,26 +490,18 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		const bool native_priced =
 		    consumer && consumer->costs.contains("structural") && !consumer->costs.at("structural").empty();
 		auto unit_costs = native_material_work_costs(origin, d.id, "structural", false);
-		const bool inputs_available = unit_costs.has_value();
-		if (!inputs_available && credit <= 0)
-			continue;
-		if (!unit_costs)
-			unit_costs = std::vector<EffectCostDefinition>{};
-		const auto work_unit = rate * 1000;
-		std::int64_t desired = inputs_available ? contribution : std::min(contribution, credit);
-		std::int64_t purchases =
-		    unit_costs->empty() ? 0 : std::max<std::int64_t>(0, desired - credit + work_unit - 1) / work_unit;
-		for (const auto &cost : *unit_costs)
-			if (cost.amount > 0)
-				purchases =
-				    std::min(purchases, named_stock(ship, cost.store).stock.available(cost.resource) / cost.amount);
-		if (!unit_costs->empty())
-			desired = std::min(desired, credit + purchases * work_unit);
+		std::vector<std::int64_t> available;
+		if (unit_costs)
+			for (const auto &cost : *unit_costs)
+				available.push_back(cost.amount > 0 ? named_stock(ship, cost.store).stock.available(cost.resource) : 0);
+		const auto plan = plan_native_repair_materials(contribution, credit, unit_costs, available);
+		const auto desired = plan.work;
 		if (desired <= 0)
 			continue;
-		auto costs = *unit_costs;
-		for (auto &cost : costs)
-			cost.amount *= purchases;
+		auto purchases = plan.purchases;
+		auto costs = plan.costs;
+		if (!unit_costs)
+			unit_costs = std::vector<EffectCostDefinition>{};
 		RuleActor actor{target};
 		std::string key = std::to_string(target) + "/work/" + work_key;
 		std::int64_t before_progress = progress + work, threshold = required;
@@ -582,14 +521,12 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		    prepare_finite_native_work(origin, "repair", d.id, key, actor, before_progress, threshold, desired, costs);
 		if (!quote)
 			continue;
-		const auto actual_purchases =
-		    unit_costs->empty() ? 0 : std::max<std::int64_t>(0, quote->work - credit + work_unit - 1) / work_unit;
+		const auto repriced = reprice_native_repair_materials(quote->work, credit, *unit_costs);
+		const auto actual_purchases = repriced.purchases;
 		if (actual_purchases != purchases)
 		{
 			purchases = actual_purchases;
-			costs = *unit_costs;
-			for (auto &cost : costs)
-				cost.amount *= purchases;
+			costs = repriced.costs;
 			quote = prepare_finite_native_work(origin, "repair", d.id, key, actor, before_progress, threshold,
 			                                   quote->work, costs, false);
 			if (!quote)
@@ -611,7 +548,8 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		if (!commit_finite_native_payment(*quote))
 			continue;
 		if (native_priced)
-			ship.get_mut<MaterialInventory>().work_credit[d.id] = credit + purchases * work_unit - quote->work;
+			ship.get_mut<MaterialInventory>().work_credit[d.id] =
+			    remaining_native_repair_credit(credit, purchases, quote->work);
 		work += quote->work;
 		commit_finite_native_work(*quote, quote->work, std::min(threshold, after_progress), threshold, completed);
 	}
@@ -651,25 +589,15 @@ void step_repairs()
 					continue;
 				if (m->get<TeamState>().repair_auto)
 				{
-					std::tuple<std::int64_t, std::int64_t, std::int64_t> best{
-					    0, std::numeric_limits<std::int64_t>::min(), 0};
 					m->get<TeamState>().destination = -1;
+					std::vector<RepairRoute> routes;
 					for (std::size_t i = 0; i < s.compartments.size(); ++i)
 					{
-						std::int64_t travel_cost = 0;
-						const auto route = repair_route(ship, m->get<TeamState>().location, i, &travel_cost);
-						if (i != static_cast<std::size_t>(m->get<TeamState>().location) && route.first < 0)
-							continue;
-						const auto score = repair_candidate(ship, i, {}, claimed).score;
-						if (!score)
-							continue;
-						const auto key = std::tuple{score, -travel_cost, -static_cast<std::int64_t>(i)};
-						if (key > best)
-						{
-							best = key;
-							m->get<TeamState>().destination = i;
-						}
+						std::int64_t cost = 0;
+						const auto route = repair_route(ship, m->get<TeamState>().location, i, &cost);
+						routes.push_back({i, route.first, cost});
 					}
+					select_automatic_repair_destination(s, m->get<TeamState>(), routes, claimed);
 				}
 				if (m->get<TeamState>().destination < 0)
 					continue;
@@ -678,20 +606,8 @@ void step_repairs()
 					route_repair_team(ship, m->get<TeamState>(), m->get<TeamState>().destination);
 					continue;
 				}
-				std::string priority;
-				if (m->get<TeamState>().repair_system >= 0)
-				{
-					auto at = s.definition.equipment_compartments.begin();
-					std::advance(at, m->get<TeamState>().repair_system);
-					priority = at->first;
-				}
 				const auto index = static_cast<std::size_t>(m->get<TeamState>().location);
-				auto candidate = repair_candidate(ship, index, priority, claimed);
-				if (!priority.empty() && !candidate.fault)
-					candidate = repair_candidate(ship, index, {}, claimed);
-				if (m->get<TeamState>().repair_system == -2 &&
-				    s.compartments[index].hp < s.definition.compartments[index].maximum)
-					candidate = {10000, {}};
+				auto candidate = select_native_repair_task(s, m->get<TeamState>(), claimed);
 				const auto &task = candidate.fault;
 				if (task)
 				{
@@ -738,38 +654,15 @@ void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, con
 {
 	if (duel_ended())
 		return;
-	const auto direction = fixed::normal(before_b.position - before_a.position);
-	const auto closing =
-	    std::max<std::int64_t>(0, fixed::dot(before_a.velocity - before_b.velocity, direction) / fixed::unit);
 	for (const auto id : {a, b})
 		if (auto ship = entities.at(id); ship.has<CombatStructure>())
-		{
-			auto &s = ship.get_mut<CombatStructure>();
-			if (closing < s.definition.collision_threshold)
-				continue;
-			const auto mass = before_a.mass && before_b.mass ? std::min(before_a.mass, before_b.mass)
-			                                                 : std::max(before_a.mass, before_b.mass);
-			const auto metres = std::min<std::int64_t>(closing / 1000, 1000);
-			const auto damage =
-			    std::min<std::int64_t>(1000000, std::clamp<std::int64_t>(mass / 1000000, 1, 1000000) * metres * metres /
-			                                        100 * s.definition.collision_scale);
-			const auto contact = combat_local(id == a ? before_b.position : before_a.position, ship.get<Pose>());
-			std::size_t nearest = 0;
-			std::int64_t best = std::numeric_limits<std::int64_t>::max();
-			for (std::size_t i = 0; i < s.definition.compartments.size(); ++i)
+			if (const auto impact = native_collision_impact(ship.get<CombatStructure>().definition, ship.get<Pose>(),
+			                                                before_a, before_b, id == a))
 			{
-				const auto &c = s.definition.compartments[i];
-				const auto distance = fixed::length(contact - fixed::Vec{c.x, c.y});
-				if (distance < best)
-				{
-					best = distance;
-					nearest = i;
-				}
+				NativeRuleContext origin;
+				origin.source = origin.instigator = RuleActor{id == a ? b : a};
+				combat_damage(ship, impact->compartment, impact->damage, nullptr, &origin);
 			}
-			NativeRuleContext origin;
-			origin.source = origin.instigator = RuleActor{id == a ? b : a};
-			combat_damage(ship, nearest, damage, nullptr, &origin);
-		}
 }
 bool repair_team_present(flecs::entity ship, std::size_t compartment) const
 {

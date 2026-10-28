@@ -32,3 +32,15 @@ set_target_properties(
 	phoenix_gameplay_personnel_runtime
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+
+add_library(phoenix_gameplay_personnel_treatment STATIC treatment.cpp)
+target_sources(phoenix_gameplay_personnel_treatment PUBLIC FILE_SET CXX_MODULES FILES treatment.cppm)
+target_link_libraries(
+	phoenix_gameplay_personnel_treatment
+	PUBLIC phoenix_gameplay_personnel_outcomes phoenix_content_combat_types
+	PRIVATE phoenix_gameplay_personnel_clinical
+)
+set_target_properties(
+	phoenix_gameplay_personnel_treatment
+	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
+)

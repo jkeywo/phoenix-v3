@@ -265,17 +265,6 @@ RuleContext process_expression_context(const CustomPropertyAddress &address, con
 {
 	return process_expression_context(process_definition(state), process_context(address, state), work, activity);
 }
-std::optional<std::int64_t> process_scale(const std::optional<RuleExpression> &expression, const RuleContext &context,
-                                          std::int64_t fallback = 1000) const
-{
-	if (!expression)
-		return fallback;
-	state_tree::Value value;
-	if (!evaluate_rule_expression(*expression, context, value) || value.type != state_tree::Type::Integer ||
-	    value.number < 0 || value.number > 1000000)
-		return {};
-	return value.number;
-}
 std::string process_ability_conflict(EntityId ship, const AbilityGrantState &ability) const
 {
 	const auto &definition = ability_definition(ship, ability);
@@ -325,16 +314,8 @@ std::string process_eligibility(const CustomPropertyAddress &address, const Proc
 	if (target)
 		native_context.subject = native_context.target = *target;
 	const auto context = process_expression_context(definition, native_context);
-	if (definition.evaluation.condition)
-	{
-		state_tree::Value value;
-		if (!evaluate_rule_expression(*definition.evaluation.condition, context, value) ||
-		    value.type != state_tree::Type::Boolean || !value.number)
-			return "Process requirements unavailable";
-	}
-	if (!process_scale(definition.rate, context) || !process_scale(definition.upkeep_scale, context) ||
-	    !process_scale(definition.work_scale, context))
-		return "Invalid process arithmetic or missing fact";
+	if (const auto blocker = evaluate_process_requirements(definition, context); !blocker.empty())
+		return blocker;
 	return process_native_blocker(address, state, definition);
 }
 std::string process_requirements(const CustomPropertyAddress &address, const ProcessState &state) const
