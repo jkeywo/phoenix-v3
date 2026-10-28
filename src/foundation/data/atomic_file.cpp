@@ -14,6 +14,7 @@ module;
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 module phoenix.data;
 namespace phoenix
 {
@@ -30,10 +31,26 @@ struct StagedFileReplacement::State
 			std::filesystem::remove(temporary, ignored);
 		}
 	}
-	[[noreturn]] void fail(const char *operation) const
+	[[noreturn]] void fail(const char *operation, std::error_code error = {}) const
 	{
-		throw std::runtime_error(context + ": " + operation);
+		const auto encoded = destination.u8string();
+		const auto message = context + ": " + operation + " (" + std::string(encoded.begin(), encoded.end()) + ")";
+		if (error)
+			throw std::system_error(error, message);
+		throw std::runtime_error(message);
 	}
+#ifndef __EMSCRIPTEN__
+	[[noreturn]] void fail_last_os_error(const char *operation) const
+	{
+#ifdef _WIN32
+		const auto error = GetLastError();
+		fail(operation, {static_cast<int>(error), std::system_category()});
+#else
+		const auto error = errno;
+		fail(operation, {error, std::generic_category()});
+#endif
+	}
+#endif
 };
 StagedFileReplacement::StagedFileReplacement(const std::string &destination, std::span<const std::uint8_t> bytes,
                                              FileWriteMode mode, const std::string &context)
@@ -50,18 +67,20 @@ StagedFileReplacement::StagedFileReplacement(const std::string &destination, std
 	const auto flags = FILE_ATTRIBUTE_NORMAL | (mode == FileWriteMode::Flushed ? FILE_FLAG_WRITE_THROUGH : 0);
 	const auto file = CreateFileW(state.temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, flags, nullptr);
 	if (file == INVALID_HANDLE_VALUE)
-		state.fail("cannot create temporary file");
+		state.fail_last_os_error("cannot create temporary file");
 	state.owned = true;
 	const std::unique_ptr<void, decltype(&CloseHandle)> handle(file, &CloseHandle);
 	DWORD written = 0;
-	if (!WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) || written != bytes.size())
-		state.fail("temporary file write failed");
+	if (!WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr))
+		state.fail_last_os_error("temporary file write failed");
+	if (written != bytes.size())
+		state.fail("temporary file write incomplete", std::make_error_code(std::errc::io_error));
 	if (mode == FileWriteMode::Flushed && !FlushFileBuffers(file))
-		state.fail("temporary file flush failed");
+		state.fail_last_os_error("temporary file flush failed");
 #elif !defined(__EMSCRIPTEN__)
 	const int file = ::open(state.temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
 	if (file < 0)
-		state.fail("cannot create temporary file");
+		state.fail_last_os_error("cannot create temporary file");
 	state.owned = true;
 	try
 	{
@@ -71,12 +90,14 @@ StagedFileReplacement::StagedFileReplacement(const std::string &destination, std
 			const auto count = ::write(file, bytes.data() + offset, bytes.size() - offset);
 			if (count < 0 && errno == EINTR)
 				continue;
-			if (count <= 0)
-				state.fail("temporary file write failed");
+			if (count < 0)
+				state.fail_last_os_error("temporary file write failed");
+			if (count == 0)
+				state.fail("temporary file write incomplete", std::make_error_code(std::errc::io_error));
 			offset += static_cast<std::size_t>(count);
 		}
 		if (state.flushed && ::fsync(file) != 0)
-			state.fail("temporary file flush failed");
+			state.fail_last_os_error("temporary file flush failed");
 	}
 	catch (...)
 	{
@@ -84,7 +105,7 @@ StagedFileReplacement::StagedFileReplacement(const std::string &destination, std
 		throw;
 	}
 	if (::close(file) != 0)
-		state.fail("temporary file close failed");
+		state.fail_last_os_error("temporary file close failed");
 #else
 	if (mode == FileWriteMode::Flushed)
 		state.fail("flushed replacement is unavailable on this platform");
@@ -107,9 +128,12 @@ void StagedFileReplacement::commit()
 #ifdef _WIN32
 	if (!MoveFileExW(state.temporary.c_str(), state.destination.c_str(),
 	                 MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-		state.fail("atomic replacement failed");
+		state.fail_last_os_error("atomic replacement failed");
 #else
-	std::filesystem::rename(state.temporary, state.destination);
+	std::error_code rename_error;
+	std::filesystem::rename(state.temporary, state.destination, rename_error);
+	if (rename_error)
+		state.fail("atomic replacement failed", rename_error);
 #ifndef __EMSCRIPTEN__
 	if (state.flushed)
 	{
@@ -117,11 +141,12 @@ void StagedFileReplacement::commit()
 		    state.destination.parent_path().empty() ? std::filesystem::path(".") : state.destination.parent_path();
 		const int directory = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		if (directory < 0)
-			state.fail("cannot open replacement directory");
+			state.fail_last_os_error("cannot open replacement directory");
 		const auto status = ::fsync(directory);
+		const auto flush_error = status == 0 ? 0 : errno;
 		::close(directory);
 		if (status != 0)
-			state.fail("replacement directory flush failed");
+			state.fail("replacement directory flush failed", {flush_error, std::generic_category()});
 	}
 #endif
 #endif

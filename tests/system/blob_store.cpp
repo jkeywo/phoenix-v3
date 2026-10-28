@@ -12,13 +12,37 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <system_error>
 #include <vector>
 
 import phoenix.blobs;
+import phoenix.data;
 import phoenix.wire;
 
 using namespace phoenix;
 using phoenix::test::require;
+void atomic_error_context(const std::filesystem::path &root)
+{
+	const Bytes bytes{1, 2, 3};
+	for (const auto &destination : {root / "missing" / "payload.bin", root})
+	{
+		const auto path = destination.string();
+		bool failed = false;
+		try
+		{
+			StagedFileReplacement replacement(path, bytes, FileWriteMode::Buffered, "synthetic atomic write");
+			replacement.commit();
+		}
+		catch (const std::system_error &error)
+		{
+			const std::string message = error.what();
+			failed = error.code().value() != 0 && message.find("synthetic atomic write") != std::string::npos &&
+			         message.find(path) != std::string::npos &&
+			         message.find(error.code().message()) != std::string::npos;
+		}
+		require(failed, "Atomic create and replace failures preserve OS cause, destination and operation context");
+	}
+}
 BlobResult wait(BlobStore &store)
 {
 	return phoenix::test::wait(store, "Blob store completion timed out");
@@ -40,6 +64,7 @@ int main()
 	{
 		auto store = open_blob_store(root.string());
 		require(wait(*store).error.empty(), "Persistent store must open asynchronously");
+		atomic_error_context(root);
 		require(store->read(1, "missing"), "Missing cache lookup must be accepted");
 		auto missing = wait(*store);
 		require(!missing.bytes && missing.error.empty(), "A cache miss must differ from storage corruption");
