@@ -4,7 +4,7 @@ Code is grouped as `src/<family>/<module>/`. Start with a family's README, then 
 
 The [migration plan](modularisation-plan.md), [source ledger](modularisation-ledger.csv) and [verification receipts](modularisation-evidence.md) record intended work, actual ownership and checks performed. The ordinary World outline and domain interfaces are active. Native bindings intentionally retain cross-domain integration policy; that policy is visible in the reading map rather than presented as independent domain libraries. Source ownership and execution acceptance are recorded separately.
 
-The pinned final source passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM final gates remain pending. These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
+The pinned final source passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM full build/runtime/continuation gates also passed (72/74). These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
 
 ## Reading map
 

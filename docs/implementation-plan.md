@@ -275,3 +275,22 @@ The shared catalogue now supports explicit quantities, attributes, flags and enu
 ## Effect coverage closure - 27 October 2026
 
 The [final effect coverage audit](effect-coverage-audit.md) reconciles all nine migration stages against the target design. Native team and away trees now invoke shared effect groups through existing prepared transactions, retaining native work/activity and actual source/target context. The Controller command interface remains scoped. World and portable-session schema advances together to 32 because the tree vocabulary changes continuation signatures. Validation and independent review are recorded in the audit; manual acceptance remains separate.
+
+## Family/module migration - 28 October 2026
+
+First-party C++ now lives in `src/<family>/<module>/`: 134 module folders,
+211 primary named modules and four private World partitions. Domain mechanisms,
+UI/Workshop services, application composition, networking and platform adapters
+have explicit owners. World compiles ordinary private implementation units;
+its bindings retain documented cross-domain integration policy. Contextual
+class-body headers and obsolete umbrella aliases are retired, with source and
+configured dependency boundaries enforced without temporary exceptions.
+
+The full native build, all 48 native tests, 12 live-network cases and 23 fresh
+bit-exact continuations against starting revision `34883ac` passed. Complete
+ordinary and threaded WASM builds, runtime gates and native/WASM continuation
+comparisons passed. Schema 32 and serialized/wire behavior are preserved.
+Linux-native compilation and physical graphical/device/accessibility smoke
+acceptance remain unverified. See the [reading guide](modules.md),
+[line inventory](module-sizes.md), [migration plan](modularisation-plan.md) and
+[verification receipts](modularisation-evidence.md) for the delivered scope.

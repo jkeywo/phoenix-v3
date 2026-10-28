@@ -1,6 +1,6 @@
 # Phoenix V3
 
-[Modularisation implementation plan](docs/modularisation-plan.md) defines the proposed family/module folder hierarchy, dependency rules and separately verifiable migration chunks.
+[Modularisation implementation plan](docs/modularisation-plan.md) records the delivered family/module hierarchy, dependency rules and migration chunks. The [reading guide](docs/modules.md), [line counts](docs/module-sizes.md) and [verification evidence](docs/modularisation-evidence.md) describe the resulting code and checks.
 
 [GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
 

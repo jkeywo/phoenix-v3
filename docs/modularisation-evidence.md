@@ -307,7 +307,7 @@ remaining deepening opportunities are explicit in the reading guides. The full
 native/continuation and both browser-mode gates remain required on the final
 ownership graph.
 
-## Final native and ordinary-browser ownership gate
+## Final native and both browser ownership gates
 
 The final cohort adds the projectile store, ability lifecycle, strict Away
 persistence/permitted projection, deeper departure admission and psychic signal
@@ -346,7 +346,28 @@ umbrella target.
   partitions; zero temporary exceptions and zero violations. The reading-size
   inventory has 134 module folders and retains the source-tree fingerprint.
 
-The final threaded WASM build/runtime gate is running. Linux-native compilation,
+The complete final threaded WASM build passed in
+`final-threaded-wasm-build-72.log` (all 2,119 build tasks). The complete existing
+threaded runtime gate and all native/WASM continuation comparisons passed in
+`final-threaded-wasm-runtime-74.log`, exit code 0. The session case exercises real
+worker/serial parity, retained-reader immutability, queued command/refusal order
+and synchronous admission retirement on release/reset. The runtime-only gate
+copy preserves the original check assertions and skips only the separately
+completed build; it uses explicit repository paths from its ignored evidence
+folder.
+
+The source inventory was rechecked after both builds: all 644 per-file hashes
+match `docs/module-files.csv`; the normalized source fingerprint remains
+`7a723fc0ddfacad6dab84ba6f0ae0e2342031b1691ef4789b58b182cbd60ee89`.
+The 818 ledger rows account for all 342 baseline source origins. The source
+boundary checker still reports 215 module units, zero temporary exceptions and
+zero violations. The final functional cohort is commit `88479c4`; formatter
+policy definitions are in `2deb147`. No source changed during the final gates.
+Final full formatting check `final-format-check-75.log` passed across 781 C/C++,
+156 CMake, 11 PowerShell and 442 web/data/document files; `git diff --check`
+also passed.
+
+Linux-native compilation,
 physical multi-display/touch/gamepad/screen-reader operation and graphical or
 sustained-performance smoke evidence are not established by these automated
 checks. Existing functional acceptance limits remain in the implementation and
