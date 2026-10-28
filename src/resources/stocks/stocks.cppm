@@ -20,6 +20,10 @@ inline constexpr ResourceAmount resource_limit = 1000000000000LL;
 inline constexpr ResourceAmount resource_tick_hz = 20;
 inline constexpr ResourceAmount resource_work_unit = resource_tick_hz * 1000;
 
+// Missing fields default to zero; present fields must be bounded integers.
+ResourceAmount read_resource_amount(const Json &, const char *key, const std::string &path,
+                                    ResourceAmount maximum = resource_limit);
+
 struct ResourceDefinition
 {
 	std::string id, label;

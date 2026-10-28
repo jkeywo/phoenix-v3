@@ -17,16 +17,6 @@ namespace phoenix
 {
 namespace
 {
-ResourceAmount adapter_amount(const Json &json, const char *key, const std::string &path,
-                              ResourceAmount maximum = resource_limit)
-{
-	if (!json.contains(key))
-		return 0;
-	const auto &v = json.at(key);
-	if (!v.is_number_integer() || v.is_boolean() || v < 0 || v > maximum)
-		throw std::runtime_error(path + "." + key + ": invalid resource quantity");
-	return v.get<ResourceAmount>();
-}
 bool store_operational(const ShipResources &ship, ResourceIndex i)
 {
 	return i == no_resource || ship.network.operation_ready(i);
@@ -552,20 +542,22 @@ void restore_ship_resources(ShipResources &ship, const Json &j)
 		const auto path = "resources.save.systems." + std::to_string(i);
 		if (v.value("id", std::string{}) != next.definition.systems[i].id)
 			throw std::runtime_error(path + ": identity mismatch");
-		request_system_resource(next, i, adapter_amount(v, "duty_permille", path, 1000), v.at("discrete").get<bool>(),
-		                        adapter_amount(v, "extra_rate", path), adapter_amount(v, "discrete_amount", path));
-		next.requests[i].rate_remainder = adapter_amount(v, "rate_remainder", path, 999);
+		request_system_resource(next, i, read_resource_amount(v, "duty_permille", path, 1000),
+		                        v.at("discrete").get<bool>(), read_resource_amount(v, "extra_rate", path),
+		                        read_resource_amount(v, "discrete_amount", path));
+		next.requests[i].rate_remainder = read_resource_amount(v, "rate_remainder", path, 999);
 		auto &g = next.grants[i];
-		g.requested = adapter_amount(v, "requested", path);
-		g.paid = adapter_amount(v, "paid", path);
-		g.discrete = adapter_amount(v, "discrete_energy", path);
-		g.work_requested = adapter_amount(v, "work_requested", path, resource_limit * 10000);
-		g.work_funded = adapter_amount(v, "work_funded", path, resource_limit * 10000);
-		g.supply_permille = static_cast<int>(adapter_amount(v, "supply_permille", path, 1000));
-		g.overdrive_permille = static_cast<int>(adapter_amount(v, "overdrive_permille", path, 10000));
-		g.overdrive_heat_permille = v.contains("overdrive_heat_permille")
-		                                ? static_cast<int>(adapter_amount(v, "overdrive_heat_permille", path, 10000))
-		                                : 1000;
+		g.requested = read_resource_amount(v, "requested", path);
+		g.paid = read_resource_amount(v, "paid", path);
+		g.discrete = read_resource_amount(v, "discrete_energy", path);
+		g.work_requested = read_resource_amount(v, "work_requested", path, resource_limit * 10000);
+		g.work_funded = read_resource_amount(v, "work_funded", path, resource_limit * 10000);
+		g.supply_permille = static_cast<int>(read_resource_amount(v, "supply_permille", path, 1000));
+		g.overdrive_permille = static_cast<int>(read_resource_amount(v, "overdrive_permille", path, 10000));
+		g.overdrive_heat_permille =
+		    v.contains("overdrive_heat_permille")
+		        ? static_cast<int>(read_resource_amount(v, "overdrive_heat_permille", path, 10000))
+		        : 1000;
 		g.discrete_paid = v.at("discrete_paid").get<bool>();
 		g.blocked = v.at("blocked").get<bool>();
 		if (g.work_funded > g.work_requested || g.paid > g.requested || g.overdrive_permille < 1000 ||
@@ -590,15 +582,16 @@ void restore_ship_resources(ShipResources &ship, const Json &j)
 			const auto store = next.definition.network.store_ids.find(v.at("store").get<std::string>());
 			if (next.named_requests.contains(key) || store == next.definition.network.store_ids.end())
 				throw std::runtime_error(path + ": unknown store or duplicate consumer");
-			request_named_resource(next, key, store->second, adapter_amount(v, "rate", path));
+			request_named_resource(next, key, store->second, read_resource_amount(v, "rate", path));
 			auto &g = next.named_grants.at(key);
-			g.requested = adapter_amount(v, "requested", path);
-			g.paid = adapter_amount(v, "paid", path);
-			g.work_requested = adapter_amount(v, "work_requested", path, resource_limit * 10000);
-			g.work_funded = adapter_amount(v, "work_funded", path, resource_limit * 10000);
-			g.supply_permille = static_cast<int>(adapter_amount(v, "supply_permille", path, 1000));
-			g.overdrive_permille = static_cast<int>(adapter_amount(v, "overdrive_permille", path, 10000));
-			g.overdrive_heat_permille = static_cast<int>(adapter_amount(v, "overdrive_heat_permille", path, 10000));
+			g.requested = read_resource_amount(v, "requested", path);
+			g.paid = read_resource_amount(v, "paid", path);
+			g.work_requested = read_resource_amount(v, "work_requested", path, resource_limit * 10000);
+			g.work_funded = read_resource_amount(v, "work_funded", path, resource_limit * 10000);
+			g.supply_permille = static_cast<int>(read_resource_amount(v, "supply_permille", path, 1000));
+			g.overdrive_permille = static_cast<int>(read_resource_amount(v, "overdrive_permille", path, 10000));
+			g.overdrive_heat_permille =
+			    static_cast<int>(read_resource_amount(v, "overdrive_heat_permille", path, 10000));
 			g.blocked = v.at("blocked").get<bool>();
 			if (g.paid > g.requested || g.work_funded > g.work_requested || g.overdrive_permille < 1000 ||
 			    g.overdrive_heat_permille < 1000)

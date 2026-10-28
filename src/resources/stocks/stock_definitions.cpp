@@ -1,4 +1,5 @@
 module;
+#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -30,6 +31,15 @@ ResourceAmount stock_product(ResourceAmount a, ResourceAmount b)
 	return a * b;
 }
 } // namespace
+ResourceAmount read_resource_amount(const Json &json, const char *key, const std::string &path, ResourceAmount maximum)
+{
+	if (!json.contains(key))
+		return 0;
+	const auto &v = json.at(key);
+	if (!v.is_number_integer() || v.is_boolean() || v < 0 || v > maximum)
+		throw std::runtime_error(path + "." + key + ": invalid resource quantity");
+	return v.get<ResourceAmount>();
+}
 bool stock_filter_accepts(const StockFilter &filter, const ResourceDefinition &resource)
 {
 	const bool explicit_resource = filter.resources.contains(resource.id);

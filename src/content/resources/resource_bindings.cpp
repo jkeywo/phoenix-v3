@@ -27,16 +27,6 @@ namespace phoenix
 {
 namespace
 {
-ResourceAmount adapter_amount(const Json &json, const char *key, const std::string &path,
-                              ResourceAmount maximum = resource_limit)
-{
-	if (!json.contains(key))
-		return 0;
-	const auto &v = json.at(key);
-	if (!v.is_number_integer() || v.is_boolean() || v < 0 || v > maximum)
-		throw std::runtime_error(path + "." + key + ": invalid resource quantity");
-	return v.get<ResourceAmount>();
-}
 ResourceIndex adapter_reference(const Json &json, const char *key, const std::map<std::string, ResourceIndex> &ids,
                                 const std::string &path)
 {
@@ -79,10 +69,10 @@ std::map<std::string, FtlDefinition> compile_ftl(const Catalog &catalog, const s
 		const auto &network = catalog.resource_definitions.at(entity_id);
 		FtlDefinition d;
 		d.store = adapter_reference(spec, "power_store", network.store_ids, path);
-		d.charge_rate = adapter_amount(spec, "charge_per_second", path);
-		d.charging_loss = adapter_amount(spec, "charging_loss_per_second", path);
-		d.ready_loss = adapter_amount(spec, "ready_loss_per_second", path);
-		d.off_discharge = adapter_amount(spec, "off_discharge_per_second", path);
+		d.charge_rate = read_resource_amount(spec, "charge_per_second", path);
+		d.charging_loss = read_resource_amount(spec, "charging_loss_per_second", path);
+		d.ready_loss = read_resource_amount(spec, "ready_loss_per_second", path);
+		d.off_discharge = read_resource_amount(spec, "off_discharge_per_second", path);
 		if (spec.value("enabled", true) || d.store == no_resource || !d.charge_rate || !d.charging_loss ||
 		    !d.ready_loss || !d.off_discharge || d.charging_loss >= d.charge_rate || d.ready_loss > d.charge_rate)
 			throw std::runtime_error(path + ": invalid FTL reserve/rates");
@@ -130,8 +120,8 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 			const auto path = "entities." + entity_id + ".systems." + it.key();
 			if (spec.contains("power_store") || spec.contains("generator") || spec.contains("power_group") ||
 			    spec.contains("conduit") || spec.contains("cooling_link") ||
-			    adapter_amount(spec, "energy_per_second", "entities." + entity_id) ||
-			    adapter_amount(spec, "discrete_energy", "entities." + entity_id) ||
+			    read_resource_amount(spec, "energy_per_second", "entities." + entity_id) ||
+			    read_resource_amount(spec, "discrete_energy", "entities." + entity_id) ||
 			    (advanced && adapter_flight_costs(adapter_flight(spec, it.key(), path))))
 				throw std::runtime_error("entities." + entity_id +
 				                         ": resource-dependent System has no resource network");
@@ -156,8 +146,8 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 			b.group = adapter_reference(spec, "group", compiled.network.group_ids, path);
 		b.conduit = adapter_reference(spec, "conduit", compiled.network.link_ids, path);
 		b.cooling = adapter_reference(spec, "cooling_link", compiled.network.cooling_link_ids, path);
-		b.energy_per_second = adapter_amount(spec, "energy_per_second", path);
-		b.discrete_energy = adapter_amount(spec, "discrete_energy", path);
+		b.energy_per_second = read_resource_amount(spec, "energy_per_second", path);
+		b.discrete_energy = read_resource_amount(spec, "discrete_energy", path);
 		const auto &flight = flights.at(compiled.systems.size());
 		if (flight.impulse_charge_energy || flight.impulse_minimum_reserve)
 			if (b.store == no_resource || flight.impulse_minimum_reserve > compiled.network.stores[b.store].capacity)
