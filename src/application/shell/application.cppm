@@ -5,6 +5,7 @@ module;
 #include <unordered_map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
@@ -93,6 +94,19 @@ struct Application
 	};
 	std::vector<ToolPointer> tools_pointers;
 	std::map<std::string, ConsoleId> gamepad_assignments;
+	std::map<std::string, ScreenDevices> screen_devices;
+	std::map<ConsoleId, std::string> screen_identities;
+	struct GamepadInfo
+	{
+		std::string name, serial, path, model;
+	};
+	std::map<std::string, GamepadInfo> gamepad_devices;
+	std::map<std::string, std::string> paired_gamepads;
+	std::string pairing_screen;
+	std::set<std::string> gamepad_wait_neutral;
+	std::vector<std::pair<std::string, std::string>> audio_outputs;
+	std::function<void(ConsoleId)> test_screen_audio;
+	ConsoleId sound_route = 0;
 	Screen screen = Screen::home;
 	Screen settings_return = Screen::home;
 	std::uint64_t settings_console = 0;
@@ -105,7 +119,7 @@ struct Application
 	std::string network_code;
 	std::string network_service = default_network_service, network_profile = "default", join_page;
 	std::function<void(const std::string &, const std::string &, const std::string &, JoinRole)> connect;
-	std::string status;
+	std::string status, preference_error;
 	std::string accessible_status;
 	bool can_host = false;
 	bool can_edit = false;

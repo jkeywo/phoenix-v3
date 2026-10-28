@@ -439,6 +439,7 @@ try
 		app.master_volume = prefs.master_volume;
 		app.tools_scale = prefs.tools_scale;
 		app.remembered_station_displays = prefs.station_displays;
+		app.screen_devices = prefs.screen_devices;
 		app.language = prefs.language;
 		app.pseudo_locale = prefs.pseudo;
 		app.reduced_motion = prefs.reduced_motion;

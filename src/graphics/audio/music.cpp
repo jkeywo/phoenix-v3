@@ -378,8 +378,12 @@ void ServerMusic::update(const AudioPresentation &presentation, const SceneFrame
 {
 	state_->update(presentation, frame);
 }
-void ServerMusic::click(const AudioLevels &levels)
+void ServerMusic::click(const AudioLevels &levels, const std::string &, const std::string &)
 {
 	state_->click(levels);
+}
+std::vector<std::pair<std::string, std::string>> ServerMusic::outputs()
+{
+	return {};
 }
 } // namespace phoenix

@@ -248,6 +248,8 @@ struct NativeMenuScreen::State
 		}
 		if (app.screen == Screen::settings)
 		{
+			if (app.pairing_screen == screen_identity(app, 0))
+				app.pairing_screen.clear();
 			app.screen = app.settings_return;
 			focus_next =
 			    app.screen == Screen::home || app.screen == Screen::server_lobby || app.screen == Screen::client_lobby
@@ -1302,6 +1304,8 @@ struct NativeMenuScreen::State
 			if (app.screen == Screen::settings)
 			{
 				const auto tabs = settings_ui::tabs(app, &focus_next);
+				if (!app.preference_error.empty())
+					markup += paragraph(app.preference_error);
 				markup += heading("Settings") + "<div class=\"settings-tabs\" role=\"tablist\">";
 				for (const auto &[id, label] : tabs)
 					markup += add(id, label,
@@ -1313,7 +1317,22 @@ struct NativeMenuScreen::State
 				if (app.settings_tab == "audio")
 				{
 					markup += settings_ui::audio_markup(true);
+					for (const auto &[id, label] : screen_device_controls(app, 0, "audio"))
+						markup += add(id, label,
+						              [&, id]
+						              {
+							              screen_device_action(app, 0, id);
+						              });
 					settings_ui::register_audio(app, true);
+				}
+				else if (app.settings_tab == "controllers")
+				{
+					for (const auto &[id, label] : screen_device_controls(app, 0, "controllers"))
+						markup += add(id, label,
+						              [&, id]
+						              {
+							              screen_device_action(app, 0, id);
+						              });
 				}
 				else if (app.settings_tab == "profile")
 				{

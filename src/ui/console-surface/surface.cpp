@@ -1114,10 +1114,11 @@ void ConsoleSurface::State::prepare(Application &app, const ConsoleRegion &physi
 		    prepared_source_ && tick >= prepared_source_->observed_tick ? (tick - prepared_source_->observed_tick) * .05
 		                                                                : 0;
 	};
-	const bool stable = prepared_cache_ && !prepare_dirty_ && source && app.session && app.session->running() &&
-	                    app.screen == Screen::console && prepared_owner_.lock() == app.session &&
-	                    prepared_generation_ == app.session->generation() && prepared_environment_ == environment &&
-	                    prepared_pads_ == pads && same_observation_scope(prepared_source_, source);
+	const bool stable = prepared_cache_ && !prepare_dirty_ && !settings_open_ && source && app.session &&
+	                    app.session->running() && app.screen == Screen::console &&
+	                    prepared_owner_.lock() == app.session && prepared_generation_ == app.session->generation() &&
+	                    prepared_environment_ == environment && prepared_pads_ == pads &&
+	                    same_observation_scope(prepared_source_, source);
 	if (stable && (source == prepared_source_ || (app.budget_console_preparation && (!allow_fresh || render_dirty_))))
 	{
 		restore_metadata(app);

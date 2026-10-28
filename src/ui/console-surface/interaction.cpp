@@ -231,7 +231,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 	}
 	if (app_ && app_->session && operations_.action(operations_context(), action))
 		return true;
-	if (app_ && !settings_open_ && app_->screen != Screen::settings &&
+	if (app_ && !settings_open_ && (route_ != 31 || app_->screen != Screen::settings) &&
 	    conversations_.action(model_, dom_, id(""), action))
 		return true;
 	if (app_ && navigation_.action(model_, dom_, id(""), app_->return_home, action))
@@ -242,7 +242,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 		return false;
 	if (action == "manual-mode")
 	{
-		if (settings_open_ || app_->screen == Screen::settings)
+		if (settings_open_ || (route_ == 31 && app_->screen == Screen::settings))
 			return false;
 		cancel_pointer();
 		const bool accepted = model_.set_manual(!model_.manual_active());
@@ -251,7 +251,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 	}
 	if (action == "manual-left" || action == "manual-right" || action == "manual-forward" || action == "manual-reverse")
 	{
-		if (!model_.manual_active() || settings_open_ || app_->screen == Screen::settings)
+		if (!model_.manual_active() || settings_open_ || (route_ == 31 && app_->screen == Screen::settings))
 			return false;
 		manual_input_.sample("accessible", {action == "manual-left"    ? 1000
 		                                    : action == "manual-right" ? -1000
@@ -280,6 +280,8 @@ bool ConsoleSurface::State::action(const std::string &name)
 		if (!app_->session)
 			return false;
 		settings_open_ = action == "settings" && !settings_open_;
+		if (!settings_open_ && app_->pairing_screen == screen_identity(*app_, route_))
+			app_->pairing_screen.clear();
 		if (settings_open_)
 			local_settings_tab_ = "display";
 		cancel_pointer();
@@ -303,10 +305,14 @@ bool ConsoleSurface::State::action(const std::string &name)
 		if (action.starts_with("local-settings.tab/"))
 		{
 			if (action.substr(19) != "display" && action.substr(19) != "language" && action.substr(19) != "audio" &&
-			    action.substr(19) != "session")
+			    action.substr(19) != "session" && action.substr(19) != "controllers")
 				return false;
 			local_settings_tab_ = action.substr(19);
+			if (local_settings_tab_ != "controllers" && app_->pairing_screen == screen_identity(*app_, route_))
+				app_->pairing_screen.clear();
 		}
+		else if (action.starts_with("device."))
+			return screen_device_action(*app_, route_, action);
 		else if (action == "local-settings.smaller")
 			text_scale_ = std::max(80, text_scale_ - 10);
 		else if (action == "local-settings.larger")
@@ -377,7 +383,8 @@ bool ConsoleSurface::State::action(const std::string &name)
 
 	if (action == "manual")
 	{
-		if (!manual_toggle_ || !game_active(*app_) || app_->screen == Screen::settings || !model_.observation())
+		if (!manual_toggle_ || !game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings) ||
+		    !model_.observation())
 			return false;
 		const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
 		const auto preset = manual_preset(manual);
@@ -389,11 +396,11 @@ bool ConsoleSurface::State::action(const std::string &name)
 	}
 
 	if ((action.starts_with("camera/") || action == "game.camera" || action == "game.camera-back") &&
-	    (!game_active(*app_) || app_->screen == Screen::settings))
+	    (!game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings)))
 		return false;
 	if (action == "game.manual")
 	{
-		if (!manual_toggle_ || !game_active(*app_) || app_->screen == Screen::settings)
+		if (!manual_toggle_ || !game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings))
 			return false;
 		if (auto *toggle = dom_.element(id("manual")))
 			return toggle->Focus();
@@ -485,7 +492,11 @@ bool ConsoleSurface::State::action(const std::string &name)
 	}
 	if (action.starts_with("pad/"))
 	{
+#ifdef __EMSCRIPTEN__
 		app_->gamepad_assignments[action.substr(4)] = route_;
+#else
+		return assign_screen_gamepad(*app_, route_, action.substr(4));
+#endif
 		return true;
 	}
 	if (model_.observation())
@@ -600,7 +611,14 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	if (app_ && app_->screen == Screen::server_lobby && name == id("ready"))
 		invoke_navigation(*app_, name);
 	else
+	{
+		if (app_ && app_->button_click)
+		{
+			app_->sound_route = route_;
+			app_->button_click();
+		}
 		action(name);
+	}
 }
 void ConsoleSurface::State::focus(const std::string &name)
 {

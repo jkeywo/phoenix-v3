@@ -24,8 +24,12 @@ private:
 	Application &app;
 	unsigned frame_limit;
 	bool vsync, uncapped;
-	bool lobby_span = false;
+	bool lobby_span = false, device_console_mode = false;
+	std::string layout_identity;
+	void refresh_device_routes();
 	double next_display_refresh = 0;
+	double next_device_refresh = 0;
+	std::vector<Application::NativeDisplay> device_displays;
 	static std::vector<Application::NativeDisplay> enumerate_displays();
 	void apply();
 	void reset();

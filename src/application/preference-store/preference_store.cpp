@@ -48,7 +48,9 @@ void remember_preferences(Application &app)
 		app.library->preferences.master_volume = app.master_volume;
 		app.library->preferences.tools_scale = app.tools_scale;
 		app.library->preferences.station_displays = app.remembered_station_displays;
+		app.library->preferences.screen_devices = app.screen_devices;
 		app.library->remember();
+		app.preference_error.clear();
 #ifdef __EMSCRIPTEN__
 		phoenix_persist_preferences();
 #endif
@@ -56,6 +58,8 @@ void remember_preferences(Application &app)
 	catch (const std::exception &error)
 	{
 		app.status = error.what();
+		app.preference_error = error.what();
+		app.accessible_status = error.what();
 	}
 }
 
@@ -106,6 +110,9 @@ bool set_audio_volume(Application &app, const std::string &channel, const std::s
 std::vector<std::pair<std::string, std::string>> settings_tabs(const Application &app)
 {
 	std::vector<std::pair<std::string, std::string>> tabs{{"settings.tab/audio", "Audio"}};
+#ifndef __EMSCRIPTEN__
+	tabs.emplace_back("settings.tab/controllers", "Controllers");
+#endif
 	if (app.native_menu)
 	{
 		tabs.emplace_back("settings.tab/profile", "Profile");

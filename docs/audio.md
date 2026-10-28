@@ -1,6 +1,6 @@
 # Host music and sound
 
-The native and browser ship host plays one mix for all local display regions. The [simplification verification receipt](smoke/host-audio-simplification.md) records the shared presentation and stream paths. Remote Console/GM clients and Workshop editing do not play the mission recordings. Local Console navigation does not interrupt the host mix. Remote Console asset bundles exclude these recordings.
+The ship host produces one music/ship/world mix. Native playback routes it to the Viewscreen's selected output, while Console UI sounds use their originating screen's output; screens selecting the same endpoint share one device engine. The browser host retains its shared browser output. See [screen device settings](screen-devices.md) and [their verification](smoke/screen-devices.md). The [simplification verification receipt](smoke/host-audio-simplification.md) records the shared presentation and stream paths. Remote Console/GM clients and Workshop editing do not play the mission recordings. Local Console navigation does not interrupt the host mix. Remote Console asset bundles exclude these recordings.
 
 | Recording              | Authored use                                                                           | Initial gain        |
 | ---------------------- | -------------------------------------------------------------------------------------- | ------------------- |

@@ -726,6 +726,7 @@ phoenix_intended_module(
 	phoenix_native_displays
 	phoenix_application_shell
 	phoenix_application_displays
+	phoenix_application_preference_store
 	phoenix_platform_display_identity
 	raylib
 )

@@ -50,6 +50,7 @@ import phoenix.ui.tactical_widgets;
 import phoenix.ui.flight_widgets;
 import phoenix.application.preferences;
 import phoenix.devices;
+import phoenix.navigation;
 #include "surface_state.hpp"
 namespace phoenix
 {
@@ -311,10 +312,17 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 	std::string markup =
 	    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 	    "dp;\"><h1>" + localise("Console settings") + "</h1><div>";
-	for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{
-	         {"display", "Display"}, {"language", "Language"}, {"audio", "Audio"}, {"session", "Session"}})
+	for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"display", "Display"},
+	                                                                                 {"language", "Language"},
+	                                                                                 {"audio", "Audio"},
+#ifndef __EMSCRIPTEN__
+	                                                                                 {"controllers", "Controllers"},
+#endif
+	                                                                                 {"session", "Session"}})
 		markup += settings_button("local-settings.tab/" + tab, label);
 	markup += "</div>";
+	if (!app.preference_error.empty())
+		markup += "<p>" + Rml::StringUtilities::EncodeRml(app.preference_error) + "</p>";
 	if (local_settings_tab_ == "display")
 	{
 		markup += "<p>" + localise("Text size") + ": " + std::to_string(text_scale_) + "%</p>";
@@ -325,7 +333,8 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 		markup += settings_button("local-settings.language", "Language: " + local_language_);
 	else if (local_settings_tab_ == "audio")
 	{
-		markup += "<p>" + localise("Audio uses the shared native output device.") + "</p>";
+		for (const auto &[action, label] : screen_device_controls(app, route_, "audio"))
+			markup += settings_button(action, label);
 		for (const auto &[channel, label, value] :
 		     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
 		                                                            {"music", "Music volume", app.music_volume},
@@ -336,6 +345,11 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 			markup += settings_button("local-settings.audio/" + channel + "/down", label + " -");
 			markup += settings_button("local-settings.audio/" + channel + "/up", label + " +");
 		}
+	}
+	else if (local_settings_tab_ == "controllers")
+	{
+		for (const auto &[action, label] : screen_device_controls(app, route_, "controllers"))
+			markup += settings_button(action, label);
 	}
 	else if (app.session->lobby().active && !app.session->lobby().launched)
 	{
@@ -619,7 +633,11 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 		}
 		for (const auto &pad : toolbar_enabled_ && !pregame ? pads : std::set<std::string>{})
+#ifdef __EMSCRIPTEN__
 			toolbar += button("pad/" + pad, "Assign controller " + pad);
+#else
+			(void)pad;
+#endif
 		toolbar += "<p id=\"connection-status\"></p>";
 		document_->GetElementById("toolbar")->SetInnerRML(toolbar);
 		std::string widgets;

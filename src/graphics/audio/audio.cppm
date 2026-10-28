@@ -1,7 +1,11 @@
 module;
 #include <cstdint>
 #include <memory>
+#include <map>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 #include <nlohmann/json.hpp>
 export module phoenix.graphics.audio;
 export import phoenix.content.catalog;
@@ -19,6 +23,9 @@ struct AudioLevels
 struct AudioPresentation
 {
 	AudioLevels levels;
+	std::string output = "default";
+	std::vector<std::string> active_outputs;
+	std::map<std::string, std::string> screen_outputs;
 	const void *session = nullptr;
 	std::uint64_t generation = 0, tick = 0;
 	const Catalog *catalog = nullptr;
@@ -34,7 +41,8 @@ public:
 	ServerMusic(const ServerMusic &) = delete;
 	ServerMusic &operator=(const ServerMusic &) = delete;
 	void update(const AudioPresentation &, const SceneFrame &);
-	void click(const AudioLevels &);
+	void click(const AudioLevels &, const std::string &output = "default", const std::string &screen = "");
+	std::vector<std::pair<std::string, std::string>> outputs();
 
 private:
 	struct State;

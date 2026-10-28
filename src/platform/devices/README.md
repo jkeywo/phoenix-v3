@@ -2,7 +2,7 @@
 
 Start at `devices.cppm` (`phoenix.devices`).
 
-Translates native SDL/touch or browser events into stable device/control events. Console assignment, region routing and command authority remain above this adapter.
+Translates native SDL/touch or browser events into device/control events. Native Added events include a friendly name, hardware serial, device path and model GUID alongside the connection-local ID. Unmapped buttons can identify a controller, and a complete physical neutral sample gates newly assigned input. Console assignment, region routing and command authority remain above this adapter.
 
 Allowed dependencies: Native SDL/Windows pointer services or browser APIs. No simulation or content dependency.
 

@@ -7,6 +7,7 @@ module;
 #endif
 #include <SDL3/SDL.h>
 #include <cstdint>
+#include <cstdlib>
 #include <map>
 #include <mutex>
 #include <stdexcept>
@@ -102,6 +103,18 @@ void add(SDL_JoystickID id)
 	{
 		pads[id] = pad;
 		pending.push_back({DeviceEventKind::Added, 0, 0, 0, std::to_string(id)});
+		auto &event = pending.back();
+		auto text = [](const char *value)
+		{
+			return value ? std::string(value) : std::string{};
+		};
+		auto *joystick = SDL_GetGamepadJoystick(pad);
+		event.name = text(SDL_GetGamepadName(pad));
+		event.serial = text(SDL_GetJoystickSerial(joystick));
+		event.path = text(SDL_GetJoystickPath(joystick));
+		char guid[33]{};
+		SDL_GUIDToString(SDL_GetJoystickGUID(joystick), guid, sizeof(guid));
+		event.model = guid;
 	}
 }
 } // namespace
@@ -226,9 +239,10 @@ std::vector<DeviceEvent> poll_devices()
 				control = "game.contacts";
 				break;
 			}
-			if (control)
-				pending.push_back({DeviceEventKind::Gamepad, 0, 0, 0, std::to_string(event.gbutton.which), control,
-				                   event.gbutton.down ? 1.f : 0.f});
+			// Unmapped buttons can identify a controller without gaining a gameplay action.
+			pending.push_back({DeviceEventKind::Gamepad, 0, 0, 0, std::to_string(event.gbutton.which),
+			                   control ? std::string(control) : "device.button/" + std::to_string(event.gbutton.button),
+			                   event.gbutton.down ? 1.f : 0.f});
 		}
 	}
 #ifndef _WIN32
@@ -257,6 +271,18 @@ std::vector<DeviceEvent> poll_devices()
 			pending.push_back({DeviceEventKind::Gamepad, 0, 0, 0, std::to_string(id),
 			                   axis == SDL_GAMEPAD_AXIS_LEFTX ? "flight.yaw" : "flight.thrust", -value});
 		}
+	// One complete physical sample prevents assignment from accepting an early
+	// neutral axis before the other axis/buttons have been inspected.
+	for (const auto &[id, pad] : pads)
+	{
+		bool held = false;
+		for (int axis = 0; axis < SDL_GAMEPAD_AXIS_COUNT; ++axis)
+			held =
+			    held || std::abs(static_cast<int>(SDL_GetGamepadAxis(pad, static_cast<SDL_GamepadAxis>(axis)))) > 6500;
+		for (int button = 0; button < SDL_GAMEPAD_BUTTON_COUNT; ++button)
+			held = held || SDL_GetGamepadButton(pad, static_cast<SDL_GamepadButton>(button));
+		pending.push_back({DeviceEventKind::Gamepad, 0, 0, 0, std::to_string(id), "device.neutral", held ? 1.f : 0.f});
+	}
 	auto result = std::move(pending);
 	pending.clear();
 	return result;

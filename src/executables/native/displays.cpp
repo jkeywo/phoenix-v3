@@ -3,6 +3,9 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <filesystem>
+#include <map>
+#include <cmath>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -11,6 +14,7 @@ module;
 
 module phoenix.native.displays;
 import phoenix.application.displays;
+import phoenix.application.preference_store;
 import phoenix.platform.display_identity;
 
 namespace phoenix
@@ -133,6 +137,9 @@ void NativeDisplayAdapter::reset()
 }
 void NativeDisplayAdapter::configure(bool span_displays, const std::string &display_layout)
 {
+	if (!display_layout.empty())
+		layout_identity =
+		    std::filesystem::absolute(std::filesystem::u8path(display_layout)).lexically_normal().generic_string();
 	if (span_displays && display_layout.empty())
 	{
 		const int count = GetMonitorCount();
@@ -226,8 +233,63 @@ void NativeDisplayAdapter::configure(bool span_displays, const std::string &disp
 		SetWindowState(FLAG_VSYNC_HINT);
 	pace();
 }
+void NativeDisplayAdapter::refresh_device_routes()
+{
+	// Device identities follow the live OS inventory even while gameplay keeps
+	// its existing Console/layout assignments, or an explicit layout is in use.
+	if (GetTime() >= next_device_refresh)
+	{
+		next_device_refresh = GetTime() + .5;
+		auto detected = enumerate_displays();
+		if (!detected.empty())
+			device_displays = std::move(detected);
+	}
+	std::map<ConsoleId, std::string> routes;
+	const auto origin = GetWindowPosition();
+	auto resolve = [&](const ConsoleRegion &region)
+	{
+		for (const auto &display : device_displays)
+		{
+			const auto pos = GetMonitorPosition(display.id);
+			if (std::abs(origin.x + region.x - pos.x) < 2 && std::abs(origin.y + region.y - pos.y) < 2 &&
+			    std::abs(region.width - GetMonitorWidth(display.id)) < 2 &&
+			    std::abs(region.height - GetMonitorHeight(display.id)) < 2)
+				return display.identity;
+		}
+		// Keep a disconnected physical screen's preference key. Replacing it with
+		// a new virtual key would silently select System default after HDMI loss.
+		if (const auto previous = app.screen_identities.find(region.console); previous != app.screen_identities.end())
+			return previous->second;
+		return "layout:" + layout_identity + "/" + std::to_string(region.console);
+	};
+	for (const auto &display : device_displays)
+		if (display.id == (app.console_regions.empty() ? GetCurrentMonitor() : app.host_display))
+			routes[0] = display.identity;
+	for (const auto &region : app.console_regions)
+		routes[region.console] = resolve(region);
+	if (app.viewscreen_region)
+	{
+		routes[0] = resolve(*app.viewscreen_region);
+		routes[app.viewscreen_region->console] = routes[0];
+	}
+	if (app.gm_region)
+		routes[app.gm_region->console] = resolve(*app.gm_region);
+	if (app.console_regions.empty() && !app.viewscreen_region)
+		routes[1] = routes[0];
+	routes[31] = routes[0];
+	const bool console =
+	    !app.viewscreen_region &&
+	    (app.screen == Screen::console || (app.screen == Screen::settings && app.settings_return == Screen::console));
+	if (routes != app.screen_identities || device_console_mode != console)
+	{
+		app.screen_identities = std::move(routes);
+		device_console_mode = console;
+		restore_screen_gamepads(app);
+	}
+}
 void NativeDisplayAdapter::poll(bool enabled)
 {
+	refresh_device_routes();
 	if (enabled && (!app.session || !app.session->running()) && GetTime() >= next_display_refresh)
 	{
 

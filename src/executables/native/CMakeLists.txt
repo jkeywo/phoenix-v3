@@ -4,7 +4,7 @@ target_sources(phoenix_native_displays PUBLIC FILE_SET CXX_MODULES FILES display
 target_link_libraries(
 	phoenix_native_displays
 	PUBLIC phoenix_application_shell
-	PRIVATE phoenix_application_displays phoenix_platform_display_identity raylib
+	PRIVATE phoenix_application_displays phoenix_application_preference_store phoenix_platform_display_identity raylib
 )
 set_target_properties(
 	phoenix_native_displays

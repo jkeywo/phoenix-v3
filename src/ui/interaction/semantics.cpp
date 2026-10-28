@@ -96,6 +96,20 @@ std::vector<SemanticControl> navigation_controls(const Application &app, bool in
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
+	app.sound_route = 0;
+	if (id.starts_with("console/"))
+	{
+		const auto end = id.find('/', 8);
+		if (end != std::string::npos)
+			std::from_chars(id.data() + 8, id.data() + end, app.sound_route);
+	}
+	if (id.starts_with("device.") && app.screen == Screen::settings)
+	{
+		for (const auto &[control, label] : screen_device_controls(app, 0, app.settings_tab))
+			if (control == id)
+				return screen_device_action(app, 0, id);
+		return false;
+	}
 	if (app.screen == Screen::settings)
 	{
 		const std::string page = id == "menu.avatar" || id == "menu.profile"    ? "profile"
@@ -160,6 +174,8 @@ bool invoke_navigation(Application &app, const std::string &id)
 			if (tab == id)
 			{
 				app.settings_tab = id.substr(13);
+				if (app.settings_tab != "controllers" && app.pairing_screen == screen_identity(app, 0))
+					app.pairing_screen.clear();
 				if (app.focus_control)
 					app.focus_control(id);
 				return true;
@@ -199,7 +215,11 @@ bool invoke_navigation(Application &app, const std::string &id)
 		}
 	}
 	else if (id == "settings.close" && app.screen == Screen::settings && settings_available)
+	{
+		if (app.pairing_screen == screen_identity(app, 0))
+			app.pairing_screen.clear();
 		app.screen = app.settings_return;
+	}
 	else if (id == "lobby" && app.native_menu)
 		app.screen = app.can_host ? Screen::server_lobby : Screen::client_lobby;
 	else if (id == "home")

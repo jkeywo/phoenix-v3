@@ -23,6 +23,7 @@ struct DeviceEvent
 	float x = 0, y = 0;
 	std::string device, control;
 	float value = 0;
+	std::string name, serial, path, model;
 };
 void open_devices(void *window);
 void close_devices(void *window);

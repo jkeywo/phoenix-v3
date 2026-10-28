@@ -195,6 +195,8 @@ int main()
 		rooted_library.preferences.player_name = "First base";
 		rooted_library.preferences.volume = 37;
 		rooted_library.preferences.station_displays = {{"test.ship", {{"helm", "monitor-stable-a"}}}};
+		rooted_library.preferences.screen_devices["monitor-stable-a"] = {"endpoint-a", "serial-a", "path-a", "model-a",
+		                                                                 "Pad A"};
 		rooted_library.remember();
 		auto second = rooted;
 		second.manifest["id"] = "other-root";
@@ -209,6 +211,9 @@ int main()
 		other.load();
 		require(other.preferences.station_displays.at("test.ship").at("helm") == "monitor-stable-a",
 		        "Stable station display preferences persist through library reload and base selection");
+		require(other.preferences.screen_devices.at("monitor-stable-a").audio_output == "endpoint-a" &&
+		            other.preferences.screen_devices.at("monitor-stable-a").gamepad_serial == "serial-a",
+		        "Screen device assignments persist across base selection");
 		other.launch_base(second_bytes);
 		require(other.preferences.player_name == "<username>" && other.preferences.volume == 37 &&
 		            other.packs.size() == 1,
@@ -512,12 +517,13 @@ int main()
 		legacy_index.erase("reference_grid");
 		legacy_index.erase("master_volume");
 		legacy_index.erase("sfx_volume");
+		legacy_index.erase("screen_devices");
 		write_file(directory + "/library.json", json_bytes(legacy_index));
 		MenuLibrary legacy_library(directory);
 		legacy_library.load();
 		require(legacy_library.preferences.dust_motes && legacy_library.preferences.reference_grid &&
 		            legacy_library.preferences.master_volume == 50 && legacy_library.preferences.sfx_volume == 50 &&
-		            legacy_library.preferences.volume == 0,
+		            legacy_library.preferences.volume == 0 && legacy_library.preferences.screen_devices.empty(),
 		        "Older indexes default new mixer channels to half without resetting the music preference");
 		auto session = make_local_session();
 		session->replace_packs(reopened.archives(reopened.packs));

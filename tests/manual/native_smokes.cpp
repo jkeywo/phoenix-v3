@@ -96,8 +96,8 @@ NativeSmokeResult NativeSmoke::frame(phoenix::Application &app)
 		phoenix::invoke_navigation(app, "game.qr-client");
 	if (gui)
 	{
-		for (const auto [frame, stage] :
-		     std::vector<std::pair<int, unsigned>>{{85, 0}, {70, 1}, {55, 2}, {40, 3}, {25, 4}})
+		for (const auto [frame, stage] : std::vector<std::pair<int, unsigned>>{
+		         {85, 0}, {70, 1}, {55, 2}, {40, 3}, {25, 4}, {20, 5}, {15, 6}, {10, 7}, {5, 8}})
 			if (frames == frame && !phoenix::probe_gui_navigation(app, stage))
 				throw std::runtime_error("GUI controller smoke failed at stage " + std::to_string(stage));
 		if (frames == 3)

@@ -32,7 +32,8 @@ const Json global_defaults = {{"tools_scale", 100},
                               {"reduced_motion", false},
                               {"dust_motes", true},
                               {"reference_grid", true},
-                              {"station_displays", Json::object()}};
+                              {"station_displays", Json::object()},
+                              {"screen_devices", Json::object()}};
 Json global_preferences(const Json &data)
 {
 	auto result = global_defaults;
@@ -99,6 +100,26 @@ void MenuLibrary::load()
 		throw std::runtime_error("Invalid siren volume");
 	prefs.master_volume = data.value("master_volume", 50);
 	prefs.tools_scale = data.value("tools_scale", 100);
+	const auto devices = data.value("screen_devices", Json::object());
+	if (!devices.is_object() || devices.size() > 128)
+		throw std::runtime_error("Invalid saved screen devices");
+	for (const auto &[screen, value] : devices.items())
+	{
+		if (screen.empty() || screen.size() > 4096 || !value.is_object())
+			throw std::runtime_error("Invalid saved screen device identity");
+		ScreenDevices device;
+		device.audio_output = value.value("audio_output", std::string("default"));
+		device.gamepad_serial = value.value("gamepad_serial", std::string{});
+		device.gamepad_path = value.value("gamepad_path", std::string{});
+		device.gamepad_model = value.value("gamepad_model", std::string{});
+		device.gamepad_name = value.value("gamepad_name", std::string{});
+		device.audio_name = value.value("audio_name", std::string{});
+		for (const auto *text : {&device.audio_output, &device.gamepad_serial, &device.gamepad_path,
+		                         &device.gamepad_model, &device.gamepad_name, &device.audio_name})
+			if (text->size() > 4096)
+				throw std::runtime_error("Saved screen device field exceeds bounds");
+		prefs.screen_devices[screen] = std::move(device);
+	}
 	const auto displays = data.value("station_displays", Json::object());
 	if (!displays.is_object() || displays.size() > 128)
 		throw std::runtime_error("Invalid saved station displays");
@@ -181,6 +202,12 @@ void MenuLibrary::remember()
 	          {"avatar", preferences.avatar},
 	          {"packs", Json::array()},
 	          {"saves", Json::array()}};
+	data["screen_devices"] = Json::object();
+	for (const auto &[screen, device] : preferences.screen_devices)
+		data["screen_devices"][screen] = {
+		    {"audio_output", device.audio_output}, {"gamepad_serial", device.gamepad_serial},
+		    {"gamepad_path", device.gamepad_path}, {"gamepad_model", device.gamepad_model},
+		    {"gamepad_name", device.gamepad_name}, {"audio_name", device.audio_name}};
 	for (const auto &p : packs)
 		data["packs"].push_back({{"hash", p.hash}, {"id", p.id}, {"enabled", p.enabled}, {"url", p.url}});
 	for (const auto &s : saves)

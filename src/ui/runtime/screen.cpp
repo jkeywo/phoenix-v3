@@ -384,6 +384,15 @@ void prepare_settings(Application &app)
 		document->GetElementById(id)->SetProperty("display", visible ? "none" : "block");
 	if (!visible)
 		return;
+	const auto area = app.viewscreen_region.value_or(
+	    ConsoleRegion{0, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+	auto *settings_panel = document->GetElementById("settings-panel");
+	settings_panel->SetProperty("position", "absolute");
+	settings_panel->SetProperty("left", std::to_string(area.x + 20) + "px");
+	settings_panel->SetProperty("top", std::to_string(area.y + 60) + "px");
+	settings_panel->SetProperty("width", std::to_string(std::max(100.f, area.width - 40)) + "px");
+	settings_panel->SetProperty("max-height", std::to_string(std::max(100.f, area.height - 100)) + "px");
+	settings_panel->SetProperty("overflow", "auto");
 	app.tools_keyboard_focus = false;
 	const auto tabs = settings_ui::tabs(app);
 	app.screen_controls = tabs;
@@ -440,6 +449,16 @@ void prepare_settings(Application &app)
 			}
 		}
 	}
+	std::string device_markup;
+	for (const auto &[id, text] : screen_device_controls(app, 0, app.settings_tab))
+	{
+		device_markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
+		                 Rml::StringUtilities::EncodeRml(text) + "</button>";
+		app.screen_controls.emplace_back(id, text);
+	}
+	auto *devices = document->GetElementById("settings-devices");
+	if (devices->GetInnerRML() != device_markup)
+		devices->SetInnerRML(device_markup);
 	app.screen_controls.emplace_back("settings.close", "Back");
 	const bool can_quit = app.settings_tab == "session" && game_active(app) && bool(app.return_home);
 	document->GetElementById("settings.quit")->SetProperty("display", can_quit ? "block" : "none");
@@ -897,7 +916,7 @@ void open_window()
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button><button id="ai.config" class="ai-provider-button"><span class="ai-brain"><span class="ai-brain-left"/><span class="ai-brain-right"/></span>AI configuration</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
+    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-devices"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
@@ -925,7 +944,14 @@ void draw_screen(Application &app)
 	current_app = &app;
 	app.button_click = [&app]
 	{
-		server_music->click({app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume});
+		server_music->click({app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume},
+		                    screen_audio_output(app, app.sound_route), screen_identity(app, app.sound_route));
+	};
+	app.audio_outputs = server_music->outputs();
+	app.test_screen_audio = [&app](ConsoleId route)
+	{
+		server_music->click({app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume},
+		                    screen_audio_output(app, route), screen_identity(app, route));
 	};
 	native_menu->poll(app);
 	select_language(app.language, app.pseudo_locale);
@@ -1011,8 +1037,9 @@ void draw_screen(Application &app)
 			}
 		}
 	}
-	const bool show_consoles = app.screen != Screen::settings &&
-	                           (sidebar_region.has_value() || lobby_consoles || app.screen == Screen::console ||
+	if (app.screen == Screen::settings)
+		sidebar_region.reset();
+	const bool show_consoles = (sidebar_region.has_value() || lobby_consoles || app.screen == Screen::console ||
 	                            (app.can_host &&
 	                             (app.screen == Screen::viewscreen ||
 	                              (app.screen == Screen::settings && app.settings_return == Screen::viewscreen)) &&
@@ -1304,6 +1331,12 @@ void draw_screen(Application &app)
 	const auto &scene_frame = game_screen->prepare_scene(app);
 	const auto audio_started = GetTime();
 	AudioPresentation audio;
+	audio.output = screen_audio_output(app, 0);
+	for (const auto &[route, identity] : app.screen_identities)
+	{
+		audio.active_outputs.push_back(screen_audio_output(app, route));
+		audio.screen_outputs[identity] = screen_audio_output(app, route);
+	}
 	audio.levels = {app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume};
 	audio.session = app.session.get();
 	audio.host = app.can_host;
@@ -1319,7 +1352,7 @@ void draw_screen(Application &app)
 		if (audio.playing)
 		{
 			audio.alert = app.session->public_board().value("alert", Json::object());
-			audio.focus_body = app.session->focus_body();
+			audio.focus_body = scene_frame.focus_body;
 		}
 	}
 	server_music->update(audio, scene_frame);
@@ -1338,18 +1371,47 @@ void draw_screen(Application &app)
 	for (const auto &event : poll_devices())
 	{
 		if (event.kind == DeviceEventKind::Added)
+		{
 			gamepads.insert(event.device);
+#ifndef __EMSCRIPTEN__
+			app.gamepad_devices[event.device] = {event.name, event.serial, event.path, event.model};
+			restore_screen_gamepads(app);
+#endif
+		}
 		else if (event.kind == DeviceEventKind::Removed)
 		{
 			pads.cancel(event.device);
 			input.disconnect_gamepad(event.device);
 			app.gamepad_assignments.erase(event.device);
 			gamepads.erase(event.device);
+			app.gamepad_devices.erase(event.device);
+			std::erase_if(app.paired_gamepads,
+			              [&](const auto &entry)
+			              {
+				              return entry.second == event.device;
+			              });
+			app.gamepad_wait_neutral.erase(event.device);
 		}
 		else if (event.kind == DeviceEventKind::Gamepad)
 		{
+#ifndef __EMSCRIPTEN__
+			const bool waiting = app.gamepad_wait_neutral.contains(event.device);
+			if (screen_gamepad_event(app, event.device, event.control, event.value))
+			{
+				if (event.control != "device.neutral" || waiting)
+				{
+					pads.cancel(event.device);
+					input.disconnect_gamepad(event.device);
+				}
+				continue;
+			}
+#endif
 			const auto found = app.gamepad_assignments.find(event.device);
 			const ConsoleId route = console_mode && found != app.gamepad_assignments.end() ? found->second : 0;
+#ifndef __EMSCRIPTEN__
+			if (found == app.gamepad_assignments.end())
+				continue;
+#endif
 			pads.sample(app, event.device, route, event.control, event.value);
 		}
 		else
@@ -1573,8 +1635,7 @@ void draw_screen(Application &app)
 				}
 			}
 		}
-		for (const auto &region :
-		     app.screen == Screen::settings ? std::vector<ConsoleRegion>{} : active_console_regions)
+		for (const auto &region : active_console_regions)
 		{
 			auto &surface = *console_surfaces.at(region.console);
 			const auto update_started = GetTime();
@@ -1643,6 +1704,7 @@ void close_window()
 	{
 		current_app->screen_action = {};
 		current_app->button_click = {};
+		current_app->test_screen_audio = {};
 	}
 	if (loading_background.id)
 		UnloadTexture(loading_background);

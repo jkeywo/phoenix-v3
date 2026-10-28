@@ -124,18 +124,19 @@ void PadDispatcher::State::prepare_pad(const std::string &device, ConsoleId rout
 	auto &pad = pad_surfaces[device];
 	pad.device = device;
 	const bool flight = console_surfaces.contains(route) && console_surfaces.at(route)->controller_flight() &&
-	                    app.screen != Screen::settings;
+	                    (route != 0 && route != 31 || app.screen != Screen::settings);
 	const auto identity =
 	    console_surfaces.contains(route) ? console_surfaces.at(route)->controller_identity() : std::string{};
 	const auto generation = app.session ? app.session->generation() : 0;
-	if (pad.route != route || pad.screen != app.screen || pad.session.lock() != app.session ||
+	const auto screen = route && route != 31 && app.screen == Screen::settings ? app.settings_return : app.screen;
+	if (pad.route != route || pad.screen != screen || pad.session.lock() != app.session ||
 	    pad.generation != generation || pad.flight != flight || pad.identity != identity)
 	{
 		release_pad(pad.route);
 		input.assign_gamepad(device, {});
 		pad.navigation.cancel();
 		pad.route = route;
-		pad.screen = app.screen;
+		pad.screen = screen;
 		pad.session = app.session;
 		pad.generation = generation;
 		pad.flight = flight;
@@ -365,7 +366,19 @@ void PadDispatcher::State::update_pads(Application &app)
 {
 	for (auto &[device, pad] : pad_surfaces)
 	{
+#ifndef __EMSCRIPTEN__
+		if (app.gamepad_devices.contains(device) &&
+		    (!app.gamepad_assignments.contains(device) || app.gamepad_assignments.at(device) != pad.route))
+		{
+			release_pad(pad.route);
+			input.disconnect_gamepad(device);
+			pad.navigation.cancel();
+			continue;
+		}
+#endif
+
 		if (!window_focused() || app.screen == Screen::workshop || app.screen == Screen::gm ||
+		    app.gamepad_wait_neutral.contains(device) ||
 		    (pad.route &&
 		     (!app.gamepad_assignments.contains(device) || app.gamepad_assignments.at(device) != pad.route)))
 		{
@@ -554,6 +567,22 @@ bool PadDispatcher::State::probe(Application &app, unsigned stage)
 		}
 
 		return activate("/local-settings.close");
+	}
+	if (stage == 5)
+		return activate("/settings");
+	if (stage == 6)
+		return activate("/local-settings.tab/audio");
+	if (stage == 7)
+	{
+		TakeScreenshot("build/screen-devices-console-audio.png");
+		if (!activate("/device.audio/muted") || !activate("/device.audio/default"))
+			return false;
+		return activate("/local-settings.tab/controllers");
+	}
+	if (stage == 8)
+	{
+		TakeScreenshot("build/screen-devices-console-controllers.png");
+		return activate("/device.pair") && activate("/local-settings.close");
 	}
 	if (stage == 4)
 	{

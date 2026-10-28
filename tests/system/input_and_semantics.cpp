@@ -91,6 +91,78 @@ int main()
 {
 	try
 	{
+#ifndef __EMSCRIPTEN__
+		{
+			Application devices;
+			devices.screen_identities = {{0, "monitor-host"}, {1, "monitor-a"}, {2, "monitor-b"}};
+			devices.gamepad_devices = {{"7", {"Pad", "serial-a", "path-a", "model"}},
+			                           {"8", {"Pad", "serial-b", "path-b", "model"}}};
+			require(assign_screen_gamepad(devices, 1, "7") && assign_screen_gamepad(devices, 2, "8"),
+			        "Screens independently assign controllers");
+			require(devices.gamepad_assignments.at("7") == 1 && devices.gamepad_assignments.at("8") == 2,
+			        "Controller routes remain independent");
+			devices.screen_identities = {{0, "monitor-host"}, {4, "monitor-b"}, {5, "monitor-a"}};
+			restore_screen_gamepads(devices);
+			require(devices.gamepad_assignments.at("7") == 5 && devices.gamepad_assignments.at("8") == 4,
+			        "Monitor identities survive route and Console changes");
+			devices.gamepad_devices.erase("7");
+			devices.paired_gamepads.clear();
+			restore_screen_gamepads(devices);
+			require(!devices.gamepad_assignments.contains("7") &&
+			            !devices.screen_devices.at("monitor-a").gamepad_serial.empty(),
+			        "Disconnect retains remembered assignment");
+			devices.gamepad_devices["17"] = {"Pad", "serial-a", "path-a", "model"};
+			restore_screen_gamepads(devices);
+			require(devices.gamepad_assignments.at("17") == 5 && devices.gamepad_wait_neutral.contains("17"),
+			        "Reconnect uses persistent identity and waits for neutral");
+			devices.gamepad_devices["18"] = devices.gamepad_devices.at("17");
+			restore_screen_gamepads(devices);
+			require(!devices.gamepad_assignments.contains("17") && !devices.gamepad_assignments.contains("18"),
+			        "Ambiguous hardware cannot silently acquire a screen");
+			devices.gamepad_devices.erase("18");
+			require(assign_screen_gamepad(devices, 4, "17") &&
+			            devices.screen_devices.at("monitor-a").gamepad_name.empty(),
+			        "Explicit reassignment moves ownership from the previous screen");
+			devices.pairing_screen = "monitor-a";
+			require(screen_gamepad_event(devices, "17", "game.contacts", 1) &&
+			            devices.gamepad_assignments.at("17") == 5,
+			        "Pairing consumes the identifying press");
+			require(screen_gamepad_event(devices, "17", "flight.yaw", .8f) &&
+			            screen_gamepad_event(devices, "17", "game.contacts", 0) &&
+			            devices.gamepad_wait_neutral.contains("17"),
+			        "Held axes prevent premature pairing activation");
+			require(screen_gamepad_event(devices, "17", "flight.yaw", 0) &&
+			            screen_gamepad_event(devices, "17", "device.neutral", 0) &&
+			            !devices.gamepad_wait_neutral.contains("17"),
+			        "Controller resumes only after neutral");
+			devices.audio_outputs = {{"speaker-a", "Speakers A"}, {"speaker-b", "Speakers B"}};
+			require(screen_device_action(devices, 4, "device.audio/speaker-a") &&
+			            screen_device_action(devices, 5, "device.audio/speaker-b"),
+			        "Audio outputs are selected per screen");
+			devices.audio_outputs.clear();
+			require(screen_audio_output(devices, 4) == "speaker-a" && screen_audio_output(devices, 5) == "speaker-b",
+			        "Missing saved outputs remain selected rather than falling back");
+			require(screen_audio_output(devices, 0) == "default" &&
+			            screen_device_action(devices, 5, "device.audio/muted") &&
+			            screen_audio_output(devices, 5) == "muted",
+			        "New screens default to system output and can explicitly mute");
+			devices.gamepad_devices["20"] = {"Anonymous pad", "", "stable-path", "other-model"};
+			require(assign_screen_gamepad(devices, 4, "20"), "Path-only devices can be paired explicitly");
+			devices.paired_gamepads.clear();
+			devices.gamepad_devices.erase("20");
+			devices.gamepad_devices["21"] = {"Anonymous pad", "", "stable-path", "other-model"};
+			restore_screen_gamepads(devices);
+			require(devices.gamepad_assignments.at("21") == 4, "A unique stable path restores without a serial");
+			devices.screen_devices["monitor-a"] = devices.screen_devices.at("monitor-b");
+			restore_screen_gamepads(devices);
+			require(!devices.gamepad_assignments.contains("21"), "Conflicting remembered identities require pairing");
+			devices.screen_identities = {{0, "single-monitor"}, {1, "single-monitor"}, {31, "single-monitor"}};
+			devices.screen = Screen::console;
+			require(assign_screen_gamepad(devices, 1, "21") && devices.gamepad_assignments.at("21") == 1,
+			        "A standalone Console receives its screen controller instead of the host alias");
+		}
+#endif
+
 		{
 			const Json row{{"id", "equipment:engine:cooling"},
 			               {"rule", "test.cooling"},
