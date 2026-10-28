@@ -1,5 +1,7 @@
 # Faster build iteration
 
+The [28 October development measurements](build-measurements-2026-10-28.md) cover the expanded modular codebase: focused no-op builds, implementation edits, World runtime interface changes and a same-object web link optimisation comparison. They identify development web linking and World dependency breadth as the strongest measured opportunities.
+
 The ordinary [build commands](building.md) configure a new build tree automatically. Subsequent runs use the generated build directly; CMake still regenerates when its tracked inputs change. Use `-Reconfigure` to explicitly configure and build, or `-ConfigureOnly` to configure without compiling. Release settings and the existing native/web output paths are unchanged.
 
 Build just the application or integration case needed for the current edit:
