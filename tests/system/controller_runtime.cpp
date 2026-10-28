@@ -1,4 +1,5 @@
 #include <cmath>
+#include <array>
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
@@ -9,10 +10,12 @@
 #include <iostream>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
 import phoenix.content.controllers;
+import phoenix.control.protocol;
 import phoenix.content.distribution;
 import phoenix.content.resources;
 import phoenix.ui.engineering_widgets;
@@ -31,6 +34,52 @@ using namespace phoenix::test;
 
 namespace
 {
+void officer_protocol_failure_boundary()
+{
+	const auto catalog = load(controller_session_fixture());
+	const auto &definitions = catalog.knowledge_definition;
+	const auto schema = definitions.schema("phoenix.coordination");
+	CoordinationDelivery delivery;
+	delivery.message.id = 42;
+	delivery.message.value.sender_system = 7;
+	delivery.message.value.payload.schema = schema;
+	delivery.message.value.payload.subject = 1;
+	auto &fields = delivery.message.value.payload.fields;
+	for (const auto *name : {"operation", "status", "reason"})
+		fields[definitions.field(schema, name)] = std::string(name == std::string("operation") ? "power"
+		                                                      : name == std::string("status")  ? "requested"
+		                                                                                       : "");
+	for (const auto *name : {"request", "target", "amount", "priority"})
+		fields[definitions.field(schema, name)] = std::int64_t{0};
+	fields[definitions.field(schema, "expires")] = std::int64_t{100};
+	ConsoleControllerRuntime controller;
+	const std::array<KnowledgeId, 1> peers{7};
+	std::size_t acknowledgements = 0, replies = 0;
+	const OfficerProtocolPorts ports{[&](KnowledgeId)
+	                                 {
+		                                 ++acknowledgements;
+	                                 },
+	                                 [&](const OfficerRequest &)
+	                                 {
+		                                 ++replies;
+		                                 throw std::runtime_error("synthetic reply unavailable");
+	                                 }};
+	bool failed = false;
+	try
+	{
+		process_officer_protocol(1, 1, controller, std::span(&delivery, 1), definitions, peers, ports);
+	}
+	catch (const std::runtime_error &error)
+	{
+		failed = std::string(error.what()) == "synthetic reply unavailable";
+	}
+	require(failed && acknowledgements == 0 && replies == 1 && controller.incoming_requests.empty(),
+	        "failed protocol reply propagates without acknowledging or recording a delivered request");
+	fields.erase(definitions.field(schema, "operation"));
+	process_officer_protocol(1, 1, controller, std::span(&delivery, 1), definitions, peers, ports);
+	require(acknowledgements == 1 && replies == 1 && controller.incoming_requests.empty(),
+	        "malformed protocol input is consumed without executing a reply or adding a request");
+}
 Json controller(const World &world, std::uint64_t claimant, const std::string &id)
 {
 	const auto observation = world.observe(claimant);
@@ -69,6 +118,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		officer_protocol_failure_boundary();
 		objective_priority_cases();
 		stock_selection_cases();
 		power_panel_cases();

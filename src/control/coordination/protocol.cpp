@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <exception>
 #include <functional>
 #include <nlohmann/json.hpp>
@@ -54,9 +55,11 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 		{
 			return fields.at(definitions.field(schema, name));
 		};
+		OfficerRequest r;
+		std::int64_t correlation = 0;
+		bool valid = false;
 		try
 		{
-			OfficerRequest r;
 			r.operation = static_cast<OfficerOperation>(
 			    officer_index(officer_operations, std::get<std::string>(value("operation"))));
 			r.status =
@@ -70,13 +73,22 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 			r.priority = std::get<std::int64_t>(value("priority"));
 			r.expires = std::get<std::int64_t>(value("expires"));
 			r.reason = std::get<std::string>(value("reason"));
-			const auto correlation = std::get<std::int64_t>(value("request"));
+			correlation = std::get<std::int64_t>(value("request"));
 			if (!r.expires)
 				r.expires = m.value.expires_tick;
 			if (r.priority < 0 || r.priority > 2 || r.amount < 0 || r.amount > 1000000000 || r.expires <= now ||
 			    r.expires > now + 72000 || m.value.payload.subject != id ||
 			    std::find(known_peers.begin(), known_peers.end(), r.peer) == known_peers.end())
 				throw std::runtime_error("Invalid or expired request");
+			valid = true;
+		}
+		catch (const std::exception &)
+		{
+			// Reject malformed fields, but do not swallow failures from reply ports.
+			valid = false;
+		}
+		if (valid)
+		{
 			if (correlation == 0 && r.status == OfficerStatus::Requested)
 			{
 				if (std::none_of(controller.incoming_requests.begin(), controller.incoming_requests.end(),
@@ -113,9 +125,6 @@ void process_officer_protocol(EntityId id, KnowledgeTick now, ConsoleControllerR
 						original.reply_tick = now;
 					}
 			}
-		}
-		catch (const std::exception &)
-		{ /* Malformed protocol data is not a command. */
 		}
 		if (protocol_prefix)
 			ports.acknowledge(m.id);
