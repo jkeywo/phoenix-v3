@@ -23,6 +23,10 @@ set_target_properties(
 	phoenix_platform_display_identity
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_platform_display_identity PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_platform_display_identity INTERFACE ${PHOENIX_EXCEPTION_FLAG})
+endif()
 if(WIN32)
 	target_link_libraries(phoenix_platform_display_identity PRIVATE user32)
 	set_property(TARGET phoenix_platform_display_identity PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "user32")

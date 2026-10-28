@@ -34,6 +34,37 @@ import phoenix.ui.preview;
 namespace phoenix
 {
 #include "state.hpp"
+void WorkshopWorkspace::State::reset_save_locations()
+{
+	history.reset(document);
+	selection.kind = "Entity";
+	saves.reset();
+	saving = false;
+	pack_location = {};
+	library_pack.clear();
+	saving_library = false;
+	map_locations.clear();
+	saving_map.clear();
+	rename_from.clear();
+	console_rename_from.clear();
+}
+void WorkshopWorkspace::State::clear_textures()
+{
+	assets.clear();
+	preview.clear();
+	map_editor.clear();
+}
+void WorkshopWorkspace::State::attempt(const std::function<void()> &action)
+{
+	try
+	{
+		action();
+	}
+	catch (const std::exception &error)
+	{
+		status = error.what();
+	}
+}
 void WorkshopWorkspace::State::close_editor()
 {
 	map_editor.clear();

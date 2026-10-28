@@ -27,6 +27,10 @@ set_target_properties(
 	phoenix_platform_user_paths
 	PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON CXX_SCAN_FOR_MODULES ON
 )
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_platform_user_paths PUBLIC ${PHOENIX_EXCEPTION_FLAG})
+	target_link_options(phoenix_platform_user_paths INTERFACE ${PHOENIX_EXCEPTION_FLAG})
+endif()
 if(WIN32)
 	target_link_libraries(phoenix_platform_user_paths PRIVATE shell32 ole32)
 	set_property(TARGET phoenix_platform_user_paths PROPERTY PHOENIX_ALLOWED_DEPENDENCIES "shell32;ole32")

@@ -101,6 +101,21 @@ All logs and local preservation audits named here are under
 `build/modularisation-baseline/`; they are execution evidence, not shipped
 content goldens or completion claims for deferred gameplay features.
 
+## Ordinary browser frontend checkpoint
+
+Ordinary WebAssembly `client` and `workshop` now compile and link through the
+new module graph; log: `wasm-frontends-24.log`. This exposed three portability
+issues not diagnosed by the native compiler: a missing direct `<set>` include,
+two pure platform interfaces without the common exception setting, and three
+Workspace helper bodies defined in a shared private class header. The header
+was added, the platform interfaces now propagate the established exception flag,
+and the helper bodies have one implementation owner in the workflow module.
+
+This is compilation/link evidence for the two frontend roles. Authoritative
+WebAssembly execution, the threaded configuration and actual browser rendering
+remain separate pending gates; the native counterpart of these fixes is checked
+in `native-browser-fixes-25.log`.
+
 ## Generic ownership and environment activation
 
 State trees, vocabulary, knowledge records, resource networks, conversations,

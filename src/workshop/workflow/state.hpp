@@ -34,42 +34,14 @@ struct WorkshopWorkspace::State
 	bool import_engines = false;
 	bool started = false;
 	ImVec2 dock_size{};
-	void reset_save_locations()
-	{
-		history.reset(document);
-		selection.kind = "Entity";
-		saves.reset();
-		saving = false;
-		pack_location = {};
-		library_pack.clear();
-		saving_library = false;
-		map_locations.clear();
-		saving_map.clear();
-		rename_from.clear();
-		console_rename_from.clear();
-	}
-	void clear_textures()
-	{
-		assets.clear();
-		preview.clear();
-		map_editor.clear();
-	}
+	void reset_save_locations();
+	void clear_textures();
 
 	MapEditor map_editor;
 	LayoutEditor layout_editor;
 	GameplayEditors gameplay;
 
-	void attempt(const std::function<void()> &action)
-	{
-		try
-		{
-			action();
-		}
-		catch (const std::exception &error)
-		{
-			status = error.what();
-		}
-	}
+	void attempt(const std::function<void()> &action);
 	void save_pack(WorkshopEnvironment &environment, bool save_as);
 	std::pair<std::string, Bytes> installed_base_pack(WorkshopEnvironment &environment);
 	void open_base_pack(WorkshopEnvironment &environment);

@@ -9,6 +9,7 @@ module;
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <set>
 #include <span>
 #include <stdexcept>
 #include <string>
