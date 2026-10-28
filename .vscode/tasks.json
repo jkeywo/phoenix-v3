@@ -5,7 +5,15 @@
 			"label": "Phoenix: build native",
 			"type": "process",
 			"command": "${env:SystemRoot}/System32/WindowsPowerShell/v1.0/powershell.exe",
-			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/build.ps1", "-Target", "native"],
+			"args": [
+				"-NoProfile",
+				"-File",
+				"${workspaceFolder}/scripts/build.ps1",
+				"-Target",
+				"native",
+				"-BuildTarget",
+				"native"
+			],
 			"options": { "cwd": "${workspaceFolder}" },
 			"problemMatcher": "$msCompile",
 			"group": { "kind": "build", "isDefault": true }
@@ -14,7 +22,11 @@
 			"label": "Phoenix: build all WASM",
 			"type": "process",
 			"command": "${env:SystemRoot}/System32/WindowsPowerShell/v1.0/powershell.exe",
-			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/build.ps1", "-Target", "web"],
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"& ./scripts/build.ps1 -Target web -BuildTarget server,client,workshop,phoenix_workshop_test -DevelopmentLink"
+			],
 			"options": { "cwd": "${workspaceFolder}" },
 			"problemMatcher": "$gcc",
 			"group": "build"
