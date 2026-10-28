@@ -26,13 +26,13 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 	const auto attacker = frame.attacker;
 	const auto &source = frame.source;
 	const auto &original_equipment = frame.original_equipment;
-	const auto owner = [&](EntityId id, bool outcome = true, bool ordnance = false)
+	const auto owner = [&](EntityId id, bool uses_payload_outcome = true, bool ordnance = false)
 	{
-		return target(quote, frame, id, outcome, ordnance);
+		return target(quote, frame, id, uses_payload_outcome, ordnance);
 	};
-	const auto stock = [&](EntityId id, const std::string &name, bool outcome = true) -> StockStore &
+	const auto stock = [&](EntityId id, const std::string &name, bool uses_payload_outcome = true) -> StockStore &
 	{
-		return this->stock(quote, frame, id, name, outcome);
+		return this->stock(quote, frame, id, name, uses_payload_outcome);
 	};
 	std::size_t operation_index = 0;
 	for (const auto &operation : execution.operations)
@@ -47,11 +47,11 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 		op.equipment = equipment(frame, op.equipment);
 		const auto actor = effect_group_actor(frame, op.target);
 		const auto id = actor.entity;
-		const bool outcome = frame.rule_context
-		                         ? actor.kind != PayloadOutcomeKind::Entity || actor.ordnance
-		                         : frame.hit_context && id == frame.hit_context->target &&
-		                               actor.ordnance == frame.hit_context->ordnance && op.target != "attacker" &&
-		                               op.target != "source" && op.target != "instigator";
+		const bool uses_payload_outcome =
+		    frame.rule_context ? actor.kind != PayloadOutcomeKind::Entity || actor.ordnance
+		                       : frame.hit_context && id == frame.hit_context->target &&
+		                             actor.ordnance == frame.hit_context->ordnance && op.target != "attacker" &&
+		                             op.target != "source" && op.target != "instigator";
 		PayloadHitContext address{id};
 		address.kind = actor.kind;
 		address.ordnance = actor.ordnance;
@@ -64,9 +64,9 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 			address.contribution = actor.contribution;
 			address.contribution_name = actor.contribution_name;
 		}
-		if (!frame.rule_context && outcome)
+		if (!frame.rule_context && uses_payload_outcome)
 			address = *frame.hit_context;
-		auto ship = owner(id, outcome, actor.ordnance);
+		auto ship = owner(id, uses_payload_outcome, actor.ordnance);
 		const auto *ability_state =
 		    quote.abilities.contains(id) ? &quote.abilities.at(id) : ship.try_get<AbilityRuntime>();
 		const auto ability_owner = op.officer.empty() ? op.equipment : op.officer;
@@ -109,7 +109,7 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 		{
 			if (op.damage < 0 || op.damage > 1000000)
 				throw std::runtime_error("Effect damage outside supported bounds");
-			if (outcome)
+			if (uses_payload_outcome)
 			{
 				if (!ports_.hit_available(address))
 					throw std::runtime_error("Damage outcome unavailable");
@@ -117,14 +117,15 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 			else if (!ship.has<CombatStructure>() && !ship.has<Destructible>())
 				throw std::runtime_error("Damage target incompatible");
 			if (op.damage)
-				quote.damages.push_back(
-				    {id, op.damage, outcome || actor.ordnance || !ship.has<CombatStructure>(), address, invocation});
+				quote.damages.push_back({id, op.damage,
+				                         uses_payload_outcome || actor.ordnance || !ship.has<CombatStructure>(),
+				                         address, invocation});
 		}
 		else if (op.kind >= EffectOperationKind::StoreAdd)
 		{
 			if (actor.ordnance)
 				throw std::runtime_error("Ordnance does not own a stock store");
-			auto &destination = stock(id, op.store, outcome);
+			auto &destination = stock(id, op.store, uses_payload_outcome);
 			bool valid = false;
 			switch (op.kind)
 			{
@@ -305,20 +306,20 @@ RuleActor EffectPreparation::property_actor(const EffectGroupInvocation &frame, 
 }
 
 flecs::entity EffectPreparation::target(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
-                                        bool outcome, bool ordnance) const
+                                        bool uses_payload_outcome, bool ordnance) const
 {
 	// Guards carry their own ordnance identity; a later batch frame must not
 	// reinterpret an earlier frame's same-number physical/ordnance target.
-	ordnance = ordnance || (!frame.rule_context && outcome && frame.hit_context && frame.hit_context->target == id &&
-	                        frame.hit_context->ordnance);
-	quote.targets.push_back({id, outcome, ordnance});
+	ordnance = ordnance || (!frame.rule_context && uses_payload_outcome && frame.hit_context &&
+	                        frame.hit_context->target == id && frame.hit_context->ordnance);
+	quote.targets.push_back({id, uses_payload_outcome, ordnance});
 	return require_target(id, ordnance);
 }
 
 StockStore &EffectPreparation::stock(PreparedEffectGroup &quote, const EffectGroupInvocation &frame, EntityId id,
-                                     const std::string &name, bool outcome) const
+                                     const std::string &name, bool uses_payload_outcome) const
 {
-	auto resolved = named_stock(target(quote, frame, id, outcome), ports_.definitions(id).logistics, name,
+	auto resolved = named_stock(target(quote, frame, id, uses_payload_outcome), ports_.definitions(id).logistics, name,
 	                            quote.payments.contains(id) ? &quote.payments.at(id).network : nullptr);
 	if (resolved.kind == NamedStockKind::Physical)
 		quote.changed_inventories.insert(id);

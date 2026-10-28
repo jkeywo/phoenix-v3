@@ -545,7 +545,7 @@ auto Runtime::effect_group_quote_stale(const PreparedEffectGroup &quote) const -
 		if (!effect_group_equipment_available(id, equipment))
 			return true;
 	for (const auto &damage : quote.damages)
-		if (damage.outcome && !payload_context_available(damage.context))
+		if (damage.uses_payload_outcome && !payload_context_available(damage.context))
 			return true;
 	try
 	{
@@ -623,9 +623,9 @@ auto Runtime::commit_effect_group(PreparedEffectGroup &quote) -> std::string
 			const auto &frame = quote.invocations.at(damage.invocation);
 			const auto id = damage.target;
 			const auto amount = damage.amount;
-			auto ship = damage.outcome ? payload_target(damage.context) : entities.at(id);
+			auto ship = damage.uses_payload_outcome ? payload_target(damage.context) : entities.at(id);
 			auto context = effect_invocation_context(frame, quote.tick);
-			if (damage.outcome)
+			if (damage.uses_payload_outcome)
 			{
 				apply_payload_damage(ship, amount, damage.context, &context);
 				continue;

@@ -370,7 +370,7 @@ auto Runtime::prepared_damage_failure(const PreparedEffectGroup &quote) const ->
 		return "Scheduled damage capacity exhausted";
 	for (const auto &damage : quote.damages)
 	{
-		const auto target = damage.outcome
+		const auto target = damage.uses_payload_outcome
 		                        ? payload_target(damage.context)
 		                        : (entities.contains(damage.target) ? entities.at(damage.target) : flecs::entity{});
 		if (!target || damage.amount <= 0 || combat_dead(target))
@@ -385,7 +385,7 @@ auto Runtime::queue_prepared_damage(const PreparedEffectGroup &quote) -> void
 	{
 		const auto &frame = quote.invocations.at(damage.invocation);
 		auto context = effect_invocation_context(frame, quote.tick);
-		context.hit = damage.outcome ? damage.context : PayloadHitContext{damage.target};
+		context.hit = damage.uses_payload_outcome ? damage.context : PayloadHitContext{damage.target};
 		context.subject = rule_hit_actor(context.hit);
 		context.target = context.subject;
 		rule_events.schedule_damage({0,

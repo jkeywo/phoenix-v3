@@ -89,14 +89,14 @@ struct PreparedEffectDamage
 {
 	EntityId target = 0;
 	std::int64_t amount = 0;
-	bool outcome = false;
+	bool uses_payload_outcome = false;
 	PayloadHitContext context;
 	std::size_t invocation = 0;
 };
 struct PreparedEffectTarget
 {
 	EntityId target = 0;
-	bool outcome = false, ordnance = false;
+	bool uses_payload_outcome = false, ordnance = false;
 };
 struct PreparedEffectGroup
 {

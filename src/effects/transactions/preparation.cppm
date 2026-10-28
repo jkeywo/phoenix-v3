@@ -55,13 +55,13 @@ public:
 	EffectPreparation(EffectPreparationCatalog, EffectPreparationPorts, std::int64_t ticks_per_second);
 	void stage(PreparedEffectGroup &, std::size_t invocation) const;
 	flecs::entity require_target(EntityId id, bool ordnance = false) const;
-	flecs::entity target(PreparedEffectGroup &, const EffectGroupInvocation &, EntityId id, bool outcome = true,
-	                     bool ordnance = false) const;
+	flecs::entity target(PreparedEffectGroup &, const EffectGroupInvocation &, EntityId id,
+	                     bool uses_payload_outcome = true, bool ordnance = false) const;
 	std::string equipment(const EffectGroupInvocation &, const std::string &binding) const;
 	RuleActor property_actor(const EffectGroupInvocation &, const RuleActor &, const std::string &equipment,
 	                         const std::string &officer, const std::string &compartment = {}) const;
 	StockStore &stock(PreparedEffectGroup &, const EffectGroupInvocation &, EntityId id, const std::string &name,
-	                  bool outcome = true) const;
+	                  bool uses_payload_outcome = true) const;
 	PropertyEffects &properties(PreparedEffectGroup &, flecs::entity) const;
 	CustomPropertyState &custom_properties(PreparedEffectGroup &, const CustomPropertyAddress &) const;
 	ProcessRuntime &processes(PreparedEffectGroup &, const CustomPropertyAddress &) const;
