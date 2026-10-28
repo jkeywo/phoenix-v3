@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { runtimeScript } from "../../web/runtime-environment.mjs";
 import { startSessionPump } from "../../web/session-pump.mjs";
 import { verifyLaunchBase } from "../../web/base-verifier.mjs";
@@ -801,4 +802,101 @@ test("isolated runtimes retain an ordinary fallback and validate roles", () => {
 	assert.equal(runtimeScript({ root_threaded: true }, true, "workshop"), "workshop.js");
 	assert.throws(() => runtimeScript({ root_threaded: true }, false, "server"), /requires an isolated/);
 	assert.throws(() => runtimeScript({}, true, "unknown"), /Unknown runtime role/);
+});
+
+// Exercise the actual EM_JS bridge with a synthetic durable-store boundary.
+const preferenceSource = readFileSync(
+	new URL("../../src/application/preference-store/preference_store.cpp", import.meta.url),
+	"utf8",
+);
+const preferenceMarker = "EM_JS(int, phoenix_persist_preferences, (int written), {";
+const preferenceStart = preferenceSource.indexOf(preferenceMarker);
+assert.notEqual(preferenceStart, -1);
+const preferenceBodyStart = preferenceStart + preferenceMarker.length;
+const preferenceEnd = preferenceSource.indexOf("\n});", preferenceBodyStart);
+assert.notEqual(preferenceEnd, -1);
+const requestPreferencePersistence = new Function("Module", "written", preferenceSource.slice(preferenceBodyStart, preferenceEnd));
+const preferenceTick = () => new Promise((resolve) => setImmediate(resolve));
+function preferenceBridge(persist) {
+	const replies = [];
+	const module = {
+		phoenixPersistMenu: persist,
+		ccall(name, result, types, values) {
+			assert.equal(name, "phoenix_preferences_result");
+			assert.equal(result, null);
+			assert.deepEqual(types, ["string"]);
+			replies.push(values[0]);
+		},
+	};
+	return { module, replies, request: (written) => requestPreferencePersistence(module, written) };
+}
+function preferenceGate() {
+	let resolve;
+	const promise = new Promise((done) => { resolve = done; });
+	return { promise, resolve };
+}
+test("settings completion waits for durable storage", async () => {
+	const gate = preferenceGate();
+	const bridge = preferenceBridge(() => gate.promise);
+	assert.equal(bridge.request(1), 1);
+	await preferenceTick();
+	assert.deepEqual(bridge.replies, []);
+	gate.resolve();
+	await preferenceTick();
+	assert.deepEqual(bridge.replies, [""]);
+	assert.equal(bridge.module.phoenixPreferenceWriteActive, false);
+});
+test("settings reports rejected and synchronously throwing stores", async () => {
+	for (const persist of [
+		() => Promise.reject(new Error("synthetic quota exceeded")),
+		() => { throw new Error("synthetic storage unavailable"); },
+	]) {
+		const bridge = preferenceBridge(persist);
+		bridge.request(1);
+		await preferenceTick();
+		assert.equal(bridge.replies.length, 1);
+		assert.match(bridge.replies[0], /synthetic (quota exceeded|storage unavailable)/);
+		assert.equal(bridge.module.phoenixPreferenceWriteActive, false);
+		bridge.module.phoenixPersistMenu = () => Promise.resolve();
+		bridge.request(1);
+		await preferenceTick();
+		assert.deepEqual(bridge.replies.slice(1), [""]);
+	}
+});
+test("periodic settings snapshots do not supersede an active durable write", async () => {
+	const gate = preferenceGate();
+	let writes = 0;
+	const bridge = preferenceBridge(() => { ++writes; return gate.promise; });
+	bridge.request(1);
+	await preferenceTick();
+	assert.equal(bridge.request(0), 0);
+	assert.equal(bridge.request(0), 0);
+	gate.resolve();
+	await preferenceTick();
+	assert.equal(writes, 1);
+	assert.deepEqual(bridge.replies, [""]);
+});
+test("new settings edits coalesce and older success cannot clear their pending state", async () => {
+	const writes = [];
+	const bridge = preferenceBridge(() => {
+		const gate = preferenceGate();
+		writes.push(gate);
+		return gate.promise;
+	});
+	bridge.request(1);
+	await preferenceTick();
+	assert.equal(bridge.request(1), 1);
+	assert.equal(bridge.request(1), 1);
+	writes[0].resolve();
+	await preferenceTick();
+	assert.equal(writes.length, 2);
+	assert.deepEqual(bridge.replies, []);
+	writes[1].resolve();
+	await preferenceTick();
+	assert.deepEqual(bridge.replies, [""]);
+});
+test("standalone runtimes can omit launcher preference persistence", () => {
+	const bridge = preferenceBridge(undefined);
+	assert.equal(bridge.request(1), 0);
+	assert.deepEqual(bridge.replies, []);
 });

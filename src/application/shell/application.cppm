@@ -120,6 +120,7 @@ struct Application
 	std::string network_service = default_network_service, network_profile = "default", join_page;
 	std::function<void(const std::string &, const std::string &, const std::string &, JoinRole)> connect;
 	std::string status, preference_error;
+	std::string preference_persistence_error, preference_pending_error;
 	std::string accessible_status;
 	bool can_host = false;
 	bool can_edit = false;

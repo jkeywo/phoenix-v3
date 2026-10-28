@@ -489,6 +489,27 @@ int main()
 		            host.music_volume == 100 && !set_music_volume(host, "nan") && !set_music_volume(host, "101") &&
 		            !set_music_volume(host, "50junk") && !set_music_volume(client, "20"),
 		        "slider and accessible volume edits share bounded numeric admission, including mute");
+		Application persistence;
+		complete_preference_persistence(persistence, "synthetic quota exceeded");
+		require(persistence.preference_error.find("synthetic quota exceeded") != std::string::npos &&
+		            persistence.status == persistence.preference_error &&
+		            persistence.accessible_status == persistence.preference_error,
+		        "Asynchronous settings failure reaches both visible and accessible status");
+		persistence.preference_pending_error = persistence.preference_error;
+		complete_preference_persistence(persistence, "");
+		require(persistence.preference_error.empty() && persistence.status.empty() &&
+		            persistence.accessible_status.empty(),
+		        "Confirmed durable settings recovery clears its own diagnostic");
+		persistence.preference_error = "newer synchronous write failed";
+		persistence.status = persistence.accessible_status = "Mission ready";
+		complete_preference_persistence(persistence, "");
+		require(persistence.preference_error == "newer synchronous write failed" &&
+		            persistence.status == "Mission ready" && persistence.accessible_status == "Mission ready",
+		        "Periodic persistence cannot clear an unrelated settings failure or status");
+		persistence.preference_pending_error = persistence.preference_error;
+		complete_preference_persistence(persistence, "");
+		require(persistence.preference_error.empty() && persistence.status == "Mission ready",
+		        "A later successful settings rewrite clears the corresponding write failure");
 		host.screen_inputs = {{"music-volume", "Music volume", "100", true}};
 		require(navigation_controls(host).back().percentage,
 		        "music volume must publish range semantics rather than an unlabelled control");

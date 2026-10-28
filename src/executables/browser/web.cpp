@@ -33,10 +33,13 @@ phoenix::Application app;
 double session_work_seconds = 0;
 // Browser storage and page navigation belong to the shell; sessions remain in C++.
 // clang-format off: embedded JavaScript must retain its operators.
-EM_JS(void, persist_menu, (), { Module.phoenixPersistMenu?.().catch(() => {}); });
 EM_JS(void, return_to_menu, (), { Module.phoenixReturnToMenu?.(); });
 EM_JS(void, startup_phase, (const char *phase), { Module.phoenixStartupStage?.(UTF8ToString(phase)); });
 // clang-format on
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_preferences_result(const char *error)
+{
+	phoenix::complete_preference_persistence(app, error);
+}
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 {
 	const double now = GetTime();
@@ -46,7 +49,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 	static double last_persist = 0;
 	if (GetTime() - last_persist > 1)
 	{
-		persist_menu();
+		phoenix::persist_preferences(app);
 		last_persist = GetTime();
 	}
 	if (app.native_menu && (app.screen == phoenix::Screen::home || app.exit_requested))

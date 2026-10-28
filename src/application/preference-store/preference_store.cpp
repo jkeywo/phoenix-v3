@@ -10,7 +10,31 @@ EM_JS(int, phoenix_display_preferences, (), {
 EM_JS(void, phoenix_store_display_preferences, (int bits), {
     try { localStorage.setItem('phoenix-display-preferences-v1',JSON.stringify({dust_motes:!!(bits&1),reference_grid:!!(bits&2),reduced_motion:!!(bits&4)})); } catch {}
 });
-EM_JS(void, phoenix_persist_preferences, (), { Module.phoenixPersistMenu?.().catch(() => {}); });
+EM_JS(int, phoenix_persist_preferences, (int written), {
+    const persist = Module.phoenixPersistMenu;
+    if (typeof persist !== 'function') return 0;
+    if (Module.phoenixPreferenceWriteActive && !written) return 0;
+    Module.phoenixPreferenceWriteGeneration = (Module.phoenixPreferenceWriteGeneration || 0) + 1;
+    if (Module.phoenixPreferenceWriteActive) {
+        Module.phoenixPreferenceWriteAgain = true;
+        return 1;
+    }
+    Module.phoenixPreferenceWriteActive = true;
+    const reply = error => Module.ccall('phoenix_preferences_result', null, ['string'], [error]);
+    const flush = () => {
+        const generation = Module.phoenixPreferenceWriteGeneration;
+        Module.phoenixPreferenceWriteAgain = false;
+        Promise.resolve().then(() => persist.call(Module)).then(
+            () => { if (Module.phoenixPreferenceWriteGeneration === generation) reply(''); },
+            error => reply(String(error))
+        ).finally(() => {
+            if (Module.phoenixPreferenceWriteAgain) flush();
+            else Module.phoenixPreferenceWriteActive = false;
+        });
+    };
+    flush();
+    return 1;
+});
 // clang-format on
 #endif
 #include <array>
@@ -30,6 +54,42 @@ module phoenix.application.preference_store;
 
 namespace phoenix
 {
+#ifdef __EMSCRIPTEN__
+namespace
+{
+void request_preference_persistence(Application &app, const std::string &previous_error, bool written)
+{
+	if (phoenix_persist_preferences(written ? 1 : 0))
+		app.preference_pending_error = previous_error;
+}
+} // namespace
+#endif
+void persist_preferences(Application &app)
+{
+#ifdef __EMSCRIPTEN__
+	// Periodic snapshots may clear an earlier storage failure, but cannot clear
+	// a newer synchronous settings-write failure whose edits were never saved.
+	request_preference_persistence(app, app.preference_persistence_error, false);
+#else
+	(void)app;
+#endif
+}
+void complete_preference_persistence(Application &app, const std::string &error)
+{
+	const auto previous = std::exchange(app.preference_persistence_error, {});
+	if (!error.empty())
+	{
+		const auto message = localise("Could not save settings.") + " " + error;
+		app.preference_persistence_error = message;
+		app.preference_error = app.status = app.accessible_status = message;
+		return;
+	}
+	for (auto *message : {&app.preference_error, &app.status, &app.accessible_status})
+		if ((!previous.empty() && *message == previous) ||
+		    (!app.preference_pending_error.empty() && *message == app.preference_pending_error))
+			message->clear();
+	app.preference_pending_error.clear();
+}
 void remember_preferences(Application &app)
 {
 #ifdef __EMSCRIPTEN__
@@ -50,9 +110,10 @@ void remember_preferences(Application &app)
 		app.library->preferences.station_displays = app.remembered_station_displays;
 		app.library->preferences.screen_devices = app.screen_devices;
 		app.library->remember();
-		app.preference_error.clear();
 #ifdef __EMSCRIPTEN__
-		phoenix_persist_preferences();
+		request_preference_persistence(app, app.preference_error, true);
+#else
+		app.preference_error.clear();
 #endif
 	}
 	catch (const std::exception &error)
