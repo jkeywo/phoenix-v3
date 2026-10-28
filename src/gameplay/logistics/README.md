@@ -6,6 +6,6 @@ Read `state.cppm` (`phoenix.gameplay.logistics.state`) first for physical stores
 
 Transit advances one batch at a time and returns control for its receiving/service commit before another batch advances. This preserves phase order when completion effects change later availability. A physically arrived batch is not automatically a delivered receipt. Cargo attribution is updated only through the existing receiving path.
 
-`src/world/bindings/gameplay_logistics_01.cpp`, `gameplay_logistics_02.cpp` and `gameplay_cargo.cpp` are ordinary World composition adapters for Console authority, source selection, scenario delivery orchestration and finite native-work commits. Their remaining contextual extraction is separate from the independently compiled accounting/transit implementation.
+`src/world/travel-bindings/supply_admission.cpp`, `gameplay_logistics_02.cpp` and `gameplay_cargo.cpp` are ordinary World composition adapters for Console authority, source selection, scenario delivery orchestration and finite native-work commits. Their remaining contextual extraction is separate from the independently compiled accounting/transit implementation.
 
 Relevant checks: stock accounting, logistics, cargo, docking, servicing/finite work and save/restore/native-WASM continuation. Production tuning is not a golden test surface.

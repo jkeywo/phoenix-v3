@@ -14,6 +14,28 @@ module;
 module phoenix.resources.processors;
 namespace phoenix
 {
+Json ResourceProcessor::projection(const std::string &id, const std::set<std::string> &selectable, bool manual) const
+{
+	Json choices = Json::array();
+	std::int64_t work = 0;
+	for (const auto &recipe : definition_.recipes)
+	{
+		choices.push_back({{"id", recipe.id}, {"label", recipe.label}, {"selectable", selectable.contains(recipe.id)}});
+		if (recipe.id == state_.recipe)
+			work = recipe.work * 1000;
+	}
+	return {{"id", id},
+	        {"equipment", definition_.equipment},
+	        {"recipe", state_.recipe},
+	        {"mode", definition_.continuous ? "continuous" : "batch"},
+	        {"active", state_.active},
+	        {"progress", state_.progress},
+	        {"work", work},
+	        {"recipes", choices},
+	        {"manual", manual},
+	        {"selection_revision", state_.selection_revision}};
+}
+
 namespace
 {
 // Fixed 160-bit unsigned arithmetic for capacity inequalities. Five limbs

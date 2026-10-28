@@ -1,0 +1,3 @@
+add_library(phoenix_control_native_commands STATIC envelope.cpp)
+target_sources(phoenix_control_native_commands PUBLIC FILE_SET CXX_MODULES FILES envelope.cppm)
+target_link_libraries(phoenix_control_native_commands PUBLIC phoenix_contracts)

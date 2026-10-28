@@ -1,0 +1,6 @@
+add_library(phoenix_ui_surface_host STATIC host.cpp)
+target_sources(phoenix_ui_surface_host PUBLIC FILE_SET CXX_MODULES FILES host.cppm)
+target_link_libraries(phoenix_ui_surface_host PUBLIC phoenix_input phoenix_ui_interaction RmlUi::RmlUi)
+add_library(phoenix_ui_choice_specs STATIC choices.cpp)
+target_sources(phoenix_ui_choice_specs PUBLIC FILE_SET CXX_MODULES FILES choices.cppm)
+target_link_libraries(phoenix_ui_choice_specs PUBLIC phoenix_contracts)

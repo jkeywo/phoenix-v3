@@ -1,0 +1,7 @@
+add_library(phoenix_ui_navigation_panel STATIC navigation.cpp)
+target_sources(phoenix_ui_navigation_panel PUBLIC FILE_SET CXX_MODULES FILES navigation.cppm)
+target_link_libraries(
+	phoenix_ui_navigation_panel
+	PUBLIC phoenix_ui_surface_host phoenix_console_model phoenix_devices phoenix_graphics_geometry phoenix_graphics_assets
+	PRIVATE phoenix_graphics_radar phoenix_application_preferences raylib
+)

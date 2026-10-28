@@ -11,6 +11,7 @@ function(phoenix_intended_module target)
 endfunction()
 
 # Foundation and portable definition engines.
+phoenix_intended_module(phoenix_control_native_commands phoenix_contracts)
 phoenix_intended_module(phoenix_data nlohmann_json::nlohmann_json)
 phoenix_intended_module(phoenix_contracts phoenix_data)
 phoenix_intended_module(phoenix_input)
@@ -587,6 +588,29 @@ phoenix_intended_module(
 	phoenix_content_assets
 	phoenix_content_compilers
 )
+phoenix_intended_module(
+	phoenix_ui_navigation_panel
+	phoenix_ui_surface_host
+	phoenix_console_model
+	phoenix_devices
+	phoenix_graphics_geometry
+	phoenix_graphics_assets
+	phoenix_graphics_radar
+	phoenix_application_preferences
+	raylib
+)
+phoenix_intended_module(phoenix_ui_choice_specs phoenix_contracts)
+phoenix_intended_module(phoenix_ui_surface_host phoenix_input phoenix_ui_interaction RmlUi::RmlUi)
+phoenix_intended_module(
+	phoenix_ui_conversation_panel
+	phoenix_ui_surface_host
+	phoenix_console_model
+	phoenix_content_ui
+	phoenix_content_catalog
+	phoenix_ui_information_widgets
+	phoenix_application_preferences
+	raylib
+)
 phoenix_intended_module(phoenix_ui_engineering_widgets phoenix_foundation phoenix_application_preferences)
 phoenix_intended_module(phoenix_ui_flight_widgets phoenix_console_model)
 phoenix_intended_module(
@@ -617,6 +641,10 @@ phoenix_intended_module(
 )
 phoenix_intended_module(
 	phoenix_ui_console_surface
+	phoenix_ui_navigation_panel
+	phoenix_ui_choice_specs
+	phoenix_ui_surface_host
+	phoenix_ui_conversation_panel
 	phoenix_application_shell
 	phoenix_console_model
 	phoenix_ui_rml
@@ -959,6 +987,7 @@ phoenix_intended_module(
 )
 phoenix_intended_module(
 	phoenix_simulation
+	phoenix_control_native_commands
 	phoenix_foundation
 	phoenix_content_catalog
 	phoenix_control_controllers

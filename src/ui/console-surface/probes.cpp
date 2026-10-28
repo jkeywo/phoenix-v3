@@ -42,6 +42,9 @@ import phoenix.graphics.scene;
 import phoenix.ui.theme;
 import phoenix.ui.engineering_widgets;
 import phoenix.ui.information_widgets;
+import phoenix.ui.conversation_panel;
+import phoenix.ui.surface_host;
+import phoenix.ui.navigation_panel;
 import phoenix.ui.operations_widgets;
 import phoenix.ui.tactical_widgets;
 import phoenix.ui.flight_widgets;
@@ -181,22 +184,22 @@ bool ConsoleSurface::State::probe_tab(const std::string &action)
 }
 bool ConsoleSurface::State::probe_navigation(unsigned stage)
 {
-	if (!navigation_visible_)
+	if (!navigation_.visible())
 		return false;
 	const auto before = model_.waypoint();
 	if (stage == 0)
 	{
-		const auto x = navigation_area_.x + navigation_area_.width * .12f,
-		           y = navigation_area_.y + navigation_area_.height * .12f;
+		const auto x = navigation_.area().x + navigation_.area().width * .12f,
+		           y = navigation_.area().y + navigation_.area().height * .12f;
 		pointer(9888, x, y, DeviceEventKind::Down);
 		pointer(9888, x, y, DeviceEventKind::Up);
-		return navigation_selected_ && model_.waypoint() == before;
+		return navigation_.selected() && model_.waypoint() == before;
 	}
-	const auto previous = navigation_x_;
+	const auto previous = navigation_.selected_x();
 	document_->GetElementById(id("nav.map"))->Focus();
 	context_->ProcessKeyDown(Rml::Input::KI_RIGHT, 0);
 	context_->ProcessKeyUp(Rml::Input::KI_RIGHT, 0);
-	return navigation_selected_ && navigation_x_ != previous && model_.waypoint() == before;
+	return navigation_.selected() && navigation_.selected_x() != previous && model_.waypoint() == before;
 }
 bool ConsoleSurface::State::probe_fit() const
 {
@@ -256,7 +259,7 @@ bool ConsoleSurface::State::probe_readout_scroll()
 	auto values = readout_values_;
 	values.insert(values.end(), resource_readouts_.begin(), resource_readouts_.end());
 	for (const auto &[name, text] : values)
-		if (auto *target = element(id(name)); target && target->IsVisible(true) && displayed_values_[name] != text)
+		if (auto *target = dom_.element(id(name)); target && target->IsVisible(true) && displayed_values_[name] != text)
 		{
 			const auto semantic = std::find_if(app_->screen_readouts.begin(), app_->screen_readouts.end(),
 			                                   [&](const auto &entry)
@@ -292,7 +295,7 @@ bool ConsoleSurface::State::probe_report()
 	for (const auto &[name, text] : readout_values_)
 		if (text.find("Engine Console report") != std::string::npos)
 		{
-			auto *target = element(id(name));
+			auto *target = dom_.element(id(name));
 			if (!target)
 				return false;
 			target->ScrollIntoView();

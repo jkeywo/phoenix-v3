@@ -652,6 +652,8 @@ foreach(asset IN LISTS phoenix_helm_art)
 	get_filename_component(name "${asset}" NAME)
 	configure_file("${asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/helm/${name}" COPYONLY)
 endforeach()
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/console")
+configure_file("content/ui/console/surface.rml" "${CMAKE_CURRENT_BINARY_DIR}/assets/console/surface.rml" COPYONLY)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/menu")
 foreach(
 	menu_asset
@@ -1131,7 +1133,7 @@ if(NOT EMSCRIPTEN)
 endif()
 
 add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
-target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
+target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation phoenix_graphics_audio raylib)
 if(EMSCRIPTEN)
 	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/build/native/test.zip")
 		configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/native/test.zip" "${CMAKE_CURRENT_BINARY_DIR}/test.zip" COPYONLY)
@@ -1301,7 +1303,7 @@ if(NOT EMSCRIPTEN)
 	)
 	add_dependencies(phoenix_away_smoke base_pack)
 	add_executable(phoenix_comms_smoke EXCLUDE_FROM_ALL tests/manual/comms_ui.cpp)
-	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation)
+	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation phoenix_graphics_audio raylib)
 	add_dependencies(phoenix_comms_smoke base_pack)
 endif()
 
@@ -1521,90 +1523,16 @@ target_sources(
 	PRIVATE src/world/lifecycle/queries.cpp
 )
 
-# Private native binding composition; no public Runtime export.
+# Private core composition and family-owned native workflows.
+phoenix_world_integrations()
 target_sources(
 	phoenix_simulation
 	PRIVATE
 		FILE_SET runtime_partitions
 			TYPE CXX_MODULES
-			FILES src/world/bindings/bindings.cppm src/world/schedule/schedule.cppm src/world/persistence/bindings.cppm
+			FILES src/world/schedule/schedule.cppm src/world/persistence/bindings.cppm
 	PRIVATE
-		src/world/bindings/lifecycle_native_01.cpp
-		src/world/bindings/lifecycle_native_02.cpp
-		src/world/bindings/lifecycle_native_03.cpp
-		src/world/bindings/scenarios_asteroid_fields.cpp
-		src/world/bindings/gameplay_navigation_assessment.cpp
-		src/world/bindings/control_controller_execution_01.cpp
-		src/world/bindings/control_controller_execution_02.cpp
-		src/world/bindings/control_controller_actions.cpp
-		src/world/bindings/control_controller_coordination.cpp
-		src/world/bindings/control_controller_models.cpp
-		src/world/bindings/resources_power_projection.cpp
-		src/world/bindings/knowledge_console_observations.cpp
-		src/world/bindings/gameplay_directed.cpp
-		src/world/bindings/effects_damage_rules.cpp
-		src/world/bindings/gameplay_combat_effects.cpp
-		src/world/bindings/gameplay_combat_execution_01.cpp
-		src/world/bindings/gameplay_combat_execution_02.cpp
-		src/world/bindings/gameplay_combat_weapons.cpp
-		src/world/bindings/gameplay_combat_ordnance.cpp
-		src/world/bindings/effects_custom_properties.cpp
-		src/world/bindings/effects_property_effects.cpp
-		src/world/bindings/effects_effect_application.cpp
-		src/world/bindings/effects_native_outcome_effects.cpp
-		src/world/bindings/effects_preparation_adapter.cpp
-		src/world/bindings/effects_store_effects.cpp
-		src/world/bindings/effects_processes_01.cpp
-		src/world/bindings/effects_processes_02.cpp
-		src/world/bindings/effects_process_machinery.cpp
-		src/world/bindings/effects_abilities_01.cpp
-		src/world/bindings/effects_abilities_02.cpp
-		src/world/bindings/effects_ability_interface.cpp
-		src/world/bindings/effects_validation_adapter.cpp
-		src/world/bindings/effects_process_interface.cpp
-		src/world/bindings/effects_rules.cpp
-		src/world/bindings/effects_rule_sources.cpp
-		src/world/bindings/effects_payload_effects.cpp
-		src/world/bindings/effects_effect_damage.cpp
-		src/world/bindings/effects_rule_funding_01.cpp
-		src/world/bindings/effects_rule_funding_02.cpp
-		src/world/bindings/effects_finite_native_work.cpp
-		src/world/bindings/effects_rule_lifecycle.cpp
-		src/world/bindings/effects_bindings_adapter.cpp
-		src/world/bindings/effects_region_rules.cpp
-		src/world/bindings/effects_rule_persistence.cpp
-		src/world/bindings/effects_rule_interface.cpp
-		src/world/bindings/resources_processors.cpp
-		src/world/bindings/gameplay_personnel.cpp
-		src/world/bindings/gameplay_psychic.cpp
-		src/world/bindings/gameplay_teams_01.cpp
-		src/world/bindings/gameplay_teams_02.cpp
-		src/world/bindings/gameplay_compartment_access.cpp
-		src/world/bindings/gameplay_logistics_01.cpp
-		src/world/bindings/gameplay_logistics_02.cpp
-		src/world/bindings/gameplay_docking_01.cpp
-		src/world/bindings/gameplay_docking_02.cpp
-		src/world/bindings/gameplay_cargo.cpp
-		src/world/bindings/resources_supply.cpp
-		src/world/bindings/control_bridge.cpp
-		src/world/bindings/gameplay_conversations.cpp
-		src/world/bindings/gameplay_away_01.cpp
-		src/world/bindings/gameplay_away_02.cpp
-		src/world/bindings/gameplay_away_03.cpp
-		src/world/bindings/gameplay_ownership.cpp
-		src/world/bindings/gameplay_boarding.cpp
-		src/world/bindings/gameplay_craft_01.cpp
-		src/world/bindings/gameplay_craft_02.cpp
-		src/world/bindings/gameplay_ftl.cpp
-		src/world/bindings/scenarios_missions.cpp
-		src/world/bindings/gameplay_interdictions.cpp
-		src/world/bindings/gameplay_sensors.cpp
 		src/world/lifecycle/assembly_bindings.cpp
-		src/world/bindings/console_sessions.cpp
-		src/world/bindings/scene_views.cpp
-		src/world/bindings/console_views.cpp
-		src/world/bindings/controller_admission.cpp
-		src/world/bindings/debug_views.cpp
 		src/world/persistence/checkpoint_bindings.cpp
 		src/world/schedule/schedule.cpp
 )
@@ -1614,3 +1542,5 @@ target_sources(phoenix_simulation PRIVATE src/world/lifecycle/instance.cpp)
 
 # Adopt the final domain owners through private Runtime composition.
 target_link_libraries(phoenix_simulation PRIVATE phoenix_effects_ability_lifecycle phoenix_gameplay_projectiles)
+
+target_link_libraries(phoenix_simulation PRIVATE phoenix_control_native_commands)

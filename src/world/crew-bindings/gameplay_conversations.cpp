@@ -1,0 +1,352 @@
+module;
+#include "native_headers.hpp"
+
+module phoenix.simulation;
+import :crew_bindings;
+
+namespace phoenix::world_detail
+{
+auto Runtime::comms_controller(EntityId id, const ConsoleControllerSpec &controller) const -> bool
+{
+	for (const auto &command : controller.commands)
+		for (auto i : command.consumers)
+			if (definition(id).fitted->values.at(i).kind == OperatingSystem::Comms)
+				return true;
+	return false;
+}
+
+auto Runtime::comms_owner(EntityId id) const -> std::optional<ConsoleAddress>
+{
+	if (!entities.contains(id))
+		return {};
+	if (definition(id).layout)
+		for (const auto &controller : definition(id).layout->controllers)
+			if (comms_controller(id, controller))
+				return ConsoleAddress{id, controller.console};
+	for (const auto &s : definition(id).consoles)
+		for (const auto &name : s.controlled_systems)
+			for (const auto &fit : definition(id).fitted->values)
+				if (fit.id == name && fit.kind == OperatingSystem::Comms)
+					return ConsoleAddress{id, s.id};
+	return {};
+}
+
+auto Runtime::conversation_operator(EntityId id, const ConsoleControllerRuntime &controller) const -> bool
+{
+	return controller.human ||
+	       (entities.at(id).get<EntityControls>().layout.complexity_groups.contains(controller.definition.console) &&
+	        console_operator({id, controller.definition.console}) != 0);
+}
+
+auto Runtime::register_comms(EntityId id, const std::string &definition) -> void
+{
+	if (!comms_rosters.contains(definition))
+		return;
+	for (auto p : comms_rosters.at(definition))
+	{
+		p.host = id;
+		p.id = "ship:" + std::to_string(id) + (p.character ? "/" + p.id : "");
+		conversations.participants.emplace(p.id, std::move(p));
+	}
+}
+
+auto Runtime::refresh_comms(bool disclose) -> void
+{
+	conversations.endpoints.clear();
+	conversations.received_tags.clear();
+	conversations.capabilities.clear();
+	conversations.completed_choices.clear();
+	for (const auto &[id, entity] : entities)
+	{
+		if (entity.has(flecs::Disabled))
+			continue;
+		auto owner = comms_owner(id);
+		if (!owner)
+			continue;
+		const auto &pos = entity.get<Pose>().position;
+		CommsEndpoint endpoint{id, pos.x, pos.y, 0, false, false};
+		endpoint.altitude = altitude(id);
+		if (entity.has<EntityControls>())
+			for (const auto &c : entity.get<EntityControls>().controllers)
+				if (c.definition.console == owner->console && comms_controller(id, c.definition) && c.human)
+					endpoint.human = true;
+		for (auto child : entity.get<EquipmentIndex>().values)
+		{
+			const auto &fit = child.get<Equipment>();
+			if (fit.kind != OperatingSystem::Comms)
+				continue;
+			const auto *power = entity.try_get<ShipResources>();
+			const bool funded = power && child.has<ResourceBinding>() &&
+			                    power->grants.at(child.get<ResourceBinding>().slot).supply_permille == 1000;
+			if (!entity.has(flecs::Disabled) && fit.enabled && funded && !structurally_disabled(entity, fit.id) &&
+			    !combat_dead(entity))
+			{
+				endpoint.working = true;
+				endpoint.range =
+				    std::max(endpoint.range, effective_property(entity, fit.id, PropertyKey::comms, fit.maximum));
+			}
+		}
+		conversations.endpoints[id] = endpoint;
+		if (knowledge.contains_ship(id))
+		{
+			const auto &kd = knowledge.definition();
+			const auto schema = kd.schema("phoenix.sensor.findings");
+			for (const auto &record : knowledge.project(*owner).records)
+				if (record.value.schema == schema)
+					for (const auto &finding :
+					     Json::parse(std::get<std::string>(record.value.fields.at(kd.field(schema, "payload")))))
+						if (finding.contains("tag"))
+							conversations.received_tags[id].insert(finding.at("tag"));
+		}
+		const auto self = "ship:" + std::to_string(id);
+		for (const auto &[cid, conversation] : conversations.conversations)
+			if (!conversation.program.empty())
+				for (const auto &message : conversation.messages)
+					if (message.delivered.contains(self))
+						for (const auto &[key, line] : conversations.programs.at(conversation.program).lines)
+							if (line.text == message.text && !line.received_tag.empty())
+								conversations.received_tags[id].insert(line.received_tag);
+	}
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+	{
+		const auto &d = away_operations.definitions()[i];
+		const auto &m = away_operations.missions()[i];
+		const auto ship = away_ship(d);
+		const auto cid = away_conversation(d);
+		if (!ship || !cid)
+			continue;
+		conversations.completed_choices[cid] = m.flags;
+		if (m.deployed())
+			for (const auto &[slot, asset] : m.assignments)
+				if (asset.starts_with("team:"))
+					for (const auto &cap : away_equipment(ship, asset.substr(5))
+					                           .get<CombatMechanism>()
+					                           .definition.get<TeamDefinition>()
+					                           .capabilities)
+						if (away_has_capability(ship, m, cap))
+							conversations.capabilities[cid].insert(cap);
+	}
+	if (!disclose)
+		return;
+	for (const auto &[id, endpoint] : conversations.endpoints)
+	{
+		const auto owner = comms_owner(id);
+		std::set<EntityId> visible{id};
+		for (const auto &c : capture_console_contacts(*owner))
+			visible.insert(c.id);
+		for (const auto &[name, p] : conversations.participants)
+			if (visible.contains(p.host) && p.public_directory && !p.character)
+				conversations.disclose(id, name);
+	}
+}
+
+auto Runtime::comms_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute) -> bool
+{
+	const auto owner = comms_owner(address.ship);
+	if (!owner || *owner != address || !entities.at(address.ship).has<EntityControls>())
+		return false;
+	const auto &controllers = entities.at(address.ship).get<EntityControls>().controllers;
+	if (std::none_of(controllers.begin(), controllers.end(),
+	                 [&](const auto &c)
+	                 {
+		                 return c.definition.console == address.console &&
+		                        comms_controller(address.ship, c.definition) && c.definition.id == command.controller &&
+		                        conversation_operator(address.ship, c) && c.generation == command.generation;
+	                 }))
+		return false;
+	for (auto &[id, endpoint] : conversations.endpoints)
+	{
+		endpoint.human = false;
+		if (entities.contains(id) && entities.at(id).has<EntityControls>())
+			for (const auto &c : entities.at(id).get<EntityControls>().controllers)
+				if (comms_controller(id, c.definition) && c.human)
+					endpoint.human = true;
+	}
+	bool accepted = false;
+	try
+	{
+		if (command.action == "comms.hail")
+			accepted = conversations.hail(address.ship, command.text, execute) != 0;
+		else if (command.action == "comms.text")
+			accepted = conversations.send_text(address.ship, command.value, command.text, execute);
+		else if (command.action == "comms.answer")
+			accepted = conversations.answer(address.ship, command.value, command.request_id, command.text, execute);
+		else if (command.action == "comms.select" && conversations.conversations.contains(command.value))
+		{
+			const auto &c = conversations.conversations.at(command.value);
+			const auto self = "ship:" + std::to_string(address.ship);
+			if (c.members.contains(self) || c.former.contains(self))
+			{
+				if (!execute)
+					return true;
+				conversations.selected[address.ship] = command.value;
+				const auto board = conversations.project(address.ship);
+				for (const auto &thread : board.at("threads"))
+					if (std::find(thread.at("sources").begin(), thread.at("sources").end(), Json(command.value)) !=
+					    thread.at("sources").end())
+					{
+						conversations.selected[address.ship] = thread.at("id");
+						for (const auto &source : thread.at("sources"))
+							for (const auto &m : conversations.conversations.at(source.get<ConversationId>()).messages)
+								if (m.delivered.contains(self))
+									conversations.read_through[address.ship][source.get<ConversationId>()] = std::max(
+									    conversations.read_through[address.ship][source.get<ConversationId>()], m.id);
+					}
+				accepted = true;
+			}
+		}
+	}
+	catch (const std::exception &)
+	{
+		return false;
+	}
+	return accepted;
+}
+
+auto Runtime::compile_conversation_starts(const Json &map) -> void
+{
+	for (const auto &j : map.value("conversations", Json::array()))
+	{
+		ConversationStart s;
+		s.id = j.at("id");
+		s.tree = j.at("tree");
+		s.title = j.value("title_key", std::string{});
+		s.start_event = j.value("start_event", std::string{});
+		s.members = j.at("members").get<std::vector<std::string>>();
+		s.events = j.value("events", std::vector<std::string>{});
+		s.cancel_events = j.value("cancel_events", std::vector<std::string>{});
+		for (auto it = j.at("bindings").begin(); it != j.at("bindings").end(); ++it)
+			s.bindings[it.key()] = {it.value().value("entity", EntityId{0}), it.value().value("slot", std::string{}),
+			                        it.value().value("character", std::string{})};
+		conversation_starts.push_back(std::move(s));
+	}
+	if (scenario && !comms_rosters.empty())
+		conversation_instance = scenario->runtime().create_instance("comms-events");
+}
+
+auto Runtime::conversation_scenarios() -> void
+{
+	for (auto &s : conversation_starts)
+	{
+		std::vector<ScenarioEvent> events;
+		if (scenario)
+		{
+			std::set<std::string> names(s.events.begin(), s.events.end());
+			names.insert(s.start_event);
+			names.insert(s.cancel_events.begin(), s.cancel_events.end());
+			for (const auto &name : names)
+				for (const auto &e : scenario->runtime().events(name, s.cursor))
+					events.push_back(e);
+			std::sort(events.begin(), events.end(),
+			          [](const auto &a, const auto &b)
+			          {
+				          return a.id < b.id;
+			          });
+		}
+		for (const auto &e : events)
+			if (std::find(s.cancel_events.begin(), s.cancel_events.end(), e.name) != s.cancel_events.end())
+				s.cancelled = true;
+		if (s.cancelled)
+		{
+			if (s.conversation)
+			{
+				auto &conversation = conversations.conversations.at(s.conversation);
+				conversation.finished = true;
+				for (auto &message : conversation.messages)
+					for (const auto &recipient : message.recipients)
+						if (!message.delivered.contains(recipient))
+							message.expired.insert(recipient);
+			}
+			if (!events.empty())
+				s.cursor = events.back().id;
+			continue;
+		}
+		bool start = s.start_event.empty() || std::any_of(events.begin(), events.end(),
+		                                                  [&](const auto &e)
+		                                                  {
+			                                                  return e.name == s.start_event;
+		                                                  });
+		if (!s.conversation && (start || boarding_conversation_requested(s.id)))
+		{
+			std::map<std::string, std::string> bindings;
+			bool available = true;
+			for (const auto &[alias, b] : s.bindings)
+			{
+				const auto entity =
+				    b.entity ? b.entity : (slot_entities.contains(b.slot) ? slot_entities.at(b.slot) : 0);
+				const auto id = "ship:" + std::to_string(entity) + (b.character.empty() ? "" : "/" + b.character);
+				if (!conversations.participants.contains(id))
+				{
+					available = false;
+					break;
+				}
+				bindings[alias] = id;
+			}
+			if (available)
+			{
+				std::vector<std::string> members;
+				for (const auto &alias : s.members)
+					members.push_back(bindings.at(alias));
+				s.conversation = conversations.open(s.tree, std::move(bindings), members, s.title);
+			}
+		}
+		if (s.conversation)
+			for (const auto &e : events)
+				if (std::find(s.events.begin(), s.events.end(), e.name) != s.events.end())
+					conversations.event(s.conversation, e.name);
+		if (!events.empty() && (s.conversation || !start))
+			s.cursor = events.back().id;
+	}
+	if (scenario && conversation_instance)
+	{
+		for (const auto &[id, event] : conversations.emitted)
+			scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0}, event,
+			                         {{"conversation", static_cast<std::int64_t>(id)}});
+		conversations.emitted.clear();
+	}
+}
+
+auto Runtime::save_conversation_starts() const -> Json
+{
+	Json rows = Json::array();
+	for (const auto &s : conversation_starts)
+		rows.push_back(
+		    {{"id", s.id}, {"conversation", s.conversation}, {"cursor", s.cursor}, {"cancelled", s.cancelled}});
+	return {{"instance", conversation_instance}, {"sequence", conversation_event_sequence}, {"starts", rows}};
+}
+
+auto Runtime::restore_conversation_starts(const Json &j) -> void
+{
+	conversation_instance = j.at("instance");
+	conversation_event_sequence = j.at("sequence");
+	if (j.at("starts").size() != conversation_starts.size())
+		throw std::runtime_error("Saved conversation starts mismatch");
+	std::vector<ConversationStart> ordered;
+	std::set<std::string> identities;
+	for (const auto &row : j.at("starts"))
+	{
+		const auto id = row.at("id").get<std::string>();
+		const auto found = std::find_if(conversation_starts.begin(), conversation_starts.end(),
+		                                [&](const auto &s)
+		                                {
+			                                return s.id == id;
+		                                });
+		if (!identities.insert(id).second || found == conversation_starts.end())
+			throw std::runtime_error("Saved conversation configuration mismatch");
+		ordered.push_back(*found);
+	}
+	conversation_starts = std::move(ordered);
+	for (std::size_t i = 0; i < conversation_starts.size(); ++i)
+	{
+		auto &s = conversation_starts[i];
+		const auto &v = j.at("starts")[i];
+		if (v.at("id") != s.id)
+			throw std::runtime_error("Saved conversation configuration mismatch");
+		s.conversation = v.at("conversation");
+		s.cursor = v.at("cursor");
+		s.cancelled = v.value("cancelled", false);
+		if (s.conversation && !conversations.conversations.contains(s.conversation))
+			throw std::runtime_error("Missing saved scenario conversation");
+	}
+}
+} // namespace phoenix::world_detail

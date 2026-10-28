@@ -24,6 +24,7 @@ content,scenarios,src/content/scenarios,3,1,0,847,841,phoenix.content.scenarios,
 content,sensing,src/content/sensing,6,2,0,738,728,phoenix.content.sensing; phoenix.content.sensing.types,
 content,ui,src/content/ui,3,1,0,979,967,phoenix.content.ui,
 content,verification,src/content/verification,2,1,0,1122,1110,phoenix.content.verification,
+control,command-shapes,src/control/command-shapes,2,1,0,31,31,phoenix.control.native_commands,
 control,controllers,src/control/controllers,6,3,0,508,493,phoenix.control.controllers; phoenix.control.templates; phoenix.control.views,
 control,coordination,src/control/coordination,6,3,0,622,607,phoenix.control.coordination; phoenix.control.coordination_facts; phoenix.control.protocol,
 control,execution,src/control/execution,6,1,0,1117,1097,phoenix.control.execution,
@@ -99,7 +100,7 @@ platform,transport,src/platform/transport,6,1,0,1328,1306,phoenix.transport,
 platform,viewport,src/platform/viewport,2,1,0,48,48,phoenix.platform.viewport,
 resources,equipment,src/resources/equipment,2,1,0,699,681,phoenix.resources.equipment,
 resources,networks,src/resources/networks,4,1,0,1803,1786,phoenix.resources,
-resources,processors,src/resources/processors,3,2,0,768,762,phoenix.resources.processing; phoenix.resources.processors,
+resources,processors,src/resources/processors,3,2,0,792,785,phoenix.resources.processing; phoenix.resources.processors,
 resources,stocks,src/resources/stocks,3,1,0,697,689,phoenix.resources.stocks,
 scenarios,environment,src/scenarios/environment,5,2,0,911,899,phoenix.scenarios.environment; phoenix.scenarios.environment.streaming,
 scenarios,integration,src/scenarios/integration,2,1,0,1361,1355,phoenix.gameplay_scenario,
@@ -107,15 +108,17 @@ scenarios,interdictions,src/scenarios/interdictions,4,1,0,601,599,phoenix.scenar
 scenarios,objectives,src/scenarios/objectives,4,1,0,259,250,phoenix.scenarios.objectives,
 scenarios,runtime,src/scenarios/runtime,5,1,0,1969,1954,phoenix.scenario,
 ui,console-model,src/ui/console-model,8,1,0,2864,2840,phoenix.console,
-ui,console-surface,src/ui/console-surface,8,1,0,7948,7785,phoenix.ui.console_surface,
+ui,console-surface,src/ui/console-surface,8,1,0,6838,6688,phoenix.ui.console_surface,
 ui,engineering-widgets,src/ui/engineering-widgets,2,1,0,250,248,phoenix.ui.engineering_widgets,
 ui,flight-widgets,src/ui/flight-widgets,2,1,0,138,135,phoenix.ui.flight_widgets,
-ui,information-widgets,src/ui/information-widgets,2,1,0,120,118,phoenix.ui.information_widgets,
+ui,information-widgets,src/ui/information-widgets,4,2,0,545,536,phoenix.ui.conversation_panel; phoenix.ui.information_widgets,
 ui,interaction,src/ui/interaction,4,2,0,485,468,phoenix.ui.interaction; phoenix.navigation,
+ui,navigation-panel,src/ui/navigation-panel,2,1,0,675,667,phoenix.ui.navigation_panel,
 ui,operations-widgets,src/ui/operations-widgets,2,1,0,779,763,phoenix.ui.operations_widgets,
 ui,preview,src/ui/preview,2,1,0,366,360,phoenix.ui.preview,
 ui,runtime,src/ui/runtime,8,3,0,2914,2864,phoenix.ui.pad_dispatch; phoenix.presentation; phoenix.ui.rml,
 ui,screens,src/ui/screens,10,4,0,3013,2989,phoenix.ui.screens; phoenix.ui.settings; phoenix.ui.skin; phoenix.ui.theme,
+ui,surface-host,src/ui/surface-host,4,2,0,192,191,phoenix.ui.choice_specs; phoenix.ui.surface_host,
 ui,tactical-widgets,src/ui/tactical-widgets,2,1,0,189,186,phoenix.ui.tactical_widgets,
 ui,viewscreen,src/ui/viewscreen,3,1,0,1184,1178,phoenix.ui.viewscreen,
 workshop,gameplay-editors,src/workshop/gameplay-editors,11,1,0,3281,3225,phoenix.workshop.gameplay,
@@ -127,9 +130,20 @@ workshop,shell,src/workshop/shell,9,3,0,1383,1328,phoenix.workshop.authoring; ph
 workshop,test-client,src/workshop/test-client,4,2,0,405,394,phoenix.workshop.browser_test_client; phoenix.workshop.test_client,
 workshop,tree-editor,src/workshop/tree-editor,2,1,0,907,885,phoenix.workshop.tree,
 workshop,workflow,src/workshop/workflow,7,1,0,2089,2048,phoenix.workshop.workflow,
-world,bindings,src/world/bindings,77,0,1,26095,25157,,phoenix.simulation:bindings
-world,lifecycle,src/world/lifecycle,9,2,1,3081,2961,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
+world,combat-bindings,src/world/combat-bindings,8,0,1,2539,2441,,phoenix.simulation:combat_bindings
+world,command-routing,src/world/command-routing,12,0,1,2139,2070,,phoenix.simulation:command_routing
+world,crew-bindings,src/world/crew-bindings,12,0,1,3764,3637,,phoenix.simulation:crew_bindings
+world,effect-applications,src/world/effect-applications,11,0,1,2001,1899,,phoenix.simulation:effect_applications
+world,effect-lifecycle,src/world/effect-lifecycle,12,0,1,3371,3261,,phoenix.simulation:effect_lifecycle
+world,effect-work,src/world/effect-work,10,0,1,2955,2820,,phoenix.simulation:effect_work
+world,lifecycle,src/world/lifecycle,9,2,1,3078,2958,phoenix.world.assembly; phoenix.simulation,phoenix.simulation:runtime
+world,native-actors,src/world/native-actors,4,0,1,1204,1181,,phoenix.simulation:native_actors
 world,persistence,src/world/persistence,5,1,1,695,679,phoenix.world.persistence,phoenix.simulation:persistence
+world,projection-bindings,src/world/projection-bindings,8,0,1,1508,1471,,phoenix.simulation:projection_bindings
+world,resource-bindings,src/world/resource-bindings,5,0,1,672,650,,phoenix.simulation:resource_bindings
+world,scenario-bindings,src/world/scenario-bindings,6,0,1,1332,1286,,phoenix.simulation:scenario_bindings
 world,schedule,src/world/schedule,5,1,1,342,337,phoenix.world.schedule.profiling,phoenix.simulation:schedule
+world,sensor-bindings,src/world/sensor-bindings,5,0,1,1023,968,,phoenix.simulation:sensor_bindings
 world,spatial,src/world/spatial,2,1,0,427,421,phoenix.world.spatial,
 world,state,src/world/state,2,1,0,399,393,phoenix.world.state,
+world,travel-bindings,src/world/travel-bindings,12,0,1,3949,3808,,phoenix.simulation:travel_bindings

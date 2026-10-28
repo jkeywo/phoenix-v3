@@ -41,6 +41,9 @@ import phoenix.graphics.scene;
 import phoenix.ui.theme;
 import phoenix.ui.engineering_widgets;
 import phoenix.ui.information_widgets;
+import phoenix.ui.conversation_panel;
+import phoenix.ui.surface_host;
+import phoenix.ui.navigation_panel;
 import phoenix.ui.operations_widgets;
 import phoenix.ui.tactical_widgets;
 import phoenix.ui.flight_widgets;
@@ -50,168 +53,6 @@ import phoenix.devices;
 #include "surface_state.hpp"
 namespace phoenix
 {
-bool ConsoleSurface::State::navigation_action(const std::string &action)
-{
-	if (action == "mission.leave")
-	{
-		if (!mission_outcome_.empty() && app_->return_home)
-			app_->return_home();
-		return true;
-	}
-	if (!navigation_visible_ || !action.starts_with("nav."))
-		return false;
-	if (action == "nav.map")
-		document_->GetElementById(id("nav.map"))->Focus();
-	else if (action == "nav.reset")
-		navigation_camera_.automatic = true;
-	else if (action == "nav.in")
-		navigation_camera_.zoom(.8);
-	else if (action == "nav.out")
-		navigation_camera_.zoom(1.25);
-	else if (action == "nav.left")
-		navigation_camera_.pan(80, 0);
-	else if (action == "nav.right")
-		navigation_camera_.pan(-80, 0);
-	else if (action == "nav.up")
-		navigation_camera_.pan(0, 80);
-	else if (action == "nav.down")
-		navigation_camera_.pan(0, -80);
-	else if (action == "nav.clear")
-		model_.set_waypoint(0, 0, false);
-	else if (action == "nav.set" && navigation_selected_)
-		model_.set_waypoint(static_cast<std::int64_t>(navigation_x_), static_cast<std::int64_t>(navigation_y_));
-	else if (action.starts_with("nav.objective/"))
-		for (const auto &objective : model_.objectives())
-			if (objective.contains("destination_x") &&
-			    std::to_string(objective.at("id").get<std::uint64_t>()) == action.substr(14))
-				model_.set_waypoint(objective.at("destination_x"), objective.at("destination_y"));
-	return true;
-}
-bool ConsoleSurface::State::navigation_pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
-{
-	if (!navigation_visible_)
-		return false;
-	if (kind == DeviceEventKind::Down)
-		for (const auto &button : navigation_buttons_)
-			if (CheckCollisionPointRec({x, y}, button))
-				return false;
-	if (kind == DeviceEventKind::Down && CheckCollisionPointRec({x, y}, navigation_area_))
-	{
-		if (navigation_contacts_.empty())
-			navigation_dragged_ = false;
-		navigation_contacts_[contact] = navigation_starts_[contact] = {x, y};
-		return true;
-	}
-	if (!navigation_contacts_.contains(contact))
-		return false;
-	const auto old = navigation_contacts_.at(contact);
-	if (kind == DeviceEventKind::Cancel)
-		navigation_dragged_ = true;
-	else if (navigation_contacts_.size() == 2)
-	{
-		for (const auto &[other, point] : navigation_contacts_)
-			if (other != contact)
-			{
-				const auto before = std::hypot(old.x - point.x, old.y - point.y),
-				           after = std::hypot(x - point.x, y - point.y);
-				if (before > 5 && after > 5)
-					navigation_camera_.zoom(before / after,
-					                        (x + point.x) / 2 - navigation_area_.x - navigation_area_.width / 2,
-					                        (y + point.y) / 2 - navigation_area_.y - navigation_area_.height / 2);
-			}
-		navigation_dragged_ = true;
-	}
-	else
-	{
-		const auto start = navigation_starts_.at(contact);
-		if (std::hypot(x - start.x, y - start.y) > 5)
-			navigation_dragged_ = true;
-		if (navigation_dragged_)
-			navigation_camera_.pan(x - old.x, y - old.y);
-		else if (kind == DeviceEventKind::Up)
-		{
-			const double wx =
-			    navigation_camera_.x + (x - navigation_area_.x - navigation_area_.width / 2) * navigation_camera_.scale;
-			const double wy = navigation_camera_.y -
-			                  (y - navigation_area_.y - navigation_area_.height / 2) * navigation_camera_.scale;
-			navigation_x_ = std::clamp(wx, -1e9, 1e9);
-			navigation_y_ = std::clamp(wy, -1e9, 1e9);
-			navigation_selected_ = true;
-			navigation_selected_contact_ = 0;
-			if (model_.observation())
-				for (const auto &body : model_.observation()->contacts)
-					if (std::hypot(wx - body.x, wy - body.y) <= navigation_camera_.scale * 18)
-					{
-						navigation_selected_contact_ = body.id;
-						navigation_x_ = body.x;
-						navigation_y_ = body.y;
-						break;
-					}
-			prepare_dirty_ = render_dirty_ = true;
-		}
-	}
-	if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
-	{
-		navigation_contacts_.erase(contact);
-		navigation_starts_.erase(contact);
-	}
-	else
-		navigation_contacts_[contact] = {x, y};
-	return true;
-}
-bool ConsoleSurface::State::conversation_action(const std::string &action)
-{
-	if (!action.starts_with("comms/"))
-		return false;
-	const auto board = model_.conversations();
-	if (action == "comms/back")
-	{
-		comms_list_only_ = true;
-		return true;
-	}
-	if (action == "comms/screen")
-		return model_.on_screen(comms_widget_, {0, 0, 1});
-	if (action.starts_with("comms/hail/"))
-	{
-		comms_list_only_ = false;
-		return model_.conversation_action("hail", 0, action.substr(11));
-	}
-	if (action.starts_with("comms/select/"))
-	{
-		comms_list_only_ = false;
-		return model_.conversation_action("select", std::stoull(action.substr(13)));
-	}
-	if (action.starts_with("comms/reply/"))
-	{
-		const auto route = action.substr(12);
-		const auto first = route.find('/'), second = first == std::string::npos ? first : route.find('/', first + 1);
-		if (first == std::string::npos || second == std::string::npos)
-			return false;
-		return model_.conversation_action("answer", std::stoull(route.substr(0, first)), route.substr(second + 1),
-		                                  std::stoull(route.substr(first + 1, second - first - 1)));
-	}
-	if (action.starts_with("comms/answer/"))
-		for (const auto &thread : board.value("threads", Json::array()))
-			if (thread.at("id") == board.value("selected", std::uint64_t{0}))
-				return model_.conversation_action("answer", thread.at("id"), action.substr(13), thread.at("prompt"));
-	if (action == "comms/send")
-		if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("comms/draft"))))
-		{
-			auto target = board.value("selected", std::uint64_t{0});
-			for (const auto &thread : board.value("threads", Json::array()))
-				if (thread.at("id") == target)
-				{
-					target = thread.value("text_conversation", Json(target)).get<std::uint64_t>();
-					break;
-				}
-			if (model_.conversation_action("text", target, field->GetValue()))
-			{
-				field->SetValue("");
-				return true;
-			}
-		}
-	return false;
-}
 
 bool ConsoleSurface::State::support_action(const std::string &action)
 {
@@ -390,9 +231,10 @@ bool ConsoleSurface::State::action(const std::string &name)
 	}
 	if (app_ && app_->session && operations_.action(operations_context(), action))
 		return true;
-	if (app_ && !settings_open_ && app_->screen != Screen::settings && conversation_action(action))
+	if (app_ && !settings_open_ && app_->screen != Screen::settings &&
+	    conversations_.action(model_, dom_, id(""), action))
 		return true;
-	if (app_ && navigation_action(action))
+	if (app_ && navigation_.action(model_, dom_, id(""), app_->return_home, action))
 		return true;
 	if ((app_->screen != Screen::console && app_->screen != Screen::viewscreen &&
 	     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
@@ -553,7 +395,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 	{
 		if (!manual_toggle_ || !game_active(*app_) || app_->screen == Screen::settings)
 			return false;
-		if (auto *toggle = element(id("manual")))
+		if (auto *toggle = dom_.element(id("manual")))
 			return toggle->Focus();
 		return false;
 	}
@@ -561,7 +403,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 	{
 		for (const auto &[name, label] : controls_)
 			if (name.find("/camera/") != std::string::npos)
-				if (auto *choice = element(name))
+				if (auto *choice = dom_.element(name))
 				{
 					choice->Focus();
 					return true;
@@ -594,7 +436,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 			const int step = action == "game.left" || action == "game.faster" ? -1 : 1;
 			const auto index = (static_cast<int>(current - choices.begin()) + static_cast<int>(choices.size()) + step) %
 			                   choices.size();
-			if (auto *choice = element(choices[index]))
+			if (auto *choice = dom_.element(choices[index]))
 				choice->Focus();
 			return true;
 		}
@@ -707,48 +549,17 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
 		prepare_dirty_ = render_urgent_ = true;
 	const auto name = event.GetTargetElement()->GetId();
-	if (event.GetType() == "keydown" && name == id("nav.map") && navigation_visible_)
+	if (event.GetType() == "keydown" && name == id("nav.map") && navigation_.visible())
 	{
-		const auto key = event.GetParameter<int>("key_identifier", 0);
-		if (key == Rml::Input::KI_LEFT || key == Rml::Input::KI_RIGHT || key == Rml::Input::KI_UP ||
-		    key == Rml::Input::KI_DOWN)
-		{
-			if (!navigation_selected_)
-			{
-				navigation_x_ = navigation_camera_.x;
-				navigation_y_ = navigation_camera_.y;
-			}
-			navigation_selected_ = true;
-			navigation_selected_contact_ = 0;
-			navigation_x_ += (key == Rml::Input::KI_LEFT    ? -40
-			                  : key == Rml::Input::KI_RIGHT ? 40
-			                                                : 0) *
-			                 navigation_camera_.scale;
-			navigation_y_ += (key == Rml::Input::KI_DOWN ? -40
-			                  : key == Rml::Input::KI_UP ? 40
-			                                             : 0) *
-			                 navigation_camera_.scale;
-		}
-		else if (key == Rml::Input::KI_PRIOR || key == Rml::Input::KI_NEXT)
-			navigation_camera_.zoom(key == Rml::Input::KI_PRIOR ? .8 : 1.25);
-		else if (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_SPACE)
-		{
-			navigation_selected_ = true;
-			if (auto *button = document_->GetElementById(id("nav.set")))
-				button->Focus();
-		}
-		else
+		if (!navigation_.key(event.GetParameter<int>("key_identifier", 0), dom_, id("")))
 			return;
 		event.StopPropagation();
 		return;
 	}
-	if (event.GetType() == "mousescroll" && navigation_visible_ && !settings_open_)
+	if (event.GetType() == "mousescroll" && navigation_.visible() && !settings_open_)
 	{
 		const auto x = event.GetParameter<float>("mouse_x", 0), y = event.GetParameter<float>("mouse_y", 0);
-		if (CheckCollisionPointRec({x, y}, navigation_area_))
-			navigation_camera_.zoom(std::pow(1.2, event.GetParameter<float>("wheel_delta", 0)),
-			                        x - navigation_area_.width / 2,
-			                        y - navigation_area_.y - navigation_area_.height / 2);
+		navigation_.wheel(x, y, event.GetParameter<float>("wheel_delta", 0));
 		return;
 	}
 	if (event.GetType() == "mousedown" || event.GetType() == "touchstart")
@@ -794,7 +605,7 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 void ConsoleSurface::State::focus(const std::string &name)
 {
 	prepare_dirty_ = render_dirty_ = render_urgent_ = true;
-	if (auto *element = this->element(name))
+	if (auto *element = dom_.element(name))
 	{
 		element->ScrollIntoView({Rml::ScrollAlignment::Nearest, Rml::ScrollAlignment::Nearest,
 		                         Rml::ScrollBehavior::Instant, Rml::ScrollParentage::Closest});
@@ -822,7 +633,7 @@ bool ConsoleSurface::State::set_value(const std::string &name, const std::string
 		if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || value < -1000000000 ||
 		    value > 1000000000)
 			return false;
-		(name == id("nav.x") ? navigation_x_ : navigation_y_) = static_cast<double>(value);
+		navigation_.coordinate(name == id("nav.x"), static_cast<double>(value));
 		return true;
 	}
 	if (settings_open_ || systems_open_ || !model_.status_system().empty() ||
@@ -970,7 +781,7 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 	auto *panel = document_->GetElementById("manual-flight");
 	const bool available = !pregame && model_.manual_available();
 	if (!(model_.layout() && model_.layout()->contains("layout")))
-		property(panel, "display", available ? "block" : "none");
+		dom_.property(panel, "display", available ? "block" : "none");
 	const bool active = available && model_.manual_active();
 	document_->SetClass("manual-flight", active);
 	if (!available)
@@ -1005,7 +816,7 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 	if (manual_markup_ != markup)
 	{
 		const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
-		properties_.clear();
+		dom_.forget_properties();
 		panel->SetInnerRML(markup);
 		manual_markup_ = markup;
 		if (auto *previous = document_->GetElementById(focused))
@@ -1027,11 +838,11 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 		joystick_area_ = {at.x, at.y, stick->GetOffsetWidth(), stick->GetOffsetHeight()};
 		const auto axes = manual_input_.axes();
 		auto *knob = document_->GetElementById("manual-knob");
-		property(knob, "left", std::to_string(50 - axes.yaw * .04f) + "%");
-		property(knob, "top", std::to_string(50 - axes.thrust * .04f) + "%");
+		dom_.property(knob, "left", std::to_string(50 - axes.yaw * .04f) + "%");
+		dom_.property(knob, "top", std::to_string(50 - axes.thrust * .04f) + "%");
 		const auto text = localise("Yaw") + " " + std::to_string(axes.yaw / 10) + "%; " + localise("Thrust") + " " +
 		                  std::to_string(axes.thrust / 10) + "%";
-		leaf_markup(document_->GetElementById("manual-values"), Rml::StringUtilities::EncodeRml(text));
+		dom_.leaf_markup(document_->GetElementById("manual-values"), Rml::StringUtilities::EncodeRml(text));
 		app.screen_readouts.emplace_back(id("manual-values"), text);
 	}
 }
@@ -1039,7 +850,7 @@ bool ConsoleSurface::State::pointer(std::uint64_t contact, float x, float y, Dev
 {
 	render_dirty_ = true;
 	if (kind != DeviceEventKind::Move || heading_contacts_.contains(contact) || throttle_contacts_.contains(contact) ||
-	    navigation_contacts_.contains(contact) || joystick_contact_ == contact)
+	    navigation_.captures(contact) || joystick_contact_ == contact)
 		prepare_dirty_ = true;
 	if (settings_open_ || systems_open_ || !model_.status_system().empty() ||
 	    (!tactical_.console().empty() && !tactical_.model().status_system().empty()))
@@ -1131,8 +942,12 @@ bool ConsoleSurface::State::pointer(std::uint64_t contact, float x, float y, Dev
 						}
 				}
 			}
-	if (navigation_pointer(contact, x, y, kind))
+	if (const auto result = navigation_.pointer(model_, contact, x, y, kind); result.handled)
+	{
+		if (result.changed)
+			prepare_dirty_ = render_dirty_ = true;
 		return true;
+	}
 	if (model_.manual_active())
 	{
 		if (kind == DeviceEventKind::Down && !joystick_contact_ && CheckCollisionPointRec({x, y}, joystick_area_))
@@ -1243,8 +1058,7 @@ void ConsoleSurface::State::cancel_pointer()
 	manual_sent_ = {};
 	joystick_contact_.reset();
 	manual_pulse_tick_.reset();
-	navigation_contacts_.clear();
-	navigation_starts_.clear();
+	navigation_.cancel();
 	heading_contacts_.clear();
 	sharing_contacts_.clear();
 	throttle_contacts_.clear();

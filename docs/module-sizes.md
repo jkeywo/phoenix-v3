@@ -1,17 +1,18 @@
 # Source size inventory
 
-This inventory records the final ownership cohort and includes-only header deduplication. It is a source/reading snapshot, **not a final runtime or platform acceptance receipt**. See [migration evidence](modularisation-evidence.md) for checks actually run.
+This is a source/reading snapshot, **not a runtime or platform acceptance receipt**. See [migration evidence](modularisation-evidence.md) and [the refinement record](understandability-refactor.md) for checks actually run.
 
-- Scope: current first-party C++ files beneath `src/` (`.cpp`, `.cppm`, `.hpp`, `.cc`, `.cxx`, `.h`, `.hxx`). Tests, historical references, vendored dependencies and generated build outputs are excluded. CMake, Markdown and external web assets are excluded. All maintained platform variants count, even when one binary selects only native or browser implementations.
-- Physical lines include comments, blank lines, directives and embedded JavaScript/JSON/text inside C++. Nonblank lines count lines whose whitespace-stripped text is nonempty; comments still count. These are reproducible reading sizes, not comment-stripped logical statements.
-- A module row is a family/module folder. One folder can own several named modules/targets; executable and private composition folders can have no primary named module. Partitions are counted separately from primary modules. Target independence is not inferred from these counts.
-- The four maintained World `native_headers.hpp` files contain shared standard/third-party includes only. They count as authored source, not build-generated implementation. Native Runtime bodies compile in ordinary CPP units, not class-body includes.
+- Scope: first-party C++ under `src/`; tests, historical references, dependencies, generated output, CMake, Markdown and external web assets are excluded. All maintained platform variants count.
+- Physical lines include blanks. Nonblank lines include comments, directives and embedded JavaScript/JSON/text; these are reading sizes rather than comment-stripped logical statements.
+- A module row is a family/module folder, which can contain several named modules/targets. Private partitions are counted separately. Counts do not establish target independence.
+- The World `native_headers.hpp` files contain standard/third-party includes only; ordinary CPP units own implementation.
+- Reproduce with `python scripts/module-inventory.py --write --baseline 615e2ff`, then format the Markdown. The baseline option reports growth without imposing a quota.
 
-Totals: **644 files**, **134 module folders**, **211 primary named modules + 4 private partitions**, **145,547 physical lines**, **142,605 nonblank lines**.
+Totals: **682 files**, **148 module folders**, **216 primary named modules + 15 private partitions**, **146,143 physical lines**, **143,170 nonblank lines**.
 
-The source fingerprint hashes sorted relative paths and UTF-8 contents with line endings normalized to LF: `c1f5eb6c5301bc0b77f1a1e88395e529048d150c0d14a80d2e157fff55426989`. Recompute after any gate-driven source fix; CMake-only edits do not change this snapshot.
+Normalized source fingerprint (sorted paths and UTF-8 contents, CRLF normalized to LF): `35c5a36d0f333d07a93bdd751ea693a4e9e1590203ff9f389931e2f452f8d5f5`.
 
-Machine-readable [module sizes](module-sizes.csv) and [individual files](module-files.csv) provide the same counts. The latter includes per-file normalized hashes.
+Machine-readable [module sizes](module-sizes.csv) and [individual files/hashes](module-files.csv) contain the same counts.
 
 ## Families
 
@@ -20,7 +21,7 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files](module-
 | `application` |       6 |    12 |                        6 / 0 |    1,440 |    1,406 |
 | `behavior`    |       2 |     6 |                        2 / 0 |    2,108 |    2,094 |
 | `content`     |      17 |    73 |                       27 / 0 |   21,175 |   20,969 |
-| `control`     |       5 |    26 |                       11 / 0 |    2,922 |    2,836 |
+| `control`     |       6 |    28 |                       12 / 0 |    2,953 |    2,867 |
 | `effects`     |       8 |    45 |                       22 / 0 |    7,026 |    6,752 |
 | `executables` |       7 |    17 |                        5 / 0 |    2,531 |    2,491 |
 | `foundation`  |       4 |    11 |                        4 / 0 |    1,882 |    1,858 |
@@ -29,15 +30,15 @@ Machine-readable [module sizes](module-sizes.csv) and [individual files](module-
 | `knowledge`   |       4 |    26 |                        4 / 0 |    4,588 |    4,489 |
 | `networking`  |      10 |    32 |                       14 / 0 |    9,458 |    9,342 |
 | `platform`    |       7 |    36 |                       10 / 0 |    4,990 |    4,897 |
-| `resources`   |       4 |    12 |                        5 / 0 |    3,967 |    3,918 |
+| `resources`   |       4 |    12 |                        5 / 0 |    3,991 |    3,941 |
 | `scenarios`   |       5 |    20 |                        6 / 0 |    5,101 |    5,057 |
-| `ui`          |      12 |    53 |                       18 / 0 |   20,250 |   19,934 |
+| `ui`          |      14 |    61 |                       22 / 0 |   20,432 |   20,113 |
 | `workshop`    |       9 |    45 |                       14 / 0 |   10,135 |    9,915 |
-| `world`       |       6 |   100 |                        6 / 4 |   31,039 |   29,948 |
+| `world`       |      17 |   128 |                       6 / 15 |   31,398 |   30,280 |
 
 ## Modules within each family
 
-Read the module README for its public front door and dependency direction. Large World binding totals deliberately expose remaining cross-domain integration policy; ordinary compilation does not imply every binding is thin.
+Read the module README for its interface and dependency direction. Private World integration remains coupled native composition; the folder split does not claim every policy is an independent domain library.
 
 ### application
 
@@ -81,13 +82,14 @@ Read the module README for its public front door and dependency direction. Large
 
 ### control
 
-| Module                                                | Files | Physical | Nonblank | Primary / private partitions |
-| ----------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
-| [controllers](../src/control/controllers/README.md)   |     6 |      508 |      493 |                        3 / 0 |
-| [coordination](../src/control/coordination/README.md) |     6 |      622 |      607 |                        3 / 0 |
-| [execution](../src/control/execution/README.md)       |     6 |    1,117 |    1,097 |                        1 / 0 |
-| [ownership](../src/control/ownership/README.md)       |     4 |      319 |      295 |                        2 / 0 |
-| [providers](../src/control/providers/README.md)       |     4 |      356 |      344 |                        2 / 0 |
+| Module                                                    | Files | Physical | Nonblank | Primary / private partitions |
+| --------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
+| [command-shapes](../src/control/command-shapes/README.md) |     2 |       31 |       31 |                        1 / 0 |
+| [controllers](../src/control/controllers/README.md)       |     6 |      508 |      493 |                        3 / 0 |
+| [coordination](../src/control/coordination/README.md)     |     6 |      622 |      607 |                        3 / 0 |
+| [execution](../src/control/execution/README.md)           |     6 |    1,117 |    1,097 |                        1 / 0 |
+| [ownership](../src/control/ownership/README.md)           |     4 |      319 |      295 |                        2 / 0 |
+| [providers](../src/control/providers/README.md)           |     4 |      356 |      344 |                        2 / 0 |
 
 ### effects
 
@@ -203,7 +205,7 @@ Read the module README for its public front door and dependency direction. Large
 | --------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
 | [equipment](../src/resources/equipment/README.md)   |     2 |      699 |      681 |                        1 / 0 |
 | [networks](../src/resources/networks/README.md)     |     4 |    1,803 |    1,786 |                        1 / 0 |
-| [processors](../src/resources/processors/README.md) |     3 |      768 |      762 |                        2 / 0 |
+| [processors](../src/resources/processors/README.md) |     3 |      792 |      785 |                        2 / 0 |
 | [stocks](../src/resources/stocks/README.md)         |     3 |      697 |      689 |                        1 / 0 |
 
 ### scenarios
@@ -221,15 +223,17 @@ Read the module README for its public front door and dependency direction. Large
 | Module                                                         | Files | Physical | Nonblank | Primary / private partitions |
 | -------------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
 | [console-model](../src/ui/console-model/README.md)             |     8 |    2,864 |    2,840 |                        1 / 0 |
-| [console-surface](../src/ui/console-surface/README.md)         |     8 |    7,948 |    7,785 |                        1 / 0 |
+| [console-surface](../src/ui/console-surface/README.md)         |     8 |    6,838 |    6,688 |                        1 / 0 |
 | [engineering-widgets](../src/ui/engineering-widgets/README.md) |     2 |      250 |      248 |                        1 / 0 |
 | [flight-widgets](../src/ui/flight-widgets/README.md)           |     2 |      138 |      135 |                        1 / 0 |
-| [information-widgets](../src/ui/information-widgets/README.md) |     2 |      120 |      118 |                        1 / 0 |
+| [information-widgets](../src/ui/information-widgets/README.md) |     4 |      545 |      536 |                        2 / 0 |
 | [interaction](../src/ui/interaction/README.md)                 |     4 |      485 |      468 |                        2 / 0 |
+| [navigation-panel](../src/ui/navigation-panel/README.md)       |     2 |      675 |      667 |                        1 / 0 |
 | [operations-widgets](../src/ui/operations-widgets/README.md)   |     2 |      779 |      763 |                        1 / 0 |
 | [preview](../src/ui/preview/README.md)                         |     2 |      366 |      360 |                        1 / 0 |
 | [runtime](../src/ui/runtime/README.md)                         |     8 |    2,914 |    2,864 |                        3 / 0 |
 | [screens](../src/ui/screens/README.md)                         |    10 |    3,013 |    2,989 |                        4 / 0 |
+| [surface-host](../src/ui/surface-host/README.md)               |     4 |      192 |      191 |                        2 / 0 |
 | [tactical-widgets](../src/ui/tactical-widgets/README.md)       |     2 |      189 |      186 |                        1 / 0 |
 | [viewscreen](../src/ui/viewscreen/README.md)                   |     3 |    1,184 |    1,178 |                        1 / 0 |
 
@@ -249,11 +253,22 @@ Read the module README for its public front door and dependency direction. Large
 
 ### world
 
-| Module                                            | Files | Physical | Nonblank | Primary / private partitions |
-| ------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
-| [bindings](../src/world/bindings/README.md)       |    77 |   26,095 |   25,157 |                        0 / 1 |
-| [lifecycle](../src/world/lifecycle/README.md)     |     9 |    3,081 |    2,961 |                        2 / 1 |
-| [persistence](../src/world/persistence/README.md) |     5 |      695 |      679 |                        1 / 1 |
-| [schedule](../src/world/schedule/README.md)       |     5 |      342 |      337 |                        1 / 1 |
-| [spatial](../src/world/spatial/README.md)         |     2 |      427 |      421 |                        1 / 0 |
-| [state](../src/world/state/README.md)             |     2 |      399 |      393 |                        1 / 0 |
+| Module                                                            | Files | Physical | Nonblank | Primary / private partitions |
+| ----------------------------------------------------------------- | ----: | -------: | -------: | ---------------------------: |
+| [combat-bindings](../src/world/combat-bindings/README.md)         |     8 |    2,539 |    2,441 |                        0 / 1 |
+| [command-routing](../src/world/command-routing/README.md)         |    12 |    2,139 |    2,070 |                        0 / 1 |
+| [crew-bindings](../src/world/crew-bindings/README.md)             |    12 |    3,764 |    3,637 |                        0 / 1 |
+| [effect-applications](../src/world/effect-applications/README.md) |    11 |    2,001 |    1,899 |                        0 / 1 |
+| [effect-lifecycle](../src/world/effect-lifecycle/README.md)       |    12 |    3,371 |    3,261 |                        0 / 1 |
+| [effect-work](../src/world/effect-work/README.md)                 |    10 |    2,955 |    2,820 |                        0 / 1 |
+| [lifecycle](../src/world/lifecycle/README.md)                     |     9 |    3,078 |    2,958 |                        2 / 1 |
+| [native-actors](../src/world/native-actors/README.md)             |     4 |    1,204 |    1,181 |                        0 / 1 |
+| [persistence](../src/world/persistence/README.md)                 |     5 |      695 |      679 |                        1 / 1 |
+| [projection-bindings](../src/world/projection-bindings/README.md) |     8 |    1,508 |    1,471 |                        0 / 1 |
+| [resource-bindings](../src/world/resource-bindings/README.md)     |     5 |      672 |      650 |                        0 / 1 |
+| [scenario-bindings](../src/world/scenario-bindings/README.md)     |     6 |    1,332 |    1,286 |                        0 / 1 |
+| [schedule](../src/world/schedule/README.md)                       |     5 |      342 |      337 |                        1 / 1 |
+| [sensor-bindings](../src/world/sensor-bindings/README.md)         |     5 |    1,023 |      968 |                        0 / 1 |
+| [spatial](../src/world/spatial/README.md)                         |     2 |      427 |      421 |                        1 / 0 |
+| [state](../src/world/state/README.md)                             |     2 |      399 |      393 |                        1 / 0 |
+| [travel-bindings](../src/world/travel-bindings/README.md)         |    12 |    3,949 |    3,808 |                        0 / 1 |

@@ -16,8 +16,8 @@ preserving ward precedence and equal-strength ties. `emission.cppm` measures
 native apparatus, recent weapons and sent messages.
 
 World currently binds those operations to fitted apparatus and permitted sensor
-feeds through ordinary `src/world/bindings/gameplay_psychic.cpp` and
-`gameplay_interdictions.cpp` units. Native board, save/restore and encounter
+feeds through ordinary `src/world/sensor-bindings/gameplay_psychic.cpp` and
+`src/world/scenario-bindings/gameplay_interdictions.cpp` units. Native board, save/restore and encounter
 integration retain explicit native policy. `PsychicInterferenceMemory` owns
 the derived ordered-source cache; `PsychicEmissionMemory` owns recent weapon
 and message memory, its 20-tick retention and continuation. The final native

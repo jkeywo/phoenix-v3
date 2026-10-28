@@ -7,3 +7,11 @@ target_link_libraries(
 )
 
 target_link_libraries(phoenix_ui_information_widgets PUBLIC phoenix_content_catalog)
+
+add_library(phoenix_ui_conversation_panel STATIC conversations.cpp)
+target_sources(phoenix_ui_conversation_panel PUBLIC FILE_SET CXX_MODULES FILES conversations.cppm)
+target_link_libraries(
+	phoenix_ui_conversation_panel
+	PUBLIC phoenix_ui_surface_host phoenix_console_model phoenix_content_ui phoenix_content_catalog
+	PRIVATE phoenix_ui_information_widgets phoenix_application_preferences raylib
+)

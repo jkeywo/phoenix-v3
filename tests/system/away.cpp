@@ -88,6 +88,33 @@ void assisted_docking_mission()
 	        "Claim occupied assisted watches and receiving Helm");
 	ticks(world, 4);
 	require(board(world)[0].at("automatic_dispatch") == true, "One-star docking activation is projected");
+	// Native workflow envelopes cannot smuggle Controller/message payloads.
+	// Exercise host admission through the same valid, claimed synthetic mission.
+	const auto before_rejected_envelopes = world.save();
+	for (int field = 0; field != 5; ++field)
+	{
+		auto malformed = order(world, "open");
+		switch (field)
+		{
+		case 0:
+			malformed.channel = "unexpected";
+			break;
+		case 1:
+			malformed.request_id = 42;
+			break;
+		case 2:
+			malformed.arguments = {1};
+			break;
+		case 3:
+			malformed.speaker_name = "forged";
+			break;
+		case 4:
+			malformed.speaker_avatar = {1};
+			break;
+		}
+		require(!world.submit(101, malformed), "native envelope refuses unrelated payload fields");
+	}
+	require(world.save() == before_rejected_envelopes, "rejected native envelopes leave authoritative state unchanged");
 	require(world.submit(101, order(world, "open")), "Activate assisted docking mission");
 	ticks(world, 20);
 	const auto prepared = board(world)[0];

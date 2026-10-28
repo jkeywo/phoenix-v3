@@ -41,6 +41,10 @@ import phoenix.graphics.scene;
 import phoenix.ui.theme;
 import phoenix.ui.engineering_widgets;
 import phoenix.ui.information_widgets;
+import phoenix.ui.conversation_panel;
+import phoenix.ui.surface_host;
+import phoenix.ui.navigation_panel;
+import phoenix.ui.choice_specs;
 import phoenix.ui.operations_widgets;
 import phoenix.ui.tactical_widgets;
 import phoenix.ui.flight_widgets;
@@ -59,9 +63,7 @@ void ConsoleSurface::State::sync_console_browsing()
 	if (!browsing_console_.empty())
 	{
 		auto &saved = surface_browsing_[browsing_console_];
-		saved.camera = navigation_camera_;
-		saved.x = navigation_x_;
-		saved.y = navigation_y_;
+		saved.navigation = navigation_.browsing();
 		saved.pages = authored_pages_;
 		if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("comms/draft"))))
 			saved.draft = field->GetValue();
@@ -73,9 +75,7 @@ void ConsoleSurface::State::sync_console_browsing()
 	cancel_pointer();
 	model_.release_controls();
 	const auto saved = surface_browsing_.contains(current) ? surface_browsing_.at(current) : SurfaceBrowsing{};
-	navigation_camera_ = saved.camera;
-	navigation_x_ = saved.x;
-	navigation_y_ = saved.y;
+	navigation_.restore_browsing(saved.navigation);
 	authored_pages_ = saved.pages;
 	restore_draft_ = saved.draft;
 	restore_browsing_ = true;
@@ -191,6 +191,7 @@ bool ConsoleSurface::State::authored_action(const std::string &action)
 		const auto group = authored_page_groups_.at(page);
 		authored_pages_[group] = page;
 		displayed_values_.clear();
+		conversations_.invalidate_text();
 		page_focus_pending_ = true;
 		return true;
 	}
@@ -285,12 +286,12 @@ void ConsoleSurface::State::prepare_station_components(const ConsoleRegion &regi
 		{
 			panel->SetInnerRML(markup);
 			station_component_markup_[component] = markup;
-			elements_.clear();
+			dom_.forget_elements();
 		}
 		for (const auto &[key, text] : readouts)
 		{
 			if (auto *element = document_->GetElementById(key))
-				leaf_markup(element, Rml::StringUtilities::EncodeRml(text));
+				dom_.leaf_markup(element, Rml::StringUtilities::EncodeRml(text));
 			app_->screen_readouts.emplace_back(key, text);
 		}
 		for (const auto &control : local_settings_controls_)
@@ -366,7 +367,7 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 		const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
 		auto *settings = document_->GetElementById("local-settings");
 		const auto scroll = settings->GetFirstChild() ? settings->GetFirstChild()->GetScrollTop() : 0.f;
-		elements_.clear();
+		dom_.forget_elements();
 		settings->SetInnerRML(markup);
 		local_settings_markup_ = markup;
 		if (auto *previous = document_->GetElementById(focus))
@@ -404,11 +405,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	                           physical_region.width / display_scale, physical_region.height / display_scale};
 	app_ = &app;
 	const auto preparation_started = GetTime();
-	std::erase_if(leaf_markup_,
-	              [](const auto &entry)
-	              {
-		              return !entry.second.element;
-	              });
+	dom_.prune_markup();
 	const auto previous_announcement = model_.announcement();
 	model_.refresh(app.session, route_);
 	throttles_.reconcile(model_, throttle_contacts_, GetTime());
@@ -475,7 +472,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			select_language(app.language, app.pseudo_locale);
 		}
 	} restore_language{app};
-	property(
+	dom_.property(
 	    document_, "font-size",
 	    std::to_string(text_scale_ *
 	                   (active_theme_.contains("tokens") ? active_theme_.at("tokens").value("font_size", 20.f) : 20.f) /
@@ -591,12 +588,13 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		restore_authored_components();
 		signature_ = std::move(signature);
 		placement_signature_.clear();
-		properties_.clear();
-		elements_.clear();
+		dom_.forget_properties();
+		dom_.forget_elements();
 		gameplay_signature_.clear();
 		gameplay_readout_signature_.clear();
 		engineering_signature_.clear();
 		displayed_values_.clear();
+		conversations_.invalidate_text();
 		controls_.clear();
 		heading_contacts_.clear();
 		std::string station_title = title;
@@ -648,18 +646,16 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				           Rml::StringUtilities::EncodeRml(key) + "\" style=\"left:" + percent("x") +
 				           ";top:" + percent("y") + ";width:" + percent("width") + ";height:" + percent("height") +
 				           "\"><h2>" + Rml::StringUtilities::EncodeRml(localise(widget.at("label"))) + "</h2>";
-				if (kind == "camera_mode" || kind == "camera_direction")
+				if (const auto *choice = console_choice_spec(kind))
 				{
 					widgets += "<div class=\"camera-choices\" id=\"camera-panel/" +
 					           Rml::StringUtilities::EncodeRml(key) + "\"><img class=\"camera-art\" src=\"" +
-					           asset_path(kind == "camera_mode" ? "camera-mode.png" : "camera-direction.png") + "\"/>";
-					static constexpr const char *arrows[] = {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"};
-					for (int value = 0; value < (kind == "camera_mode" ? 2 : 8); ++value)
+					           asset_path(std::string(choice->artwork)) + "\"/>";
+					for (std::size_t value = 0; value < choice->options.size(); ++value)
 					{
-						widgets += button("camera/" + key + "/" + std::to_string(value),
-						                  kind == "camera_mode" ? (value ? "Third person" : "First person")
-						                                        : camera_directions[value],
-						                  kind == "camera_mode" ? (value ? "3P" : "1P") : arrows[value]);
+						const auto &option = choice->options[value];
+						widgets += button("camera/" + key + "/" + std::to_string(value), std::string(option.label),
+						                  std::string(option.visual));
 					}
 					widgets += "</div><p class=\"camera-status\" id=\"" +
 					           Rml::StringUtilities::EncodeRml(id("camera-status/" + key)) + "\"/>";
@@ -925,10 +921,11 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			              return readout.first.starts_with("game.readout/system-");
 		              });
 	const auto &gameplay_readouts = readout_values_;
-	leaf_markup(document_->GetElementById("sensor-title"), Rml::StringUtilities::EncodeRml(localise("Contact scan")));
+	dom_.leaf_markup(document_->GetElementById("sensor-title"),
+	                 Rml::StringUtilities::EncodeRml(localise("Contact scan")));
 	std::set<std::string> sensor_controls;
 	for (const auto *section : {"sensor-controls", "sensor-readouts", "sensor-title"})
-		property(document_->GetElementById(section), "width", std::to_string(region.width * .30f - 18) + "dp");
+		dom_.property(document_->GetElementById(section), "width", std::to_string(region.width * .30f - 18) + "dp");
 	std::string sensor_markup;
 	for (const auto &[name, label] : gameplay_controls)
 		if (sensor_actions.contains(name))
@@ -939,22 +936,24 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		}
 	if (sensor_markup != sensor_controls_signature_)
 	{
-		elements_.clear();
+		dom_.forget_elements();
 		document_->GetElementById("sensor-controls")->SetInnerRML(sensor_markup);
 		sensor_controls_signature_ = sensor_markup;
 	}
 	if (!(layout && layout->contains("layout")))
-		property(document_->GetElementById("sensor-panel"), "display",
-		         model_.sensor_contact() && !pregame &&
-		                 (!sensor_controls.empty() || std::any_of(readout_values_.begin(), readout_values_.end(),
-		                                                          [](const auto &r)
-		                                                          {
-			                                                          return r.first.starts_with("game.scan-finding/");
-		                                                          }))
-		             ? "block"
-		             : "none");
+		dom_.property(document_->GetElementById("sensor-panel"), "display",
+		              model_.sensor_contact() && !pregame &&
+		                      (!sensor_controls.empty() || std::any_of(readout_values_.begin(), readout_values_.end(),
+		                                                               [](const auto &r)
+		                                                               {
+			                                                               return r.first.starts_with(
+			                                                                   "game.scan-finding/");
+		                                                               }))
+		                  ? "block"
+		                  : "none");
 	std::set<std::string> engineering_controls;
-	property(document_->GetElementById("engineering-cards"), "width", std::to_string(region.width * .92f - 24) + "dp");
+	dom_.property(document_->GetElementById("engineering-cards"), "width",
+	              std::to_string(region.width * .92f - 24) + "dp");
 	std::string engineering_markup;
 	for (const auto &card : cards)
 	{
@@ -981,10 +980,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	}
 	if (engineering_markup != engineering_signature_)
 	{
-		elements_.clear();
+		dom_.forget_elements();
 		document_->GetElementById("engineering-cards")->SetInnerRML(engineering_markup);
 		engineering_signature_ = engineering_markup;
-		properties_.clear();
+		dom_.forget_properties();
 		for (const auto &card : cards)
 			displayed_values_.erase("resource/" + card.id);
 	}
@@ -998,7 +997,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		for (const auto &[metric, value] : std::vector<std::pair<std::string, std::optional<int>>>{
 		         {"heat", card.heat}, {"battery", card.battery}, {"condition", card.condition}})
 			if (value)
-				property(element(id("gauge/" + card.id + "/" + metric)), "width", std::to_string(*value) + "%");
+				dom_.property(dom_.element(id("gauge/" + card.id + "/" + metric)), "width",
+				              std::to_string(*value) + "%");
 	}
 	app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
 	const auto markup_started = GetTime();
@@ -1092,12 +1092,12 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 					element->SetProperty("width", "15%");
 					element->SetProperty("height", "80%");
 				}
-				else if (kind == "camera_mode" || kind == "camera_direction")
+				else if (const auto *choice = console_choice_spec(kind))
 				{
 					element->SetProperty("left", "0%");
-					element->SetProperty("top", kind == "camera_mode" ? "8%" : "30%");
+					element->SetProperty("top", std::string(choice->housing_top));
 					element->SetProperty("width", "22%");
-					element->SetProperty("height", kind == "camera_mode" ? "22%" : "45%");
+					element->SetProperty("height", std::string(choice->housing_height));
 				}
 				else if (kind == "heading")
 				{
@@ -1192,7 +1192,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	if (gameplay_signature_ != gameplay_signature)
 	{
 		const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
-		elements_.clear();
+		dom_.forget_elements();
 		for (const auto &held : held_clicks_)
 			model_.release_control(held.substr(id("").size()));
 		held_clicks_.clear();
@@ -1280,23 +1280,23 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
 		    displayed_values_["control/" + name] != label)
 		{
-			if (auto *element = this->element(id(name)))
+			if (auto *element = dom_.element(id(name)))
 				element->SetInnerRML(Rml::StringUtilities::EncodeRml(
 				    status_controls.contains(name) ? status_controls.at(name).compact_label : label));
 			displayed_values_["control/" + name] = label;
 		}
 	for (const auto &[name, status] : status_controls)
-		if (auto *light = element(id(name)))
-			property(light, "border-left", status.attention() ? "10dp #f08060" : "10dp #83be90");
+		if (auto *light = dom_.element(id(name)))
+			dom_.property(light, "border-left", status.attention() ? "10dp #f08060" : "10dp #83be90");
 	if (model_.observation())
 		for (const auto &c : model_.team_map())
 		{
 			if (auto *compartment =
-			        element(id("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()))))
-				property(compartment, "background-color",
-				         c.at("disabled").get<bool>()                                         ? "#702c2c"
-				         : model_.selected_compartment() == c.at("index").get<std::int64_t>() ? "#486b56"
-				                                                                              : "#164244");
+			        dom_.element(id("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()))))
+				dom_.property(compartment, "background-color",
+				              c.at("disabled").get<bool>()                                         ? "#702c2c"
+				              : model_.selected_compartment() == c.at("index").get<std::int64_t>() ? "#486b56"
+				                                                                                   : "#164244");
 		}
 	gameplay_identity = Json::array();
 	for (const auto &[name, text] : gameplay_readouts)
@@ -1309,7 +1309,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	    gameplay_identity.dump() + (dock_control ? dock_control->id + dock_control->label : "");
 	if (gameplay_readout_signature_ != readout_signature)
 	{
-		elements_.clear();
+		dom_.forget_elements();
 		std::string markup, sensor_readouts;
 		for (const auto &[name, text] : gameplay_readouts)
 		{
@@ -1329,29 +1329,30 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	}
 	message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages,
 	                    app.session ? &app.session->catalog() : nullptr, app.screen_readouts, id(""));
-	refresh_conversations(app, region);
+	conversations_.refresh(model_, conversation_frame(app, region));
 	for (const auto &[name, text] : gameplay_readouts)
 	{
 		update_readout(name, text, placement_changed || name.starts_with("game.scan-"));
 		if (name.starts_with("game.readout/system-"))
-			if (auto *readout = element(id(name)))
+			if (auto *readout = dom_.element(id(name)))
 			{
-				property(readout, "border-left", text.find("[!]") != std::string::npos ? "8dp #f08060" : "8dp #83be90");
-				property(readout, "padding-left", "8dp");
+				dom_.property(readout, "border-left",
+				              text.find("[!]") != std::string::npos ? "8dp #f08060" : "8dp #83be90");
+				dom_.property(readout, "padding-left", "8dp");
 			}
 
 		app.screen_readouts.emplace_back(id(name), text);
 	}
 	app.frame_metrics["console/" + std::to_string(route_) + "/markup"] = GetTime() - markup_started;
 	const auto navigation_started = GetTime();
-	prepare_navigation(app, region, pregame);
+	navigation_.prepare(model_, navigation_frame(app, region, pregame));
 	prepare_manual(app, region, pregame);
 	app.frame_metrics["console/" + std::to_string(route_) + "/navigation"] = GetTime() - navigation_started;
 	if (!pregame)
 	{
 		const auto authored_started = GetTime();
 		prepare_authored_layout(layout, region);
-		fit_conversation_controls(region);
+		conversations_.fit(model_, conversation_frame(app, region));
 		finish_support_panels(region);
 		app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
 	}
@@ -1361,8 +1362,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		{
 			const bool available = ui_widget_available(widget, model_.ui_availability());
 			if (!layout->contains("layout") || !available)
-				property(document_->GetElementById("widget/" + widget.at("id").get<std::string>()), "display",
-				         available ? "block" : "none");
+				dom_.property(document_->GetElementById("widget/" + widget.at("id").get<std::string>()), "display",
+				              available ? "block" : "none");
 		}
 	restore_console_browsing();
 	{
@@ -1415,12 +1416,14 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				            bottom = markers.at("travel_min")[1].get<float>() /
 				                     hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>();
 				auto *slider = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("speed/" + key)));
-				property(slider, "left", std::to_string(track.x - widget_offset(key).x - track.width * .1f) + "px");
-				property(slider, "top",
-				         std::to_string(track.y - widget_offset(key).y + track.height * top - track.width * .2f) +
-				             "px");
-				property(slider, "width", std::to_string(track.width * 1.2f) + "px");
-				property(slider, "height", std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
+				dom_.property(slider, "left",
+				              std::to_string(track.x - widget_offset(key).x - track.width * .1f) + "px");
+				dom_.property(slider, "top",
+				              std::to_string(track.y - widget_offset(key).y + track.height * top - track.width * .2f) +
+				                  "px");
+				dom_.property(slider, "width", std::to_string(track.width * 1.2f) + "px");
+				dom_.property(slider, "height",
+				              std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
 				const double percent = 100 * throttles_.fraction(model_, key);
 				throttle_tracks_[key] = {track.x, track.y + track.height * top, track.width,
 				                         track.height * (bottom - top)};
@@ -1432,7 +1435,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				Rml::ElementList bars;
 				slider->GetElementsByTagName(bars, "sliderbar");
 				for (auto *bar : bars)
-					property(bar, "height", std::to_string(track.width * .4f) + "px");
+					dom_.property(bar, "height", std::to_string(track.width * .4f) + "px");
 				if (!pregame && !model_.manual_active())
 					app.screen_inputs.push_back(
 					    {id("speed/" + key), "Desired speed (%)", std::to_string(percent), true});
@@ -1454,43 +1457,35 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				         TextFormat("%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0)),
 				     false});
 			}
-			if (kind == "camera_mode" || kind == "camera_direction")
+			if (const auto *choice = console_choice_spec(kind))
 			{
-				const auto camera = model_.camera();
-				const auto selected = kind == "camera_mode" ? camera.mode : camera.direction;
+				const auto selected = choice->selected(model_.camera());
 				auto *housing = document_->GetElementById("widget/" + key);
-				const float aspect = kind == "camera_mode" ? 2.5f : 1.f;
-				const float width = std::max(1.f, std::min(housing->GetOffsetWidth() - 16 * display_scale,
-				                                           (housing->GetOffsetHeight() - 50 * display_scale) * aspect));
-				const float height = width / aspect;
+				const float width =
+				    std::max(1.f, std::min(housing->GetOffsetWidth() - 16 * display_scale,
+				                           (housing->GetOffsetHeight() - 50 * display_scale) * choice->aspect));
+				const float height = width / choice->aspect;
 				if (auto *panel = document_->GetElementById("camera-panel/" + key))
 				{
-					property(panel, "left", std::to_string((housing->GetOffsetWidth() - width) / 2) + "px");
-					property(panel, "width", std::to_string(width) + "px");
-					property(panel, "height", std::to_string(height) + "px");
+					dom_.property(panel, "left", std::to_string((housing->GetOffsetWidth() - width) / 2) + "px");
+					dom_.property(panel, "width", std::to_string(width) + "px");
+					dom_.property(panel, "height", std::to_string(height) + "px");
 				}
 				if (auto *status = document_->GetElementById(id("camera-status/" + key)))
 				{
-					property(status, "top", std::to_string(height + 30 * display_scale) + "px");
-					update_readout("camera-status/" + key,
-					               localise(kind == "camera_mode" ? (selected ? "Third person" : "First person")
-					                                              : camera_directions[selected]),
+					dom_.property(status, "top", std::to_string(height + 30 * display_scale) + "px");
+					update_readout("camera-status/" + key, localise(std::string(choice->options[selected].label)),
 					               true);
 				}
-				static constexpr float centers[8][2] = {{.5f, .19f}, {.73f, .27f}, {.81f, .5f}, {.73f, .73f},
-				                                        {.5f, .81f}, {.27f, .73f}, {.19f, .5f}, {.27f, .27f}};
-				for (int i = 0; i < (kind == "camera_mode" ? 2 : 8); ++i)
-					if (auto *choice = document_->GetElementById(id("camera/" + key + "/" + std::to_string(i))))
+				for (std::size_t i = 0; i < choice->options.size(); ++i)
+					if (auto *button = document_->GetElementById(id("camera/" + key + "/" + std::to_string(i))))
 					{
-						choice->SetClass("selected", i == selected);
-						property(
-						    choice, "left",
-						    std::to_string(kind == "camera_mode" ? (i ? 51.f : 16.f) : (centers[i][0] - .11f) * 100) +
-						        "%");
-						property(choice, "top",
-						         kind == "camera_mode" ? "25%" : std::to_string((centers[i][1] - .11f) * 100) + "%");
-						property(choice, "width", kind == "camera_mode" ? "32%" : "22%");
-						property(choice, "height", kind == "camera_mode" ? "50%" : "22%");
+						const auto &option = choice->options[i];
+						button->SetClass("selected", i == static_cast<std::size_t>(selected));
+						dom_.property(button, "left", std::to_string(option.left) + "%");
+						dom_.property(button, "top", std::to_string(option.top) + "%");
+						dom_.property(button, "width", std::to_string(option.width) + "%");
+						dom_.property(button, "height", std::to_string(option.height) + "%");
 					}
 			}
 			std::string value =
@@ -1504,7 +1499,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			if (auto *readout = document_->GetElementById("value/" + key);
 			    readout && displayed_values_["value/" + key] != value)
 			{
-				leaf_markup(readout, Rml::StringUtilities::EncodeRml(value));
+				dom_.leaf_markup(readout, Rml::StringUtilities::EncodeRml(value));
 				displayed_values_["value/" + key] = value;
 			}
 		}
@@ -1530,10 +1525,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				    std::min(cy + r * 1.02f, physical_region.height - pod_height - 24.f * display_scale), pod_width,
 				    pod_height};
 				sharing_pods_[key] = pod;
-				property(control, "left", std::to_string(pod.x - parent.x) + "px");
-				property(control, "top", std::to_string(pod.y - parent.y) + "px");
-				property(control, "width", std::to_string(pod.width) + "px");
-				property(control, "height", std::to_string(pod.height) + "px");
+				dom_.property(control, "left", std::to_string(pod.x - parent.x) + "px");
+				dom_.property(control, "top", std::to_string(pod.y - parent.y) + "px");
+				dom_.property(control, "width", std::to_string(pod.width) + "px");
+				dom_.property(control, "height", std::to_string(pod.height) + "px");
 			}
 	{
 		const auto update_started = GetTime();
@@ -1549,7 +1544,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		{
 			const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
 			app.screen_toggles[name] = manual;
-			if (auto *toggle = element(name))
+			if (auto *toggle = dom_.element(name))
 			{
 				toggle->SetClass("manual-on", manual);
 				toggle->SetAttribute("aria-pressed", manual ? "true" : "false");
@@ -1557,8 +1552,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f, 160.f * display_scale,
 				                               220.f * display_scale) *
 				                    text_scale_ / 100.f;
-				property(toggle, "width", std::to_string(width) + "px");
-				property(toggle, "height", std::to_string(width / 2.68f) + "px");
+				dom_.property(toggle, "width", std::to_string(width) + "px");
+				dom_.property(toggle, "height", std::to_string(width / 2.68f) + "px");
 			}
 			update_readout("manual.lamp", manual ? "+" : "-", true);
 			update_readout("manual.state", localise(manual ? "On" : "Off"), true);
@@ -1574,8 +1569,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				b->SetClass("on-screen", true);
 				if (layout && layout->contains("layout"))
 				{
-					property(b, "pointer-events", "auto");
-					property(b, "z-index", "10");
+					dom_.property(b, "pointer-events", "auto");
+					dom_.property(b, "z-index", "10");
 				}
 
 				b->SetClass("on-screen-active", active);
@@ -1585,7 +1580,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		}
 		else
 		{
-			const auto *choice = element(name);
+			const auto *choice = dom_.element(name);
 			const bool selected =
 			    name.find("/camera/") != std::string::npos && choice && choice->IsClassSet("selected");
 			app.screen_controls.emplace_back(name, selected ? localise(label) + ". " + localise("Selected")
@@ -1649,7 +1644,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		{
 			if (!name.starts_with(id("")))
 				return false;
-			const auto *e = element(name);
+			const auto *e = dom_.element(name);
 			return !e || !e->IsVisible(true);
 		};
 		std::erase_if(app.screen_controls,
@@ -1672,10 +1667,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			if (auto *canvas = document_->GetElementById(id("nav.map")); canvas && canvas->IsVisible(true))
 			{
 				const auto at = canvas->GetAbsoluteOffset(Rml::BoxArea::Border);
-				navigation_area_ = {at.x, at.y, canvas->GetOffsetWidth(), canvas->GetOffsetHeight()};
+				navigation_.layout_area({at.x, at.y, canvas->GetOffsetWidth(), canvas->GetOffsetHeight()});
 			}
 			else
-				navigation_visible_ = false;
+				navigation_.hide();
 			if (auto *stick = document_->GetElementById("manual-stick"); stick && stick->IsVisible(true))
 			{
 				const auto at = stick->GetAbsoluteOffset(Rml::BoxArea::Border);

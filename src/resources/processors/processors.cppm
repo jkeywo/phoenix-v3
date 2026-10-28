@@ -56,6 +56,8 @@ public:
 	ResourceAmount quoted_funded_work(ResourceAmount supply_permille) const;
 	ResourceAmount funded_work(ResourceAmount supply_permille, ResourceAmount maximum_work = resource_limit);
 	ResourceAmount operating_rate(ResourceAmount maximum_work) const;
+	// Presentation from already-permitted facts; this owner performs no World lookup.
+	Json projection(const std::string &id, const std::set<std::string> &selectable, bool manual) const;
 	Json save() const;
 	void restore(const Json &, const ProcessorStores &);
 	std::string input_claim(const std::string &) const;

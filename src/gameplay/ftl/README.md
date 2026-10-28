@@ -6,7 +6,7 @@ The interface consumes ShipResources/ResourceNetwork and explicit equipment fact
 
 `coordinator.cppm` (`phoenix.gameplay.ftl.coordinator`) is the departure policy front door. `coordinator.cpp` owns groups, reassignment/pruning, capture cancellation, exact group continuation and the transient queue. `admission.cpp` resolves Console ownership from selected layout data, checks command shape and current Controller grants, orders group readiness, prepares the accepted batch and validates restored membership/authority. It owns no physical resource or World.
 
-`src/world/bindings/gameplay_ftl.cpp` is the ordinary World adapter for bounded drive/Controller capabilities, displacement/visitor and cross-domain group permission facts, reserve charging, report capture and physical departure effects. Those operations must remain at their current phases; the reserve module does not introduce a new scheduler or completion owner. Finite process readiness still derives from the actual reserve after payment/completion effects.
+`src/world/travel-bindings/gameplay_ftl.cpp` is the ordinary World adapter for bounded drive/Controller capabilities, displacement/visitor and cross-domain group permission facts, reserve charging, report capture and physical departure effects. Those operations must remain at their current phases; the reserve module does not introduce a new scheduler or completion owner. Finite process readiness still derives from the actual reserve after payment/completion effects.
 
 Relevant checks: FTL and finite-process synthetic integration/continuation, mission/debrief and recovery cases. This guide is not executed acceptance evidence.
 

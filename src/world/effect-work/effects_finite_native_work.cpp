@@ -1,0 +1,295 @@
+module;
+#include "native_headers.hpp"
+
+module phoenix.simulation;
+import :effect_work;
+
+namespace phoenix::world_detail
+{
+auto Runtime::finite_native_driver(EntityId entity, std::string_view kind, const std::string &native,
+                                   const RuleActor *target) const -> NativeProcessView
+{
+	std::vector<std::pair<bool, NativeProcessView>> candidates;
+	for (const auto &address : custom_property_addresses(entity))
+		if (const auto *runtime = process_runtime(address))
+			for (const auto &[id, state] : runtime->processes)
+			{
+				const auto &definition = process_definition(state);
+				if (!state.parent_process.empty() || native_process_kind_name(definition.native) != kind ||
+				    state.native_id != native || !state.requested)
+					continue;
+				if (!process_native_blocker(address, state, definition).empty() ||
+				    (!state.source.empty() && !rule_lease_available(state.source)))
+					continue;
+				const auto active = std::any_of(runtime->processes.begin(), runtime->processes.end(),
+				                                [&](const auto &entry)
+				                                {
+					                                return entry.second.parent_process == id && entry.second.admitted;
+				                                });
+				candidates.push_back({active, {address, &state}});
+			}
+	// Preserve the admitted mechanism owner; otherwise use stable declaration order.
+	std::stable_sort(candidates.begin(), candidates.end(),
+	                 [](const auto &a, const auto &b)
+	                 {
+		                 return a.first > b.first;
+	                 });
+	for (const auto &[active, candidate] : candidates)
+	{
+		if (target)
+		{
+			if (!process_eligibility(candidate.owner, *candidate.state, target).empty() ||
+			    !process_conflict(candidate.owner, *candidate.state).empty())
+				continue;
+		}
+		return candidate;
+	}
+	return {};
+}
+
+auto Runtime::stage_finite_native_costs(FiniteNativeWork &quote, RuleUpkeepPlan plan, bool proportional) -> std::int64_t
+{
+	resolve_rule_upkeep("finite." + std::to_string(quote.owner.entity), plan);
+	std::vector<RuleWorkInput> inputs;
+	for (const auto &input : plan.inputs)
+	{
+		RuleWorkInput work;
+		work.rate = input.rate;
+		work.credit = input.credit;
+		work.unit_work = input.unit_work;
+		if (!input.property.empty())
+		{
+			const auto &state = prepare_custom_property_owner(quote.prepared, input.property_owner);
+			work.available =
+			    std::get<std::int64_t>(state.bases.at(input.property)) - property_catalogue->at(input.property).minimum;
+		}
+		else
+		{
+			auto payer = entities.at(input.payer);
+			if (input.network)
+				quote.prepared.payments.try_emplace(input.payer, payer.get<ShipResources>().network);
+			auto resolved = named_stock(payer, input.store,
+			                            input.network ? &quote.prepared.payments.at(input.payer).network : nullptr);
+			work.available = quote.prepared.stocks.view(resolved.stock).available(input.resource);
+			if (input.electrical != no_resource)
+			{
+				work.blocked = !quote.prepared.payments.at(input.payer).network.operation_ready(input.electrical);
+				work.available =
+				    std::min(work.available,
+				             quote.prepared.payments.at(input.payer).network.external_payment_budget(input.electrical));
+			}
+		}
+		inputs.push_back(work);
+	}
+	plan.payment = quote_rule_work(inputs, proportional);
+	if (plan.payment.output < 1000)
+		return plan.payment.output;
+	std::vector<PreparedEffectCost> debits;
+	for (std::size_t i = 0; i < plan.inputs.size(); ++i)
+	{
+		const auto &input = plan.inputs[i];
+		PreparedEffectCost cost;
+		cost.payer = input.payer;
+		cost.store = input.store;
+		cost.resource = input.resource;
+		cost.amount = plan.payment.debits[i];
+		cost.energy_store = input.electrical;
+		cost.property = input.property;
+		if (!input.property.empty())
+			cost.property_owner = input.property_owner;
+		debits.push_back(std::move(cost));
+	}
+	const auto frame = process_effect_invocation(quote.owner, quote.frozen, {});
+	stage_effect_costs(quote.prepared, frame, debits);
+	auto &credits = plan.process_work ? quote.frozen.work_credits : quote.frozen.idle_credits;
+	apply_rule_work_credits(credits, plan);
+	quote.payments.push_back(std::move(plan));
+	return 1000;
+}
+
+auto Runtime::fail_finite_native_work(const CustomPropertyAddress &owner, const std::string &id,
+                                      const std::string &reason) -> void
+{
+	const auto *state = process_state(owner, id);
+	if (state && process_definition(*state).shortage == "stop")
+	{
+		const auto driver = state->parent_process.empty() ? state->id : state->parent_process;
+		(void)stop_process(owner, driver, true);
+		if (auto *current = process_state(owner, driver))
+			current->blocker = reason;
+	}
+	else
+		set_process_paused(owner, id, reason);
+}
+
+auto Runtime::prepare_finite_native_work(EntityId entity, std::string_view kind, const std::string &native,
+                                         const std::string &target, const RuleActor &target_actor,
+                                         std::int64_t progress, std::int64_t required, std::int64_t desired,
+                                         std::span<const EffectCostDefinition> native_costs, bool scale_rate)
+    -> std::optional<FiniteNativeWork>
+{
+	if (desired <= 0 || desired > resource_limit || progress < 0 || required < 0 || target.empty() ||
+	    target.size() > 512)
+		return {};
+	const auto driver = finite_native_driver(entity, kind, native, &target_actor);
+	if (!driver.state)
+		return {};
+	const auto id = begin_finite_native_run(driver.owner, driver.state->id, target, target_actor, progress, required);
+	if (id.empty())
+		return {};
+	const auto *state = process_state(driver.owner, id);
+	if (!state || !state->admitted)
+		return {};
+	const auto &definition = process_definition(*state);
+	const auto scale = process_scale(definition.work_scale, process_expression_context(driver.owner, *state));
+	if (!scale)
+		return {};
+	const auto rate_scale = scale_rate ? state->rate_permille : 1000;
+	if (desired > std::numeric_limits<std::int64_t>::max() / std::max<std::int64_t>(1, rate_scale))
+		return {};
+	desired = std::min<std::int64_t>(resource_limit, desired * rate_scale / 1000);
+	// Clinical/fault work has a finite target counter. Structural teams retain
+	// their native aggregate actuation/fraction semantics at the repair boundary.
+	if (required > 0 && (kind != "repair" || target_actor.kind == PayloadOutcomeKind::System))
+		desired = std::min(desired, std::max<std::int64_t>(0, required - progress));
+	while (desired > 0)
+	{
+		FiniteNativeWork quote;
+		quote.owner = driver.owner;
+		quote.frozen = *state;
+		quote.work = desired;
+		quote.prepared = prepare_effect_groups({});
+		quote.prepared.defer_damage = true;
+		try
+		{
+			const auto plan_for = [&](std::span<const EffectCostDefinition> costs, std::int64_t multiplier,
+			                          std::int64_t denominator, const std::vector<RuleWorkCredit> &credits, bool work)
+			{
+				return finite_work_plan(quote.owner, quote.frozen, process_context(quote.owner, quote.frozen), costs,
+				                        multiplier, denominator, credits, work);
+			};
+			// Late native demand pays upkeep once for each contributing run in this frame.
+			if (quote.frozen.actual_work == 0)
+			{
+				const auto idle_scale =
+				    process_scale(definition.upkeep_scale, process_expression_context(quote.owner, quote.frozen));
+				if (!idle_scale ||
+				    stage_finite_native_costs(quote,
+				                              plan_for(definition.upkeep_costs, *idle_scale, resource_work_unit * 1000,
+				                                       quote.frozen.idle_credits, false),
+				                              false) < 1000)
+					throw std::runtime_error("Insufficient process upkeep");
+			}
+			const auto output =
+			    stage_finite_native_costs(quote,
+			                              plan_for(definition.work_costs, process_cost_product(desired, *scale),
+			                                       definition.work_divisor * 1000000, quote.frozen.work_credits, true),
+			                              definition.shortage == "proportional");
+			if (output < 1000)
+			{
+				desired = desired * output / 1000;
+				continue;
+			}
+			if (!native_costs.empty())
+			{
+				EffectGroupDefinition fees;
+				fees.costs.assign(native_costs.begin(), native_costs.end());
+				const auto frame = process_effect_invocation(quote.owner, quote.frozen, fees);
+				quote.prepared =
+				    prepare_effect_groups(std::span<const EffectGroupInvocation>(&frame, 1), std::move(quote.prepared));
+				if (!quote.prepared.failure.empty())
+					throw std::runtime_error(quote.prepared.failure);
+			}
+			return quote;
+		}
+		catch (const std::exception &error)
+		{
+			fail_finite_native_work(driver.owner, id, error.what());
+			return {};
+		}
+	}
+	fail_finite_native_work(driver.owner, id, "Insufficient process work funding");
+	return {};
+}
+
+auto Runtime::commit_finite_native_payment(FiniteNativeWork &quote) -> bool
+{
+	if (quote.paid)
+		return false;
+	const auto evaluation = process_work_effects(quote.owner, quote.frozen, quote.work, 1000);
+	if (evaluation.status != RuleEvaluationStatus::Ready)
+	{
+		fail_finite_native_work(quote.owner, quote.frozen.id, "Invalid process work effect");
+		return false;
+	}
+	std::vector<EffectGroupInvocation> frames;
+	if (const auto lifecycle = process_funding_effect(quote.owner, quote.frozen, 1000, 1000))
+		frames.push_back(process_effect_invocation(quote.owner, quote.frozen, *lifecycle));
+	frames.push_back(process_effect_invocation(quote.owner, quote.frozen, evaluation.quote.effects));
+	quote.prepared = prepare_effect_groups(frames, std::move(quote.prepared));
+	const auto failure = commit_effect_group(quote.prepared);
+	if (!failure.empty())
+	{
+		fail_finite_native_work(quote.owner, quote.frozen.id, failure);
+		return false;
+	}
+	auto *state = process_state(quote.owner, quote.frozen.id);
+	if (state && apply_finite_work_credits(quote, *state))
+	{
+
+		(void)stage_process_funding_state(quote.owner, *state, 1000, 1000);
+		state->work_remainder = process_next_work_remainder(quote.owner, quote.frozen, quote.work);
+	}
+	quote.paid = true;
+	return true;
+}
+
+auto Runtime::commit_finite_native_work(const FiniteNativeWork &quote, std::int64_t actual, std::int64_t progress,
+                                        std::int64_t required, bool completed) -> void
+{
+	validate_finite_work_commit(quote, actual);
+	auto *runtime = process_runtime(quote.owner);
+	if (!runtime)
+		return;
+	if (record_finite_process_work(quote, runtime, process_definition(quote.frozen), actual, progress, required,
+	                               completed, static_cast<std::int64_t>(ecs.get<Clock>().tick)))
+		commit_finite_process_completion(quote.owner, quote.frozen.id, quote.frozen.target);
+}
+
+auto Runtime::finalise_finite_native_jobs() -> void
+{
+	for (const auto &[entity, ship] : entities)
+		for (const auto &address : custom_property_addresses(entity))
+			if (auto *runtime = process_runtime(address))
+			{
+				std::vector<std::string> idle;
+				for (const auto &[id, state] : runtime->processes)
+					if (state.admitted &&
+					    (process_definition(state).native >= NativeProcessKind::Repair &&
+					     process_definition(state).native <= NativeProcessKind::ServicingAmmunition) &&
+					    !state.actual_work)
+						idle.push_back(id);
+				for (const auto &id : idle)
+					set_process_paused(address, id, "No eligible native work");
+			}
+}
+
+auto Runtime::cancel_finite_native_owner_jobs(EntityId entity, const std::string &native) -> void
+{
+	for (const auto &address : custom_property_addresses(entity))
+		if (auto *runtime = process_runtime(address))
+		{
+			std::vector<std::string> drivers;
+			for (const auto &[id, state] : runtime->processes)
+				if (state.parent_process.empty() && state.native_id == native &&
+				    (process_definition(state).native == NativeProcessKind::Repair ||
+				     process_definition(state).native == NativeProcessKind::Medical))
+					drivers.push_back(id);
+			for (const auto &id : drivers)
+			{
+				(void)stop_process(address, id, false);
+				(void)process_request(address, id, true);
+			}
+		}
+}
+} // namespace phoenix::world_detail

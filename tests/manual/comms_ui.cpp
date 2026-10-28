@@ -123,6 +123,27 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 3; ++i)
 			frame();
 		TakeScreenshot("build/comms-narrow.png");
+		// Continue in the same live, Support-owned session for Navigation.
+		SetWindowSize(1280, 900);
+		for (int i = 0; i < 3; ++i)
+			frame();
+		if (!action("console-page/navigation/"))
+			throw std::runtime_error("Navigation page unavailable");
+		for (int i = 0; i < 3; ++i)
+			frame();
+		if (!probe_console_navigation(1, 0) || !probe_console_navigation(1, 1))
+			throw std::runtime_error("Navigation pointer/keyboard selection failed");
+		frame();
+		for (const auto *control : {"/nav.set", "/nav.clear"})
+		{
+			if (!action(control))
+				throw std::runtime_error(std::string("Navigation control unavailable: ") + control);
+			app.session->tick();
+			for (int i = 0; i < 3; ++i)
+				frame();
+		}
+		TakeScreenshot("build/navigation-map.png");
+		std::cout << "PASS Navigation page, pointer/keyboard selection and waypoint set/clear\n";
 		app.session->tick();
 		std::ofstream("build/comms-state.json")
 		    << parse_json(read_pack(app.session->save()).files().at("session.json"), "smoke state").at("state").dump(2);

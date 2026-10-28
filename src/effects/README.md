@@ -2,7 +2,7 @@
 
 Start with contracts, then the pure rule evaluator, property preparation and ability/process continuation. These modules accept explicit definitions, fixed ticks and native-owned state; they do not read a World or renderer.
 
-Native integration is ordered by the World schedule. Physical mechanisms own actual damage, repair, clinical progress, resource allocation and deliveries. Prepared transactions copy only supported native outcome fields and commit with revision checks. See `src/world/bindings/effects_*.cpp` and the migration ledger for native binding policy still being extracted.
+Native integration is ordered by the World schedule. Physical mechanisms own actual damage, repair, clinical progress, resource allocation and deliveries. Prepared transactions copy only supported native outcome fields and commit with revision checks. See the `src/world/effect-applications/`, `effect-lifecycle/` and `effect-work/` folders and the migration ledger for native binding policy still being extracted.
 
 `rules` deliberately has separate pure evaluator and authoritative clock-state targets. Client/content verification code can use expression evaluation without acquiring Flecs.
 

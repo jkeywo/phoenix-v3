@@ -48,36 +48,11 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	bool manual_toggle_ = false;
 	std::optional<std::string> manual_preset(bool automatic) const;
 
-	// ConsoleSurface members: presentation only, commands still pass through ConsoleModel.
-	NavigationCamera navigation_camera_;
-	Rectangle navigation_area_{};
-	bool navigation_visible_ = false;
-	std::string navigation_markup_, mission_outcome_;
-	std::map<std::uint64_t, Vector2> navigation_contacts_, navigation_starts_;
-	bool navigation_dragged_ = false, navigation_selected_ = false;
-	EntityId navigation_selected_contact_ = 0;
-	std::vector<Rectangle> navigation_buttons_;
-	double navigation_x_ = 0, navigation_y_ = 0;
-	bool navigation_action(const std::string &action);
+	NavigationPanel navigation_;
+	NavigationFrame navigation_frame(Application &, const ConsoleRegion &, bool pregame);
 
-	bool navigation_pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind);
-
-	void prepare_navigation(Application &app, const ConsoleRegion &region, bool pregame);
-
-	void draw_navigation(float ox, float oy);
-
-	std::string comms_widget_, comms_list_signature_, comms_choice_signature_, comms_header_signature_;
-	std::string comms_board_signature_;
-	std::uint64_t comms_visible_thread_ = 0, comms_read_thread_ = 0, comms_read_message_ = 0;
-	bool comms_list_only_ = false;
-	std::vector<std::pair<std::string, std::string>> comms_controls_;
-	bool conversation_action(const std::string &action);
-
-	void refresh_conversations(Application &app, const ConsoleRegion &region);
-
-	// Fit controls after the authored slots have their measured pixel geometry.
-	// Nested percentage widths can shrink to their intrinsic minimum on a density change.
-	void fit_conversation_controls(const ConsoleRegion &region);
+	ConversationPanel conversations_;
+	ConversationFrame conversation_frame(Application &, const ConsoleRegion &);
 
 	TextureCache radar_textures_;
 	std::map<std::string, std::unique_ptr<RadarSweep>> radar_sweeps_;
@@ -105,19 +80,7 @@ struct ConsoleSurface::State final : public Rml::EventListener
 
 	bool update_readout(const std::string &name, const std::string &text, bool force);
 
-	struct MarkupValue
-	{
-		Rml::ObserverPtr<Rml::Element> element;
-		std::string text;
-	};
-	std::map<Rml::Element *, MarkupValue> leaf_markup_;
-	void leaf_markup(Rml::Element *target, const std::string &text);
-
-	std::map<std::string, Rml::Element *> elements_;
-	std::map<std::pair<Rml::Element *, std::string>, std::string> properties_;
-	void property(Rml::Element *target, const std::string &name, const std::string &value);
-
-	Rml::Element *element(const std::string &name);
+	ConsoleDocument dom_;
 
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0;
@@ -135,8 +98,7 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::string authored_geometry_, authored_dom_;
 	struct SurfaceBrowsing
 	{
-		NavigationCamera camera;
-		double x = 0, y = 0;
+		NavigationBrowsing navigation;
 		std::string draft;
 		std::map<std::string, float> scroll;
 		std::map<std::string, std::string> pages;

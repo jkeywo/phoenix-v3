@@ -294,3 +294,30 @@ Linux-native compilation and physical graphical/device/accessibility smoke
 acceptance remain unverified. See the [reading guide](modules.md),
 [line inventory](module-sizes.md), [migration plan](modularisation-plan.md) and
 [verification receipts](modularisation-evidence.md) for the delivered scope.
+
+## World and Console understandability refinement - 28 October 2026
+
+The mixed World bindings folder is now twelve private workflow folders within
+the same authoritative simulation. Actor assembly/generic equipment execution,
+fixed scheduling and checkpoint composition have distinct reading entry points.
+Native command envelope shape is shared typed policy; definition-driven
+processor presentation belongs to ResourceProcessor after permitted-feed filtering.
+
+Console surfaces compose conversation and navigation state owners, shared DOM
+services and typed choice descriptions. The unchanged Rml shell is an asset.
+Engineering/support/manual and authored-layout composition remain in the host;
+World integrations retain their shared private Runtime. These are documented
+remaining coupling rather than claims of fully independent engines.
+
+The current inventory is 682 C++ files in 148 folders, with 216 primary named
+modules and 15 private partitions. Against `615e2ff`, nonblank C++ grows by 565
+lines (0.40%); the extracted 288-nonblank-line Rml asset is accounted separately.
+See the [refinement record](understandability-refactor.md) for executed checks,
+graphical captures, source compatibility audits and platform limits. The family
+migration counts and receipts above describe the earlier completed cohort.
+
+The refinement passed the native build/all 48 native cases, 12 local network
+cases, 23 fresh baseline-bit-exact native continuations, complete ordinary and
+threaded WASM build/runtime/continuation gates, and native Comms/Navigation/camera
+graphical probes. Linux-native and physical hardware/accessibility acceptance
+remain outside this verification scope.

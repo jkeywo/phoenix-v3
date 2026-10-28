@@ -6,6 +6,6 @@ Navigation consumes explicit native kinematics/limits and the same permitted con
 
 `servicing.cpp` owns staged physical energy transfer between native resource networks and the shared StockTransaction, including preview and exception restoration. The World adapter supplies the existing finite-work quote and commits effects only after physical payment.
 
-`src/world/bindings/gameplay_craft_01.cpp` and `gameplay_craft_02.cpp` are the ordinary World composition adapters for stable launch/recovery ordering, away/transport commitments, active entity changes and finite servicing. Bay delivery progress and servicing fractions remain native; effects/processes consume exact work receipts rather than replace those physical commitments.
+`src/world/travel-bindings/craft_admission.cpp` and `gameplay_craft_02.cpp` are the ordinary World composition adapters for stable launch/recovery ordering, away/transport commitments, active entity changes and finite servicing. Bay delivery progress and servicing fractions remain native; effects/processes consume exact work receipts rather than replace those physical commitments.
 
 Relevant checks: craft, away/transport, docking, machinery/finite work, FTL recall and native/WASM continuation. This guide names checks, not completed manual acceptance.

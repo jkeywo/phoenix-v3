@@ -4,4 +4,4 @@
 
 Read `rules.cppm` then `rules.cpp`. Evaluation preserves checked arithmetic, missing-fact failure and the existing quote semantics. Relevant production-path system cases are rules, processes, abilities and custom properties.
 
-Authoritative rule clock/source integration is being extracted separately from the evaluator; the remaining integration policy lives in ordinary `src/world/bindings/effects_rule_*.cpp` units and is not automatically an independent rule module.
+Authoritative rule clock/source integration is being extracted separately from the evaluator; the remaining integration policy lives in ordinary `src/world/effect-lifecycle/` units and is not automatically an independent rule module.

@@ -6,6 +6,8 @@ The [migration plan](modularisation-plan.md), [source ledger](modularisation-led
 
 The migration cohort passed the full native build (66), all 48 native tests (68), 23 fresh bit-exact continuation comparisons against `34883ac` and 12 live-network cases (69), and ordinary-WASM full build/runtime/continuation gates (65/70). Threaded-WASM full build/runtime/continuation gates also passed (72/74). These receipts do not establish Linux-native compilation, physical multi-display/device/accessibility checks or public-network smoke acceptance. See the evidence record for scope and timing context.
 
+The subsequent [World/Console refinement](understandability-refactor.md) separates native workflow chapters, complete conversation/navigation panel state, shared document services and data-defined choice presentation. Its checks and growth are recorded separately from the migration cohort above.
+
 ## Reading map
 
 | Family      | Start here                                                            | Owns                                                                           |
@@ -50,7 +52,9 @@ The content re-export facade, generic gameplay definition/runtime aliases and Co
 
 Content compiler implementations retain real recursive relationships among combat/directed definitions, effects/rules/abilities/processes and stock/logistics resolution. Their shared implementation target is intentional and documented. Packs, image codec, catalogue model, assets, UI, documents and distribution remain separately owned. Public declaration ownership must not be duplicated to disguise a cycle.
 
-World now compiles ordinary implementation units in `src/world/bindings`, with construction, schedule and checkpoint composition in their corresponding World folders. Private `:runtime`, `:bindings`, `:schedule` and `:persistence` partitions are not reexported by the public facade. The former included class-body headers are retired; integration policy remains visible in the ordinary binding units. Domain providers compile separately and their native adapters require behavioral/continuation checks. The source boundary checker reports zero temporary exceptions; the migration ledger records the final ownership and deliberate allocation changes.
+World compiles ordinary implementation units in twelve private workflow folders under `src/world/`, with core actor assembly in `native-actors`, explicit phase order in `schedule`, and candidate checkpoint composition in `persistence`. `:runtime`, the workflow partitions, `:schedule` and `:persistence` are private to the simulation module. See the [World reading map](../src/world/README.md) rather than the retired mixed binding bucket. The partition folders do not claim independent authoritative targets; remaining integration policy is explicit.
+
+Console surfaces compose [document services/choice descriptions](../src/ui/surface-host/README.md), [conversation state](../src/ui/information-widgets/README.md) and [navigation/mission panels](../src/ui/navigation-panel/README.md). Those panel interfaces consume permitted models and bounded frame/publication records without importing Application. Layout and other specialized composition remain in the surface host.
 
 ## Authoring a module
 
@@ -75,17 +79,13 @@ Track both imports and target links. The source checker checks named ownership/p
 
 ## Source size inventory
 
-The ownership snapshot after includes-only World header deduplication contains
-**644 first-party C++ files in 134 module folders**, with **211 primary named
-modules and 4 private partitions**. It has **145,538 physical lines** and
-**142,598 nonblank lines**. This is a reading-size inventory, not a runtime or
-platform acceptance claim.
+The current snapshot has **682 first-party C++ files in 148 module folders**, with **216 primary named modules and 15 private partitions**. Consult the generated [inventory](module-sizes.md) for current line counts and source fingerprint. These are reading sizes, not runtime or platform acceptance claims.
 
 Physical lines include comments, blank lines, directives and embedded
 JavaScript/JSON/text. Nonblank lines exclude whitespace-only lines but still
 include comments. Only maintained C++ source under `src/` is counted; tests,
 vendors, historical references, generated build outputs, CMake and external web
-assets are excluded. The four maintained includes-only native headers count.
+assets are excluded. The maintained includes-only native headers count.
 
 The [full family/module table](module-sizes.md), [module CSV](module-sizes.csv)
 and [per-file CSV](module-files.csv) give both counts and the named-unit split.
@@ -134,7 +134,7 @@ The implementation refines the plan's original folder sketch with these concrete
 | `platform/viewport`            | Focus and CSS/drawing-surface synchronization stay outside UI/Application state                                                    |
 | `scenarios/interdictions`      | Encounter orders, rosters and continuation are separate from physical psychic simulation                                           |
 | `gameplay/projectiles`         | Canonical projectile launch/continuation and native owner records are separate from geometry and contact indexing                  |
-| `world/bindings`               | Ordinary private World implementation units expose cross-domain integration policy without class-body includes                     |
+| `world/` workflow integrations | Ordinary private World implementation units expose cross-domain integration policy without class-body includes                     |
 
 Record a new owner's responsibility and dependency direction rather than renaming it merely to resemble the initial sketch.
 

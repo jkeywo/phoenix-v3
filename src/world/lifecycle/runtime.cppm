@@ -28,6 +28,7 @@ export import phoenix.control.views;
 export import phoenix.control.templates;
 export import phoenix.control.coordination;
 export import phoenix.control.protocol;
+export import phoenix.control.native_commands;
 export import phoenix.control.coordination_facts;
 export import phoenix.control.execution;
 export import phoenix.control.providers;
@@ -269,7 +270,7 @@ struct Runtime
 	void clear_presentation_snapshots();
 	bool gameplay = false;
 	std::vector<std::pair<std::uint64_t, OperatingCommand>> meta_pending;
-	// Included inside World::Impl. Authoritative generation uses integer arithmetic.
+	// Authoritative generation uses integer arithmetic.
 	static constexpr EntityId field_identity_base = EntityId{1} << 52;
 	std::map<EntityId, FieldRock> field_rocks;
 	AsteroidWindowCache field_window;
@@ -470,7 +471,7 @@ struct Runtime
 	// Native receipts and apparent-contact ownership are available only after their
 	// corresponding state has been restored. Intent itself is parsed exactly once.
 	void validate_directed_commitments() const;
-	// Included inside World::Impl. Native damage owns geometry and allocation;
+	// Native damage owns geometry and allocation;
 	// authored hooks supply one frozen quote per reached native subject.
 	struct DamageRuleFrame
 	{
@@ -632,7 +633,7 @@ struct Runtime
 
 	Json save_shields(flecs::entity ship) const;
 	void restore_shields(flecs::entity ship, const Json &value);
-	// Included inside World::Impl. Native owners retain stored property values.
+	// Native owners retain stored property values.
 
 	CustomPropertyState *custom_property_state(const CustomPropertyAddress &address) const;
 
@@ -703,13 +704,13 @@ struct Runtime
 	void prune_property_targets();
 	Json save_active_modifiers() const;
 	void restore_active_modifiers(const Json &saved);
-	// Included inside World::Impl. Prepare only native component copies; callers commit
+	// Prepare only native component copies; callers commit
 	// them with their own receipts/payment after the complete operation succeeds.
 	void prepare_effect_application(flecs::entity ship, const EffectApplication &application, ShieldComponent *shields,
 	                                PropertyEffects *properties, std::int64_t tick);
 
 	void apply_scenario_effect(const ScenarioEffectRequest &request);
-	// Included inside World::Impl. Native work and direct outcomes share scalar
+	// Native work and direct outcomes share scalar
 	// snapshot capture and completion helpers; preparation never mutates live state.
 	NativeStructureOutcome &prepare_structure_outcome(PreparedEffectGroup &quote, EntityId target);
 	NativePatientOutcome &prepare_patient_outcome(PreparedEffectGroup &quote, EntityId target, std::size_t patient);
@@ -718,10 +719,10 @@ struct Runtime
 	                            const EffectOperation &operation);
 	bool native_outcome_quote_stale(const PreparedEffectGroup &quote) const;
 	void commit_native_outcomes(PreparedEffectGroup &quote);
-	// Included inside World::Impl. Each port exposes one native policy; prepared
+	// Each port exposes one native policy; prepared
 	// copies and opcode dispatch belong to the effects preparation module.
 	EffectPreparation effect_preparation();
-	// Included inside World::Impl. Resolve an explicit store identity across native
+	// Resolve an explicit store identity across native
 	// mechanisms; there is no implicit ship-wide pool or remote supply lookup.
 	NamedStock named_stock(flecs::entity ship, const std::string &name,
 	                       ResourceNetwork *prepared_network = nullptr) const;
@@ -808,7 +809,7 @@ struct Runtime
 	std::string execute_scenario_effect_group(const ScenarioEffectRequest &request);
 
 	void validate_stock_claim_owners();
-	// Included inside World::Impl. Processes reuse the shared expression/payment
+	// Processes reuse the shared expression/payment
 	// boundary; native mechanisms remain the only owners of physical progress.
 	ProcessRuntime *process_runtime(const CustomPropertyAddress &address) const;
 	ProcessState *process_state(const CustomPropertyAddress &address, const std::string &id) const;
@@ -881,7 +882,7 @@ struct Runtime
 	void validate_process_runtime(const CustomPropertyAddress &address, const ProcessRuntime &runtime) const;
 	void validate_saved_process_state(const Json &state) const;
 	void restore_processes(const Json &saved, const std::set<EntityId> &departed_ships);
-	// Included inside World::Impl. Native adapters keep physical state and commands;
+	// Native adapters keep physical state and commands;
 	// these lookups resolve the one authored execution permitted to drive a mechanism.
 	std::string process_native_blocker(const CustomPropertyAddress &address, const ProcessState &state,
 	                                   const ProcessDefinition &definition) const;
@@ -908,7 +909,7 @@ struct Runtime
 
 	void capture_process_native_requests();
 	void price_process_native_requests();
-	// Included inside World::Impl. Ability execution shares native grants and the
+	// Ability execution shares native grants and the
 	// prepared effect transaction; native effects retain their specialist state.
 
 	bool ability_source_exists(EntityId ship, const std::string &source, const std::string &owner) const;
@@ -947,7 +948,7 @@ struct Runtime
 	void request_ability_resources(EntityId ship);
 	std::optional<std::int64_t> ability_completed_work(const RuleActor &actor, const std::string &family) const;
 	void refresh_ability_work(bool advance = true);
-	// Included inside World::Impl. Control and continuation use the same compiled
+	// Control and continuation use the same compiled
 	// endpoints and source identities as physical ability execution.
 	bool ability_channel_bound(EntityId ship, std::size_t controller, std::size_t channel) const;
 
@@ -986,12 +987,12 @@ struct Runtime
 
 	Json save_abilities() const;
 
-	// Included inside World::Impl. The effects validator owns continuation
+	// The effects validator owns continuation
 	// invariants; native identities and accepted Controller intent remain here.
 	void validate_ability_runtime(EntityId ship, const AbilityRuntime &state, const AbilityRuntime &initial) const;
 
 	void restore_abilities(const Json &saved, const std::set<EntityId> &departed_ships);
-	// Included inside World::Impl. Process endpoints use existing Console command
+	// Process endpoints use existing Console command
 	// admission; observations contain only permitted, frozen execution state.
 	CustomPropertyAddress process_control_address(EntityId ship, const ProcessControlDefinition &control) const;
 	const ProcessState *process_control_grant(EntityId ship, const ProcessControlDefinition &control) const;
@@ -1014,7 +1015,7 @@ struct Runtime
 	bool process_job_details_visible(const ConsoleAddress &address, const CustomPropertyAddress &owner,
 	                                 const ProcessState &state, const Observation *permitted) const;
 	Json process_board(const ConsoleAddress &address, const Observation *permitted = nullptr) const;
-	// Included inside World::Impl. Native adapters supply addresses and facts; the
+	// Native adapters supply addresses and facts; the
 	// shared evaluator and prepared transaction own authored rule execution.
 	RulesCatalog rule_templates;
 	std::map<std::string, std::vector<RuleBinding>> native_effect_rules, region_rule_bindings;
@@ -1038,7 +1039,7 @@ struct Runtime
 	std::string execute_rule_quote(const RuleEvaluation &evaluation, const NativeRuleContext &context,
 	                               const std::string &source, bool maintained = false, std::int64_t output = 1000);
 	void step_rule_events(RuleEventPhase phase);
-	// Included inside World::Impl. Views retain native lifetime/eligibility authority;
+	// Views retain native lifetime/eligibility authority;
 	// provenance records only the frozen application context, never a second lifetime.
 	using RuleOriginKey = std::tuple<EntityId, bool, std::string>;
 	std::map<RuleOriginKey, NativeRuleContext> rule_origins;
@@ -1113,7 +1114,7 @@ struct Runtime
 	bool payload_context_available(const PayloadHitContext &c, flecs::entity resolved = {}) const;
 	std::vector<std::string> capture_directed_payloads(flecs::entity ship, const CombatMechanism &mechanism,
 	                                                   const std::string &resource) const;
-	// Included inside World::Impl. Effects address native damage outcomes; native
+	// Effects address native damage outcomes; native
 	// reserve, compartment, fault and durability owners retain their existing routes.
 	std::int64_t damage_native_durability(flecs::entity ship, std::int64_t amount, const PayloadHitContext &hit,
 	                                      const NativeRuleContext *origin = nullptr,
@@ -1121,7 +1122,7 @@ struct Runtime
 	void apply_payload_damage(flecs::entity ship, std::int64_t amount, const PayloadHitContext &hit,
 	                          const NativeRuleContext *origin = nullptr,
 	                          std::optional<std::int64_t> incoming_heading = {});
-	// Included inside World::Impl. These plans live for one resource phase only.
+	// These plans live for one resource phase only.
 	// Authoritative prepaid work and leases remain on their native rule owners.
 	std::map<std::string, RuleUpkeepPlan> rule_upkeep_plans;
 	std::unique_ptr<PreparedEffectGroup> rule_upkeep_effects;
@@ -1152,7 +1153,7 @@ struct Runtime
 	void release_suspended_process_plans();
 	// Quote and live execution states use the same canonical credit identity and
 	// payment result. Callers retain responsibility for commit eligibility.
-	// Included inside World::Impl. Resolve real addresses before resource allocation;
+	// Resolve real addresses before resource allocation;
 	// the funding module owns coalescing and canonical work-credit identity.
 	void resolve_rule_upkeep(const std::string &key, RuleUpkeepPlan &plan,
 	                         std::set<std::pair<CustomPropertyAddress, std::string>> *paid_stops = nullptr);
@@ -1200,9 +1201,9 @@ struct Runtime
 	void finalise_finite_native_jobs();
 
 	void cancel_finite_native_owner_jobs(EntityId entity, const std::string &native);
-	// Included inside World::Impl. Derived addresses never retain Flecs pointers;
+	// Derived addresses never retain Flecs pointers;
 	// ordinary bodies and native active records own the persisted clocks.
-	// Included inside World::Impl. The effects store owns derived addresses and
+	// The effects store owns derived addresses and
 	// frontier rules; native components remain the authoritative clock owners.
 	RuleClockStore rule_clocks;
 	RuleClockStorage rule_clock_storage();
@@ -1220,13 +1221,9 @@ struct Runtime
 	                          RuleSourceAvailabilityCache *scratch = nullptr) const;
 	bool rule_lease_available(const std::string &source) const;
 	std::int64_t rule_source_output(EntityId ship, const std::string &source) const;
-	// Included inside World::Impl. Native fact capture is the only runtime port
+	// Native fact capture is the only runtime port
 	// needed by authored rule application binding and identity preparation.
 	RuleApplications rule_applications() const;
-	RuleEvaluation evaluate_source_rule(const RuleDefinition &rule, const NativeRuleContext &context) const;
-	std::string rule_operation_equipment(const NativeRuleContext &context, const EffectOperation &operation) const;
-	bool same_rule_application(const RuleDefinition &rule, const NativeRuleContext &previous,
-	                           const NativeRuleContext &current) const;
 	void capture_rule_custom_targets(const RuleDefinition &rule, const NativeRuleContext &context);
 	bool maintained_modifier_exists(const RuleExecutionState &state, const EffectOperation &operation) const;
 	void withdraw_rule_grants(RuleExecutionState &state);
@@ -1236,12 +1233,12 @@ struct Runtime
 	void prepare_rule_sources();
 	void refresh_rule_eligibility();
 	void step_rule_clocks();
-	// Included inside World::Impl. Membership is sampled; instant crossings use
+	// Membership is sampled; instant crossings use
 	// the native executed movement segment, including both bands of an annulus.
 	void queue_region_rule_event(EntityId id, const std::string &region, RuleTrigger trigger);
 	void initialise_rule_membership();
 	void step_region_rules();
-	// Included inside World::Impl. Structural continuation checks belong to
+	// Structural continuation checks belong to
 	// effects; these ports validate existing native identity and compatibility.
 	RuleContinuationValidator rule_continuation_validator() const;
 	// Included inside World::Impl after common rule lifecycle/source adapters.
@@ -1257,7 +1254,7 @@ struct Runtime
 	void validate_saved_rule_state(const Json &value, std::int64_t now) const;
 	Json save_rules() const;
 	void restore_rules(const Json &saved, const Json &conditions, const Json &next_condition);
-	// Included inside World::Impl. Publish automatic rule status through the same
+	// Publish automatic rule status through the same
 	// Console feeds and personnel departments as the native source's other data.
 	Json rules_board(const ConsoleAddress &address) const;
 	ProcessorStores processor_stores(flecs::entity ship, const ProcessorDefinition &definition) const;
@@ -1285,7 +1282,7 @@ struct Runtime
 	void prune_displays();
 	const Json *display_widget(const ConsoleAddress &address, const std::string &id) const;
 	bool display_command(std::uint64_t claimant, const OperatingCommand &command, bool execute);
-	// Included inside World::Impl. Personnel commands use Station ownership, never role names.
+	// Personnel commands use Station ownership, never role names.
 	const PersonnelDuty *personnel_duty(EntityId id, const std::string &duty) const;
 
 	OfficerState personnel_destination(EntityId id, const PersonnelDuty &duty) const;
@@ -1512,7 +1509,7 @@ struct Runtime
 	Json objectives_board(EntityId ship) const;
 	// Shipwide assessment exposes no private contacts, telemetry or machinery commands.
 	Json navigation_board(EntityId ship) const;
-	// Included inside World::Impl. All reads use accepted intent, including AI reads.
+	// All reads use accepted intent, including AI reads.
 	bool stance_target(EntityId ship, const std::string &console) const;
 	bool bridge_visible(const ConsoleAddress &address) const;
 	Json alert_board(EntityId ship) const;

@@ -465,3 +465,26 @@ native and ordinary-WASM reconfiguration/affected-target builds in
 `review-final-ordinary-policy-build-85.log`. The moved camera function body is
 byte-identical to the retired header body, and all source inventory hashes still
 match after formatting.
+
+## World/Console understandability refinement
+
+Baseline `615e2ff`; implementation, audits, executed checks and remaining coupling
+are recorded in [the refinement record](understandability-refactor.md). The old
+World bindings bucket is retired into twelve private workflows of the existing
+simulation; Console composes actual conversation/navigation state owners,
+document services, typed choice descriptions and an unchanged Rml shell asset.
+
+The [inventory](module-sizes.md) now contains 682 C++ files in 148 folders,
+216 primary modules and 15 private partitions. Nonblank C++ is 143,170, up 565
+(0.40%); the 288-nonblank-line Rml asset is reported separately. Source fingerprint:
+`35c5a36d0f333d07a93bdd751ea693a4e9e1590203ff9f389931e2f452f8d5f5`.
+All 818 historical ledger rows and 342 nonempty original origins remain; active
+destinations, per-file inventory hashes/counts and local reading links reconcile.
+
+The native build, all 48 native cases (44 in the main sandboxed run plus four
+normal-OS reruns), all 12 local live-network cases and 23 fresh baseline-bit-exact
+native continuations passed. Complete ordinary and threaded WASM builds,
+runtime gates and native/WASM continuation comparisons passed. Native Comms,
+Navigation and camera journeys passed with representative captures inspected.
+The refinement record names receipts and distinguishes these checks from
+Linux-native compilation, browser graphics and physical-device acceptance.

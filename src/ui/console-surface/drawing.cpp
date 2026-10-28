@@ -41,6 +41,9 @@ import phoenix.graphics.scene;
 import phoenix.ui.theme;
 import phoenix.ui.engineering_widgets;
 import phoenix.ui.information_widgets;
+import phoenix.ui.conversation_panel;
+import phoenix.ui.surface_host;
+import phoenix.ui.navigation_panel;
 import phoenix.ui.operations_widgets;
 import phoenix.ui.tactical_widgets;
 import phoenix.ui.flight_widgets;
@@ -52,41 +55,7 @@ import phoenix.devices;
 #include "surface_state.hpp"
 namespace phoenix
 {
-void ConsoleSurface::State::draw_navigation(float ox, float oy)
-{
-	if (!navigation_visible_ || !mission_outcome_.empty() || settings_open_)
-		return;
-	if (!model_.observation())
-		return;
-	const auto &view = *model_.observation();
-	draw_navigation_plot(
-	    view.own, view.regions, Json::array(), model_.waypoint(), navigation_camera_,
-	    {ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width, navigation_area_.height}, false,
-	    radar_selection_colour(app_->session->catalog(), "waypoint", active_theme_.value("tokens", Json::object())));
-	const Rectangle area{ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width,
-	                     navigation_area_.height};
-	BeginScissorMode(static_cast<int>(area.x), static_cast<int>(area.y), static_cast<int>(area.width),
-	                 static_cast<int>(area.height));
-	for (const auto &contact : view.contacts)
-	{
-		const Vector2 at{area.x + area.width / 2 +
-		                     static_cast<float>((contact.x - navigation_camera_.x) / navigation_camera_.scale),
-		                 area.y + area.height / 2 -
-		                     static_cast<float>((contact.y - navigation_camera_.y) / navigation_camera_.scale)};
-		draw_radar_body(radar_textures_, app_->session->catalog(), contact, at, 9, SKYBLUE);
-	}
-	if (navigation_selected_)
-	{
-		const Vector2 at{area.x + area.width / 2 +
-		                     static_cast<float>((navigation_x_ - navigation_camera_.x) / navigation_camera_.scale),
-		                 area.y + area.height / 2 -
-		                     static_cast<float>((navigation_y_ - navigation_camera_.y) / navigation_camera_.scale)};
-		draw_radar_selection(at, 14,
-		                     radar_selection_colour(app_->session->catalog(), "waypoint",
-		                                            active_theme_.value("tokens", Json::object())));
-	}
-	EndScissorMode();
-}
+
 void ConsoleSurface::State::draw_support_shields(float ox, float oy)
 {
 	if (settings_open_ || systems_open_ || !authored_component_visible("shield-display") || !model_.observation())
@@ -413,7 +382,9 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 		                     {c.red, c.green, c.blue, c.alpha});
 	}
 	draw_support_shields(ox, oy);
-	draw_navigation(ox, oy);
+	if (app_ && app_->session)
+		navigation_.draw(model_, radar_textures_, app_->session->catalog(),
+		                 active_theme_.value("tokens", Json::object()), settings_open_, ox, oy);
 	EndScissorMode();
 }
 } // namespace phoenix

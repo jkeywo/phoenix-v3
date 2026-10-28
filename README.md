@@ -2,6 +2,8 @@
 
 [Modularisation implementation plan](docs/modularisation-plan.md) records the delivered family/module hierarchy, dependency rules and migration chunks. The [reading guide](docs/modules.md), [line counts](docs/module-sizes.md) and [verification evidence](docs/modularisation-evidence.md) describe the resulting code and checks.
 
+[World and Console refinement](docs/understandability-refactor.md) records the workflow folders, panel owners, presentation data and measured code growth from making the two largest modules easier to follow.
+
 [GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
 
 [Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.
