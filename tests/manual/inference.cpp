@@ -8,13 +8,17 @@
 #include <thread>
 import phoenix.simulation;
 import phoenix.inference;
+import phoenix.wire;
 import phoenix.control.inference_host;
 using namespace phoenix;
 #include "officer_inference.hpp"
+#include "../support/inference_connection_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc == 4 && std::string(argv[1]) == "--connection-contracts")
+			return inference_connection_cases(argv[2], argv[3]);
 		if (argc > 1 && (std::string(argv[1]) == "--officers" || std::string(argv[1]) == "--officer-snapshots"))
 			return officer_journey(argc, argv);
 		auto source = phoenix::test::controller_model_fixture();

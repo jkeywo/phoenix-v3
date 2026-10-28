@@ -4,6 +4,7 @@ module;
 #include <optional>
 #include <string>
 #include <vector>
+#include <utility>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
 module phoenix.inference;
@@ -16,7 +17,7 @@ struct InferenceConnection::Impl
 	std::unique_ptr<PeerTransport> link;
 	Json providers = Json::array(), pending;
 	std::vector<Json> results;
-	std::string request_id;
+	std::string request_id, last_error;
 	std::uint64_t latency_ms = 0;
 	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now(), seen{}, sent{}, hello{};
 	bool paired = false, batched = false;
@@ -44,14 +45,17 @@ InferenceConnection::InferenceConnection(std::string token, std::string service)
 InferenceConnection::~InferenceConnection() = default;
 Json InferenceConnection::status() const
 {
-	return {{"paired", impl_->paired},
-	        {"online", impl_->online()},
-	        {"providers", impl_->providers},
-	        {"latency_ms", impl_->latency_ms},
-	        {"configured", !impl_->providers.empty()},
-	        {"max_batch", impl_->max_batch},
-	        {"decision_interval_ms", impl_->interval_ticks * 50},
-	        {"pair", impl_->token}};
+	Json state{{"paired", impl_->paired},
+	           {"online", impl_->online()},
+	           {"providers", impl_->providers},
+	           {"latency_ms", impl_->latency_ms},
+	           {"configured", !impl_->providers.empty()},
+	           {"max_batch", impl_->max_batch},
+	           {"decision_interval_ms", impl_->interval_ticks * 50},
+	           {"pair", impl_->token}};
+	if (!impl_->last_error.empty())
+		state["error"] = impl_->last_error;
+	return state;
 }
 void InferenceConnection::reset_requests()
 {
@@ -84,22 +88,30 @@ void InferenceConnection::poll()
 							valid = valid && (p == "anyjev" || p == "llamacpp" || p == "jev");
 						if (valid)
 						{
-							s.max_batch = checked_unsigned(body.value("max_batch", Json(1)), 1, 6, "inference batch");
-							s.interval_ticks = checked_unsigned(body.value("decision_interval_ms", Json(2000)), 500,
-							                                    2000, "decision interval") /
-							                   50;
+							const auto max_batch =
+							    checked_unsigned(body.value("max_batch", Json(1)), 1, 6, "inference batch");
+							const auto interval_ticks = checked_unsigned(body.value("decision_interval_ms", Json(2000)),
+							                                             500, 2000, "decision interval") /
+							                            50;
+							s.max_batch = max_batch;
+							s.interval_ticks = interval_ticks;
 							s.providers = providers;
 							s.paired = true;
 							s.seen = now;
+							s.last_error.clear();
 						}
+						else
+							s.last_error = "invalid_provider_response";
 					}
 					else if (packet->type == "ai-result" && s.paired && !s.pending.is_null() &&
 					         body.value("id", std::string{}) == s.request_id)
 					{
-						s.latency_ms =
+						const auto latency_ms =
 						    checked_unsigned(body.value("latency_ms", Json(0)), 0, 3600000, "inference latency");
 						const auto choices = s.batched ? body.value("candidates", Json::array())
 						                               : Json::array({body.value("candidate", Json())});
+						std::vector<Json> results;
+						results.reserve(s.pending.size());
 						for (std::size_t i = 0; i < s.pending.size(); ++i)
 						{
 							const Json chosen =
@@ -108,18 +120,24 @@ void InferenceConnection::poll()
 							for (const auto &candidate : s.pending[i].at("candidates"))
 								if (candidate.at("id") == chosen)
 									offered = true;
-							s.results.push_back({{"snapshot", s.pending[i]},
-							                     {"candidate", chosen.is_string() ? chosen : Json("defer_to_tree")},
-							                     {"interval_ticks", s.interval_ticks},
-							                     {"failed", body.contains("error") || !offered},
-							                     {"reason", "provider_failed"}});
+							results.push_back({{"snapshot", s.pending[i]},
+							                   {"candidate", chosen.is_string() ? chosen : Json("defer_to_tree")},
+							                   {"interval_ticks", s.interval_ticks},
+							                   {"failed", body.contains("error") || !offered},
+							                   {"reason", "provider_failed"}});
 						}
+						for (auto &result : results)
+							s.results.push_back(std::move(result));
+						s.latency_ms = latency_ms;
 						s.pending = nullptr;
 						s.seen = now;
+						s.last_error.clear();
 					}
 				}
 				catch (const std::exception &)
-				{ /* malformed inference never faults a game */
+				{
+					// Keep the last valid negotiation/request intact and expose the refusal.
+					s.last_error = "invalid_provider_response";
 				}
 	if (now - s.hello > std::chrono::seconds(1))
 	{
