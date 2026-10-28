@@ -8,6 +8,8 @@ The offline [interactive module graph](docs/module-graph.html) groups modules by
 
 [GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
 
+[Station help](docs/station-help.md) describes complexity-specific lobby introductions and in-game tab help.
+
 [Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.
 
 [Cruiser station complexity](docs/cruiser-complexity.md) defines the Helm, Tactical and Engineering workloads, department-owned Dispatch, utility shuttles and physical gift/barter supply missions.

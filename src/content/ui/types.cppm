@@ -118,6 +118,10 @@ Json convert_console_layout(const Json &console);
 std::vector<std::string> ui_theme_artwork_slots();
 Json resolved_ui_theme(const Catalog &, const std::string &id = {}, const Json &overrides = Json::object());
 Json public_ui_theme(const Catalog &);
+// Public, localisable guidance. Missing help remains valid for older/mod Consoles.
+Json console_help_level(const Json &console, int stars);
+std::vector<std::pair<std::string, std::string>> console_help_systems(const Json &level, const std::string &page = {});
+void verify_console_help(const Catalog &, const Json &console);
 void verify_ui_definitions(const Catalog &);
 std::span<const WidgetBinding> widget_bindings();
 } // namespace phoenix

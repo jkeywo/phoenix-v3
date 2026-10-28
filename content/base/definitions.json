@@ -27594,7 +27594,12 @@
 			],
 			"control_layout": {
 				"schema": 1,
-				"manual_workloads": { "support": { "team_assignment": 1, "medical": 3 } },
+				"manual_workloads": {
+					"support": {
+						"team_assignment": 1,
+						"medical": 3
+					}
+				},
 				"controllers": [
 					{
 						"id": "drive",
@@ -38487,7 +38492,137 @@
 				}
 			],
 			"default_stance": "routine",
-			"layout": "base.console.helm.layout"
+			"layout": "base.console.helm.layout",
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Fly the Cruiser, follow navigation objectives and contacts, and coordinate manoeuvres and docking with the crew.",
+						"automation": "AI coordinates the second propulsion assembly, manages machinery settings and assigns Sailing Duty Officers.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Set speed and heading, follow navigation orders or contacts, and coordinate boost and impulse to move the ship."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "camera",
+								"label": "Viewscreen",
+								"text": "Choose the shared camera mode and direction, or send a supported radar or map view to the viewscreen."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "navigation", "camera"],
+							"station": ["flight", "docking", "navigation", "camera"],
+							"station.main": ["flight", "docking", "camera"],
+							"station.main.watch": ["flight", "docking", "navigation", "camera"],
+							"station.main.watch.weapons": ["flight", "docking", "navigation", "camera"],
+							"station.main.watch.target-info": ["flight", "docking", "navigation", "camera"],
+							"station.main.instruments": ["flight", "docking"],
+							"station.main.instruments.radar": ["flight", "docking"],
+							"station.main.instruments.engine": ["flight", "docking"],
+							"station.main.instruments.manual": ["flight", "docking"],
+							"station.away": ["flight", "docking", "navigation", "camera"],
+							"station.personnel": ["flight", "docking", "navigation", "camera"]
+						}
+					},
+					"2": {
+						"responsibilities": "Fly the Cruiser, follow navigation objectives and contacts, and coordinate manoeuvres and docking with the crew.",
+						"automation": "AI coordinates the second propulsion assembly, manages machinery settings and assigns Sailing Duty Officers.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Set assisted speed and heading or use direct thrust, lateral movement and steering to manoeuvre the ship."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "camera",
+								"label": "Viewscreen",
+								"text": "Choose the shared camera mode and direction, or send a supported radar or map view to the viewscreen."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "navigation", "camera"],
+							"station": ["flight", "docking", "navigation", "camera"],
+							"station.main": ["flight", "docking", "camera"],
+							"station.main.watch": ["flight", "docking", "navigation", "camera"],
+							"station.main.watch.weapons": ["flight", "docking", "navigation", "camera"],
+							"station.main.watch.target-info": ["flight", "docking", "navigation", "camera"],
+							"station.main.instruments": ["flight", "docking"],
+							"station.main.instruments.radar": ["flight", "docking"],
+							"station.main.instruments.engine": ["flight", "docking"],
+							"station.main.instruments.manual": ["flight", "docking"],
+							"station.away": ["flight", "docking", "navigation", "camera"],
+							"station.personnel": ["flight", "docking", "navigation", "camera"]
+						}
+					},
+					"3": {
+						"responsibilities": "Fly the Cruiser and coordinate its individual propulsion assemblies, docking and Sailing Duty Officers.",
+						"automation": "AI carries out ordinary propulsion and navigation orders while Engineering supplies power and cooling.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Operate assisted or direct flight and adjust individual propulsion assemblies, machinery and fitted overdrive settings."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "camera",
+								"label": "Viewscreen",
+								"text": "Choose the shared camera mode and direction, or send a supported radar or map view to the viewscreen."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "navigation", "camera", "personnel"],
+							"station": ["flight", "docking", "navigation", "camera", "personnel"],
+							"station.main": ["flight", "docking", "camera"],
+							"station.main.watch": ["flight", "docking", "navigation", "camera"],
+							"station.main.watch.weapons": ["flight", "docking", "navigation", "camera"],
+							"station.main.watch.target-info": ["flight", "docking", "navigation", "camera"],
+							"station.main.instruments": ["flight", "docking"],
+							"station.main.instruments.radar": ["flight", "docking"],
+							"station.main.instruments.engine": ["flight", "docking"],
+							"station.main.instruments.manual": ["flight", "docking"],
+							"station.away": ["flight", "docking", "navigation", "camera", "personnel"],
+							"station.personnel": ["personnel"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.engineering",
@@ -38596,7 +38731,79 @@
 				}
 			],
 			"human_seeking": true,
-			"layout": "base.console.comms.layout"
+			"layout": "base.console.comms.layout",
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, and report useful information to the crew.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"console": ["comms"],
+							"console.directory": ["comms"],
+							"console.conversation": ["comms"],
+							"console.conversation.header": ["comms"],
+							"console.conversation.history": ["comms"],
+							"console.conversation.incoming": ["comms"],
+							"console.conversation.replies": ["comms"],
+							"console.conversation.compose": ["comms"]
+						}
+					},
+					"2": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, and report useful information to the crew.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"console": ["comms"],
+							"console.directory": ["comms"],
+							"console.conversation": ["comms"],
+							"console.conversation.header": ["comms"],
+							"console.conversation.history": ["comms"],
+							"console.conversation.incoming": ["comms"],
+							"console.conversation.replies": ["comms"],
+							"console.conversation.compose": ["comms"]
+						}
+					},
+					"3": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, and report useful information to the crew.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"console": ["comms"],
+							"console.directory": ["comms"],
+							"console.conversation": ["comms"],
+							"console.conversation.header": ["comms"],
+							"console.conversation.history": ["comms"],
+							"console.conversation.incoming": ["comms"],
+							"console.conversation.replies": ["comms"],
+							"console.conversation.compose": ["comms"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.captain",
@@ -38655,6 +38862,57 @@
 						"height": 1000
 					}
 				]
+			},
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Use known contacts, published objectives and a shared waypoint to coordinate navigation with Helm.",
+						"automation": "AI performs accepted navigation orders through the ship's ordinary flight Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation"],
+							"navigation": ["navigation"]
+						}
+					},
+					"2": {
+						"responsibilities": "Use known contacts, published objectives and a shared waypoint to coordinate navigation with Helm.",
+						"automation": "AI performs accepted navigation orders through the ship's ordinary flight Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation"],
+							"navigation": ["navigation"]
+						}
+					},
+					"3": {
+						"responsibilities": "Use known contacts, published objectives and a shared waypoint to coordinate navigation with Helm.",
+						"automation": "AI performs accepted navigation orders through the ship's ordinary flight Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation"],
+							"navigation": ["navigation"]
+						}
+					}
+				}
 			}
 		},
 		{
@@ -38681,7 +38939,85 @@
 				"widgets": []
 			},
 			"layout": "base.console.command.layout",
-			"hud_layout": "base.console.command.hud"
+			"hud_layout": "base.console.command.hud",
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Guide wholly AI-operated consoles through their supported stances.",
+						"automation": "AI performs the selected consoles' ordinary work within their permitted observations and authority.",
+						"systems": [
+							{
+								"id": "command",
+								"label": "AI stances",
+								"text": "Set supported stances for wholly AI-operated consoles to guide how vacant stations carry out their work."
+							}
+						],
+						"tabs": {
+							"$console": ["command"],
+							"station": ["command"],
+							"station.main": ["command"],
+							"station.main.instruments": ["command"],
+							"station.main.instruments.status": ["command"],
+							"station.main.operations": ["command"],
+							"station.operations": ["command"],
+							"station.docking": ["command"],
+							"station.craft": ["command"],
+							"station.personnel": ["command"],
+							"station.away": ["command"]
+						}
+					},
+					"2": {
+						"responsibilities": "Guide wholly AI-operated consoles through their supported stances.",
+						"automation": "AI performs the selected consoles' ordinary work within their permitted observations and authority.",
+						"systems": [
+							{
+								"id": "command",
+								"label": "AI stances",
+								"text": "Set supported stances for wholly AI-operated consoles to guide how vacant stations carry out their work."
+							}
+						],
+						"tabs": {
+							"$console": ["command"],
+							"station": ["command"],
+							"station.main": ["command"],
+							"station.main.instruments": ["command"],
+							"station.main.instruments.status": ["command"],
+							"station.main.operations": ["command"],
+							"station.operations": ["command"],
+							"station.docking": ["command"],
+							"station.craft": ["command"],
+							"station.personnel": ["command"],
+							"station.away": ["command"]
+						}
+					},
+					"3": {
+						"responsibilities": "Guide wholly AI-operated consoles through their supported stances.",
+						"automation": "AI performs the selected consoles' ordinary work within their permitted observations and authority.",
+						"systems": [
+							{
+								"id": "command",
+								"label": "AI stances",
+								"text": "Set supported stances for wholly AI-operated consoles to guide how vacant stations carry out their work."
+							}
+						],
+						"tabs": {
+							"$console": ["command"],
+							"station": ["command"],
+							"station.main": ["command"],
+							"station.main.instruments": ["command"],
+							"station.main.instruments.status": ["command"],
+							"station.main.operations": ["command"],
+							"station.operations": ["command"],
+							"station.docking": ["command"],
+							"station.craft": ["command"],
+							"station.personnel": ["command"],
+							"station.away": ["command"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.combat-helm",
@@ -38731,7 +39067,137 @@
 				"width": 0.7,
 				"height": 0.29
 			},
-			"layout": "base.console.combat-helm.layout"
+			"layout": "base.console.combat-helm.layout",
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Fly the Courier, choose its combat target and offensive weapons, and lead docking and away missions.",
+						"automation": "AI manages weapon settings and ammunition, defensive point defence, scanner following, mission preparation and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Set the Courier's speed and heading or follow navigation orders and contacts using assisted flight."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select the shared combat target and enable or disable individual offensive weapons to decide what the ship attacks."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate an away mission, dock for insertion, and recall or cancel it while tracking the party's physical recovery."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "weapons", "dispatch"],
+							"station": ["flight", "docking", "weapons", "dispatch"],
+							"station.main": ["flight", "docking", "weapons"],
+							"station.main.watch": ["weapons"],
+							"station.main.watch.weapons": ["weapons"],
+							"station.main.watch.target-info": ["weapons"],
+							"station.main.instruments": ["flight", "docking", "weapons"],
+							"station.main.instruments.radar": ["flight", "docking", "weapons"],
+							"station.main.instruments.throttle": ["flight", "docking", "weapons"],
+							"station.main.instruments.manual": ["flight", "docking", "weapons"],
+							"station.away": ["dispatch"],
+							"station.personnel": ["flight", "docking", "weapons", "dispatch"]
+						}
+					},
+					"2": {
+						"responsibilities": "Fly and fight the Courier, manage point defence, and coordinate docking and away missions.",
+						"automation": "AI manages weapon settings and ammunition, enabled point defence, scanner following, mission preparation and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Set assisted speed and heading or use direct thrust and steering to manoeuvre the Courier."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select the shared combat target, enable offensive weapons and switch point defence on or off."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate, dispatch, recall or cancel your department's missions and coordinate insertion and recovery with the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "weapons", "dispatch"],
+							"station": ["flight", "docking", "weapons", "dispatch"],
+							"station.main": ["flight", "docking", "weapons"],
+							"station.main.watch": ["weapons"],
+							"station.main.watch.weapons": ["weapons"],
+							"station.main.watch.target-info": ["weapons"],
+							"station.main.instruments": ["flight", "docking", "weapons"],
+							"station.main.instruments.radar": ["flight", "docking", "weapons"],
+							"station.main.instruments.throttle": ["flight", "docking", "weapons"],
+							"station.main.instruments.manual": ["flight", "docking", "weapons"],
+							"station.away": ["dispatch"],
+							"station.personnel": ["flight", "docking", "weapons", "dispatch"]
+						}
+					},
+					"3": {
+						"responsibilities": "Fly and fight the Courier with detailed weapon and officer control, and manage docking and away-mission assets.",
+						"automation": "AI keeps the scanner following the shared combat target and carries out ordinary machinery, team and flight-order execution.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Operate assisted or direct flight and adjust the Courier's fitted propulsion settings."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select shared or individual weapon targets, ammunition and fitted weapon settings, including point-defence controls."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Prepare and dispatch missions with explicit asset assignments, then recall or cancel them while tracking personnel and craft recovery."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main": ["flight", "docking", "weapons"],
+							"station.main.watch": ["weapons"],
+							"station.main.watch.weapons": ["weapons"],
+							"station.main.watch.target-info": ["weapons"],
+							"station.main.instruments": ["flight", "docking", "weapons"],
+							"station.main.instruments.radar": ["flight", "docking", "weapons"],
+							"station.main.instruments.throttle": ["flight", "docking", "weapons"],
+							"station.main.instruments.manual": ["flight", "docking", "weapons"],
+							"station.away": ["dispatch"],
+							"station.personnel": ["personnel"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.combat-tactical",
@@ -38793,7 +39259,308 @@
 				"width": 1,
 				"height": 1
 			},
-			"layout": "base.console.combat-support.layout"
+			"layout": "base.console.combat-support.layout",
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Keep the Courier and its crew operational by deploying repair and Medical teams, handling conversations and planning deliberate FTL departure.",
+						"automation": "AI manages power and protection, Veil, local repair and Medical work, away contributions, radar and radio readiness, and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "objectives",
+								"label": "Objectives",
+								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Assign repair teams to compartments and choose local repair priorities while they travel and perform useful work there."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams to compartments so they can travel to patients and provide treatment there."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Monitor reactor output, reserves and distribution to understand the ship's power and cooling margins."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station": ["objectives", "ftl", "medical", "alerts", "repair", "power"],
+							"station.support": ["objectives", "ftl", "medical", "alerts"],
+							"station.support.mission": ["objectives", "ftl"],
+							"station.support.mission.objectives": ["objectives"],
+							"station.support.mission.ftl-controls": ["ftl"],
+							"station.support.ship": ["alerts"],
+							"station.support.ship.viewscreen-controls": ["alerts"],
+							"station.support.ship.viewscreen-controls.camera-mode": ["alerts"],
+							"station.support.ship.viewscreen-controls.camera-direction": ["alerts"],
+							"station.support.ship.alert-controls": ["alerts"],
+							"station.support.ship.shield-display": ["alerts"],
+							"station.engineering": ["ftl", "repair", "medical", "power"],
+							"station.engineering.power": ["ftl", "medical", "power"],
+							"station.engineering.crew": ["repair", "medical"],
+							"station.engineering.crew.compartment-health": ["repair"],
+							"station.engineering.crew.team-roster": ["repair", "medical"],
+							"station.personnel": ["objectives", "ftl", "medical", "alerts", "repair", "power"],
+							"station.craft": ["objectives", "ftl", "medical", "alerts", "repair", "power"]
+						}
+					},
+					"2": {
+						"responsibilities": "Keep the Courier operational through reactor output, shields, Veil, team deployment, communications and deliberate FTL departure.",
+						"automation": "AI manages batteries, shield redistribution, local repair and Medical work, away contributions, radar and radio readiness, and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "objectives",
+								"label": "Objectives",
+								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Deploy repair teams to compartments and prioritise local systems or hull restoration using the available controls."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams to compartments so they can travel to patients and provide treatment there."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Set reactor output and monitor reserves and distribution to sustain the ship's current workload."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Raise or lower individual shields and choose the protection priority to concentrate defence where the ship needs it."
+							},
+							{
+								"id": "veil",
+								"label": "Veil",
+								"text": "Enable or disable Veil to conceal the Courier within the limits of its resources and specialist availability."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station": ["objectives", "ftl", "medical", "alerts", "shields", "veil", "repair", "power"],
+							"station.support": ["objectives", "ftl", "medical", "alerts", "shields", "veil"],
+							"station.support.mission": ["objectives", "ftl"],
+							"station.support.mission.objectives": ["objectives"],
+							"station.support.mission.ftl-controls": ["ftl"],
+							"station.support.ship": ["alerts", "shields"],
+							"station.support.ship.viewscreen-controls": ["alerts", "shields"],
+							"station.support.ship.viewscreen-controls.camera-mode": ["alerts", "shields"],
+							"station.support.ship.viewscreen-controls.camera-direction": ["alerts", "shields"],
+							"station.support.ship.alert-controls": ["alerts"],
+							"station.support.ship.shield-display": ["shields"],
+							"station.engineering": ["ftl", "repair", "medical", "power", "shields", "veil"],
+							"station.engineering.power": ["ftl", "medical", "power", "shields", "veil"],
+							"station.engineering.crew": ["repair", "medical"],
+							"station.engineering.crew.compartment-health": ["repair"],
+							"station.engineering.crew.team-roster": ["repair", "medical"],
+							"station.personnel": [
+								"objectives",
+								"ftl",
+								"medical",
+								"alerts",
+								"shields",
+								"veil",
+								"repair",
+								"power"
+							],
+							"station.craft": [
+								"objectives",
+								"ftl",
+								"medical",
+								"alerts",
+								"shields",
+								"veil",
+								"repair",
+								"power"
+							]
+						}
+					},
+					"3": {
+						"responsibilities": "Manage the Courier's power, protection, repairs, treatment and officers while handling communications, navigation and deliberate FTL departure.",
+						"automation": "AI carries out ordinary machinery and team execution and maintains radar and radio readiness, while FTL departure remains your decision.",
+						"systems": [
+							{
+								"id": "objectives",
+								"label": "Objectives",
+								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Direct individual repair teams and their system or hull priorities, using fault reports from teams physically present in the compartment."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams and choose clinical orders, patient priorities and recovery as permitted by the current workload."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Set reactor output and operate fitted battery, distribution, reserve and cooling controls to support the ship's machinery."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Operate individual shields, protection priorities, discharge and fitted shield settings to manage the ship's defence."
+							},
+							{
+								"id": "veil",
+								"label": "Veil",
+								"text": "Operate Veil and its machinery settings, with specialist assignments available through Personnel."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station": [
+								"objectives",
+								"ftl",
+								"medical",
+								"alerts",
+								"shields",
+								"veil",
+								"repair",
+								"power",
+								"personnel"
+							],
+							"station.support": ["objectives", "ftl", "medical", "alerts", "shields", "veil"],
+							"station.support.mission": ["objectives", "ftl"],
+							"station.support.mission.objectives": ["objectives"],
+							"station.support.mission.ftl-controls": ["ftl"],
+							"station.support.ship": ["alerts", "shields"],
+							"station.support.ship.viewscreen-controls": ["alerts", "shields"],
+							"station.support.ship.viewscreen-controls.camera-mode": ["alerts", "shields"],
+							"station.support.ship.viewscreen-controls.camera-direction": ["alerts", "shields"],
+							"station.support.ship.alert-controls": ["alerts"],
+							"station.support.ship.shield-display": ["shields"],
+							"station.engineering": ["ftl", "repair", "medical", "power", "shields", "veil"],
+							"station.engineering.power": ["ftl", "medical", "power", "shields", "veil"],
+							"station.engineering.crew": ["repair", "medical"],
+							"station.engineering.crew.compartment-health": ["repair"],
+							"station.engineering.crew.team-roster": ["repair", "medical"],
+							"station.personnel": ["personnel"],
+							"station.craft": [
+								"objectives",
+								"ftl",
+								"medical",
+								"alerts",
+								"shields",
+								"veil",
+								"repair",
+								"power",
+								"personnel"
+							]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.navigator",
@@ -38803,7 +39570,79 @@
 			"knowledge_roles": ["base.crew"],
 			"widgets": [],
 			"layout": "base.console.navigator.layout",
-			"tab": false
+			"tab": false,
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Prepare the FTL reserve, check the crew's readiness and deliberately authorise departure.",
+						"automation": "AI performs preparation and machinery execution, while departure requires a deliberate player action.",
+						"systems": [
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							}
+						],
+						"tabs": {
+							"$console": ["ftl"],
+							"station": ["ftl"],
+							"station.main": ["ftl"],
+							"station.main.operations": ["ftl"],
+							"station.operations": ["ftl"],
+							"station.docking": ["ftl"],
+							"station.craft": ["ftl"],
+							"station.personnel": ["ftl"],
+							"station.away": ["ftl"]
+						}
+					},
+					"2": {
+						"responsibilities": "Prepare the FTL reserve, check the crew's readiness and deliberately authorise departure.",
+						"automation": "AI performs preparation and machinery execution, while departure requires a deliberate player action.",
+						"systems": [
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							}
+						],
+						"tabs": {
+							"$console": ["ftl"],
+							"station": ["ftl"],
+							"station.main": ["ftl"],
+							"station.main.operations": ["ftl"],
+							"station.operations": ["ftl"],
+							"station.docking": ["ftl"],
+							"station.craft": ["ftl"],
+							"station.personnel": ["ftl"],
+							"station.away": ["ftl"]
+						}
+					},
+					"3": {
+						"responsibilities": "Prepare the FTL reserve, check the crew's readiness and deliberately authorise departure.",
+						"automation": "AI performs preparation and machinery execution, while departure requires a deliberate player action.",
+						"systems": [
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							}
+						],
+						"tabs": {
+							"$console": ["ftl"],
+							"station": ["ftl"],
+							"station.main": ["ftl"],
+							"station.main.operations": ["ftl"],
+							"station.operations": ["ftl"],
+							"station.docking": ["ftl"],
+							"station.craft": ["ftl"],
+							"station.personnel": ["ftl"],
+							"station.away": ["ftl"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.craft",
@@ -38830,7 +39669,210 @@
 				"width": 1,
 				"height": 1
 			},
-			"layout": "base.console.cruiser-science.layout"
+			"layout": "base.console.cruiser-science.layout",
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Investigate contacts, manage protection and Medical team destinations, authorise Science mission contributions and prepare deliberate FTL departure.",
+						"automation": "AI follows your Science target with both scanners, redistributes shields, chooses treatment in assigned compartments, manages readiness and stocks, assigns officers and maintains the ward while Phantom choir stays inactive.",
+						"systems": [
+							{
+								"id": "scanners",
+								"label": "Focused scanners",
+								"text": "Select the Science contact for both scanners to investigate using permitted observations."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Raise or lower individual shields and choose the protection priority to concentrate defence where the ship needs it."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams to compartments so they can travel to patients and provide treatment there."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "contributions",
+								"label": "Mission contributions",
+								"text": "Authorise your department's Medical and displacement contributions to missions owned by Tactical or Engineering."
+							}
+						],
+						"tabs": {
+							"$console": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station.main": ["scanners", "shields", "medical", "contributions"],
+							"station.main.operations": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station.operations": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station.docking": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station.craft": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station.personnel": ["scanners", "shields", "medical", "ftl", "contributions"],
+							"station.away": ["scanners", "shields", "medical", "ftl", "contributions"]
+						}
+					},
+					"2": {
+						"responsibilities": "Investigate independent scanner targets, manage shields, clinical treatment and psychic systems, and coordinate Science contributions and FTL departure.",
+						"automation": "AI redistributes shields, manages readiness and local stocks, and assigns Science, Medical, Navigator and psychic officers.",
+						"systems": [
+							{
+								"id": "scanners",
+								"label": "Focused scanners",
+								"text": "Give the two scanners independent targets to investigate contacts and retain their permitted findings."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Raise or lower individual shields and choose the protection priority to concentrate defence where the ship needs it."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams and choose clinical orders, patient priorities and recovery as permitted by the current workload."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "contributions",
+								"label": "Mission contributions",
+								"text": "Authorise your department's Medical and displacement contributions to missions owned by Tactical or Engineering."
+							},
+							{
+								"id": "psychic",
+								"label": "Phantom choir and Psychic ward",
+								"text": "Enable, disable and target Phantom choir and Psychic ward, accounting for specialist availability and actual resources."
+							}
+						],
+						"tabs": {
+							"$console": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"],
+							"station": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"],
+							"station.main": ["scanners", "shields", "medical", "contributions", "psychic"],
+							"station.main.operations": [
+								"scanners",
+								"shields",
+								"medical",
+								"ftl",
+								"contributions",
+								"psychic"
+							],
+							"station.operations": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"],
+							"station.docking": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"],
+							"station.craft": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"],
+							"station.personnel": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"],
+							"station.away": ["scanners", "shields", "medical", "ftl", "contributions", "psychic"]
+						}
+					},
+					"3": {
+						"responsibilities": "Manage detailed Science, shield, Medical and psychic equipment and officer assignments, alongside mission contributions and deliberate FTL departure.",
+						"automation": "AI carries out ordinary scanning, protection, treatment, psychic and FTL preparation work within your settings and available resources.",
+						"systems": [
+							{
+								"id": "scanners",
+								"label": "Focused scanners",
+								"text": "Give the two scanners independent targets to investigate contacts and retain their permitted findings."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Operate individual shields, protection priorities, discharge and fitted shield settings to manage the ship's defence."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams and choose clinical orders, patient priorities and recovery as permitted by the current workload."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "contributions",
+								"label": "Mission contributions",
+								"text": "Authorise your department's Medical and displacement contributions to missions owned by Tactical or Engineering."
+							},
+							{
+								"id": "psychic",
+								"label": "Phantom choir and Psychic ward",
+								"text": "Enable, disable and target Phantom choir and Psychic ward, accounting for specialist availability and actual resources."
+							},
+							{
+								"id": "settings",
+								"label": "Equipment and medical stocks",
+								"text": "Adjust fitted Science equipment settings and local Medical stock targets to prepare for the work ahead."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"scanners",
+								"shields",
+								"medical",
+								"ftl",
+								"contributions",
+								"psychic",
+								"settings",
+								"personnel"
+							],
+							"station": [
+								"scanners",
+								"shields",
+								"medical",
+								"ftl",
+								"contributions",
+								"psychic",
+								"settings",
+								"personnel"
+							],
+							"station.main": ["scanners", "shields", "medical", "contributions", "psychic", "settings"],
+							"station.main.operations": ["settings"],
+							"station.operations": ["settings"],
+							"station.docking": [
+								"scanners",
+								"shields",
+								"medical",
+								"ftl",
+								"contributions",
+								"psychic",
+								"settings",
+								"personnel"
+							],
+							"station.craft": [
+								"scanners",
+								"shields",
+								"medical",
+								"ftl",
+								"contributions",
+								"psychic",
+								"settings",
+								"personnel"
+							],
+							"station.personnel": ["personnel"],
+							"station.away": [
+								"scanners",
+								"shields",
+								"medical",
+								"ftl",
+								"contributions",
+								"psychic",
+								"settings",
+								"personnel"
+							]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.cruiser-tactical",
@@ -38851,7 +39893,124 @@
 					"selection_source": "tactical"
 				}
 			],
-			"layout": "base.console.cruiser-tactical.layout"
+			"layout": "base.console.cruiser-tactical.layout",
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Coordinate the Cruiser's combat target, offensive weapons and general away missions.",
+						"automation": "AI manages ammunition, readiness, defensive point defence, combat craft, Security and Tactical officer assignments.",
+						"systems": [
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select the shared combat target and enable or disable individual offensive weapons to decide what the ship attacks."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate, dispatch, recall or cancel your department's missions and coordinate insertion and recovery with the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["weapons", "dispatch"],
+							"station": ["weapons", "dispatch"],
+							"station.main": ["weapons"],
+							"station.main.instruments": ["weapons"],
+							"station.main.instruments.radar": ["weapons"],
+							"station.main.operations": ["weapons"],
+							"station.operations": ["weapons"],
+							"station.docking": ["weapons", "dispatch"],
+							"station.craft": ["weapons", "dispatch"],
+							"station.personnel": ["weapons", "dispatch"],
+							"station.away": ["dispatch"]
+						}
+					},
+					"2": {
+						"responsibilities": "Coordinate weapons, point defence, individual combat craft and general away missions.",
+						"automation": "AI manages ammunition, readiness, enabled point defence, Security and Tactical officer assignments.",
+						"systems": [
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select the shared combat target, enable offensive weapons and switch point defence on or off."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate, dispatch, recall or cancel your department's missions and coordinate insertion and recovery with the crew."
+							},
+							{
+								"id": "craft",
+								"label": "Combat craft",
+								"text": "Give individual combat craft orders and targets, recall sorties and track launch, recovery and servicing."
+							}
+						],
+						"tabs": {
+							"$console": ["weapons", "dispatch", "craft"],
+							"station": ["weapons", "dispatch", "craft"],
+							"station.main": ["weapons", "craft"],
+							"station.main.instruments": ["weapons"],
+							"station.main.instruments.radar": ["weapons"],
+							"station.main.operations": ["weapons"],
+							"station.operations": ["weapons"],
+							"station.docking": ["weapons", "dispatch", "craft"],
+							"station.craft": ["craft"],
+							"station.personnel": ["weapons", "dispatch", "craft"],
+							"station.away": ["dispatch"]
+						}
+					},
+					"3": {
+						"responsibilities": "Coordinate detailed weapons, combat craft, Security, local readiness and Tactical officers, and lead general away missions.",
+						"automation": "AI carries out ordinary weapon, craft and team execution using the available resources and accepted orders.",
+						"systems": [
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select shared or individual weapon targets, ammunition and fitted weapon settings, including point-defence controls."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Prepare and dispatch missions with explicit asset assignments, then recall or cancel them while tracking personnel and craft recovery."
+							},
+							{
+								"id": "craft",
+								"label": "Combat craft",
+								"text": "Give individual combat craft orders and targets, recall sorties and track launch, recovery and servicing."
+							},
+							{
+								"id": "security",
+								"label": "Security teams",
+								"text": "Assign Security teams and your department's mission contributions while tracking their physical travel and commitments."
+							},
+							{
+								"id": "readiness",
+								"label": "Readiness and local stocks",
+								"text": "Manage radar, bay and armament readiness and local supplies through the fitted equipment controls."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": ["weapons", "dispatch", "craft", "security", "readiness", "personnel"],
+							"station": ["weapons", "dispatch", "craft", "security", "readiness", "personnel"],
+							"station.main": ["weapons", "craft", "security", "readiness"],
+							"station.main.instruments": ["weapons"],
+							"station.main.instruments.radar": ["weapons"],
+							"station.main.operations": ["weapons", "readiness"],
+							"station.operations": ["weapons", "readiness"],
+							"station.docking": ["weapons", "dispatch", "craft", "security", "readiness", "personnel"],
+							"station.craft": ["craft"],
+							"station.personnel": ["personnel"],
+							"station.away": ["dispatch", "security"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.cruiser-engineering",
@@ -38904,7 +40063,163 @@
 				"width": 1,
 				"height": 1
 			},
-			"layout": "base.console.cruiser-engineering.layout"
+			"layout": "base.console.cruiser-engineering.layout",
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Supply the Cruiser, deploy repair teams and lead Engineering dispatch and department contributions.",
+						"automation": "AI manages detailed power and cooling, local repair work, utility shuttles, stocks and Engineering officer assignments.",
+						"systems": [
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Choose Normal, Combat or Recharge Power to set the ship's operating priority while monitoring its reserves."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Assign repair teams to compartments so they travel there and perform useful repair work."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate, dispatch, recall or cancel your department's missions and coordinate insertion and recovery with the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["power", "repair", "dispatch"],
+							"station": ["power", "repair"],
+							"station.support": ["power"],
+							"station.support.mission": ["power"],
+							"station.support.mission.objectives": ["power"],
+							"station.support.mission.ftl-controls": ["power"],
+							"station.support.ship": ["power"],
+							"station.support.ship.viewscreen-controls": ["power"],
+							"station.support.ship.viewscreen-controls.camera-mode": ["power"],
+							"station.support.ship.viewscreen-controls.camera-direction": ["power"],
+							"station.support.ship.alert-controls": ["power"],
+							"station.support.ship.shield-display": ["power"],
+							"station.engineering": ["power", "repair"],
+							"station.engineering.power": ["power"],
+							"station.engineering.crew": ["repair"],
+							"station.engineering.crew.compartment-health": ["repair"],
+							"station.engineering.crew.team-roster": ["repair"],
+							"station.personnel": ["power", "repair"],
+							"station.craft": ["power", "repair"]
+						}
+					},
+					"2": {
+						"responsibilities": "Balance reactor output and distribution, set local repair priorities and coordinate Engineering missions and utility shuttles.",
+						"automation": "AI manages detailed reserve and cooling settings, local repair execution, stocks and Engineering officer assignments.",
+						"systems": [
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Set reactor output and major distribution allocations to balance shipwide power demand and available supply."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Deploy repair teams to compartments and prioritise local systems or hull restoration using the available controls."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate, dispatch, recall or cancel your department's missions and coordinate insertion and recovery with the crew."
+							},
+							{
+								"id": "shuttles",
+								"label": "Utility shuttles",
+								"text": "Select individual utility-shuttle contributions and recall them while respecting cargo, mission and recovery commitments."
+							}
+						],
+						"tabs": {
+							"$console": ["power", "repair", "dispatch", "shuttles"],
+							"station": ["power", "repair", "shuttles"],
+							"station.support": ["power"],
+							"station.support.mission": ["power"],
+							"station.support.mission.objectives": ["power"],
+							"station.support.mission.ftl-controls": ["power"],
+							"station.support.ship": ["power"],
+							"station.support.ship.viewscreen-controls": ["power"],
+							"station.support.ship.viewscreen-controls.camera-mode": ["power"],
+							"station.support.ship.viewscreen-controls.camera-direction": ["power"],
+							"station.support.ship.alert-controls": ["power"],
+							"station.support.ship.shield-display": ["power"],
+							"station.engineering": ["power", "repair"],
+							"station.engineering.power": ["power"],
+							"station.engineering.crew": ["repair"],
+							"station.engineering.crew.compartment-health": ["repair"],
+							"station.engineering.crew.team-roster": ["repair"],
+							"station.personnel": ["power", "repair", "shuttles"],
+							"station.craft": ["shuttles"]
+						}
+					},
+					"3": {
+						"responsibilities": "Manage detailed power, cooling, repairs, logistics, access routes and Engineering officers while coordinating utility-shuttle missions.",
+						"automation": "AI performs ordinary machinery, repair and delivery execution within your settings, actual resources and physical commitments.",
+						"systems": [
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Operate detailed feeds, isolation, reserve limits, overrides and cooling to keep the ship's machinery supplied."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Direct individual repair teams and their system or hull priorities, using fault reports from teams physically present in the compartment."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Prepare and dispatch missions with explicit asset assignments, then recall or cancel them while tracking personnel and craft recovery."
+							},
+							{
+								"id": "shuttles",
+								"label": "Utility shuttles",
+								"text": "Select individual utility-shuttle contributions and recall them while respecting cargo, mission and recovery commitments."
+							},
+							{
+								"id": "logistics",
+								"label": "Storage and logistics",
+								"text": "Manage main stocks, material transfers and cargo settings so supplies reach compatible destinations through physical deliveries."
+							},
+							{
+								"id": "access",
+								"label": "Access routes",
+								"text": "Manage compartment access routes while accounting for team travel, deliberate seals and hazardous conditions."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": ["power", "repair", "dispatch", "shuttles", "logistics", "access", "personnel"],
+							"station": ["power", "repair", "logistics", "access", "personnel", "shuttles"],
+							"station.support": ["power"],
+							"station.support.mission": ["power"],
+							"station.support.mission.objectives": ["power"],
+							"station.support.mission.ftl-controls": ["power"],
+							"station.support.ship": ["power"],
+							"station.support.ship.viewscreen-controls": ["power"],
+							"station.support.ship.viewscreen-controls.camera-mode": ["power"],
+							"station.support.ship.viewscreen-controls.camera-direction": ["power"],
+							"station.support.ship.alert-controls": ["power"],
+							"station.support.ship.shield-display": ["power"],
+							"station.engineering": ["power", "repair", "logistics", "access"],
+							"station.engineering.power": ["power", "logistics"],
+							"station.engineering.crew": ["repair"],
+							"station.engineering.crew.compartment-health": ["repair"],
+							"station.engineering.crew.team-roster": ["repair"],
+							"station.personnel": ["personnel"],
+							"station.craft": ["shuttles"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.cruiser-captain",
@@ -38921,12 +40236,77 @@
 			"objectives": true,
 			"command": true,
 			"human_seeking": false,
-			"layout": "base.console.cruiser-captain.layout"
+			"layout": "base.console.cruiser-captain.layout",
+			"help": {
+				"default_level": 1,
+				"required_levels": [1],
+				"levels": {
+					"1": {
+						"responsibilities": "Coordinate the Cruiser through shipwide alerts, AI console stances and published objective priorities.",
+						"automation": "AI operates delegated and vacant Controllers, with objective priority currently advising autonomous navigation only.",
+						"systems": [
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "command",
+								"label": "AI stances",
+								"text": "Set supported stances for wholly AI-operated consoles to guide how vacant stations carry out their work."
+							},
+							{
+								"id": "priority",
+								"label": "Objective priority",
+								"text": "Review published objectives and choose one priority when AI is available, advising autonomous navigation without overriding explicit orders."
+							}
+						],
+						"tabs": {
+							"$console": ["alerts", "command", "priority"],
+							"station": ["alerts", "command", "priority"],
+							"station.main": ["alerts", "command", "priority"],
+							"station.main.operations": ["alerts", "command", "priority"],
+							"station.operations": ["alerts", "command", "priority"],
+							"station.docking": ["alerts", "command", "priority"],
+							"station.craft": ["alerts", "command", "priority"],
+							"station.personnel": ["alerts", "command", "priority"],
+							"station.away": ["alerts", "command", "priority"]
+						}
+					}
+				}
+			}
 		},
 		{
 			"id": "base.console.cruiser-comms",
 			"extends": "base.console.comms",
-			"human_seeking": false
+			"human_seeking": false,
+			"help": {
+				"required_levels": [1],
+				"levels": {
+					"1": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, including offers that reveal Engineering supply missions.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"console": ["comms"],
+							"console.directory": ["comms"],
+							"console.conversation": ["comms"],
+							"console.conversation.header": ["comms"],
+							"console.conversation.history": ["comms"],
+							"console.conversation.incoming": ["comms"],
+							"console.conversation.replies": ["comms"],
+							"console.conversation.compose": ["comms"]
+						}
+					}
+				}
+			}
 		}
 	],
 	"trees": [
@@ -48354,22 +49734,39 @@
 					"text_key": "Communications channel open.",
 					"incoming_ticks": 20
 				},
-				"command": { "speaker": "captain", "text_key": "Command here. Go ahead.", "incoming_ticks": 20 },
+				"command": {
+					"speaker": "captain",
+					"text_key": "Command here. Go ahead.",
+					"incoming_ticks": 20
+				},
 				"engineering": {
 					"speaker": "engineer",
 					"text_key": "Engineering here. Go ahead.",
 					"incoming_ticks": 20
 				},
-				"closed": { "speaker": "target", "text_key": "Channel closed.", "incoming_ticks": 10 }
+				"closed": {
+					"speaker": "target",
+					"text_key": "Channel closed.",
+					"incoming_ticks": 10
+				}
 			},
 			"prompts": {
 				"contact": {
 					"speaker": "target",
 					"text_key": "Who would you like to speak to?",
 					"choices": [
-						{ "id": "command", "text_key": "Speak to Command." },
-						{ "id": "engineering", "text_key": "Speak to Engineering." },
-						{ "id": "close", "text_key": "End call." }
+						{
+							"id": "command",
+							"text_key": "Speak to Command."
+						},
+						{
+							"id": "engineering",
+							"text_key": "Speak to Engineering."
+						},
+						{
+							"id": "close",
+							"text_key": "End call."
+						}
 					],
 					"ai_choice": "close",
 					"ai_delay_ticks": 60,
@@ -48380,48 +49777,111 @@
 			"states": [
 				{
 					"id": "greeting",
-					"entry": [{ "action": "say", "arguments": ["greeting"] }],
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["greeting"]
+						}
+					],
 					"transitions": [
-						{ "target": "offer", "conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 25 }] }
+						{
+							"target": "offer",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 25
+								}
+							]
+						}
 					]
 				},
 				{
 					"id": "offer",
-					"entry": [{ "action": "offer", "arguments": ["contact"] }],
+					"entry": [
+						{
+							"action": "offer",
+							"arguments": ["contact"]
+						}
+					],
 					"transitions": [
 						{
 							"target": "command",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "command" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "command"
+								}
+							]
 						},
 						{
 							"target": "engineering",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "engineering" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "engineering"
+								}
+							]
 						},
 						{
 							"target": "close",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "close" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "close"
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "command",
 					"entry": [
-						{ "action": "add_participant", "arguments": ["captain"] },
-						{ "action": "say", "arguments": ["command"] }
+						{
+							"action": "add_participant",
+							"arguments": ["captain"]
+						},
+						{
+							"action": "say",
+							"arguments": ["command"]
+						}
 					]
 				},
 				{
 					"id": "engineering",
 					"entry": [
-						{ "action": "add_participant", "arguments": ["engineer"] },
-						{ "action": "say", "arguments": ["engineering"] }
+						{
+							"action": "add_participant",
+							"arguments": ["engineer"]
+						},
+						{
+							"action": "say",
+							"arguments": ["engineering"]
+						}
 					]
 				},
 				{
 					"id": "close",
 					"entry": [
-						{ "action": "say", "arguments": ["closed"] },
-						{ "action": "finish", "arguments": ["closed"] }
+						{
+							"action": "say",
+							"arguments": ["closed"]
+						},
+						{
+							"action": "finish",
+							"arguments": ["closed"]
+						}
 					]
 				}
 			]

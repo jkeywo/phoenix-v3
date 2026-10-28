@@ -173,6 +173,19 @@ bool ConsoleSurface::State::action(const std::string &name)
 		return false;
 	const auto action =
 	    name.substr(prefix.size()).starts_with("radar-systems/") ? std::string("systems") : name.substr(prefix.size());
+	if (systems_open_ && support_popup_ == "help" && action != "systems-close")
+		return false;
+	if (action == "help")
+	{
+		if (!game_active(*app_) || settings_open_ || console_help_systems(help_level_, help_page_).empty())
+			return false;
+		cancel_pointer();
+		model_.release_controls();
+		systems_open_ = true;
+		support_popup_ = "help";
+		help_open_identity_ = help_identity_;
+		return true;
+	}
 	if (action == "power-details" || action == "task-detail/compartments" || action == "task-detail/objectives" ||
 	    action == "task-detail/weapons" || action == "task-detail/teams" || action == "task-detail/target")
 	{
@@ -196,12 +209,20 @@ bool ConsoleSurface::State::action(const std::string &name)
 		return all_stop(action.substr(9));
 	if (action == "systems" || action == "systems-close")
 	{
+		const bool help = support_popup_ == "help";
 		model_.act("game.status-close");
 		tactical_.model().act("game.status-close");
 		systems_open_ = action == "systems";
 		support_popup_.clear();
 		for (auto &[console, source] : support_models_)
 			source->act("game.status-close");
+		if (help)
+		{
+			dom_.property(document_->GetElementById("fault-dialog"), "display", "none");
+			dom_.property(document_->GetElementById("help-shade"), "display", "none");
+			if (auto *button = document_->GetElementById(id("help")))
+				button->Focus();
+		}
 		return true;
 	}
 	if (action.starts_with("inline/"))
@@ -546,6 +567,8 @@ void ConsoleSurface::State::controller_cancel()
 }
 bool ConsoleSurface::State::controller_back()
 {
+	if (systems_open_ && support_popup_ == "help")
+		return action(id("systems-close"));
 	if (settings_open_)
 		return action(id("local-settings.close"));
 	if (profile_open_)
@@ -560,6 +583,37 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
 		prepare_dirty_ = render_urgent_ = true;
 	const auto name = event.GetTargetElement()->GetId();
+	if (systems_open_ && support_popup_ == "help")
+	{
+		if (event.GetType() == "keydown")
+		{
+			const auto key = event.GetParameter<int>("key_identifier", 0);
+			if (key == Rml::Input::KI_ESCAPE)
+				action(id("systems-close"));
+			else if (key == Rml::Input::KI_TAB)
+				document_->GetElementById(id("systems-close"))->Focus();
+			else if (key == Rml::Input::KI_DOWN || key == Rml::Input::KI_UP || key == Rml::Input::KI_NEXT ||
+			         key == Rml::Input::KI_PRIOR || key == Rml::Input::KI_HOME || key == Rml::Input::KI_END)
+			{
+				auto *dialog = document_->GetElementById("fault-dialog");
+				const float delta = key == Rml::Input::KI_DOWN    ? 44.f
+				                    : key == Rml::Input::KI_UP    ? -44.f
+				                    : key == Rml::Input::KI_PRIOR ? -dialog->GetClientHeight()
+				                                                  : dialog->GetClientHeight();
+				dialog->SetScrollTop(key == Rml::Input::KI_HOME  ? 0.f
+				                     : key == Rml::Input::KI_END ? dialog->GetScrollHeight()
+				                                                 : dialog->GetScrollTop() + delta);
+			}
+			else
+				return;
+			event.StopPropagation();
+			return;
+		}
+		if (event.GetType() == "focus" && name != id("systems-close"))
+			document_->GetElementById(id("systems-close"))->Focus();
+		if (event.GetType() != "click")
+			return;
+	}
 	if (event.GetType() == "keydown" && name == id("nav.map") && navigation_.visible())
 	{
 		if (!navigation_.key(event.GetParameter<int>("key_identifier", 0), dom_, id("")))

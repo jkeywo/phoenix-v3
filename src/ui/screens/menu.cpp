@@ -509,6 +509,19 @@ struct NativeMenuScreen::State
 						}
 						html += "</div>" + paragraph(seat.ready ? "Ready. Waiting for the crew."
 						                                        : "Check your Console, then ready up.");
+						const auto help = seat.introductions.find(complexity_stars(seat.profile_stars, seat.profile));
+						if (help != seat.introductions.end())
+						{
+							html += "<div class=\"station-introduction\">" +
+							        readout("menu.station-responsibilities", help->second.responsibilities);
+							int index = 0;
+							for (const auto &[label, text] : help->second.systems)
+								html += readout("menu.station-system/" + std::to_string(index++),
+								                localise(label) + ": " + localise(text));
+							html += readout("menu.station-automation",
+							                localise("Automatic") + ": " + localise(help->second.automation)) +
+							        "</div>";
+						}
 						if (allowed(own->ready ? "lobby.unready" : "lobby.ready"))
 							html +=
 							    act(own->ready ? "lobby.unready" : "lobby.ready", own->ready ? "Not Ready" : "Ready");

@@ -41,6 +41,78 @@ using phoenix::test::rejected;
 using phoenix::test::require;
 namespace
 {
+void console_help_content_contract()
+{
+	auto source = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "help fixture");
+	auto &console = source["consoles"][0];
+	const auto id = console.at("id").get<std::string>();
+	console["help"] = Json::parse(R"json({"required_levels":[1,3],"levels":{
+ "1":{"responsibilities":"test.help.role","automation":"test.help.auto",
+ "systems":[{"id":"flight","label":"test.help.flight","text":"test.help.assisted"}],
+ "tabs":{"$console":["flight"]}},
+ "3":{"responsibilities":"test.help.role","automation":"test.help.execution",
+ "systems":[{"id":"flight","label":"test.help.flight","text":"test.help.direct"}],
+ "tabs":{"$console":["flight"]}}}})json");
+	console["layout"] = Json::parse(R"json({"schema":1,"root":{"id":"station","kind":"tabs",
+ "children":[{"id":"flight","kind":"component","component":"gameplay"}]}})json");
+	for (auto &level : console["help"]["levels"])
+	{
+		level["tabs"]["station"] = {"flight"};
+		level["tabs"]["station.flight"] = {"flight"};
+	}
+	source["consoles"].push_back({{"id", "test.help.child"},
+	                              {"extends", id},
+	                              {"help", {{"levels", {{"1", {{"responsibilities", "test.help.child.role"}}}}}}}});
+	const auto catalog = phoenix::test::load(source);
+	verify_ui_definitions(catalog);
+	const auto &resolved = catalog.consoles.at(id);
+	auto unprofiled = catalog.consoles.at(id);
+	unprofiled["help"]["default_level"] = 1;
+	require(console_help_level(unprofiled, 0).at("automation") == "test.help.auto" &&
+	            console_help_level(unprofiled, 2).empty(),
+	        "only unprofiled auxiliary views use their explicit default workload");
+
+	require(console_help_systems(console_help_level(resolved, 1), "station.flight").front().second ==
+	                "test.help.assisted" &&
+	            console_help_systems(console_help_level(resolved, 3), "$console").front().second ==
+	                "test.help.direct" &&
+	            console_help_level(resolved, 2).empty(),
+	        "help selects the accepted level without borrowing another workload");
+	require(console_help_level(catalog.consoles.at("test.help.child"), 1).at("responsibilities") ==
+	                "test.help.child.role" &&
+	            console_help_systems(console_help_level(catalog.consoles.at("test.help.child"), 3)).size() == 1,
+	        "help uses ordinary definition inheritance and retains translation keys");
+	const auto client = resolve_packs({console_assets(catalog, catalog.entities.begin()->first)});
+	require(client.consoles.at(id).at("help") == resolved.at("help"),
+	        "restricted client packs retain public help metadata");
+	auto invalid = catalog;
+	invalid.consoles.at(id)["help"]["levels"]["1"]["tabs"]["$console"] = {"missing"};
+	rejected(
+	    [&]
+	    {
+		    verify_ui_definitions(invalid);
+	    },
+	    "tab system reference");
+	invalid = catalog;
+	invalid.consoles.at(id)["help"]["levels"].erase("3");
+	rejected(
+	    [&]
+	    {
+		    verify_ui_definitions(invalid);
+	    },
+	    "missing required level");
+	invalid = catalog;
+	invalid.consoles.at(id)["help"]["levels"]["1"]["tabs"]["unknown"] = {"flight"};
+	rejected(
+	    [&]
+	    {
+		    verify_ui_definitions(invalid);
+	    },
+	    "unknown help page");
+	invalid = catalog;
+	invalid.consoles.at(id).erase("help");
+	verify_ui_definitions(invalid);
+}
 void custom_property_content_contract()
 {
 	using namespace phoenix::test;
@@ -168,6 +240,7 @@ int main()
 	try
 	{
 		custom_property_content_contract();
+		console_help_content_contract();
 		rejected(
 		    []
 		    {

@@ -1,4 +1,4 @@
-add_library(phoenix_content_ui STATIC ui_layout.cpp widget_bindings.cpp)
+add_library(phoenix_content_ui STATIC ui_layout.cpp widget_bindings.cpp help.cpp)
 target_sources(phoenix_content_ui PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES types.cppm)
 set_target_properties(
 	phoenix_content_ui

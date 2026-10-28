@@ -72,6 +72,7 @@ p {display:block;word-break:break-word;font-size:.85em;margin:4px 0;}
 .throttle sliderarrowdec,.throttle sliderarrowinc {display:none;}
 .ready-card {position:absolute;left:10%;top:390px;width:80%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
 .profile-card {top:18%;}
+.station-ready-card {bottom:3%;height:auto;overflow:auto;}
 .ready-card h1 {display:block;font-size:1.6em;}
 .ready-card button {min-width:120px;}
 .ready-card .avatar-choice {min-width:0;width:64px;height:64px;padding:6px;}
@@ -215,6 +216,10 @@ progress fill {background:#83be90;}
 .support-panels .engineering-card p {min-height:0;}
 .resource-condition {background:#83be90;}
 #fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
+#help-control {position:absolute;right:12dp;z-index:26;}
+#help-control button {min-width:44dp;min-height:44dp;font-size:1.2em;}
+#help-shade {position:absolute;left:0;right:0;top:0;bottom:0;background:#00000099;z-index:79;display:none;}
+.local-settings-open #help-control {display:none;}
 #fault-dialog p {font-size:1.1em;line-height:1.4;}
 #comms-layer {position:absolute;left:1%;top:80px;width:98%;bottom:1%;background:#102027;}
 #comms-list {position:absolute;left:0;top:0;height:100%;overflow:auto;}
@@ -289,4 +294,4 @@ progress fill {background:#83be90;}
 .station-page-open .local-settings-card {top:120dp;max-height:75%;}
 #station-loading {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#08131b;z-index:40;}
 #station-loading div {position:absolute;left:10%;top:35%;width:80%;padding:20dp;background:#102027;}
-</style></head><body><div id="authored-header"></div><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>
+</style></head><body><div id="authored-header"></div><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="help-control"></div><div id="help-shade"></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>

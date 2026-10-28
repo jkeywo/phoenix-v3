@@ -6,6 +6,7 @@ add_library(
 	layout.cpp
 	drawing.cpp
 	panels.cpp
+	help.cpp
 	probes.cpp
 )
 target_sources(phoenix_ui_console_surface PUBLIC FILE_SET CXX_MODULES FILES surface.cppm)

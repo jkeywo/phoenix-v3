@@ -274,6 +274,8 @@ class GameLobby final : public SessionPort
 					const auto &definition = source_->catalog().consoles.at(seat.definition);
 					data["console_names"][slot.id][seat.id] = definition.value("name", seat.id);
 					data["console_descriptions"][slot.id][seat.id] = definition.value("description", std::string{});
+					if (definition.contains("help"))
+						data["console_help"][slot.id][seat.id] = definition.at("help");
 				}
 			}
 		}
@@ -1433,6 +1435,21 @@ public:
 				}
 				if (data.contains("console_descriptions") && data.at("console_descriptions").contains(slot))
 					seat.description = data.at("console_descriptions").at(slot).value(seat.id, std::string{});
+				if (data.contains("console_help") && data.at("console_help").contains(slot))
+				{
+					const auto help = data.at("console_help").at(slot).value(seat.id, Json::object());
+					const auto levels = help.value("levels", Json::object());
+					for (int stars = 1; stars <= 3; ++stars)
+						if (levels.contains(std::to_string(stars)))
+						{
+							const auto &level = levels.at(std::to_string(stars));
+							auto &introduction = seat.introductions[stars];
+							introduction.responsibilities = level.at("responsibilities");
+							introduction.automation = level.at("automation");
+							for (const auto &system : level.at("systems"))
+								introduction.systems.emplace_back(system.at("label"), system.at("text"));
+						}
+				}
 				for (const auto &member : result.members)
 					if (member.slot == slot && member.console == seat.id)
 					{

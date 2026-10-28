@@ -219,6 +219,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
 			for (const char *field : {"name",
+			                          "help",
 			                          "description",
 			                          "human_seeking",
 			                          "stances",

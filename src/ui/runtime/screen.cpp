@@ -965,12 +965,13 @@ void draw_screen(Application &app)
 	if ((app.can_host || app.native_menu) && app.screen != Screen::workshop && app.screen != Screen::gm &&
 	    IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
 	{
-#ifndef __EMSCRIPTEN__
 		if (game_active(app) && input.keyboard_console() && console_surfaces.contains(*input.keyboard_console()))
-			console_surfaces.at(*input.keyboard_console())
-			    ->action("console/" + std::to_string(*input.keyboard_console()) + "/settings");
+		{
+			auto &surface = console_surfaces.at(*input.keyboard_console());
+			if (!surface->controller_back())
+				surface->action("console/" + std::to_string(*input.keyboard_console()) + "/settings");
+		}
 		else
-#endif
 			invoke_navigation(app,
 			                  app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
 			                                      app.screen == Screen::client_lobby ||

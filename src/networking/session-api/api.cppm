@@ -41,6 +41,11 @@ struct LobbyMember
 	Bytes avatar;
 	std::uint64_t local_screen = 0;
 };
+struct ConsoleIntroduction
+{
+	std::string responsibilities, automation;
+	std::vector<std::pair<std::string, std::string>> systems;
+};
 struct LobbyConsole
 {
 	std::string slot, id, name, member;
@@ -50,6 +55,7 @@ struct LobbyConsole
 	std::vector<std::string> profiles;
 	std::string description;
 	std::map<std::string, int> profile_stars;
+	std::map<int, ConsoleIntroduction> introductions;
 };
 struct LobbyProjection
 {

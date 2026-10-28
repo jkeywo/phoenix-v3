@@ -323,3 +323,18 @@ cases, 23 fresh baseline-bit-exact native continuations, complete ordinary and
 threaded WASM build/runtime/continuation gates, and native Comms/Navigation/camera
 graphical probes. Linux-native and physical hardware/accessibility acceptance
 remain outside this verification scope.
+
+## Station introductions and tab help — 28 October 2026
+
+The eight player stations now have authored lobby introductions at every supported
+complexity, with responsibilities, one-sentence system descriptions and a single
+sentence about automation. The client shows tab-specific help through `?` below
+the tab row. Shared views and fixed workloads use explicit help metadata; help
+follows accepted profiles and available page identities.
+
+Native and WebAssembly client builds, synthetic content/lobby checks and production
+pack verification pass. The explicitly invoked native GUI journey passes 67 tab
+help popups across the eight stations and their supported workloads, including
+focus, dismissal and bounds checks. See the [authoring contract](station-help.md)
+and [verification receipt](smoke/station-help.md). Physical reader/device and
+browser graphical acceptance remain separate from these checks.

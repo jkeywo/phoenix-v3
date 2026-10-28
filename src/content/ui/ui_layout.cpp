@@ -788,6 +788,7 @@ void verify_ui_definitions(const Catalog &catalog)
 		(void)resolved_ui_theme(catalog, id);
 	for (const auto &[id, console] : catalog.consoles)
 	{
+		verify_console_help(catalog, console);
 		if (console.contains("tab"))
 			ui_require(console.at("tab").is_boolean(), id + ".tab", "expected boolean");
 		if (console.contains("when"))

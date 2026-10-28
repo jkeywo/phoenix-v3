@@ -103,7 +103,15 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		popup_readouts.emplace_back(name, text);
 		return "<p id=\"" + esc(name) + "\"></p>";
 	};
-	if (!details.empty())
+	if (systems_open_ && support_popup_ == "help")
+	{
+		markup = "<h1>" + esc(localise("Help") + ": " + help_label_) + "</h1>";
+		markup += add("systems-close", localise("Close"));
+		int index = 0;
+		for (const auto &[label, text] : console_help_systems(help_level_, help_page_))
+			markup += readout("help/" + std::to_string(index++), localise(label) + ": " + localise(text));
+	}
+	else if (!details.empty())
 	{
 		markup = "<h1>" + esc(localise("System details")) + "</h1>" + readout("summary", details) +
 		         add("systems", localise("All system statuses")) + add("systems-close", localise("Close"));
@@ -359,6 +367,7 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		markup += add("systems-close", localise("Close"));
 	}
 	auto *dialog = document_->GetElementById("fault-dialog");
+	const bool help_focus = markup != fault_dialog_signature_ && systems_open_ && support_popup_ == "help";
 	if (markup != fault_dialog_signature_)
 	{
 		dom_.forget_elements();
@@ -367,6 +376,12 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		dialog->SetInnerRML(markup);
 		syncing_values_ = false;
 		fault_dialog_signature_ = markup;
+		if (systems_open_ && support_popup_ == "help")
+		{
+			dialog->SetAttribute("role", "dialog");
+			dialog->SetAttribute("aria-modal", "true");
+			dialog->SetAttribute("aria-label", localise("Help") + ": " + help_label_);
+		}
 	}
 	dom_.property(dialog, "left", std::to_string(region.width * .1f) + "dp");
 	dom_.property(dialog, "top", std::to_string(region.height * .15f) + "dp");
@@ -374,6 +389,8 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 	dom_.property(dialog, "height", std::to_string(region.height * .65f) + "dp");
 	dom_.property(dialog, "display", markup.empty() ? "none" : "block");
 	context_->Update();
+	if (help_focus)
+		document_->GetElementById(id("systems-close"))->Focus();
 	if (!markup.empty())
 	{
 		const float width = std::max(44.f, region.width * .8f - 80.f);
@@ -390,6 +407,12 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 	}
 	if (!markup.empty())
 	{
+		if (systems_open_ && support_popup_ == "help")
+			std::erase_if(app_->screen_readouts,
+			              [&](const auto &entry)
+			              {
+				              return entry.first.starts_with(id(""));
+			              });
 		std::erase_if(app_->screen_controls,
 		              [&](const auto &entry)
 		              {
@@ -425,6 +448,7 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		if (auto *row = document_->GetElementById(name))
 			dom_.leaf_markup(row, esc(text));
 		app_->screen_readouts.emplace_back(name, text);
+		place(*app_, region, name);
 	}
 	context_->Update();
 	if (systems_open_ && support_popup_ == "power")

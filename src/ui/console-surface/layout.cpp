@@ -501,6 +501,17 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	const bool team_dispatch = !dispatch_map.empty() && dispatch_map[0].value("dispatch", false);
 	document_->SetClass("team-dispatch", team_dispatch);
 	const bool pregame = app.session && app.session->lobby().active && !app.session->lobby().launched;
+	if (pregame || settings_open_)
+	{
+		dom_.property(document_->GetElementById("help-control"), "display", "none");
+		dom_.property(document_->GetElementById("help-shade"), "display", "none");
+		if (support_popup_ == "help")
+		{
+			systems_open_ = false;
+			support_popup_.clear();
+			dom_.property(document_->GetElementById("fault-dialog"), "display", "none");
+		}
+	}
 	const Json *layout = model_.layout();
 	const bool command_console = layout && layout->value("command", false);
 	document_->SetClass("command-console", command_console);
@@ -538,6 +549,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	std::string complexity;
 	std::vector<std::string> complexity_choices;
 	std::map<std::string, int> complexity_levels;
+	std::vector<std::pair<std::string, std::string>> lobby_help;
 	bool ready = false;
 	if (pregame)
 	{
@@ -577,6 +589,20 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		title = layout->value("name", layout->value("id", title));
 		description = layout->value(
 		    "description", std::string("Operate the fitted systems and monitor this Console's permitted contacts."));
+	}
+	if (pregame && layout)
+	{
+		const auto help = console_help_level(*layout, complexity_stars(complexity_levels, complexity));
+		if (!help.empty())
+		{
+			lobby_help.emplace_back(id("lobby-help/role"), localise(help.at("responsibilities")));
+			int index = 0;
+			for (const auto &[label, text] : console_help_systems(help))
+				lobby_help.emplace_back(id("lobby-help/system/" + std::to_string(index++)),
+				                        localise(label) + ": " + localise(text));
+			lobby_help.emplace_back(id("lobby-help/automation"),
+			                        localise("Automatic") + ": " + localise(help.at("automation")));
+		}
 	}
 	// Authored widgets still determine controls, placement and authority.
 	if (prepared_layout_ != layout || prepared_layout_revision_ != model_.layout_revision())
@@ -728,7 +754,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		std::string lobby;
 		if (pregame)
 		{
-			lobby = "<div class=\"ready-card\"><h1 id=\"" + id("lobby-title") + "\">" +
+			lobby = "<div class=\"ready-card station-ready-card\"><h1 id=\"" + id("lobby-title") + "\">" +
 			        Rml::StringUtilities::EncodeRml(localise(title)) + "</h1><p>" +
 			        Rml::StringUtilities::EncodeRml(localise(description)) + "</p><p>" +
 			        Rml::StringUtilities::EncodeRml(localise(briefing)) + "</p><p>" +
@@ -740,6 +766,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				         "</p>";
 			for (const auto &choice : complexity_choices)
 				lobby += star_choice("complexity/" + choice, choice, complexity_levels, complexity, false);
+			for (const auto &[name, text] : lobby_help)
+				lobby += "<p id=\"" + name + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
 			lobby += button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
 		}
 		if (pregame)
@@ -779,6 +807,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		}
 		document_->GetElementById("lobby")->SetInnerRML(lobby);
 	}
+	for (const auto &[name, text] : lobby_help)
+		app.screen_readouts.emplace_back(name, text);
 	if (pregame && profile_open_)
 		app.screen_inputs.push_back({id("profile-name"), localise("Player name"), profile_name_});
 	if (pregame)
@@ -1633,6 +1663,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			place(app, region, field.id);
 	if (pregame)
 		place(app, region, id("lobby-title"));
+	for (const auto &[name, text] : lobby_help)
+		place(app, region, name);
 	if (!pregame && model_.observation())
 	{
 		const auto publication = app.session->public_board().value("display", Json(nullptr));
@@ -1702,6 +1734,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	if (!pregame && !settings_open_)
 	{
 		prepare_radar_choices(region);
+		prepare_help(region);
 		prepare_system_popup(region, cards);
 	}
 	app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;

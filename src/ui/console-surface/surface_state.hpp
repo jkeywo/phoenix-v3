@@ -193,6 +193,9 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	// Commands still pass through that Console's own model and ordinary admission.
 	TacticalWidgets tactical_;
 	bool systems_open_ = false;
+	Json help_level_ = Json::object();
+	std::string help_page_, help_label_, help_identity_, help_open_identity_;
+	void prepare_help(const ConsoleRegion &region);
 	std::vector<std::pair<std::string, std::string>> popup_controls_;
 
 	bool select_radar_contact(EntityId contact);

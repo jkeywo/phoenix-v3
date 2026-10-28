@@ -65,6 +65,10 @@ int main(int argc, char **argv)
 		 {"id":"automatic","consoles":{"main":{"human":[],"ai":["propulsion"]}}}]})json");
 		defs["consoles"][0]["widgets"][1]["controller"] = "propulsion";
 		defs["consoles"][0]["widgets"][1]["channel"] = "speed";
+		defs["consoles"][0]["help"] = Json::parse(R"json({"levels":{"3":{
+ "responsibilities":"Synthetic flight responsibilities","automation":"Synthetic execution",
+ "systems":[{"id":"flight","label":"Flight","text":"Synthetic manual flight"}],
+ "tabs":{"$console":["flight"]}}}})json");
 		defs["knowledge"]["schemas"].push_back({{"id", "test.report"},
 		                                        {"producers", {"crew"}},
 		                                        {"readers", {"crew"}},
@@ -120,6 +124,56 @@ int main(int argc, char **argv)
 		defs["maps"][0]["ship_briefings"] = {{"test.ship", "Routine synthetic delivery"},
 		                                     {"test.delivery", "Urgent synthetic delivery"}};
 		auto pack = phoenix::test::fixture_pack(json_bytes(defs), "test-core");
+		{
+			// A new content selection may reuse ship IDs with different authored
+			// profiles. Retained lobby metadata must follow the new content.
+			auto content_lobby = make_game_lobby(options, true);
+			const GameSetup setup{"test.map", {{"test.slot", "test.ship"}}, "test.slot"};
+			content_lobby->add_pack(write_pack(pack));
+			content_lobby->prepare_lobby(setup);
+			require(!content_lobby->preparation_phase().empty() && !content_lobby->running(),
+			        "Session preparation exposes loading before constructing the world");
+			content_lobby->poll();
+			require(!content_lobby->preparation_phase().empty(), "Preparation yields a presentation frame");
+			content_lobby->poll();
+			content_lobby->poll();
+			require(content_lobby->preparation_phase().empty(), "Prepared session returns to lobby");
+			require(content_lobby->lobby().slots.front().briefing == "Routine synthetic delivery",
+			        "Native lobby resolves the selected hull briefing");
+			const auto main_seat = [](const LobbyProjection &projection)
+			{
+				for (const auto &seat : projection.consoles)
+					if (seat.slot == "test.slot" && seat.id == "main")
+						return seat;
+				throw std::runtime_error("Synthetic lobby main Console is missing");
+			};
+			require(main_seat(content_lobby->lobby()).profile == "direct",
+			        "Lobby exposes the original authored default profile");
+			require(main_seat(content_lobby->lobby()).introductions.at(3).responsibilities ==
+			            "Synthetic flight responsibilities",
+			        "Lobby projection carries public complexity-specific help");
+			content_lobby->clear_packs();
+			auto revised = defs;
+			revised["consoles"][0]["help"]["levels"]["3"]["responsibilities"] = "Revised flight responsibilities";
+			auto &layout = revised["entities"][0]["control_layout"];
+			layout["profiles"][0]["id"] = "revised";
+			layout["default_profile"] = "revised";
+			const auto replacement = phoenix::test::fixture_pack(json_bytes(revised), "test-core");
+			content_lobby->replace_packs({write_pack(replacement)});
+			content_lobby->prepare_lobby(setup);
+			const auto seat = main_seat(content_lobby->lobby());
+			require(seat.introductions.at(3).responsibilities == "Revised flight responsibilities",
+			        "Content replacement refreshes lobby help without stale station text");
+			require(seat.profile == "revised" &&
+			            std::find(seat.profiles.begin(), seat.profiles.end(), "direct") == seat.profiles.end(),
+			        "Reusing a ship ID after content replacement exposes current profile choices and default");
+			LobbyCommand select{LobbyAction::select_profile, "", "test.slot", "", "main"};
+			select.profile = "automatic";
+			require(content_lobby->lobby_command(select) && main_seat(content_lobby->lobby()).profile == "automatic",
+			        "Retained authored metadata does not freeze the selected lobby profile");
+			select.profile = "direct";
+			require(!content_lobby->lobby_command(select), "A removed authored profile cannot be selected");
+		}
 #ifndef __EMSCRIPTEN__
 		if (local_worker_only)
 		{
@@ -194,50 +248,6 @@ int main(int argc, char **argv)
 			return 0;
 		}
 #endif
-		{
-			// A new content selection may reuse ship IDs with different authored
-			// profiles. Retained lobby metadata must follow the new content.
-			auto content_lobby = make_game_lobby(options, true);
-			const GameSetup setup{"test.map", {{"test.slot", "test.ship"}}, "test.slot"};
-			content_lobby->add_pack(write_pack(pack));
-			content_lobby->prepare_lobby(setup);
-			require(!content_lobby->preparation_phase().empty() && !content_lobby->running(),
-			        "Session preparation exposes loading before constructing the world");
-			content_lobby->poll();
-			require(!content_lobby->preparation_phase().empty(), "Preparation yields a presentation frame");
-			content_lobby->poll();
-			content_lobby->poll();
-			require(content_lobby->preparation_phase().empty(), "Prepared session returns to lobby");
-			require(content_lobby->lobby().slots.front().briefing == "Routine synthetic delivery",
-			        "Native lobby resolves the selected hull briefing");
-			const auto main_seat = [](const LobbyProjection &projection)
-			{
-				for (const auto &seat : projection.consoles)
-					if (seat.slot == "test.slot" && seat.id == "main")
-						return seat;
-				throw std::runtime_error("Synthetic lobby main Console is missing");
-			};
-			require(main_seat(content_lobby->lobby()).profile == "direct",
-			        "Lobby exposes the original authored default profile");
-			content_lobby->clear_packs();
-			auto revised = defs;
-			auto &layout = revised["entities"][0]["control_layout"];
-			layout["profiles"][0]["id"] = "revised";
-			layout["default_profile"] = "revised";
-			const auto replacement = phoenix::test::fixture_pack(json_bytes(revised), "test-core");
-			content_lobby->replace_packs({write_pack(replacement)});
-			content_lobby->prepare_lobby(setup);
-			const auto seat = main_seat(content_lobby->lobby());
-			require(seat.profile == "revised" &&
-			            std::find(seat.profiles.begin(), seat.profiles.end(), "direct") == seat.profiles.end(),
-			        "Reusing a ship ID after content replacement exposes current profile choices and default");
-			LobbyCommand select{LobbyAction::select_profile, "", "test.slot", "", "main"};
-			select.profile = "automatic";
-			require(content_lobby->lobby_command(select) && main_seat(content_lobby->lobby()).profile == "automatic",
-			        "Retained authored metadata does not freeze the selected lobby profile");
-			select.profile = "direct";
-			require(!content_lobby->lobby_command(select), "A removed authored profile cannot be selected");
-		}
 		{
 			auto rooted = pack;
 			rooted.manifest["base"] = {{"render_mode", "sprites"}};
