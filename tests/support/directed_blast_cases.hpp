@@ -61,8 +61,7 @@ Json directed_blast_cases()
 		if (variant == 1)
 		{
 			auto defence_mode = mode;
-			source["effects"].push_back(
-			    Json::parse(R"json({"id":"test.blast.destroy-capture-group","kind":"operations",
+			source["effects"].push_back(Json::parse(R"json({"id":"test.blast.destroy-capture-group","kind":"operations",
                 "operations":[{"kind":"add","target":"subject","store":"energy:marker","resource":"test.blast-marker","amount":0}]})json"));
 			source["effects"].push_back(Json::parse(R"json({"id":"test.blast.destroy-capture-rule","kind":"rule",
                 "trigger":"post_entity_damage","effect":"test.blast.destroy-capture-group",

@@ -61,10 +61,16 @@ async function main() {
 	for (const file of [...cpp, ...cmake]) {
 		const source = fs.readFileSync(file, "utf8");
 		const isCpp = cpp.includes(file);
+		// clang-format can wrap raw-string expressions differently with CRLF input.
+		// Format normalized stdin so Linux and Windows use the same canonical text.
 		const formatted = run(
 			path.join(pythonBin, isCpp ? "clang-format.exe" : "gersemi.exe"),
-			isCpp ? ["--Werror", "--style=file", file] : ["--config", ".gersemirc", file],
-			{ stdio: "pipe", maxBuffer: 16 * 1024 * 1024 },
+			isCpp ? ["--Werror", "--style=file", `--assume-filename=${file}`] : ["--config", ".gersemirc", file],
+			{
+				stdio: "pipe",
+				maxBuffer: 16 * 1024 * 1024,
+				input: isCpp ? source.replace(/\r\n/g, "\n") : undefined,
+			},
 		).replace(/\r\n/g, "\n");
 		drift = update(file, source, formatted) || drift;
 	}

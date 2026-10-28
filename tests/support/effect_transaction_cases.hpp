@@ -70,8 +70,7 @@ Json periodic_transaction_rollback()
 Json deferred_callback_continuation()
 {
 	auto source = directed_fixture();
-	source["effects"].push_back(
-	    Json::parse(R"json({"id":"test.chained-shield","kind":"shield","contributions":{"main":{
+	source["effects"].push_back(Json::parse(R"json({"id":"test.chained-shield","kind":"shield","contributions":{"main":{
 "capacity":100,"initial":100,"recharge_per_second":0,"off_recharge_per_second":0,"sustain_energy_per_second":0,
 "warmup_ticks":1,"post_damage":1}}})json"));
 	source["effects"].push_back(Json::parse(R"json({"id":"test.start-chain","kind":"operations","operations":[
