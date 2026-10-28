@@ -74,6 +74,7 @@ Rml::ElementDocument *loading_document = nullptr;
 Texture2D loading_background{};
 TextureCache loading_images;
 std::string loading_markup, loading_art_identity;
+bool loading_art_failed = false;
 bool loading_visible = false;
 std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
 std::optional<GameScreen::Loading> station_loading;
@@ -155,11 +156,15 @@ bool show_loading(Application &app)
 				{
 					loading_images.clear();
 					loading_art_identity = identity;
+					loading_art_failed = false;
 				}
-				backdrop = loading_images.load(identity, catalog.assets.at(reference));
+				if (!loading_art_failed)
+					backdrop = loading_images.load(identity, catalog.assets.at(reference));
 			}
-			catch (const std::exception &)
-			{ /* Keep the bootstrap background; the resource loader reports the failure. */
+			catch (const std::exception &error)
+			{
+				loading_art_failed = true;
+				TraceLog(LOG_WARNING, "Loading background unavailable: %s", error.what());
 			}
 	}
 	const auto host = app.viewscreen_region.value_or(
@@ -1711,6 +1716,8 @@ void close_window()
 	loading_background = {};
 	loading_images.clear();
 	loading_document = nullptr;
+	loading_art_identity.clear();
+	loading_art_failed = false;
 	loading_markup.clear();
 	game_screen.reset();
 	native_menu.reset();
