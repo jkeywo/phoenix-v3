@@ -185,10 +185,57 @@ void race_departure()
 	require(won, "remaining racer wins after physical arrival");
 }
 #include "../support/finite_craft_ftl_cases.hpp"
+void shared_widget_departure_authority()
+{
+	for (const bool human_drive : {false, true})
+	{
+		auto source = ftl_fixture();
+		auto &ship = source["entities"][0];
+		ship["resources"]["stores"][1]["capacity"] = 20;
+		source["maps"][0]["entities"].erase(source["maps"][0]["entities"].begin() + 1,
+		                                    source["maps"][0]["entities"].end());
+		source["control_widgets"] = Json::parse(R"json([{
+   "id":"test.jump.widget","schema":1,"tree":"test.jump.policy",
+   "equipment":{"reserve":{"multiple":true}},
+   "commands":[
+    {"id":"enabled","action":"system_enabled","initial":1,"consumers":["$reserve"]},
+    {"id":"choice","action":"intent_integer","minimum":0,"maximum":1,"initial":0,"consumers":[]}],
+   "data":{"choice":{"binding":"command.choice","label":"Choice","placement":"main"}},
+   "parts":["main"],
+   "levels":[{"id":"automated","human":[]}, {"id":"assisted","human":["choice"]},
+             {"id":"direct","human":["choice","enabled"]}]
+  }])json");
+		source["trees"].push_back(Json::parse(R"json({
+   "id":"test.jump.policy","context":"controller","command_bindings":[{"channel":"enabled","type":"boolean"},{"channel":"choice"}],
+   "initial":"run","states":[{"id":"run","running":[{"action":"write.enabled","arguments":[true]}]}]
+  })json"));
+		auto &layout = ship["control_layout"];
+		layout["schema"] = 2;
+		layout["controllers"] = Json::array({{{"id", "jump"},
+                        {"console", "navigator"},
+                        {"widget", "test.jump.widget"},
+                        {"equipment", {{"reserve", {"jump"}}}},
+                        {"star_levels", {{"1", "assisted"}, {"2", "assisted"}, {"3", "direct"}}}}});
+		for (auto &profile : layout["profiles"])
+		{
+			profile["stars"] = human_drive ? 3 : 1;
+			profile.erase("consoles");
+		}
+		World world;
+		world.load(load(source), "test.map");
+		require(world.claim(101, 1, "drive"), "Claim shared FTL widget fixture");
+		for (int i = 0; i < 200 && !battery(world).at("ready").get<bool>(); ++i)
+			world.tick();
+		require(battery(world).at("ready"), "Synthetic shared-widget reserve charges through production actuation");
+		require(world.submit(101, command(world, "ftl.depart")) == human_drive,
+		        "FTL departure follows ownership of the drive channel, not an unrelated human channel");
+	}
+}
 int main(int argc, char **argv)
 {
 	try
 	{
+		shared_widget_departure_authority();
 		finite_ftl_cases();
 		displacement_departure();
 		race_departure();

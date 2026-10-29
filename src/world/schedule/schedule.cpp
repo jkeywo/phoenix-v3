@@ -15,7 +15,7 @@ void World::tick()
 	impl_->retire_audio();
 	if (!impl_->audio.baselined())
 	{
-		impl_->refresh_presentation_audio(true);
+		impl_->refresh_presentation_audio(impl_->conversations.delivered_to_other_hosts(), true);
 		impl_->audio.mark_baselined();
 	}
 	// Keep committed frame numbering live after the race, but freeze its world.
@@ -44,18 +44,7 @@ void World::tick()
 	for (const auto &[id, entity] : impl_->entities)
 		if (!impl_->departed(id) && entity.has<PersonnelState>())
 			impl_->advance_personnel(id);
-	for (const auto &proposal : impl_->controller_pending)
-		if (!impl_->departed(proposal.address.entity))
-		{
-			const auto &ctrl =
-			    impl_->entities.at(proposal.address.entity).get<EntityControls>().controllers.at(proposal.controller);
-			if (impl_->commit_controller(proposal))
-				impl_->cancel_docking_assist(
-				    proposal.address.entity, proposal.address.controller,
-				    std::string(operating_action(ctrl.definition.commands.at(proposal.channel).action).name),
-				    proposal.value);
-		}
-	impl_->controller_pending.clear();
+	impl_->consume_controller_proposals();
 	impl_->step_shield_effects();
 	impl_->step_property_effects();
 	profile.mark("admission_personnel_effects");
@@ -91,19 +80,7 @@ void World::tick()
 	impl_->prepare_craft();
 	impl_->prepare_docking();
 	profile.mark("prepare_craft_docking");
-	for (const auto &[id, entity] : impl_->entities)
-		if (entity.has<EntityControls>())
-		{
-			impl_->reconcile_objective_priority(id);
-			ControllerCommandSections snapshot;
-			for (const auto &controller : entity.get<EntityControls>().controllers)
-			{
-				auto &section = snapshot.emplace_back();
-				for (const auto &command : controller.commands)
-					section.push_back(command);
-			}
-			impl_->decision_frame.freeze_commands(id, std::move(snapshot));
-		}
+	impl_->freeze_controller_commands();
 	profile.mark("command_snapshots");
 	Impl::TelemetrySnapshot decision_telemetry;
 	Impl::ContactSnapshot decision_contacts;
@@ -119,19 +96,7 @@ void World::tick()
 		if (entity.has<EntityControls>())
 			impl_->refresh_navigation_blackboard(id);
 	profile.mark("navigation_blackboards");
-	for (const auto &[id, entity] : impl_->entities)
-		if (entity.has<EntityControls>())
-			for (const auto &controller : entity.get<EntityControls>().controllers)
-			{
-				const ConsoleAddress address{id, controller.definition.console};
-				if (!controller.human || !controller.definition.widget.empty())
-				{
-					const ControllerAddress target{id, controller.definition.console, controller.definition.id};
-					impl_->decision_frame.freeze_inbox(target, impl_->knowledge.peek_controller(target));
-				}
-				if (!impl_->decision_frame.knowledge().contains(address))
-					impl_->decision_frame.freeze_knowledge(address, impl_->knowledge.project(address));
-			}
+	impl_->freeze_controller_knowledge();
 	impl_->step_starts.clear();
 	profile.mark("knowledge_snapshots");
 	impl_->bodies.each(
@@ -238,7 +203,7 @@ void World::tick()
 	impl_->refresh_rule_eligibility();
 	profile.mark("missions_comms_away_sensors");
 	impl_->finalise_finite_native_jobs();
-	impl_->refresh_presentation_audio();
+	impl_->refresh_presentation_audio(impl_->conversations.delivered_to_other_hosts());
 	impl_->decision_frame.clear();
 }
 } // namespace phoenix

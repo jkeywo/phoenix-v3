@@ -18,16 +18,11 @@ auto Runtime::departure_capabilities(EntityId id) const -> DepartureCapabilities
 			result.drives.push_back({system, ftl_owner(id, system)});
 		}
 	if (const auto *controls = actor.try_get<EntityControls>())
-		for (const auto &controller : controls->controllers)
+		for (const auto &view : controller_physical_grants(controls->controllers))
 		{
-			DepartureControllerGrant grant;
-			grant.console = controller.definition.console;
-			grant.controller = controller.definition.id;
-			grant.human = controller.human;
-			grant.generation = controller.generation;
-			for (const auto &channel : controller.definition.commands)
-				for (const auto index : channel.consumers)
-					grant.physical_consumers.push_back(fitted.at(index).get<Equipment>().id);
+			DepartureControllerGrant grant{view.console, view.controller, view.human, view.generation, {}};
+			for (const auto index : view.physical_consumers)
+				grant.physical_consumers.push_back(fitted.at(index).get<Equipment>().id);
 			result.controllers.push_back(std::move(grant));
 		}
 	return result;
@@ -66,12 +61,11 @@ auto Runtime::departure_member_authorised(EntityId leader, EntityId member) cons
 {
 	if (operational_owner(leader) == operational_owner(member))
 		return true;
-	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
-		if (interdiction_book.state(i).captured &&
-		    interdiction_book.departure_members_allowed(i, leader, member,
-		                                                operational_owner(interdiction_book.definition(i).target)))
-			return true;
-	return false;
+	return interdiction_book.permits_departure_member(leader, member,
+	                                                  [this](EntityId id)
+	                                                  {
+		                                                  return operational_owner(id);
+	                                                  });
 }
 
 auto Runtime::discard_obsolete_encounter_departures() -> void
@@ -79,13 +73,11 @@ auto Runtime::discard_obsolete_encounter_departures() -> void
 	departures.discard_obsolete_groups(
 	    [this](EntityId leader, const std::set<EntityId> &members)
 	    {
-		    bool obsolete = false;
-		    for (std::size_t i = 0; i < interdiction_book.size(); ++i)
-			    if (interdiction_book.state(i).captured &&
-			        interdiction_book.obsolete_departure(i, leader, members,
-			                                             operational_owner(interdiction_book.definition(i).target)))
-				    obsolete = true;
-		    return obsolete;
+		    return interdiction_book.obsolete_departure_group(leader, members,
+		                                                      [this](EntityId id)
+		                                                      {
+			                                                      return operational_owner(id);
+		                                                      });
 	    });
 }
 

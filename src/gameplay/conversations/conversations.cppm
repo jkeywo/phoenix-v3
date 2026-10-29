@@ -81,6 +81,7 @@ struct Conversation
 	std::uint64_t hails = 0;
 	bool finished = false;
 };
+using ConversationDeliveries = std::map<EntityId, std::set<ConversationId>>;
 class ConversationRuntime
 {
 public:
@@ -112,7 +113,7 @@ public:
 	bool report(ConversationId conversation, const std::string &line);
 	void advance(std::uint64_t now);
 	// Delivered cross-host message facts; queued traffic and same-host delivery are excluded.
-	std::map<EntityId, std::set<ConversationId>> delivered_to_other_hosts() const;
+	ConversationDeliveries delivered_to_other_hosts() const;
 	Json project(EntityId viewer) const;
 	Json save() const;
 	void restore(const Json &);

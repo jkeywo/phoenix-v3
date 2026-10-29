@@ -50,10 +50,9 @@ auto Runtime::emit_arrival_audio(EntityId id) -> void
 		emit_audio(entities.at(id), {SceneAudioKind::Shot, "ftl:arrival", d.audio.ftl_arrival});
 }
 
-auto Runtime::refresh_presentation_audio(bool baseline) -> void
+auto Runtime::refresh_presentation_audio(const ConversationDeliveries &delivered, bool baseline) -> void
 {
 	// Use actual delivered receipts, never queued/in-transit conversation text.
-	const auto delivered = conversations.delivered_to_other_hosts();
 	const auto tick = ecs.get<Clock>().tick;
 	const std::set<ConversationId> no_messages;
 	for (const auto &[id, ship] : entities)

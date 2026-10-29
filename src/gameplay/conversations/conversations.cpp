@@ -619,7 +619,7 @@ void ConversationRuntime::advance(std::uint64_t now)
 		step(c);
 	}
 }
-std::map<EntityId, std::set<ConversationId>> ConversationRuntime::delivered_to_other_hosts() const
+ConversationDeliveries ConversationRuntime::delivered_to_other_hosts() const
 {
 	std::map<EntityId, std::set<ConversationId>> delivered;
 	for (const auto &[id, conversation] : conversations)

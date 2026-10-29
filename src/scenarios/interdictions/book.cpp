@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <functional>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -74,6 +75,23 @@ bool InterdictionBook::obsolete_departure(std::size_t index, EntityId leader, co
 	                   {
 		                   return participant(index, id);
 	                   });
+}
+bool InterdictionBook::permits_departure_member(EntityId leader, EntityId member,
+                                                const std::function<EntityId(EntityId)> &owner) const
+{
+	for (std::size_t i = 0; i < states_.size(); ++i)
+		if (states_[i].captured && departure_members_allowed(i, leader, member, owner(definitions_[i].target)))
+			return true;
+	return false;
+}
+bool InterdictionBook::obsolete_departure_group(EntityId leader, const std::set<EntityId> &group,
+                                                const std::function<EntityId(EntityId)> &owner) const
+{
+	bool obsolete = false;
+	for (std::size_t i = 0; i < states_.size(); ++i)
+		if (states_[i].captured && obsolete_departure(i, leader, group, owner(definitions_[i].target)))
+			obsolete = true;
+	return obsolete;
 }
 void InterdictionBook::record_attack(std::size_t index, EntityId source_owner, EntityId player_owner, EntityId target)
 {

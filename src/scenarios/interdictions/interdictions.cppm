@@ -1,5 +1,6 @@
 module;
 #include <cstddef>
+#include <functional>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -132,6 +133,8 @@ class InterdictionBook
 {
 	std::vector<InterdictionDefinition> definitions_;
 	std::vector<InterdictionState> states_;
+	bool departure_members_allowed(std::size_t, EntityId leader, EntityId member, EntityId target_owner) const;
+	bool obsolete_departure(std::size_t, EntityId leader, const std::set<EntityId> &group, EntityId target_owner) const;
 
 public:
 	void configure(std::vector<InterdictionDefinition>);
@@ -142,8 +145,10 @@ public:
 	bool docking_permission(EntityId ship, EntityId target) const;
 	bool participant(std::size_t, EntityId) const;
 	bool capture_receipt(EntityId target, EntityId owner) const;
-	bool departure_members_allowed(std::size_t, EntityId leader, EntityId member, EntityId target_owner) const;
-	bool obsolete_departure(std::size_t, EntityId leader, const std::set<EntityId> &group, EntityId target_owner) const;
+	bool permits_departure_member(EntityId leader, EntityId member,
+	                              const std::function<EntityId(EntityId)> &owner) const;
+	bool obsolete_departure_group(EntityId leader, const std::set<EntityId> &group,
+	                              const std::function<EntityId(EntityId)> &owner) const;
 	void record_attack(std::size_t, EntityId source_owner, EntityId player_owner, EntityId target);
 	void record_insertion(std::size_t, EntityId ship, EntityId player, EntityId target);
 	Json save() const;

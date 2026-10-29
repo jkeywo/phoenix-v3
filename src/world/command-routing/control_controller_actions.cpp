@@ -6,6 +6,55 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
+void Runtime::consume_controller_proposals()
+{
+	for (const auto &proposal : controller_pending)
+		if (!departed(proposal.address.entity))
+		{
+			const auto &ctrl =
+			    entities.at(proposal.address.entity).get<EntityControls>().controllers.at(proposal.controller);
+			if (commit_controller(proposal))
+				cancel_docking_assist(
+				    proposal.address.entity, proposal.address.controller,
+				    std::string(operating_action(ctrl.definition.commands.at(proposal.channel).action).name),
+				    proposal.value);
+		}
+	controller_pending.clear();
+}
+
+void Runtime::freeze_controller_commands()
+{
+	for (const auto &[id, entity] : entities)
+		if (entity.has<EntityControls>())
+		{
+			reconcile_objective_priority(id);
+			ControllerCommandSections snapshot;
+			for (const auto &controller : entity.get<EntityControls>().controllers)
+			{
+				auto &section = snapshot.emplace_back();
+				for (const auto &command : controller.commands)
+					section.push_back(command);
+			}
+			decision_frame.freeze_commands(id, std::move(snapshot));
+		}
+}
+
+void Runtime::freeze_controller_knowledge()
+{
+	for (const auto &[id, entity] : entities)
+		if (entity.has<EntityControls>())
+			for (const auto &controller : entity.get<EntityControls>().controllers)
+			{
+				const ConsoleAddress address{id, controller.definition.console};
+				if (controller_ai_running(controller))
+				{
+					const ControllerAddress target{id, controller.definition.console, controller.definition.id};
+					decision_frame.freeze_inbox(target, knowledge.peek_controller(target));
+				}
+				if (!decision_frame.knowledge().contains(address))
+					decision_frame.freeze_knowledge(address, knowledge.project(address));
+			}
+}
 auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
                                         std::vector<state_tree::Value> &values) const -> void
 {

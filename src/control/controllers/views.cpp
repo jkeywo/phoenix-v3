@@ -11,6 +11,24 @@ import phoenix.gameplay_vocabulary;
 
 namespace phoenix
 {
+std::vector<ControllerPhysicalGrantView>
+controller_physical_grants(std::span<const ConsoleControllerRuntime> controllers)
+{
+	std::vector<ControllerPhysicalGrantView> result;
+	for (const auto &controller : controllers)
+		for (const bool human : {false, true})
+		{
+			ControllerPhysicalGrantView grant{
+			    controller.definition.console, controller.definition.id, human, controller.generation, {}};
+			for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
+				if (controller_command_human(controller, channel) == human)
+					for (const auto consumer : controller.definition.commands[channel].consumers)
+						grant.physical_consumers.push_back(consumer);
+			if (!grant.physical_consumers.empty())
+				result.push_back(std::move(grant));
+		}
+	return result;
+}
 Json project_controller_runtime(const ConsoleControllerRuntime &controller, const ControllerViewFacts &facts,
                                 std::span<const state_tree::Value> action_observations)
 {

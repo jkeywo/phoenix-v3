@@ -322,6 +322,9 @@ struct Runtime
 	bool controller_command_effect_matches(flecs::entity entity, const ControllerCommandSpec &spec,
 	                                       const ControllerProposal &proposal) const;
 	bool commit_controller(const ControllerProposal &proposal);
+	void consume_controller_proposals();
+	void freeze_controller_commands();
+	void freeze_controller_knowledge();
 	ControllerCommandChecks controller_command_checks(EntityId id) const;
 	void refresh_controllers(EntityId id, bool validate = false);
 	std::uint64_t coordinated_generation(const ConsoleAddress &a, const std::string &group) const;
@@ -527,7 +530,7 @@ struct Runtime
 	PresentationAudioState audio;
 	void emit_audio(flecs::entity ship, SceneAudio cue);
 	void retire_audio();
-	void refresh_presentation_audio(bool baseline = false);
+	void refresh_presentation_audio(const ConversationDeliveries &delivered, bool baseline = false);
 	void emit_arrival_audio(EntityId id);
 	bool equipment_destroyed(flecs::entity ship, const std::string &equipment) const;
 	bool hard_fault_disabled(flecs::entity ship, const std::string &equipment) const;
