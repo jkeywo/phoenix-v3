@@ -94,9 +94,6 @@ class FrameSession final : public SessionPort
 			return;
 		frame.viewscreen = backend_->viewscreen();
 		auto bodies = backend_->scene();
-		for (auto &body : bodies)
-			if (!body.sound.empty())
-				body.audio.push_back({SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
 		frame.scene = std::make_shared<const std::vector<SceneBody>>(std::move(bodies));
 		frame.lighting = backend_->scene_lighting();
 		frame.presentation = backend_->scene_presentation();

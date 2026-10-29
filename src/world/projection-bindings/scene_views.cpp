@@ -188,6 +188,9 @@ std::vector<SceneBody> World::scene() const
 		    age < d.growth_ticks ? 1.f : std::max(0.f, 1.f - static_cast<float>(age - d.growth_ticks) / d.fade_ticks);
 		visual.sound = d.sound;
 		visual.effect_tick = v.tick;
+		if (!visual.sound.empty())
+			visual.audio.push_back(
+			    {SceneAudioKind::Shot, "explosion", {visual.sound, 1}, visual.id, visual.effect_tick});
 		if (v.kind == 1)
 		{
 			visual.line_style = 3;

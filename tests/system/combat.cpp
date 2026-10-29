@@ -1286,6 +1286,16 @@ void effects_contracts()
 			                    return v.definition.empty() && !v.sound.empty();
 		                    }) == (chance != 0),
 		        "audio-only destruction is projected without requiring a visual");
+		for (const auto &body : scene)
+			if (!body.sound.empty())
+				require(std::count_if(body.audio.begin(), body.audio.end(),
+				                      [&](const auto &cue)
+				                      {
+					                      return cue.kind == SceneAudioKind::Shot && cue.source == "explosion" &&
+					                             cue.clip.asset == body.sound && cue.event == body.id &&
+					                             cue.tick == body.effect_tick;
+				                      }) == 1,
+				        "World scene projection supplies exactly one ready-to-play cue per explosion");
 		submit(w, 101, "beam", "target", 0);
 		w.tick();
 		const auto health = hp(w);

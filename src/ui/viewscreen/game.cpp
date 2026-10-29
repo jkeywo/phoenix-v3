@@ -647,13 +647,7 @@ struct GameScreen::State
 		const auto scene_snapshot_started = GetTime();
 		frame.shared_bodies = app.session->scene_snapshot();
 		if (!frame.shared_bodies)
-		{
 			frame.bodies = app.session->scene();
-			for (auto &body : frame.bodies)
-				if (!body.sound.empty())
-					body.audio.push_back(
-					    {SceneAudioKind::Shot, "explosion", {body.sound, 1}, body.id, body.effect_tick});
-		}
 		app.frame_metrics["scene-snapshot"] = GetTime() - scene_snapshot_started;
 		const auto previous_focus = environment.own;
 		environment.own = app.session->focus_body();
