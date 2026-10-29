@@ -941,6 +941,197 @@ struct NativeMenuScreen::State
 		    remainder - ships_height);
 	}
 
+	void apply_pack_selection(Application &app)
+	{
+		using Branch = Application::MenuBranch;
+		if (!app.session)
+			throw std::runtime_error("Choose packs from the main menu before opening Workshop.");
+		if (app.change_packs)
+		{
+			if (game_active(app) || app.session->lobby().active)
+				throw std::runtime_error("Leave the game before changing packs");
+			app.change_packs(draft);
+			app.selected_scenario.clear();
+			app.menu_branch = Branch::root;
+			notice = "Loading selected packs in the background.";
+			return;
+		}
+		const auto archives = app.library->archives(draft);
+		if (app.session->lobby().active || app.session->running() || app.session->recovery_pending())
+			throw std::runtime_error("Leave the game before applying a different pack selection");
+		const auto old = app.library->archives(app.library->packs);
+		app.session->replace_packs(archives);
+		try
+		{
+			app.library->apply(draft);
+		}
+		catch (...)
+		{
+			app.session->replace_packs(old);
+			throw;
+		}
+		app.selected_scenario.clear();
+		app.menu_branch = Branch::root;
+		notice = "Pack selection verified and applied.";
+	}
+	bool dispatch_action(Application &app, const std::string &id)
+	{
+		if (id == "menu.back" && intro_reading)
+		{
+			intro_reading = false;
+			focus_next = "menu.read-intro";
+			return true;
+		}
+		if (id == "menu.back" && (!game_active(app) || app.screen == Screen::settings))
+		{
+			back(app);
+			return true;
+		}
+		const auto found = actions.find(id);
+		if (found == actions.end())
+			return false;
+		try
+		{
+			auto callback = found->second;
+			actions.clear();
+			notice.clear();
+			app.status.clear();
+			action_error.clear();
+			const bool needs_content = id == "menu.workshop" || id == "menu.host-gm" || id.starts_with("menu.ship/") ||
+			                           id.starts_with("menu.save/") || id == "menu.packs" || id == "menu.import-save";
+			if (needs_content && app.await_content)
+				app.await_content(std::move(callback));
+			else
+				callback();
+			return true;
+		}
+		catch (const std::exception &error)
+		{
+			action_error = error.what();
+			focus_next = "menu.dismiss-error";
+			return false;
+		}
+	}
+	float update_animated_geometry(Rml::ElementDocument &document, const ConsoleRegion &region,
+	                               Application::MenuBranch branch, const std::string &focused)
+	{
+		using Branch = Application::MenuBranch;
+		const bool compact = region.width < 900;
+		if (auto *scutter = document.GetElementById("menu-scutter"))
+		{
+			const auto progress = ambient.crossing_progress();
+			scutter->SetProperty("display", progress < 0 ? "none" : "block");
+			if (progress >= 0)
+			{
+				const float width = std::clamp(region.height * .22f, 96.f, 192.f);
+				const float height = width / scutter_aspect;
+				const float travel = static_cast<float>(progress) * (region.width + width);
+				const float bob =
+				    static_cast<float>(std::sin(ambient.scutter.age * (ambient.fast_crossing ? 16 : 6))) * 1.2f;
+				scutter->SetProperty("width", std::to_string(width) + "dp");
+				scutter->SetProperty("height", std::to_string(height) + "dp");
+				scutter->SetProperty("left",
+				                     std::to_string(ambient.rightward ? travel - width : region.width - travel) + "dp");
+				scutter->SetProperty("top", std::to_string(region.height * .99f - height + bob) + "dp");
+				scutter->SetProperty("transform", ambient.rightward ? "none" : "scaleX(-1)");
+			}
+		}
+		if (auto *profile = document.GetElementById("menu-profile"))
+		{
+			Rml::ElementList screens;
+			profile->GetElementsByClassName(screens, "crt-screen");
+			for (auto *screen : screens)
+				screen->SetProperty("opacity", std::to_string(ambient.television_opacity()));
+		}
+		const float profile_width = terminal_width * (compact ? .533333f : 1.f);
+		if (auto *profile = document.GetElementById("menu-profile"))
+		{
+			profile->SetProperty("width", std::to_string(profile_width) + "dp");
+			profile->SetProperty("height", std::to_string(profile_width * terminal_aspect) + "dp");
+			profile->SetProperty("font-size", compact ? "11dp" : "16dp");
+		}
+		// Measure the live localised layout; resizing preserves elapsed time.
+		auto *prose_element = document.GetElementById("menu-intro-prose");
+		const float prose_width = std::min(680.f, region.width * .7f);
+		prose_element->SetProperty("width", std::to_string(prose_width) + "dp");
+		prose_element->SetProperty("left", std::to_string((region.width - prose_width) / 2) + "dp");
+		document.GetContext()->Update();
+		const float prose_height = prose_element->GetOffsetHeight();
+		const double prose_seconds = std::max(intro_prose_seconds, (region.height + prose_height) / 32.);
+		const double arrival =
+		    intro_complete ? 1. : std::clamp((intro_elapsed - prose_seconds) / intro_arrival_seconds, 0., 1.);
+		if (arrival >= 1 && !intro_complete)
+		{
+			intro_complete = true;
+			if (focused == "menu.skip-intro")
+				focus_next = "menu.read-intro";
+		}
+		auto *intro = document.GetElementById("menu-intro");
+		intro->SetProperty("perspective", std::to_string(region.height) + "dp");
+		const float prose_y = intro_complete ? -prose_height
+		                                     : region.height - (region.height + prose_height) *
+		                                                           std::min(1., intro_elapsed / prose_seconds);
+		prose_element->SetProperty("top", std::to_string(prose_y) + "dp");
+		for (std::size_t i = 0; i < intro_paragraphs.size(); ++i)
+			if (auto *line = document.GetElementById("intro-line-" + std::to_string(i)))
+				line->SetProperty("opacity",
+				                  std::to_string(std::clamp((prose_y + line->GetOffsetTop() + line->GetOffsetHeight()) /
+				                                                (region.height * .25f),
+				                                            0.f, 1.f)));
+		if (auto *title = document.GetElementById("menu-title"))
+		{
+			const float logo_width = std::min(300.f, std::max(180.f, region.width - 740.f));
+			const double eased = 1 - (1 - arrival) * (1 - arrival);
+			title->SetProperty("top", std::to_string(prose_height) + "dp");
+			title->SetProperty("left", std::to_string((prose_width - logo_width) / 2) + "dp");
+			title->SetProperty("width", std::to_string(logo_width) + "dp");
+			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "dp");
+			document.GetElementById("menu-intro-plane")
+			    ->SetProperty("transform", "rotateX(" + std::to_string(35 * (1 - eased)) + "deg)");
+		}
+		// Keep every menu column outside the profile CRT, including the ship picker.
+		const float reserved_right = profile_width + 40.f;
+		if (auto *viewport = document.GetElementById("menu-viewport"))
+		{
+			viewport->SetProperty("right", std::to_string(reserved_right) + "dp");
+			viewport->SetProperty("top", branch != Branch::root ? "200dp" : "160dp");
+		}
+		return reserved_right;
+	}
+	void update_menu_columns(Application &app, Rml::ElementDocument &document, const ConsoleRegion &region,
+	                         float reserved_right, Application::MenuBranch branch)
+	{
+		using Branch = Application::MenuBranch;
+		auto *root = document.GetElementById("native-menu");
+		const int columns =
+		    branch == Branch::ships
+		        ? (((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog : app.session->catalog())
+		                       .maps.size() == 1
+		               ? 3
+		               : 4)
+		    : branch == Branch::scenarios ? 3
+		    : branch == Branch::root      ? 1
+		                                  : 2;
+		const float column_width = std::clamp((region.width - reserved_right - 48.f) / columns, 180.f, 320.f);
+		const float target = 24.f;
+		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
+		if (auto *columns_element = document.GetElementById("menu-columns"))
+		{
+			columns_element->SetProperty("left", std::to_string(column_offset) + "dp");
+			columns_element->SetProperty("width", std::to_string(columns * column_width) + "dp");
+		}
+		Rml::ElementList columns_list;
+		root->GetElementsByClassName(columns_list, "menu-column");
+		for (auto *element : columns_list)
+			element->SetProperty("width", std::to_string(column_width) + "dp");
+		if (branch != shown_branch)
+		{
+			shown_branch = branch;
+			document.GetContext()->Update();
+			if (auto *viewport = document.GetElementById("menu-viewport"))
+				viewport->SetScrollLeft(std::max(0.f, viewport->GetScrollWidth() - viewport->GetClientWidth()));
+		}
+	}
 	bool prepare(Application &app, Rml::ElementDocument &document)
 	{
 		if (!app.native_menu)
@@ -1517,40 +1708,11 @@ struct NativeMenuScreen::State
 						app.screen_controls[control].second += " / " + draft[i].id;
 					markup += "</div>";
 				}
-				markup += add(
-				    "menu.apply-packs", "Apply Pack Selection",
-				    [&]
-				    {
-					    if (!app.session)
-						    throw std::runtime_error("Choose packs from the main menu before opening Workshop.");
-					    if (app.change_packs)
-					    {
-						    if (game_active(app) || app.session->lobby().active)
-							    throw std::runtime_error("Leave the game before changing packs");
-						    app.change_packs(draft);
-						    app.selected_scenario.clear();
-						    app.menu_branch = Branch::root;
-						    notice = "Loading selected packs in the background.";
-						    return;
-					    }
-					    const auto archives = app.library->archives(draft);
-					    if (app.session->lobby().active || app.session->running() || app.session->recovery_pending())
-						    throw std::runtime_error("Leave the game before applying a different pack selection");
-					    const auto old = app.library->archives(app.library->packs);
-					    app.session->replace_packs(archives);
-					    try
-					    {
-						    app.library->apply(draft);
-					    }
-					    catch (...)
-					    {
-						    app.session->replace_packs(old);
-						    throw;
-					    }
-					    app.selected_scenario.clear();
-					    app.menu_branch = Branch::root;
-					    notice = "Pack selection verified and applied.";
-				    });
+				markup += add("menu.apply-packs", "Apply Pack Selection",
+				              [this, &app]
+				              {
+					              apply_pack_selection(app);
+				              });
 			}
 			if (app.screen != Screen::settings || app.settings_tab != "profile")
 				markup += add("menu.close-dialog", "Back",
@@ -1593,42 +1755,7 @@ struct NativeMenuScreen::State
 			          "</div>";
 		app.screen_action = [this, &app](const std::string &id)
 		{
-			if (id == "menu.back" && intro_reading)
-			{
-				intro_reading = false;
-				focus_next = "menu.read-intro";
-				return true;
-			}
-			if (id == "menu.back" && (!game_active(app) || app.screen == Screen::settings))
-			{
-				back(app);
-				return true;
-			}
-			const auto found = actions.find(id);
-			if (found == actions.end())
-				return false;
-			try
-			{
-				auto callback = found->second;
-				actions.clear();
-				notice.clear();
-				app.status.clear();
-				action_error.clear();
-				const bool needs_content = id == "menu.workshop" || id == "menu.host-gm" ||
-				                           id.starts_with("menu.ship/") || id.starts_with("menu.save/") ||
-				                           id == "menu.packs" || id == "menu.import-save";
-				if (needs_content && app.await_content)
-					app.await_content(std::move(callback));
-				else
-					callback();
-				return true;
-			}
-			catch (const std::exception &error)
-			{
-				action_error = error.what();
-				focus_next = "menu.dismiss-error";
-				return false;
-			}
+			return dispatch_action(app, id);
 		};
 		const auto physical_region =
 		    app.viewscreen_region ? *app.viewscreen_region
@@ -1661,118 +1788,12 @@ struct NativeMenuScreen::State
 				name->SetInnerRML(text);
 		}
 		layout_lobby(app, document, region);
-		const bool compact = region.width < 900;
-		if (auto *scutter = document.GetElementById("menu-scutter"))
-		{
-			const auto progress = ambient.crossing_progress();
-			scutter->SetProperty("display", progress < 0 ? "none" : "block");
-			if (progress >= 0)
-			{
-				const float width = std::clamp(region.height * .22f, 96.f, 192.f);
-				const float height = width / scutter_aspect;
-				const float travel = static_cast<float>(progress) * (region.width + width);
-				const float bob =
-				    static_cast<float>(std::sin(ambient.scutter.age * (ambient.fast_crossing ? 16 : 6))) * 1.2f;
-				scutter->SetProperty("width", std::to_string(width) + "dp");
-				scutter->SetProperty("height", std::to_string(height) + "dp");
-				scutter->SetProperty("left",
-				                     std::to_string(ambient.rightward ? travel - width : region.width - travel) + "dp");
-				scutter->SetProperty("top", std::to_string(region.height * .99f - height + bob) + "dp");
-				scutter->SetProperty("transform", ambient.rightward ? "none" : "scaleX(-1)");
-			}
-		}
-		if (auto *profile = document.GetElementById("menu-profile"))
-		{
-			Rml::ElementList screens;
-			profile->GetElementsByClassName(screens, "crt-screen");
-			for (auto *screen : screens)
-				screen->SetProperty("opacity", std::to_string(ambient.television_opacity()));
-		}
-		const float profile_width = terminal_width * (compact ? .533333f : 1.f);
-		if (auto *profile = document.GetElementById("menu-profile"))
-		{
-			profile->SetProperty("width", std::to_string(profile_width) + "dp");
-			profile->SetProperty("height", std::to_string(profile_width * terminal_aspect) + "dp");
-			profile->SetProperty("font-size", compact ? "11dp" : "16dp");
-		}
-		// Measure the live localised layout; resizing preserves elapsed time.
-		auto *prose_element = document.GetElementById("menu-intro-prose");
-		const float prose_width = std::min(680.f, region.width * .7f);
-		prose_element->SetProperty("width", std::to_string(prose_width) + "dp");
-		prose_element->SetProperty("left", std::to_string((region.width - prose_width) / 2) + "dp");
-		document.GetContext()->Update();
-		const float prose_height = prose_element->GetOffsetHeight();
-		const double prose_seconds = std::max(intro_prose_seconds, (region.height + prose_height) / 32.);
-		const double arrival =
-		    intro_complete ? 1. : std::clamp((intro_elapsed - prose_seconds) / intro_arrival_seconds, 0., 1.);
-		if (arrival >= 1 && !intro_complete)
-		{
-			intro_complete = true;
-			if (focused == "menu.skip-intro")
-				focus_next = "menu.read-intro";
-		}
-		auto *intro = document.GetElementById("menu-intro");
-		intro->SetProperty("perspective", std::to_string(region.height) + "dp");
-		const float prose_y = intro_complete ? -prose_height
-		                                     : region.height - (region.height + prose_height) *
-		                                                           std::min(1., intro_elapsed / prose_seconds);
-		prose_element->SetProperty("top", std::to_string(prose_y) + "dp");
-		for (std::size_t i = 0; i < intro_paragraphs.size(); ++i)
-			if (auto *line = document.GetElementById("intro-line-" + std::to_string(i)))
-				line->SetProperty("opacity",
-				                  std::to_string(std::clamp((prose_y + line->GetOffsetTop() + line->GetOffsetHeight()) /
-				                                                (region.height * .25f),
-				                                            0.f, 1.f)));
-		if (auto *title = document.GetElementById("menu-title"))
-		{
-			const float logo_width = std::min(300.f, std::max(180.f, region.width - 740.f));
-			const double eased = 1 - (1 - arrival) * (1 - arrival);
-			title->SetProperty("top", std::to_string(prose_height) + "dp");
-			title->SetProperty("left", std::to_string((prose_width - logo_width) / 2) + "dp");
-			title->SetProperty("width", std::to_string(logo_width) + "dp");
-			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "dp");
-			document.GetElementById("menu-intro-plane")
-			    ->SetProperty("transform", "rotateX(" + std::to_string(35 * (1 - eased)) + "deg)");
-		}
-		// Keep every menu column outside the profile CRT, including the ship picker.
-		const float reserved_right = profile_width + 40.f;
-		if (auto *viewport = document.GetElementById("menu-viewport"))
-		{
-			viewport->SetProperty("right", std::to_string(reserved_right) + "dp");
-			viewport->SetProperty("top", branch != Branch::root ? "200dp" : "160dp");
-		}
+		const auto reserved_right = update_animated_geometry(document, region, branch, focused);
 		for (const auto &input : app.screen_inputs)
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(input.id)))
 				if (field->GetValue() != input.value)
 					field->SetValue(input.value);
-		const int columns =
-		    branch == Branch::ships
-		        ? (((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog : app.session->catalog())
-		                       .maps.size() == 1
-		               ? 3
-		               : 4)
-		    : branch == Branch::scenarios ? 3
-		    : branch == Branch::root      ? 1
-		                                  : 2;
-		const float column_width = std::clamp((region.width - reserved_right - 48.f) / columns, 180.f, 320.f);
-		const float target = 24.f;
-		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
-		if (auto *columns_element = document.GetElementById("menu-columns"))
-		{
-			columns_element->SetProperty("left", std::to_string(column_offset) + "dp");
-			columns_element->SetProperty("width", std::to_string(columns * column_width) + "dp");
-		}
-		Rml::ElementList columns_list;
-		root->GetElementsByClassName(columns_list, "menu-column");
-		for (auto *element : columns_list)
-			element->SetProperty("width", std::to_string(column_width) + "dp");
-		if (branch != shown_branch)
-		{
-			shown_branch = branch;
-			document.GetContext()->Update();
-			if (auto *viewport = document.GetElementById("menu-viewport"))
-				viewport->SetScrollLeft(std::max(0.f, viewport->GetScrollWidth() - viewport->GetClientWidth()));
-		}
+		update_menu_columns(app, document, region, reserved_right, branch);
 		if (!focus_next.empty())
 		{
 			if (auto *element = document.GetElementById(focus_next))
