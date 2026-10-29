@@ -1,7 +1,7 @@
 # Control widget rewrite
 
-Implementation in progress. This record tracks the console/Controller rewrite
-agreed on 28 October 2026; it is not a completion claim.
+This record describes the console/Controller rewrite agreed on 28 October 2026.
+Implementation is complete and verified on 29 October 2026. Shared widgets now provide the Console ownership, policy, presentation and Workshop authoring paths.
 
 ## Contract
 
@@ -28,35 +28,40 @@ from accepted intent.
 
 ## Delivery status
 
-| Step                                                                     | Status                                                                                                              |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Complete responsibility/data inventory for maintained consoles           | Pending                                                                                                             |
-| Shared definitions, equipment roles, levels and per-star data resolution | Native and WASM Controller integration suites pass                                                                  |
-| Per-command admission and staged tree attempts                           | Native and WASM suites pass, including referenced continuation and rollback                                         |
-| Lifecycle, action/provider and specialised-command migration             | Partial; channel handover, partial-provider decisions and delegated Command stances implemented                     |
-| Instance host, split visual parts and main/detail presentation           | Native synthetic graphical journey passes for automated details, commands, star data placement and compact reunion  |
-| Consolidated gameplay widgets and rebuilt shipped consoles               | Pending                                                                                                             |
-| Workshop definition, binding, placement and preview editors              | Shared definition/instance editors, ship-context rendering at each star and export/reopen checks implemented        |
-| Client distribution, schema break and removal of old paths               | Public widget presentation metadata distributed; save schema 33; old allocation/content paths still pending removal |
+The maintained `content/base`, `content/test` and `content/test-3d` packs now use
+shared-widget instances. Their original mechanism, resource and hull authoring is
+preserved; Console bindings, presentation and responsibility declarations use the
+new model. Ship variants inherit definitions and may bind independent weapon sets
+or map the same widget to different levels and visual locations.
 
-The maintained schema-1 content and allocation paths remain during implementation.
-They must be removed at the final migration gate, rather than retained as a
-compatibility layer. The new schema-2 Controller layout uses shared widget
-instances and star profiles without authored human/AI allocation lists.
+The runtime and Workshop use schema-2 Controller layouts exclusively. Implicit
+ownership conversion, schema-1 human/AI allocations, `manual_workloads` and
+`individual_stars` are retired. World and portable-session saves use schema 34;
+older saves require a new session. The wire command envelope remains schema 5.
 
-An inventory of the authored layouts on 29 October found 547 Controllers in
-`content/base`, 228 in `content/test` and 206 in `content/test-3d`. These are raw
-authored declarations, including ship variants, rather than distinct reusable
-widget types. Their 1,894 command declarations cover 34 action kinds in the base
-pack. Existing ship tuning and complexity allocations must be compared during
-migration; those counts are an audit observation, not a test baseline.
+Final verification on 29 October 2026:
 
-The remaining authority work includes native medical, team assignment,
-transport, craft and logistics workload gates, officer/coordination actions,
-encounter overrides and remaining native operation adapters.
-These must use the same per-command admission contract before removing the old
-allocation schema. Grouped equipment also needs per-member command expansion,
-rather than only the current common-command fan-out.
+| Gate                                       | Result                                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Native application build and build check   | Pass                                                                                   |
+| Complete native integration suite          | 49/49 pass                                                                             |
+| Browser client, Workshop and server builds | Pass                                                                                   |
+| Affected WASM integrations                 | 18/18 pass                                                                             |
+| Fresh native/WASM continuation comparison  | Controller, simulation, Medical and craft match                                        |
+| Maintained pack verification               | Base, test, test-3d and base plus Test Missions pass                                   |
+| Explicit native widget journey             | Readouts, Details, input, native workflows, compact reunion and Workshop previews pass |
+| Real-ship native Console captures          | Courier and Cruiser Helm, granted pages and compact layouts pass                       |
+
+The WASM gate includes knowledge, shared bindings, Workshop tests, local sessions,
+input/semantics, Controller execution, flight, directed systems, Medical, craft,
+Away missions, FTL, Personnel, logistics, conversations, cargo, content and simulation.
+The Controller continuation digest for this run is
+`515c891f6677c42e6752c908e86200232c2b615b6ef169fc65d27943bec1e47e`;
+it is a receipt, not a golden test expectation. Traces are compared within each run.
+
+Logs and captures are under `build/widget-*`. Physical screen readers,
+six-display hardware, physical controllers and browser graphical journeys remain
+separate device evidence; these software checks do not claim to exercise them.
 
 ## Current definition vocabulary
 
@@ -103,17 +108,13 @@ Workshop round trips and explicitly invoked graphical/device journeys remain
 required at their respective implementation gates. A compiled interpreter or a
 permitted data model does not establish a delivered player console.
 
-The native Controller, simulation and local-session suites pass with save schema 33. Earlier saves are rejected explicitly. The initial native graphical capture
-uses `python tests/manual/control_widgets_ui.py`, then
-`native.exe --base build/control-widgets-ui.zip --mission test.map --slot test.slot --ship test.widget-ship --seat drive --console --local-only --capture-frames 80`.
-The explicit `phoenix_control_widgets_smoke` target takes that ZIP and exercises
-the real rendered Console, modal details, human command admission, star changes
-and compact reunion. Its native journey passes, including background command
-refusal while details are open. Captures are written under `build/`.
-The native and WASM Controller traces match at
-`3965bd5877bf9991b5068c814456e2a39d69fbad6a3269552815bf48aa55fa8d`.
-This is synthetic UI input and semantic-list evidence; actual screen reader,
-physical-device and browser graphical journeys remain separate.
+The explicit graphical journey uses `python tests/manual/control_widgets_ui.py`,
+then `phoenix_control_widgets_smoke build/control-widgets-ui.zip`. It exercises
+readouts, modal Details, commands, continuous ranges, native workflow controls,
+independent instances, compact reunion and Workshop previews at all three stars.
+Production inspection uses the same executable's `--inspect` mode for real ships.
+These are synthetic UI/semantic checks; physical screen readers, six-display
+hardware and physical controllers remain separate device evidence.
 
 ## Follow-up code review
 
@@ -144,9 +145,7 @@ The follow-up review closed these gaps in the shared-widget path:
 
 The native Controller suite covers these runtime and authoring refusals through
 production loading and execution. The graphical journey additionally renders
-Workshop previews at all three stars. This review does not establish the pending
-shipped-console migration, native operation adapters or final legacy-schema
-removal listed above.
+Workshop previews at all three stars. The maintained Console migration and native operation adapters now use these same paths.
 
 ## Simplification review
 
@@ -166,8 +165,7 @@ checks use `controller_ai_running` rather than spelling out the widget exception
 independently.
 
 Ordinary widget evaluation relies on the interpreter's existing continuation
-transaction instead of copying continuation a second time. Handover resume keeps
-its copy so a failed evaluation also rolls back the resume.
+transaction instead of copying continuation a second time. Interrupted tree resume keeps its copy so a failed evaluation also rolls back the resume. Ordinary ownership changes retain the policy continuation; selected actions and officer commitments are cancelled, and generations invalidate stale input. Held inputs are neutralised only when their human ownership changes.
 Fallback guards and ordinary transitions share one comparison compiler, rather
 than maintaining separate operator and type-checking implementations.
 
@@ -197,9 +195,7 @@ The synthetic Controller suite exercises a physical team's human destination
 refusal, unattended assignment by the same tree, operation scope conflicts and
 checkpoint continuation. It also covers unclaimed widget initialization with
 explicit AI command masks. The complete native Controller and Medical suites
-pass (`build/widget-finish-native-workflows-controller.log` and
-`build/widget-finish-native-workflows-medical.log`). This is a migration step;
-shipped layout migration and removal of old allocation paths remain pending.
+pass. Maintained ship layouts and runtime ownership now use this contract exclusively.
 
 ## Shared policy and encounter continuation
 
@@ -220,7 +216,7 @@ Encounter overrides now act on individual delegated channels. A mixed widget
 continues evaluating unrelated duties and receives a refusal for an encounter's
 reserved commands. Docking and departure overrides also check their operation
 allocation. Native Controller, carried-craft and interdiction suites pass; the
-base migration candidate passes production verification separately.
+maintained source packs pass production verification.
 
 `phoenix_verify --inventory output.json base.zip [mod.zip ...]` exports resolved
 entity definitions after ordinary verification, so migration and audits use the
@@ -278,9 +274,7 @@ Named data may bind a scalar JSON pointer within the already permitted gameplay
 board using `board:/path/to/value`. It provides no additional world visibility.
 
 The native Controller, Medical and Away integration suites pass, including mixed
-Away authority and Bridge remote admission/continuation. The base migration
-candidate now passes the production verifier with shared widget placements for
-its consoles; the maintained source packs have not yet been replaced.
+Away authority and Bridge remote admission/continuation. The maintained source packs have shared widget placements for their Consoles and pass the production verifier.
 
 ## Individual equipment members
 
@@ -313,7 +307,7 @@ data overrides remain intact on export and recompile. Repeated member policies u
 the same elaboration and the ordinary evaluator; they have independent continuations.
 Workshop edits and previews these declarations through the production compiler.
 
-Production migration candidates for all three maintained base packs pass verification.
+All three maintained base packs use the shared-widget vocabulary and pass verification.
 Native Controller and carried-craft integration checks pass, including re-preparing an
 edited inherited policy. The graphical journey verifies readouts, details, ranges,
 operation admission, independent instances and compact reunion. Real production
@@ -321,3 +315,27 @@ Console captures exercise Courier and Cruiser Helm and Support. Bounded scroll g
 keep flight widgets beside the radar, and granted Consoles use their own projections
 and independently selected star ratings. Native objective rendering is shared with the
 Bridge widget; FTL and coordinated impulse retain their existing command protocols.
+
+## Final ownership details
+
+Native workflow grants cover Team assignment/work, Medical, Personnel, department
+contribution, mission staffing/lifecycle/send/quantity, craft, transport, logistics,
+docking, departure and Bridge operations. Their existing revisions and physical
+execution remain authoritative. Default stock assistance defers to an explicitly
+authored stock policy. Automatic manifest preparation fills empty assignments and
+retains the team's explicit selection.
+
+Coordinated impulse is an explicit native operation on each participating widget.
+A low-star level can expose the group launch while retaining AI-owned individual
+triggers. Requests retain existing generation, receipt and replay rules, including
+an initially idle request channel.
+
+The same policy runs while any or all channels are human-owned. Earlier accepted
+writes are visible to later tasks in the same decision; physical observations stay
+fixed. Authors must place dependent work in the successful attempt branch. A
+receiver that cannot apply a requested setting must retry or fall back before
+acknowledging it. Entry actions do not replay merely because the operator changes.
+
+Environmental actors without equipment or player Consoles keep no invented widget
+layout. Actor creation, ticking and restoration support that empty equipment path;
+a synthetic lifecycle case protects it alongside the real-ship graphical journey.

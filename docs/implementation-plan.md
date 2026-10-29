@@ -341,9 +341,17 @@ focus, dismissal and bounds checks. See the [authoring contract](station-help.md
 and [verification receipt](smoke/station-help.md). Physical reader/device and
 browser graphical acceptance remain separate from these checks.
 
-# Control widget rewrite in progress
+# Control widget rewrite
 
-The [control widget rewrite](control-widget-rewrite.md) tracks the new shared
-widget definitions, per-command human/AI responsibility, result-aware tree
-attempts, per-star data placement and remaining console/Workshop migration.
-Its partial implementation does not establish completion of the rewrite.
+The [control widget rewrite](control-widget-rewrite.md) is complete. Maintained
+ships, runtime ownership, native workflows, Console presentation and Workshop
+use shared widgets, explicit equipment roles, responsibility levels and per-star
+data placement. The old Controller allocation schema and runtime conversion paths
+are retired; World and portable-session saves use schema 34.
+
+Verification on 29 October 2026 passes all 49 native integration cases, 18 affected
+WASM integrations, native/browser application builds and maintained pack checks.
+Fresh Controller, simulation, Medical and craft continuations match across native
+and WASM. Explicit native graphical journeys cover synthetic widgets, Workshop
+previews, and real Courier/Cruiser Consoles, including compact layouts. Physical
+reader/device and browser graphical evidence remains separate.
