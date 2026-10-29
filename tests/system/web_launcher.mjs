@@ -815,7 +815,11 @@ assert.notEqual(preferenceStart, -1);
 const preferenceBodyStart = preferenceStart + preferenceMarker.length;
 const preferenceEnd = preferenceSource.indexOf("\n});", preferenceBodyStart);
 assert.notEqual(preferenceEnd, -1);
-const requestPreferencePersistence = new Function("Module", "written", preferenceSource.slice(preferenceBodyStart, preferenceEnd));
+const requestPreferencePersistence = new Function(
+	"Module",
+	"written",
+	preferenceSource.slice(preferenceBodyStart, preferenceEnd),
+);
 const preferenceTick = () => new Promise((resolve) => setImmediate(resolve));
 function preferenceBridge(persist) {
 	const replies = [];
@@ -832,7 +836,9 @@ function preferenceBridge(persist) {
 }
 function preferenceGate() {
 	let resolve;
-	const promise = new Promise((done) => { resolve = done; });
+	const promise = new Promise((done) => {
+		resolve = done;
+	});
 	return { promise, resolve };
 }
 test("settings completion waits for durable storage", async () => {
@@ -849,7 +855,9 @@ test("settings completion waits for durable storage", async () => {
 test("settings reports rejected and synchronously throwing stores", async () => {
 	for (const persist of [
 		() => Promise.reject(new Error("synthetic quota exceeded")),
-		() => { throw new Error("synthetic storage unavailable"); },
+		() => {
+			throw new Error("synthetic storage unavailable");
+		},
 	]) {
 		const bridge = preferenceBridge(persist);
 		bridge.request(1);
@@ -866,7 +874,10 @@ test("settings reports rejected and synchronously throwing stores", async () => 
 test("periodic settings snapshots do not supersede an active durable write", async () => {
 	const gate = preferenceGate();
 	let writes = 0;
-	const bridge = preferenceBridge(() => { ++writes; return gate.promise; });
+	const bridge = preferenceBridge(() => {
+		++writes;
+		return gate.promise;
+	});
 	bridge.request(1);
 	await preferenceTick();
 	assert.equal(bridge.request(0), 0);
@@ -901,28 +912,44 @@ test("standalone runtimes can omit launcher preference persistence", () => {
 	assert.deepEqual(bridge.replies, []);
 });
 
-const displayPreferenceMarker = "EM_JS(int, phoenix_store_display_preferences, (int bits, char* message, unsigned capacity), {";
+const displayPreferenceMarker =
+	"EM_JS(int, phoenix_store_display_preferences, (int bits, char* message, unsigned capacity), {";
 const displayPreferenceStart = preferenceSource.indexOf(displayPreferenceMarker);
 assert.notEqual(displayPreferenceStart, -1);
 const displayPreferenceBodyStart = displayPreferenceStart + displayPreferenceMarker.length;
 const displayPreferenceEnd = preferenceSource.indexOf("\n});", displayPreferenceBodyStart);
 assert.notEqual(displayPreferenceEnd, -1);
 const storeDisplayPreferences = new Function(
-	"localStorage", "stringToUTF8", "bits", "message", "capacity",
+	"localStorage",
+	"stringToUTF8",
+	"bits",
+	"message",
+	"capacity",
 	preferenceSource.slice(displayPreferenceBodyStart, displayPreferenceEnd),
 );
 test("standalone display settings retain their authored storage format", () => {
 	const values = new Map();
 	const storage = { setItem: (key, value) => values.set(key, value) };
-	assert.equal(storeDisplayPreferences(storage, () => assert.fail("No error is expected"), 5, 17, 512), 1);
+	assert.equal(
+		storeDisplayPreferences(storage, () => assert.fail("No error is expected"), 5, 17, 512),
+		1,
+	);
 	assert.deepEqual(JSON.parse(values.get("phoenix-display-preferences-v1")), {
-		dust_motes: true, reference_grid: false, reduced_motion: true,
+		dust_motes: true,
+		reference_grid: false,
+		reduced_motion: true,
 	});
 });
 test("standalone display storage refusal returns a bounded diagnostic", () => {
 	let diagnostic;
-	const storage = { setItem: () => { throw new Error("synthetic display quota exceeded"); } };
-	const write = (message, pointer, capacity) => { diagnostic = { message, pointer, capacity }; };
+	const storage = {
+		setItem: () => {
+			throw new Error("synthetic display quota exceeded");
+		},
+	};
+	const write = (message, pointer, capacity) => {
+		diagnostic = { message, pointer, capacity };
+	};
 	assert.equal(storeDisplayPreferences(storage, write, 7, 17, 512), 0);
 	assert.match(diagnostic.message, /synthetic display quota exceeded/);
 	assert.equal(diagnostic.pointer, 17);

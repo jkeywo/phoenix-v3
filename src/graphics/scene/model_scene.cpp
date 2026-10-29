@@ -328,10 +328,10 @@ std::optional<AttachmentPose> ModelScene::attachment(const Catalog &catalog, con
 		return {};
 	const auto &a = r.at("attachments").at(name);
 	const auto &p = a.at("position"), &d = a.at("direction");
-	auto transform =
-	    MatrixMultiply(local_matrix(r), MatrixMultiply(MatrixRotateY(body.heading * DEG2RAD / 1000.f - PI / 2),
-	                                                   MatrixTranslate(body.x / 1000.f, body.visual_height_mm / 1000.f,
-	                                                                   -body.y / 1000.f)));
+	auto transform = MatrixMultiply(
+	    local_matrix(r),
+	    MatrixMultiply(MatrixRotateY(body.heading * DEG2RAD / 1000.f - PI / 2),
+	                   MatrixTranslate(body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f)));
 	const auto root = Vector3Transform({p[0], p[1], p[2]}, transform),
 	           tip = Vector3Transform({p[0].get<float>() + d[0].get<float>(), p[1].get<float>() + d[1].get<float>(),
 	                                   p[2].get<float>() + d[2].get<float>()},
