@@ -59,18 +59,22 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 			console = static_cast<int>(consoles.size() - 1);
 			selection.kind = "Console";
 		}
-		for (std::size_t i = 0; i < consoles.size(); ++i)
-		{
-			auto id = consoles[i].at("id").get<std::string>();
-			const auto name = consoles[i].value("name", std::string{});
-			const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
-			if (ImGui::Selectable(label.c_str(), selection.kind == "Console" && console == i))
+		ImGuiListClipper clipper;
+		clipper.Begin(static_cast<int>(consoles.size()));
+		while (clipper.Step())
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 			{
-				layout_editor.focus();
-				console = static_cast<int>(i);
-				selection.kind = "Console";
+				// A Console can be added above after this frame's label cache was built.
+				const auto label = i < static_cast<int>(console_labels.size())
+				                       ? console_labels[i]
+				                       : consoles[i].at("id").get<std::string>();
+				if (ImGui::Selectable(label.c_str(), selection.kind == "Console" && console == i))
+				{
+					layout_editor.focus();
+					console = i;
+					selection.kind = "Console";
+				}
 			}
-		}
 		return;
 	}
 	if (console < 0 || console >= static_cast<int>(consoles.size()))

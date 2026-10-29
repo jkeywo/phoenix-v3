@@ -39,7 +39,7 @@ struct UiNode
 {
 	std::string id, kind = "column", label, component;
 	float minimum_width = 44, minimum_height = 44, preferred_width = 0, preferred_height = 0;
-	float stretch = 1, gap = 12, padding = 8, aspect = 0;
+	float stretch = 1, gap = 12, padding = 8, aspect = 0, inset = 0;
 	std::string align = "stretch";
 	std::string region;
 	float circle_x = .5f, circle_y = .5f, circle_radius = .35f;

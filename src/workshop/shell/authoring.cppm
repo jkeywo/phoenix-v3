@@ -85,6 +85,8 @@ struct AuthoringControls
 	std::vector<std::string> ids(const Json &array) const;
 	std::string fresh(const Json &array, const std::string &prefix) const;
 	void names(Json &value, const char *key, const std::vector<std::string> &options);
+	void ranked_names(Json &value, const char *key, const std::vector<std::string> &options,
+	                  const std::vector<std::string> &defaults);
 	void strings(Json &value, const char *key);
 	void numbers(Json &value, const char *key);
 	void records(Json &parent, const char *key, Json prototype, const std::function<void(Json &)> &inspect);

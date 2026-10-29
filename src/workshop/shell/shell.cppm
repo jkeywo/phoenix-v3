@@ -136,7 +136,7 @@ struct ToolPreferences
 bool draw_tool_preferences(ToolPreferences &);
 void tool_real_field(const char *, Json &, const char *, float fallback, float minimum, float maximum);
 void tool_colour_field(const char *, Json &, const char *, const Json &fallback, bool alpha);
-void apply_tool_theme(const Catalog &);
+void apply_tool_theme(const Catalog &, std::uint64_t revision = 0);
 bool tool_button(const char *label, const ImVec2 &size = ImVec2(0, 0));
 bool tool_small_button(const char *label);
 void begin_tool_frame_runtime();

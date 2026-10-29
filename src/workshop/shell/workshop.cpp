@@ -100,12 +100,15 @@ void scale_tools(int percent)
 	applied_scale = percent;
 }
 } // namespace
-void apply_tool_theme(const Catalog &catalog)
+void apply_tool_theme(const Catalog &catalog, std::uint64_t revision)
 {
 	std::string identity =
 	    catalog.ui_theme + std::to_string(applied_scale) + std::to_string(reinterpret_cast<std::uintptr_t>(&catalog));
-	for (const auto &[id, theme] : catalog.themes)
-		identity += id + theme.dump();
+	if (revision)
+		identity += ":" + std::to_string(revision);
+	else
+		for (const auto &[id, theme] : catalog.themes)
+			identity += id + theme.dump();
 	if (identity == tool_theme_identity)
 		return;
 	const auto theme = resolved_ui_theme(catalog);

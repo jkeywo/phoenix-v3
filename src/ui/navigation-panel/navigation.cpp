@@ -108,7 +108,8 @@ void NavigationPanel::prepare(ConsoleModel &model_, NavigationFrame frame)
 			              return input.id.starts_with(frame.id(""));
 		              });
 		markup =
-		    "<div class=\"mission-result\" style=\"width:" + std::to_string(region.width) +
+		    "<div id=\"" + frame.id("mission-result") +
+		    "\" class=\"mission-result\" style=\"width:" + std::to_string(region.width) +
 		    "px;height:" + std::to_string(region.height) + "px;\"><img class=\"mission-art\" src=\"" +
 		    frame.asset("mission-terminal.png") +
 		    "\"/><div class=\"mission-copy\" style=\"left:" + std::to_string(region.width * .07f) +
@@ -333,6 +334,8 @@ void NavigationPanel::prepare(ConsoleModel &model_, NavigationFrame frame)
 		                                  "zoom. Tab reaches the waypoint action."));
 		frame.output.place(dom_, frame.context, region, frame.id("nav.map"));
 	}
+	if (!mission_outcome_.empty())
+		frame.output.place(dom_, frame.context, region, frame.id("mission-result"));
 }
 bool NavigationPanel::action(ConsoleModel &model_, ConsoleDocument &dom, const std::string &prefix,
                              const std::function<void()> &return_home, const std::string &action)

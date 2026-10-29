@@ -2,6 +2,7 @@
 #include "../support/ftl_fixture.hpp"
 #include "../support/away_fixture.hpp"
 #include <iostream>
+#include <functional>
 import phoenix.content.controllers;
 import phoenix.simulation;
 import phoenix.networking.projection;
@@ -16,10 +17,10 @@ void ticks(World &w, int n)
 Observation navigator(const World &w, std::uint64_t claim = 101)
 {
 	const auto o = w.observe(claim);
-	if (o->console == "navigator")
+	if (o->console == "navigator" || o->console == "navigation")
 		return *o;
 	for (const auto &c : o->additional_consoles)
-		if (c.console == "navigator")
+		if (c.console == "navigator" || c.console == "navigation")
 			return c;
 	throw std::runtime_error("Navigator did not follow human");
 }
@@ -32,7 +33,7 @@ OperatingCommand command(const World &w, const std::string &action, std::int64_t
 	const auto o = navigator(w);
 	OperatingCommand c{
 	    o.own.id, action, value, action == "ftl.depart" ? "jump" : "", "jump", action == "ftl.depart" ? "" : "enabled"};
-	c.console = "navigator";
+	c.console = o.console;
 	for (const auto &ctrl : o.gameplay.at("controllers"))
 		if (ctrl.at("id") == "jump")
 			c.generation = ctrl.at("generation");
@@ -59,6 +60,83 @@ OperatingCommand away_order(const World &w, std::string action, std::string text
 		if (ctrl.at("id") == c.controller)
 			c.generation = ctrl.at("generation");
 	return c;
+}
+void combined_navigation_departure()
+{
+	auto source = ftl_fixture();
+	std::function<void(Json &)> rename = [&](Json &value)
+	{
+		if (value.is_object())
+		{
+			if (value.contains("navigator"))
+			{
+				value["navigation"] = value.at("navigator");
+				value.erase("navigator");
+			}
+			for (auto &child : value)
+				rename(child);
+		}
+		else if (value.is_array())
+			for (auto &child : value)
+				rename(child);
+		else if (value == "navigator")
+			value = "navigation";
+	};
+	rename(source);
+	// The instance override exercises the same compiled identity through continuation.
+	source["maps"][0]["entities"][0]["overrides"] = {{"name", "Local Navigation vessel"}};
+	source["maps"][0]["entities"][1]["overrides"] = {{"name", "Other Navigation vessel"}};
+	const auto catalog = load(source);
+	const auto &instances = catalog.maps.at("test.map").at("entities");
+	require(instances[0].at("definition") != instances[1].at("definition"),
+	        "two locally fitted Navigation vessels retain distinct compiled identities");
+	World world;
+	world.load(catalog, "test.map", {});
+	require(world.claim(101, 1, "drive"), "Navigation follows the preferred station's human");
+	ticks(world, 2);
+	require(navigator(world).console == "navigation", "combined Navigation is granted without a separate claim");
+	require(!fixture_native_submit(world, 101, command(world, "ftl.depart")),
+	        "ordinary admission refuses unready Navigation departure");
+	world.tick();
+	require(world.observe(101)->gameplay.at("mission_report").is_null(),
+	        "unready departure is refused without queuing");
+	require(fixture_native_submit(world, 101, command(world, "system_enabled", 1)), "Navigation prepares the reserve");
+	ticks(world, 10);
+	require(fixture_native_submit(world, 101, command(world, "system_enabled", 0)), "Navigation cancels preparation");
+	world.tick();
+	require(!battery(world).at("enabled").get<bool>(), "cancellation uses the existing machinery command");
+	world.release(101);
+	require(world.claim(102, 1, "observer"), "replacement human claims another seat in the preferred station");
+	world.tick();
+	require(navigator(world, 102).console == "navigation", "Navigation and FTL move together to the replacement human");
+	const auto observation = navigator(world, 102);
+	OperatingCommand prepare{observation.own.id, "system_enabled", 1, {}, "jump", "enabled"};
+	prepare.console = "navigation";
+	for (const auto &controller : observation.gameplay.at("controllers"))
+		if (controller.at("id") == "jump")
+			prepare.generation = controller.at("generation");
+	require(fixture_native_submit(world, 102, prepare), "replacement operator can prepare FTL");
+	world.tick();
+	World resumed;
+	resumed.restore(catalog, world.save());
+	require(bool(resumed.observe(102)) || resumed.claim(102, 1, "observer"),
+	        "resumed instance accepts the same operator");
+	for (int i = 0; i < 700 && !navigator(world, 102).gameplay.at("ftl")[0].at("ready").get<bool>(); ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(world.save() == resumed.save(), "mission-instance definition and Navigation machinery resume identically");
+	const auto ready = navigator(world, 102);
+	OperatingCommand depart{ready.own.id, "ftl.depart", 0, "jump", "jump", ""};
+	depart.console = "navigation";
+	for (const auto &controller : ready.gameplay.at("controllers"))
+		if (controller.at("id") == "jump")
+			depart.generation = controller.at("generation");
+	require(fixture_native_submit(world, 102, depart), "ready Navigation departure admitted");
+	world.tick();
+	require(!world.observe(102)->gameplay.at("mission_report").is_null(),
+	        "combined Navigation produces the crew report");
 }
 void displacement_departure()
 {
@@ -241,6 +319,7 @@ int main(int argc, char **argv)
 	{
 		shared_widget_departure_authority();
 		finite_ftl_cases();
+		combined_navigation_departure();
 		displacement_departure();
 		race_departure();
 		auto source = ftl_fixture();

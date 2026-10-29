@@ -1,6 +1,6 @@
-# Navigator FTL departure
+# Navigation FTL departure
 
-The dedicated **Navigator** auxiliary Console follows an available Science/Support operator, then Helm. It is separate from the Navigation map and requires no extra lobby seat. Open Navigator, turn the FTL battery on, wait for readiness, then select **Leave mission**. Charging competes for real reactor power. Keeping a full reserve ready continues to consume power and generate heat.
+The **Navigation** auxiliary Console combines the map and FTL controls, using Navigation's ordered human preferences without an extra lobby seat. Open Navigation and use the bottom-right FTL panel to enable the battery, wait for readiness, then select **Leave mission**. Charging competes for real reactor power. Keeping a full reserve ready continues to consume power and generate heat. See [the Navigation layout and authoring contract](workshop-navigation-refinement.md).
 
 Initial authored fittings target about 30 seconds from empty at full supply. Charging draws about half nominal reactor output; charging losses dissipate a fifth of that flow. A full reserve dissipates about a quarter of reactor output. Switching off stops incoming power and discharges the reserve over about 30 seconds, converting its remaining energy to heat. These are editable content defaults, not balance assertions. The basic Courier now uses inertial machinery and a compact FTL power supply; larger powered ships connect the passage assembly to their existing supply.
 
@@ -16,7 +16,7 @@ Every Console of the departing crew receives the same frozen **Departed via FTL*
 
 - `kind: "ftl"` equipment binds a dedicated `power_store` and specifies `charge_per_second`, `charging_loss_per_second`, `ready_loss_per_second` and `off_discharge_per_second`. Rates are positive; charging losses must be below charging input, and ready losses must fit the charge rate.
 - Its reserve starts empty, has adequate charge/discharge limits, converts operation consumption to heat with `operation_heat_ppm: 1000000`, and has no additional fractional leakage. It cannot supply other stores or share its reserve with another consumer. Normal power links, cooling, thermal stops, structural disablement and equipment faults still apply.
-- Navigator owns the ordinary `system_enabled` Controller channel. `ftl.depart` carries the fitted System ID, owning Controller ID/generation and selected Console, with no channel, request ID, arguments or payload. It is a one-shot admitted action. Engineering owns the assembly's supply isolation and cooling allocation.
+- Navigation owns the ordinary `system_enabled` Controller channel. `ftl.depart` carries the fitted System ID, owning Controller ID/generation and selected Console, with no channel, request ID, arguments or payload. It is a one-shot admitted action. Engineering owns the assembly's supply isolation and cooling allocation.
 - Workshop exposes the FTL capability and rates through its equipment editor. `base.assembly.ftl` and `base.equipment.ftl` provide reusable fittings; the starter supply is a separate assembly.
 - Permitted Console observations include bounded `ftl` status and `mission_report` records. The enclosing World save remains schema 13 with additive departure and discharge-remainder fields. Older saves without a departure record remain active. Content identity checks remain in force.
 

@@ -359,3 +359,20 @@ Fresh Controller, simulation, Medical and craft continuations match across nativ
 and WASM. Explicit native graphical journeys cover synthetic widgets, Workshop
 previews, and real Courier/Cruiser Consoles, including compact layouts. Physical
 reader/device and browser graphical evidence remains separate.
+
+## Workshop performance, Courier instances and Navigation — 29 October 2026
+
+Workshop uses document/resource revisions, cached resolution and labels, clipped
+uniform lists and ranked human-preference controls. Production has one reusable
+Courier, with map-local merge patches for mission-specific fittings and Morrow.
+The overlay layout supports a background and fixed corner panels; Navigation uses
+the map with FTL at bottom-right and retains its ordered human preferences.
+
+Affected native/WASM integration checks and production verification pass. Native
+Navigation preparation/cancellation/departure/report and compact graphical
+captures pass. Isolated Workshop scrolling captures have p95 frame times of
+1.44–3.73 ms on the measured machine. See the [authoring contract](workshop-navigation-refinement.md)
+and [verification receipt](smoke/workshop-navigation-refinement.md), including
+the outstanding ordinary browser journey, pre-change scrolling percentiles and
+physical accessibility/device acceptance. No old-session content conversion is
+provided.

@@ -75,6 +75,12 @@ public:
 	Json preview_definition(WorkshopDefinitionKind kind, const std::string &id) const;
 	Json preview_knowledge() const;
 	state_tree::Registry preview_controller_registry(const Json &tree) const;
+	// Raw JSON editors publish changes at interaction boundaries. Outside a GUI frame,
+	// revision() also detects direct edits made by tools and integration fixtures.
+	void begin_frame();
+	void end_frame(bool may_have_edits);
+	std::uint64_t revision() const;
+	std::uint64_t resource_revision() const { return resource_revision_; }
 	Json &definitions();
 	const Json &definitions() const;
 	Json &map();
@@ -85,6 +91,11 @@ public:
 	std::vector<Bytes> dependency_archives() const;
 
 private:
+	void refresh_revision() const;
+	mutable std::uint64_t revision_ = 1, observed_resources_ = 0, ui_revision_ = 0;
+	std::uint64_t resource_revision_ = 1;
+	bool in_frame_ = false;
+	mutable Json revision_source_, revision_manifest_;
 	mutable std::shared_ptr<const Catalog> ui_preview_;
 	mutable Json ui_preview_source_, ui_preview_manifest_;
 	PackDraft pack_;
@@ -109,6 +120,7 @@ private:
 	{
 		Json definitions, manifest;
 		std::size_t map_index, bytes, resource_bytes;
+		std::uint64_t revision = 0;
 		std::shared_ptr<const WorkshopDocument> resources;
 	};
 	std::vector<Snapshot> past_, future_;

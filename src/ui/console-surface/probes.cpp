@@ -187,6 +187,36 @@ bool ConsoleSurface::State::probe_navigation(unsigned stage)
 	if (!navigation_.visible())
 		return false;
 	const auto before = model_.waypoint();
+	if (stage == 2)
+	{
+		const UiNode *corner = nullptr;
+		std::function<void(const UiNode &)> find = [&](const UiNode &node)
+		{
+			if (node.kind == "overlay")
+				for (const auto &child : node.children)
+					if (child.region != "background")
+						corner = &child;
+			for (const auto &child : node.children)
+				find(child);
+		};
+		find(authored_resolved_.root);
+		if (!corner)
+			return false;
+		auto *panel = document_->GetElementById(layout_node_id(*corner));
+		if (!panel || !panel->IsVisible(true))
+			return false;
+		const auto at = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const float x = at.x + panel->GetOffsetWidth() / 2, y = at.y + panel->GetOffsetHeight() / 2;
+		auto *hit = context_->GetElementAtPoint({x, y});
+		while (hit && hit != panel)
+			hit = hit->GetParentNode();
+		const auto selected = navigation_.selected();
+		const auto selected_x = navigation_.selected_x();
+		const bool intercepted = pointer(9889, x, y, DeviceEventKind::Down);
+		pointer(9889, x, y, DeviceEventKind::Cancel);
+		return hit == panel && !intercepted && selected == navigation_.selected() &&
+		       selected_x == navigation_.selected_x() && model_.waypoint() == before;
+	}
 	if (stage == 0)
 	{
 		const auto x = navigation_.area().x + navigation_.area().width * .12f,

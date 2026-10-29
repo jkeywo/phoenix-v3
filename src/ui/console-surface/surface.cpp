@@ -434,7 +434,9 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 		visible = false;
 	dom_.property(box, "display", visible ? "flex" : "none");
 	dom_.property(box, "position",
-	              !parent || parent->kind == "instruments" || parent->kind == "cutout" ? "absolute" : "relative");
+	              !parent || parent->kind == "instruments" || parent->kind == "cutout" || parent->kind == "overlay"
+	                  ? "absolute"
+	                  : "relative");
 	dom_.property(box, "min-width", unit(node.minimum_width));
 	dom_.property(box, "min-height", unit(node.minimum_height));
 	dom_.property(box, "flex-direction", node.kind == "row" || node.kind == "wrap" ? "row" : "column");
@@ -443,12 +445,20 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 	dom_.property(box, "gap", unit(node.gap));
 	dom_.property(
 	    box, "padding",
-	    unit(node.children.empty() || node.kind == "instruments" || node.kind == "cutout" ? 0 : node.padding));
+	    unit(node.children.empty() || node.kind == "instruments" || node.kind == "cutout" || node.kind == "overlay"
+	             ? 0
+	             : node.padding));
 	dom_.property(box, "align-self",
 	              node.align == "start" ? "flex-start"
 	              : node.align == "end" ? "flex-end"
 	                                    : node.align);
 	dom_.property(box, "pointer-events", node.component == "manual-flight" ? "none" : "auto");
+	const bool overlay_panel = parent && parent->kind == "overlay" && node.region != "background";
+	box->SetAttribute("data-overlay-panel", overlay_panel);
+	dom_.property(box, "z-index", overlay_panel ? "1" : "0");
+	dom_.property(box, "background-color",
+	              overlay_panel ? active_theme_.value("tokens", Json::object()).value("panel", std::string("#101820"))
+	                            : "transparent");
 	if (!parent)
 	{
 		dom_.property(box, "left", "0dp");
@@ -456,7 +466,7 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 		dom_.property(box, "width", "100%");
 		dom_.property(box, "height", "100%");
 	}
-	else if (parent->kind != "instruments" && parent->kind != "cutout")
+	else if (parent->kind != "instruments" && parent->kind != "cutout" && parent->kind != "overlay")
 	{
 		const bool row = parent->kind == "row" || parent->kind == "wrap";
 		const auto basis = row ? std::max(node.minimum_width, node.preferred_width)
@@ -505,7 +515,7 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 void ConsoleSurface::State::place_authored_instruments(const UiNode &node)
 {
 	auto *box = document_->GetElementById(layout_node_id(node));
-	if (node.kind == "instruments" || node.kind == "cutout")
+	if (node.kind == "instruments" || node.kind == "cutout" || node.kind == "overlay")
 	{
 		const float density = context_->GetDensityIndependentPixelRatio();
 		const float pad = node.padding * text_scale_ / 100.f;
@@ -515,6 +525,18 @@ void ConsoleSurface::State::place_authored_instruments(const UiNode &node)
 		{
 			UiRect bounds{width * child.rect.x / 1000, height * child.rect.y / 1000, width * child.rect.width / 1000,
 			              height * child.rect.height / 1000};
+			if (node.kind == "overlay")
+			{
+				bounds = {0, 0, width, height};
+				if (child.region != "background")
+				{
+					const float scale = text_scale_ / 100.f, inset = child.inset * scale;
+					bounds.width = std::max(child.minimum_width, child.preferred_width) * scale;
+					bounds.height = std::max(child.minimum_height, child.preferred_height) * scale;
+					bounds.x = child.region.ends_with("right") ? width - inset - bounds.width : inset;
+					bounds.y = child.region.starts_with("bottom") ? height - inset - bounds.height : inset;
+				}
+			}
 			if (node.kind == "cutout" && !child.region.empty())
 			{
 				const float x = width * node.circle_x, y = height * node.circle_y;

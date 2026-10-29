@@ -2,6 +2,7 @@ module;
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <algorithm>
+#include <cstdlib>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -367,6 +368,8 @@ void GameplayEditors::State::properties(WorkshopDocument &document, bool pseudo_
 			         {"Console Controllers and complexity", &State::control_layout}})
 			{
 				if (controller_probe && std::string(title) == "Console Controllers and complexity")
+					ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+				if (std::getenv("PHOENIX_WORKSHOP_PROFILE") && std::string(title) == "Systems and ownership")
 					ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 				if (ImGui::CollapsingHeader(label(title).c_str()))
 				{

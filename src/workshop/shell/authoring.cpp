@@ -202,6 +202,64 @@ void AuthoringControls::names(Json &value, const char *key, const std::vector<st
 	}
 }
 
+void AuthoringControls::ranked_names(Json &value, const char *key, const std::vector<std::string> &options,
+                                     const std::vector<std::string> &defaults)
+{
+	ScopedId identity(key);
+	heading("Human preferences (first available human wins)");
+	if (!value.contains(key))
+	{
+		text("Default station order");
+		for (std::size_t i = 0; i < defaults.size(); ++i)
+			ImGui::Text("%zu. %s", i + 1, defaults[i].c_str());
+		if (button("Customize preferences"))
+			value[key] = defaults;
+		return;
+	}
+	auto &rows = value[key];
+	if (rows.empty())
+	{
+		text("An empty list uses the default station order.");
+		for (std::size_t i = 0; i < defaults.size(); ++i)
+			ImGui::Text("%zu. %s", i + 1, defaults[i].c_str());
+	}
+	int remove = -1, move = -1, direction = 0;
+	for (std::size_t i = 0; i < rows.size(); ++i)
+	{
+		ScopedId row(static_cast<int>(i));
+		ImGui::Text("%zu. %s", i + 1, rows[i].get_ref<const std::string &>().c_str());
+		ImGui::SameLine();
+		ImGui::BeginDisabled(i == 0);
+		if (button("Move up"))
+		{
+			move = static_cast<int>(i);
+			direction = -1;
+		}
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		ImGui::BeginDisabled(i + 1 == rows.size());
+		if (button("Move down"))
+		{
+			move = static_cast<int>(i);
+			direction = 1;
+		}
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		if (button("Remove"))
+			remove = static_cast<int>(i);
+	}
+	if (remove >= 0)
+		rows.erase(rows.begin() + remove);
+	else if (move >= 0)
+		std::swap(rows[move], rows[move + direction]);
+	if (ScopedCombo add(label("Add preference").c_str(), label("Choose station").c_str()); add)
+		for (const auto &option : options)
+			if (std::find(rows.begin(), rows.end(), Json(option)) == rows.end() && ImGui::Selectable(option.c_str()))
+				rows.push_back(option);
+	if (button("Reset to default"))
+		value.erase(key);
+}
+
 void AuthoringControls::strings(Json &value, const char *key)
 {
 	ScopedId identity(key);

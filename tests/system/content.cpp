@@ -260,6 +260,157 @@ int main()
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
 		{
+			auto draft = base;
+			auto authored = parse_json(draft.files.at("definitions.json"), "instance fixture");
+			auto &instances = authored["maps"][0]["entities"];
+			instances[0]["definition"] = "test.ship";
+			instances[0]["overrides"] = {{"name", "Local vessel"}, {"render", {{"scale", 3}}}};
+			auto peer = instances[0];
+			peer["id"] = 2;
+			peer["x_mm"] = 20000;
+			peer["overrides"] = {{"name", "Other vessel"}, {"render", {{"scale", 4}}}};
+			instances.push_back(peer);
+			draft.files["definitions.json"] = json_bytes(authored);
+			const auto local = resolve_packs({read_pack(write_pack(draft))});
+			const auto &map = local.maps.at("test.map");
+			const auto first = map.at("entities")[0].at("definition").get<std::string>();
+			const auto second = map.at("entities")[1].at("definition").get<std::string>();
+			require(first != second && local.entities.at(first).at("render").at("scale") == 3 &&
+			            local.entities.at(second).at("render").at("scale") == 4 &&
+			            local.entities.at("test.ship").at("render").at("scale") == 1,
+			        "mission overrides compile distinct instances without modifying their shared template");
+			const auto client = resolve_packs({console_assets(local, first)});
+			require(client.entities.begin()->second.at("render").at("scale") == 3,
+			        "instance presentation bundles use the same resolved definition");
+			WorkshopDocument roundtrip;
+			roundtrip.load_pack(write_pack(draft));
+			WorkshopDocument dependent;
+			dependent.load_dependency(write_pack(draft));
+			const auto choices = dependent.definition_choices(WorkshopDefinitionKind::Entity);
+			require(std::find(choices.begin(), choices.end(), first) == choices.end(),
+			        "compiled mission instances are absent from reusable template choices");
+			const auto reopened = resolve_packs({read_pack(roundtrip.export_pack())});
+			require(reopened.entities.at(first).at("render").at("scale") == 3,
+			        "instance patches survive Workshop export and reopening with stable identities");
+			authored["maps"][0]["entities"][0]["overrides"]["id"] = "forbidden";
+			draft.files["definitions.json"] = json_bytes(authored);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(draft))});
+			    },
+			    "without id or extends");
+			authored["maps"][0]["entities"][0]["overrides"] = {{"render", {{"scale", -1}}}};
+			draft.files["definitions.json"] = json_bytes(authored);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(draft))});
+			    },
+			    "scale");
+		}
+		{
+			WorkshopDocument draft;
+			draft.load_pack(bytes);
+			WorkshopHistory edits;
+			edits.reset(draft);
+			const auto revision = draft.revision();
+			draft.begin_frame();
+			const auto preview = draft.preview_ui();
+			for (int frame = 0; frame < 30; ++frame)
+			{
+				(void)draft.definitions();
+				(void)draft.map();
+				(void)draft.manifest();
+				draft.end_frame(false);
+				draft.begin_frame();
+				edits.checkpoint(draft);
+				require(draft.revision() == revision && draft.preview_ui() == preview && !edits.can_undo(),
+				        "browsing frames retain content revision, previews and undo history");
+			}
+			draft.definitions()["entities"][0]["name"] = "Edited vessel";
+			draft.end_frame(true);
+			edits.checkpoint(draft);
+			require(draft.revision() > revision && draft.preview_ui() != preview && edits.can_undo(),
+			        "an authored edit invalidates presentation and creates one undo step");
+			const auto changed = draft.revision();
+			require(edits.undo(draft) && draft.revision() > changed && edits.redo(draft),
+			        "undo and redo invalidate caches without losing the redo branch");
+		}
+		{
+			Catalog empty;
+			Json overlay = {{"schema", 1},
+			                {"root",
+			                 {{"id", "overlay"},
+			                  {"kind", "overlay"},
+			                  {"padding", 0},
+			                  {"children", Json::array({{{"id", "map"},
+			                                             {"kind", "component"},
+			                                             {"component", "navigation"},
+			                                             {"region", "background"},
+			                                             {"min_width", 400},
+			                                             {"min_height", 300}},
+			                                            {{"id", "ftl"},
+			                                             {"kind", "component"},
+			                                             {"component", "ftl-controls"},
+			                                             {"region", "bottom-right"},
+			                                             {"width", 320},
+			                                             {"height", 240},
+			                                             {"inset", 12},
+			                                             {"scroll", true}},
+			                                            {{"id", "readout"},
+			                                             {"kind", "component"},
+			                                             {"component", "messages"},
+			                                             {"region", "bottom-left"},
+			                                             {"width", 320},
+			                                             {"height", 240}}})}}}};
+			const auto layout = compile_ui_tree(empty, overlay);
+			require(resolve_ui_layout(layout, {0, 0, 1200, 700}, 1).root.kind == "overlay" &&
+			            resolve_ui_layout(layout, {0, 0, 500, 700}, 1).root.kind == "column",
+			        "overlay keeps full background geometry when roomy and reflows before corners overlap");
+			overlay["root"]["children"][2]["region"] = "bottom-right";
+			rejected(
+			    [&]
+			    {
+				    compile_ui_tree(empty, overlay);
+			    },
+			    "distinct background/corner");
+			overlay["root"]["children"].erase(overlay["root"]["children"].begin());
+			overlay["root"]["children"].erase(overlay["root"]["children"].begin());
+			rejected(
+			    [&]
+			    {
+				    compile_ui_tree(empty, overlay);
+			    },
+			    "exactly one background");
+		}
+		{
+			auto source = phoenix::test::controller_fixture();
+			auto &stations = source["entities"][0]["stations"];
+			auto observer = stations[0]["consoles"][1];
+			stations[0]["consoles"].erase(1);
+			stations.push_back({{"id", "support"}, {"consoles", Json::array({observer})}});
+			stations[0]["consoles"][0]["human_preferences"] = {"support", "operations"};
+			auto pack = phoenix::test::fixture_pack(json_bytes(source), "test-core");
+			WorkshopDocument preferences;
+			preferences.load_pack(write_pack(pack));
+			auto compiled = resolve_packs({read_pack(preferences.export_pack())});
+			require(resolve_consoles(compiled, "test.controllable")[0].human_preferences ==
+			            std::vector<std::string>{"support", "operations"},
+			        "ranked human preferences retain authored priority through Workshop export/reopen");
+			auto &seat = preferences.definitions()["entities"][0]["stations"][0]["consoles"][0];
+			std::swap(seat["human_preferences"][0], seat["human_preferences"][1]);
+			compiled = resolve_packs({read_pack(preferences.export_pack())});
+			require(resolve_consoles(compiled, "test.controllable")[0].human_preferences.front() == "operations",
+			        "moving a preference changes the effective priority");
+			seat.erase("human_preferences");
+			compiled = resolve_packs({read_pack(preferences.export_pack())});
+			require(resolve_consoles(compiled, "test.controllable")[0].human_preferences ==
+			            std::vector<std::string>{"operations", "support"},
+			        "resetting preferences restores the home station followed by authored station order");
+		}
+
+		{
 			auto source = base;
 			auto definitions = parse_json(source.files.at("definitions.json"), "UI fixture");
 			for (auto &entity : definitions["entities"])

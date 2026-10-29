@@ -255,7 +255,7 @@ void MaterialPreview::draw(WorkshopDocument &document, int definition_index, Too
 	const auto avail = ImGui::GetContentRegionAvail();
 	const int width = std::clamp(static_cast<int>(avail.x), 64, 1600),
 	          height = std::clamp(static_cast<int>(avail.y), 64, 1000);
-	const auto content_identity = document.definitions().dump() + ":" + map.at("id").get<std::string>();
+	const auto content_identity = std::to_string(document.revision()) + ":" + map.at("id").get<std::string>();
 	const auto identity = content_identity + std::to_string(width) + ":" + std::to_string(height) + ":" +
 	                      std::to_string(definition_index) + ":" + std::to_string(preview.preview_whole_map) + ":" +
 	                      std::to_string(preview.preview_bearing) + ":" + std::to_string(preview.preview_elevation) +
@@ -289,7 +289,7 @@ void MaterialPreview::draw(WorkshopDocument &document, int definition_index, Too
 			    std::vector<SceneBody> bodies;
 			    if (preview.preview_whole_map)
 			    {
-				    for (const auto &instance : map["entities"])
+				    for (const auto &instance : catalog.maps.at(map.at("id").get<std::string>()).at("entities"))
 				    {
 					    SceneBody b;
 					    b.id = instance.at("id");

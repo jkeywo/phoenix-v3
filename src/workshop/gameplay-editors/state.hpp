@@ -9,6 +9,8 @@ struct GameplayEditors::State : AuthoringControls
 	TreeEditor tree_editor;
 	Json composition = Json::object();
 	Catalog composition_catalog;
+	std::uint64_t composition_revision = 0;
+	std::string composition_error;
 	Json *select_entity(WorkshopDocument &document);
 	std::vector<std::string> fitted_ids(const WorkshopDocument &document, const Json &ship);
 	void system_details(Json &spec, const std::string &fallback_kind = "engine");

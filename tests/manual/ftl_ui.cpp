@@ -1,4 +1,4 @@
-// Explicitly invoked rendered Navigator journey, never an automatic ctest case.
+// Explicitly invoked rendered Navigation journey, never an automatic ctest case.
 #include <raylib.h>
 #include <iostream>
 #include <string>
@@ -20,7 +20,8 @@ int main(int argc, char **argv)
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->start({"base.free-flight", {{"base.player", "base.courier-engineering"}}, "base.player", "helm"});
+		app.session->add_pack(read_file(std::string(argv[1]) + "/test-missions.zip"));
+		app.session->start({"base.free-flight", {{"base.player", "base.courier"}}, "base.player", "helm"});
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
@@ -59,9 +60,22 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 200; ++i)
 			frame();
 		advance(5);
-		action("console/1/game.console/navigator");
-		advance(1);
+		action("console/1/console-page/navigation/station.navigation-map");
+		advance(20);
+		if (!probe_console_navigation(1, 2))
+			throw std::runtime_error("FTL corner leaked pointer input to the map");
 		TakeScreenshot("build/ftl-off.png");
+		SetWindowSize(390, 844);
+		app.console_regions = {{1, 0, 0, 390, 844}};
+		advance(20);
+		TakeScreenshot("build/ftl-navigation-compact.png");
+		SetWindowSize(1280, 900);
+		app.console_regions = {{1, 0, 0, 1280, 900}};
+		advance(20);
+		action("Turn FTL battery on");
+		advance(20);
+		action("Turn FTL battery off");
+		advance(20);
 		action("Turn FTL battery on");
 		advance(300);
 		TakeScreenshot("build/ftl-charging.png");
@@ -71,9 +85,9 @@ int main(int argc, char **argv)
 			if (!o->gameplay.value("ftl", Json::array()).empty())
 				return o->gameplay.at("ftl").at(0);
 			for (const auto &c : o->additional_consoles)
-				if (c.console == "navigator")
+				if (c.console == "navigation")
 					return c.gameplay.at("ftl").at(0);
-			throw std::runtime_error("Navigator projection missing");
+			throw std::runtime_error("Navigation projection missing");
 		};
 		for (int i = 0; i < 1800 && !state().at("ready").get<bool>(); ++i)
 			advance(1);
@@ -82,18 +96,23 @@ int main(int argc, char **argv)
 		advance(20);
 		TakeScreenshot("build/ftl-ready.png");
 		action("Leave mission");
-		advance(2);
+		advance(20);
 		if (app.session->console_observation(1)->gameplay.at("mission_report").is_null())
 			throw std::runtime_error("Crew report missing after departure");
 		bool report = false;
 		for (const auto &[id, text] : app.screen_readouts)
 			report |= id == "console/1/mission-result" && text.find("Departed via FTL") != std::string::npos;
 		if (!report)
+		{
+			TakeScreenshot("build/ftl-report-failed.png");
+			for (const auto &[id, text] : app.screen_readouts)
+				std::cerr << id << " = " << text << '\n';
 			throw std::runtime_error("Rendered report semantics missing");
+		}
 		TakeScreenshot("build/ftl-report.png");
 		close_window();
 		opened = false;
-		std::cout << "PASS Navigator GUI battery, charging, readiness, departure and crew report\n";
+		std::cout << "PASS Navigation GUI battery, charging, readiness, departure and crew report\n";
 	}
 	catch (const std::exception &e)
 	{

@@ -723,6 +723,8 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	if (event.GetType() == "mousescroll" && navigation_.visible() && !settings_open_)
 	{
 		const auto x = event.GetParameter<float>("mouse_x", 0), y = event.GetParameter<float>("mouse_y", 0);
+		for (auto *hit = context_->GetElementAtPoint({x, y}); hit; hit = hit->GetParentNode())
+			if (hit->GetAttribute<bool>("data-overlay-panel", false)) return;
 		navigation_.wheel(x, y, event.GetParameter<float>("wheel_delta", 0));
 		return;
 	}
@@ -1095,7 +1097,7 @@ bool ConsoleSurface::State::pointer(std::uint64_t contact, float x, float y, Dev
 		return false;
 	if (kind == DeviceEventKind::Down)
 		for (auto *hit = context_->GetElementAtPoint({x, y}); hit; hit = hit->GetParentNode())
-			if (hit->GetTagName() == "button")
+			if (hit->GetTagName() == "button" || hit->GetAttribute<bool>("data-overlay-panel", false))
 				return false;
 	if (!app_ || !game_active(*app_) || owner_.lock() != app_->session || generation_ != app_->session->generation())
 		return false;

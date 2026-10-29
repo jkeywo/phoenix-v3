@@ -83,7 +83,11 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 				return &instance;
 		return nullptr;
 	};
-	tool_window(tool_label("Map").c_str());
+	if (!tool_window(tool_label("Map").c_str()))
+	{
+		ImGui::End();
+		return;
+	}
 	ImGui::TextWrapped("%s: %s", localise("Editing pack").c_str(),
 	                   document.manifest().at("id").get_ref<const std::string &>().c_str());
 	ImGui::BeginDisabled(saving);
@@ -198,7 +202,7 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 	}
 	std::uint64_t nearest = 0;
 	float distance = 24;
-	const auto map_content = document.definitions().dump() + document.manifest().dump();
+	const auto map_content = std::to_string(document.revision());
 	if (map_content != state_->content)
 	{
 		state_->content = map_content;
@@ -223,9 +227,13 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 		                               });
 		const Json *resolved = definition == definitions.end() ? nullptr : &*definition;
 		if (state_->catalog)
-			if (const auto found = state_->catalog->entities.find(instance.at("definition").get<std::string>());
-			    found != state_->catalog->entities.end())
-				resolved = &found->second;
+			for (const auto &compiled :
+			     state_->catalog->maps.at(document.map().at("id").get<std::string>()).at("entities"))
+				if (compiled.at("id") == instance.at("id"))
+				{
+					resolved = &state_->catalog->entities.at(compiled.at("definition").get<std::string>());
+					break;
+				}
 		if (resolved && resolved->contains("render"))
 			attempt(
 			    [&]
@@ -240,8 +248,7 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 					                         sprite);
 				    if (!has_icon && render.contains("sprite") && state_->catalog)
 				    {
-					    const auto material =
-					        compile_sprite(render.at("sprite"), *state_->catalog, instance.at("definition"));
+					    const auto material = compile_sprite(render.at("sprite"), *state_->catalog, resolved->at("id"));
 					    const auto entry = sprite_entry_index(
 					        material, instance.value("sprite_entry", render.value("sprite_entry", std::string{})));
 					    const auto &frame =

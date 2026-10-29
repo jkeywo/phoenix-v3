@@ -38,10 +38,10 @@ Json public_ui_definition(const Json &source)
 		return source;
 	Json result = Json::object();
 	static const std::set<std::string> fields = {
-	    "id",        "schema",    "root",       "compact", "kind",   "label",       "component", "group",
-	    "overrides", "children",  "rect",       "circle",  "x",      "y",           "radius",    "width",
-	    "height",    "min_width", "min_height", "stretch", "gap",    "padding",     "aspect",    "align",
-	    "region",    "style",     "tokens",     "assets",  "slices", "asset_scale", "when"};
+	    "id",         "schema",  "root",   "compact", "kind",        "label",  "component", "group",  "overrides",
+	    "children",   "rect",    "circle", "x",       "y",           "radius", "width",     "height", "min_width",
+	    "min_height", "stretch", "gap",    "padding", "aspect",      "align",  "region",    "inset",  "scroll",
+	    "style",      "tokens",  "assets", "slices",  "asset_scale", "when"};
 	for (const auto &[key, value] : source.items())
 		if (fields.contains(key))
 			result[key] = key == "tokens" || key == "assets" || key == "slices" || key == "asset_scale" ||

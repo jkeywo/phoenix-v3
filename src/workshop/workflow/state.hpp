@@ -18,6 +18,11 @@ struct WorkshopWorkspace::State
 	bool saving = false;
 	WorkshopDocument document;
 	WorkshopHistory history;
+	std::uint64_t labels_revision = 0;
+	std::vector<std::string> entity_labels, console_labels;
+	std::uint64_t instance_template_revision = 0;
+	std::string instance_template_id;
+	Json instance_template;
 	MapEditorSelection selection;
 	int console = -1;
 	ToolMessage status = "Import a PNG, create an entity definition, then place instances on the map.";

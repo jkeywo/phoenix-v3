@@ -8,6 +8,8 @@ The offline [interactive module graph](docs/module-graph.html) groups modules by
 
 [GUI controls and presentation](docs/gui-controls.md) documents controller navigation, Console text scaling, Workshop/GM presentation preferences and stable Windows accessibility identity.
 
+[Workshop and Navigation refinement](docs/workshop-navigation-refinement.md) covers ranked human preferences, cached Workshop browsing, mission-instance overrides, the shared production Courier and Navigation's map/FTL overlay.
+
 [Station help](docs/station-help.md) describes complexity-specific lobby introductions and in-game tab help.
 
 [Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.

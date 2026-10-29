@@ -90,6 +90,32 @@ void inherit_definitions(std::map<std::string, Json> &definitions, const std::st
 			visit(id);
 }
 
+void resolve_instance_overrides(Catalog &catalog)
+{
+	for (auto &[map_id, map] : catalog.maps)
+		for (auto &instance : map.at("entities"))
+			if (instance.contains("overrides"))
+			{
+				const auto path = map_id + ".instance." + instance.at("id").dump();
+				const auto &patch = instance.at("overrides");
+				if (!patch.is_object() || patch.contains("id") || patch.contains("extends"))
+					invalid(path + ".overrides", "expected object without id or extends");
+				const auto source = instance.at("definition").get<std::string>();
+				if (!catalog.entities.contains(source))
+					invalid(path, "unknown entity template " + source);
+				const auto id = map_id + ".instance-" + instance.at("id").dump();
+				if (catalog.entities.contains(id))
+					invalid(path, "generated instance identity collision");
+				auto resolved = catalog.entities.at(source);
+				resolved.merge_patch(patch);
+				resolved["id"] = id;
+				resolved["_instance_template"] = source;
+				catalog.entities.emplace(id, std::move(resolved));
+				instance["definition"] = id;
+				instance.erase("overrides");
+			}
+}
+
 void overlay_knowledge(Json &target, const Json &source, const std::string &path)
 {
 	if (!source.is_object())

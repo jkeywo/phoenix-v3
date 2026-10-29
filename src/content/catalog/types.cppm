@@ -54,6 +54,8 @@ struct Catalog
 };
 // Resolution only; a root restricts traversal to its dependency closure.
 void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
+// Expand authored map-instance patches before equipment and gameplay compilation.
+void resolve_instance_overrides(Catalog &);
 // Parent is the required dependency for rooted packs. Legacy synthetic fixtures
 // may still use the old dependency vocabulary outside a launched base tree.
 std::vector<std::string> pack_dependencies(const Json &manifest);

@@ -5,6 +5,8 @@ module;
 #include <raylib.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -29,6 +31,7 @@ import phoenix.workshop.layout;
 import phoenix.workshop.asset_preview;
 import phoenix.workshop.material_preview;
 import phoenix.workshop.gameplay;
+import phoenix.workshop.authoring;
 import phoenix.ui.preview;
 
 namespace phoenix
@@ -95,6 +98,29 @@ void WorkshopWorkspace::State::open_workshop_pack(const std::string &path)
 
 void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 {
+	const double profile_start = GetTime();
+	static const char *profile_path = std::getenv("PHOENIX_WORKSHOP_PROFILE");
+	static const std::string profile_view =
+	    std::getenv("PHOENIX_WORKSHOP_PROFILE_VIEW") ? std::getenv("PHOENIX_WORKSHOP_PROFILE_VIEW") : "entities";
+	static unsigned profile_frame = 0;
+	if (profile_path && profile_frame++ == 5)
+	{
+		selection.instance = 0;
+		selection.definition = 0;
+		selection.kind = profile_view == "layout" ? "Console" : "Entity";
+		if (profile_view == "layout")
+		{
+			for (std::size_t i = 0; i < document.definitions()["consoles"].size(); ++i)
+				if (document.definitions()["consoles"][i].at("id") == "base.console.widgets.8dec2da474e8dd61")
+					console = static_cast<int>(i);
+			layout_editor.focus();
+		}
+	}
+	if (profile_path && profile_view == "layout" && profile_frame == 8)
+		ImGui::SetWindowFocus(tool_label("Layout palette").c_str());
+	if (profile_path && profile_view == "entities" && profile_frame == 8)
+		ImGui::SetWindowFocus(tool_label("Definitions").c_str());
+	document.begin_frame();
 	auto base_archive = [&]
 	{
 		return installed_base_pack(environment).second;
@@ -111,10 +137,11 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 	if (started)
 	{
 		if (const auto catalog = document.preview_ui())
-			apply_tool_theme(*catalog);
+			apply_tool_theme(*catalog, document.revision());
 	}
 	else if (environment.session)
 		apply_tool_theme(environment.session->catalog());
+	const double profile_theme_end = GetTime();
 	auto dock = ImGui::GetID("PhoenixDock");
 	auto *viewport = ImGui::GetMainViewport();
 	if (dock_size.x != viewport->WorkSize.x || dock_size.y != viewport->WorkSize.y)
@@ -476,183 +503,308 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 		ImGui::EndMainMenuBar();
 	}
 
-	tool_window(tool_label("Entities").c_str());
-	for (const auto &instance : document.map()["entities"])
+	const double profile_lists_start = GetTime();
+	if (labels_revision != document.revision())
 	{
-		auto label = std::to_string(instance.at("id").get<std::uint64_t>()) + " / " +
-		             instance.at("definition").get<std::string>();
-		if (ImGui::Selectable(label.c_str(), selection.kind == "Entity" && selection.instance == instance["id"]))
+		labels_revision = document.revision();
+		auto labels = [](const Json &rows)
 		{
-			selection.instance = instance["id"];
-			selection.kind = "Entity";
-		}
+			std::vector<std::string> result;
+			for (const auto &row : rows)
+			{
+				const auto id = row.at("id").get<std::string>(), name = row.value("name", std::string{});
+				result.push_back((name.empty() ? id : name + " (" + id + ")") + "###" + id);
+			}
+			return result;
+		};
+		entity_labels = labels(document.definitions()["entities"]);
+		console_labels = labels(document.definitions()["consoles"]);
 	}
-	if (selection.kind == "Entity" && selection.instance)
+	auto &definitions = document.definitions()["entities"];
+	if (tool_window(tool_label("Entities").c_str()))
 	{
-		if (tool_button(tool_label("Duplicate").c_str()))
-			document.duplicate(selection.instance);
-		if (tool_button(tool_label("Delete").c_str()))
+		const auto &instances = document.map()["entities"];
+		ImGuiListClipper entity_clipper;
+		entity_clipper.Begin(static_cast<int>(instances.size()));
+		while (entity_clipper.Step())
+			for (int i = entity_clipper.DisplayStart; i < entity_clipper.DisplayEnd; ++i)
+			{
+				const auto &instance = instances[i];
+				auto label = std::to_string(instance.at("id").get<std::uint64_t>()) + " / " +
+				             instance.at("definition").get<std::string>();
+				if (ImGui::Selectable(label.c_str(),
+				                      selection.kind == "Entity" && selection.instance == instance["id"]))
+				{
+					selection.instance = instance["id"];
+					selection.kind = "Entity";
+				}
+			}
+		if (selection.kind == "Entity" && selection.instance)
 		{
-			document.erase(selection.instance);
-			selection.instance = 0;
+			if (tool_button(tool_label("Duplicate").c_str()))
+				document.duplicate(selection.instance);
+			if (tool_button(tool_label("Delete").c_str()))
+			{
+				document.erase(selection.instance);
+				selection.instance = 0;
+			}
 		}
 	}
 	ImGui::End();
-	tool_window(tool_label("Definitions").c_str());
+	if (profile_path && profile_frame == 6 && profile_view == "entities")
+		ImGui::SetNextWindowFocus();
+	if (tool_window(tool_label("Definitions").c_str()))
+	{
 
-	for (const char *area : {"Templates and assemblies", "Knowledge", "Coordination"})
-		if (ImGui::Selectable(tool_label(area).c_str(), selection.kind == area))
-			selection.kind = area;
-	ImGui::Separator();
-	{
-		Json background = document.manifest().value("loading_background", Json(""));
-		assets.pick(document, "Pack loading background", background);
-		if (background.is_string() && !background.get<std::string>().empty())
-			document.manifest()["loading_background"] = background;
-		else
-			document.manifest().erase("loading_background");
-	}
-	pack_parent_properties(environment);
-	ImGui::InputText(tool_label("Pack ID").c_str(), &pack_name);
-	if (tool_button(tool_label("Apply pack ID").c_str()))
-		attempt(
-		    [&]
-		    {
-			    document.rename_pack(pack_name);
-			    clear_textures();
-		    });
-	if (tool_button(tool_label("Import PNG").c_str()))
-		attempt(
-		    [&]
-		    {
-			    request_file(imports, FilePurpose::WorkshopImage);
-		    });
-	if (tool_button(tool_label("New entity definition").c_str()))
-	{
-		document.create_entity();
-		selection.definition = static_cast<int>(document.definitions()["entities"].size() - 1);
-		selection.kind = "Entity";
-		selection.instance = 0;
-	}
-	auto &definitions = document.definitions()["entities"];
-	for (std::size_t i = 0; i < definitions.size(); ++i)
-	{
-		auto id = definitions[i].at("id").get<std::string>();
-		const auto name = definitions[i].value("name", std::string{});
-		const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
-		if (ImGui::Selectable(label.c_str(), selection.kind == "Entity" && selection.definition == i))
+		for (const char *area : {"Templates and assemblies", "Knowledge", "Coordination"})
+			if (ImGui::Selectable(tool_label(area).c_str(), selection.kind == area))
+				selection.kind = area;
+		ImGui::Separator();
 		{
-			selection.definition = static_cast<int>(i);
-			selection.kind = "Entity";
-			selection.instance = 0;
+			Json background = document.manifest().value("loading_background", Json(""));
+			assets.pick(document, "Pack loading background", background);
+			if (background.is_string() && !background.get<std::string>().empty())
+				document.manifest()["loading_background"] = background;
+			else
+				document.manifest().erase("loading_background");
 		}
-	}
-	if (!document.libraries().entities.empty() && ImGui::CollapsingHeader(tool_label("Dependency entities").c_str()))
-	{
-		for (const auto &[id, entity] : document.libraries().entities)
-			if (ImGui::Selectable(id.c_str(), library_parent == id))
-				library_parent = id;
-		if (!library_parent.empty() && tool_button(tool_label("Create derived entity").c_str()))
+		pack_parent_properties(environment);
+		ImGui::InputText(tool_label("Pack ID").c_str(), &pack_name);
+		if (tool_button(tool_label("Apply pack ID").c_str()))
 			attempt(
 			    [&]
 			    {
-				    document.create_entity(library_parent);
-				    selection.definition = static_cast<int>(definitions.size() - 1);
-				    selection.kind = "Entity";
-				    selection.instance = 0;
+				    document.rename_pack(pack_name);
+				    clear_textures();
 			    });
-	}
-	if (ImGui::CollapsingHeader(tool_label("Override dependency definitions").c_str()))
-	{
-		ImGui::TextWrapped(
-		    "%s", localise("Copy a dependency definition into this pack and explicitly declare its override.").c_str());
-		auto overrides = [&](const char *kind, const auto &table)
+		if (tool_button(tool_label("Import PNG").c_str()))
+			attempt(
+			    [&]
+			    {
+				    request_file(imports, FilePurpose::WorkshopImage);
+			    });
+		if (tool_button(tool_label("New entity definition").c_str()))
 		{
-			for (const auto &[id, value] : table)
-				if (tool_button((std::string("Override ") + kind + " / " + id).c_str()))
+			document.create_entity();
+			selection.definition = static_cast<int>(document.definitions()["entities"].size() - 1);
+			selection.kind = "Entity";
+			selection.instance = 0;
+		}
+		if (profile_path && profile_view == "entities")
+			ImGui::SetScrollY(std::fmod(profile_frame * 12.f, std::max(1.f, ImGui::GetScrollMaxY())));
+		ImGuiListClipper definition_clipper;
+		definition_clipper.Begin(static_cast<int>(definitions.size()));
+		while (definition_clipper.Step())
+			for (int i = definition_clipper.DisplayStart; i < definition_clipper.DisplayEnd; ++i)
+			{
+				if (ImGui::Selectable((i < static_cast<int>(entity_labels.size())
+				                           ? entity_labels[i]
+				                           : definitions[i].at("id").get<std::string>())
+				                          .c_str(),
+				                      selection.kind == "Entity" && selection.definition == i))
 				{
-					auto &local = document.definitions()[kind];
-					const bool exists = std::any_of(local.begin(), local.end(),
-					                                [&](const auto &entry)
-					                                {
-						                                return entry.at("id") == id;
-					                                });
-					if (exists)
-					{
-						status = ToolMessage("This definition is already editable in the pack: {id}", {{"id", id}});
-						continue;
-					}
-					local.push_back(value);
-					auto &declared = document.manifest()["overrides"];
-					if (!declared.is_array())
-						declared = Json::array();
-					if (std::find(declared.begin(), declared.end(), Json(id)) == declared.end())
-						declared.push_back(id);
-					status = ToolMessage("Explicit override added: {id}", {{"id", id}});
+					selection.definition = static_cast<int>(i);
+					selection.kind = "Entity";
+					selection.instance = 0;
 				}
-		};
-		overrides("entities", document.libraries().entities);
-		overrides("maps", document.libraries().maps);
-		overrides("consoles", document.libraries().consoles);
-		overrides("trees", document.libraries().trees);
-		overrides("layouts", document.libraries().layouts);
-		overrides("ui_groups", document.libraries().ui_groups);
-		overrides("themes", document.libraries().themes);
+			}
+		if (!document.libraries().entities.empty() &&
+		    ImGui::CollapsingHeader(tool_label("Dependency entities").c_str()))
+		{
+			for (const auto &[id, entity] : document.libraries().entities)
+				if (!entity.contains("_instance_template") && ImGui::Selectable(id.c_str(), library_parent == id))
+					library_parent = id;
+			if (!library_parent.empty() && tool_button(tool_label("Create derived entity").c_str()))
+				attempt(
+				    [&]
+				    {
+					    document.create_entity(library_parent);
+					    selection.definition = static_cast<int>(definitions.size() - 1);
+					    selection.kind = "Entity";
+					    selection.instance = 0;
+				    });
+		}
+		if (ImGui::CollapsingHeader(tool_label("Override dependency definitions").c_str()))
+		{
+			ImGui::TextWrapped(
+			    "%s",
+			    localise("Copy a dependency definition into this pack and explicitly declare its override.").c_str());
+			auto overrides = [&](const char *kind, const auto &table)
+			{
+				for (const auto &[id, value] : table)
+					if (!value.contains("_instance_template") &&
+					    tool_button((std::string("Override ") + kind + " / " + id).c_str()))
+					{
+						auto &local = document.definitions()[kind];
+						const bool exists = std::any_of(local.begin(), local.end(),
+						                                [&](const auto &entry)
+						                                {
+							                                return entry.at("id") == id;
+						                                });
+						if (exists)
+						{
+							status = ToolMessage("This definition is already editable in the pack: {id}", {{"id", id}});
+							continue;
+						}
+						local.push_back(value);
+						auto &declared = document.manifest()["overrides"];
+						if (!declared.is_array())
+							declared = Json::array();
+						if (std::find(declared.begin(), declared.end(), Json(id)) == declared.end())
+							declared.push_back(id);
+						status = ToolMessage("Explicit override added: {id}", {{"id", id}});
+					}
+			};
+			overrides("entities", document.libraries().entities);
+			overrides("maps", document.libraries().maps);
+			overrides("consoles", document.libraries().consoles);
+			overrides("trees", document.libraries().trees);
+			overrides("layouts", document.libraries().layouts);
+			overrides("ui_groups", document.libraries().ui_groups);
+			overrides("themes", document.libraries().themes);
+		}
+		ImGui::Separator();
+		ImGui::TextWrapped("%s", status.c_str());
 	}
-	ImGui::Separator();
-	ImGui::TextWrapped("%s", status.c_str());
 	ImGui::End();
 
-	tool_window(tool_label("Consoles").c_str());
-	console_editor(environment, false);
+	if (tool_window(tool_label("Consoles").c_str()))
+		console_editor(environment, false);
 	ImGui::End();
+	const double profile_lists_end = GetTime();
 	const auto &map_frame = environment.frame;
 	map_editor.draw(document, selection, status, saving, map_frame,
 	                [&]
 	                {
 		                save_pack(environment, false);
 	                });
+	const double profile_map_end = GetTime();
 	gameplay.areas(document, environment.preferences.pseudo, status, selection.kind);
-	tool_window(tool_label("Properties").c_str());
-	if (selection.kind == "Entity")
+	if (profile_path && profile_frame == 6 && profile_view == "equipment")
+		ImGui::SetNextWindowFocus();
+	if (tool_window(tool_label("Properties").c_str()))
 	{
-		if (auto *instance = selected_instance())
+		if (profile_path && profile_view == "equipment")
+			ImGui::SetScrollY(std::fmod(profile_frame * 12.f, std::max(1.f, ImGui::GetScrollMaxY())));
+		if (selection.kind == "Entity")
 		{
-			ImGui::TextUnformatted(ToolMessage("Instance {id}", {{"id", std::to_string(selection.instance)}}).c_str());
-			transform_fields(*instance);
-			string_field("Faction", *instance, "faction");
-			ImGui::Separator();
-			selection.definition = -1;
-			for (std::size_t i = 0; i < definitions.size(); ++i)
-				if (definitions[i]["id"] == (*instance)["definition"])
-					selection.definition = static_cast<int>(i);
+			if (auto *instance = selected_instance())
+			{
+				ImGui::TextUnformatted(
+				    ToolMessage("Instance {id}", {{"id", std::to_string(selection.instance)}}).c_str());
+				transform_fields(*instance);
+				string_field("Faction", *instance, "faction");
+				if (ImGui::CollapsingHeader(tool_label("Mission instance overrides").c_str()))
+					attempt(
+					    [&]
+					    {
+						    AuthoringControls fields;
+						    fields.pseudo = environment.preferences.pseudo;
+						    const auto template_id = instance->at("definition").get<std::string>();
+						    if (instance_template_revision != document.revision() ||
+						        instance_template_id != template_id)
+						    {
+							    instance_template =
+							        document.preview_definition(WorkshopDefinitionKind::Entity, template_id);
+							    instance_template_id = template_id;
+							    instance_template_revision = document.revision();
+						    }
+						    const auto &inherited = instance_template;
+						    fields.text("These changes apply only to this mission instance. Template properties below "
+						                "edit the shared template.");
+						    Json new_patch = Json::object();
+						    auto &patch = instance->contains("overrides") ? instance->at("overrides") : new_patch;
+						    std::set<std::string> keys;
+						    for (const auto &[key, value] : inherited.items())
+							    keys.insert(key);
+						    for (const auto &[key, value] : patch.items())
+							    keys.insert(key);
+						    for (const auto &key : keys)
+						    {
+							    if (key == "id" || key == "extends")
+								    continue;
+							    ScopedId identity(key.c_str());
+							    if (ScopedTree section(key.c_str()); section)
+							    {
+								    fields.text("Inherited template value");
+								    auto preview = inherited.value(key, Json());
+								    fields.structure(preview, false);
+								    if (!patch.contains(key) && fields.button("Override for this instance"))
+									    patch[key] = inherited.value(key, Json());
+								    if (patch.contains(key))
+								    {
+									    fields.text("Local merge patch (objects merge; arrays replace; null removes)");
+									    fields.structure(patch[key]);
+									    if (fields.button("Remove inherited field"))
+										    patch[key] = nullptr;
+									    if (fields.button("Revert to inherited"))
+										    patch.erase(key);
+								    }
+							    }
+						    }
+						    if (fields.button("Revert all instance overrides"))
+							    instance->erase("overrides");
+						    else if (!new_patch.empty())
+							    (*instance)["overrides"] = std::move(new_patch);
+					    });
+				ImGui::Separator();
+				selection.definition = -1;
+				for (std::size_t i = 0; i < definitions.size(); ++i)
+					if (definitions[i]["id"] == (*instance)["definition"])
+						selection.definition = static_cast<int>(i);
+			}
+			if (selection.definition >= 0 && selection.definition < static_cast<int>(definitions.size()))
+			{
+				auto &definition = definitions[selection.definition];
+				ImGui::TextUnformatted(definition.at("id").get_ref<const std::string &>().c_str());
+				if (ImGui::CollapsingHeader(tool_label("Appearance and physics").c_str()))
+					entity_properties(definition);
+				gameplay.properties(document, environment.preferences.pseudo, status, selection.kind,
+				                    definition.at("id").get<std::string>());
+			}
+			else
+				ImGui::TextWrapped("%s", localise("Create or select a reusable entity definition.").c_str());
 		}
-		if (selection.definition >= 0 && selection.definition < static_cast<int>(definitions.size()))
-		{
-			auto &definition = definitions[selection.definition];
-			ImGui::TextUnformatted(definition.at("id").get_ref<const std::string &>().c_str());
-			if (ImGui::CollapsingHeader(tool_label("Appearance and physics").c_str()))
-				entity_properties(definition);
-			gameplay.properties(document, environment.preferences.pseudo, status, selection.kind,
-			                    definition.at("id").get<std::string>());
-		}
+		else if (selection.kind == "Console")
+			console_editor(environment, true);
+		else if (selection.kind == "Ship slots")
+			slots_editor();
 		else
-			ImGui::TextWrapped("%s", localise("Create or select a reusable entity definition.").c_str());
+			gameplay.properties(document, environment.preferences.pseudo, status, selection.kind, "");
 	}
-	else if (selection.kind == "Console")
-		console_editor(environment, true);
-	else if (selection.kind == "Ship slots")
-		slots_editor();
-	else
-		gameplay.properties(document, environment.preferences.pseudo, status, selection.kind, "");
 	ImGui::End();
 
+	const double profile_inspector_end = GetTime();
 	if (selection.kind == "Console")
 		layout_editor.draw(document, console, environment.preferences.pseudo, imports, status);
 	preview.draw(document, selection.definition, status);
+	const double profile_layout_end = GetTime();
+	bool may_edit = ImGui::IsAnyItemActive() || !ImGui::GetIO().InputQueueCharacters.empty();
+	for (int i = 0; i < 3; ++i)
+		may_edit = may_edit || ImGui::IsMouseDown(i) || ImGui::IsMouseClicked(i) || ImGui::IsMouseReleased(i);
+	for (int key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END; ++key)
+		may_edit = may_edit || ImGui::IsKeyDown(static_cast<ImGuiKey>(key)) ||
+		           ImGui::IsKeyReleased(static_cast<ImGuiKey>(key));
+	if (auto *window = ImGui::GetCurrentContext()->ActiveIdWindow;
+	    window &&
+	    (ImGui::GetActiveID() == window->GetID("#SCROLLY") || ImGui::GetActiveID() == window->GetID("#SCROLLX")))
+		may_edit = false;
+	document.end_frame(may_edit);
 	if (!ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
 		history.checkpoint(document);
 
+	if (profile_path)
+	{
+		static std::ofstream capture(profile_path);
+		if (profile_frame == 1)
+			capture << "frame,frame_ms,workshop_ms,theme_ms,lists_ms,map_ms,inspector_ms,layout_ms,history_ms\n";
+		capture << profile_frame << ',' << GetFrameTime() * 1000 << ',' << (GetTime() - profile_start) * 1000 << ','
+		        << (profile_theme_end - profile_start) * 1000 << ',' << (profile_lists_end - profile_lists_start) * 1000
+		        << ',' << (profile_map_end - profile_lists_end) * 1000 << ','
+		        << (profile_inspector_end - profile_map_end) * 1000 << ','
+		        << (profile_layout_end - profile_inspector_end) * 1000 << ',' << (GetTime() - profile_layout_end) * 1000
+		        << '\n';
+	}
 	tool_window(tool_label("Status").c_str());
 	if (!environment.status.empty())
 		ImGui::TextWrapped("%s", localise(environment.status).c_str());

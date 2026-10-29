@@ -42,19 +42,29 @@ Json *GameplayEditors::State::select_entity(WorkshopDocument &document)
 std::vector<std::string> GameplayEditors::State::fitted_ids(const WorkshopDocument &document, const Json &ship)
 {
 	composition = Json::object();
-	composition_catalog = Catalog{};
 	auto fallback = ship.contains("systems") ? ids(ship.at("systems")) : std::vector<std::string>{};
-	try
+	if (composition_revision != document.revision())
 	{
-		composition_catalog = document.preview_equipment();
-		const auto &expanded = composition_catalog.entities.at(ship.at("id").get<std::string>());
-		composition = expanded;
-		if (expanded.contains("systems"))
-			return ids(expanded.at("systems"));
+		composition_revision = document.revision();
+		composition_error.clear();
+		composition_catalog = Catalog{};
+		try
+		{
+			composition_catalog = document.preview_equipment();
+		}
+		catch (const std::exception &error)
+		{
+			composition_error = error.what();
+		}
 	}
-	catch (const std::exception &error)
+	if (!composition_error.empty())
+		ImGui::TextWrapped("%s", composition_error.c_str());
+	else if (const auto found = composition_catalog.entities.find(ship.at("id").get<std::string>());
+	         found != composition_catalog.entities.end())
 	{
-		ImGui::TextWrapped("%s", error.what());
+		composition = found->second;
+		if (composition.contains("systems"))
+			return ids(composition.at("systems"));
 	}
 	return fallback;
 }
@@ -725,7 +735,12 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			                names(console, "systems", systems);
 			                names(console, "feeds", systems);
 			                boolean(console, "shield_feed");
-			                names(console, "human_preferences", ids(ship.at("stations")));
+			                const auto stations = ids(ship.at("stations"));
+			                std::vector<std::string> defaults{station.at("id").get<std::string>()};
+			                for (const auto &id : stations)
+				                if (id != defaults.front())
+					                defaults.push_back(id);
+			                ranked_names(console, "human_preferences", stations, defaults);
 			                gameplay_panel(console);
 		                });
 	        });

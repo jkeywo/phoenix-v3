@@ -142,16 +142,8 @@ WorkshopDocument::WorkshopDocument()
 }
 std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 {
-	// Raw draft access is supported by all existing editors. Compare against the last UI
-	// snapshot without copying/serialising unchanged rows. Imports and loads invalidate assets.
-	static const Json empty = Json::array();
-	bool unchanged = ui_preview_ && ui_preview_manifest_ == pack_.manifest;
-	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities", "trees"})
-	{
-		const auto row = definitions_.find(kind);
-		unchanged = unchanged && ui_preview_source_.at(kind) == (row == definitions_.end() ? empty : *row);
-	}
-	if (unchanged)
+	const auto current_revision = revision();
+	if (ui_preview_ && ui_revision_ == current_revision)
 		return ui_preview_;
 	Json source = Json::object();
 	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities", "trees"})
@@ -183,6 +175,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))
 			preview.assets[prefix + path] = bytes;
 	ui_preview_ = std::make_shared<const Catalog>(std::move(preview));
+	ui_revision_ = current_revision;
 	ui_preview_source_ = std::move(source);
 	ui_preview_manifest_ = pack_.manifest;
 	return ui_preview_;
@@ -276,7 +269,8 @@ std::vector<std::string> WorkshopDocument::definition_choices(WorkshopDefinition
 			result.push_back(id);
 	}
 	for (const auto &[id, entry] : table.library)
-		if (!compiled_widgets.contains(id) && seen.insert(id).second)
+		if (!(kind == WorkshopDefinitionKind::Entity && entry.contains("_instance_template")) &&
+		    !compiled_widgets.contains(id) && seen.insert(id).second)
 			result.push_back(id);
 	return result;
 }
@@ -349,6 +343,7 @@ std::vector<Bytes> WorkshopDocument::dependency_archives() const
 void WorkshopDocument::reset()
 {
 	ui_preview_.reset();
+	++resource_revision_;
 	pack_ = PackDraft{};
 	pack_.manifest = {{"schema", 1}, {"id", "workshop"}};
 	libraries_.clear();
@@ -401,14 +396,17 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	// Resolved Controllers can refer to generated officer/combat programs. Keep
 	// their authored layouts so export regenerates those programs on the next
 	// load instead of serialising references to programs absent from the draft.
-	DefinitionTable authored_entities;
+	DefinitionTable authored_entities, authored_maps;
 	for (const auto &pack : order)
 	{
 		const auto source = parse_json(pack.files().at("definitions.json"), "definitions.json");
 		for (const auto &entity : source.value("entities", Json::array()))
 			authored_entities[entity.at("id").get<std::string>()] = entity;
+		for (const auto &map : source.value("maps", Json::array()))
+			authored_maps[map.at("id").get<std::string>()] = map;
 	}
 	inherit_definitions(authored_entities, "entities");
+	inherit_definitions(authored_maps, "maps");
 	for (auto kind : {"entities", "maps", "consoles", "trees", "layouts", "ui_groups", "themes", "control_widgets"})
 		if (!definitions.contains(kind))
 			definitions[kind] = Json::array();
@@ -436,7 +434,8 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 			}
 			entity.erase("_equipment_source");
 		}
-	flatten("maps", resolved.maps);
+	// Keep authored template references and local patches; compiled instance IDs are runtime-only.
+	flatten("maps", authored_maps);
 	flatten("consoles", resolved.consoles);
 	// Presentation definitions keep authored inheritance and local overrides on reopen.
 	flatten("trees", resolved.trees);
@@ -448,6 +447,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	library_catalog_ = libraries_.empty() ? Catalog{} : resolve_packs(libraries_);
 	definitions_ = std::move(definitions);
 	map_index_ = 0;
+	++resource_revision_;
 }
 void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 {
@@ -479,6 +479,7 @@ void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 		if (std::find(required.begin(), required.end(), Json(id)) == required.end())
 			required.push_back(id);
 	}
+	++resource_revision_;
 }
 void WorkshopDocument::rename_pack(const std::string &id)
 {
@@ -610,7 +611,8 @@ std::string WorkshopDocument::create_entity(const std::string &parent)
 	                     }));
 	if (!parent.empty())
 	{
-		if (!library_catalog_.entities.contains(parent))
+		if (!library_catalog_.entities.contains(parent) ||
+		    library_catalog_.entities.at(parent).contains("_instance_template"))
 			throw std::runtime_error("Unknown library entity: " + parent);
 		definitions_["entities"].push_back({{"id", id}, {"extends", parent}});
 		return id;
@@ -895,6 +897,7 @@ std::string WorkshopDocument::import_model(const std::string &filename, Bytes by
 	if (pack_.files.contains(path))
 		throw std::runtime_error("Asset already exists; rename the imported model");
 	ui_preview_.reset();
+	++resource_revision_;
 	pack_.files[path] = std::move(bytes);
 	return pack_.manifest.at("id").get<std::string>() + ":" + path;
 }
@@ -918,6 +921,7 @@ std::string WorkshopDocument::import_image(const std::string &filename, Bytes by
 	                            {"collision", {{"shape", "circle"}, {"radius_mm", 1}, {"mass_grams", 0}}}};
 	verify_catalog(probe);
 	ui_preview_.reset();
+	++resource_revision_;
 	pack_.files[path] = std::move(bytes);
 	return reference;
 }
@@ -937,13 +941,14 @@ std::string WorkshopDocument::import_font(const std::string &filename, Bytes byt
 	if (pack_.files.contains(path))
 		throw std::runtime_error("Font already exists; rename the imported file");
 	ui_preview_.reset();
+	++resource_revision_;
 	pack_.files[path] = std::move(bytes);
 	return pack_.manifest.at("id").get<std::string>() + ":" + path;
 }
 
 bool WorkshopHistory::same_resources(const WorkshopDocument &a, const WorkshopDocument &b)
 {
-	if (a.pack_.files != b.pack_.files || a.libraries_.size() != b.libraries_.size())
+	if (a.resource_revision_ != b.resource_revision_ || a.libraries_.size() != b.libraries_.size())
 		return false;
 	for (std::size_t i = 0; i < a.libraries_.size(); ++i)
 		if (a.libraries_[i].hash() != b.libraries_[i].hash())
@@ -957,6 +962,7 @@ WorkshopHistory::Snapshot WorkshopHistory::snapshot(const WorkshopDocument &docu
 	                document.map_index_,
 	                document.definitions_.dump().size() + document.pack_.manifest.dump().size(),
 	                0,
+	                document.revision(),
 	                {}};
 	if (!past_.empty() && same_resources(*past_.back().resources, document))
 	{
@@ -967,6 +973,8 @@ WorkshopHistory::Snapshot WorkshopHistory::snapshot(const WorkshopDocument &docu
 	{
 		auto resources = std::make_shared<WorkshopDocument>(document);
 		resources->definitions_ = Json();
+		resources->revision_source_ = Json();
+		resources->ui_preview_source_ = Json();
 		resources->ui_preview_.reset();
 		for (const auto &[name, data] : document.pack_.files)
 			result.resource_bytes += name.size() + data.size();
@@ -978,11 +986,18 @@ WorkshopHistory::Snapshot WorkshopHistory::snapshot(const WorkshopDocument &docu
 }
 void WorkshopHistory::restore(WorkshopDocument &document, const Snapshot &snapshot)
 {
+	const auto next_revision = document.revision_ + 1;
+	const auto next_resources = document.resource_revision_ + 1;
+	const bool managed = document.in_frame_;
 	document = *snapshot.resources;
+	document.in_frame_ = managed;
+	document.revision_ = next_revision;
+	document.resource_revision_ = next_resources;
 	document.definitions_ = snapshot.definitions;
 	document.ui_preview_.reset();
 	document.pack_.manifest = snapshot.manifest;
 	document.map_index_ = snapshot.map_index;
+	document.refresh_revision();
 }
 void WorkshopHistory::trim(std::vector<Snapshot> &history)
 {
@@ -1005,14 +1020,14 @@ void WorkshopHistory::trim(std::vector<Snapshot> &history)
 }
 void WorkshopHistory::reset(const WorkshopDocument &document)
 {
+	document.refresh_revision();
 	past_.clear();
 	future_.clear();
 	past_.push_back(snapshot(document));
 }
 void WorkshopHistory::checkpoint(const WorkshopDocument &document)
 {
-	if (!past_.empty() && past_.back().definitions == document.definitions_ &&
-	    past_.back().manifest == document.pack_.manifest && same_resources(*past_.back().resources, document))
+	if (!past_.empty() && past_.back().revision == document.revision())
 		return;
 	past_.push_back(snapshot(document));
 	trim(past_);
@@ -1020,6 +1035,7 @@ void WorkshopHistory::checkpoint(const WorkshopDocument &document)
 }
 bool WorkshopHistory::undo(WorkshopDocument &document)
 {
+	document.refresh_revision();
 	checkpoint(document);
 	if (!can_undo())
 		return false;
@@ -1027,10 +1043,12 @@ bool WorkshopHistory::undo(WorkshopDocument &document)
 	past_.pop_back();
 	trim(future_);
 	restore(document, past_.back());
+	past_.back().revision = document.revision();
 	return true;
 }
 bool WorkshopHistory::redo(WorkshopDocument &document)
 {
+	document.refresh_revision();
 	checkpoint(document);
 	if (!can_redo())
 		return false;
@@ -1038,6 +1056,7 @@ bool WorkshopHistory::redo(WorkshopDocument &document)
 	future_.pop_back();
 	trim(past_);
 	restore(document, past_.back());
+	past_.back().revision = document.revision();
 	return true;
 }
 } // namespace phoenix

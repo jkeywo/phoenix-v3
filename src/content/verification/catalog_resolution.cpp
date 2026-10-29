@@ -246,6 +246,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	}
 	inherit_definitions(result.entities, "entities");
 	inherit_definitions(result.maps, "maps");
+	resolve_instance_overrides(result);
 	inherit_definitions(result.consoles, "consoles");
 	inherit_definitions(result.layouts, "layouts");
 	inherit_definitions(result.ui_groups, "ui_groups");
@@ -365,8 +366,15 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	}
 	for (const auto &[name, entity] : result.entities)
 		if (entity.contains("resources"))
-			result.resource_definitions.emplace(
-			    name, compile_resource_network(entity.at("resources"), compile_resource_catalog(result)));
+			try
+			{
+				result.resource_definitions.emplace(
+				    name, compile_resource_network(entity.at("resources"), compile_resource_catalog(result)));
+			}
+			catch (const std::exception &error)
+			{
+				invalid("entities." + name + ".resources", error.what());
+			}
 	std::vector<std::string> entity_ids;
 	for (const auto &[name, entity] : result.entities)
 		entity_ids.push_back(name);

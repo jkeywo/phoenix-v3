@@ -46,7 +46,7 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
 		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
-		                          "stretch", "aspect", "align", "region", "circle", "style", "when", "scroll"})
+		                          "stretch", "aspect", "align", "region", "circle", "style", "when", "scroll", "inset"})
 			if (source.contains(field))
 				root[field] = source.at(field);
 		root["id"] = source.at("id");
@@ -73,7 +73,8 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 	node.kind = source.value("kind", std::string("column"));
 	node.label = source.value("label", local);
 	ui_require(node.kind == "row" || node.kind == "column" || node.kind == "wrap" || node.kind == "tabs" ||
-	               node.kind == "instruments" || node.kind == "component" || node.kind == "cutout",
+	               node.kind == "instruments" || node.kind == "component" || node.kind == "cutout" ||
+	               node.kind == "overlay",
 	           node.id, "unsupported layout node kind");
 	node.component = source.value("component", std::string{});
 	node.style = source.value("style", Json::object());
@@ -92,12 +93,14 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 	node.preferred_height = ui_number(source, "height", 0);
 	node.gap = ui_number(source, "gap", 12, 0, 512);
 	node.padding = ui_number(source, "padding", 8, 0, 512);
+	node.inset = ui_number(source, "inset", 0, 0, 512);
 	node.stretch = ui_number(source, "stretch", 1, 0, 1000);
 	node.aspect = ui_number(source, "aspect", 0, 0, 100);
 	node.align = source.value("align", std::string("stretch"));
 	node.region = source.value("region", std::string{});
-	ui_require(node.region.empty() || node.region == "centre" || node.region == "top-left" ||
-	               node.region == "top-right" || node.region == "bottom-left" || node.region == "bottom-right",
+	ui_require(node.region.empty() || node.region == "background" || node.region == "centre" ||
+	               node.region == "top-left" || node.region == "top-right" || node.region == "bottom-left" ||
+	               node.region == "bottom-right",
 	           node.id, "unknown cutout region");
 	if (source.contains("circle"))
 	{
@@ -130,6 +133,21 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 		for (const auto &child : source.at("children"))
 			node.children.push_back(compile_node(catalog, child, ids, node.id + ".", depth + 1, count));
 	}
+	if (node.kind == "overlay")
+	{
+		std::set<std::string> regions;
+		for (const auto &child : node.children)
+			ui_require((child.region == "background" || child.region == "top-left" || child.region == "top-right" ||
+			            child.region == "bottom-left" || child.region == "bottom-right") &&
+			               regions.insert(child.region).second,
+			           child.id, "overlay children need distinct background/corner regions");
+		ui_require(regions.contains("background"), node.id, "overlay needs exactly one background");
+		std::stable_partition(node.children.begin(), node.children.end(),
+		                      [](const UiNode &child)
+		                      {
+			                      return child.region == "background";
+		                      });
+	}
 	return node;
 }
 std::pair<float, float> minimum_size(const UiNode &node, float scale)
@@ -137,6 +155,28 @@ std::pair<float, float> minimum_size(const UiNode &node, float scale)
 	float width = node.minimum_width * scale, height = node.minimum_height * scale;
 	if (node.children.empty() || node.scroll)
 		return {width, height};
+	if (node.kind == "overlay")
+	{
+		float left = 0, right = 0, top = 0, bottom = 0;
+		for (const auto &child : node.children)
+		{
+			const auto [cw, ch] = minimum_size(child, scale);
+			if (child.region == "background")
+			{
+				width = std::max(width, cw);
+				height = std::max(height, ch);
+				continue;
+			}
+			const auto w = std::max(cw, child.preferred_width * scale) + child.inset * scale;
+			const auto h = std::max(ch, child.preferred_height * scale) + child.inset * scale;
+			(child.region.ends_with("right") ? right : left) =
+			    std::max(child.region.ends_with("right") ? right : left, w);
+			(child.region.starts_with("bottom") ? bottom : top) =
+			    std::max(child.region.starts_with("bottom") ? bottom : top, h);
+		}
+		return {std::max(width, left + right + (left && right ? node.gap * scale : 0)) + node.padding * 2 * scale,
+		        std::max(height, top + bottom + (top && bottom ? node.gap * scale : 0)) + node.padding * 2 * scale};
+	}
 	float w = 0, h = 0;
 	for (const auto &child : node.children)
 	{
@@ -531,14 +571,14 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 	result.root = result.compact && layout.compact ? *layout.compact : layout.root;
 	if (result.compact && !layout.compact && !result.root.children.empty() && result.root.kind != "tabs")
 	{
-		result.root.kind = "tabs";
+		result.root.kind = result.root.kind == "overlay" ? "column" : "tabs";
 		result.root.minimum_width = result.root.minimum_height = 44;
 	}
 	// Only choose responsive structure and page visibility here. RmlUi owns container geometry.
 	std::function<void(UiNode &, bool, const std::string &)> visit;
 	visit = [&](UiNode &node, bool visible, const std::string &page)
 	{
-		if (result.compact && (node.kind == "instruments" || node.kind == "cutout"))
+		if (result.compact && (node.kind == "instruments" || node.kind == "cutout" || node.kind == "overlay"))
 		{
 			node.kind = "column";
 			node.minimum_width = node.minimum_height = 44;
