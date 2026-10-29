@@ -1,4 +1,8 @@
-param([ValidateSet('all', 'native', 'web')][string]$Target = 'all', [switch]$Threaded)
+param(
+	[ValidateSet('all', 'native', 'web')][string]$Target = 'all',
+	[switch]$Threaded,
+	[ValidateRange(1, 1024)][int]$Jobs = 8
+)
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path $PSScriptRoot -Parent
@@ -21,7 +25,7 @@ try
 {
 	if ($Target -ne 'web')
 	{
-		& "$PSScriptRoot/build.ps1" -Target native
+		& "$PSScriptRoot/build.ps1" -Target native -Jobs $Jobs
 		& "$repo/.tools/python/cmake/data/bin/ctest.exe" --test-dir build/native -C Release --output-on-failure
 		if ($LASTEXITCODE)
 		{
@@ -130,7 +134,7 @@ try
 			$webOptions.Threaded = $Threaded
 		}
 		# The complete gate validates ordinary Release linking, even after local iteration.
-		& "$PSScriptRoot/build.ps1" -Target web -DevelopmentLink:$false @webOptions
+		& "$PSScriptRoot/build.ps1" -Target web -Jobs $Jobs -DevelopmentLink:$false @webOptions
 		Push-Location build/web
 		try
 		{
