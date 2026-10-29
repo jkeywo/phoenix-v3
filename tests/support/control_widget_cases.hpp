@@ -414,6 +414,15 @@ inline void control_widget_cases()
 		    },
 		    "unresolved command or equipment data binding");
 		invalid = source;
+		invalid["control_widgets"][0]["part_bindings"] = {{"main", {{"commands", {"speed"}}, {"ranges", {"speed"}}}}};
+		invalid["control_widgets"][0]["commands"][0]["action"] = "impulse";
+		rejected(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "ranges require numeric settings");
+		invalid = source;
 		invalid["control_widgets"][0]["commands"][0]["consumers"] = {"port"};
 		rejected(
 		    [&]

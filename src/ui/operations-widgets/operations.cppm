@@ -1,6 +1,9 @@
 module;
 #include <functional>
 #include <memory>
+#include <map>
+#include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,6 +17,7 @@ struct WidgetPanel
 {
 	std::string markup;
 	std::vector<std::pair<std::string, std::string>> readouts;
+	std::string structure() const;
 };
 struct OperationsWidgetContext
 {
@@ -24,6 +28,10 @@ struct OperationsWidgetContext
 	std::function<std::string(const std::string &)> asset;
 	std::function<bool(const std::string &)> component_active;
 	std::function<bool(const std::string &)> select_page;
+	std::string controller;
+	std::optional<std::set<std::string>> operations;
+	Json board(const std::string &name) const;
+	bool owns(const std::string &operation, const std::string &equipment = {}) const;
 	std::string id(const std::string &name) const
 	{
 		return prefix + name;
@@ -45,5 +53,7 @@ public:
 private:
 	struct State;
 	std::unique_ptr<State> state_;
+	std::map<std::string, std::unique_ptr<State>> scoped_;
+	State &state(const OperationsWidgetContext &);
 };
 } // namespace phoenix

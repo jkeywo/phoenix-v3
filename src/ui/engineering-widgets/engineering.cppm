@@ -28,6 +28,7 @@ struct PowerSetting
 	std::string id, controller, channel, action, subject;
 	std::int64_t minimum = 0, maximum = 0, value = 0;
 	bool coolant = false;
+	std::string console, component;
 };
 std::vector<PowerSetting> power_settings(const Observation &view);
 const PowerSetting *power_setting_for(const std::vector<PowerSetting> &settings, const Json &row, bool coolant);

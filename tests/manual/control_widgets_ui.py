@@ -24,8 +24,11 @@ ship["stations"] = [{"id": "operations", "consoles": [{
 source["control_widgets"] = [{
     "id": "test.drive", "schema": 1, "label": "Propulsion",
     "equipment": {"engine": {}},
-    "commands": [{"id": "speed", "action": "speed_mm_s", "initial": 3000, "label_key": "Speed", "consumers": ["$engine"]}],
-    "levels": [{"id": "automated", "human": []}, {"id": "direct", "human": ["speed"]}],
+    "commands": [{"id": "speed", "action": "speed_mm_s", "initial": 3000, "label_key": "Speed", "consumers": ["$engine"]},
+                 {"id": "trim", "action": "intent_integer", "initial": 4, "minimum": 0, "maximum": 10, "consumers": []}],
+    "operations": {"logistics": ["$engine"]},
+    "levels": [{"id": "automated", "human": []}, {"id": "direct", "human": ["speed", "trim"]},
+               {"id": "detailed", "human": ["speed", "trim", "logistics"]}],
     "data": {
         "requested": {"label": "Requested speed", "binding": "command.speed", "placement": "main"},
         "actual": {"label": "Maximum speed", "binding": "system.engine.maximum", "placement": "details"},
@@ -33,17 +36,30 @@ source["control_widgets"] = [{
     "parts": ["readout", "controls"],
     "part_bindings": {
         "readout": {"data": ["requested", "actual"], "details": True},
-        "controls": {"commands": ["speed"]},
+        "controls": {"commands": ["speed", "trim"], "ranges": ["trim"], "operations": ["logistics"], "renderer": "operations"},
     },
 }]
+source["control_widgets"].append({
+    "id": "test.secondary", "schema": 1, "label": "Secondary stores",
+    "equipment": {"subject": {"kinds": ["steering"]}}, "commands": [],
+    "operations": {"logistics": ["$subject"]},
+    "levels": [{"id": "automated", "human": []}, {"id": "manual", "human": ["logistics"]}],
+    "data": {}, "parts": ["main"],
+    "part_bindings": {"main": {"renderer": "operations", "operations": ["logistics"]}},
+})
 ship["control_layout"] = {
     "schema": 2, "default_profile": "one",
     "controllers": [{"id": "propulsion", "console": "drive", "widget": "test.drive",
                      "equipment": {"engine": "engine"},
-                     "star_levels": {"1": "automated", "2": "direct", "3": "direct"},
+                     "star_levels": {"1": "automated", "2": "direct", "3": "detailed"},
                      "data_placement": {"3": {"actual": "main"}}}],
     "profiles": [{"id": "one", "stars": 1}, {"id": "two", "stars": 2}, {"id": "three", "stars": 3}],
 }
+ship["control_layout"]["controllers"].append({
+    "id": "secondary", "console": "drive", "widget": "test.secondary",
+    "equipment": {"subject": "steering"},
+    "star_levels": {"1": "automated", "2": "automated", "3": "manual"},
+})
 console = source["consoles"][0]
 console["widgets"] = []
 console["layout"] = {
@@ -51,8 +67,12 @@ console["layout"] = {
     "root": {"id": "wide", "kind": "row", "min_width": 700, "children": [
         {"id": "status", "kind": "component", "component": "control/propulsion/readout"},
         {"id": "controls", "kind": "component", "component": "control/propulsion/controls"},
+        {"id": "secondary", "kind": "component", "component": "control/secondary/main"},
     ]},
-    "compact": {"id": "compact", "kind": "component", "component": "control/propulsion/complete"},
+    "compact": {"id": "compact", "kind": "column", "children": [
+        {"id": "primary", "kind": "component", "component": "control/propulsion/complete"},
+        {"id": "other", "kind": "component", "component": "control/secondary/main"},
+    ]},
 }
 source["maps"][0]["entities"] = []
 source["maps"][0]["ship_slots"] = [{"id": "test.slot", "x_mm": 0, "y_mm": 0,

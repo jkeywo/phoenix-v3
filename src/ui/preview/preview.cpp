@@ -530,6 +530,24 @@ void clear_console_preview()
 		UnloadRenderTexture(preview_texture);
 	preview_texture = {};
 }
+Json console_preview_controls()
+{
+	Json result = Json::array();
+	for (const auto &[identity, label] : preview_app.screen_controls)
+		if (const auto found = preview_app.control_placements.find(identity);
+		    found != preview_app.control_placements.end())
+		{
+			const auto &bounds = found->second;
+			result.push_back({{"id", identity},
+			                  {"label", label},
+			                  {"x", bounds.x},
+			                  {"y", bounds.y},
+			                  {"width", bounds.width},
+			                  {"height", bounds.height},
+			                  {"enabled", bounds.enabled}});
+		}
+	return result;
+}
 Json console_preview_state()
 {
 	return preview_session ? preview_session->observation()->gameplay : Json::object();

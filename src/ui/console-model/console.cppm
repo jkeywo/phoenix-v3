@@ -176,6 +176,10 @@ public:
 	std::string system_details() const;
 	std::vector<ConsoleSystemStatus> system_statuses() const;
 	Json team_map() const;
+	const std::string &selected_team() const
+	{
+		return selected_team_;
+	}
 	const std::string &status_system() const
 	{
 		return status_system_;

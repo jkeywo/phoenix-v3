@@ -225,3 +225,35 @@ base migration candidate passes production verification separately.
 `phoenix_verify --inventory output.json base.zip [mod.zip ...]` exports resolved
 entity definitions after ordinary verification, so migration and audits use the
 production assembly/equipment resolution rather than a second implementation.
+
+## Native visual parts and setting ranges
+
+A part binding can select an existing native workflow renderer with `renderer`:
+`teams`, `personnel`, `craft`, `operations` (logistics), `docking` or `away`.
+It must declare the corresponding operation scope. These renderers read the
+same permitted ConsoleModel boards and submit through its existing actions.
+A part's operation list filters its roster and available controls; another
+widget's equipment is excluded. Automated operations produce readouts, and
+owning an unrelated scalar channel does not expose delegated workflow buttons.
+Compact `main`/`complete` presentations reunite the named native parts.
+
+`ranges` lists setting channels displayed by a part. It reuses the existing
+Console range input, admission and pending-value reconciliation, including
+routing to a granted Console. The same setting is not also emitted as a palette
+of preset buttons. Main/Details/Hidden data remains separate from these control
+allocations. Modal Details blocks both background buttons and range input.
+
+Native browsing state is keyed by ship, Console and logical Controller, so split
+parts share state and separate widget instances remain independent. The
+graphical journey checks both instances through a compact-layout switch.
+
+Native panel readouts update in place through one shared structure builder,
+retaining focus and scroll position. Workshop exposes rendered control bounds
+for pointer inspection; the graphical journey uses those actual bounds rather
+than a fixed screen coordinate.
+
+The extended synthetic native journey passes range changes against an actual
+Controller setting, modal blocking, operation-specific native controls, compact
+reunion and Workshop pointer updates (`build/widget-finish-native-widget-ui.log`).
+The Controller suite passes, and the module boundary checker reports zero
+violations. The isolated build directory is `build/widget-finish-native`.

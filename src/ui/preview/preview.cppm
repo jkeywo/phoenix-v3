@@ -13,5 +13,6 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 const UiResolved &console_preview_geometry();
 // Isolated sample state shown by Workshop; never authoritative gameplay.
 Json console_preview_state();
+Json console_preview_controls();
 void clear_console_preview();
 } // namespace phoenix

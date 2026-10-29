@@ -595,6 +595,7 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 			if (command.system.empty() && !command.request_id && command.arguments.empty() &&
 			    c.at("semantics") == "setting")
 			{
+				projected |= s->contains("widget");
 				for (const auto &w : layout.at("widgets"))
 					if (w.value("controller", "") == command.controller && w.value("channel", "") == command.channel &&
 					    ((w.at("kind") == "throttle" && command.action == "speed_mm_s") ||

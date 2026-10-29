@@ -283,19 +283,9 @@ void ConsoleSurface::State::prepare_station_components(const ConsoleRegion &regi
 		std::string markup;
 		std::vector<std::pair<std::string, std::string>> readouts;
 		const auto panel_view = operations_.render(component, operations_context());
-		markup = panel_view.markup;
+		markup = panel_view.structure();
 		readouts = panel_view.readouts;
 		station_component_scope_.clear();
-		// Telemetry is updated in place so a live panel retains focus and scroll position.
-		for (const auto &[key, text] : readouts)
-		{
-			const auto start = markup.find("id=\"" + key + "\"");
-			if (start == std::string::npos)
-				continue;
-			const auto content = markup.find('>', start), end = markup.find("</", content);
-			if (end != std::string::npos)
-				markup.erase(content + 1, end - content - 1);
-		}
 		auto *panel = authored_component(component);
 		if (station_component_markup_[component] != markup)
 		{

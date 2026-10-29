@@ -146,10 +146,15 @@ bool ConsoleSurface::State::support_value(const std::string &name, const std::st
 		const auto choice = support_choices_.find(text);
 		return choice != support_choices_.end() && model_.act(choice->second);
 	}
-	if ((!authored_component_visible("power") && support_popup_ != "power") || !name.starts_with(id("power/")))
+	if (systems_open_ && (support_popup_ == "help" || support_popup_.starts_with("control/")))
+		return false;
+	if (!name.starts_with(id("power/")))
 		return false;
 	const auto found = power_controls_.find(name.substr(id("").size()));
 	if (found == power_controls_.end())
+		return false;
+	if (found->second.component.empty() ? !authored_component_visible("power") && support_popup_ != "power"
+	                                    : !authored_component_visible(found->second.component))
 		return false;
 	double percent = 0;
 	const auto parsed = std::from_chars(text.data(), text.data() + text.size(), percent);
@@ -158,7 +163,12 @@ bool ConsoleSurface::State::support_value(const std::string &name, const std::st
 		return false;
 	const auto setting = found->second;
 	const auto value = setting.minimum + std::llround((setting.maximum - setting.minimum) * percent / 100);
-	if (!model_.command(setting.action, value, "controller/" + setting.controller + "/" + setting.channel))
+	ConsoleModel *target = setting.console.empty() ? &model_ : nullptr;
+	if (!target)
+		for (const auto &[source, prefix] : task_sources())
+			if (source->observation() && source->observation()->console == setting.console)
+				target = source;
+	if (!target || !target->command(setting.action, value, "controller/" + setting.controller + "/" + setting.channel))
 		return false;
 	power_pending_[setting.id] = {value, app_->session->ticks() + 40};
 	return true;
@@ -178,6 +188,23 @@ bool ConsoleSurface::State::action(const std::string &name)
 		return false;
 	if (const auto handled = popup_action(action))
 		return *handled;
+	if (const auto operation = control_operation_actions_.find(action); operation != control_operation_actions_.end())
+	{
+		const auto binding = operation->second;
+		if (!settings_open_)
+			for (const auto &[source, prefix] : task_sources())
+				if (source->observation() && source->observation()->console == binding.console)
+				{
+					if (binding.renderer == "teams" && binding.action.starts_with("game."))
+						return source->act(binding.action);
+					if (binding.action.starts_with("asset-away/"))
+						return source->asset_away_action(binding.action);
+					return operations_.action(operations_context(source, binding.controller, binding.renderer),
+					                          binding.action);
+				}
+		return false;
+	}
+
 	if (action.starts_with("inline/"))
 	{
 		const bool accepted = !tactical_.console().empty() && tactical_.model().act(action.substr(7));

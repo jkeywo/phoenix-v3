@@ -218,7 +218,8 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	bool select_lobby_complexity(const std::string &profile);
 
 	OperationsWidgets operations_;
-	OperationsWidgetContext operations_context();
+	OperationsWidgetContext operations_context(ConsoleModel *source = nullptr, const std::string &controller = {},
+	                                           const std::string &renderer = {});
 
 	// A granted radar-only combat Console can share its operator's flight surface.
 	// Commands still pass through that Console's own model and ordinary admission.
@@ -273,11 +274,19 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::map<std::string, PowerPending> power_pending_;
 	std::map<std::string, std::string> support_choices_;
 	bool support_value(const std::string &name, const std::string &text);
+	std::string controller_range_markup(const PowerSetting &, const std::string &label);
+	void sync_controller_range(const PowerSetting &, const std::string &label);
 
 	void prepare_engineering_component(const std::string &component, const ConsoleRegion &region, bool pregame);
 
 	// Registered task components. Each consumes only its permitted model/command family.
 	std::map<std::string, std::string> task_actions_;
+	struct ControlOperationAction
+	{
+		std::string console, controller, renderer, action;
+	};
+	std::map<std::string, ControlOperationAction> control_operation_actions_;
+
 	std::map<int, std::string> condition_choices_;
 	std::optional<std::pair<int, std::uint64_t>> condition_pending_;
 	int condition_selected_ = 0;

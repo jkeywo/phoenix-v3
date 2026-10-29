@@ -3,7 +3,7 @@ target_sources(phoenix_ui_operations_widgets PUBLIC FILE_SET CXX_MODULES FILES o
 target_link_libraries(
 	phoenix_ui_operations_widgets
 	PUBLIC phoenix_console_model
-	PRIVATE phoenix_ui_rml phoenix_application_preferences RmlUi::RmlUi
+	PRIVATE phoenix_console_controls phoenix_ui_rml phoenix_application_preferences RmlUi::RmlUi
 )
 
 target_link_libraries(phoenix_ui_operations_widgets PUBLIC phoenix_content_catalog)

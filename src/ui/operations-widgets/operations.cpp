@@ -12,11 +12,153 @@ module phoenix.ui.operations_widgets;
 
 import phoenix.application.preferences;
 import phoenix.ui.rml;
+import phoenix.console_controls;
 namespace phoenix
 {
+std::string WidgetPanel::structure() const
+{
+	auto result = markup;
+	for (const auto &[key, text] : readouts)
+	{
+		const auto start = result.find("id=\"" + key + "\"");
+		if (start == std::string::npos)
+			continue;
+		const auto content = result.find('>', start), end = result.find("</", content);
+		if (end != std::string::npos)
+			result.erase(content + 1, end - content - 1);
+	}
+	return result;
+}
+bool OperationsWidgetContext::owns(const std::string &operation, const std::string &equipment) const
+{
+	if (operations && !operations->contains(operation))
+		return false;
+	if (controller.empty())
+		return true;
+	if (model.observation())
+		for (const auto &owner : model.observation()->gameplay.at("controllers"))
+			if (owner.at("id") == controller)
+			{
+				const auto operations = owner.value("operations", Json::object());
+				if (!operations.contains(operation))
+					return false;
+				const auto &consumers = operations.at(operation).at("consumers");
+				return equipment.empty() || std::find(consumers.begin(), consumers.end(), equipment) != consumers.end();
+			}
+	return false;
+}
+Json OperationsWidgetContext::board(const std::string &name) const
+{
+	if (!model.observation())
+		return name == "craft" || name == "away_missions" || name == "teams" ? Json::array() : Json::object();
+	auto result = model.observation()->gameplay.value(
+	    name, name == "craft" || name == "away_missions" || name == "teams" ? Json::array() : Json::object());
+	if (result.empty())
+		return name == "logistics" ? Json{{"manual", false}} : result;
+	if (controller.empty())
+		return result;
+	const Json *owner = nullptr;
+	for (const auto &candidate : model.observation()->gameplay.at("controllers"))
+		if (candidate.at("id") == controller)
+			owner = &candidate;
+	if (!owner)
+		return result.is_array() ? Json::array() : Json::object();
+	if (name == "personnel")
+		return owns("personnel", {}) ? result : Json::object();
+	if (name == "teams")
+		std::erase_if(result.get_ref<Json::array_t &>(),
+		              [&](const auto &row)
+		              {
+			              return !owns("team_assignment", row.at("id")) && !owns("team_work", row.at("id")) &&
+			                     !owns("medical", row.at("id"));
+		              });
+	else if (name == "craft")
+		std::erase_if(result.get_ref<Json::array_t &>(),
+		              [&](const auto &row)
+		              {
+			              return !owns("craft", row.at("bay"));
+		              });
+	else if (name == "docking")
+		std::erase_if(result["ports"].get_ref<Json::array_t &>(),
+		              [&](const auto &row)
+		              {
+			              return !owns("docking", {}) || row.at("controller") != controller;
+		              });
+	else if (name == "logistics")
+	{
+		std::erase_if(result["stores"].get_ref<Json::array_t &>(),
+		              [&](const auto &row)
+		              {
+			              return !owns("logistics", {}) || row.at("controller") != controller;
+		              });
+		if (!owns("logistics", {}) || result.value("controller", std::string{}) != controller)
+			for (const auto *field : {"requests", "batches", "cargo", "offers"})
+				result[field] = Json::array();
+		if (!owns("logistics", {}) || result.value("route_controller", std::string{}) != controller)
+			result["routes"] = Json::array();
+		if (!owns("cargo_authorisation", {}))
+			result["cargo_craft"] = Json::array();
+		result["manual"] = owns("logistics", {}) && console_operation_human(*owner, "logistics");
+	}
+	else if (name == "away_missions")
+	{
+		for (auto &mission : result)
+		{
+			mission["dispatch"] = owns("mission", mission.value("dispatch_system", std::string{}));
+			const auto transport_owned = [&](const std::string &asset)
+			{
+				if (asset == "ship")
+					return mission.value("dispatch", false);
+				if (!asset.starts_with("craft:"))
+					return owns("transport", asset);
+				for (const auto &craft : model.craft())
+					if ("craft:" + craft.at("id").get<std::string>() == asset)
+						return owns("transport", craft.at("bay"));
+				return false;
+			};
+			std::erase_if(mission["transports"].get_ref<Json::array_t &>(),
+			              [&](const auto &asset)
+			              {
+				              return !transport_owned(asset.template get<std::string>());
+			              });
+			mission["transport_owned"] =
+			    mission.value("transport_owned", false) && transport_owned(mission.value("transport", std::string{}));
+			for (auto &slot : mission["craft_slots"])
+			{
+				std::erase_if(slot["choices"].get_ref<Json::array_t &>(),
+				              [&](const auto &asset)
+				              {
+					              return !transport_owned(asset.template get<std::string>());
+				              });
+				slot["owned"] = slot.value("owned", false) && transport_owned(slot.value("assigned", std::string{}));
+			}
+			if (!owns("transport", {}))
+			{
+				mission["can_contribute"] = false;
+				mission["transports"] = Json::array();
+			}
+			for (auto &slot : mission["slots"])
+			{
+				std::erase_if(slot["choices"].get_ref<Json::array_t &>(),
+				              [&](const auto &choice)
+				              {
+					              const auto asset = choice.template get<std::string>();
+					              return asset.starts_with("team:") ? !owns("transport", asset.substr(5))
+					                                                : !owns("personnel", {});
+				              });
+				const auto assigned = slot.value("assigned", std::string{});
+				slot["owned"] =
+				    slot.value("owned", false) &&
+				    (assigned.starts_with("team:") ? owns("transport", assigned.substr(5)) : owns("personnel", {}));
+			}
+		}
+	}
+	return result;
+}
 struct OperationsWidgets::State
 {
 public:
+	WidgetPanel teams_panel(const OperationsWidgetContext &context);
 	std::string personnel_selected_, personnel_notice_;
 	std::vector<std::pair<std::string, std::string>> personnel_readouts_;
 	std::string personnel_markup(const OperationsWidgetContext &context);
@@ -54,10 +196,38 @@ public:
 } // namespace phoenix
 namespace phoenix
 {
+WidgetPanel OperationsWidgets::State::teams_panel(const OperationsWidgetContext &context)
+{
+	WidgetPanel panel;
+	const auto teams = context.board("teams");
+	const auto actions = context.model.gameplay_controls();
+	bool selected = false;
+	for (const auto &team : teams)
+	{
+		const auto identity = team.at("id").get<std::string>();
+		const auto key = context.id("teams/readout/" + identity);
+		const auto text = localise(identity) + ": " + localise(team.value("work", "Ready")) + " / " +
+		                  localise(team.value("condition", "healthy"));
+		panel.readouts.emplace_back(key, text);
+		panel.markup += "<p id=\"" + Rml::StringUtilities::EncodeRml(key) + "\"></p>";
+		selected |= context.model.selected_team() == identity;
+		for (const auto &[action, label] : actions)
+			if (action.starts_with("game.team-order/" + identity + "/") || action == "game.team-cancel/" + identity ||
+			    (context.model.selected_team() == identity && action.starts_with("game.team-patient/")))
+				panel.markup += context.button(action, label);
+	}
+	if (selected)
+		for (const auto &compartment : context.model.team_map())
+			if (compartment.value("dispatch", false) && compartment.value("eligible", false))
+				panel.markup +=
+				    context.button("game.compartment/" + std::to_string(compartment.at("index").get<std::int64_t>()),
+				                   localise("Send to") + " " + localise(compartment.at("id")));
+	return panel;
+}
 std::string OperationsWidgets::State::personnel_markup(const OperationsWidgetContext &context)
 {
 	personnel_readouts_.clear();
-	const auto board = context.model.personnel();
+	const auto board = context.board("personnel");
 	const auto esc = [](const std::string &s)
 	{
 		return Rml::StringUtilities::EncodeRml(s);
@@ -207,7 +377,7 @@ std::string OperationsWidgets::State::away_markup(const OperationsWidgetContext 
 		return "<p id=\"" + key + "\">" + esc(s) + "</p>";
 	};
 	std::string html = "<h2>" + esc(localise("Away missions")) + "</h2>" + line(localise(away_notice_));
-	const auto missions = context.model.away_missions();
+	const auto missions = context.board("away_missions");
 	if (missions.empty())
 		html += line(localise("No available away missions"));
 	for (const auto &m : missions)
@@ -345,7 +515,7 @@ std::string OperationsWidgets::State::craft_markup(const OperationsWidgetContext
 		return "<p id=\"" + key + "\">" + esc(s) + "</p>";
 	};
 	std::string html = "<h2>" + esc(localise("Flight operations")) + "</h2>" + line(localise(craft_notice_));
-	const auto rows = context.model.craft();
+	const auto rows = context.board("craft");
 	if (rows.empty())
 		html += line(localise("No craft under this Console"));
 	for (const auto &c : rows)
@@ -430,7 +600,7 @@ std::string OperationsWidgets::State::logistics_markup(const OperationsWidgetCon
 	supply_readouts_.clear();
 	std::string html =
 	    "<h2>" + localise("Stores and deliveries") + "</h2>" + supply_line(context, localise(supply_notice_));
-	const auto board = context.model.logistics();
+	const auto board = context.board("logistics");
 	const bool manual = board.value("manual", true);
 	if (manual)
 	{
@@ -443,7 +613,7 @@ std::string OperationsWidgets::State::logistics_markup(const OperationsWidgetCon
 		bool controllable = false;
 		if (context.model.observation())
 			for (const auto &ctrl : context.model.observation()->gameplay.at("controllers"))
-				controllable |= ctrl.at("id") == s.at("controller") && ctrl.value("human", false);
+				controllable |= ctrl.at("id") == s.at("controller") && console_operation_human(ctrl, "logistics");
 		const auto store = s.at("id").get<std::string>();
 		const auto resource_label = [&](const std::string &id)
 		{
@@ -490,17 +660,19 @@ std::string OperationsWidgets::State::logistics_markup(const OperationsWidgetCon
 		const auto &gameplay = context.model.observation()->gameplay;
 		const auto controllable = [&](const std::string &equipment)
 		{
-			for (const auto &controller : gameplay.value("controllers", Json::array()))
-				if (controller.value("human", false))
-					for (const auto &channel : controller.at("commands"))
-						for (const auto &consumer : channel.at("consumers"))
-							if (consumer == equipment)
-								return true;
+			if (!context.owns("logistics", equipment))
+				return false;
+			for (const auto &owner : gameplay.value("controllers", Json::array()))
+				if ((context.controller.empty() || owner.at("id") == context.controller) &&
+				    console_operation_human(owner, "logistics", equipment))
+					return true;
 			return false;
 		};
 		for (const auto &magazine : gameplay.value("combat", Json::object()).value("magazines", Json::array()))
 		{
 			const auto system = magazine.at("id").get<std::string>();
+			if (!context.owns("logistics", system))
+				continue;
 			const auto resource_label = [&](const std::string &id)
 			{
 				return localise(magazine.value("resource_labels", Json::object()).value(id, id));
@@ -522,6 +694,8 @@ std::string OperationsWidgets::State::logistics_markup(const OperationsWidgetCon
 		}
 		for (const auto &processor : gameplay.value("processors", Json::array()))
 		{
+			if (!context.owns("logistics", processor.at("equipment")))
+				continue;
 			const auto system = processor.at("id").get<std::string>();
 			std::string selected_label = processor.at("recipe");
 			for (const auto &recipe : processor.at("recipes"))
@@ -564,11 +738,13 @@ std::string OperationsWidgets::State::logistics_markup(const OperationsWidgetCon
 	bool engineering_control = false;
 	if (context.model.observation())
 		for (const auto &ctrl : context.model.observation()->gameplay.at("controllers"))
-			engineering_control |= ctrl.at("id") == board.value("controller", Json("")) && ctrl.value("human", false);
+			engineering_control |=
+			    ctrl.at("id") == board.value("controller", Json("")) && console_operation_human(ctrl, "logistics");
 	bool route_control = false;
 	if (context.model.observation())
 		for (const auto &ctrl : context.model.observation()->gameplay.at("controllers"))
-			route_control |= ctrl.at("id") == board.value("route_controller", Json("")) && ctrl.value("human", false);
+			route_control |= ctrl.at("id") == board.value("route_controller", Json("")) &&
+			                 console_operation_human(ctrl, "logistics");
 	for (const auto &route : board.value("routes", Json::array()))
 	{
 		const auto from = route.at("from").get<std::string>(), to = route.at("to").get<std::string>();
@@ -639,7 +815,7 @@ std::string OperationsWidgets::State::docking_markup(const OperationsWidgetConte
 {
 	supply_readouts_.clear();
 	std::string html = "<h2>" + localise("Docking") + "</h2>" + supply_line(context, localise(supply_notice_));
-	const auto board = context.model.docking();
+	const auto board = context.board("docking");
 	for (const auto &p : board.value("ports", Json::array()))
 	{
 		const auto port = p.at("id").get<std::string>();
@@ -699,25 +875,40 @@ OperationsWidgets::OperationsWidgets() : state_(std::make_unique<State>())
 {
 }
 OperationsWidgets::~OperationsWidgets() = default;
+auto OperationsWidgets::state(const OperationsWidgetContext &context) -> State &
+{
+	if (context.controller.empty() || !context.model.observation())
+		return *state_;
+	const auto &view = *context.model.observation();
+	const auto key = std::to_string(view.own.id) + "/" + view.console + "/" + context.controller;
+	auto &entry = scoped_[key];
+	if (!entry)
+		entry = std::make_unique<State>();
+	return *entry;
+}
 WidgetPanel OperationsWidgets::render(const std::string &component, OperationsWidgetContext context)
 {
+	auto &panel = state(context);
 	context.component = component;
+	if (component == "teams")
+		return panel.teams_panel(context);
 	if (component == "operations")
-		return {state_->logistics_markup(context), state_->supply_readouts_};
+		return {panel.logistics_markup(context), panel.supply_readouts_};
 	if (component == "docking")
-		return {state_->docking_markup(context), state_->supply_readouts_};
+		return {panel.docking_markup(context), panel.supply_readouts_};
 	if (component == "craft")
-		return {state_->craft_markup(context), state_->craft_readouts_};
+		return {panel.craft_markup(context), panel.craft_readouts_};
 	if (component == "personnel")
-		return {state_->personnel_markup(context), state_->personnel_readouts_};
+		return {panel.personnel_markup(context), panel.personnel_readouts_};
 	if (component == "away")
-		return {state_->away_markup(context), state_->away_readouts_};
+		return {panel.away_markup(context), panel.away_readouts_};
 	return {};
 }
 bool OperationsWidgets::action(const OperationsWidgetContext &context, const std::string &action)
 {
-	return state_->away_action(context, action) || state_->supply_action(context, action) ||
-	       state_->craft_action(context, action) || state_->personnel_action(context, action);
+	auto &panel = state(context);
+	return panel.away_action(context, action) || panel.supply_action(context, action) ||
+	       panel.craft_action(context, action) || panel.personnel_action(context, action);
 }
 bool OperationsWidgets::away_attention(const ConsoleModel &model) const
 {

@@ -254,7 +254,22 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	{
 		widget_require(result.parts.contains(part) && binding.is_object(), id,
 		               "unknown or invalid part binding " + part);
-		for (const auto *kind : {"commands", "data", "operations"})
+		if (binding.contains("renderer"))
+		{
+			const auto renderer = widget_name(binding.at("renderer"), id + "." + part);
+			widget_require(renderer == "personnel" || renderer == "away" || renderer == "craft" ||
+			                   renderer == "operations" || renderer == "docking" || renderer == "teams",
+			               id, "unsupported native widget renderer " + renderer);
+			const auto operation = renderer == "operations" ? "logistics" : renderer == "away" ? "mission" : renderer;
+			widget_require(result.operations.contains(operation) ||
+			                   (renderer == "away" && result.operations.contains("transport")) ||
+			                   (renderer == "teams" &&
+			                    (result.operations.contains("team_assignment") ||
+			                     result.operations.contains("team_work") || result.operations.contains("medical"))) ||
+			                   (renderer == "operations" && result.operations.contains("cargo_authorisation")),
+			               id, "native renderer needs its declared operation scope");
+		}
+		for (const auto *kind : {"commands", "data", "operations", "ranges"})
 		{
 			const auto names = binding.value(kind, Json::array());
 			widget_require(names.is_array(), id + "." + part, "part bindings require identifier arrays");
@@ -262,12 +277,31 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			for (const auto &name : names)
 			{
 				const auto key = widget_name(name, id + "." + part);
-				widget_require((std::string(kind) == "commands"     ? commands.contains(key)
+				widget_require(((std::string(kind) == "commands" || std::string(kind) == "ranges")
+				                    ? commands.contains(key)
 				                : std::string(kind) == "operations" ? result.operations.contains(key)
 				                                                    : result.data.contains(key)) &&
 				                   unique.insert(key).second,
 				               id, "unknown or duplicate part member " + key);
 			}
+		}
+		for (const auto &channel : binding.value("ranges", Json::array()))
+		{
+			const auto members = binding.value("commands", Json::array());
+			widget_require(std::find(members.begin(), members.end(), channel) != members.end(), id,
+			               "range must bind a command displayed by the same part");
+			const auto command = std::find_if(result.commands.begin(), result.commands.end(),
+			                                  [&](const auto &field)
+			                                  {
+				                                  return field.at("id") == channel;
+			                                  });
+			const auto *action = operating_action(command->at("action").template get<std::string>());
+			widget_require(action && !action->boolean && action->semantics == CommandSemantics::Setting &&
+			                   operating_arguments(action->action).empty() &&
+			                   command->value("minimum", action->minimum) < command->value("maximum", action->maximum),
+			               id, "ranges require numeric settings without command arguments");
+			widget_require(!binding.value("values", Json::object()).contains(channel.get<std::string>()), id,
+			               "a command cannot combine a range with a fixed value filter");
 		}
 		const auto values = binding.value("values", Json::object());
 		widget_require(values.is_object(), id, "part values must map command names to value arrays");

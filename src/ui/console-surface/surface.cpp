@@ -1382,9 +1382,10 @@ void ConsoleSurface::draw(const ConsoleRegion &region)
 {
 	state_->draw(region);
 }
-OperationsWidgetContext ConsoleSurface::State::operations_context()
+OperationsWidgetContext ConsoleSurface::State::operations_context(ConsoleModel *source, const std::string &controller,
+                                                                  const std::string &renderer)
 {
-	return {model_,
+	return {source ? *source : model_,
 	        app_ && app_->session ? &app_->session->catalog() : nullptr,
 	        id(""),
 	        station_component_scope_,
@@ -1396,13 +1397,14 @@ OperationsWidgetContext ConsoleSurface::State::operations_context()
 	        {
 		        return asset_path(name);
 	        },
-	        [this](const std::string &name)
+	        [this, renderer](const std::string &name)
 	        {
-		        return station_component_active(name);
+		        return renderer.empty() ? station_component_active(name) : renderer == name;
 	        },
 	        [this](const std::string &name)
 	        {
 		        return authored_action(name);
-	        }};
+	        },
+	        controller};
 }
 } // namespace phoenix

@@ -53,8 +53,40 @@ import phoenix.devices;
 #include "surface_state.hpp"
 namespace phoenix
 {
+std::string ConsoleSurface::State::controller_range_markup(const PowerSetting &setting, const std::string &label)
+{
+	power_controls_[setting.id] = setting;
+	const auto key = Rml::StringUtilities::EncodeRml(id(setting.id));
+	return "<label for=\"" + key + "\">" + Rml::StringUtilities::EncodeRml(label) +
+	       "</label><input class=\"controller-range\" id=\"" + key +
+	       "\" type=\"range\" min=\"0\" max=\"100\" step=\"0.1\" value=\"0\"/>";
+}
+void ConsoleSurface::State::sync_controller_range(const PowerSetting &setting, const std::string &label)
+{
+	auto value = setting.value;
+	if (auto pending = power_pending_.find(setting.id); pending != power_pending_.end())
+	{
+		if (pending->second.value != setting.value && app_->session->ticks() < pending->second.until)
+			value = pending->second.value;
+		else
+			power_pending_.erase(pending);
+	}
+	const auto percent = std::clamp(
+	    100.0 * (value - setting.minimum) / std::max<std::int64_t>(1, setting.maximum - setting.minimum), 0.0, 100.0);
+	if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id(setting.id))))
+		if (field->GetValue() != std::to_string(percent))
+			field->SetValue(std::to_string(percent));
+	app_->screen_inputs.push_back({id(setting.id), label, std::to_string(percent), true});
+}
 void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 {
+	control_operation_actions_.clear();
+	std::erase_if(power_controls_,
+	              [](const auto &entry)
+	              {
+		              return entry.first.starts_with("power/widget/");
+	              });
+	std::vector<std::pair<PowerSetting, std::string>> ranges;
 	if (!model_.observation() || !app_->session)
 		return;
 	const auto sources = task_sources();
@@ -124,10 +156,43 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 				readouts.emplace_back(key, datum.label + ": " + datum.text);
 				markup += "<p id=\"" + esc(key) + "\"></p>";
 			}
+		std::set<std::string> range_channels;
+		const auto add_ranges = [&](const Json &binding)
+		{
+			for (const auto &channel : binding.value("ranges", Json::array()))
+				range_channels.insert(channel.get<std::string>());
+		};
+		if (complete)
+			for (const auto &binding : definition.value("part_bindings", Json::object()))
+				add_ranges(binding);
+		else
+			add_ranges(part_bindings);
+		for (const auto &controller : owner->first->observation()->gameplay.at("controllers"))
+			if (controller.at("id") == widget->id)
+				for (const auto &channel : range_channels)
+				{
+					const auto &command = controller.at("commands").at(channel);
+					if (!command.value("human", false) || command.at("semantics") != "setting" ||
+					    command.at("minimum") >= command.at("maximum"))
+						continue;
+					PowerSetting setting;
+					setting.id = "power/widget/" + target + "/" + channel;
+					setting.controller = widget->id;
+					setting.channel = channel;
+					setting.action = command.at("action");
+					setting.minimum = command.at("minimum");
+					setting.maximum = command.at("maximum");
+					setting.value = command.at("value");
+					setting.console = console;
+					setting.component = target;
+					const auto label = localise(channel);
+					markup += controller_range_markup(setting, label);
+					ranges.emplace_back(setting, label);
+				}
 		for (const auto &control : widget->controls)
 		{
 			const auto channel = control.value("channel", std::string{});
-			if (!includes("commands", channel))
+			if (!includes("commands", channel) || range_channels.contains(channel))
 				continue;
 			const auto values = part_bindings.value("values", Json::object());
 			if (values.contains(channel) && std::find(values.at(channel).begin(), values.at(channel).end(),
@@ -143,6 +208,63 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			          (enabled ? ">" : " disabled aria-disabled=\"true\">") + esc(text) + "</button>";
 			if (enabled)
 				buttons.emplace_back(key, text);
+		}
+		std::set<std::string> renderers;
+		if (complete)
+		{
+			for (const auto &binding : definition.value("part_bindings", Json::object()))
+				if (binding.contains("renderer"))
+					renderers.insert(binding.at("renderer"));
+		}
+		else if (part_bindings.contains("renderer"))
+			renderers.insert(part_bindings.at("renderer"));
+		for (const auto &renderer : renderers)
+		{
+			auto context = operations_context(owner->first, widget->id, renderer);
+			if (!complete)
+			{
+				context.operations.emplace();
+				for (const auto &operation : part_bindings.value("operations", Json::array()))
+					context.operations->insert(operation.get<std::string>());
+			}
+			context.prefix = id(target + "/native/");
+			context.button = [&](const std::string &native_action, const std::string &text)
+			{
+				const auto label = localise(text);
+				bool manual = false;
+				for (const auto &controller : owner->first->observation()->gameplay.at("controllers"))
+					if (controller.at("id") == widget->id)
+					{
+						const auto operation = renderer == "personnel"    ? "personnel"
+						                       : renderer == "craft"      ? "craft"
+						                       : renderer == "docking"    ? "docking"
+						                       : renderer == "operations" ? "logistics"
+						                                                  : "mission";
+						const auto grants = controller.value("operations", Json::object());
+						manual = includes("operations", operation) && grants.contains(operation) &&
+						         grants.at(operation).value("human", false);
+						if (renderer == "teams")
+							for (const auto *work : {"team_assignment", "team_work", "medical"})
+								manual |= includes("operations", work) && grants.contains(work) &&
+								          grants.at(work).value("human", false);
+						if (renderer == "away" && includes("operations", "transport") && grants.contains("transport"))
+							manual |= grants.at("transport").value("human", false);
+						if (renderer == "operations" && native_action.starts_with("supply/logistics/craft_allow/") &&
+						    grants.contains("cargo_authorisation"))
+							manual = includes("operations", "cargo_authorisation") &&
+							         grants.at("cargo_authorisation").value("human", false);
+					}
+				if (!manual)
+					return "<p>" + esc(label) + "</p>";
+				const auto action = "control-native/" + target + "/" + native_action;
+				control_operation_actions_[action] = {console, widget->id, renderer, native_action};
+				const auto key = id(action);
+				buttons.emplace_back(key, label);
+				return "<button id=\"" + esc(key) + "\" class=\"task-button\">" + esc(label) + "</button>";
+			};
+			const auto native = operations_.render(renderer, std::move(context));
+			markup += native.structure();
+			readouts.insert(readouts.end(), native.readouts.begin(), native.readouts.end());
 		}
 		if ((complete || part_bindings.value("details", false)) &&
 		    std::any_of(widget->data.begin(), widget->data.end(),
@@ -171,9 +293,15 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			dom_.leaf_markup(element, esc(text));
 		app_->screen_readouts.emplace_back(key, text);
 	}
+	syncing_values_ = true;
+	for (const auto &[setting, label] : ranges)
+		sync_controller_range(setting, label);
+	syncing_values_ = false;
 	context_->Update();
 	for (const auto &[key, text] : readouts)
 		place(*app_, region, key);
+	for (const auto &[setting, label] : ranges)
+		place(*app_, region, id(setting.id));
 	for (const auto &[key, text] : buttons)
 	{
 		app_->screen_controls.emplace_back(key, text);
@@ -712,6 +840,7 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 	if (!app.session)
 	{
 		support_root_.clear();
+		control_operation_actions_.clear();
 		support_models_.clear();
 		return;
 	}
@@ -772,6 +901,7 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 		support_page_ = "support";
 		support_detail_ = false;
 		support_popup_.clear();
+		control_operation_actions_.clear();
 		support_models_.clear();
 	}
 	support_root_ = root;
@@ -838,9 +968,7 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 	{
 		if (!setting)
 			return std::string{};
-		power_controls_[setting->id] = *setting;
-		return "<label for=\"" + esc(id(setting->id)) + "\">" + esc(label) + "</label><input id=\"" +
-		       esc(id(setting->id)) + "\" type=\"range\" min=\"0\" max=\"100\" step=\"0.1\" value=\"0\"/>" +
+		return controller_range_markup(*setting, label) +
 		       readout("setting/" + setting->id, std::to_string(setting->value));
 	};
 	std::string markup = "<h2>" + esc(localise(component == "repair" ? "Repair" : "Power")) + "</h2>";
@@ -1022,24 +1150,8 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 	syncing_values_ = true;
 	for (const auto &[key, setting] : component == "power" ? power_controls_ : std::map<std::string, PowerSetting>{})
 	{
-		auto value = setting.value;
-		if (auto pending = power_pending_.find(key); pending != power_pending_.end())
-		{
-			if (pending->second.value != setting.value && app_->session->ticks() < pending->second.until)
-				value = pending->second.value;
-			else
-				power_pending_.erase(pending);
-		}
-		const auto percent =
-		    std::clamp(100.0 * (value - setting.minimum) / std::max<std::int64_t>(1, setting.maximum - setting.minimum),
-		               0.0, 100.0);
-		if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id(key))))
-			if (field->GetValue() != std::to_string(percent))
-				field->SetValue(std::to_string(percent));
-		app_->screen_inputs.push_back({id(key),
-		                               localise(setting.coolant ? "Coolant (%)" : "Power (%)") + " — " +
-		                                   localise(engineering_name(setting.subject)),
-		                               std::to_string(percent), true});
+		sync_controller_range(setting, localise(setting.coolant ? "Coolant (%)" : "Power (%)") + " — " +
+		                                   localise(engineering_name(setting.subject)));
 	}
 	syncing_values_ = false;
 	context_->Update();

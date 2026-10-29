@@ -233,11 +233,11 @@ progress fill {background:#83be90;}
 #comms-incoming {height:30px;}
 #comms-choices {max-height:18%;overflow:auto;}
 .local-settings-open .engineering-board {display:none;}
-.engineering-board input {display:block;width:90%;height:44dp;margin:0 4dp;}
-.engineering-board input slidertrack {height:40dp;background:#253b43;}
-.engineering-board input sliderprogress {height:40dp;background:#456a75;}
-.engineering-board input sliderbar {width:24dp;height:36dp;margin-top:2dp;background:#ffc16d;border:2dp #ffe4b0;}
-.engineering-board input sliderarrowdec,.engineering-board input sliderarrowinc {display:none;}
+.engineering-board input,input.controller-range {display:block;width:90%;height:44dp;margin:0 4dp;}
+.engineering-board input slidertrack,input.controller-range slidertrack {height:40dp;background:#253b43;}
+.engineering-board input sliderprogress,input.controller-range sliderprogress {height:40dp;background:#456a75;}
+.engineering-board input sliderbar,input.controller-range sliderbar {width:24dp;height:36dp;margin-top:2dp;background:#ffc16d;border:2dp #ffe4b0;}
+.engineering-board input sliderarrowdec,.engineering-board input sliderarrowinc,input.controller-range sliderarrowdec,input.controller-range sliderarrowinc {display:none;}
 .engineering-board label {display:block;}
 .engineering-board select {display:block;height:44dp;width:70%;min-width:280dp;max-width:520dp;}
 .engineering-board button span {pointer-events:none;}

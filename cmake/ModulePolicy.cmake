@@ -641,6 +641,7 @@ phoenix_intended_module(
 phoenix_intended_module(
 	phoenix_ui_operations_widgets
 	phoenix_console_model
+	phoenix_console_controls
 	phoenix_ui_rml
 	phoenix_application_preferences
 	RmlUi::RmlUi
