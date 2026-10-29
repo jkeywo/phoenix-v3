@@ -291,6 +291,75 @@ bool ConsoleSurface::State::action(const std::string &name)
 	}
 	if (action.starts_with("on-screen/"))
 		return !settings_open_ && model_.on_screen(action.substr(10), display_camera(action.substr(10)));
+	if (action == "settings" || action == "local-settings.close")
+		return open_local_settings(action);
+	if (action == "operations")
+		return authored_action("station-page/logistics");
+	if (const auto handled = local_settings_action(name, action))
+		return *handled;
+	if (const auto handled = lobby_profile_action(action))
+		return *handled;
+
+	if (action == "manual")
+	{
+		if (!manual_toggle_ || !game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings) ||
+		    !model_.observation())
+			return false;
+		const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
+		const auto preset = manual_preset(manual);
+		if (!preset)
+			return false;
+		const bool accepted = model_.act(descriptor_action(*preset));
+		app_->accessible_status = model_.announcement();
+		return accepted;
+	}
+
+	if (const auto handled = camera_navigation_action(action))
+		return *handled;
+
+	if (action == "settings")
+	{
+		app_->settings_console = route_;
+		return invoke_navigation(*app_, "settings");
+	}
+	if (action == "release")
+	{
+#ifdef __EMSCRIPTEN__
+		return app_->session && app_->session->release_console(route_);
+#else
+		return false;
+#endif
+	}
+	if (action.starts_with("claim/"))
+	{
+#ifndef __EMSCRIPTEN__
+		if (game_active(*app_))
+			return false;
+#endif
+		for (const auto &seat : app_->session->console_seats())
+			if (action == "claim/" + std::to_string(seat.address.ship) + "/" + seat.address.console)
+				return app_->session->claim_console(route_, seat.address);
+		return false;
+	}
+	if (action.starts_with("pad/"))
+	{
+#ifdef __EMSCRIPTEN__
+		app_->gamepad_assignments[action.substr(4)] = route_;
+#else
+		return assign_screen_gamepad(*app_, route_, action.substr(4));
+#endif
+		return true;
+	}
+	if (model_.observation())
+		for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
+			if (control.value("action", "") == "preset" && descriptor_action(control.at("id")) == action)
+				return false;
+	const bool accepted = model_.act(action);
+	app_->accessible_status = model_.announcement();
+	return accepted;
+}
+bool ConsoleSurface::State::open_local_settings(const std::string &action)
+{
 	if (action == "settings" && route_ == 31)
 	{
 		app_->settings_console = route_;
@@ -313,54 +382,60 @@ bool ConsoleSurface::State::action(const std::string &name)
 				cog->Focus();
 		return true;
 	}
-	if (action == "operations")
-		return authored_action("station-page/logistics");
-	if (settings_open_)
+	return false;
+}
+
+std::optional<bool> ConsoleSurface::State::local_settings_action(const std::string &name, const std::string &action)
+{
+	if (!settings_open_)
+		return std::nullopt;
+	if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
+	                 [&](const auto &control)
+	                 {
+		                 return control.first == name;
+	                 }))
+		return false;
+	if (action.starts_with("local-settings.tab/"))
 	{
-		if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
-		                 [&](const auto &control)
-		                 {
-			                 return control.first == name;
-		                 }))
+		if (action.substr(19) != "display" && action.substr(19) != "language" && action.substr(19) != "audio" &&
+		    action.substr(19) != "session" && action.substr(19) != "controllers")
 			return false;
-		if (action.starts_with("local-settings.tab/"))
-		{
-			if (action.substr(19) != "display" && action.substr(19) != "language" && action.substr(19) != "audio" &&
-			    action.substr(19) != "session" && action.substr(19) != "controllers")
-				return false;
-			local_settings_tab_ = action.substr(19);
-			if (local_settings_tab_ != "controllers" && app_->pairing_screen == screen_identity(*app_, route_))
-				app_->pairing_screen.clear();
-		}
-		else if (action.starts_with("device."))
-			return screen_device_action(*app_, route_, action);
-		else if (action == "local-settings.smaller")
-			text_scale_ = std::max(80, text_scale_ - 10);
-		else if (action == "local-settings.larger")
-			text_scale_ = std::min(150, text_scale_ + 10);
-		else if (action == "local-settings.language")
-		{
-			const auto languages = installed_languages();
-			auto it = std::find(languages.begin(), languages.end(), local_language_);
-			local_language_ = it == languages.end() || ++it == languages.end() ? languages.front() : *it;
-			signature_.clear();
-		}
-		else if (action.starts_with("local-settings.audio/"))
-		{
-			const auto channel = action.substr(21, action.find('/', 21) - 21);
-			auto &value = channel == "master"  ? app_->master_volume
-			              : channel == "music" ? app_->music_volume
-			              : channel == "siren" ? app_->siren_volume
-			                                   : app_->sfx_volume;
-			value = std::clamp(value + (action.ends_with("/up") ? 5 : -5), 0, 100);
-			remember_preferences(*app_);
-		}
-		else if (!action.starts_with("complexity/"))
-			return model_.act(action);
-		else
-			return select_lobby_complexity(action.substr(11));
-		return true;
+		local_settings_tab_ = action.substr(19);
+		if (local_settings_tab_ != "controllers" && app_->pairing_screen == screen_identity(*app_, route_))
+			app_->pairing_screen.clear();
 	}
+	else if (action.starts_with("device."))
+		return screen_device_action(*app_, route_, action);
+	else if (action == "local-settings.smaller")
+		text_scale_ = std::max(80, text_scale_ - 10);
+	else if (action == "local-settings.larger")
+		text_scale_ = std::min(150, text_scale_ + 10);
+	else if (action == "local-settings.language")
+	{
+		const auto languages = installed_languages();
+		auto it = std::find(languages.begin(), languages.end(), local_language_);
+		local_language_ = it == languages.end() || ++it == languages.end() ? languages.front() : *it;
+		signature_.clear();
+	}
+	else if (action.starts_with("local-settings.audio/"))
+	{
+		const auto channel = action.substr(21, action.find('/', 21) - 21);
+		auto &value = channel == "master"  ? app_->master_volume
+		              : channel == "music" ? app_->music_volume
+		              : channel == "siren" ? app_->siren_volume
+		                                   : app_->sfx_volume;
+		value = std::clamp(value + (action.ends_with("/up") ? 5 : -5), 0, 100);
+		remember_preferences(*app_);
+	}
+	else if (!action.starts_with("complexity/"))
+		return model_.act(action);
+	else
+		return select_lobby_complexity(action.substr(11));
+	return true;
+}
+
+std::optional<bool> ConsoleSurface::State::lobby_profile_action(const std::string &action)
+{
 	if (action == "profile" || action == "profile-save" || action.starts_with("avatar/"))
 	{
 		if (!app_->session->lobby().active || app_->session->lobby().launched)
@@ -401,21 +476,11 @@ bool ConsoleSurface::State::action(const std::string &name)
 			}
 		return false;
 	}
+	return std::nullopt;
+}
 
-	if (action == "manual")
-	{
-		if (!manual_toggle_ || !game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings) ||
-		    !model_.observation())
-			return false;
-		const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
-		const auto preset = manual_preset(manual);
-		if (!preset)
-			return false;
-		const bool accepted = model_.act(descriptor_action(*preset));
-		app_->accessible_status = model_.announcement();
-		return accepted;
-	}
-
+std::optional<bool> ConsoleSurface::State::camera_navigation_action(const std::string &action)
+{
 	if ((action.starts_with("camera/") || action == "game.camera" || action == "game.camera-back") &&
 	    (!game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings)))
 		return false;
@@ -486,48 +551,9 @@ bool ConsoleSurface::State::action(const std::string &name)
 				return model_.command(widget.at("kind"), action.back() - '0');
 		return false;
 	}
-
-	if (action == "settings")
-	{
-		app_->settings_console = route_;
-		return invoke_navigation(*app_, "settings");
-	}
-	if (action == "release")
-	{
-#ifdef __EMSCRIPTEN__
-		return app_->session && app_->session->release_console(route_);
-#else
-		return false;
-#endif
-	}
-	if (action.starts_with("claim/"))
-	{
-#ifndef __EMSCRIPTEN__
-		if (game_active(*app_))
-			return false;
-#endif
-		for (const auto &seat : app_->session->console_seats())
-			if (action == "claim/" + std::to_string(seat.address.ship) + "/" + seat.address.console)
-				return app_->session->claim_console(route_, seat.address);
-		return false;
-	}
-	if (action.starts_with("pad/"))
-	{
-#ifdef __EMSCRIPTEN__
-		app_->gamepad_assignments[action.substr(4)] = route_;
-#else
-		return assign_screen_gamepad(*app_, route_, action.substr(4));
-#endif
-		return true;
-	}
-	if (model_.observation())
-		for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
-			if (control.value("action", "") == "preset" && descriptor_action(control.at("id")) == action)
-				return false;
-	const bool accepted = model_.act(action);
-	app_->accessible_status = model_.announcement();
-	return accepted;
+	return std::nullopt;
 }
+
 bool ConsoleSurface::State::controller_hold(const std::string &name, bool pressed)
 {
 	if (!name.starts_with(id("game.control/")))

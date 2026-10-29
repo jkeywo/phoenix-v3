@@ -312,6 +312,10 @@ public:
 
 	Rml::Context &context();
 
+	std::optional<bool> local_settings_action(const std::string &name, const std::string &action);
+	bool open_local_settings(const std::string &action);
+	std::optional<bool> lobby_profile_action(const std::string &action);
+	std::optional<bool> camera_navigation_action(const std::string &action);
 	bool action(const std::string &name);
 
 	bool controller_hold(const std::string &name, bool pressed);
