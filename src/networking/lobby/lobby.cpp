@@ -25,6 +25,16 @@ namespace phoenix
 {
 namespace
 {
+JoinRole read_join_role(const Json &value)
+{
+	return static_cast<JoinRole>(checked_integer(value, static_cast<int>(JoinRole::ship_server),
+	                                             static_cast<int>(JoinRole::gm), "lobby join role"));
+}
+LobbyAction read_lobby_action(const Json &value)
+{
+	return static_cast<LobbyAction>(checked_integer(value, static_cast<int>(LobbyAction::claim_ship),
+	                                                static_cast<int>(LobbyAction::select_profile), "lobby action"));
+}
 std::string runtime_identity(const std::string &peer)
 {
 	const auto text = "crew/" + peer;
@@ -702,7 +712,7 @@ class GameLobby final : public SessionPort
 				auto options = options_;
 				options.link.self = self_;
 				for (const auto &[id, ticket] : config.at("tickets").items())
-					options.lobby_tickets[id] = {ticket.at("key"), static_cast<JoinRole>(ticket.at("role").get<int>())};
+					options.lobby_tickets[id] = {ticket.at("key"), read_join_role(ticket.at("role"))};
 				candidate = services_.host(options);
 				candidate->restore(bundle_);
 				candidate->activate_prepared();
@@ -771,31 +781,30 @@ class GameLobby final : public SessionPort
 				send(sender, "refused", {{"reason", "Launch the same base pack revision before joining"}}, true);
 				return;
 			}
-			const auto role = hello->body.at("join_role").get<int>();
+			const auto role = read_join_role(hello->body.at("join_role"));
 			const std::string nonce = hello->body.at("nonce");
-			if (role < 0 || role > 2 || !valid_hex_token(nonce) || sender == self_)
+			if (!valid_hex_token(nonce) || sender == self_)
 				return;
 			if (found == peers_.end())
 			{
-				if (peers_.size() + local_consoles_.size() >= 48 ||
-				    (launched_ && role == static_cast<int>(JoinRole::ship_server)))
+				if (peers_.size() + local_consoles_.size() >= 48 || (launched_ && role == JoinRole::ship_server))
 				{
 					send(sender, "refused", {{"reason", "This lobby cannot admit another ship server"}}, true);
 					return;
 				}
 				Peer peer;
 				peer.member.id = sender;
-				peer.member.role = static_cast<JoinRole>(role);
-				peer.member.name = std::string(role == 0   ? "Ship Host "
-				                               : role == 1 ? "Player "
-				                                           : "GM ") +
+				peer.member.role = role;
+				peer.member.name = std::string(role == JoinRole::ship_server ? "Ship Host "
+				                               : role == JoinRole::player    ? "Player "
+				                                                             : "GM ") +
 				                   std::to_string(peers_.size());
 				peer.key = random_token();
 				peer.nonce = nonce;
 				peer.seen = now_;
 				found = peers_.emplace(sender, std::move(peer)).first;
 			}
-			else if (found->second.nonce != nonce || static_cast<int>(found->second.member.role) != role)
+			else if (found->second.nonce != nonce || found->second.member.role != role)
 				return;
 			send(sender, "welcome",
 			     {{"key", found->second.key}, {"epoch", epoch_}, {"nonce", nonce}, {"protocol", "pregame-2"}}, true);
@@ -833,7 +842,7 @@ class GameLobby final : public SessionPort
 				return;
 			peer.command_sequence = seq;
 			const auto &b = packet->body;
-			if (!command(sender, {static_cast<LobbyAction>(b.at("action").get<int>()), b.value("member", std::string{}),
+			if (!command(sender, {read_lobby_action(b.at("action")), b.value("member", std::string{}),
 			                      b.value("slot", std::string{}), b.value("ship", std::string{}),
 			                      b.value("console", std::string{}), 0, b.value("profile", std::string{})}))
 				send(sender, "lobby-error", {{"reason", "Lobby selection changed or is unavailable"}});
@@ -918,6 +927,8 @@ class GameLobby final : public SessionPort
 			if (!body.at("slots").is_array() || body.at("slots").size() > 16 || !body.at("members").is_array() ||
 			    body.at("members").size() > 48)
 				throw std::runtime_error("Lobby exceeds supported bounds");
+			for (const auto &member : body.at("members"))
+				read_join_role(member.at("role"));
 			if (body.at("revision").get<std::uint64_t>() >= revision_)
 			{
 				received_ = body;
@@ -1409,10 +1420,9 @@ public:
 		{
 			const auto hash = m.value("avatar", std::string{});
 			result.members.push_back(
-			    {m.at("id"), m.at("slot"), m.at("console"), static_cast<JoinRole>(m.at("role").get<int>()),
-			     m.at("approved"), m.at("connected"), m.at("ready"), m.at("verified"),
-			     m.value("name", std::string("Player")), avatars_.contains(hash) ? avatars_.at(hash) : Bytes{},
-			     m.value("local_screen", std::uint64_t{0})});
+			    {m.at("id"), m.at("slot"), m.at("console"), read_join_role(m.at("role")), m.at("approved"),
+			     m.at("connected"), m.at("ready"), m.at("verified"), m.value("name", std::string("Player")),
+			     avatars_.contains(hash) ? avatars_.at(hash) : Bytes{}, m.value("local_screen", std::uint64_t{0})});
 		}
 		const auto console_data = data.value("consoles", Json::object());
 		for (const auto &[slot, seats] : console_data.items())
@@ -1801,8 +1811,7 @@ public:
 				const auto active_config = coordinator_ ? config_for(self_) : configuration_;
 				if (role_ == JoinRole::ship_server && active_config.contains("tickets"))
 					for (const auto &[id, ticket] : active_config.at("tickets").items())
-						backend_->authorise_lobby_member(
-						    id, {ticket.at("key"), static_cast<JoinRole>(ticket.at("role").get<int>())});
+						backend_->authorise_lobby_member(id, {ticket.at("key"), read_join_role(ticket.at("role"))});
 				backend_->poll();
 				if (!local_claimed_)
 				{

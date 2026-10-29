@@ -980,7 +980,7 @@ if(NOT EMSCRIPTEN)
 	add_executable(phoenix_lobby_tests tests/system/lobby.cpp)
 	target_link_libraries(
 		phoenix_lobby_tests
-		PRIVATE phoenix_network_lobby phoenix_application_displays phoenix_console_model
+		PRIVATE phoenix_network_lobby phoenix_application_displays phoenix_console_model phoenix_transport phoenix_wire
 	)
 	phoenix_fixture(phoenix_lobby_tests)
 	add_test(NAME system.lobby-worker-consoles COMMAND phoenix_lobby_tests --local-consoles)

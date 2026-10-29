@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <cstdint>
+#include <limits>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -18,9 +20,91 @@ import phoenix.network.client;
 import phoenix.session.local;
 import phoenix.fleet_setup;
 import phoenix.console;
+import phoenix.transport;
+import phoenix.wire;
 import phoenix.application.displays;
 using namespace phoenix;
 using phoenix::test::require;
+namespace
+{
+void enum_wire_contracts(const NetworkOptions &options, const PackDraft &pack)
+{
+	const std::vector<Json> invalid{0.5, -1, 8, std::uint64_t{4294967296ULL}, std::numeric_limits<std::uint64_t>::max(),
+	                                true};
+	for (const auto &value : invalid)
+	{
+		auto config = options;
+		config.link.room = "enum-" + random_token();
+		config.link.self = "enum-host";
+		auto host = make_game_lobby(config);
+		host->add_pack(write_pack(pack));
+		host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+		auto link = config.link;
+		link.self = "enum-peer";
+		auto peer = open_peer_transport(link);
+		std::string key, epoch;
+		auto pump = [&](const std::function<bool()> &done)
+		{
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+			while (std::chrono::steady_clock::now() < deadline)
+			{
+				host->poll();
+				for (const auto &event : peer->poll())
+					if (event.kind == LinkEvent::packet)
+						if (const auto packet = decode_packet(event.data, config.link.self, link.self, "lobby", "");
+						    packet && packet->type == "welcome")
+						{
+							key = packet->body.at("key");
+							epoch = packet->body.at("epoch");
+						}
+				if (done())
+					return;
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			throw std::runtime_error("Enum boundary timed out: " + value.dump() + " / " + host->lobby().status);
+		};
+		const auto nonce = random_token();
+		Json hello{{"protocol", "pregame-2"}, {"join_role", value}, {"nonce", nonce}};
+		const auto bad_hello = encode_packet({"lobby", link.self, config.link.self, "hello", hello}, "");
+		pump(
+		    [&]
+		    {
+			    return peer->send(config.link.self, bad_hello);
+		    });
+		pump(
+		    [&]
+		    {
+			    return host->lobby().status.find("lobby join role") != std::string::npos;
+		    });
+		require(host->lobby().members.size() == 1, "Malformed role must not admit a peer");
+		hello["join_role"] = static_cast<int>(JoinRole::player);
+		const auto valid_hello = encode_packet({"lobby", link.self, config.link.self, "hello", hello}, "");
+		pump(
+		    [&]
+		    {
+			    return peer->send(config.link.self, valid_hello);
+		    });
+		pump(
+		    [&]
+		    {
+			    return !key.empty();
+		    });
+		require(host->lobby().members.back().role == JoinRole::player, "A valid role recovers after rejection");
+		const auto command = encode_packet(
+		    {epoch, link.self, config.link.self, "lobby-command", {{"sequence", 1}, {"action", value}}}, key);
+		pump(
+		    [&]
+		    {
+			    return peer->send(config.link.self, command);
+		    });
+		pump(
+		    [&]
+		    {
+			    return host->lobby().status.find("lobby action") != std::string::npos;
+		    });
+	}
+}
+} // namespace
 int main(int argc, char **argv)
 {
 	try
@@ -124,6 +208,8 @@ int main(int argc, char **argv)
 		defs["maps"][0]["ship_briefings"] = {{"test.ship", "Routine synthetic delivery"},
 		                                     {"test.delivery", "Urgent synthetic delivery"}};
 		auto pack = phoenix::test::fixture_pack(json_bytes(defs), "test-core");
+		if (!local_worker_only)
+			enum_wire_contracts(options, pack);
 		{
 			// A new content selection may reuse ship IDs with different authored
 			// profiles. Retained lobby metadata must follow the new content.
