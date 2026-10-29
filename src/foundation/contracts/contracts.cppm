@@ -381,9 +381,22 @@ struct SceneAudio
 	bool own_only = false;
 	std::uint64_t retention_ticks = 3;
 };
+// Cosmetic, ship-local coordinates: +X bow, +Y up, +Z starboard.
+// Path points are metres; direction points back toward the incoming attack.
+struct SceneShieldImpact
+{
+	std::uint64_t event = 0, tick = 0;
+	double time = 0;
+	std::int64_t absorbed = 0;
+	std::array<float, 3> direction{1, 0, 0}, path_point{};
+	bool has_path = false;
+};
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView
 {
+	std::vector<SceneShieldImpact> shield_impacts;
+	double shield_time = 0;  // authoritative simulation seconds, including while paused
+	float shield_radius = 0; // collision lower bound in metres; graphics encloses visual bounds
 	bool audio_alive = true, audio_only = false;
 	std::vector<SceneAudio> audio;
 	int forward_thrust = 0; // actual applied forward acceleration, 0..1000

@@ -224,6 +224,17 @@ auto Runtime::resolve_destructions() -> void
 	}
 	projectiles.erase_finished();
 	const auto tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+	for (auto &[id, events] : shield_impacts)
+		std::erase_if(events,
+		              [tick](const auto &hit)
+		              {
+			              return tick - static_cast<std::int64_t>(hit.tick) >= 3 * rate;
+		              });
+	std::erase_if(shield_impacts,
+	              [](const auto &entry)
+	              {
+		              return entry.second.empty();
+	              });
 	std::erase_if(blast_visuals,
 	              [&](const auto &v)
 	              {

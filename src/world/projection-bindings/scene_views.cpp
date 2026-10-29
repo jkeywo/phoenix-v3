@@ -1,4 +1,5 @@
 module;
+#include <cmath>
 #include "native_headers.hpp"
 
 module phoenix.simulation;
@@ -35,6 +36,14 @@ std::vector<SceneBody> World::scene() const
 					item.forward_thrust =
 					    std::max(item.forward_thrust, std::max(0, system.flight->state.actual_longitudinal));
 		const auto entity = impl_->entities.at(body.id);
+		item.shield_time = ticks() / static_cast<double>(rate);
+		if (auto hits = impl_->shield_impacts.find(body.id); hits != impl_->shield_impacts.end())
+			item.shield_impacts = hits->second;
+		if (const auto *shape = entity.try_get<Collider>())
+			item.shield_radius = static_cast<float>(shape->box ? std::hypot(static_cast<double>(shape->half_width),
+			                                                                static_cast<double>(shape->half_length))
+			                                                   : shape->radius) /
+			                     1000.f;
 		item.audio_alive = !impl_->combat_dead(entity);
 		if (item.audio_alive)
 		{

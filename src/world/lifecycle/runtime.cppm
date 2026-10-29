@@ -211,6 +211,10 @@ struct Runtime
 	SharedResourceCatalogue resource_catalogue;
 	SharedPropertyCatalog property_catalogue;
 	std::uint64_t next_shield_hit = 1;
+	// Transient presentation output, deliberately excluded from checkpoints.
+	std::map<EntityId, std::vector<SceneShieldImpact>> shield_impacts;
+	void emit_shield_impact(flecs::entity, std::int64_t heading, std::int64_t absorbed,
+	                        const Projectile *payload = nullptr);
 	std::map<std::string, std::vector<std::string>> camera_widgets;
 	std::string map;
 	FactionCatalog factions;

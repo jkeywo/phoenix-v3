@@ -1,4 +1,5 @@
 module;
+#include <cmath>
 #include "native_headers.hpp"
 
 module phoenix.simulation;
@@ -205,6 +206,44 @@ auto Runtime::shield_available(flecs::entity ship, const ShieldContribution &c) 
 	       (c.equipment.empty() || !structurally_disabled(ship, c.equipment));
 }
 
+auto Runtime::emit_shield_impact(flecs::entity ship, std::int64_t heading, std::int64_t absorbed,
+                                 const Projectile *payload) -> void
+{
+	if (absorbed <= 0)
+		return;
+	const auto &pose = ship.get<Pose>();
+	constexpr double radians = 3.14159265358979323846 / 180000.;
+	const double local = (heading - pose.heading) * radians;
+	SceneShieldImpact hit;
+	hit.event = next_shield_hit++;
+	hit.tick = ecs.get<Clock>().tick;
+	hit.time = hit.tick / static_cast<double>(rate);
+	hit.absorbed = absorbed;
+	hit.direction = {static_cast<float>(-std::cos(local)), 0, static_cast<float>(std::sin(local))};
+	if (payload)
+	{
+		const double h = pose.heading * radians, dx = (payload->position.x - pose.position.x) / 1000.,
+		             dy = (payload->position.y - pose.position.y) / 1000.;
+		hit.path_point = {static_cast<float>(dx * std::cos(h) + dy * std::sin(h)),
+		                  static_cast<float>((payload->altitude - altitude(ship.get<StableId>().id)) / 1000.),
+		                  static_cast<float>(dx * std::sin(h) - dy * std::cos(h))};
+		const double speed =
+		    std::hypot(static_cast<double>(payload->velocity.x), static_cast<double>(payload->velocity.y));
+		if (speed > 0)
+		{
+			const double length = std::hypot(speed, static_cast<double>(payload->vz));
+			hit.direction[0] *= static_cast<float>(speed / length);
+			hit.direction[1] = static_cast<float>(-payload->vz / length);
+			hit.direction[2] *= static_cast<float>(speed / length);
+		}
+		hit.has_path = true;
+	}
+	auto &events = shield_impacts[ship.get<StableId>().id];
+	if (events.size() == 128)
+		events.erase(events.begin());
+	events.push_back(hit);
+}
+
 auto Runtime::absorb_shields(flecs::entity ship, std::int64_t heading, std::int64_t damage, std::int64_t bypass,
                              std::int64_t *carry, EntityId source, const Projectile *payload,
                              const NativeRuleContext *origin, const std::vector<NativeRuleSource> *sources,
@@ -235,6 +274,7 @@ auto Runtime::absorb_shields(flecs::entity ship, std::int64_t heading, std::int6
 			layers.push_back(std::move(c));
 		}
 	order_native_shield_layers(layers);
+	std::int64_t visual_absorbed = 0;
 	for (std::size_t begin = 0; begin < layers.size() && remaining;)
 	{
 		auto end = begin + 1;
@@ -306,6 +346,7 @@ auto Runtime::absorb_shields(flecs::entity ship, std::int64_t heading, std::int6
 			const auto &definition = c.definition.shield;
 			const auto stopped = apply_native_shield_share(c, ship.try_get_mut<ShieldComponent>(), assigned,
 			                                               factors[i - begin], native_inflicted);
+			visual_absorbed += stopped;
 			auto context = damage_rule_context(
 			    {ship.get<StableId>().id, PayloadOutcomeKind::Shield, -1, {}, c.effect_id, c.definition.name}, assigned,
 			    source, payload, origin);
@@ -329,20 +370,10 @@ auto Runtime::absorb_shields(flecs::entity ship, std::int64_t heading, std::int6
 				cue.full_damage = definition.audio_full_damage;
 				emit_audio(ship, std::move(cue));
 			}
-			if (stopped && blast_visuals.size() < 8192)
-			{
-				DestructionDefinition flash;
-				const auto &shape = ship.get<Collider>();
-				flash.size = 2 * (shape.box ? std::max(shape.half_width, shape.half_length) : shape.radius);
-				flash.growth_ticks = 1;
-				flash.fade_ticks = 5;
-				blast_visuals.push_back(
-				    {next_blast++, ship.get<Pose>().position, 0, static_cast<std::int64_t>(ecs.get<Clock>().tick),
-				     flash, 1, combat_angle(ship.get<Pose>().heading + c.definition.bearing), c.definition.arc});
-			}
 		}
 		begin = end;
 	}
+	emit_shield_impact(ship, heading, visual_absorbed, payload);
 	return bypassed + remaining;
 }
 } // namespace phoenix::world_detail

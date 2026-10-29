@@ -61,6 +61,7 @@ auto Runtime::apply_payload_damage(flecs::entity ship, std::int64_t amount, cons
 				if (entry.effect_id == snapshot.effect_id && entry.definition.name == snapshot.definition.name)
 					entry.state.strength = snapshot.state.strength;
 		context.absorbed = actual;
+		emit_shield_impact(ship, incoming_heading.value_or(ship.get<Pose>().heading), actual);
 		context.residual = modified - actual;
 		context.strength = snapshot.state.strength;
 		emit_damage_rules(ship, RuleTrigger::PostShieldDamage, context, &snapshot, &sources, &shield_origin);

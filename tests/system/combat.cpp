@@ -242,6 +242,90 @@ void add_beam(Json &s, int damage = 20, int bypass = 0)
 	         {"power_store", "cell"}},
 	        {{"target", "weapon_target"}});
 }
+void shield_visual_contracts()
+{
+	for (const int bypass : {0, 250, 1000})
+	{
+		auto source = powered_fixture();
+		add_beam(source, 400, bypass);
+		for (int layer = 0; layer < 2; ++layer)
+			add_fit(source, "visual-shield-" + std::to_string(layer),
+			        {{"kind", "shield"},
+			         {"compartment", "fore"},
+			         {"capacity", layer ? 8 : 7},
+			         {"layer", layer},
+			         {"warmup_ticks", 1},
+			         {"recharge_per_second", 0},
+			         {"off_recharge_per_second", 0},
+			         {"power_store", "cell"}},
+			        {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		auto impacts = [](const World &w)
+		{
+			for (const auto &body : w.scene())
+				if (body.id == 2)
+					return body.shield_impacts;
+			throw std::runtime_error("missing shield visual target");
+		};
+		const auto hits = impacts(world);
+		if (bypass == 1000)
+			require(hits.empty(), "full bypass emits no shield heat");
+		else
+		{
+			require(hits.size() == 1 && hits[0].absorbed == 15,
+			        "two partly depleted shield layers emit one combined actual-absorption event without audio");
+			require(hits[0].direction[0] < -.99f && hits[0].has_path,
+			        "beam impact points back along the incoming ship-local path");
+			require(impacts(world)[0].event == hits[0].event, "scene snapshots retain stable impact identities");
+			world.tick();
+			require(impacts(world).size() == 1, "depleted shields emit no additional heat");
+		}
+		World restored;
+		restored.restore(catalog, world.save());
+		require(impacts(restored).empty(), "cosmetic shield history is excluded from saves");
+		submit(world, 101, "beam", "target", 0);
+		submit(restored, 101, "beam", "target", 0);
+		advance(world, 65);
+		advance(restored, 65);
+		require(impacts(world).empty(), "shield impact history expires without requiring rendering");
+		require(world.save() == restored.save(), "shield visuals do not affect authoritative continuation");
+	}
+	{
+		auto source = powered_fixture();
+		add_beam(source, 400);
+		add_fit(source, "visual-shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"capacity", 10000},
+		         {"warmup_ticks", 1},
+		         {"recharge_per_second", 0},
+		         {"off_recharge_per_second", 0},
+		         {"power_store", "cell"}},
+		        {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		advance(world, 180);
+		for (const auto &body : world.scene())
+			if (body.id == 2)
+			{
+				require(body.shield_impacts.size() > 1 && body.shield_impacts.size() <= 61,
+				        "sustained beam publishes distinct repeated hits with bounded recent history");
+				for (std::size_t i = 1; i < body.shield_impacts.size(); ++i)
+					require(body.shield_impacts[i].event > body.shield_impacts[i - 1].event,
+					        "repeated shield impacts have ordered distinct identities");
+			}
+	}
+}
 Json missile_fixture(bool defence = false)
 {
 	auto s = powered_fixture();
@@ -2513,6 +2597,7 @@ int main(int argc, char **argv)
 		property_rate_contracts();
 		effects_contracts();
 		shield_reaction_contracts();
+		shield_visual_contracts();
 		native_damage_rule_contracts();
 		std::cout << "Combat system contracts passed\n";
 		return 0;
