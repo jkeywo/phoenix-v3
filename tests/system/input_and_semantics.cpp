@@ -510,6 +510,22 @@ int main()
 		complete_preference_persistence(persistence, "");
 		require(persistence.preference_error.empty() && persistence.status == "Mission ready",
 		        "A later successful settings rewrite clears the corresponding write failure");
+		complete_preference_persistence(persistence, "synthetic display quota", PreferenceStorage::Display);
+		const auto display_error = persistence.preference_error;
+		complete_preference_persistence(persistence, "");
+		require(persistence.preference_error == display_error && persistence.accessible_status == display_error,
+		        "Menu persistence cannot clear a failed standalone display write");
+		complete_preference_persistence(persistence, "synthetic menu quota");
+		const auto menu_error = persistence.preference_error;
+		complete_preference_persistence(persistence, "synthetic display retry", PreferenceStorage::Display);
+		complete_preference_persistence(persistence, "", PreferenceStorage::Display);
+		require(persistence.preference_error == menu_error && persistence.accessible_status == menu_error &&
+		            persistence.display_preference_error.empty(),
+		        "Display recovery restores an outstanding menu storage failure");
+		complete_preference_persistence(persistence, "");
+		require(persistence.preference_error.empty() && persistence.status.empty() &&
+		            persistence.accessible_status.empty(),
+		        "Independent display and menu recovery clear only their own diagnostics");
 		host.screen_inputs = {{"music-volume", "Music volume", "100", true}};
 		require(navigation_controls(host).back().percentage,
 		        "music volume must publish range semantics rather than an unlabelled control");

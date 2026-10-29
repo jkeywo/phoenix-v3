@@ -900,3 +900,31 @@ test("standalone runtimes can omit launcher preference persistence", () => {
 	assert.equal(bridge.request(1), 0);
 	assert.deepEqual(bridge.replies, []);
 });
+
+const displayPreferenceMarker = "EM_JS(int, phoenix_store_display_preferences, (int bits, char* message, unsigned capacity), {";
+const displayPreferenceStart = preferenceSource.indexOf(displayPreferenceMarker);
+assert.notEqual(displayPreferenceStart, -1);
+const displayPreferenceBodyStart = displayPreferenceStart + displayPreferenceMarker.length;
+const displayPreferenceEnd = preferenceSource.indexOf("\n});", displayPreferenceBodyStart);
+assert.notEqual(displayPreferenceEnd, -1);
+const storeDisplayPreferences = new Function(
+	"localStorage", "stringToUTF8", "bits", "message", "capacity",
+	preferenceSource.slice(displayPreferenceBodyStart, displayPreferenceEnd),
+);
+test("standalone display settings retain their authored storage format", () => {
+	const values = new Map();
+	const storage = { setItem: (key, value) => values.set(key, value) };
+	assert.equal(storeDisplayPreferences(storage, () => assert.fail("No error is expected"), 5, 17, 512), 1);
+	assert.deepEqual(JSON.parse(values.get("phoenix-display-preferences-v1")), {
+		dust_motes: true, reference_grid: false, reduced_motion: true,
+	});
+});
+test("standalone display storage refusal returns a bounded diagnostic", () => {
+	let diagnostic;
+	const storage = { setItem: () => { throw new Error("synthetic display quota exceeded"); } };
+	const write = (message, pointer, capacity) => { diagnostic = { message, pointer, capacity }; };
+	assert.equal(storeDisplayPreferences(storage, write, 7, 17, 512), 0);
+	assert.match(diagnostic.message, /synthetic display quota exceeded/);
+	assert.equal(diagnostic.pointer, 17);
+	assert.equal(diagnostic.capacity, 512);
+});

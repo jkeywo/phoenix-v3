@@ -1,14 +1,23 @@
 module;
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+EM_JS_DEPS(display_preferences_deps, "$stringToUTF8");
 // clang-format off
 EM_JS(int, phoenix_display_preferences, (), {
     let p={}; try { p=JSON.parse(localStorage.getItem('phoenix-display-preferences-v1')||'{}')||{}; } catch {}
     return (p.dust_motes!==false?1:0)|(p.reference_grid!==false?2:0)|
         ((typeof p.reduced_motion==='boolean'?p.reduced_motion:matchMedia('(prefers-reduced-motion: reduce)').matches)?4:0);
 });
-EM_JS(void, phoenix_store_display_preferences, (int bits), {
-    try { localStorage.setItem('phoenix-display-preferences-v1',JSON.stringify({dust_motes:!!(bits&1),reference_grid:!!(bits&2),reduced_motion:!!(bits&4)})); } catch {}
+EM_JS(int, phoenix_store_display_preferences, (int bits, char* message, unsigned capacity), {
+    try {
+        localStorage.setItem('phoenix-display-preferences-v1', JSON.stringify({
+            dust_motes: !!(bits & 1), reference_grid: !!(bits & 2), reduced_motion: !!(bits & 4)
+        }));
+        return 1;
+    } catch (error) {
+        stringToUTF8(String(error), message, capacity);
+        return 0;
+    }
 });
 EM_JS(int, phoenix_persist_preferences, (int written), {
     const persist = Module.phoenixPersistMenu;
@@ -74,28 +83,39 @@ void persist_preferences(Application &app)
 	(void)app;
 #endif
 }
-void complete_preference_persistence(Application &app, const std::string &error)
+void complete_preference_persistence(Application &app, const std::string &error, PreferenceStorage storage)
 {
-	const auto previous = std::exchange(app.preference_persistence_error, {});
+	const bool menu = storage == PreferenceStorage::Menu;
+	auto &stored_error = menu ? app.preference_persistence_error : app.display_preference_error;
+	const auto previous = std::exchange(stored_error, {});
 	if (!error.empty())
 	{
-		const auto message = localise("Could not save settings.") + " " + error;
-		app.preference_persistence_error = message;
+		const auto message =
+		    localise(menu ? "Could not save settings." : "Could not save display settings.") + " " + error;
+		stored_error = message;
 		app.preference_error = app.status = app.accessible_status = message;
 		return;
 	}
+	const auto &other_error = menu ? app.display_preference_error : app.preference_persistence_error;
 	for (auto *message : {&app.preference_error, &app.status, &app.accessible_status})
 		if ((!previous.empty() && *message == previous) ||
-		    (!app.preference_pending_error.empty() && *message == app.preference_pending_error))
-			message->clear();
-	app.preference_pending_error.clear();
+		    (menu && !app.preference_pending_error.empty() && *message == app.preference_pending_error))
+			*message = other_error;
+	if (menu)
+		app.preference_pending_error.clear();
 }
 void remember_preferences(Application &app)
 {
 #ifdef __EMSCRIPTEN__
 	if (!app.library)
-		phoenix_store_display_preferences((app.dust_motes ? 1 : 0) | (app.reference_grid ? 2 : 0) |
-		                                  (app.reduced_motion ? 4 : 0));
+	{
+		std::array<char, 512> message{};
+		const auto saved = phoenix_store_display_preferences((app.dust_motes ? 1 : 0) | (app.reference_grid ? 2 : 0) |
+		                                                         (app.reduced_motion ? 4 : 0),
+		                                                     message.data(), static_cast<unsigned>(message.size()));
+		complete_preference_persistence(app, saved ? std::string{} : std::string(message.data()),
+		                                PreferenceStorage::Display);
+	}
 #endif
 	if (!app.library)
 		return;

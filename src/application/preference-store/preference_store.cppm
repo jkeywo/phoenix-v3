@@ -9,9 +9,15 @@ export import phoenix.application.preferences;
 
 export namespace phoenix
 {
+enum class PreferenceStorage
+{
+	Menu,
+	Display
+};
 void remember_preferences(Application &app);
 void persist_preferences(Application &app);
-void complete_preference_persistence(Application &app, const std::string &error);
+void complete_preference_persistence(Application &app, const std::string &error,
+                                     PreferenceStorage storage = PreferenceStorage::Menu);
 void load_display_preferences(Application &app);
 bool set_music_volume(Application &app, const std::string &value);
 bool set_audio_volume(Application &app, const std::string &channel, const std::string &value);
