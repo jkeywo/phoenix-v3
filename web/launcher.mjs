@@ -1551,7 +1551,9 @@ async function boot() {
 				}).id = "settings-" + key;
 			if (library.reduced_motion) element("p", "Reduced motion hides dust motes and the reference grid.", panel);
 		}
-		button(popup, "Back", () => $("popup").close()).id = "settings-close";
+		const close = button(popup, "X", () => popup.close());
+		close.id = "settings-close";
+		close.setAttribute("aria-label", t("Close settings"));
 		const restored = document.getElementById(focusId || previousFocus);
 		(restored && popup.contains(restored) ? restored : document.getElementById("settings-tab-" + page)).focus();
 	}

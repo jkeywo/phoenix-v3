@@ -29,6 +29,7 @@ target_link_libraries(
 		phoenix_ui_flight_widgets
 		phoenix_application_preferences
 		phoenix_ui_navigation
+		phoenix_ui_settings
 )
 
 target_link_libraries(

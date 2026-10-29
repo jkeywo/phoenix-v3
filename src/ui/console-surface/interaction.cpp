@@ -784,6 +784,13 @@ void ConsoleSurface::State::focus(const std::string &name)
 }
 bool ConsoleSurface::State::set_value(const std::string &name, const std::string &text)
 {
+	if (name == id("audio-device"))
+	{
+		if (!settings_open_ || local_settings_tab_ != "audio")
+			return false;
+		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
+		return screen_device_action(*app_, route_, "device.audio/" + text);
+	}
 	if (name.starts_with(id("")))
 		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 	if (name == id("comms/draft") && text.size() <= 4096)

@@ -170,6 +170,25 @@ struct NativeMenuSmoke
 				throw std::runtime_error("Modal allowed a background semantic action");
 			if (settings_step == 0)
 			{
+				const auto controls = phoenix::navigation_controls(app);
+				if (std::none_of(controls.begin(), controls.end(),
+				                 [](const auto &control)
+				                 {
+					                 return control.id == "menu.close-dialog" && control.label == "Close settings";
+				                 }) ||
+				    std::any_of(controls.begin(), controls.end(),
+				                [](const auto &control)
+				                {
+					                return control.id.starts_with("device.audio/");
+				                }))
+					throw std::runtime_error("Settings requires a labelled close control and one audio dropdown");
+#ifndef __EMSCRIPTEN__
+				const auto previous_output = phoenix::screen_audio_output(app, 0);
+				if (!app.set_control_value("audio-device", "muted") ||
+				    phoenix::screen_audio_output(app, 0) != "muted" ||
+				    !app.set_control_value("audio-device", previous_output))
+					throw std::runtime_error("Audio dropdown does not use the saved screen route");
+#endif
 				if (!app.set_control_value("menu-volume", "25") || !app.set_control_value("menu-master", "60") ||
 				    !app.set_control_value("menu-sfx", "35") || phoenix::invoke_navigation(app, "menu.pseudo"))
 					throw std::runtime_error("Audio tab exposes only its ranges");

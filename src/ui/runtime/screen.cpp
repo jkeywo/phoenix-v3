@@ -329,6 +329,12 @@ struct Navigation : Rml::EventListener
 		if (event.GetType() == "change")
 		{
 			const auto id = event.GetTargetElement()->GetId();
+			if (id == "audio-device")
+			{
+				if (auto *field = dynamic_cast<Rml::ElementFormControl *>(event.GetTargetElement()))
+					screen_device_action(*current_app, 0, "device.audio/" + field->GetValue());
+				return;
+			}
 			const auto channel = settings_ui::audio_channel(id);
 			if (*channel)
 			{
@@ -453,17 +459,28 @@ void prepare_settings(Application &app)
 			}
 		}
 	}
-	std::string device_markup;
+	std::string device_markup = app.settings_tab == "audio" ? settings_ui::audio_device_markup(app, 0) : "";
 	for (const auto &[id, text] : screen_device_controls(app, 0, app.settings_tab))
 	{
+		if (id.starts_with("device.audio/"))
+			continue;
 		device_markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
 		                 Rml::StringUtilities::EncodeRml(text) + "</button>";
 		app.screen_controls.emplace_back(id, text);
 	}
 	auto *devices = document->GetElementById("settings-devices");
-	if (devices->GetInnerRML() != device_markup)
+	if (devices->GetAttribute<std::string>("data-device-markup", "") != device_markup)
+	{
 		devices->SetInnerRML(device_markup);
-	app.screen_controls.emplace_back("settings.close", "Back");
+		devices->SetAttribute("data-device-markup", device_markup);
+	}
+	if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById("audio-device")))
+	{
+		const auto output = screen_audio_output(app, 0);
+		if (field->GetValue() != output)
+			field->SetValue(output);
+	}
+	app.screen_controls.emplace_back("settings.close", "Close settings");
 	const bool can_quit = app.settings_tab == "session" && game_active(app) && bool(app.return_home);
 	document->GetElementById("settings.quit")->SetProperty("display", can_quit ? "block" : "none");
 	if (can_quit)
@@ -501,7 +518,8 @@ void prepare_settings(Application &app)
 		audio->SetInnerRML(settings_ui::audio_markup(false));
 	settings_ui::register_audio(app, false);
 	settings_ui::refresh_audio(app, *document, false);
-	document->GetElementById("settings.close")->SetInnerRML(localise("Back"));
+	document->GetElementById("settings.close")->SetInnerRML("X");
+	document->GetElementById("settings.close")->SetAttribute("aria-label", localise("Close settings"));
 	document->GetElementById("settings.quit")->SetInnerRML(localise("Quit to Main Menu"));
 	app.accessible_status = localise(app.settings_tab == "audio"     ? "Audio"
 	                                 : app.settings_tab == "display" ? "Display"
@@ -873,7 +891,15 @@ void open_window()
     .connection { display:block; width:100%; margin-top:12dp; }
     .connection label { display:block; font-size:16dp; }
     .connection input { display:block; width:700dp; height:26dp; font-size:18dp; background:#173142; color:#d9e9ef; border:1dp #76c9e8; margin:4dp 0 8dp; }
-    #settings-panel { display:none; margin-top:20dp; }
+    #settings-panel { position:relative; display:none; margin-top:20dp; padding-top:48dp; }
+    #settings-panel [id="settings.close"] { position:absolute; top:0; right:0; width:44dp; height:44dp; padding:0; margin:0; text-align:center; line-height:40dp; font-size:24dp; }
+    .audio-device { display:block; width:90%; max-width:600dp; height:44dp; margin:8dp 0 16dp; background:#173142; color:#fff0d4; border:1dp #76c9e8; }
+    .audio-device selectvalue { padding:8dp; }
+    .audio-device selectarrow { width:0; height:0; margin:16dp 8dp; border-top:10dp #fff0d4; border-left:7dp transparent; border-right:7dp transparent; }
+    .audio-device selectbox { background:#173142; border:1dp #76c9e8; max-height:240dp; overflow-y:auto; }
+    .audio-device option { padding:10dp; }
+    .audio-device option:hover, .audio-device option:checked { background:#315a70; }
+    .audio-device:focus { border:2dp #ffad54; }
     #settings-tabs { display:flex; margin-bottom:16dp; }
     #settings-tabs button { width:auto; min-width:120dp; }
     #settings-tabs .selected { background:#315a70; border:2dp #d9e9ef; }
@@ -922,7 +948,7 @@ void open_window()
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button><button id="ai.config" class="ai-provider-button"><span class="ai-brain"><span class="ai-brain-left"/><span class="ai-brain-right"/></span>AI configuration</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-devices"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
+    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-devices"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close" aria-label="Close settings">X</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
@@ -1145,6 +1171,9 @@ void draw_screen(Application &app)
 		{
 			if (app.screen == Screen::settings && id == "player-name" && app.settings_tab != "profile")
 				return false;
+			if (id == "audio-device")
+				return app.screen == Screen::settings && app.settings_tab == "audio" &&
+				       screen_device_action(app, 0, "device.audio/" + value);
 			if (const auto channel = settings_ui::audio_channel(id); *channel)
 				return set_audio_volume(app, channel, value);
 			if (value.size() > 4096)
@@ -1284,19 +1313,19 @@ void draw_screen(Application &app)
 		created->SetProperty("width", "100%");
 		auto *parent = document->GetElementById("native-sidebar-settings");
 		if (!parent)
-			parent = document->GetElementById("settings-session");
+			parent = document->GetElementById("settings-display");
 		sidebar_selector = parent->AppendChild(std::move(created));
 	}
 	auto *sidebar_parent = document->GetElementById("native-sidebar-settings");
 	if (!sidebar_parent)
-		sidebar_parent = document->GetElementById("settings-session");
+		sidebar_parent = document->GetElementById("settings-display");
 	if (sidebar_selector->GetParentNode() != sidebar_parent)
 		sidebar_parent->AppendChild(sidebar_selector->GetParentNode()->RemoveChild(sidebar_selector));
-	const bool sidebar_settings = sidebar_host && app.screen == Screen::settings && app.settings_tab == "session";
+	const bool sidebar_settings = sidebar_host && app.screen == Screen::settings && app.settings_tab == "display";
 	sidebar_selector->SetProperty("display", sidebar_settings ? "block" : "none");
 	if (sidebar_settings)
 	{
-		std::string markup;
+		std::string markup = "<h2>" + Rml::StringUtilities::EncodeRml(localise("Viewscreen sidebar")) + "</h2>";
 		auto settings_button = [&](const std::string &id, const std::string &label)
 		{
 			return "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\"" +

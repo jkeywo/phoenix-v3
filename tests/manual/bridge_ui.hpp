@@ -48,10 +48,16 @@ inline void probe_bridge_ui(phoenix::Application &app, int frames, int width, in
 	}
 	if (frames == 60)
 		invoke("settings.tab/session");
+	if (frames == 58)
+	{
+		require(!has("sidebar/close") && !has("sidebar/command"),
+		        "Session must not expose Viewscreen sidebar controls");
+		invoke("settings.tab/display");
+	}
 	if (frames == 55)
 	{
 		require(has("sidebar/close") && has("sidebar/command") && app.settings_console == 31,
-		        "Shared settings must retain sidebar selection and route");
+		        "Display settings must retain sidebar selection and route");
 		require(std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
 		                     [](const auto &row)
 		                     {

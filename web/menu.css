@@ -358,6 +358,15 @@ dialog {
 dialog::backdrop {
 	background: #080705dd;
 }
+#settings-close {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	width: 44px;
+	min-height: 44px;
+	padding: 0;
+	margin: 0;
+}
 dialog h2 {
 	margin-top: 8px;
 }

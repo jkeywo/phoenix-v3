@@ -36,6 +36,7 @@ inline constexpr Audio audio[] = {{"master", "menu-master", "Master volume", &Ap
 const char *audio_channel(const std::string &id);
 std::vector<std::pair<std::string, std::string>> tabs(Application &app, std::string *focus = nullptr);
 std::string audio_markup(bool menu);
+std::string audio_device_markup(Application &, ConsoleId route, const std::string &prefix = "");
 void register_audio(Application &app, bool menu);
 void refresh_audio(const Application &app, Rml::ElementDocument &document, bool menu);
 std::vector<std::pair<std::string, std::string>> display_controls(const Application &app);

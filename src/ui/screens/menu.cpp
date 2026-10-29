@@ -1510,7 +1510,14 @@ struct NativeMenuScreen::State
 				const auto tabs = settings_ui::tabs(app, &focus_next);
 				if (!app.preference_error.empty())
 					markup += paragraph(app.preference_error);
-				markup += heading("Settings") + "<div class=\"settings-tabs\" role=\"tablist\">";
+				button(app, "menu.close-dialog", "Close settings",
+				       [&]
+				       {
+					       back(app);
+				       });
+				markup += "<button id=\"menu.close-dialog\" class=\"settings-close\" aria-label=\"" +
+				          Rml::StringUtilities::EncodeRml(localise("Close settings")) + "\">X</button>" +
+				          heading("Settings") + "<div class=\"settings-tabs\" role=\"tablist\">";
 				for (const auto &[id, label] : tabs)
 					markup += add(id, label,
 					              []
@@ -1520,13 +1527,15 @@ struct NativeMenuScreen::State
 				          app.settings_tab + "\">";
 				if (app.settings_tab == "audio")
 				{
-					markup += settings_ui::audio_markup(true);
+					markup += settings_ui::audio_device_markup(app, 0);
 					for (const auto &[id, label] : screen_device_controls(app, 0, "audio"))
-						markup += add(id, label,
-						              [&, id]
-						              {
-							              screen_device_action(app, 0, id);
-						              });
+						if (!id.starts_with("device.audio/"))
+							markup += add(id, label,
+							              [&, id]
+							              {
+								              screen_device_action(app, 0, id);
+							              });
+					markup += settings_ui::audio_markup(true);
 					settings_ui::register_audio(app, true);
 				}
 				else if (app.settings_tab == "controllers")
@@ -1577,6 +1586,8 @@ struct NativeMenuScreen::State
 					}
 					if (app.reduced_motion)
 						markup += paragraph("Reduced motion hides dust motes and the reference grid.");
+					if (playing && app.settings_return == Screen::viewscreen)
+						markup += "<div id=\"native-sidebar-settings\"/>";
 				}
 				else if (app.settings_tab == "ai")
 				{
@@ -1647,8 +1658,6 @@ struct NativeMenuScreen::State
 								              export_save = true;
 							              });
 						}
-						if (app.settings_return == Screen::viewscreen)
-							markup += "<div id=\"native-sidebar-settings\"/>";
 						markup += add("settings.quit", "Quit to Main Menu",
 						              [&]
 						              {
@@ -1714,7 +1723,7 @@ struct NativeMenuScreen::State
 					              apply_pack_selection(app);
 				              });
 			}
-			if (app.screen != Screen::settings || app.settings_tab != "profile")
+			if (app.screen != Screen::settings)
 				markup += add("menu.close-dialog", "Back",
 				              [&]
 				              {
@@ -2122,7 +2131,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	          "decorator:image(menu/" +
 	          scene.at("logotype").at("file").get<std::string>() + " contain); }\n";
 	styles += "#native-menu .lobby-card { decorator:" + lobby_panel.decorator("lobby-card") + "; }\n";
-	styles += ".menu-crt { decorator:image(menu/" + terminal.at("file").get<std::string>() + " contain); }\n";
+	styles += "#native-menu #menu-profile, .menu-crt { decorator:image(menu/" + terminal.at("file").get<std::string>() +
+	          " contain); }\n";
 	styles += "#menu-scutter { position:absolute; pointer-events:none; decorator:image(menu/" +
 	          scene.at("scutter").at("file").get<std::string>() + " contain); }\n";
 	styles += ".crt-screen { left:" + std::to_string(x / terminal_width * 100) +
@@ -2169,6 +2179,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .settings-tabs button { flex:1 0 110px; width:auto; min-height:48px; font-size:16px; padding:8px; margin:0 4px 4px 0; }
     #native-menu .settings-tabs .menu-selected { image-color:#ffd093; }
     #native-menu .menu-dialog { background:transparent; border:0px; padding:30px; top:5%; max-height:90%; }
+    #native-menu .menu-dialog .settings-close { position:absolute; top:12dp; right:12dp; width:44dp; min-height:44dp; height:44dp; padding:0; margin:0; z-index:2; text-align:center; line-height:40dp; font-size:24dp; }
     #native-menu .lobby-board { position:absolute; left:0; top:0; width:100%; height:100%; }
     #native-menu .lobby-heading { position:absolute; left:28px; top:22px; width:46%; }
     #native-menu .lobby-heading h2 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:40px; line-height:40px; letter-spacing:0; margin:0 0 6px; }
@@ -2241,7 +2252,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .audio-volume slidertrack { background:#60513a; }
     #native-menu .audio-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
     .menu-crt { display:block; position:relative; flex-shrink:0; }
-    #native-menu #menu-profile { position:absolute; top:0; right:20px; z-index:3; border:0px; background:transparent; padding:0px; }
+    #native-menu #menu-profile { position:absolute; top:0; right:20px; z-index:3; border:2dp transparent; background:transparent; padding:0px; }
+    #native-menu #menu-profile:hover, #native-menu #menu-profile:focus, #native-menu #menu-profile:active { background:transparent; image-color:#ffffff; }
+    #native-menu #menu-profile:focus { border-color:#ffad54; }
     #menu-profile .crt-screen, #menu-profile .crt-avatar, #menu-profile .crt-name { pointer-events:none; }
     .crt-screen { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; color:#cbe4c5; }
     .crt-avatar { display:block; width:100%; height:85%; flex-shrink:0; text-align:center; background:#15231a; color:#cbe4c5; }

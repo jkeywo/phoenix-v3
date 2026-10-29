@@ -1,6 +1,7 @@
 module;
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
+#include <RmlUi/Core/Elements/ElementFormControlSelect.h>
 #include <raylib.h>
 #include <algorithm>
 #include <cmath>
@@ -98,6 +99,8 @@ Rml::Element *PadDispatcher::State::pad_element(ConsoleId route, const std::stri
 void PadDispatcher::State::release_pad(ConsoleId route)
 {
 	auto &selection = pad_selections[route];
+	if (auto *select = dynamic_cast<Rml::ElementFormControlSelect *>(pad_element(route, selection.editing)))
+		select->HideSelectBox();
 	if (auto *element = pad_element(route, selection.selected))
 		element->SetClass("pad-selected", false);
 	if (console_surfaces.contains(route))
@@ -239,6 +242,8 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 	{
 		if (!selection.editing.empty())
 		{
+			if (auto *select = dynamic_cast<Rml::ElementFormControlSelect *>(pad_element(pad.route, selection.editing)))
+				select->HideSelectBox();
 			selection.editing.clear();
 			return;
 		}
@@ -286,7 +291,20 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 			return;
 		if (current->editable)
 		{
-			if (current->numeric)
+			if (auto *select = dynamic_cast<Rml::ElementFormControlSelect *>(pad_element(pad.route, current->id)))
+			{
+				if (selection.editing == current->id)
+				{
+					select->HideSelectBox();
+					selection.editing.clear();
+				}
+				else
+				{
+					select->ShowSelectBox();
+					selection.editing = current->id;
+				}
+			}
+			else if (current->numeric)
 			{
 				if (selection.editing == current->id)
 				{
@@ -329,6 +347,12 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 	const int dy = event.action == "up" ? -1 : event.action == "down" ? 1 : 0;
 	if (!selection.editing.empty() && (dx || dy))
 	{
+		if (auto *select = dynamic_cast<Rml::ElementFormControlSelect *>(pad_element(pad.route, current->id)))
+		{
+			const auto index = std::clamp(select->GetSelection() + dx + dy, 0, select->GetNumOptions() - 1);
+			select->SetSelection(index);
+			return;
+		}
 		selection.pending =
 		    std::clamp(selection.pending + (dx - dy) * current->step, current->minimum, current->maximum);
 		app.accessible_status = current->label + ": " + std::to_string(selection.pending);
@@ -449,7 +473,7 @@ void PadDispatcher::State::draw_pad_selection(Application &app)
 						DrawRectangleLinesEx(
 						    {x + offset.x, y + offset.y, element->GetOffsetWidth(), element->GetOffsetHeight()}, 3,
 						    ORANGE);
-					if (!selection.editing.empty())
+					if (!selection.editing.empty() && control.numeric)
 						DrawText(std::to_string(selection.pending).c_str(), static_cast<int>(x + offset.x),
 						         static_cast<int>(y + offset.y), 20, ORANGE);
 				}
@@ -575,7 +599,14 @@ bool PadDispatcher::State::probe(Application &app, unsigned stage)
 	if (stage == 7)
 	{
 		TakeScreenshot("build/screen-devices-console-audio.png");
-		if (!activate("/device.audio/muted") || !activate("/device.audio/default"))
+		if (!activate("/audio-device"))
+			return false;
+		pulse("game.slower");
+		if (screen_audio_output(app, route) != "muted")
+			return false;
+		pulse("game.faster");
+		pulse("game.contacts");
+		if (screen_audio_output(app, route) != "default")
 			return false;
 		return activate("/local-settings.tab/controllers");
 	}

@@ -55,6 +55,30 @@ void register_audio(Application &app, bool menu)
 		for (const auto &field : audio)
 			app.screen_inputs.push_back({field.id(menu), field.label, std::to_string(app.*field.volume), true});
 }
+std::string audio_device_markup(Application &app, ConsoleId route, const std::string &prefix)
+{
+	const auto controls = screen_device_controls(app, route, "audio");
+	if (controls.empty())
+		return {};
+	const auto id = prefix + "audio-device";
+	const auto selected = screen_audio_output(app, route);
+	std::string markup = "<label for=\"" + id + "\">" + localise("Audio device") +
+	                     "</label><select class=\"audio-device\" id=\"" + id + "\" aria-label=\"" +
+	                     Rml::StringUtilities::EncodeRml(localise("Audio device")) + "\">";
+	for (const auto &[action, label] : controls)
+		if (action.starts_with("device.audio/"))
+		{
+			const auto value = action.substr(13);
+			auto name = label;
+			const auto marker = localise("Selected") + ": ";
+			if (name.starts_with(marker))
+				name.erase(0, marker.size());
+			markup += "<option value=\"" + Rml::StringUtilities::EncodeRml(value) + "\">" +
+			          Rml::StringUtilities::EncodeRml(name) + "</option>";
+		}
+	app.screen_inputs.push_back({id, "Audio device", selected});
+	return markup + "</select>";
+}
 void refresh_audio(const Application &app, Rml::ElementDocument &document, bool menu)
 {
 	for (const auto &field : audio)

@@ -2,6 +2,9 @@
 	"schema": 1,
 	"languages": {
 		"en": {
+			"Close settings": "Close settings",
+			"Audio device": "Audio device",
+			"Viewscreen sidebar": "Viewscreen sidebar",
 			"Communications channel open.": "Communications channel open.",
 			"Who would you like to speak to?": "Who would you like to speak to?",
 			"Speak to Command.": "Speak to Command.",

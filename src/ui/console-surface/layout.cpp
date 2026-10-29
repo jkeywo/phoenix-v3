@@ -51,6 +51,7 @@ import phoenix.ui.flight_widgets;
 import phoenix.application.preferences;
 import phoenix.devices;
 import phoenix.navigation;
+import phoenix.ui.settings;
 #include "surface_state.hpp"
 namespace phoenix
 {
@@ -316,6 +317,9 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 	std::string markup =
 	    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 	    "dp;\"><h1>" + localise("Console settings") + "</h1><div>";
+	local_settings_controls_.emplace_back(id("local-settings.close"), "Close settings");
+	markup += "<button class=\"settings-close\" id=\"" + id("local-settings.close") + "\" aria-label=\"" +
+	          Rml::StringUtilities::EncodeRml(localise("Close settings")) + "\">X</button>";
 	for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"display", "Display"},
 	                                                                                 {"language", "Language"},
 	                                                                                 {"audio", "Audio"},
@@ -337,8 +341,12 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 		markup += settings_button("local-settings.language", "Language: " + local_language_);
 	else if (local_settings_tab_ == "audio")
 	{
+		markup += settings_ui::audio_device_markup(app, route_, id(""));
+		if (!screen_device_controls(app, route_, "audio").empty())
+			local_settings_controls_.emplace_back(id("audio-device"), "Audio device");
 		for (const auto &[action, label] : screen_device_controls(app, route_, "audio"))
-			markup += settings_button(action, label);
+			if (!action.starts_with("device.audio/"))
+				markup += settings_button(action, label);
 		for (const auto &[channel, label, value] :
 		     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
 		                                                            {"music", "Music volume", app.music_volume},
@@ -379,7 +387,7 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 				markup += star_choice(descriptor_action(control.at("id")),
 				                      control.at("id").get<std::string>().substr(8), levels, selected, true);
 	}
-	markup += settings_button("local-settings.close", "Return to station") + "</div></div>";
+	markup += "</div></div>";
 	if (markup != local_settings_markup_)
 	{
 		const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
@@ -395,6 +403,12 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 			card->SetScrollTop(scroll);
 	}
 	context_->Update();
+	if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("audio-device"))))
+	{
+		const auto output = screen_audio_output(app, route_);
+		if (field->GetValue() != output)
+			field->SetValue(output);
+	}
 	if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
 	                 [&](const auto &control)
 	                 {
@@ -404,7 +418,8 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 			first->Focus();
 	for (const auto &[name, label] : local_settings_controls_)
 	{
-		app.screen_controls.emplace_back(name, localise(label));
+		if (name != id("audio-device"))
+			app.screen_controls.emplace_back(name, localise(label));
 		place(app, region, name);
 	}
 }

@@ -650,6 +650,7 @@ phoenix_intended_module(
 phoenix_intended_module(
 	phoenix_ui_console_surface
 	phoenix_ui_navigation_panel
+	phoenix_ui_settings
 	phoenix_ui_choice_specs
 	phoenix_ui_surface_host
 	phoenix_ui_conversation_panel

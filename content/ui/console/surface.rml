@@ -140,7 +140,15 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-open #local-settings {display:block;}
 .local-settings-open #comms-layer,.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
 .local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow-x:hidden;overflow-y:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
-.local-settings-card h1 {display:block;}
+.local-settings-card h1 {display:block;padding-right:48dp;}
+.local-settings-card button.settings-close {position:absolute;top:12dp;right:12dp;width:44dp;min-height:44dp;height:44dp;padding:0;margin:0;text-align:center;line-height:40dp;font-size:24dp;}
+.audio-device {display:block;width:90%;height:44dp;margin:8dp 0 16dp;background:#173142;color:#fff0d4;border:1dp #76c9e8;}
+.audio-device selectvalue {padding:8dp;}
+.audio-device selectarrow {width:0;height:0;margin:16dp 8dp;border-top:10dp #fff0d4;border-left:7dp transparent;border-right:7dp transparent;}
+.audio-device selectbox {background:#173142;border:1dp #76c9e8;max-height:240dp;overflow-y:auto;}
+.audio-device option {padding:10dp;}
+.audio-device option:hover,.audio-device option:checked {background:#315a70;}
+.audio-device:focus {border:2dp #ffad54;}
 )"
 	                                                            R"(
 .local-settings-card {display:block;}

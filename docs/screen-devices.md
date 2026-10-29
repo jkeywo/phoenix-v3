@@ -1,6 +1,6 @@
 # Native screen device settings
 
-Open **Settings → Audio** on a native screen to select its named output, **System default**, or **Muted**, and use **Test sound** to identify the speakers. **Settings → Controllers** lists connected gamepads and offers **Pair by pressing a button**, **Unassign**, connection status and cancellation. Pairing stops when its panel closes or leaves Controllers. Console settings work in the lobby and during play; host settings configure the Viewscreen monitor.
+Open **Settings → Audio** on a native screen to select its named output, **System default**, or **Muted** from the **Audio device** dropdown, and use **Test sound** to identify the speakers. **Settings → Controllers** lists connected gamepads and offers **Pair by pressing a button**, **Unassign**, connection status and cancellation. Pairing stops when its panel closes or leaves Controllers. Console settings work in the lobby and during play; host settings configure the Viewscreen monitor. Close Settings with the top-right X or Escape.
 
 Assignments belong to the physical monitor, rather than the ship, authored Console, desktop index or SDL connection number. A different Console on that monitor inherits its devices. Explicit virtual layouts use their absolute normalised layout filename and region route when the region does not correspond to a full physical monitor. Moving/renaming that layout file creates a different virtual-screen identity. Native monitor identity retains the platform adapter's existing discovery and fallback limitations.
 

@@ -38,7 +38,7 @@ Human-seeking Consoles opt in with `viewscreen: true` and a `compact.widgets` la
 
 `bridge.sidebar_default` reserves a supplemental Console for the Viewscreen host instead of assigning it implicitly to a station. Both Couriers default to Command. Auto-hiding releases the claim and restores the scene's full width; an automatically hidden default can return when AI targets return. Explicitly closing or choosing another Console suppresses automatic default selection for that session. Navigation also has an authored compact layout.
 
-Sidebar selection and **Close sidebar** live in the Viewscreen's **Settings → Session** menu. The sidebar shares the Viewscreen settings entry; it does not display a second cog. Settings retain the sidebar lease and route Console-specific controls to it. Closing explicitly releases that lease; selecting a Console in settings can reopen it.
+Sidebar selection and **Close sidebar** live in the Viewscreen's **Settings → Display** menu, under **Viewscreen sidebar**. The sidebar shares the Viewscreen settings entry; it does not display a second cog. Settings retain the sidebar lease and route Console-specific controls to it. Closing explicitly releases that lease; selecting a Console in settings can reopen it.
 
 The Viewscreen displays its authored condition label in an opaque industrial readout panel at the lower-left frame. It retains the shipwide edge glow and accessible condition text, without a duplicate sidebar readout.
 
