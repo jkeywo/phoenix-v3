@@ -264,6 +264,33 @@ struct Compiler
 			result.type = result.literal.type;
 			return result;
 		};
+		const auto compile_conditions = [&](const Json &conditions)
+		{
+			if (!conditions.is_array() || conditions.size() > 128)
+				fail("conditions must be ordered bounded array");
+			std::vector<Condition> result;
+			for (const auto &condition : conditions)
+			{
+				Condition test;
+				test.left = binding(condition.at("left"));
+				const auto op = condition.at("op").get<std::string>();
+				static const std::vector<std::string> ops{"eq", "ne", "lt", "le", "gt", "ge", "present"};
+				const auto found = std::find(ops.begin(), ops.end(), op);
+				if (found == ops.end())
+					fail("unsupported comparison");
+				test.operation = static_cast<Compare>(found - ops.begin());
+				if (test.operation != Compare::Present)
+				{
+					test.right = binding(condition.at("right"));
+					if (test.left.type != test.right.type)
+						fail("comparison type mismatch");
+					if (test.operation > Compare::NotEqual && test.left.type != Type::Integer)
+						fail("ordered comparison requires integer");
+				}
+				result.push_back(std::move(test));
+			}
+			return result;
+		};
 		const auto &states = source.at("states");
 		if (!states.is_array() || states.empty() || states.size() > 1024 || (total_nodes += states.size()) > 8192)
 			fail("states must be ordered bounded nonempty array");
@@ -327,28 +354,7 @@ struct Compiler
 						if (next_task >= 8192 || ++total_tasks > 65536)
 							fail("task count exceeded");
 						guard.id = next_task++;
-						const auto conditions = branch.value("conditions", Json::array());
-						if (!conditions.is_array() || conditions.size() > 128)
-							fail("attempt conditions must be bounded array");
-						for (const auto &condition : conditions)
-						{
-							Condition test;
-							test.left = binding(condition.at("left"));
-							static const std::vector<std::string> ops{"eq", "ne", "lt", "le", "gt", "ge", "present"};
-							const auto op = condition.at("op").get<std::string>();
-							const auto found = std::find(ops.begin(), ops.end(), op);
-							if (found == ops.end())
-								fail("unsupported attempt comparison");
-							test.operation = static_cast<Compare>(found - ops.begin());
-							if (test.operation != Compare::Present)
-							{
-								test.right = binding(condition.at("right"));
-								if (test.left.type != test.right.type ||
-								    (test.operation > Compare::NotEqual && test.left.type != Type::Integer))
-									fail("attempt comparison type mismatch");
-							}
-							guard.conditions.push_back(std::move(test));
-						}
+						guard.conditions = compile_conditions(branch.value("conditions", Json::array()));
 						compiled.insert(compiled.begin(), std::move(guard));
 						task.branches.push_back(std::move(compiled));
 					}
@@ -456,29 +462,7 @@ struct Compiler
 				Transition out;
 				out.target = state_index(transition.at("target"));
 				out.reason = transition.value("reason", state.name);
-				const auto conditions = transition.value("conditions", Json::array());
-				if (!conditions.is_array() || conditions.size() > 128)
-					fail("conditions must be ordered bounded array");
-				for (const auto &condition : conditions)
-				{
-					Condition test;
-					test.left = binding(condition.at("left"));
-					const auto op = condition.at("op").get<std::string>();
-					static const std::vector<std::string> ops{"eq", "ne", "lt", "le", "gt", "ge", "present"};
-					const auto found = std::find(ops.begin(), ops.end(), op);
-					if (found == ops.end())
-						fail("unsupported comparison");
-					test.operation = static_cast<Compare>(found - ops.begin());
-					if (test.operation != Compare::Present)
-					{
-						test.right = binding(condition.at("right"));
-						if (test.left.type != test.right.type)
-							fail("comparison type mismatch");
-						if (test.operation > Compare::NotEqual && test.left.type != Type::Integer)
-							fail("ordered comparison requires integer");
-					}
-					out.conditions.push_back(std::move(test));
-				}
+				out.conditions = compile_conditions(transition.value("conditions", Json::array()));
 				state.transitions.push_back(std::move(out));
 			}
 		}

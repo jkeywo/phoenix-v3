@@ -252,21 +252,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		const auto id = console_string(descriptor, "id");
 		if (occurrences[id] != 1)
 			continue;
-		auto label = console_label(console_string(descriptor, "label_key"));
-		if (label.empty())
-			label = console_label(console_string(descriptor, "label"));
-		if (descriptor.value("label_value", Json(false)) == true)
-		{
-			const auto value = *console_integer(descriptor.at("value"));
-			if (descriptor.value("action", "") == "system_enabled")
-				label = localise(value ? "Enable" : "Disable") + " " + label;
-			else
-				label += " " + std::to_string(value);
-		}
-		label =
-		    console_execution_prefix(descriptor) + localise(descriptor.value("label_prefix", std::string{})) + label;
-		if (descriptor.value("selected", false))
-			label += " (" + localise("Selected") + ")";
+		auto label = console_control_label(descriptor);
 		if (label.empty())
 			continue;
 		result.emplace_back("game.control/" + console_encoded(id), std::move(label));

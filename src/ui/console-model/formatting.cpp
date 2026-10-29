@@ -335,6 +335,26 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 } // namespace console_detail
 
 using namespace console_detail;
+std::string console_control_label(const Json &descriptor)
+{
+	auto label = console_label(console_string(descriptor, "label_key"));
+	if (label.empty())
+		label = console_label(console_string(descriptor, "label"));
+	if (descriptor.value("label_value", Json(false)) == true)
+	{
+		const auto value = console_integer(descriptor.at("value"));
+		if (!value)
+			return {};
+		if (descriptor.value("action", "") == "system_enabled")
+			label = localise(*value ? "Enable" : "Disable") + " " + label;
+		else
+			label += " " + std::to_string(*value);
+	}
+	label = console_execution_prefix(descriptor) + localise(descriptor.value("label_prefix", std::string{})) + label;
+	if (descriptor.value("selected", false))
+		label += " (" + localise("Selected") + ")";
+	return label;
+}
 std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only)
 {
 	std::vector<ConsoleMessageView> result;

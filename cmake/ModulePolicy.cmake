@@ -723,6 +723,7 @@ phoenix_intended_module(
 	phoenix_ui_preview
 	phoenix_content_catalog
 	phoenix_content_compilers
+	phoenix_console_controls
 	raylib
 	phoenix_ui_console_surface
 	phoenix_ui_rml

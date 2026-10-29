@@ -56,7 +56,7 @@ void restore_controller_action(ConsoleControllerRuntime &controller, const Json 
 		return;
 	}
 	if (!controller.brain || !a.serial || a.invocation.empty() || a.status == "idle" ||
-	    (controller.human && controller.definition.widget.empty() && a.status == "running"))
+	    (!controller_ai_running(controller) && a.status == "running"))
 		throw std::runtime_error("Invalid action ownership");
 	const auto &spec = controller_action_spec(controller);
 	if (!saved.at("inputs").is_array() || saved.at("inputs").size() != spec.inputs.size())

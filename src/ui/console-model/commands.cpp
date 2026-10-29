@@ -450,15 +450,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 	command = eligible->command;
 	std::string projected_label;
 	if (!eligible->descriptor.is_null())
-	{
-		const auto &descriptor = eligible->descriptor;
-		projected_label = console_label(console_string(descriptor, "label_key"));
-		if (projected_label.empty())
-			projected_label = console_label(console_string(descriptor, "label"));
-		if (descriptor.value("label_value", false))
-			projected_label += " " + std::to_string(command.value);
-		projected_label = console_execution_prefix(descriptor) + projected_label;
-	}
+		projected_label = console_control_label(eligible->descriptor);
 	if (!session->dispatch_console_command(route_, command))
 	{
 		announcement_ = localise("The server refused that control request");

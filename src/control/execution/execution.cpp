@@ -71,10 +71,13 @@ state_tree::Result evaluate_controller_tree(ConsoleControllerRuntime &controller
 {
 	if (controller.definition.widget.empty())
 		return state_tree::step(program, continuation, observations);
-	auto next = continuation;
-	if (next.interrupted)
-		state_tree::resume(next);
 	const ControllerTreeEvaluation evaluation{controller, ports};
+	// step already protects the continuation transactionally. Only resuming an
+	// interrupted owner needs a separate copy so failure also rolls back resume.
+	if (!continuation.interrupted)
+		return state_tree::step(program, continuation, observations, 1, evaluation);
+	auto next = continuation;
+	state_tree::resume(next);
 	auto result = state_tree::step(program, next, observations, 1, evaluation);
 	continuation = std::move(next);
 	return result;
@@ -142,8 +145,8 @@ bool select_controller_action(ConsoleControllerRuntime &controller, const std::s
                               std::span<const state_tree::Value> source, std::uint64_t generation,
                               const ControllerActionPorts &ports)
 {
-	if ((controller.human && controller.definition.widget.empty()) || generation != controller.generation ||
-	    !controller.brain || invocation.empty() || invocation.size() > 1024)
+	if (!controller_ai_running(controller) || generation != controller.generation || !controller.brain ||
+	    invocation.empty() || invocation.size() > 1024)
 		return false;
 	const auto found = std::find_if(controller.actions.begin(), controller.actions.end(),
 	                                [&](const auto &spec)

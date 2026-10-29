@@ -89,7 +89,7 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
 	{
 		auto &controller = controls.controllers[i];
-		if (controller.human && controller.definition.widget.empty())
+		if (!controller_ai_running(controller))
 			continue;
 		if (encounter_owns_controller(id, controller.definition))
 		{
@@ -249,7 +249,7 @@ auto Runtime::project_controllers(const ConsoleAddress &address, const Observati
 		facts.contribution_authority = contributes && console_operator(address) != 0;
 		facts.craft_authority = bay && assisted_workload(address, "craft");
 		facts.transport_authority = bay && assisted_workload(address, "transport");
-		const auto observations = controller.brain && (!controller.human || !controller.definition.widget.empty()) &&
+		const auto observations = controller.brain && controller_ai_running(controller) &&
 		                                  !controller.actions.empty()
 		                              ? controller_observations(address.ship, controller, &projected, &board)
 		                              : std::vector<state_tree::Value>{};

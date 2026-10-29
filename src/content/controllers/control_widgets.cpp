@@ -266,10 +266,10 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	return result;
 }
 
-Json bind_control_widget(const Catalog &catalog, const Json &instance)
+Json bind_control_widget(const ControlWidgetDefinition &definition, const Json &instance)
 {
 	const auto id = widget_name(instance.at("widget"), "instance.widget");
-	const auto definition = compile_control_widget(catalog, id);
+	widget_require(id == definition.id, id, "instance refers to a different widget definition");
 	const auto bindings = instance.value("equipment", Json::object());
 	widget_require(bindings.is_object() && bindings.size() == definition.equipment.size(), id,
 	               "instance must bind every declared equipment role exactly once");

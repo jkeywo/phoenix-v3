@@ -79,7 +79,7 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 				                                                                     : "integer"}});
 			}
 			bool usable = false;
-			if (!controller.human || !controller.definition.widget.empty())
+			if (controller_ai_running(controller))
 			{
 				state_tree::Instance probe;
 				const auto check = state_tree::step(action.availability, probe, action_observations);

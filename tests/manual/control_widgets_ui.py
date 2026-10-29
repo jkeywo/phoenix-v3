@@ -24,7 +24,7 @@ ship["stations"] = [{"id": "operations", "consoles": [{
 source["control_widgets"] = [{
     "id": "test.drive", "schema": 1, "label": "Propulsion",
     "equipment": {"engine": {}},
-    "commands": [{"id": "speed", "action": "speed_mm_s", "initial": 3000, "consumers": ["$engine"]}],
+    "commands": [{"id": "speed", "action": "speed_mm_s", "initial": 3000, "label_key": "Speed", "consumers": ["$engine"]}],
     "levels": [{"id": "automated", "human": []}, {"id": "direct", "human": ["speed"]}],
     "data": {
         "requested": {"label": "Requested speed", "binding": "command.speed", "placement": "main"},

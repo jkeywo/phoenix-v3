@@ -44,7 +44,7 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 		ports.control(present, human);
 		return;
 	}
-	if ((!controller.human || !controller.definition.widget.empty()) && controller.brain)
+	if (controller_ai_running(controller) && controller.brain)
 	{
 		const auto observations = ports.observations();
 		ports.cancel(observations);

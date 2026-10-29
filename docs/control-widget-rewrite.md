@@ -140,3 +140,31 @@ production loading and execution. The graphical journey additionally renders
 Workshop previews at all three stars. This review does not establish the pending
 shipped-console migration, native operation adapters or final legacy-schema
 removal listed above.
+
+## Simplification review
+
+The widget compiler now binds an already compiled definition. Both the ship
+compiler and Workshop sample reuse that definition instead of repeating its
+validation during binding and responsibility mapping.
+
+Widget buttons, ordinary Console controls and command feedback share the
+existing Console label formatting, including numeric values, enable/disable
+wording, execution subjects and selected state. The presentation model no longer
+stores unused copies of the level, star count or availability flag.
+
+Workshop sample commands use `eligible_console_command`, the same advisory
+admission used by ConsoleModel. The sample keeps complete command envelopes in
+one map instead of maintaining parallel value and request maps. Repeated runtime
+checks use `controller_ai_running` rather than spelling out the widget exception
+independently.
+
+Ordinary widget evaluation relies on the interpreter's existing continuation
+transaction instead of copying continuation a second time. Handover resume keeps
+its copy so a failed evaluation also rolls back the resume.
+Fallback guards and ordinary transitions share one comparison compiler, rather
+than maintaining separate operator and type-checking implementations.
+
+The layout sample remains an isolated presentation preview. Physical execution
+continues through the existing Workshop gameplay test. State-tree command staging
+also remains: same-tick fallback and rollback require it, and it is not a second
+physical-system implementation.

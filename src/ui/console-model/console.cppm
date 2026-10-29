@@ -26,16 +26,16 @@ struct ConsoleMessageView
 	}
 };
 UiAvailability console_ui_availability(const Observation &);
+// Shared wording for Console controls, widget buttons and command feedback.
+std::string console_control_label(const Json &descriptor);
 struct ControlWidgetDatum
 {
 	std::string id, label, text;
 	WidgetDataDestination destination = WidgetDataDestination::Details;
-	bool available = false;
 };
 struct ControlWidgetView
 {
-	std::string id, definition, level;
-	int stars = 0;
+	std::string id, definition;
 	bool automated = true;
 	std::vector<ControlWidgetDatum> data;
 	std::vector<Json> controls;

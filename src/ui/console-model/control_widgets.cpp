@@ -85,8 +85,6 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 		ControlWidgetView widget;
 		widget.id = controller.at("id").get<std::string>();
 		widget.definition = definition;
-		widget.stars = stars;
-		widget.level = controller.value("star_levels", Json::object()).value(std::to_string(stars), std::string{});
 		for (const auto &[channel, command] : controller.at("commands").items())
 			widget.automated &= !command.value("human", false);
 		const auto placements =
@@ -108,10 +106,7 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				datum.destination = destination;
 				const auto value = widget_datum(view, controller, path, identity);
 				if (value && (value->is_primitive() && !value->is_null()))
-				{
-					datum.available = true;
 					datum.text = datum_text(*value);
-				}
 				else
 					datum.text = localise("Unavailable");
 				widget.data.push_back(std::move(datum));

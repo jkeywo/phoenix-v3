@@ -485,7 +485,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		                "shared widget instances require schema 2; do not mix level ownership with legacy allocations");
 		control_require(!widget_layout || instance.contains("widget"), path,
 		                "schema 2 Controller requires a shared widget definition");
-		const auto row = instance.contains("widget") ? bind_control_widget(catalog, instance) : instance;
+		const auto widget =
+		    instance.contains("widget")
+		        ? std::optional{compile_control_widget(catalog, instance.at("widget").get<std::string>())}
+		        : std::nullopt;
+		const auto row = widget ? bind_control_widget(*widget, instance) : instance;
 		ConsoleControllerSpec controller;
 		controller.id = control_name(row, "id", path);
 		controller.console = control_name(row, "console", path);
@@ -776,8 +780,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		if (row.contains("widget"))
 		{
 			controller.widget = row.at("widget").get<std::string>();
-			const auto widget = compile_control_widget(catalog, controller.widget);
-			for (const auto &[role, specification] : widget.equipment.items())
+			for (const auto &[role, specification] : widget->equipment.items())
 			{
 				const auto &binding = row.at("equipment").at(role);
 				const auto identities = binding.is_array() ? binding : Json::array({binding});
@@ -803,19 +806,19 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				control_require(mapping.contains(key) && mapping.at(key).is_string(), where,
 				                "missing widget star mapping");
 				const auto level = mapping.at(key).get<std::string>();
-				const auto found = std::find_if(widget.levels.begin(), widget.levels.end(),
+				const auto found = std::find_if(widget->levels.begin(), widget->levels.end(),
 				                                [&](const auto &candidate)
 				                                {
 					                                return candidate.id == level;
 				                                });
-				control_require(found != widget.levels.end(), where, "unknown widget responsibility level " + level);
-				const auto index = static_cast<std::size_t>(found - widget.levels.begin());
+				control_require(found != widget->levels.end(), where, "unknown widget responsibility level " + level);
+				const auto index = static_cast<std::size_t>(found - widget->levels.begin());
 				control_require(index >= previous, where, "widget responsibility must not decrease as stars increase");
 				previous = index;
 				controller.star_levels[stars] = level;
 				controller.human_channels[stars] = found->human;
 				controller.data_placement[stars] =
-				    control_widget_data_placement(widget, level, stars, row.value("data_placement", Json::object()));
+				    control_widget_data_placement(*widget, level, stars, row.value("data_placement", Json::object()));
 			}
 		}
 		result.controllers.push_back(std::move(controller));

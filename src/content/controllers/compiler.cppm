@@ -38,7 +38,7 @@ struct ControlWidgetDefinition
 	std::set<std::string> parts;
 };
 ControlWidgetDefinition compile_control_widget(const Catalog &, const std::string &id);
-Json bind_control_widget(const Catalog &, const Json &instance);
+Json bind_control_widget(const ControlWidgetDefinition &, const Json &instance);
 std::map<std::string, WidgetDataDestination> control_widget_data_placement(const ControlWidgetDefinition &,
                                                                            const std::string &level, int stars,
                                                                            const Json &overrides = Json::object());

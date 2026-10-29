@@ -75,6 +75,15 @@ int main(int argc, char **argv)
 				std::cerr << id << ": " << label << '\n';
 		}
 		require(control != app.screen_controls.end(), "interactive named part exposes admitted command controls");
+		ConsoleModel labels;
+		labels.refresh(app.session);
+		const auto ordinary = labels.gameplay_controls();
+		require(control->second.starts_with("Speed ") && std::any_of(ordinary.begin(), ordinary.end(),
+		                                                             [&](const auto &row)
+		                                                             {
+			                                                             return row.second == control->second;
+		                                                             }),
+		        "widget and ordinary Console controls share numeric labels");
 		const auto action = control->first;
 		require(app.screen_action(action), "widget control uses ordinary command admission");
 		app.session->tick();

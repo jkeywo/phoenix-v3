@@ -16,6 +16,7 @@ module phoenix.ui.preview;
 import phoenix.content.catalog;
 import phoenix.content.ui;
 import phoenix.content.controllers;
+import phoenix.console_controls;
 
 import phoenix.application;
 import phoenix.console;
@@ -34,8 +35,7 @@ class PreviewSession final : public SessionPort
 	std::shared_ptr<const Catalog> authoring_identity_;
 	std::uint64_t generation_ = 1;
 	std::string widget_context_;
-	std::map<std::string, std::int64_t> widget_settings_;
-	std::map<std::string, std::uint64_t> widget_requests_;
+	std::map<std::string, OperatingCommand> widget_commands_;
 
 	void widget_layout(const std::string &context, int stars)
 	{
@@ -62,7 +62,7 @@ class PreviewSession final : public SessionPort
 				continue;
 			const auto definition =
 			    compile_control_widget(*authoring_identity_, instance.at("widget").get<std::string>());
-			const auto bound = bind_control_widget(*authoring_identity_, instance);
+			const auto bound = bind_control_widget(definition, instance);
 			const auto level = instance.at("star_levels").at(std::to_string(stars)).get<std::string>();
 			const auto selected = std::find_if(definition.levels.begin(), definition.levels.end(),
 			                                   [&](const auto &candidate)
@@ -72,7 +72,7 @@ class PreviewSession final : public SessionPort
 			if (selected == definition.levels.end())
 				throw std::runtime_error("Unknown widget responsibility level in preview");
 			Json row{{"id", instance.at("id")},           {"console", view_.console},
-			         {"widget", definition.id},           {"generation", 1},
+			         {"widget", definition.id},           {"generation", generation_},
 			         {"human", !selected->human.empty()}, {"commands", Json::object()},
 			         {"equipment", Json::object()},       {"star_levels", instance.at("star_levels")},
 			         {"data_placement", Json::object()}};
@@ -90,9 +90,13 @@ class PreviewSession final : public SessionPort
 				const auto name = command.at("id").get<std::string>();
 				const auto *action = operating_action(command.at("action").get<std::string>());
 				const auto key = instance.at("id").get<std::string>() + "/" + name;
-				const auto initial = command.value("initial", std::int64_t{0});
-				const auto value = widget_settings_.contains(key) ? widget_settings_.at(key) : initial;
-				const auto request = widget_requests_.contains(key) ? widget_requests_.at(key) : 0;
+				const auto previous = widget_commands_.find(key);
+				const auto value = previous == widget_commands_.end() ? command.value("initial", std::int64_t{0})
+				                                                      : previous->second.value;
+				const auto request = previous == widget_commands_.end() ? 0 : previous->second.request_id;
+				const auto arguments = previous == widget_commands_.end()
+				                           ? command.value("arguments", std::vector<std::int64_t>{})
+				                           : previous->second.arguments;
 				auto minimum = command.value("minimum", action->minimum),
 				     maximum = command.value("maximum", action->maximum);
 				const bool human = selected->human.contains(name);
@@ -112,7 +116,7 @@ class PreviewSession final : public SessionPort
 					throw std::runtime_error("Widget preview command is outside the attached equipment range: " + key);
 				row["commands"][name] = {
 				    {"value", value},
-				    {"arguments", command.value("arguments", Json::array())},
+				    {"arguments", arguments},
 				    {"human", human},
 				    {"action", command.at("action")},
 				    {"minimum", minimum},
@@ -150,8 +154,9 @@ class PreviewSession final : public SessionPort
 				for (const auto setting : values)
 				{
 					OperatingCommand proposal{
-					    1, std::string(action->name), setting, {}, instance.at("id").get<std::string>(), name, 1};
-					proposal.arguments = command.value("arguments", std::vector<std::int64_t>{});
+					    1,          std::string(action->name), setting, {}, instance.at("id").get<std::string>(), name,
+					    generation_};
+					proposal.arguments = arguments;
 					if (action->semantics == CommandSemantics::Request)
 						proposal.request_id = request + 1;
 					auto descriptor = encode_operating_command(proposal);
@@ -208,8 +213,7 @@ public:
 			catalog_.ui_theme = authoring->ui_theme;
 			catalog_.assets = authoring->assets;
 			catalog_.control_widgets = authoring->control_widgets;
-			widget_settings_.clear();
-			widget_requests_.clear();
+			widget_commands_.clear();
 			++generation_;
 		}
 		value.erase("_preview_pages");
@@ -242,8 +246,7 @@ public:
 		if (widget_identity != widget_context_)
 		{
 			widget_context_ = widget_identity;
-			widget_settings_.clear();
-			widget_requests_.clear();
+			widget_commands_.clear();
 			++generation_;
 		}
 		view_.gameplay["profile"] = "preview";
@@ -417,20 +420,14 @@ public:
 			return false;
 		if (!value.controller.empty())
 		{
-			for (const auto &controller : view_.gameplay.at("controllers"))
-				if (controller.at("id") == value.controller && controller.at("generation") == value.generation &&
-				    controller.at("commands").contains(value.channel))
-				{
-					const auto &channel = controller.at("commands").at(value.channel);
-					if (!channel.at("human").get<bool>() || channel.at("action") != value.action ||
-					    value.value < channel.at("minimum") || value.value > channel.at("maximum"))
-						return false;
-					widget_settings_[value.controller + "/" + value.channel] = value.value;
-					widget_requests_[value.controller + "/" + value.channel] = value.request_id;
-					++generation_;
-					return true;
-				}
-			return false;
+			const auto admitted =
+			    eligible_console_command(view_, catalog_.consoles.at("preview.console"), Json::object(), value);
+			if (!admitted)
+				return false;
+			const auto &command = admitted->command;
+			widget_commands_[command.controller + "/" + command.channel] = command;
+			++generation_;
+			return true;
 		}
 		if (value.action == "speed_mm_s")
 			view_.requested_speed = std::clamp<std::int64_t>(value.value, 0, 30000);

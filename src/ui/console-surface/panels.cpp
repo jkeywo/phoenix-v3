@@ -137,7 +137,7 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			const auto action = "task/" + target + "/" + descriptor_action(control.at("id").get<std::string>());
 			task_actions_[action] = command;
 			const auto key = id(action);
-			const auto text = localise(control.value("label_key", control.value("label", channel)));
+			const auto text = console_control_label(control);
 			const bool enabled = control.value("enabled", true);
 			markup += "<button id=\"" + esc(key) + "\" class=\"task-button\"" +
 			          (enabled ? ">" : " disabled aria-disabled=\"true\">") + esc(text) + "</button>";
