@@ -139,6 +139,11 @@ try
 			{
 				throw "WASM input/semantics integration failed"
 			}
+			& $node --import "../../tests/support/browser_blob_host.mjs" phoenix_browser_blob_tests.js
+			if ($LASTEXITCODE)
+			{
+				throw 'WASM browser blob contract integration failed'
+			}
 			& $node phoenix_build_check.js
 			if ($LASTEXITCODE)
 			{

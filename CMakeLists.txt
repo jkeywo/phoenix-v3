@@ -771,6 +771,13 @@ else()
 	pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
 endif()
 if(EMSCRIPTEN)
+	add_executable(phoenix_browser_blob_tests tests/system/browser_blob_contracts.cpp)
+	target_link_libraries(phoenix_browser_blob_tests PRIVATE phoenix_blobs)
+	target_link_options(
+		phoenix_browser_blob_tests
+		PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
+		"-sEXPORTED_RUNTIME_METHODS=['ccall']"
+	)
 	add_executable(phoenix_blob_probe tests/manual/browser_blobs.cpp)
 	target_link_libraries(phoenix_blob_probe PRIVATE phoenix_blobs phoenix_wire)
 	phoenix_fixture(phoenix_blob_probe)
