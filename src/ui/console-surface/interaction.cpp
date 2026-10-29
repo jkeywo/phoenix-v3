@@ -990,6 +990,66 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 		app.screen_readouts.emplace_back(id("manual-values"), text);
 	}
 }
+std::optional<bool> ConsoleSurface::State::select_radar_at(float x, float y)
+{
+	if (!model_.layout() || !model_.observation())
+		return std::nullopt;
+	const auto &view = *model_.observation();
+	for (const auto &widget : model_.layout()->at("widgets"))
+	{
+		if (widget.at("kind") != "radar")
+			continue;
+		const auto key = widget.at("id").get<std::string>();
+		auto *dial = document_->GetElementById("dial/" + key);
+		if (!dial)
+			continue;
+		const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const Vector2 centre{at.x + dial->GetOffsetWidth() / 2, at.y + dial->GetOffsetHeight() / 2};
+		const auto radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .33f;
+		const auto radar = select_system(view.systems, OperatingSystem::Radar, model_.widget_system(key), false);
+		if (!radar)
+			continue;
+		for (const auto &sensor : view.systems)
+		{
+			if (sensor.id != *radar || !sensor.enabled)
+				continue;
+			EntityId nearest = 0;
+			float distance = 18 * context_->GetDensityIndependentPixelRatio();
+			for (const auto &body : view.contacts)
+			{
+				if (sensor.maximum <= 0 ||
+				    std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), body.id) ==
+				        sensor.contact_ids.end() ||
+				    !radar_contact_in_range(view.own, body, sensor.maximum))
+					continue;
+				const auto point = radar_contact_point(view.own, body, sensor.maximum, centre, radius);
+				const Vector2 body_centre{centre.x + float(double(body.x - view.own.x) / sensor.maximum) * radius,
+				                          centre.y - float(double(body.y - view.own.y) / sensor.maximum) * radius};
+				const auto size = float(double(body.radius) / sensor.maximum) * radius;
+				const float delta = size > 12
+				                        ? std::min(std::hypot(x - point.x, y - point.y),
+				                                   std::abs(std::hypot(x - body_centre.x, y - body_centre.y) - size))
+				                        : std::hypot(x - point.x, y - point.y);
+				if (delta < distance)
+				{
+					distance = delta;
+					nearest = body.id;
+				}
+			}
+			if (nearest)
+				return select_radar_contact(nearest);
+			for (const auto &bearing : view.bearing_contacts)
+			{
+				if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), bearing.id) ==
+				    sensor.contact_ids.end())
+					continue;
+				if (CheckCollisionPointCircle({x, y}, bearing_ring_point(centre, radius, bearing.bearing_mdeg), 14))
+					return select_radar_contact(bearing.id);
+			}
+		}
+	}
+	return std::nullopt;
+}
 bool ConsoleSurface::State::pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
 {
 	render_dirty_ = true;
@@ -1034,58 +1094,9 @@ bool ConsoleSurface::State::pointer(std::uint64_t contact, float x, float y, Dev
 					if (CheckCollisionPointRec({x, y}, {at.x, at.y, b->GetOffsetWidth(), b->GetOffsetHeight()}))
 						return false;
 				}
-	if (kind == DeviceEventKind::Down && model_.layout() && model_.observation())
-		for (const auto &w : model_.layout()->at("widgets"))
-			if (w.at("kind") == "radar")
-			{
-				const auto key = w.at("id").get<std::string>();
-				if (auto *dial = document_->GetElementById("dial/" + key))
-				{
-					const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
-					const Vector2 centre{at.x + dial->GetOffsetWidth() / 2, at.y + dial->GetOffsetHeight() / 2};
-					const auto radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .33f;
-					const auto &view = *model_.observation();
-					const auto radar =
-					    select_system(view.systems, OperatingSystem::Radar, model_.widget_system(key), false);
-					for (const auto &sensor : view.systems)
-						if (radar && sensor.id == *radar && sensor.enabled)
-						{
-							EntityId nearest = 0;
-							float distance = 18 * context_->GetDensityIndependentPixelRatio();
-							for (const auto &body : view.contacts)
-								if (sensor.maximum > 0 &&
-								    std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), body.id) !=
-								        sensor.contact_ids.end() &&
-								    radar_contact_in_range(view.own, body, sensor.maximum))
-								{
-									const auto point =
-									    radar_contact_point(view.own, body, sensor.maximum, centre, radius);
-									const Vector2 body_centre{
-									    centre.x + float(double(body.x - view.own.x) / sensor.maximum) * radius,
-									    centre.y - float(double(body.y - view.own.y) / sensor.maximum) * radius};
-									const auto size = float(double(body.radius) / sensor.maximum) * radius;
-									const float delta =
-									    size > 12 ? std::min(std::hypot(x - point.x, y - point.y),
-									                         std::abs(std::hypot(x - body_centre.x, y - body_centre.y) -
-									                                  size))
-									              : std::hypot(x - point.x, y - point.y);
-									if (delta < distance)
-									{
-										distance = delta;
-										nearest = body.id;
-									}
-								}
-							if (nearest)
-								return select_radar_contact(nearest);
-							for (const auto &b : view.bearing_contacts)
-								if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), b.id) !=
-								        sensor.contact_ids.end() &&
-								    CheckCollisionPointCircle({x, y},
-								                              bearing_ring_point(centre, radius, b.bearing_mdeg), 14))
-									return select_radar_contact(b.id);
-						}
-				}
-			}
+	if (kind == DeviceEventKind::Down)
+		if (const auto selected = select_radar_at(x, y))
+			return *selected;
 	if (const auto result = navigation_.pointer(model_, contact, x, y, kind); result.handled)
 	{
 		if (result.changed)

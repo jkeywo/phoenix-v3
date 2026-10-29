@@ -230,6 +230,7 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::vector<std::pair<std::string, std::string>> popup_controls_;
 
 	bool select_radar_contact(EntityId contact);
+	std::optional<bool> select_radar_at(float x, float y);
 
 	void prepare_system_popup(const ConsoleRegion &region, const std::vector<EngineeringCard> &cards);
 
