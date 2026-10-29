@@ -68,10 +68,13 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (child.has<FtlReserve>() && impl_->ftl_owner(address.ship, child.get<Equipment>().id) == address)
 			for (const auto &ctrl : entity.get<EntityControls>().controllers)
-				if (ctrl.human && ctrl.definition.console == address.console)
+				if (controller_operation_human(ctrl, "departure") && ctrl.definition.console == address.console)
 					for (const auto &channel : ctrl.definition.commands)
-						if (std::find(channel.consumers.begin(), channel.consumers.end(),
-						              child.get<Equipment>().ordinal) != channel.consumers.end())
+						if ((!ctrl.definition.widget.empty() &&
+						     controller_operation_owns(ctrl, "departure", child.get<Equipment>().id)) ||
+						    (ctrl.definition.widget.empty() &&
+						     std::find(channel.consumers.begin(), channel.consumers.end(),
+						               child.get<Equipment>().ordinal) != channel.consumers.end()))
 						{
 							OperatingCommand command{
 							    address.ship, "ftl.depart",   0, child.get<Equipment>().id, ctrl.definition.id,

@@ -91,11 +91,24 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
-		    (ctrl.human != ai || (!ai && c.action == "away.contribute" && !controlled_system.empty()) ||
-		     (!ai && (c.action == "away.transport" || c.action == "away.escort") &&
-		      assisted_workload(a, "transport")) ||
-		     (!ai && station_stars(a) < 3 && !controlled_system.empty() &&
-		      (c.action == "away.assign" || c.action == "away.withdraw"))) &&
+		    ctrl.generation == c.generation && !ctrl.definition.widget.empty())
+		{
+			const auto operation =
+			    (c.action == "away.transport" || c.action == "away.escort" || c.action == "away.contribute" ||
+			     c.action == "away.assign" || c.action == "away.withdraw")
+			        ? "transport"
+			        : "mission";
+			authority |= controller_operation_owns(ctrl, operation, controlled_system) &&
+			             controller_operation_human(ctrl, operation) != ai;
+		}
+	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
+		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
+		    (ctrl.definition.widget.empty() &&
+		     (ctrl.human != ai || (!ai && c.action == "away.contribute" && !controlled_system.empty()) ||
+		      (!ai && (c.action == "away.transport" || c.action == "away.escort") &&
+		       assisted_workload(a, "transport")) ||
+		      (!ai && station_stars(a) < 3 && !controlled_system.empty() &&
+		       (c.action == "away.assign" || c.action == "away.withdraw")))) &&
 		    ctrl.generation == c.generation)
 		{
 			if (controlled_system.empty())

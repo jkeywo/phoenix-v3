@@ -22,6 +22,8 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 		controller.definition = spec;
 		for (const auto &command : spec.commands)
 			controller.commands.push_back({command.initial, 1, 0, 0, true, command.initial_arguments});
+		if (!spec.widget.empty())
+			controller.human_commands.resize(spec.commands.size(), false);
 		if (!spec.tree.empty())
 		{
 			if (content.tree_programs.contains(spec.tree))

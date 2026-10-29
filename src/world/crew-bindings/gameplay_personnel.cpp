@@ -46,6 +46,18 @@ auto Runtime::station_stars(const ConsoleAddress &address) const -> int
 	return controls->layout.profiles.at(controls->profiles.at(address.console)).stars;
 }
 
+auto Runtime::native_operation_controller(const ConsoleAddress &address, const std::string &operation,
+	                                      const std::string &equipment) const -> const ConsoleControllerRuntime *
+{
+	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
+	if (controls)
+		for (const auto &controller : controls->controllers)
+			if (controller.definition.console == address.console &&
+			    controller_operation_owns(controller, operation, equipment))
+				return &controller;
+	return nullptr;
+}
+
 auto Runtime::manual_workload(const ConsoleAddress &address, const std::string &family,
                               const std::string &equipment) const -> bool
 {
@@ -63,6 +75,8 @@ auto Runtime::manual_workload(const ConsoleAddress &address, const std::string &
 		}
 	if (widgets)
 		return false;
+	if (family == "personnel")
+		return station_stars(address) >= 3;
 	const auto &workloads = controls->layout.manual_workloads;
 	return !workloads.contains(address.console) || !workloads.at(address.console).contains(family) ||
 	       station_stars(address) >= workloads.at(address.console).at(family);
@@ -105,7 +119,7 @@ auto Runtime::advance_personnel(EntityId id) -> void
 			if (const auto *duty = personnel_duty(id, officer.duty))
 			{
 				const ConsoleAddress owner{id, duty->console};
-				if (station_stars(owner) < 3 || console_operator(owner) == 0)
+				if (!manual_workload(owner, "personnel") || console_operator(owner) == 0)
 					auto_assign_officer(owner, duty->id, false);
 			}
 	PersonnelTravelFacts travel;
@@ -155,6 +169,12 @@ auto Runtime::auto_assign_officer(const ConsoleAddress &address, const std::stri
 		OperatingCommand command{address.ship, "personnel.assign", 0, officer.id};
 		command.text = duty_id;
 		command.generation = state.revision;
+		if (const auto *owner = native_operation_controller(address, "personnel"))
+		{
+			command.controller = owner->definition.id;
+			command.generation = owner->generation;
+			command.value = state.revision;
+		}
 		if (!personnel_command(address, command, false, true))
 			continue;
 		const auto score = personnel_assignment_score(definition, officer, state.officers[i], *duty);
@@ -170,13 +190,23 @@ auto Runtime::auto_assign_officer(const ConsoleAddress &address, const std::stri
 auto Runtime::personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute, bool ai)
     -> bool
 {
-	if (!ai && station_stars(address) < 3)
+	if (!ai && !manual_workload(address, "personnel"))
 		return false;
-	if (!native_command_envelope(command, {.allow_controller = false}) || command.value)
+	const auto *owner = native_operation_controller(address, "personnel");
+	if (!owner)
+		for (const auto &controller : entities.at(address.ship).get<EntityControls>().controllers)
+			if (controller.definition.console == address.console && !controller.definition.widget.empty())
+				return false;
+	if (!native_command_envelope(command, {.allow_controller = owner != nullptr}))
 		return false;
 	const auto &d = definition(address.ship).personnel;
 	auto &state = entities.at(address.ship).get_mut<PersonnelState>();
-	if (command.generation != state.revision || state.revision >= 9007199254740991ULL)
+	if (state.revision >= 9007199254740991ULL)
+		return false;
+	if (owner ? (command.controller != owner->definition.id || command.generation != owner->generation ||
+	             command.value != static_cast<std::int64_t>(state.revision) ||
+	             controller_operation_human(*owner, "personnel") == ai)
+	          : (command.generation != state.revision || command.value != 0))
 		return false;
 	const auto it = std::find_if(d.officers.begin(), d.officers.end(),
 	                             [&](const auto &o)
@@ -284,10 +314,15 @@ auto Runtime::personnel_board(const ConsoleAddress &address) const -> Json
 	const auto &d = definition(address.ship).personnel;
 	const auto state = personnel_snapshot(address.ship);
 	Json out{{"revision", state.revision},
-	         {"manual", station_stars(address) >= 3},
+	         {"manual", manual_workload(address, "personnel")},
 	         {"departments", Json::array()},
 	         {"duties", Json::array()},
 	         {"officers", Json::array()}};
+	if (const auto *owner = native_operation_controller(address, "personnel"))
+	{
+		out["controller"] = owner->definition.id;
+		out["generation"] = owner->generation;
+	}
 	for (const auto &dep : d.departments)
 		if (personnel_owns(address, dep.id))
 			out["departments"].push_back({{"id", dep.id}, {"label", dep.label}});

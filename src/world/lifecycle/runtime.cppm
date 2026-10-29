@@ -314,6 +314,8 @@ struct Runtime
 	controller_observations(EntityId id, const ConsoleControllerRuntime &controller,
 	                        const Observation *projected = nullptr,
 	                        const GameplayKnowledgeProjection *projected_board = nullptr);
+	std::optional<bool> controller_native_command(EntityId id, std::size_t index, const std::string &name,
+	                                              std::span<const state_tree::Value> args, bool execute);
 	void controller_output(EntityId id, std::size_t index, const state_tree::Output &output,
 	                       std::span<const state_tree::Value> observations,
 	                       const state_tree::Program *execution = nullptr);
@@ -353,13 +355,13 @@ struct Runtime
 	const OfficerRequest *officer_pending(const ConsoleControllerRuntime &controller) const;
 	void restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &controller, const Json &saved);
 	KnowledgeId officer_message(EntityId id, ConsoleControllerRuntime &controller, const OfficerRequest &request,
-	                            bool reply);
+	                            bool reply, bool execute = true);
 	void process_controller_coordination(EntityId id, std::size_t index);
 	void controller_coordination_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
 	                                   std::vector<state_tree::Value> &values) const;
 
 	bool controller_coordination_action(EntityId id, std::size_t index, const std::string &name,
-	                                    std::span<const state_tree::Value> args);
+	                                    std::span<const state_tree::Value> args, bool execute = true);
 	// Included in World::Impl. Inference is external; these operations are deterministic.
 	ConsoleControllerRuntime *model_controller(const ControllerAddress &address);
 	Json model_basis(EntityId id, const ConsoleControllerRuntime &controller);
@@ -1292,8 +1294,12 @@ struct Runtime
 	OfficerState personnel_destination(EntityId id, const PersonnelDuty &duty) const;
 	bool personnel_owns(const ConsoleAddress &address, const std::string &department) const;
 	int station_stars(const ConsoleAddress &address) const;
-	bool manual_workload(const ConsoleAddress &address, const std::string &family, const std::string &equipment = {}) const;
-	bool assisted_workload(const ConsoleAddress &address, const std::string &family, const std::string &equipment = {}) const;
+	bool manual_workload(const ConsoleAddress &address, const std::string &family,
+	                     const std::string &equipment = {}) const;
+	const ConsoleControllerRuntime *native_operation_controller(const ConsoleAddress &, const std::string &operation,
+	                                                            const std::string &equipment = {}) const;
+	bool assisted_workload(const ConsoleAddress &address, const std::string &family,
+	                       const std::string &equipment = {}) const;
 	bool manual_team_destination(const ConsoleAddress &address, const std::string &equipment = {}) const;
 	void advance_personnel(EntityId id);
 	std::pair<std::string, std::string> officer_speaker(EntityId id, const std::string &console,
@@ -1424,8 +1430,8 @@ struct Runtime
 	void request_material(EntityId source, std::size_t from, EntityId destination, std::size_t to, const std::string &m,
 	                      std::int64_t n, bool automatic);
 	void step_logistics();
-	bool material_authority(const ConsoleAddress &a, const OperatingCommand &c, const std::string &owner,
-	                        bool ai) const;
+	bool material_authority(const ConsoleAddress &a, const OperatingCommand &c, const std::string &owner, bool ai,
+	                        const std::string &operation = "logistics") const;
 	bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false);
 	std::int64_t parse_material_number(const std::string &s) const;
 	Json logistics_board(const ConsoleAddress &a) const;

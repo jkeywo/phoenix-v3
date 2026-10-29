@@ -45,6 +45,93 @@ inline void control_widget_cases()
 	layout["profiles"][1]["stars"] = 3;
 	for (auto &profile : layout["profiles"])
 		profile.erase("consoles");
+	{
+		// Native work uses the same admitted-attempt path as scalar settings.
+		auto native = combat_fixture();
+		auto &controls = native["entities"][0]["control_layout"];
+		controls["schema"] = 2;
+		controls["profiles"] = Json::array({{{"id", "direct"}, {"stars", 1}}});
+		native["control_widgets"] = Json::array();
+		for (auto &instance : controls["controllers"])
+		{
+			const auto identity = instance.at("id").get<std::string>();
+			const auto name = "test.native." + identity;
+			auto commands = instance.at("commands");
+			Json human = Json::array();
+			for (auto &command : commands)
+			{
+				command["consumers"] = {"$subject"};
+				human.push_back(command.at("id"));
+			}
+			Json definition{{"id", name},
+			                {"schema", 1},
+			                {"equipment", {{"subject", Json::object()}}},
+			                {"commands", commands},
+			                {"data", Json::object()},
+			                {"parts", {"main"}},
+			                {"levels", Json::array({{{"id", "automated"}, {"human", Json::array()}},
+			                                        {{"id", "manual"}, {"human", human}}})}};
+			if (identity == "team-a")
+			{
+				definition["operations"] = {{"team_assignment", {"$subject"}}, {"team_work", {"$subject"}}};
+				definition["levels"][1]["human"].push_back("team_assignment");
+				definition["tree"] = "test.native.team";
+			}
+			native["control_widgets"].push_back(definition);
+			instance = {{"id", identity},
+			            {"console", instance.at("console")},
+			            {"widget", name},
+			            {"equipment", {{"subject", identity}}},
+			            {"star_levels", {{"1", "manual"}, {"2", "manual"}, {"3", "manual"}}}};
+		}
+		native["trees"].push_back(Json::parse(R"json({"id":"test.native.team","context":"controller",
+		 "team_commands":true,"command_bindings":[{"channel":"enabled","action":"system_enabled","type":"boolean"}],
+		 "initial":"run","states":[{"id":"run","running":[{"attempt":[
+		  {"tasks":[{"action":"team.order","arguments":["team-a","auto/aft",1]}]},
+		  {"tasks":[{"action":"write.enabled","arguments":[false]}]}]}]}]})json"));
+		{
+			auto overlapping = native;
+			for (auto &definition : overlapping["control_widgets"])
+				if (definition["id"] == "test.native.team-b")
+				{
+					definition["equipment"]["other"] = Json::object();
+					definition["operations"] = {{"team_assignment", {"$other"}}};
+				}
+			for (auto &instance : overlapping["entities"][0]["control_layout"]["controllers"])
+				if (instance["id"] == "team-b")
+					instance["equipment"]["other"] = "team-a";
+			rejected(
+			    [&]
+			    {
+				    (void)load(overlapping);
+			    },
+			    "overlapping widget owners");
+		}
+		const auto native_catalog = load(native);
+		World world;
+		world.load(native_catalog, "test.map");
+		require(world.claim(102, 1, "observer"), "claim scoped native team widget");
+		world.tick();
+		const auto team = controller(world, 102, "team-a");
+		require(team.at("commands").at("enabled").at("value") == 1,
+		        "refused native assignment cannot bypass a human command during fallback");
+		for (const auto &row : world.observe(102)->gameplay.at("teams"))
+			if (row.at("id") == "team-a")
+				require(row.at("assigned_compartment") != 1,
+				        "native preflight never moves a human-owned team destination");
+		world.release(102);
+		world.tick();
+		require(world.claim(102, 1, "observer"), "reclaim native widget after unattended assignment");
+		for (const auto &row : world.observe(102)->gameplay.at("teams"))
+			if (row.at("id") == "team-a")
+				require(row.at("assigned_compartment") == 1,
+				        "unattended native widget admits the same tree's physical team assignment");
+		World resumed;
+		resumed.restore(native_catalog, world.save());
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(), "native widget effects preserve checkpoint continuation");
+	}
 	const auto catalog = load(source);
 	const auto widget = compile_control_widget(catalog, "test.widget.drive");
 	{

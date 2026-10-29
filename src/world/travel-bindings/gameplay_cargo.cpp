@@ -66,7 +66,8 @@ auto Runtime::cargo_authorisation_console(const ConsoleAddress &a, bool human) c
 		return false;
 	for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
 		if (controller.definition.id == owner && controller.definition.console == a.console &&
-		    (!human || controller.human))
+		    (!human || (controller.definition.widget.empty() ? controller.human
+		               : controller_operation_human(controller, "cargo_authorisation"))))
 			return true;
 	return false;
 }
@@ -78,7 +79,7 @@ auto Runtime::cargo_authority(const ConsoleAddress &a, const OperatingCommand &c
 		return false;
 	const auto &delegate = definition(a.ship).logistics.cargo_authorisation_controller;
 	if (!delegate.empty())
-		return material_authority(a, c, delegate, ai);
+		return material_authority(a, c, delegate, ai, "cargo_authorisation");
 	if (enabled_system_owner(a.ship, state.bay) != a)
 		return false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)

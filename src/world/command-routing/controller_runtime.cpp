@@ -246,11 +246,15 @@ auto Runtime::project_controllers(const ConsoleAddress &address, const Observati
 				contributes |= kind == OperatingSystem::Team || kind == OperatingSystem::ShuttleBay;
 				bay |= kind == OperatingSystem::ShuttleBay;
 			}
-		facts.contribution_authority = contributes && console_operator(address) != 0;
-		facts.craft_authority = bay && assisted_workload(address, "craft");
-		facts.transport_authority = bay && assisted_workload(address, "transport");
-		const auto observations = controller.brain && controller_ai_running(controller) &&
-		                                  !controller.actions.empty()
+		facts.contribution_authority = !controller.definition.widget.empty()
+		                                   ? controller_operation_human(controller, "transport")
+		                                   : contributes && console_operator(address) != 0;
+		facts.craft_authority = !controller.definition.widget.empty() ? controller_operation_human(controller, "craft")
+		                                                              : bay && assisted_workload(address, "craft");
+		facts.transport_authority = !controller.definition.widget.empty()
+		                                ? controller_operation_human(controller, "transport")
+		                                : bay && assisted_workload(address, "transport");
+		const auto observations = controller.brain && controller_ai_running(controller) && !controller.actions.empty()
 		                              ? controller_observations(address.ship, controller, &projected, &board)
 		                              : std::vector<state_tree::Value>{};
 		result.push_back(project_controller_runtime(controller, facts, observations));

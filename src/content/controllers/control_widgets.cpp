@@ -155,6 +155,12 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	for (const auto &[operation, roles] : result.operations.items())
 	{
 		(void)widget_name(Json(operation), id + ".operations");
+		static const std::set<std::string> supported_operations{
+		    "team_assignment", "team_work", "medical",   "personnel",           "craft",
+		    "craft_return",    "transport", "logistics", "cargo_authorisation", "conversation",
+		    "mission",         "departure", "docking",   "coordination"};
+		widget_require(supported_operations.contains(operation), id, "unsupported native operation " + operation);
+
 		widget_require(responsibilities.insert(operation).second && roles.is_array(), id,
 		               "operation must have a distinct name and equipment role array");
 		std::set<std::string> unique;

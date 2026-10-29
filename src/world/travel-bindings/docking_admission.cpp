@@ -221,7 +221,7 @@ auto Runtime::docking_command(const ConsoleAddress &a, const OperatingCommand &c
 	for (std::size_t i = 0; i < ports.size(); ++i)
 		if (ports[i].id == cmd.system)
 			port = i;
-	if (port == ports.size() || !material_authority(a, cmd, ports[port].controller, ai))
+	if (port == ports.size() || !material_authority(a, cmd, ports[port].controller, ai, "docking"))
 		return false;
 	if (cmd.action == "dock.accept" || cmd.action == "dock.reject" || cmd.action == "dock.supply")
 	{
@@ -437,7 +437,7 @@ auto Runtime::apply_docking_controller(flecs::entity e) -> void
 				                   *value,
 				                   ctrl.generation,
 				                   0,
-				                   ctrl.human,
+				                   controller_command_human(ctrl, i),
 				                   {}});
 		}
 	}
@@ -641,7 +641,8 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 						                [&](const auto &controller)
 						                {
 							                return controller.definition.console == a.console &&
-							                       controller.definition.id == local.controller && controller.human;
+							                       controller.definition.id == local.controller &&
+							                       controller_operation_human(controller, "docking");
 						                }))
 						{
 							// One usable local port per remote port keeps the contextual choice and report bounded.

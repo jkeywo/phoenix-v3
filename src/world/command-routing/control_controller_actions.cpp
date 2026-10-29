@@ -121,8 +121,9 @@ auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<
 	    {
 		    controller_output(id, index, output, observations, program);
 	    },
-	    [this, id, index](std::vector<ControllerChannelState> &commands, const state_tree::Program &program,
-	                      const state_tree::Output &output) -> state_tree::CommandAttempt
+	    [this, id, index, native_writes = std::set<std::string>{}](
+	        std::vector<ControllerChannelState> &commands, const state_tree::Program &program,
+	        const state_tree::Output &output) mutable -> state_tree::CommandAttempt
 	    {
 		    const auto &controller = entities.at(id).get<EntityControls>().controllers.at(index);
 		    const auto &name = program.registry.actions.at(output.action).name;
@@ -144,6 +145,17 @@ auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<
 				                                       std::move(arguments)},
 				                                      controller_command_checks(id));
 			    }
+		    if (const auto admitted = controller_native_command(id, index, name, output.arguments, false))
+		    {
+			    if (!*admitted)
+				    return {state_tree::CommandOutcome::Refused, "native_command_refused"};
+			    auto subject = name.substr(0, name.find('.'));
+			    if ((subject == "team" || subject == "craft" || subject == "away") && !output.arguments.empty())
+				    subject += "/" + output.arguments[0].text;
+			    if (!native_writes.insert(subject).second)
+				    return {state_tree::CommandOutcome::Refused, "native_subject_already_staged"};
+			    return {state_tree::CommandOutcome::Applied, {}};
+		    }
 		    return {state_tree::CommandOutcome::Refused, "unbound_command"};
 	    }};
 }

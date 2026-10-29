@@ -180,9 +180,14 @@ auto Runtime::step_logistics() -> void
 		for (const auto &controller : controls->controllers)
 		{
 			const ConsoleAddress owner{id, controller.definition.console};
-			if (controller.human || !controls->layout.manual_workloads.contains(owner.console) ||
-			    !controls->layout.manual_workloads.at(owner.console).contains("logistics") ||
-			    (console_operator(owner) != 0 && manual_workload(owner, "logistics")))
+			const bool automatic =
+			    !controller.definition.widget.empty()
+			        ? controller.definition.operations.contains("logistics") &&
+			              !controller_operation_human(controller, "logistics")
+			        : !controller.human && controls->layout.manual_workloads.contains(owner.console) &&
+			              controls->layout.manual_workloads.at(owner.console).contains("logistics") &&
+			              !(console_operator(owner) != 0 && manual_workload(owner, "logistics"));
+			if (!automatic)
 				continue;
 			const auto &d = definition(id).logistics;
 			for (std::size_t i = 0; i < d.stores.size(); ++i)
@@ -415,14 +420,17 @@ auto Runtime::step_logistics() -> void
 	              });
 }
 
-auto Runtime::material_authority(const ConsoleAddress &a, const OperatingCommand &c, const std::string &owner,
-                                 bool ai) const -> bool
+auto Runtime::material_authority(const ConsoleAddress &a, const OperatingCommand &c, const std::string &owner, bool ai,
+                                 const std::string &operation) const -> bool
 {
 	if (!entities.at(a.ship).has<EntityControls>())
 		return false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (ctrl.definition.console == a.console && ctrl.definition.id == owner && c.controller == owner &&
-		    ctrl.generation == c.generation && ctrl.human != ai)
+		    ctrl.generation == c.generation &&
+		    (ctrl.definition.widget.empty()
+		         ? ctrl.human != ai
+		         : ctrl.definition.operations.contains(operation) && controller_operation_human(ctrl, operation) != ai))
 			return true;
 	return false;
 }

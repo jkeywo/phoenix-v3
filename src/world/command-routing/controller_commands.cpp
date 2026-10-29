@@ -53,10 +53,19 @@ auto Runtime::selection_command(const ConsoleAddress &address, const OperatingCo
 	bool authority = false;
 	for (const auto &controller : controls->controllers)
 		if (controller.definition.console == address.console && controller.definition.id == command.controller &&
-		    controller.human && controller.generation == command.generation)
-			for (const auto &channel : controller.definition.commands)
-				for (const auto consumer : channel.consumers)
-					authority |= definition(address.ship).fitted->values.at(consumer).id == equipment;
+		    controller.generation == command.generation)
+		{
+			if (!controller.definition.widget.empty())
+			{
+				authority |= controller_operation_owns(controller, "logistics", equipment) &&
+				             controller_operation_human(controller, "logistics");
+				continue;
+			}
+			if (controller.human)
+				for (const auto &channel : controller.definition.commands)
+					for (const auto consumer : channel.consumers)
+						authority |= definition(address.ship).fitted->values.at(consumer).id == equipment;
+		}
 	if (!authority)
 		return false;
 	if (command.action == "processor.select")
@@ -246,6 +255,60 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	return values;
 }
 
+auto Runtime::controller_native_command(EntityId id, std::size_t index, const std::string &name,
+                                        std::span<const state_tree::Value> args, bool execute) -> std::optional<bool>
+{
+	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
+	const ConsoleAddress source{id, controller.definition.console};
+	if (name.starts_with("coordination."))
+		return controller_coordination_action(id, index, name, args, execute);
+	if (name == "craft.return_home")
+	{
+		if ((!controller.definition.widget.empty() ? !controller_operation_owns(controller, "craft_return", {}) ||
+		                                                 controller_operation_human(controller, "craft_return")
+		                                           : controller.human) ||
+		    !entities.at(id).has<CraftState>() ||
+		    std::none_of(controller.definition.commands.begin(), controller.definition.commands.end(),
+		                 [](const auto &command)
+		                 {
+			                 return command.action == OperatingAction::Speed;
+		                 }))
+			return false;
+		auto entity = entities.at(id);
+		const auto &state = entity.get<CraftState>();
+		if (execute && state.order != "return" && state.order != "pickup")
+		{
+			if (state.mission.empty())
+				craft_return(entity);
+			else
+				request_craft_pickup(id);
+		}
+		return true;
+	}
+	if (name == "ftl.depart")
+	{
+		OperatingCommand command{id, name, 0, args[0].text, controller.definition.id, {}};
+		command.generation = controller.generation;
+		return departures.admit(departure_admission_facts(), source, command, execute, true);
+	}
+	if (!name.starts_with("logistics.") && !name.starts_with("dock.") && !name.starts_with("team.") &&
+	    !name.starts_with("away.") && !name.starts_with("craft."))
+		return std::nullopt;
+	OperatingCommand command{id, name, args[2].number, args[0].text};
+	command.text = args[1].text;
+	command.controller = controller.definition.id;
+	command.generation = controller.generation;
+	if (name.starts_with("logistics."))
+		return logistics_command(source, command, execute, true);
+	if (name.starts_with("dock."))
+		return docking_command(source, command, execute, true);
+	if (name.starts_with("team."))
+		return team_command(source, command, execute, true);
+	if (name.starts_with("craft."))
+		return craft_command(source, command, execute, true);
+	return away_command(source, command, execute, true);
+}
+
 auto Runtime::controller_output(EntityId id, std::size_t index, const state_tree::Output &output,
                                 std::span<const state_tree::Value> observations, const state_tree::Program *execution)
     -> void
@@ -297,77 +360,13 @@ auto Runtime::controller_output(EntityId id, std::size_t index, const state_tree
 		controller.result.reason.clear();
 		try
 		{
-			if (action.name.starts_with("coordination."))
-			{
-				controller.result.success =
-				    admit_controller_decision({{id, controller.definition.console, controller.definition.id},
-				                               controller.generation,
-				                               action.name,
-				                               {},
-				                               {},
-				                               output.arguments},
-				                              observations);
-				return;
-			}
 			const ControllerAddress address{id, controller.definition.console, controller.definition.id};
 
 			const ConsoleAddress source{id, controller.definition.console};
-			if (action.name == "ftl.depart")
+			if (const auto native = controller_native_command(id, index, action.name, output.arguments, true))
 			{
-				OperatingCommand command{id, "ftl.depart", 0, output.arguments.at(0).text, controller.definition.id,
-				                         {}};
-				command.generation = controller.generation;
-				if (!departures.admit(departure_admission_facts(), source, command, true, true))
-					throw std::runtime_error("FTL departure refused");
-			}
-			else if (action.name.starts_with("logistics.") || action.name.starts_with("dock."))
-			{
-				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
-				command.text = output.arguments.at(1).text;
-				command.controller = controller.definition.id;
-				command.generation = controller.generation;
-				const bool accepted = action.name.starts_with("logistics.")
-				                          ? logistics_command(source, command, true, true)
-				                          : docking_command(source, command, true, true);
-				if (!accepted)
-					throw std::runtime_error("Supply/docking command refused");
-			}
-			else if (action.name.starts_with("team."))
-			{
-				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
-				command.text = output.arguments.at(1).text;
-				command.controller = controller.definition.id;
-				command.generation = controller.generation;
-				team_command(source, command, true, true);
-			}
-			else if (action.name == "craft.return_home")
-			{
-				if (controller.human || !entities.at(id).has<CraftState>() ||
-				    std::none_of(controller.definition.commands.begin(), controller.definition.commands.end(),
-				                 [](const auto &command)
-				                 {
-					                 return command.action == OperatingAction::Speed;
-				                 }))
-					throw std::runtime_error("Craft return requires its flight Controller");
-				auto e = entities.at(id);
-				const auto &s = e.get<CraftState>();
-				if (s.order != "return" && s.order != "pickup")
-				{
-					if (s.mission.empty())
-						craft_return(e);
-					else
-						request_craft_pickup(id);
-				}
-			}
-			else if (action.name.starts_with("away.") || action.name.starts_with("craft."))
-			{
-				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
-				command.text = output.arguments.at(1).text;
-				command.controller = controller.definition.id;
-				command.generation = controller.generation;
-				if (!(action.name.starts_with("craft.") ? craft_command(source, command, true, true)
-				                                        : away_command(source, command, true, true)))
-					throw std::runtime_error("Away command refused");
+				if (!*native)
+					throw std::runtime_error("Native Controller command refused: " + action.name);
 			}
 			else if (action.name.starts_with("publish."))
 			{

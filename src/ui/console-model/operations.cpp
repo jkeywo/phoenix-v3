@@ -78,7 +78,7 @@ bool ConsoleModel::logistics_action(const std::string &action, const std::string
 			c.controller = ctrl.at("id");
 			c.generation = ctrl.at("generation");
 			c.text = text;
-			if (const auto session = owner_.lock(); session && session->dispatch_console_command(route_, c))
+			if (submit(c))
 				return true;
 		}
 	return false;
@@ -92,7 +92,7 @@ std::optional<ConsoleDockAction> ConsoleModel::target_docking_control(EntityId t
 	{
 		for (const auto &controller : controller_rows(observation_->gameplay))
 			if (controller.at("id") == id)
-				return controller.value("human", false);
+				return console_operation_human(controller, "docking");
 		return false;
 	};
 	auto choice = [&](const std::string &action, const Json &port, const std::string &text, const std::string &label)
@@ -140,7 +140,7 @@ bool ConsoleModel::docking_action(const std::string &action, const std::string &
 	if (!board.contains("revision"))
 		return false;
 	for (const auto &ctrl : controller_rows(observation_->gameplay))
-		if (ctrl.value("human", false))
+		if (console_operation_human(ctrl, "docking"))
 		{
 			OperatingCommand c{observation_->own.id, "dock." + action, board.at("revision").get<std::int64_t>(),
 			                   system};
@@ -148,7 +148,7 @@ bool ConsoleModel::docking_action(const std::string &action, const std::string &
 			c.controller = ctrl.at("id");
 			c.generation = ctrl.at("generation");
 			c.text = text;
-			if (const auto session = owner_.lock(); session && session->dispatch_console_command(route_, c))
+			if (submit(c))
 				return true;
 		}
 	return false;
@@ -164,7 +164,8 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 	for (const auto &c : craft())
 		if (c.at("id") == craft_id && c.value("manual", true))
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
-				if (ctrl.value("human", false) || ctrl.value("craft_authority", false))
+				if (ctrl.contains("widget") ? console_operation_human(ctrl, "craft", c.at("bay"))
+				                            : ctrl.value("human", false) || ctrl.value("craft_authority", false))
 				{
 					OperatingCommand command{observation_->own.id, "craft." + action,
 					                         c.at("revision").get<std::int64_t>(), craft_id};
@@ -172,8 +173,7 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 					command.controller = ctrl.at("id");
 					command.generation = ctrl.at("generation");
 					command.text = target;
-					const auto session = owner_.lock();
-					if (session && session->dispatch_console_command(route_, command))
+					if (submit(command))
 						return true;
 				}
 	return false;
@@ -326,8 +326,13 @@ bool ConsoleModel::personnel_action(const std::string &action, const std::string
 	command.console = observation_->console;
 	command.text = duty;
 	command.generation = personnel().at("revision");
-	const auto session = owner_.lock();
-	return session && session->dispatch_console_command(route_, command);
+	if (personnel().contains("controller"))
+	{
+		command.controller = personnel().at("controller");
+		command.generation = personnel().at("generation");
+		command.value = personnel().at("revision");
+	}
+	return submit(command);
 }
 Json ConsoleModel::conversations() const
 {
@@ -340,7 +345,9 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 		return false;
 	for (const auto &section : controller_rows(observation_->gameplay))
 	{
-		if (!section.value("human", false) && !section.value("conversation_authority", false))
+		if (section.contains("widget")
+		        ? !console_operation_human(section, "conversation")
+		        : (!section.value("human", false) && !section.value("conversation_authority", false)))
 			continue;
 		bool owns = false;
 		for (const auto &command : section.at("commands"))

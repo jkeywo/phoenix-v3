@@ -175,3 +175,28 @@ The layout sample remains an isolated presentation preview. Physical execution
 continues through the existing Workshop gameplay test. State-tree command staging
 also remains: same-tick fallback and rollback require it, and it is not a second
 physical-system implementation.
+
+## Native workflow migration
+
+Native Team, Personnel, conversation, craft, logistics, docking and departure
+adapters now accept widget operation grants rather than treating any human
+channel as authority over the whole Controller. Personnel commands carry both
+the operator generation and the independent roster revision. Operation names
+are validated and overlapping owners for the same operation/equipment are
+rejected. Scoped read models and Console admission carry these grants remotely.
+
+Native state-tree commands preflight through the existing domain admission
+functions with execution disabled. Refusal participates in the same ordered
+attempt fallback as scalar commands. Accepted outputs execute only after tree
+evaluation succeeds. One mutation of a native revision domain is staged per
+evaluation, so a second command cannot silently reuse stale revision facts.
+Coordination preflight uses an isolated protocol continuation and the existing
+message validator; physical execution remains in its current domain adapters.
+
+The synthetic Controller suite exercises a physical team's human destination
+refusal, unattended assignment by the same tree, operation scope conflicts and
+checkpoint continuation. It also covers unclaimed widget initialization with
+explicit AI command masks. The complete native Controller and Medical suites
+pass (`build/widget-finish-native-workflows-controller.log` and
+`build/widget-finish-native-workflows-medical.log`). This is a migration step;
+shipped layout migration and removal of old allocation paths remain pending.

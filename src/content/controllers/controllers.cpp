@@ -839,6 +839,24 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		}
 		result.controllers.push_back(std::move(controller));
 	}
+	for (std::size_t i = 0; i < result.controllers.size(); ++i)
+		for (std::size_t j = i + 1; j < result.controllers.size(); ++j)
+		{
+			const auto &left = result.controllers[i];
+			const auto &right = result.controllers[j];
+			if (left.console != right.console)
+				continue;
+			for (const auto &[operation, equipment] : left.operations)
+				if (const auto other = right.operations.find(operation); other != right.operations.end())
+					control_require(!equipment.empty() && !other->second.empty() &&
+					                    std::none_of(equipment.begin(), equipment.end(),
+					                                 [&](const auto &identity)
+					                                 {
+						                                 return std::find(other->second.begin(), other->second.end(),
+						                                                  identity) != other->second.end();
+					                                 }),
+					                path, "native operation has overlapping widget owners: " + operation);
+		}
 	for (const auto &controller : result.controllers)
 		for (const auto &command : controller.commands)
 			if (!command.shared_target_controller.empty())

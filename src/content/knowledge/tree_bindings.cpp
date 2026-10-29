@@ -795,6 +795,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                            {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer,
 	                             Type::Integer, Type::Integer},
 	                            false});
+	for (auto &action : registry.actions)
+		if (action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
+		    action.name.starts_with("dock.") || action.name.starts_with("away.") || action.name.starts_with("craft.") ||
+		    action.name.starts_with("coordination.") || action.name == "ftl.depart")
+			action.command = true;
+
 	return result;
 }
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)

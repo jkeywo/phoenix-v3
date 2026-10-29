@@ -18,13 +18,27 @@ auto Runtime::departure_capabilities(EntityId id) const -> DepartureCapabilities
 			result.drives.push_back({system, ftl_owner(id, system)});
 		}
 	if (const auto *controls = actor.try_get<EntityControls>())
+	{
+		for (const auto &controller : controls->controllers)
+			if (!controller.definition.widget.empty() && controller.definition.operations.contains("departure"))
+				result.controllers.push_back({controller.definition.console, controller.definition.id,
+				                              controller_operation_human(controller, "departure"),
+				                              controller.generation, controller.definition.operations.at("departure")});
 		for (const auto &view : controller_physical_grants(controls->controllers))
 		{
+			const auto owner = std::find_if(controls->controllers.begin(), controls->controllers.end(),
+			                                [&](const auto &c)
+			                                {
+				                                return c.definition.id == view.controller;
+			                                });
+			if (owner != controls->controllers.end() && !owner->definition.widget.empty())
+				continue;
 			DepartureControllerGrant grant{view.console, view.controller, view.human, view.generation, {}};
 			for (const auto index : view.physical_consumers)
 				grant.physical_consumers.push_back(fitted.at(index).get<Equipment>().id);
 			result.controllers.push_back(std::move(grant));
 		}
+	}
 	return result;
 }
 auto Runtime::departure_admission_facts() const -> DepartureAdmissionFacts

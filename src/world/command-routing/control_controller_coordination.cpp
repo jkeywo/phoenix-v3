@@ -21,7 +21,7 @@ auto Runtime::restore_controller_coordination(EntityId ship, ConsoleControllerRu
 }
 
 auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller, const OfficerRequest &request,
-                              bool reply) -> KnowledgeId
+                              bool reply, bool execute) -> KnowledgeId
 {
 	const ConsoleAddress source{id, controller.definition.console};
 	CoordinationInput message;
@@ -62,7 +62,7 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	message.presentation.speaker_portrait = speaker.second;
 	message.delay = 1;
 	message.expires_tick = std::max<KnowledgeTick>(request.expires, ecs.get<Clock>().tick + 20);
-	return knowledge.admit_message(source, std::move(message), ecs.get<Clock>().tick);
+	return knowledge.admit_message(source, std::move(message), ecs.get<Clock>().tick, execute);
 }
 
 auto Runtime::process_controller_coordination(EntityId id, std::size_t index) -> void
@@ -141,9 +141,16 @@ auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &cont
 }
 
 auto Runtime::controller_coordination_action(EntityId id, std::size_t index, const std::string &name,
-                                             std::span<const state_tree::Value> args) -> bool
+                                             std::span<const state_tree::Value> args, bool execute) -> bool
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
+	if (!controller.definition.widget.empty() && (!controller_operation_owns(controller, "coordination", {}) ||
+	                                              controller_operation_human(controller, "coordination")))
+		return false;
+	std::optional<ConsoleControllerRuntime> staged;
+	if (!execute)
+		staged = controller;
+	auto &subject = staged ? *staged : controller;
 	const ConsoleAddress address{id, controller.definition.console};
 	std::optional<Observation> fallback;
 	const OfficerActionPorts ports{[this, id](const std::string &console, const std::string &owner)
@@ -158,10 +165,10 @@ auto Runtime::controller_coordination_action(EntityId id, std::size_t index, con
 			                               fallback = capture_decision_observation(address);
 		                               return *fallback;
 	                               },
-	                               [this, id, &controller](const OfficerRequest &request, bool reply)
+	                               [this, id, &subject, execute](const OfficerRequest &request, bool reply)
 	                               {
-		                               return officer_message(id, controller, request, reply);
+		                               return officer_message(id, subject, request, reply, execute);
 	                               }};
-	return phoenix::officer_coordination_action(controller, ecs.get<Clock>().tick, name, args, ports);
+	return phoenix::officer_coordination_action(subject, ecs.get<Clock>().tick, name, args, ports);
 }
 } // namespace phoenix::world_detail

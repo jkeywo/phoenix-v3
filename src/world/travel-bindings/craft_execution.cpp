@@ -313,7 +313,10 @@ auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
 		out.back()["blocker"] = blocker;
 		bool manual = false;
 		for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
-			if (controller.definition.console == a.console)
+			if (controller.definition.console == a.console && !controller.definition.widget.empty())
+				manual |= controller_operation_owns(controller, "craft", s.bay) &&
+				          controller_operation_human(controller, "craft");
+			else if (controller.definition.console == a.console)
 				for (const auto &command : controller.definition.commands)
 					for (const auto consumer : command.consumers)
 						if (definition(a.ship).fitted->values.at(consumer).id == s.bay)

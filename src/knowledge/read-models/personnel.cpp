@@ -25,6 +25,11 @@ Json board(const Json &source)
 	Json out{{"revision", source.at("revision")}};
 	if (source.contains("manual"))
 		out["manual"] = source.at("manual").get<bool>();
+	if (source.contains("controller"))
+	{
+		out["controller"] = projection::text(source.at("controller"), 128);
+		out["generation"] = projection::number(source.at("generation"), 1, 9007199254740991LL);
+	}
 	if (!out["revision"].is_number_unsigned() || out["revision"].get<std::uint64_t>() > 9007199254740991ULL)
 		throw std::runtime_error("Invalid personnel revision");
 	using projection::number;

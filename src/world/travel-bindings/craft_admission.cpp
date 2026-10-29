@@ -419,10 +419,16 @@ auto Runtime::craft_command(const ConsoleAddress &a, const OperatingCommand &c, 
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
-		    ctrl.generation == c.generation && (ctrl.human != ai || (!ai && assisted_workload(a, "craft"))))
-			for (const auto &cmd : ctrl.definition.commands)
-				for (auto consumer : cmd.consumers)
-					authority |= definition(a.ship).fitted->values.at(consumer).id == s.bay;
+		    ctrl.generation == c.generation)
+		{
+			if (!ctrl.definition.widget.empty())
+				authority |=
+				    controller_operation_owns(ctrl, "craft", s.bay) && controller_operation_human(ctrl, "craft") != ai;
+			else if (ctrl.human != ai || (!ai && assisted_workload(a, "craft")))
+				for (const auto &cmd : ctrl.definition.commands)
+					for (auto consumer : cmd.consumers)
+						authority |= definition(a.ship).fitted->values.at(consumer).id == s.bay;
+		}
 	if (!authority)
 		return false;
 	const auto &d = *definition(id).craft;
@@ -492,9 +498,14 @@ auto Runtime::prepare_craft() -> void
 		const auto &s = e.get<CraftState>();
 		const auto owner = enabled_system_owner(s.home, s.bay);
 		const auto &workloads = entities.at(s.home).get<EntityControls>().layout.manual_workloads;
-		if (!workloads.contains(owner.console) || !workloads.at(owner.console).contains("craft") ||
-		    (console_operator(owner) != 0 && station_stars(owner) >= workloads.at(owner.console).at("craft")) ||
-		    !s.mission.empty() || away_craft_reserved(id) || cargo_committed(id) || !s.pending_order.empty())
+		const auto *operation = native_operation_controller(owner, "craft", s.bay);
+		const bool automated =
+		    operation
+		        ? !controller_operation_human(*operation, "craft")
+		        : (workloads.contains(owner.console) && workloads.at(owner.console).contains("craft") &&
+		           !(console_operator(owner) != 0 && station_stars(owner) >= workloads.at(owner.console).at("craft")));
+		if (!automated || !s.mission.empty() || away_craft_reserved(id) || cargo_committed(id) ||
+		    !s.pending_order.empty())
 			continue;
 		const auto &role = definition(id).craft->role;
 		if (role != "interceptor" && role != "bomber")
@@ -531,7 +542,7 @@ auto Runtime::prepare_craft() -> void
 				command.generation = controller.generation;
 				if (order == "bomb")
 					command.text = std::to_string(target);
-				if (craft_command(owner, command, true, !controller.human))
+				if (craft_command(owner, command, true, !controller_operation_human(controller, "craft")))
 					break;
 			}
 	}

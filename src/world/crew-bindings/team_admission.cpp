@@ -235,6 +235,7 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	const bool destination_order =
 	    c.action == "team.cancel" || (c.action == "team.order" && c.text.starts_with("auto/"));
 	bool assisted_destination = !ai && destination_order && manual_team_destination(a, c.system);
+	bool widget_destination = false;
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
@@ -242,6 +243,7 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		{
 			if (!ctrl.definition.widget.empty())
 			{
+				widget_destination |= destination_order && controller_operation_owns(ctrl, "team_assignment", c.system);
 				const auto operation =
 				    destination_order ? "team_assignment"
 				    : fit->entity.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
@@ -281,7 +283,7 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		const auto slash = c.text.find('/');
 		if (slash == std::string::npos)
 			return false;
-		assignment = (clinical ||
+		assignment = (widget_destination || clinical ||
 		              (assisted_destination && m.definition.get<TeamDefinition>().capabilities.contains("repair"))) &&
 		             c.text.substr(0, slash) == "auto";
 		order = team_order_definition(m, c.text.substr(0, slash));
