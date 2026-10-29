@@ -4,6 +4,8 @@ Start at `local.cppm` and `execution.cppm`.
 
 Owns local host sessions, committed-frame execution and the shared simulation worker session adapter. HostAccess is server-only. FrameSession coordinates the worker without moving physical rules into networking.
 
+`GameExecution::apply` admits incoming replicated frames, including lease and sequence validation. `apply_local_command` dispatches the host UI's assigned route without credentials. Both feed the same gameplay admission; resolved `ConsoleCommandContext` values carry execution destinations without transport tokens. See [command ingress](../../../docs/controller-architecture.md#command-ingress-and-trusted-execution).
+
 Allowed dependencies: Session API and authoritative simulation; browser worker service calls use platform lifecycle.
 
 Ownership and lifetime: Stop/join the simulation worker before destroying the owned session/World. Persistence uses the existing portable session format and committed frame order.

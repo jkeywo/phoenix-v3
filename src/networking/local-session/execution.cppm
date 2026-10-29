@@ -31,6 +31,10 @@ public:
 	               bool replace) const;
 	bool can_command(const std::string &server, const std::string &owner, std::uint64_t route, const std::string &token,
 	                 std::uint64_t sequence, const OperatingCommand &) const;
+	// Local UI calls use routing/ownership state, never lease credentials.
+	bool can_local_command(const std::string &server, std::uint64_t route, const OperatingCommand &) const;
+	bool apply_local_command(const std::string &server, std::uint64_t route, std::uint64_t claimant,
+	                         std::uint64_t sequence, const OperatingCommand &);
 	bool apply(const std::string &server, const Json &frame);
 	void absent(const std::string &server);
 	std::optional<Observation> observe(const std::string &server, const std::string &owner,
@@ -45,6 +49,9 @@ public:
 	void restore(const Json &state);
 
 private:
+	std::optional<ConsoleCommandContext> admit_network_command(const std::string &server, const std::string &owner,
+	                                                           std::uint64_t route, const std::string &token,
+	                                                           std::uint64_t sequence, const OperatingCommand &) const;
 	void refresh_leases();
 	std::shared_ptr<HostAccess> world_;
 	std::map<std::string, std::string> slots_;

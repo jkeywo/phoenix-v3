@@ -424,7 +424,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					OperatingCommand command{address.ship, "message." + name,    0, {}, controller.definition.id,
 					                         {},           controller.generation};
 					command.console = address.console;
-					if (!impl_->meta(console, command, false))
+					if (!impl_->meta({console, address}, command, false))
 						continue;
 					auto descriptor = encode_operating_command(command);
 					descriptor["id"] = "message." + controller.definition.id + "." + name;
@@ -436,7 +436,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	{
 		OperatingCommand command{address.ship, "publish." + name, 0, {}};
 		command.console = address.console;
-		if (impl_->meta(console, command, false))
+		if (impl_->meta({console, address}, command, false))
 			button("publish." + name, "Publish " + name, "publish." + name, {}, 0);
 	}
 	for (auto &button : buttons)

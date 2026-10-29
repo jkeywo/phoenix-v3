@@ -907,8 +907,30 @@ int main(int argc, char **argv)
 								throw std::runtime_error("Remote radar leaked an out-of-range entity");
 						x = view->own.x;
 						y = view->own.y;
-						if (session->command({view->own.id, "speed_mm_s", 1000}) &&
-						    session->command({view->own.id, "heading_mdeg", (view->own.heading + 90000) % 360000}))
+						auto continuous = [&](const std::string &action, std::int64_t value)
+						{
+							std::optional<OperatingCommand> result;
+							for (const auto &controller : view->gameplay.at("controllers"))
+								for (const auto &[channel, field] : controller.at("commands").items())
+									if (field.at("action") == action && field.value("human", false))
+									{
+										if (result)
+											throw std::runtime_error("Ambiguous synthetic flight command");
+										result = OperatingCommand{view->own.id,
+										                          action,
+										                          value,
+										                          {},
+										                          controller.at("id"),
+										                          channel,
+										                          controller.at("generation")};
+										result->console = view->console;
+									}
+							if (!result)
+								throw std::runtime_error("Missing synthetic flight command");
+							return *result;
+						};
+						if (session->command(continuous("speed_mm_s", 1000)) &&
+						    session->command(continuous("heading_mdeg", (view->own.heading + 90000) % 360000)))
 							sent = true;
 					}
 					else if (view->own.x != x && view->own.y != y)

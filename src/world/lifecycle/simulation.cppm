@@ -20,6 +20,14 @@ struct Runtime;
 
 export namespace phoenix
 {
+// Trusted execution context, resolved by the session/ingress adapter. This is
+// routing and gameplay ownership state, not a network credential.
+struct ConsoleCommandContext
+{
+	std::uint64_t claimant = 0;
+	ConsoleAddress address;
+};
+
 class World
 {
 public:
@@ -41,6 +49,9 @@ public:
 	void clear_claims();
 	bool submit(std::uint64_t console, const OperatingCommand &command);
 	bool can_submit(std::uint64_t console, const OperatingCommand &command) const;
+	std::optional<ConsoleCommandContext> command_context(std::uint64_t console, const OperatingCommand &command) const;
+	bool submit(const ConsoleCommandContext &, OperatingCommand command);
+	bool can_submit(const ConsoleCommandContext &, OperatingCommand command) const;
 	std::optional<Observation> observe(std::uint64_t console) const;
 	// Immutable permitted presentation snapshot, reused until the next mutation.
 	std::shared_ptr<const Observation> observe_shared(std::uint64_t console) const;

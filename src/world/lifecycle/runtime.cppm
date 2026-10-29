@@ -274,7 +274,7 @@ struct Runtime
 	mutable ConsolePresentationCache presentation;
 	void clear_presentation_snapshots();
 	bool gameplay = false;
-	std::vector<std::pair<std::uint64_t, OperatingCommand>> meta_pending;
+	std::vector<std::pair<ConsoleCommandContext, OperatingCommand>> meta_pending;
 	// Authoritative generation uses integer arithmetic.
 	static constexpr EntityId field_identity_base = EntityId{1} << 52;
 	std::map<EntityId, FieldRock> field_rocks;
@@ -1291,7 +1291,7 @@ struct Runtime
 	void refresh_control(EntityId ship, bool transitions = true);
 	void prune_displays();
 	const Json *display_widget(const ConsoleAddress &address, const std::string &id) const;
-	bool display_command(std::uint64_t claimant, const OperatingCommand &command, bool execute);
+	bool display_command(const ConsoleCommandContext &, const OperatingCommand &command, bool execute);
 	// Personnel commands use Station ownership, never role names.
 	const PersonnelDuty *personnel_duty(EntityId id, const std::string &duty) const;
 
@@ -1840,6 +1840,7 @@ struct Runtime
 	Json save_sensors() const;
 
 	void restore_sensors(const Json &rows);
-	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute);
+	bool command_context_current(const ConsoleCommandContext &) const;
+	bool meta(const ConsoleCommandContext &, const OperatingCommand &command, bool execute);
 };
 } // namespace phoenix::world_detail

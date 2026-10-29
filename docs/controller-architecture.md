@@ -77,6 +77,16 @@ Keep the selected profile separate from operator availability. An unoccupied, di
 
 A profile change or handover is an atomic tick-boundary authority transition. Preserve the shared policy continuation, cancel outgoing selected actions and officer commitments, invalidate pending writes from the previous operator generation, and clear held inputs on channels that change owner. AI-owned inputs that retain their owner remain intact. Preserve accepted settings, ongoing physical work, Console evidence and addressed message history unless a particular operation specifies a change. Returning to human operation restores the selected profile's allocation, not a stale snapshot of old machinery settings. Complexity transitions cannot create two writers.
 
+## Command ingress and trusted execution
+
+Network adapters validate sender identity, Console leases, sequence numbers, requested destinations and permissions before passing commands to gameplay. Replicated command frames are also network input and retain those checks at each receiving ship server. Client packet formats are unchanged.
+
+Internal code is trusted. `ConsoleCommandContext` carries the resolved claimant and Console address without network credentials; gameplay uses that address rather than interpreting packet routing fields again. Local hosted UI dispatch uses its assigned route without presenting a lease token, retaining the claimant handle to invalidate queued input after release/reclaim. Route-based World convenience calls resolve the current Console context before entering the same execution path. Older local replication records continue through packet admission.
+
+Gameplay admission still checks current ownership/allocation, Controller generations, authored values, resources and operating conditions. Queued meta commands retain their resolved context and check ownership again at execution; Controller proposals retain their existing generation checks. These checks prevent stale work after a handover rather than authenticating internal code. Saved display sources are validated when loaded.
+
+External AI responses have their own ingress in `InferenceConnection`: pairing, peer/packet identity, epoch, request correlation and offered choices are checked there, and the adapter attaches its retained request snapshot. World decision admission retains provider configuration, sequence, expiry, generation and candidate/state checks because a valid response can become stale before execution. Replicas still check that incoming AI frames belong to the sending ship server.
+
 ## State-tree execution
 
 Move command trees from equipment instances to Controller instances. Each Controller policy receives typed bindings to its Console observations, accepted commands, entity-wide observations and messages, addressed inbox and private memory. It cannot inspect arbitrary world components or another Controller's private continuation.

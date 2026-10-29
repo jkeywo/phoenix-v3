@@ -90,7 +90,7 @@ bool World::release(std::uint64_t console)
 	std::erase_if(impl_->meta_pending,
 	              [console](const auto &entry)
 	              {
-		              return entry.first == console;
+		              return entry.first.claimant == console;
 	              });
 	const auto released_ship = found->second.ship;
 	std::erase_if(impl_->displays,
@@ -105,40 +105,62 @@ bool World::release(std::uint64_t console)
 	return true;
 }
 
-bool World::can_submit(std::uint64_t console, const OperatingCommand &command) const
+std::optional<ConsoleCommandContext> World::command_context(std::uint64_t console,
+                                                            const OperatingCommand &command) const
 {
 	auto claim = impl_->ownership.claims().find(console);
 	if (claim == impl_->ownership.claims().end() || claim->second.ship != command.target)
-		return false;
-	if (impl_->departed(command.target))
-		return false;
+		return {};
 	const auto address = impl_->command_address(console, command);
 	if (address != claim->second && impl_->console_operator(address) != console)
+		return {};
+	return ConsoleCommandContext{console, address};
+}
+
+bool World::can_submit(std::uint64_t console, const OperatingCommand &command) const
+{
+	const auto context = command_context(console, command);
+	return context && can_submit(*context, command);
+}
+
+bool World::can_submit(const ConsoleCommandContext &context, OperatingCommand command) const
+{
+	if (!impl_->command_context_current(context) || impl_->departed(context.address.ship))
 		return false;
+	// Internal destinations come from the resolved context, not packet fields.
+	command.target = context.address.ship;
+	command.console = context.address.console;
 	if ((command.arguments.empty() || command.action.starts_with("display.") || command.action == "alert.set" ||
 	     command.action == "stance.set" || command.action == "objective.priority") &&
-	    impl_->meta(console, command, false))
+	    impl_->meta(context, command, false))
 		return impl_->meta_pending.size() < 4096;
 	if (impl_->entities.at(command.target).has<EntityControls>())
-		return impl_->controller_proposal(address, command, true).has_value() &&
+		return impl_->controller_proposal(context.address, command, true).has_value() &&
 		       impl_->controller_pending.size() < 4096;
 	return false;
 }
 
 bool World::submit(std::uint64_t console, const OperatingCommand &command)
 {
+	const auto context = command_context(console, command);
+	return context && submit(*context, command);
+}
+
+bool World::submit(const ConsoleCommandContext &context, OperatingCommand command)
+{
 	impl_->clear_presentation_snapshots();
-	if (!can_submit(console, command))
+	if (!can_submit(context, command))
 		return false;
-	if (impl_->meta(console, command, false))
+	command.target = context.address.ship;
+	command.console = context.address.console;
+	if (impl_->meta(context, command, false))
 	{
-		impl_->meta_pending.emplace_back(console, command);
+		impl_->meta_pending.emplace_back(context, command);
 		return true;
 	}
 	if (impl_->entities.at(command.target).has<EntityControls>())
 	{
-		impl_->controller_pending.push_back(
-		    *impl_->controller_proposal(impl_->command_address(console, command), command, true));
+		impl_->controller_pending.push_back(*impl_->controller_proposal(context.address, command, true));
 		return true;
 	}
 	return false;

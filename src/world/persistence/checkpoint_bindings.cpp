@@ -404,7 +404,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		OperatingCommand command{address.ship, "display.toggle", 0, d.at("widget")};
 		command.console = address.console;
 		command.arguments = d.at("camera").get<std::vector<std::int64_t>>();
-		if (!candidate.impl_->display_command(claimant, command, false) ||
+		const auto context = candidate.command_context(claimant, command);
+		if (!context || !candidate.impl_->display_command(*context, command, false) ||
 		    candidate.impl_->displays.contains(address.ship))
 			throw std::runtime_error("Invalid saved display source");
 		const auto revision = display::number(d.at("revision"), 1, candidate.impl_->display_revision);

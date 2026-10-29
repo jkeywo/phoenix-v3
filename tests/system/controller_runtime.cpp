@@ -2147,6 +2147,22 @@ int main(int argc, char **argv)
 		auto foreign = command;
 		foreign.target = 999;
 		require(!fixture_native_submit(world, 101, foreign), "Controller identity never authorises a foreign entity");
+		{
+			World trusted;
+			trusted.load(content, "test.map");
+			require(trusted.claim(101, 1, "drive"), "trusted dispatch fixture claims its Console");
+			auto local = speed(trusted, 101, "propulsion", 5000);
+			local.target = 999;
+			local.console = "observer";
+			const ConsoleCommandContext context{101, {1, "drive"}};
+			require(trusted.submit(context, local),
+			        "trusted internal dispatch uses its resolved destination without authenticating packet fields");
+			trusted.tick();
+			require(requested(trusted, "port") == 5000,
+			        "trusted context reaches the intended machinery despite unused packet routing fields");
+			require(trusted.release(101) && !trusted.submit(context, local),
+			        "trusted dispatch still refuses a context whose gameplay ownership has ended");
+		}
 		require(fixture_native_submit(world, 101, command), "own Controller accepts a valid human proposal");
 		world.tick();
 		require(requested(world, "port") == 5000 && requested(world, "starboard") == 5000,
@@ -3647,6 +3663,22 @@ int main(int argc, char **argv)
 		framed.generation = projected->gameplay.at("controllers")[0].at("generation").get<std::uint64_t>();
 		auto frame = encode_operating_command(framed);
 		frame.update({{"kind", "command"}, {"owner", "crew"}, {"route", 1}, {"lease", lease}, {"sequence", 1}});
+		for (const auto &patch : std::vector<Json>{{{"owner", "intruder"}},
+		                                           {{"lease", std::string(64, 'b')}},
+		                                           {{"sequence", 0}},
+		                                           {{"target", ship_id + 1000}},
+		                                           {{"console", "observer"}},
+		                                           {{"controller", "invented"}}})
+		{
+			auto invalid = frame;
+			invalid.update(patch);
+			require(!execution.apply("server", invalid),
+			        "packet admission refuses invalid identity, credentials, destination or Controller permission");
+		}
+		require(!execution.apply("intruder", frame), "packet admission binds commands to their ship server");
+		require(!execution.can_local_command("server", 1, framed) &&
+		            !execution.apply_local_command("server", 1, 0, 1, framed),
+		        "local routing cannot acquire a remote crew member's Console");
 		require(execution.apply("server", frame) && !execution.apply("server", frame),
 		        "committed command frames preserve Controller metadata and reject sequence replay");
 		require(execution.apply("server", {{"kind", "tick"}, {"tick", 1}}), "committed tick executes routed command");
@@ -3657,6 +3689,44 @@ int main(int argc, char **argv)
 		execution.absent("server");
 		frame["sequence"] = 2;
 		require(!execution.apply("server", frame), "server absence cannot revive a stale Controller lease");
+		require(execution.apply("server", {{"kind", "station-claim"},
+		                                   {"owner", "local-console"},
+		                                   {"route", 2},
+		                                   {"ship", ship_id},
+		                                   {"seat", "drive"},
+		                                   {"replace", true},
+		                                   {"lease", lease}}),
+		        "host UI takes a local Console route");
+		framed.generation = execution.observe("server", "local-console", 2)
+		                        ->gameplay.at("controllers")[0]
+		                        .at("generation")
+		                        .get<std::uint64_t>();
+		require(!execution.can_command("server", "local-console", 2, "wrong-token", 1, framed),
+		        "peer packet ingress still requires credentials for a host's local Console");
+		const auto local_claimant = execution.owned("server", "local-console", 2)->claimant;
+		require(execution.can_local_command("server", 2, framed) &&
+		            execution.apply_local_command("server", 2, local_claimant, 1, framed),
+		        "trusted local dispatch needs no token while preserving gameplay admission");
+		auto invalid_local = framed;
+		invalid_local.value = 1000000000;
+		require(!execution.apply_local_command("server", 2, local_claimant, 2, invalid_local),
+		        "trusted local commands still obey authored value bounds");
+		invalid_local = framed;
+		++invalid_local.generation;
+		require(!execution.apply_local_command("server", 2, local_claimant, 2, invalid_local),
+		        "trusted local commands still reject stale Controller generations");
+		require(execution.apply("server", {{"kind", "tick"}, {"tick", 2}}),
+		        "trusted local command is consumed by the normal fixed tick");
+		execution.absent("server");
+		require(execution.apply("server", {{"kind", "station-claim"},
+		                                   {"owner", "local-console"},
+		                                   {"route", 2},
+		                                   {"ship", ship_id},
+		                                   {"seat", "drive"},
+		                                   {"lease", std::string(64, 'b')}}),
+		        "host UI reclaims the same local route with a new gameplay claimant");
+		require(!execution.apply_local_command("server", 2, local_claimant, 2, {ship_id, "preset", 1, {}}),
+		        "queued local meta commands cannot cross release/reclaim even without Controller generations");
 		{
 			auto fixture = controller_model_fixture();
 			fixture["maps"][0] = controller_session_fixture()["maps"][0];

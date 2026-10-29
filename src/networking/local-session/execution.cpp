@@ -98,9 +98,42 @@ bool GameExecution::can_claim(const std::string &server, const std::string &owne
 bool GameExecution::can_command(const std::string &server, const std::string &owner, std::uint64_t route,
                                 const std::string &token, std::uint64_t sequence, const OperatingCommand &command) const
 {
-	auto seat = owned(server, owner, route);
-	return seat && seat->token == token && sequence > seat->sequence &&
-	       world_->authoritative_world().can_submit(seat->claimant, command);
+	const auto context = admit_network_command(server, owner, route, token, sequence, command);
+	return context && world_->authoritative_world().can_submit(*context, command);
+}
+std::optional<ConsoleCommandContext> GameExecution::admit_network_command(const std::string &server,
+                                                                          const std::string &owner, std::uint64_t route,
+                                                                          const std::string &token,
+                                                                          std::uint64_t sequence,
+                                                                          const OperatingCommand &command) const
+{
+	const auto seat = owned(server, owner, route);
+	if (!seat || seat->token != token || sequence <= seat->sequence)
+		return {};
+	return world_->authoritative_world().command_context(seat->claimant, command);
+}
+bool GameExecution::can_local_command(const std::string &server, std::uint64_t route,
+                                      const OperatingCommand &command) const
+{
+	const auto seat = owned(server, "local-console", route);
+	return seat && world_->authoritative_world().can_submit(seat->claimant, command);
+}
+bool GameExecution::apply_local_command(const std::string &server, std::uint64_t route, std::uint64_t claimant,
+                                        std::uint64_t sequence, const OperatingCommand &command)
+{
+	for (auto &seat : leases_)
+		if (seat.server == server && seat.owner == "local-console" && seat.route == route && seat.active)
+		{
+			// Sequence is retained for deterministic peer replication; it is not
+			// evidence of a local caller's identity.
+			if (claimant != seat.claimant || sequence <= seat.sequence ||
+			    !world_->authoritative_world().submit(seat.claimant, command))
+				return false;
+			seat.sequence = sequence;
+			checkpoint_ready_ = false;
+			return true;
+		}
+	return false;
 }
 bool GameExecution::apply(const std::string &server, const Json &frame)
 {
@@ -180,12 +213,15 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 	{
 		const auto command = decode_operating_command(frame);
 		const auto sequence = frame.at("sequence").get<std::uint64_t>();
-		if (!can_command(server, owner, route, frame.at("lease"), sequence, command))
+		// Committed peer frames are another network ingress, including replay.
+		// Resolve credentials here; gameplay receives only the trusted context.
+		const auto context = admit_network_command(server, owner, route, frame.at("lease"), sequence, command);
+		if (!context)
 			return false;
 		for (auto &seat : leases_)
 			if (seat.server == server && seat.owner == owner && seat.route == route && seat.active)
 			{
-				if (!world.submit(seat.claimant, command))
+				if (!world.submit(*context, command))
 					return false;
 				seat.sequence = sequence;
 				checkpoint_ready_ = false;

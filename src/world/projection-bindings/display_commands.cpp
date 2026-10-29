@@ -29,14 +29,14 @@ auto Runtime::display_widget(const ConsoleAddress &address, const std::string &i
 	return nullptr;
 }
 
-auto Runtime::display_command(std::uint64_t claimant, const OperatingCommand &command, bool execute) -> bool
+auto Runtime::display_command(const ConsoleCommandContext &context, const OperatingCommand &command, bool execute)
+    -> bool
 {
 	if (command.action != "display.toggle" && command.action != "display.update")
 		return false;
-	const auto address = command_address(claimant, command);
-	if (!ownership.claims().contains(claimant) || command.target != ownership.claims().at(claimant).ship ||
-	    (address != ownership.claims().at(claimant) && console_operator(address) != claimant) ||
-	    !command.controller.empty() || !command.channel.empty() || command.request_id || command.value ||
+	const auto &address = context.address;
+	const auto claimant = context.claimant;
+	if (!command.controller.empty() || !command.channel.empty() || command.request_id || command.value ||
 	    !display_widget(address, command.system) || command.arguments.size() != 3 || command.arguments[2] < 1)
 		return false;
 	const auto widget = display_widget(address, command.system);

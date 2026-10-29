@@ -6,13 +6,20 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
-auto Runtime::meta(std::uint64_t claimant, const OperatingCommand &command, bool execute) -> bool
+auto Runtime::command_context_current(const ConsoleCommandContext &context) const -> bool
 {
-	if (!ownership.claims().contains(claimant) || command.target != ownership.claims().at(claimant).ship)
+	const auto claim = ownership.claims().find(context.claimant);
+	return claim != ownership.claims().end() && claim->second.ship == context.address.ship &&
+	       (claim->second == context.address || console_operator(context.address) == context.claimant);
+}
+
+auto Runtime::meta(const ConsoleCommandContext &context, const OperatingCommand &command, bool execute) -> bool
+{
+	// Ownership may change between queueing and execution. This is a gameplay
+	// freshness check; sender identity was resolved before entering this path.
+	if (execute && !command_context_current(context))
 		return false;
-	const auto address = command_address(claimant, command);
-	if (address != ownership.claims().at(claimant) && console_operator(address) != claimant)
-		return false;
+	const auto &address = context.address;
 	const auto &console = *seat(address.ship, address.console);
 	const auto &spec = definition(address.ship);
 	if (departed(address.ship) && command.action != "camera_mode" && command.action != "camera_direction")
@@ -40,7 +47,7 @@ auto Runtime::meta(std::uint64_t claimant, const OperatingCommand &command, bool
 	if (command.action.starts_with("comms."))
 		return comms_command(address, command, execute);
 	if (command.action.starts_with("display."))
-		return display_command(claimant, command, execute);
+		return display_command(context, command, execute);
 	if (command.action == "camera_mode" || command.action == "camera_direction")
 	{
 		if (!command.system.empty() || !command.controller.empty() || !command.channel.empty() || command.generation ||

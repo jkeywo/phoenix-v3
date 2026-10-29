@@ -497,7 +497,14 @@ class NetworkHost final : public SessionPort
 				advertise(peer);
 			return;
 		}
-		const bool accepted = game_->apply(origin, value);
+		// Only this host's own UI intent uses trusted local dispatch. Commands
+		// received from clients or other ship servers enter packet admission.
+		const bool local_command =
+		    origin == member_ && kind == "command" && value.at("owner") == local && value.contains("claimant");
+		const bool accepted = local_command ? game_->apply_local_command(origin, value.value("route", std::uint64_t{1}),
+		                                                                 value.at("claimant"), value.at("sequence"),
+		                                                                 decode_operating_command(value))
+		                                    : game_->apply(origin, value);
 		if (origin != member_)
 			return;
 		if (kind == "station-claim")
@@ -907,11 +914,12 @@ public:
 			return false;
 		auto &sequence = local_sequences_[route];
 		sequence = std::max(sequence, seat->sequence);
-		if (!game_->can_command(member_, local, route, seat->token, sequence + 1, command))
+		if (!game_->can_local_command(member_, route, command))
 			return false;
 		return intent({{"kind", "command"},
 		               {"owner", local},
 		               {"route", route},
+		               {"claimant", seat->claimant},
 		               {"lease", seat->token},
 		               {"sequence", ++sequence},
 		               {"target", command.target},

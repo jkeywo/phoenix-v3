@@ -33,7 +33,7 @@ void World::tick()
 	impl_->stream_fields();
 	impl_->index_contacts.run();
 	// Departure is revalidated after this tick's admitted Controller changes are consumed.
-	std::vector<std::pair<std::uint64_t, OperatingCommand>> departures;
+	std::vector<std::pair<ConsoleCommandContext, OperatingCommand>> departures;
 	for (const auto &[claim, command] : impl_->meta_pending)
 		if (command.action == "ftl.depart")
 			departures.emplace_back(claim, command);
