@@ -4,7 +4,7 @@ target_sources(
 		FILE_SET runtime_partitions
 			TYPE CXX_MODULES
 			BASE_DIRS "${PROJECT_SOURCE_DIR}"
-			FILES "${CMAKE_CURRENT_LIST_DIR}/integration.cppm"
+			FILES "${CMAKE_CURRENT_LIST_DIR}/integration.cppm" "${CMAKE_CURRENT_LIST_DIR}/audio_state.cppm"
 	PRIVATE
 		"${CMAKE_CURRENT_LIST_DIR}/console_sessions.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/console_views.cpp"

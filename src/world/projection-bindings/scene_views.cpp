@@ -38,7 +38,7 @@ std::vector<SceneBody> World::scene() const
 		item.audio_alive = !impl_->combat_dead(entity);
 		if (item.audio_alive)
 		{
-			if (auto at = impl_->audio_events.find(body.id); at != impl_->audio_events.end())
+			if (auto at = impl_->audio.events().find(body.id); at != impl_->audio.events().end())
 				item.audio = at->second;
 			if (const auto *shields = entity.try_get<ShieldComponent>())
 				for (const auto &c : shields->contributions)
@@ -90,7 +90,7 @@ std::vector<SceneBody> World::scene() const
 				}
 		result.push_back(std::move(item));
 	}
-	for (const auto &[id, events] : impl_->audio_events)
+	for (const auto &[id, events] : impl_->audio.events())
 		if (impl_->departed(id) && !events.empty())
 		{
 			const auto entity = impl_->entities.at(id);

@@ -6,6 +6,41 @@ import :projection_bindings;
 
 namespace phoenix::world_detail
 {
+void PresentationAudioState::emit(EntityId ship, SceneAudio cue, std::uint64_t tick)
+{
+	if (cue.clip.asset.empty())
+		return;
+	auto &events = events_[ship];
+	if (events.size() >= 256)
+		events.erase(events.begin());
+	cue.event = next_event_++;
+	cue.tick = tick;
+	events.push_back(std::move(cue));
+}
+void PresentationAudioState::retire(std::uint64_t now)
+{
+	for (auto &[id, events] : events_)
+		std::erase_if(events,
+		              [&](const auto &cue)
+		              {
+			              return now > cue.tick + cue.retention_ticks;
+		              });
+	std::erase_if(events_,
+	              [](const auto &entry)
+	              {
+		              return entry.second.empty();
+	              });
+}
+auto Runtime::emit_audio(flecs::entity ship, SceneAudio cue) -> void
+{
+	if (cue.clip.asset.empty())
+		return;
+	audio.emit(ship.get<StableId>().id, std::move(cue), ecs.get<Clock>().tick);
+}
+auto Runtime::retire_audio() -> void
+{
+	audio.retire(ecs.get<Clock>().tick);
+}
 auto Runtime::emit_arrival_audio(EntityId id) -> void
 {
 	const auto &d = definition(id);
@@ -18,17 +53,9 @@ auto Runtime::emit_arrival_audio(EntityId id) -> void
 auto Runtime::refresh_presentation_audio(bool baseline) -> void
 {
 	// Use actual delivered receipts, never queued/in-transit conversation text.
-	std::map<EntityId, std::set<std::uint64_t>> delivered;
-	for (const auto &[id, conversation] : conversations.conversations)
-		for (const auto &message : conversation.messages)
-			for (const auto &recipient : message.delivered)
-				if (const auto to = conversations.participants.find(recipient); to != conversations.participants.end())
-				{
-					const auto from = conversations.participants.find(message.sender);
-					if (from == conversations.participants.end() || from->second.host != to->second.host)
-						delivered[to->second.host].insert(message.id);
-				}
+	const auto delivered = conversations.delivered_to_other_hosts();
 	const auto tick = ecs.get<Clock>().tick;
+	const std::set<ConversationId> no_messages;
 	for (const auto &[id, ship] : entities)
 	{
 		if (departed(id) || combat_dead(ship))
@@ -37,14 +64,15 @@ auto Runtime::refresh_presentation_audio(bool baseline) -> void
 		if (d.audio.comms_attention.asset.empty() && d.audio.critical_warning.asset.empty() &&
 		    !ship.has<AbilityRuntime>())
 			continue;
-		auto &state = audio_status[id];
+		auto &state = audio.status(id);
 		auto notify = [&](const std::string &source, const AudioClip &clip)
 		{
 			SceneAudio cue{SceneAudioKind::Shot, source, clip};
 			cue.own_only = true; // Internal work/status must not reveal another ship's state.
 			emit_audio(ship, std::move(cue));
 		};
-		const auto &messages = delivered[id];
+		const auto at = delivered.find(id);
+		const auto &messages = at == delivered.end() ? no_messages : at->second;
 		const bool incoming = std::any_of(messages.begin(), messages.end(),
 		                                  [&](auto message)
 		                                  {

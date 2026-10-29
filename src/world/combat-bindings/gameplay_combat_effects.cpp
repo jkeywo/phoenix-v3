@@ -6,34 +6,6 @@ import :combat_bindings;
 
 namespace phoenix::world_detail
 {
-auto Runtime::emit_audio(flecs::entity ship, SceneAudio cue) -> void
-{
-	if (cue.clip.asset.empty())
-		return;
-	auto &events = audio_events[ship.get<StableId>().id];
-	if (events.size() >= 256)
-		events.erase(events.begin());
-	cue.event = next_audio_event++;
-	cue.tick = ecs.get<Clock>().tick;
-	events.push_back(std::move(cue));
-}
-
-auto Runtime::retire_audio() -> void
-{
-	const auto now = ecs.get<Clock>().tick;
-	for (auto &[id, events] : audio_events)
-		std::erase_if(events,
-		              [&](const auto &cue)
-		              {
-			              return now > cue.tick + cue.retention_ticks;
-		              });
-	std::erase_if(audio_events,
-	              [](const auto &entry)
-	              {
-		              return entry.second.empty();
-	              });
-}
-
 auto Runtime::equipment_destroyed(flecs::entity ship, const std::string &equipment) const -> bool
 {
 	return phoenix::equipment_destroyed(ship.try_get<CombatStructure>(), equipment);

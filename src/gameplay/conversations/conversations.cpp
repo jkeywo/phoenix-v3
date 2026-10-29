@@ -619,6 +619,20 @@ void ConversationRuntime::advance(std::uint64_t now)
 		step(c);
 	}
 }
+std::map<EntityId, std::set<ConversationId>> ConversationRuntime::delivered_to_other_hosts() const
+{
+	std::map<EntityId, std::set<ConversationId>> delivered;
+	for (const auto &[id, conversation] : conversations)
+		for (const auto &message : conversation.messages)
+			for (const auto &recipient : message.delivered)
+				if (const auto to = participants.find(recipient); to != participants.end())
+				{
+					const auto from = participants.find(message.sender);
+					if (from == participants.end() || from->second.host != to->second.host)
+						delivered[to->second.host].insert(message.id);
+				}
+	return delivered;
+}
 Json ConversationRuntime::project(EntityId viewer) const
 {
 	const auto self = ship_id(viewer);

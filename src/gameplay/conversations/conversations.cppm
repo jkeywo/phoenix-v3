@@ -111,6 +111,8 @@ public:
 	void event(ConversationId conversation, const std::string &event);
 	bool report(ConversationId conversation, const std::string &line);
 	void advance(std::uint64_t now);
+	// Delivered cross-host message facts; queued traffic and same-host delivery are excluded.
+	std::map<EntityId, std::set<ConversationId>> delivered_to_other_hosts() const;
 	Json project(EntityId viewer) const;
 	Json save() const;
 	void restore(const Json &);
