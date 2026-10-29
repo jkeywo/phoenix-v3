@@ -250,6 +250,11 @@ private:
 	void changed();
 	std::uint64_t random_next();
 	bool operational(ResourceIndex store) const;
+	ResourceAmount sustainable_export_rate(ResourceIndex, std::span<const ResourceAmount> demand) const;
+	bool allocation_feasible(const std::vector<ResourceIndex> &active, ResourceAmount requested,
+	                         std::span<const ResourceAmount> demand) const;
+	void allocate_siblings(ResourceIndex parent, ResourceAmount available, std::span<const ResourceAmount> demand);
+	void allocate_group_budgets(std::span<const ResourceAmount> demand);
 	void add_heat(ResourceIndex store, ResourceAmount amount);
 	void debit_operation(ResourceIndex store, ResourceAmount amount, bool discrete);
 	void add_consumption_heat(ResourceIndex store, ResourceAmount consumed, ResourceAmount depleted);

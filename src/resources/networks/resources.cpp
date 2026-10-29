@@ -615,6 +615,157 @@ ResourceAmount ResourceNetwork::dissipate(ResourceIndex i, ResourceAmount amount
 	return paid;
 }
 
+ResourceAmount ResourceNetwork::sustainable_export_rate(ResourceIndex i, std::span<const ResourceAmount> demand) const
+{
+	const auto &s = stores_[i];
+	const auto &d = definition_.stores[i];
+	if (!operational(i))
+		return ResourceAmount{0};
+	auto own = s.requested_rate;
+	if (s.overdrive)
+		own = (own * d.overdrive_permille + 999) / 1000;
+	own = std::min(resource_limit, own + s.discrete_request * resource_tick_hz);
+	ResourceAmount generation = 0;
+	for (ResourceIndex g = 0; g < generators_.size(); ++g)
+		if (definition_.generators[g].store == i && generators_[g].enabled && generator_work_[g].enabled)
+		{
+			auto remainder = generators_[g].throughput_remainder;
+			generation +=
+			    std::min(machinery_rate(generators_[g].actual_rate, generator_work_[g].throughput_permille, remainder),
+			             generator_work_[g].work_limit * resource_tick_hz);
+		}
+	generation = std::min(generation, s.charge_limit);
+	const auto reserves = std::max<ResourceAmount>(0, s.available() - demand[i]) * resource_tick_hz;
+	return std::min(std::max<ResourceAmount>(0, s.discharge_limit - own), reserves + generation);
+}
+bool ResourceNetwork::allocation_feasible(const std::vector<ResourceIndex> &active, ResourceAmount requested,
+                                          std::span<const ResourceAmount> demand) const
+{
+	const auto group_base = stores_.size() * 2, source = group_base + groups_.size(), sink = source + 1;
+	ResourceFlowGraph graph(sink + 1);
+	for (ResourceIndex i = 0; i < stores_.size(); ++i)
+	{
+		if (!operational(i))
+			continue;
+		bool receiving = false;
+		for (auto group = definition_.stores[i].group; group != no_resource; group = definition_.groups[group].parent)
+			if (std::find(active.begin(), active.end(), group) != active.end())
+			{
+				receiving = true;
+				break;
+			}
+		if (!receiving)
+			graph.add(source, i * 2 + 1, sustainable_export_rate(i, demand));
+		graph.add(i * 2, i * 2 + 1, resource_limit * 4096);
+		for (auto group = definition_.stores[i].group; group != no_resource; group = definition_.groups[group].parent)
+			if (std::find(active.begin(), active.end(), group) != active.end())
+			{
+				graph.add(i * 2, group_base + group, resource_limit * 4096);
+				break;
+			}
+	}
+	for (ResourceIndex i = 0; i < links_.size(); ++i)
+		if (!links_[i].isolated)
+		{
+			const auto &d = definition_.links[i];
+			if (operational(d.from) && operational(d.to))
+				graph.add(d.from * 2 + 1, d.to * 2, d.capacity_rate);
+		}
+	for (auto group : active)
+		graph.add(group_base + group, sink, groups_[group].budget_rate);
+	return graph.resolve(source, sink, requested) == requested;
+}
+void ResourceNetwork::allocate_siblings(ResourceIndex parent, ResourceAmount available,
+                                        std::span<const ResourceAmount> demand)
+{
+	std::vector<ResourceIndex> active;
+	ResourceAmount reserved = 0;
+	for (ResourceIndex i = 0; i < groups_.size(); ++i)
+		if (definition_.groups[i].parent == parent && !groups_[i].cut)
+		{
+			active.push_back(i);
+			reserved += groups_[i].budget_rate;
+		}
+	while (!active.empty() && (reserved > available || !allocation_feasible(active, reserved, demand)))
+	{
+		auto p = static_cast<std::size_t>(random_next() % active.size());
+		auto i = active[p];
+		groups_[i].cut = true;
+		groups_[i].sustainable_ticks = 0;
+		reserved -= groups_[i].budget_rate;
+		active.erase(active.begin() + p);
+	}
+	std::vector<ResourceIndex> eligible;
+	for (ResourceIndex i = 0; i < groups_.size(); ++i)
+		if (definition_.groups[i].parent == parent && groups_[i].cut)
+		{
+			auto &s = groups_[i];
+			const auto &d = definition_.groups[i];
+			auto trial = active;
+			trial.push_back(i);
+			if (reserved + s.budget_rate + d.restore_margin_rate <= available &&
+			    allocation_feasible(trial, reserved + s.budget_rate, demand))
+			{
+				if (s.sustainable_ticks < d.restore_ticks)
+					++s.sustainable_ticks;
+				if (s.sustainable_ticks >= d.restore_ticks)
+					eligible.push_back(i);
+			}
+			else
+				s.sustainable_ticks = 0;
+		}
+	while (!eligible.empty())
+	{
+		auto p = static_cast<std::size_t>(random_next() % eligible.size());
+		auto i = eligible[p];
+		auto &s = groups_[i];
+		auto trial = active;
+		trial.push_back(i);
+		if (reserved + s.budget_rate + definition_.groups[i].restore_margin_rate <= available &&
+		    allocation_feasible(trial, reserved + s.budget_rate, demand))
+		{
+			s.cut = false;
+			s.sustainable_ticks = 0;
+			reserved += s.budget_rate;
+			active.push_back(i);
+		}
+		eligible.erase(eligible.begin() + p);
+	}
+}
+void ResourceNetwork::allocate_group_budgets(std::span<const ResourceAmount> demand)
+{
+	// Coarse roots reserve source flow; fine siblings reserve subdivisions with the same cut contract.
+	ResourceAmount supply = 0;
+	for (ResourceIndex i = 0; i < stores_.size(); ++i)
+	{
+		bool source = false;
+		for (const auto &link : definition_.links)
+			if (link.from == i)
+			{
+				source = true;
+				break;
+			}
+		if (source && operational(i))
+			supply += sustainable_export_rate(i, demand);
+	}
+	allocate_siblings(no_resource, supply, demand);
+	// Parent-first independent of authored array order.
+	for (std::size_t depth = 0; depth < groups_.size(); ++depth)
+		for (ResourceIndex i = 0; i < groups_.size(); ++i)
+		{
+			std::size_t actual = 0;
+			auto parent = definition_.groups[i].parent;
+			while (parent != no_resource)
+			{
+				++actual;
+				parent = definition_.groups[parent].parent;
+			}
+			if (actual == depth)
+				allocate_siblings(i, groups_[i].cut ? 0 : groups_[i].budget_rate, demand);
+		}
+	for (ResourceIndex i = 0; i < groups_.size(); ++i)
+		group_left_[i] = groups_[i].cut ? 0 : per_tick(groups_[i].budget_rate, groups_[i].tick_remainder);
+}
 void ResourceNetwork::tick()
 {
 	changed();
@@ -696,154 +847,8 @@ void ResourceNetwork::tick()
 			    divided(generation_heat * equipment.overdrive_heat_permille, 1000, store.overdrive_heat_remainder);
 		add_heat(d.store, generation_heat);
 	}
-	// Coarse roots reserve source flow. Fine siblings reserve subdivisions, with the same cut contract.
-	auto sustainable_export_rate = [&](ResourceIndex i)
-	{
-		const auto &s = stores_[i];
-		const auto &d = definition_.stores[i];
-		if (!operational(i))
-			return ResourceAmount{0};
-		auto own = s.requested_rate;
-		if (s.overdrive)
-			own = (own * d.overdrive_permille + 999) / 1000;
-		own = std::min(resource_limit, own + s.discrete_request * resource_tick_hz);
-		ResourceAmount generation = 0;
-		for (ResourceIndex g = 0; g < generators_.size(); ++g)
-			if (definition_.generators[g].store == i && generators_[g].enabled && generator_work_[g].enabled)
-			{
-				auto remainder = generators_[g].throughput_remainder;
-				generation += std::min(
-				    machinery_rate(generators_[g].actual_rate, generator_work_[g].throughput_permille, remainder),
-				    generator_work_[g].work_limit * resource_tick_hz);
-			}
-		generation = std::min(generation, s.charge_limit);
-		const auto reserves = std::max<ResourceAmount>(0, s.available() - demand_[i]) * resource_tick_hz;
-		return std::min(std::max<ResourceAmount>(0, s.discharge_limit - own), reserves + generation);
-	};
-	ResourceAmount supply = 0;
-	for (ResourceIndex i = 0; i < stores_.size(); ++i)
-	{
-		bool source = false;
-		for (const auto &link : definition_.links)
-			if (link.from == i)
-			{
-				source = true;
-				break;
-			}
-		if (source && operational(i))
-			supply += sustainable_export_rate(i);
-	}
-	auto feasible = [&](const std::vector<ResourceIndex> &active, ResourceAmount requested)
-	{
-		const auto group_base = stores_.size() * 2, source = group_base + groups_.size(), sink = source + 1;
-		ResourceFlowGraph graph(sink + 1);
-		for (ResourceIndex i = 0; i < stores_.size(); ++i)
-		{
-			if (!operational(i))
-				continue;
-			bool receiving = false;
-			for (auto group = definition_.stores[i].group; group != no_resource;
-			     group = definition_.groups[group].parent)
-				if (std::find(active.begin(), active.end(), group) != active.end())
-				{
-					receiving = true;
-					break;
-				}
-			if (!receiving)
-				graph.add(source, i * 2 + 1, sustainable_export_rate(i));
-			graph.add(i * 2, i * 2 + 1, resource_limit * 4096);
-			for (auto group = definition_.stores[i].group; group != no_resource;
-			     group = definition_.groups[group].parent)
-				if (std::find(active.begin(), active.end(), group) != active.end())
-				{
-					graph.add(i * 2, group_base + group, resource_limit * 4096);
-					break;
-				}
-		}
-		for (ResourceIndex i = 0; i < links_.size(); ++i)
-			if (!links_[i].isolated)
-			{
-				const auto &d = definition_.links[i];
-				if (operational(d.from) && operational(d.to))
-					graph.add(d.from * 2 + 1, d.to * 2, d.capacity_rate);
-			}
-		for (auto group : active)
-			graph.add(group_base + group, sink, groups_[group].budget_rate);
-		return graph.resolve(source, sink, requested) == requested;
-	};
-	auto allocate_siblings = [&](ResourceIndex parent, ResourceAmount available)
-	{
-		std::vector<ResourceIndex> active;
-		ResourceAmount reserved = 0;
-		for (ResourceIndex i = 0; i < groups_.size(); ++i)
-			if (definition_.groups[i].parent == parent && !groups_[i].cut)
-			{
-				active.push_back(i);
-				reserved += groups_[i].budget_rate;
-			}
-		while (!active.empty() && (reserved > available || !feasible(active, reserved)))
-		{
-			auto p = static_cast<std::size_t>(random_next() % active.size());
-			auto i = active[p];
-			groups_[i].cut = true;
-			groups_[i].sustainable_ticks = 0;
-			reserved -= groups_[i].budget_rate;
-			active.erase(active.begin() + p);
-		}
-		std::vector<ResourceIndex> eligible;
-		for (ResourceIndex i = 0; i < groups_.size(); ++i)
-			if (definition_.groups[i].parent == parent && groups_[i].cut)
-			{
-				auto &s = groups_[i];
-				const auto &d = definition_.groups[i];
-				auto trial = active;
-				trial.push_back(i);
-				if (reserved + s.budget_rate + d.restore_margin_rate <= available &&
-				    feasible(trial, reserved + s.budget_rate))
-				{
-					if (s.sustainable_ticks < d.restore_ticks)
-						++s.sustainable_ticks;
-					if (s.sustainable_ticks >= d.restore_ticks)
-						eligible.push_back(i);
-				}
-				else
-					s.sustainable_ticks = 0;
-			}
-		while (!eligible.empty())
-		{
-			auto p = static_cast<std::size_t>(random_next() % eligible.size());
-			auto i = eligible[p];
-			auto &s = groups_[i];
-			auto trial = active;
-			trial.push_back(i);
-			if (reserved + s.budget_rate + definition_.groups[i].restore_margin_rate <= available &&
-			    feasible(trial, reserved + s.budget_rate))
-			{
-				s.cut = false;
-				s.sustainable_ticks = 0;
-				reserved += s.budget_rate;
-				active.push_back(i);
-			}
-			eligible.erase(eligible.begin() + p);
-		}
-	};
-	allocate_siblings(no_resource, supply);
-	// Parent-first independent of authored array order.
-	for (std::size_t depth = 0; depth < groups_.size(); ++depth)
-		for (ResourceIndex i = 0; i < groups_.size(); ++i)
-		{
-			std::size_t actual = 0;
-			auto parent = definition_.groups[i].parent;
-			while (parent != no_resource)
-			{
-				++actual;
-				parent = definition_.groups[parent].parent;
-			}
-			if (actual == depth)
-				allocate_siblings(i, groups_[i].cut ? 0 : groups_[i].budget_rate);
-		}
-	for (ResourceIndex i = 0; i < groups_.size(); ++i)
-		group_left_[i] = groups_[i].cut ? 0 : per_tick(groups_[i].budget_rate, groups_[i].tick_remainder);
+	// Allocate against unpaid demand after prepayment and generation.
+	allocate_group_budgets(demand_);
 	// Distribution adapts within the reserved budget to unpaid demand, then low reserves.
 	// Stable identity breaks ties; this ordering never changes random overload eligibility.
 	std::vector<ResourceIndex> recipients;
