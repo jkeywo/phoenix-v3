@@ -113,6 +113,13 @@ inline void control_widget_cases()
 		require(world.claim(102, 1, "observer"), "claim scoped native team widget");
 		world.tick();
 		const auto team = controller(world, 102, "team-a");
+		const auto supported = controller(world, 102, "team-b").at("actions");
+		require(std::any_of(supported.begin(), supported.end(),
+		                    [](const auto &action)
+		                    {
+			                    return action.at("id") == "officer_support";
+		                    }),
+		        "shared widget bindings retain the existing officer support capability");
 		require(team.at("commands").at("enabled").at("value") == 1,
 		        "refused native assignment cannot bypass a human command during fallback");
 		for (const auto &row : world.observe(102)->gameplay.at("teams"))
@@ -370,13 +377,18 @@ inline void control_widget_cases()
 		    },
 		    "shared widget instances require schema 2");
 		invalid = source;
-		invalid["entities"][0]["control_layout"]["controllers"][0]["star_levels"]["1"] = "detailed";
-		rejected(
-		    [&]
-		    {
-			    (void)load(invalid);
-		    },
-		    "must not decrease");
+		invalid["entities"][0]["control_layout"]["controllers"][0]["star_levels"] = {
+		    {"1", "detailed"}, {"2", "assisted"}, {"3", "automated"}};
+		const auto retired = load(invalid);
+		World replaced;
+		replaced.load(retired, "test.map");
+		require(replaced.claim(101, 1, "drive"), "claim non-monotonic widget responsibility mapping");
+		require(controller(replaced, 101, "propulsion")["commands"]["speed"]["human"],
+		        "first star may select detailed responsibility on an assisted widget");
+		require(replaced.submit(101, {1, "preset", 1, {}}), "select automated higher-star replacement");
+		replaced.tick();
+		require(!controller(replaced, 101, "propulsion")["human"],
+		        "higher-star replacement can automate a retired assisted widget");
 		invalid = source;
 		invalid["control_widgets"][0]["levels"][2]["human"] = {"speed"};
 		rejected(

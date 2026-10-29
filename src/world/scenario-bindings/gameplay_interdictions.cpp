@@ -43,21 +43,28 @@ auto Runtime::record_interdiction_insertion(EntityId ship, EntityId target) -> v
 		interdiction_book.record_insertion(i, ship, slot_entities.at(interdiction_book.definition(i).slot), target);
 }
 
+auto Runtime::encounter_owns_action(EntityId ship, OperatingAction action) const -> bool
+{
+	if (!encounter_manages_action(action))
+		return false;
+	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
+		if (interdiction_book.participant(i, ship) ||
+		    (ship == interdiction_book.definition(i).target && interdiction_book.state(i).captured &&
+		     captured_by.contains(ship) && interdiction_book.participant(i, operational_owner(ship))))
+			return true;
+	return false;
+}
+
 auto Runtime::encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const -> bool
 {
-	bool owned = false;
-	for (std::size_t i = 0; i < interdiction_book.size(); ++i)
+	const auto managed = [&](const auto &command)
 	{
-		owned |= interdiction_book.participant(i, ship);
-		if (ship == interdiction_book.definition(i).target && interdiction_book.state(i).captured &&
-		    captured_by.contains(ship))
-			owned |= interdiction_book.participant(i, operational_owner(ship));
-	}
-	return owned && std::any_of(controller.commands.begin(), controller.commands.end(),
-	                            [](const auto &command)
-	                            {
-		                            return encounter_manages_action(command.action);
-	                            });
+		return encounter_owns_action(ship, command.action);
+	};
+	if (!controller.widget.empty())
+		return controller.operations.empty() && !controller.commands.empty() &&
+		       std::all_of(controller.commands.begin(), controller.commands.end(), managed);
+	return std::any_of(controller.commands.begin(), controller.commands.end(), managed);
 }
 
 auto Runtime::release_encounter_navigation(EntityId ship) -> void
@@ -76,10 +83,8 @@ auto Runtime::encounter_command(EntityId ship, OperatingAction action, std::int6
 	for (std::size_t i = 0; i < controllers.size(); ++i)
 	{
 		auto &c = controllers[i];
-		if (c.human)
-			continue;
 		for (std::size_t j = 0; j < c.definition.commands.size(); ++j)
-			if (c.definition.commands[j].action == action)
+			if (!controller_command_human(c, j) && c.definition.commands[j].action == action)
 			{
 				if (action == OperatingAction::WeaponTarget && value)
 				{
@@ -108,15 +113,15 @@ auto Runtime::encounter_command(EntityId ship, OperatingAction action, std::int6
 auto Runtime::encounter_contact(EntityId ship, EntityId target) const -> std::optional<fixed::Vec>
 {
 	for (const auto &c : entities.at(ship).get<EntityControls>().controllers)
-		if (!c.human)
-			for (const auto &channel : c.definition.commands)
-				if (channel.action == OperatingAction::Speed || channel.action == OperatingAction::Heading)
-				{
-					const auto contacts = capture_sensor_contacts({ship, c.definition.console});
-					for (const auto &contact : contacts)
-						if (contact.id == target)
-							return fixed::Vec{contact.x, contact.y};
-				}
+		for (std::size_t j = 0; j < c.definition.commands.size(); ++j)
+			if (!controller_command_human(c, j) && (c.definition.commands[j].action == OperatingAction::Speed ||
+			                                        c.definition.commands[j].action == OperatingAction::Heading))
+			{
+				const auto contacts = capture_sensor_contacts({ship, c.definition.console});
+				for (const auto &contact : contacts)
+					if (contact.id == target)
+						return fixed::Vec{contact.x, contact.y};
+			}
 	return {};
 }
 
@@ -140,7 +145,7 @@ auto Runtime::encounter_dock_order(EntityId ship, const std::string &action, Ent
 		return false;
 	const auto &port = definition(ship).docking.front();
 	for (const auto &c : entities.at(ship).get<EntityControls>().controllers)
-		if (!c.human && c.definition.id == port.controller)
+		if (!controller_operation_human(c, "docking") && c.definition.id == port.controller)
 		{
 			OperatingCommand command{
 			    ship, action, static_cast<std::int64_t>(entities.at(ship).get<DockingState>().revision), port.id};
@@ -331,10 +336,8 @@ auto Runtime::charge_encounter_drive(EntityId ship) -> void
 	for (std::size_t i = 0; i < controls.size(); ++i)
 	{
 		auto &c = controls[i];
-		if (c.human)
-			continue;
 		for (std::size_t j = 0; j < c.definition.commands.size(); ++j)
-			if (c.definition.commands[j].action == OperatingAction::SystemEnabled)
+			if (!controller_command_human(c, j) && c.definition.commands[j].action == OperatingAction::SystemEnabled)
 				for (auto consumer : c.definition.commands[j].consumers)
 					if (definition(ship).fitted->values[consumer].id == drive.get<Equipment>().id)
 						commit_controller(
@@ -357,7 +360,7 @@ auto Runtime::prepare_encounter_departure(EntityId leader, const std::set<Entity
 		return;
 	const auto owner = ftl_owner(leader, drive.get<Equipment>().id);
 	for (const auto &controller : entities.at(leader).get<EntityControls>().controllers)
-		if (!controller.human && controller.definition.console == owner.console)
+		if (!controller_operation_human(controller, "departure") && controller.definition.console == owner.console)
 		{
 			OperatingCommand command{leader, "ftl.depart", 0, drive.get<Equipment>().id};
 			command.controller = controller.definition.id;

@@ -200,3 +200,28 @@ explicit AI command masks. The complete native Controller and Medical suites
 pass (`build/widget-finish-native-workflows-controller.log` and
 `build/widget-finish-native-workflows-medical.log`). This is a migration step;
 shipped layout migration and removal of old allocation paths remain pending.
+
+## Shared policy and encounter continuation
+
+Star-to-level mappings can select an Automated level at a higher star rating.
+The levels themselves still describe an explicit responsibility hierarchy;
+star mappings can retire an assistance panel when another widget replaces it.
+A synthetic runtime case verifies that changing to that rating releases its
+commands to AI.
+
+The existing officer-policy compiler now binds shared widget commands before
+building its policy. Generated policies are recorded as compiled per-instance
+bindings; authored instances do not acquire command/tree overrides. Carried
+transport guidance derives a shared widget with its extra altitude channel,
+keeping its equipment role explicit. The existing officer-support capability
+remains available on a shared widget in the Controller integration case.
+
+Encounter overrides now act on individual delegated channels. A mixed widget
+continues evaluating unrelated duties and receives a refusal for an encounter's
+reserved commands. Docking and departure overrides also check their operation
+allocation. Native Controller, carried-craft and interdiction suites pass; the
+base migration candidate passes production verification separately.
+
+`phoenix_verify --inventory output.json base.zip [mod.zip ...]` exports resolved
+entity definitions after ordinary verification, so migration and audits use the
+production assembly/equipment resolution rather than a second implementation.

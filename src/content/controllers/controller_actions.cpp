@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <functional>
+#include <optional>
 #include <set>
 #include <tuple>
 #include <stdexcept>
@@ -232,10 +233,13 @@ void expand_officer_policies(Catalog &catalog)
 	{
 		if (!entity.contains("control_layout"))
 			continue;
-		for (auto &controller : entity["control_layout"]["controllers"])
+		for (auto &instance : entity["control_layout"]["controllers"])
 		{
-			if (controller.contains("widget"))
-				continue;
+			const auto widget =
+			    instance.contains("widget")
+			        ? std::optional{compile_control_widget(catalog, instance.at("widget").get<std::string>())}
+			        : std::nullopt;
+			auto controller = widget ? bind_control_widget(*widget, instance) : instance;
 			if (controller.value("officer_protocol", false))
 				continue;
 			std::map<std::string, Json> supported;
@@ -471,9 +475,14 @@ void expand_officer_policies(Catalog &catalog)
 			                            Json{{"action", "action.cancel"}, {"arguments", {"commitment_failed"}}}})},
 			     {"transitions", Json::array({{{"target", "normal"}}})}});
 			catalog.trees.emplace(id, policy);
-			controller["tree"] = id;
-			controller.erase("fallback");
-			controller["officer_protocol"] = true;
+			if (widget)
+				catalog.controller_policies[entity_id][{instance.at("console"), instance.at("id")}] = id;
+			else
+			{
+				instance["tree"] = id;
+				instance.erase("fallback");
+				instance["officer_protocol"] = true;
+			}
 		}
 	}
 }

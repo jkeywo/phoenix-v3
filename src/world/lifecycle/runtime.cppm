@@ -1725,6 +1725,7 @@ struct Runtime
 	void record_interdiction_insertion(EntityId ship, EntityId target);
 	// Encounter goals own the relevant AI Controllers, not human Console slots.
 	// Machinery, repairs and defensive fire retain their ordinary policies.
+	bool encounter_owns_action(EntityId ship, OperatingAction action) const;
 	bool encounter_owns_controller(EntityId ship, const ConsoleControllerSpec &controller) const;
 	void release_encounter_navigation(EntityId ship);
 	bool encounter_command(EntityId ship, OperatingAction action, std::int64_t value);

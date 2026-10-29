@@ -130,6 +130,8 @@ auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<
 		    for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
 			    if (name == "write." + controller.definition.commands[channel].id)
 			    {
+				    if (encounter_owns_action(id, controller.definition.commands[channel].action))
+					    return {state_tree::CommandOutcome::Refused, "encounter_command_owned"};
 				    const auto request = controller.definition.commands[channel].semantics == CommandSemantics::Request;
 				    std::vector<std::int64_t> arguments;
 				    for (std::size_t i = 1; i < output.arguments.size(); ++i)

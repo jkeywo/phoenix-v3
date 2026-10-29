@@ -43,6 +43,7 @@ struct Catalog
 	std::map<std::string, state_tree::Program> tree_programs;
 	std::map<std::string, ConversationProgram> conversation_programs;
 	std::map<std::string, ControllerTreeBindings> controller_bindings;
+	std::map<std::string, std::map<std::pair<std::string, std::string>, std::string>> controller_policies;
 	std::map<std::string, Bytes> assets;
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false, selection = false;

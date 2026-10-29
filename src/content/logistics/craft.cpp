@@ -1,5 +1,6 @@
 module;
 #include <utility>
+#include <optional>
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <set>
@@ -70,8 +71,13 @@ void expand_transport_fittings(Catalog &catalog, SharedPropertyCatalog compiled)
 			craft["craft"] = {{"role", mode}, {"cruise_altitude_mm", 0}, {"return_reserve_permille", 0}};
 			craft["transport"]["capacity"] = fitting.at("capacity");
 			bool guidance = false;
-			for (auto &controller : craft.at("control_layout").at("controllers"))
+			for (auto &instance : craft.at("control_layout").at("controllers"))
 			{
+				const auto widget =
+				    instance.contains("widget")
+				        ? std::optional{compile_control_widget(catalog, instance.at("widget").get<std::string>())}
+				        : std::nullopt;
+				auto controller = widget ? bind_control_widget(*widget, instance) : instance;
 				auto &commands = controller.at("commands");
 				for (std::size_t i = 0; i < commands.size(); ++i)
 					if (commands[i].value("action", std::string{}) == "follow_contact")
@@ -127,8 +133,28 @@ void expand_transport_fittings(Catalog &catalog, SharedPropertyCatalog compiled)
 						                       {"command_bindings", bindings},
 						                       {"initial", "fly"},
 						                       {"states", Json::array({{{"id", "fly"}, {"running", work}}})}};
-						controller["tree"] = tree;
-						controller.erase("fallback");
+						if (widget)
+						{
+							const auto generated = name + ".guidance-widget";
+							auto shared = catalog.control_widgets.at(widget->id);
+							shared["id"] = generated;
+							shared["tree"] = tree;
+							craft_require(!shared["equipment"].contains("transport_engine"),
+							              name + ": reserved transport equipment role");
+							shared["equipment"]["transport_engine"] = {{"kinds", {"engine"}}};
+							auto altitude = commands.back();
+							altitude["consumers"] = {"$transport_engine"};
+							shared["commands"].push_back(std::move(altitude));
+							craft_require(catalog.control_widgets.emplace(generated, std::move(shared)).second,
+							              "generated guidance widget identity overlaps " + generated);
+							instance["widget"] = generated;
+							instance["equipment"]["transport_engine"] = engine;
+						}
+						else
+						{
+							instance["tree"] = tree;
+							instance.erase("fallback");
+						}
 						guidance = true;
 						break;
 					}

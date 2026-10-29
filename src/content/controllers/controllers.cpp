@@ -493,7 +493,15 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		    instance.contains("widget")
 		        ? std::optional{compile_control_widget(catalog, instance.at("widget").get<std::string>())}
 		        : std::nullopt;
-		const auto row = widget ? bind_control_widget(*widget, instance) : instance;
+		auto row = widget ? bind_control_widget(*widget, instance) : instance;
+		if (const auto policies = catalog.controller_policies.find(entity_id);
+		    policies != catalog.controller_policies.end())
+			if (const auto policy = policies->second.find({row.at("console"), row.at("id")});
+			    policy != policies->second.end())
+			{
+				row["tree"] = policy->second;
+				row.erase("fallback");
+			}
 		ConsoleControllerSpec controller;
 		controller.id = control_name(row, "id", path);
 		controller.console = control_name(row, "console", path);
@@ -809,7 +817,6 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			const auto &mapping = row.at("star_levels");
 			control_require(mapping.is_object() && mapping.size() == 3, where,
 			                "widget needs responsibility mappings for stars 1, 2 and 3");
-			std::size_t previous = 0;
 			for (int stars = 1; stars <= 3; ++stars)
 			{
 				const auto key = std::to_string(stars);
@@ -822,9 +829,6 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					                                return candidate.id == level;
 				                                });
 				control_require(found != widget->levels.end(), where, "unknown widget responsibility level " + level);
-				const auto index = static_cast<std::size_t>(found - widget->levels.begin());
-				control_require(index >= previous, where, "widget responsibility must not decrease as stars increase");
-				previous = index;
 				controller.star_levels[stars] = level;
 				for (const auto &responsibility : found->human)
 					if (controller.operations.contains(responsibility))
@@ -848,13 +852,14 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				continue;
 			for (const auto &[operation, equipment] : left.operations)
 				if (const auto other = right.operations.find(operation); other != right.operations.end())
-					control_require(!equipment.empty() && !other->second.empty() &&
-					                    std::none_of(equipment.begin(), equipment.end(),
-					                                 [&](const auto &identity)
-					                                 {
-						                                 return std::find(other->second.begin(), other->second.end(),
-						                                                  identity) != other->second.end();
-					                                 }),
+					control_require((equipment.empty() || other->second.empty())
+					                    ? operation != "personnel"
+					                    : std::none_of(equipment.begin(), equipment.end(),
+					                                   [&](const auto &identity)
+					                                   {
+						                                   return std::find(other->second.begin(), other->second.end(),
+						                                                    identity) != other->second.end();
+					                                   }),
 					                path, "native operation has overlapping widget owners: " + operation);
 		}
 	for (const auto &controller : result.controllers)
