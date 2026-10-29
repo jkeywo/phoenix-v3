@@ -1180,7 +1180,10 @@ endif()
 
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_control_widgets_smoke EXCLUDE_FROM_ALL tests/manual/control_widgets_ui.cpp)
-	target_link_libraries(phoenix_control_widgets_smoke PRIVATE raylib phoenix_session phoenix_presentation)
+	target_link_libraries(
+		phoenix_control_widgets_smoke
+		PRIVATE raylib phoenix_session phoenix_presentation phoenix_ui_preview phoenix_content_documents
+	)
 	add_custom_command(
 		TARGET phoenix_control_widgets_smoke
 		POST_BUILD
@@ -1508,6 +1511,11 @@ target_link_libraries(
 	phoenix_controller_runtime_tests
 	PRIVATE phoenix_ui_navigation phoenix_console_model phoenix_content_documents
 )
+if(EMSCRIPTEN)
+	# This synchronous test main must release pooled workers on return so Node
+	# can report its exit status to the verification gate.
+	target_link_options(phoenix_controller_runtime_tests PRIVATE "-sEXIT_RUNTIME=1")
+endif()
 
 # These integration cases also call the Console free-function contracts.
 target_link_libraries(phoenix_craft_tests PRIVATE phoenix_console_model)

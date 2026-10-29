@@ -20,7 +20,8 @@ export namespace phoenix
 class ConsoleSurface
 {
 public:
-	explicit ConsoleSurface(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true);
+	explicit ConsoleSurface(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true,
+	                        Rml::RenderInterface *renderer = nullptr);
 	~ConsoleSurface();
 	void preview_text_scale(int scale);
 	const UiResolved &authored_geometry() const;

@@ -1013,7 +1013,7 @@ std::string ConsoleSurface::State::console_markup(std::string markup) const
 	markup.insert(markup.find("<style>") + 7, sheets);
 	return markup;
 }
-ConsoleSurface::State::State(ConsoleId route, const std::string &prefix, bool toolbar)
+ConsoleSurface::State::State(ConsoleId route, const std::string &prefix, bool toolbar, Rml::RenderInterface *renderer)
     : route_(route), context_name_(prefix + std::to_string(route)), toolbar_enabled_(toolbar)
 {
 	terminal_ = parse_json(read_file(asset_path("../menu/menu-scene.json"), 64 * 1024), "menu scene").at("terminal");
@@ -1021,7 +1021,7 @@ ConsoleSurface::State::State(ConsoleId route, const std::string &prefix, bool to
 		crew_portraits_.emplace(sha256(read_file(asset_path("../menu/avatar-" + std::to_string(i) + ".png"), 12288)),
 		                        read_file(asset_path("../menu/portrait-" + std::to_string(i) + ".png"), 512 * 1024));
 	const auto markup = read_file(asset_path("../console/surface.rml"), 128 * 1024);
-	context_ = Rml::CreateContext(context_name_, {1280, 720});
+	context_ = Rml::CreateContext(context_name_, {1280, 720}, renderer);
 	if (!context_)
 		throw std::runtime_error("Cannot create independent Console context");
 	document_ = context_->LoadDocumentFromMemory(console_markup(std::string(markup.begin(), markup.end())));
@@ -1199,8 +1199,8 @@ void ConsoleSurface::State::prepare_loading(const LoadingProgress *loading, cons
 		place(*app_, region, id("loading"));
 	}
 }
-ConsoleSurface::ConsoleSurface(ConsoleId route, const std::string &prefix, bool toolbar)
-    : state_(std::make_unique<State>(route, prefix, toolbar))
+ConsoleSurface::ConsoleSurface(ConsoleId route, const std::string &prefix, bool toolbar, Rml::RenderInterface *renderer)
+    : state_(std::make_unique<State>(route, prefix, toolbar, renderer))
 {
 }
 ConsoleSurface::~ConsoleSurface() = default;

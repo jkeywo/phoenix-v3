@@ -11,6 +11,8 @@ import phoenix.navigation;
 import phoenix.presentation;
 import phoenix.session.local;
 import phoenix.console;
+import phoenix.content.documents;
+import phoenix.ui.preview;
 using namespace phoenix;
 using phoenix::test::require;
 
@@ -84,16 +86,55 @@ int main(int argc, char **argv)
 		require(app.session->command({1, "preset", 2, {}}), "select three-star data placement");
 		app.session->tick();
 		frames();
-		require(has_readout("Maximum speed: 17000"), "three-star override moves the same datum onto its main visual part");
+		require(has_readout("Maximum speed: 17000"),
+		        "three-star override moves the same datum onto its main visual part");
 		TakeScreenshot("build/control-widget-three-star.png");
 		SetWindowSize(640, 720);
 		frames();
 		require(has_readout("Requested speed") && has_readout("Maximum speed: 17000"),
 		        "compact layout reunites the widget without losing data");
 		TakeScreenshot("build/control-widget-compact.png");
+		WorkshopDocument draft;
+		draft.load_pack(read_file(argv[1]));
+		auto sample = draft.preview_ui()->consoles.at("test.console");
+		sample["_preview_widget_context"] = "test.widget-ship/drive";
+		for (int stars = 1; stars <= 3; ++stars)
+		{
+			sample["_preview_stars"] = stars;
+			Texture2D texture{};
+			for (int frame = 0; frame < 3; ++frame)
+				texture = draw_console_preview(sample, 1200, 700, {-1, -1}, false, false, 0, false, draft.preview_ui());
+			require(console_preview_geometry().placements.size() == 2,
+			        "Workshop fits the selected ship's split widget parts through the real Console surface");
+			auto image = LoadImageFromTexture(texture);
+			ImageFlipVertical(&image);
+			ExportImage(image, ("build/control-widget-workshop-" + std::to_string(stars) + ".png").c_str());
+			UnloadImage(image);
+			const auto preview = console_preview_state();
+			require(preview.at("controllers").size() == 1 &&
+			            preview.at("controllers")[0].at("widget") == "test.drive" &&
+			            preview.at("controllers")[0].at("commands").at("speed").at("human") == (stars >= 2),
+			        "Workshop renders the selected ship's widget and star responsibility through the real host");
+			require(preview.at("controllers")[0].at("commands").at("speed").at("maximum") == 17000,
+			        "preview controls respect the attached synthetic engine's speed limit");
+			require(preview.at("controllers")[0].at("commands").at("speed").at("value") == 3000,
+			        "Workshop begins with the selected widget's authored sample setting");
+			require((stars == 1) == preview.at("controls").empty(),
+			        "automated preview exposes inspection without command controls");
+			if (stars == 3)
+			{
+				for (const bool pressed : {true, false})
+					draw_console_preview(sample, 1200, 700, {950, 100}, pressed, !pressed, 0, false,
+					                     draft.preview_ui());
+				draw_console_preview(sample, 1200, 700, {-1, -1}, false, false, 0, false, draft.preview_ui());
+				require(console_preview_state().at("controllers")[0].at("commands").at("speed").at("value") == 17000,
+				        "Workshop pointer input changes the isolated widget sample through command admission");
+			}
+		}
+		clear_console_preview();
 		close_window();
-		std::cout
-		    << "PASS shared widget readouts, detail popup, star mappings, command admission and compact reunion\n";
+		std::cout << "PASS shared widget readouts, details, command admission, compact reunion and Workshop ship/star "
+		             "previews\n";
 		return 0;
 	}
 	catch (const std::exception &error)

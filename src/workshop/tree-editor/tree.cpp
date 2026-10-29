@@ -195,7 +195,7 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 			if (!state.contains(phase))
 				state[phase] = Json::array();
 			if (std::string(kind) == "action")
-				state[phase].push_back({{"action", ""}, {"arguments", Json::array()}, {"once", true}});
+				state[phase].push_back({{"action", ""}, {"arguments", Json::array()}, {"once", false}});
 			else if (std::string(kind) == "call")
 				state[phase].push_back({{"call", ""}, {"parameters", Json::object()}});
 			else if (std::string(kind) == "attempt")
@@ -225,7 +225,7 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 					text("Action palette awaits the production context vocabulary. Verification rejects "
 					     "unsupported names.");
 				}
-				boolean(task, "once", true);
+				boolean(task, "once", false);
 				const auto signature =
 				    action_signature(authoring_context(definition), task.at("action").get<std::string>());
 				if (signature.contains("arguments"))

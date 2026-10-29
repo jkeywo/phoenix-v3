@@ -738,6 +738,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		ImGui::SliderInt(tool_label("Preview complexity stars").c_str(), &layout_workspace.preview.sample_stars, 1, 3);
 		sample["_preview_header"] = layout_workspace.preview.header;
 		sample["_preview_stars"] = layout_workspace.preview.sample_stars;
+		sample["_preview_widget_context"] = layout_workspace.widget_context;
 		sample["_preview_state"] = states[layout_workspace.preview.sample_state];
 		sample["_preview_pages"] = layout_workspace.preview.pages;
 		sample["_preview_interact"] = layout_workspace.interact;

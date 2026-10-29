@@ -302,7 +302,8 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::string console_markup(std::string markup) const;
 
 public:
-	explicit State(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true);
+	explicit State(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true,
+	               Rml::RenderInterface *renderer = nullptr);
 
 	~State();
 

@@ -33,10 +33,10 @@ from accepted intent.
 | Complete responsibility/data inventory for maintained consoles           | Pending                                                                                                             |
 | Shared definitions, equipment roles, levels and per-star data resolution | Native and WASM Controller integration suites pass                                                                  |
 | Per-command admission and staged tree attempts                           | Native and WASM suites pass, including referenced continuation and rollback                                         |
-| Lifecycle, action/provider and specialised-command migration             | Partial; ordinary channel handover and continuation implemented                                                     |
+| Lifecycle, action/provider and specialised-command migration             | Partial; channel handover, partial-provider decisions and delegated Command stances implemented                     |
 | Instance host, split visual parts and main/detail presentation           | Native synthetic graphical journey passes for automated details, commands, star data placement and compact reunion  |
 | Consolidated gameplay widgets and rebuilt shipped consoles               | Pending                                                                                                             |
-| Workshop definition, binding, placement and preview editors              | Shared definition/instance editors, ship-context palette and export/reopen checks implemented; full preview pending |
+| Workshop definition, binding, placement and preview editors              | Shared definition/instance editors, ship-context rendering at each star and export/reopen checks implemented        |
 | Client distribution, schema break and removal of old paths               | Public widget presentation metadata distributed; save schema 33; old allocation/content paths still pending removal |
 
 The maintained schema-1 content and allocation paths remain during implementation.
@@ -53,7 +53,7 @@ migration; those counts are an audit observation, not a test baseline.
 
 The remaining authority work includes native medical, team assignment,
 transport, craft and logistics workload gates, officer/coordination actions,
-optional decision providers, encounter overrides and shared target propagation.
+encounter overrides and remaining native operation adapters.
 These must use the same per-command admission contract before removing the old
 allocation schema. Grouped equipment also needs per-member command expansion,
 rather than only the current common-command fan-out.
@@ -107,3 +107,36 @@ The native and WASM Controller traces match at
 `3965bd5877bf9991b5068c814456e2a39d69fbad6a3269552815bf48aa55fa8d`.
 This is synthetic UI input and semantic-list evidence; actual screen reader,
 physical-device and browser graphical journeys remain separate.
+
+## Follow-up code review
+
+The follow-up review closed these gaps in the shared-widget path:
+
+- Model snapshots, committed decisions and inference scheduling now allow the AI
+  part of an interactive widget. Operator generations still invalidate stale
+  model input. Command can select a stance for delegated widget commands while
+  human commands retain their allocation.
+- UI command admission and manual binding selection check the individual channel.
+  Widgets only collect explicitly allocated channel controls; opaque legacy
+  native controls cannot appear merely because their Controller identity matches.
+- State-tree guards read staged accepted/revision/consumed/request/pending facts,
+  alongside staged command values, during a single evaluation.
+- Each wide and compact layout is checked at every star for human command
+  access, main data and a Details entry point. Star conditions are considered;
+  an optional runtime capability cannot establish guaranteed access without a
+  fallback part.
+- Shared command consumers must use declared equipment roles. Instances cannot
+  override the shared policy, and widget levels cannot be mixed with legacy
+  allocation profiles or `individual_stars` command gates.
+- Workshop's ship/Console context now drives the rendered shared widgets and
+  responsibility/data mappings at each star. Sample control edits remain in the
+  isolated preview. The preview context uses its own renderer, preventing live
+  Console geometry from appearing in its offscreen capture. Its graphical
+  journey checks pointer input against the sample command state. Tree editing
+  uses the interpreter's `once: false` default.
+
+The native Controller suite covers these runtime and authoring refusals through
+production loading and execution. The graphical journey additionally renders
+Workshop previews at all three stars. This review does not establish the pending
+shipped-console migration, native operation adapters or final legacy-schema
+removal listed above.

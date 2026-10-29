@@ -145,7 +145,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	// snapshot without copying/serialising unchanged rows. Imports and loads invalidate assets.
 	static const Json empty = Json::array();
 	bool unchanged = ui_preview_ && ui_preview_manifest_ == pack_.manifest;
-	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities"})
+	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities", "trees"})
 	{
 		const auto row = definitions_.find(kind);
 		unchanged = unchanged && ui_preview_source_.at(kind) == (row == definitions_.end() ? empty : *row);
@@ -153,7 +153,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	if (unchanged)
 		return ui_preview_;
 	Json source = Json::object();
-	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities"})
+	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities", "trees"})
 		source[kind] = draft_rows(definitions_, kind);
 	Catalog preview;
 	preview.ui_theme = library_catalog_.ui_theme;
@@ -169,6 +169,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	preview.control_widgets =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::ControlWidget));
 	preview.entities = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Entity));
+	preview.trees = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Tree));
 	inherit_definitions(preview.layouts, "layouts");
 	inherit_definitions(preview.ui_groups, "ui_groups");
 	inherit_definitions(preview.themes, "themes");
