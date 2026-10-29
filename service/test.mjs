@@ -336,7 +336,7 @@ test(
 			fixtures.set(id, true);
 			return file;
 		};
-		const group = async (name, members, seconds, extra = {}) => {
+		const group = async (name, members, seconds, extra = {}, memberCompleted = () => {}) => {
 			const packs = new Map();
 			for (const member of members)
 				packs.set(member, await fixture(members, (extra[member] || []).includes("--mismatch")));
@@ -384,10 +384,12 @@ test(
 								output += bytes;
 							});
 							child.once("error", reject);
-							child.once("exit", (code) => {
+							child.once("close", (code) => {
 								try {
 									assert.equal(code, 0, output);
-									resolve(JSON.parse(readFileSync(file, "utf8")));
+									const result = JSON.parse(readFileSync(file, "utf8"));
+									memberCompleted(member, result);
+									resolve(result);
 								} catch (error) {
 									reject(error);
 								}
@@ -442,8 +444,26 @@ test(
 				assert.equal(result.ticks, 0, "Different initial content cannot pass the unanimous start barrier");
 				assert.equal(result.finished, false);
 			}
-			const existing = group("missing-journal", ["a", "b", "c"], 12, { c: ["--seconds", "4"] });
-			await new Promise((resolve) => setTimeout(resolve, 6000));
+			const stopped = Promise.withResolvers();
+			const existing = group(
+				"missing-journal",
+				["a", "b", "c"],
+				12,
+				{ c: ["--seconds", "4"] },
+				(member, result) => {
+					if (member === "c") stopped.resolve(result);
+				},
+			);
+			// Fixture preparation and process startup are prerequisites, not part of
+			// an assumed delay. The test timeout bounds a peer that never completes.
+			const original = await Promise.race([
+				stopped.promise,
+				existing.then(() => {
+					throw new Error("Original peer c did not report completion");
+				}),
+			]);
+			assert.ok(original.commit > 0, "Original peer must establish committed durable identity");
+			assert.ok(readFileSync(join(directory, "missing-journal", "c.journal")).length > 0);
 			const refused = await new Promise((resolve, reject) => {
 				const child = spawn(
 					process.env.PHOENIX_FLEET_PROBE,
