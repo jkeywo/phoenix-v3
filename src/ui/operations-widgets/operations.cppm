@@ -15,9 +15,9 @@ export namespace phoenix
 {
 struct WidgetPanel
 {
+	// Readout text uses the existing DOM updater; markup contains empty placeholders.
 	std::string markup;
 	std::vector<std::pair<std::string, std::string>> readouts;
-	std::string structure() const;
 };
 struct OperationsWidgetContext
 {

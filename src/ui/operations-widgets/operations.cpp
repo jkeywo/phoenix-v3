@@ -15,20 +15,6 @@ import phoenix.ui.rml;
 import phoenix.console_controls;
 namespace phoenix
 {
-std::string WidgetPanel::structure() const
-{
-	auto result = markup;
-	for (const auto &[key, text] : readouts)
-	{
-		const auto start = result.find("id=\"" + key + "\"");
-		if (start == std::string::npos)
-			continue;
-		const auto content = result.find('>', start), end = result.find("</", content);
-		if (end != std::string::npos)
-			result.erase(content + 1, end - content - 1);
-	}
-	return result;
-}
 bool OperationsWidgetContext::owns(const std::string &operation, const std::string &equipment) const
 {
 	if (operations && !operations->contains(operation))
@@ -242,7 +228,7 @@ std::string OperationsWidgets::State::personnel_markup(const OperationsWidgetCon
 	{
 		const auto key = context.id("personnel/readout/" + identity);
 		personnel_readouts_.emplace_back(key, text);
-		return "<p id=\"" + key + "\">" + esc(text) + "</p>";
+		return "<p id=\"" + key + "\"></p>";
 	};
 	std::string html = "<h2>" + esc(localise("Personnel")) + "</h2><p>" +
 	                   esc(localise("Select an officer, then a duty. Bonuses begin on arrival.")) + "</p>";
@@ -380,7 +366,7 @@ std::string OperationsWidgets::State::away_markup(const OperationsWidgetContext 
 	{
 		const auto key = context.id("away/readout/" + std::to_string(away_readouts_.size()));
 		away_readouts_.emplace_back(key, s);
-		return "<p id=\"" + key + "\">" + esc(s) + "</p>";
+		return "<p id=\"" + key + "\"></p>";
 	};
 	std::string html = "<h2>" + esc(localise("Away missions")) + "</h2>" + line(localise(away_notice_));
 	const auto missions = context.board("away_missions");
@@ -518,7 +504,7 @@ std::string OperationsWidgets::State::craft_markup(const OperationsWidgetContext
 	{
 		const auto key = context.id("craft/readout/" + std::to_string(craft_readouts_.size()));
 		craft_readouts_.emplace_back(key, s);
-		return "<p id=\"" + key + "\">" + esc(s) + "</p>";
+		return "<p id=\"" + key + "\"></p>";
 	};
 	std::string html = "<h2>" + esc(localise("Flight operations")) + "</h2>" + line(localise(craft_notice_));
 	const auto rows = context.board("craft");
@@ -593,7 +579,7 @@ std::string OperationsWidgets::State::supply_line(const OperationsWidgetContext 
 {
 	const auto key = context.id(context.component + "/supply/readout/" + std::to_string(supply_readouts_.size()));
 	supply_readouts_.emplace_back(key, text);
-	return "<p id=\"" + key + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
+	return "<p id=\"" + key + "\"></p>";
 }
 std::string OperationsWidgets::State::supply_button(const OperationsWidgetContext &context, const std::string &kind,
                                                     const std::string &action, const std::string &system,

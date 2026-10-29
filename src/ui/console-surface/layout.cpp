@@ -283,7 +283,7 @@ void ConsoleSurface::State::prepare_station_components(const ConsoleRegion &regi
 		std::string markup;
 		std::vector<std::pair<std::string, std::string>> readouts;
 		const auto panel_view = operations_.render(component, operations_context());
-		markup = panel_view.structure();
+		markup = panel_view.markup;
 		readouts = panel_view.readouts;
 		station_component_scope_.clear();
 		auto *panel = authored_component(component);

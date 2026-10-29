@@ -385,3 +385,35 @@ Review verification (fresh results for this follow-up):
 This review's logs use the `build/widget-review-*` prefix. The initial native
 suite exposed the Workshop crash; the final receipt is
 `build/widget-review-native-final-ctest.log` (49/49, 195.67 seconds).
+
+## Rendering simplification review (29 October 2026)
+
+The follow-up maintainability review removed three duplicate presentation paths:
+
+- Native workflow renderers now emit empty readout placeholders directly.
+  `WidgetPanel::structure` previously reparsed their generated markup to remove
+  text which the existing DOM updater immediately restored. Hosts now consume
+  the markup and readouts directly, as the Teams and Objectives renderers
+  already did. Dynamic telemetry continues to leave control structure intact.
+- Power-detail popups use the same range markup and synchronisation as ordinary
+  power controls and logical widget ranges. This also shares pending-value
+  acknowledgement/expiry handling and associates the visible label with its input.
+- The widget presentation model uses the Controller's published `human` flag for
+  its automated status, rather than deriving that flag again from every command
+  and native operation. Live projections and Workshop previews already publish it.
+
+The review retained equipment and part scope filtering because it selects which
+permitted records a widget presents; command admission remains in ConsoleModel
+and the authoritative runtime. Policy expansion remains authoring compilation
+into ordinary state trees, and command staging remains the evaluator's required
+transaction for refusal/fallback. None needs a second execution framework.
+
+Verification for this simplification: native application and build check pass;
+browser client, Workshop and server builds pass. Native and WASM Controller
+integrations pass with matching continuation traces. The explicitly invoked
+shared-widget GUI journey passes, including live native readout changes,
+independent widget browsing, slider input, Main/Details, compact reunion and
+Workshop previews. The three-star capture was visually inspected and shows
+independent transfer quantities updating correctly. Formatting and diff checks
+pass. Logs use `build/widget-simplify-*`. This presentation-only cleanup removes
+35 lines of code overall; gameplay, complexity, content and protocols are unchanged.

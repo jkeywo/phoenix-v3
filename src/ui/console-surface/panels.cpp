@@ -305,7 +305,7 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 				return "<button id=\"" + esc(key) + "\" class=\"task-button\">" + esc(label) + "</button>";
 			};
 			const auto native = operations_.render(renderer, std::move(context));
-			markup += native.structure();
+			markup += native.markup;
 			readouts.insert(readouts.end(), native.readouts.begin(), native.readouts.end());
 		}
 		if ((complete || part_bindings.value("details", false)) &&
@@ -538,13 +538,9 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 			setting.id = "power/detail/" + setting.controller + "/" + setting.channel;
 			if (!detail_settings.insert(setting.id).second)
 				continue;
-			power_controls_[setting.id] = setting;
 			popup_power.push_back(setting);
-			markup += "<label>" +
-			          esc(localise(engineering_name(setting.subject)) + " — " +
-			              localise(setting.coolant ? "Coolant" : "Power")) +
-			          "</label><input type=\"range\" id=\"" + esc(id(setting.id)) +
-			          "\" min=\"0\" max=\"100\" step=\"0.1\" value=\"0\"/>";
+			markup += controller_range_markup(setting, localise(engineering_name(setting.subject)) + " — " +
+			                                               localise(setting.coolant ? "Coolant" : "Power"));
 		}
 		markup += "</div>" + add("systems-close", localise("Close"));
 	}
@@ -755,22 +751,8 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 	}
 	syncing_values_ = true;
 	for (const auto &setting : popup_power)
-	{
-		auto value = setting.value;
-		if (auto pending = power_pending_.find(setting.id);
-		    pending != power_pending_.end() && app_->session->ticks() < pending->second.until)
-			value = pending->second.value;
-		const auto percent = std::to_string(
-		    std::clamp(100.0 * (value - setting.minimum) / std::max<std::int64_t>(1, setting.maximum - setting.minimum),
-		               0.0, 100.0));
-		if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id(setting.id))))
-			if (field->GetValue() != percent)
-				field->SetValue(percent);
-		app_->screen_inputs.push_back({id(setting.id),
-		                               localise(engineering_name(setting.subject)) + " " +
-		                                   localise(setting.coolant ? "Coolant (%)" : "Power (%)"),
-		                               percent, true});
-	}
+		sync_controller_range(setting, localise(engineering_name(setting.subject)) + " " +
+		                                   localise(setting.coolant ? "Coolant (%)" : "Power (%)"));
 	syncing_values_ = false;
 	for (const auto &[name, text] : popup_readouts)
 	{
@@ -1387,7 +1369,7 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 		else if (component == "objectives")
 		{
 			const auto panel = operations_.render("objectives", operations_context());
-			markup = panel.structure();
+			markup = panel.markup;
 			readouts = panel.readouts;
 		}
 		else if (component == "team-roster" || component == "compartment-health")
