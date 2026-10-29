@@ -1622,7 +1622,9 @@ public:
 		}
 		return backend_ && backend_->session_action(id);
 	}
-	void poll() override
+
+private:
+	void poll_client_acquisition()
 	{
 		if (client_cache_)
 		{
@@ -1674,7 +1676,9 @@ public:
 				if (bytes->empty() || !accept_client(*bytes))
 					options_.unavailable_client = configuration_.at("client");
 			}
-
+	}
+	void poll_inference_attachment()
+	{
 		if (inference_ && role_ == JoinRole::ship_server)
 		{
 			if (backend_)
@@ -1691,7 +1695,148 @@ public:
 			else
 				inference_->poll();
 		}
+	}
+	void poll_transport()
+	{
+		if (transport_)
+		{
+			for (const auto &event : transport_->poll())
+			{
+				if (event.kind == LinkEvent::packet)
+				{
+					try
+					{
+						if (coordinator_)
+							host_packet(event.peer, event.data);
+						else if (event.peer == target_)
+							client_packet(event.data);
+					}
+					catch (const std::exception &e)
+					{
+						error_ = e.what();
+					}
+				}
+				else if (event.kind == LinkEvent::error)
+					error_ = event.data;
+			}
+		}
+	}
+	void advance_client_transfers()
+	{
+		if (!coordinator_)
+		{
+			if (!welcomed_ && now_ - last_hello_ >= 500)
+				hello();
+			if (welcomed_)
+			{
+				if (now_ - last_broadcast_ >= 500)
+				{
+					send(target_, "heartbeat", Json::object());
+					last_broadcast_ = now_;
+				}
+				if (packs_transfer_ && !packs_transfer_->ready())
+					for (const auto &r : packs_transfer_->requests(now_))
+						send(target_, "pack-request", r);
+				if (setup_transfer_ && !setup_transfer_->ready())
+					for (const auto &r : setup_transfer_->requests(now_))
+						send(target_, "setup-request", r);
+				if (setup_transfer_ && setup_transfer_->ready() && !setup_ack_ &&
+				    configuration_.value("revision", std::uint64_t{0}) == setup_transfer_->sequence())
+				{
+					services_.read(setup_transfer_->archive(), self_);
+					bundle_ = setup_transfer_->archive();
+					setup_ack_ = true;
+				}
+				if (setup_ack_ && !backend_ && now_ - last_setup_ack_ >= 500)
+				{
+					send(target_, "setup-verified",
+					     {{"revision", setup_transfer_->sequence()}, {"hash", sha256(bundle_)}});
+					last_setup_ack_ = now_;
+				}
+			}
+		}
+	}
+	void advance_coordinator_readiness()
+	{
+		if (coordinator_ && active_)
+		{
+			for (auto &[id, peer] : peers_)
+				if (id != self_ && peer.member.connected && now_ - peer.seen > 4000)
+				{
+					peer.member.connected = false;
+					peer.member.ready = false;
+					countdown_.reset();
+					launch_pending_ = 0;
+				}
+			if (!launched_ && !launch_pending_)
+			{
+				if (all_ready())
+				{
+					if (!countdown_)
+						countdown_ = now_;
+					if (now_ - *countdown_ >= 5000)
+					{
+						countdown_.reset();
+						launch_pending_ = 1;
+					}
+				}
+				else
+					countdown_.reset();
+			}
+			if (now_ - last_broadcast_ >= 200)
+			{
+				broadcast();
+				last_broadcast_ = now_;
+			}
+		}
+	}
+	void commit_pending_launch()
+	{
+		// Consume readiness/disconnect packets before committing a deferred launch.
+		if (launch_pending_ && launch_pending_ < 3)
+			++launch_pending_;
+		else if (launch_pending_ == 3 && !client_preparing_)
+		{
+			launch_pending_ = 0;
+			if (!coordinator_ || all_ready())
+			{
+				launch_local();
+				launched_ = true;
+			}
+		}
+	}
+	void poll_backend_claims()
+	{
+		if (backend_)
+		{
+			for (const auto &[route, selected] : local_consoles_)
+				if (!backend_->console_observation(route))
+					for (const auto &seat : backend_->console_seats())
+						if (seat.address.console == selected.console && seat.available)
+							backend_->claim_console(route, seat.address);
+			const auto active_config = coordinator_ ? config_for(self_) : configuration_;
+			if (role_ == JoinRole::ship_server && active_config.contains("tickets"))
+				for (const auto &[id, ticket] : active_config.at("tickets").items())
+					backend_->authorise_lobby_member(id, {ticket.at("key"), read_join_role(ticket.at("role"))});
+			backend_->poll();
+			if (!local_claimed_)
+			{
+				const auto config = coordinator_ ? config_for(self_) : configuration_;
+				const std::string console = config.at("console");
+				for (const auto &seat : backend_->console_seats())
+					if (seat.address.console == console && seat.available)
+						if (backend_->claim_console(1, seat.address))
+							break;
+				local_claimed_ = backend_->observation().has_value();
+			}
+		}
+	}
 
+public:
+	void poll() override
+	{
+		poll_client_acquisition();
+		poll_inference_attachment();
 		const auto current = std::chrono::steady_clock::now();
 		now_ += std::chrono::duration_cast<std::chrono::milliseconds>(current - previous_).count();
 		previous_ = current;
@@ -1704,126 +1849,12 @@ public:
 				prepare_pending_ = 0;
 				prepare_bundle();
 			}
-			if (transport_)
-			{
-				for (const auto &event : transport_->poll())
-				{
-					if (event.kind == LinkEvent::packet)
-					{
-						try
-						{
-							if (coordinator_)
-								host_packet(event.peer, event.data);
-							else if (event.peer == target_)
-								client_packet(event.data);
-						}
-						catch (const std::exception &e)
-						{
-							error_ = e.what();
-						}
-					}
-					else if (event.kind == LinkEvent::error)
-						error_ = event.data;
-				}
-			}
-			if (!coordinator_)
-			{
-				if (!welcomed_ && now_ - last_hello_ >= 500)
-					hello();
-				if (welcomed_)
-				{
-					if (now_ - last_broadcast_ >= 500)
-					{
-						send(target_, "heartbeat", Json::object());
-						last_broadcast_ = now_;
-					}
-					if (packs_transfer_ && !packs_transfer_->ready())
-						for (const auto &r : packs_transfer_->requests(now_))
-							send(target_, "pack-request", r);
-					if (setup_transfer_ && !setup_transfer_->ready())
-						for (const auto &r : setup_transfer_->requests(now_))
-							send(target_, "setup-request", r);
-					if (setup_transfer_ && setup_transfer_->ready() && !setup_ack_ &&
-					    configuration_.value("revision", std::uint64_t{0}) == setup_transfer_->sequence())
-					{
-						services_.read(setup_transfer_->archive(), self_);
-						bundle_ = setup_transfer_->archive();
-						setup_ack_ = true;
-					}
-					if (setup_ack_ && !backend_ && now_ - last_setup_ack_ >= 500)
-					{
-						send(target_, "setup-verified",
-						     {{"revision", setup_transfer_->sequence()}, {"hash", sha256(bundle_)}});
-						last_setup_ack_ = now_;
-					}
-				}
-			}
-			else if (active_)
-			{
-				for (auto &[id, peer] : peers_)
-					if (id != self_ && peer.member.connected && now_ - peer.seen > 4000)
-					{
-						peer.member.connected = false;
-						peer.member.ready = false;
-						countdown_.reset();
-						launch_pending_ = 0;
-					}
-				if (!launched_ && !launch_pending_)
-				{
-					if (all_ready())
-					{
-						if (!countdown_)
-							countdown_ = now_;
-						if (now_ - *countdown_ >= 5000)
-						{
-							countdown_.reset();
-							launch_pending_ = 1;
-						}
-					}
-					else
-						countdown_.reset();
-				}
-				if (now_ - last_broadcast_ >= 200)
-				{
-					broadcast();
-					last_broadcast_ = now_;
-				}
-			}
-			// Consume readiness/disconnect packets before committing a deferred launch.
-			if (launch_pending_ && launch_pending_ < 3)
-				++launch_pending_;
-			else if (launch_pending_ == 3 && !client_preparing_)
-			{
-				launch_pending_ = 0;
-				if (!coordinator_ || all_ready())
-				{
-					launch_local();
-					launched_ = true;
-				}
-			}
-			if (backend_)
-			{
-				for (const auto &[route, selected] : local_consoles_)
-					if (!backend_->console_observation(route))
-						for (const auto &seat : backend_->console_seats())
-							if (seat.address.console == selected.console && seat.available)
-								backend_->claim_console(route, seat.address);
-				const auto active_config = coordinator_ ? config_for(self_) : configuration_;
-				if (role_ == JoinRole::ship_server && active_config.contains("tickets"))
-					for (const auto &[id, ticket] : active_config.at("tickets").items())
-						backend_->authorise_lobby_member(id, {ticket.at("key"), read_join_role(ticket.at("role"))});
-				backend_->poll();
-				if (!local_claimed_)
-				{
-					const auto config = coordinator_ ? config_for(self_) : configuration_;
-					const std::string console = config.at("console");
-					for (const auto &seat : backend_->console_seats())
-						if (seat.address.console == console && seat.available)
-							if (backend_->claim_console(1, seat.address))
-								break;
-					local_claimed_ = backend_->observation().has_value();
-				}
-			}
+			poll_transport();
+			advance_client_transfers();
+			advance_coordinator_readiness();
+			// Readiness and disconnects above must precede launch commitment.
+			commit_pending_launch();
+			poll_backend_claims();
 		}
 		catch (const std::exception &e)
 		{
