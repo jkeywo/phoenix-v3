@@ -45,10 +45,18 @@ class PreviewSession final : public SessionPort
 		if (split == std::string::npos || !authoring_identity_->entities.contains(context.substr(0, split)))
 			throw std::runtime_error("Select a valid widget ship and Console context");
 		const auto &ship = authoring_identity_->entities.at(context.substr(0, split));
+		const auto instances = ship.value("control_layout", Json::object()).value("controllers", Json::array());
+		if (std::none_of(instances.begin(), instances.end(),
+		                 [&](const auto &instance)
+		                 {
+			                 return instance.value("console", std::string{}) == context.substr(split + 1) &&
+			                        instance.contains("widget");
+		                 }))
+			return;
 		view_.systems.clear();
 		view_.gameplay["controllers"] = Json::array();
 		view_.gameplay["controls"] = Json::array();
-		for (const auto &instance : ship.value("control_layout", Json::object()).value("controllers", Json::array()))
+		for (const auto &instance : instances)
 		{
 			if (instance.value("console", std::string{}) != context.substr(split + 1) || !instance.contains("widget"))
 				continue;
