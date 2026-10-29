@@ -490,6 +490,35 @@ inline void control_widget_cases()
 		                "control/propulsion/complete",
 		        "one logical widget has split wide parts and a reunited compact presentation");
 		{
+			auto invalid = placed;
+			invalid["control_widgets"][0]["part_bindings"]["right"]["values"]["speed"] = {18000};
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "part value exceeds bound command");
+			invalid = placed;
+			invalid["control_widgets"][0]["commands"][1]["choices"] =
+			    Json::array({{{"value", 0}, {"label_key", "Off"}}, {{"value", 1}, {"label_key", "On"}}});
+			invalid["control_widgets"][0]["commands"][1]["maximum"] = 2;
+			invalid["control_widgets"][0]["part_bindings"]["left"]["values"]["choice"] = {2};
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "part value exceeds bound command");
+			invalid = placed;
+			invalid["control_widgets"][0]["data"]["choice"]["label"] = "";
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "localisable label");
+		}
+		{
 			auto conditional = placed;
 			conditional["consoles"].back()["layout"]["root"]["children"][1]["when"] = {{"min_stars", 3}};
 			(void)load(conditional);

@@ -25,10 +25,11 @@ source["control_widgets"] = [{
     "id": "test.drive", "schema": 1, "label": "Propulsion",
     "equipment": {"engine": {}},
     "commands": [{"id": "speed", "action": "speed_mm_s", "initial": 3000, "label_key": "Speed", "consumers": ["$engine"]},
-                 {"id": "trim", "action": "intent_integer", "initial": 4, "minimum": 0, "maximum": 10, "consumers": []}],
+                 {"id": "trim", "action": "intent_integer", "initial": 4, "minimum": 0, "maximum": 10, "consumers": []},
+                 {"id": "enabled", "action": "engine_enabled", "initial": 1, "consumers": ["$engine"]}],
     "operations": {"logistics": ["$engine"]},
-    "levels": [{"id": "automated", "human": []}, {"id": "direct", "human": ["speed", "trim"]},
-               {"id": "detailed", "human": ["speed", "trim", "logistics"]}],
+    "levels": [{"id": "automated", "human": []}, {"id": "direct", "human": ["speed", "trim", "enabled"]},
+               {"id": "detailed", "human": ["speed", "trim", "enabled", "logistics"]}],
     "data": {
         "requested": {"label": "Requested speed", "binding": "command.speed", "placement": "main"},
         "actual": {"label": "Maximum speed", "binding": "system.engine.maximum", "placement": "details"},
@@ -36,7 +37,8 @@ source["control_widgets"] = [{
     "parts": ["readout", "controls"],
     "part_bindings": {
         "readout": {"data": ["requested", "actual"], "details": True},
-        "controls": {"commands": ["speed", "trim"], "ranges": ["trim"], "operations": ["logistics"], "renderer": "operations"},
+        "controls": {"commands": ["speed", "trim", "enabled"], "ranges": ["trim"], "values": {"enabled": [True]},
+                     "operations": ["logistics"], "renderer": "operations"},
     },
 }]
 source["control_widgets"].append({

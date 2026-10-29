@@ -13,6 +13,7 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 	    c.request_id >= 9007199254740991ULL || c.generation != coordinated_generation(a, c.system))
 		return false;
 	const auto &controls = entities.at(a.ship).get<EntityControls>();
+	const auto checks = controller_command_checks(a.ship);
 	std::vector<ControllerProposal> proposals;
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
 	{
@@ -22,25 +23,26 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 		for (std::size_t j = 0; j < controller.commands.size(); ++j)
 		{
 			const auto &spec = controller.definition.commands[j];
-			const auto &state = controller.commands[j];
 			if (spec.coordinated_group.empty() || spec.coordinated_group != c.system)
 				continue;
 			if (!controller_operation_human(controller, "coordinated_impulse") ||
 			    !controller_operation_owns(controller, "coordinated_impulse",
-			                               definition(a.ship).fitted->values.at(spec.consumers.front()).id) ||
-			    spec.action != OperatingAction::Impulse || c.request_id < state.request_id ||
-			    (c.request_id == state.request_id && c.value != state.value) ||
-			    (state.request_id && state.consumed < state.revision && c.request_id != state.request_id))
+			                               definition(a.ship).fitted->values.at(spec.consumers.front()).id))
 				return false;
-			proposals.push_back({{a.ship, a.console, controller.definition.id},
-			                     i,
-			                     j,
-			                     c.value,
-			                     controller.generation,
-			                     c.request_id,
-			                     true,
-			                     {},
-			                     "coordinated_impulse"});
+			ControllerProposal proposal{{a.ship, a.console, controller.definition.id},
+			                            i,
+			                            j,
+			                            c.value,
+			                            controller.generation,
+			                            c.request_id,
+			                            true,
+			                            {},
+			                            "coordinated_impulse"};
+			auto staged = controller.commands;
+			if (attempt_controller_command(controller, staged, proposal, checks).outcome ==
+			    state_tree::CommandOutcome::Refused)
+				return false;
+			proposals.push_back(std::move(proposal));
 		}
 	}
 	if (proposals.empty())

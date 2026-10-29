@@ -73,6 +73,30 @@ void control_layout_targets(const Catalog &catalog, Json node, std::set<std::str
 	for (const auto &child : node.value("children", Json::array()))
 		control_layout_targets(catalog, child, targets, stars, depth + 1);
 }
+void verify_widget_part_values(const Catalog &catalog, const ConsoleControllerSpec &controller, const std::string &path)
+{
+	const auto bindings = catalog.control_widgets.at(controller.widget).value("part_bindings", Json::object());
+	for (const auto &[part, binding] : bindings.items())
+	{
+		const auto filters = binding.value("values", Json::object());
+		for (const auto &[channel, options] : filters.items())
+		{
+			const auto command = std::find_if(controller.commands.begin(), controller.commands.end(),
+			                                  [&](const auto &field)
+			                                  {
+				                                  return field.id == channel;
+			                                  });
+			control_require(command != controller.commands.end(), path, "unbound part command " + channel);
+			for (const auto &option : options)
+			{
+				const auto value = option.is_boolean() ? std::int64_t(option.get<bool>()) : option.get<std::int64_t>();
+				control_require(value >= command->minimum && value <= command->maximum &&
+				                    (command->choices.empty() || command->choices.contains(value)),
+				                path + "." + part, "part value exceeds bound command " + channel);
+			}
+		}
+	}
+}
 void verify_widget_part_coverage(const Catalog &catalog, const ConsoleControllerSpec &controller,
                                  const std::set<std::string> &parts, int stars, const std::string &path)
 {
@@ -641,6 +665,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		if (row.contains("widget"))
 		{
 			controller.widget = row.at("widget").get<std::string>();
+			verify_widget_part_values(catalog, controller, where);
 			for (const auto &[role, specification] : widget->equipment.items())
 			{
 				const auto &binding = row.at("equipment").at(role);

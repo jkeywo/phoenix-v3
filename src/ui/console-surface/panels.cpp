@@ -199,8 +199,14 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			                                  : !includes("commands", channel) || range_channels.contains(channel))
 				continue;
 			const auto values = part_bindings.value("values", Json::object());
-			if (values.contains(channel) && std::find(values.at(channel).begin(), values.at(channel).end(),
-			                                          control.at("value")) == values.at(channel).end())
+			if (values.contains(channel) && std::none_of(values.at(channel).begin(), values.at(channel).end(),
+			                                             [&](const auto &option)
+			                                             {
+				                                             return option.is_boolean()
+				                                                        ? control.at("value") ==
+				                                                              std::int64_t(option.template get<bool>())
+				                                                        : option == control.at("value");
+			                                             }))
 				continue;
 			const auto command = owner->second + descriptor_action(control.at("id").get<std::string>());
 			const auto action = "task/" + target + "/" + descriptor_action(control.at("id").get<std::string>());

@@ -90,7 +90,8 @@ Named data uses `command.channel`, `system.role.field`, `weapon.role.field`,
 `team.role.field`, `ftl.role.field`, `shield.role.field`, or a scalar
 `board:/json/pointer` into the permitted gameplay projection. Main/Details/Hidden
 placement resolves from definition, level, then instance per-star override,
-independently of control allocation. Required state indicators remain on Main.
+independently of control allocation. Each datum needs a nonempty localisable label
+of at most 256 bytes. Required state indicators remain on Main.
 PDC definitions can put battery and ammunition on Main; missile definitions can
 put actual loaded resource and quantity there. Visibility grants no extra evidence.
 
@@ -98,7 +99,10 @@ Named `part_bindings` divide commands, native operations and data between visual
 parts while retaining the same state, generation and browsing context. They may
 reuse an existing native `renderer`, declare setting `ranges`, filter button
 `values`, and expose one shared Details entry. Lateral left/right parts can occupy
-the radar gaps and reunite as `complete` in a compact layout.
+the radar gaps and reunite as `complete` in a compact layout. Button filters must
+fit the bound Controller command, including fitted equipment limits and declared
+choices. Boolean filters match the numeric command envelope (`false` = 0, `true` =
+1); integers must fit signed 64-bit command values.
 
 ## Physical motion and initial heading
 

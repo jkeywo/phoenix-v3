@@ -78,4 +78,23 @@ void coordinated_impulse_cases()
 	world.tick();
 	resumed.tick();
 	require(world.save() == resumed.save(), "A repeated group request neither replays nor diverges across recovery");
+	{
+		auto limited = source;
+		for (auto &controller : limited["entities"][0]["control_layout"]["controllers"])
+			if (controller.at("id") == "paired.impulse-two")
+				controller["commands"][0]["maximum"] = 0;
+		World bounded;
+		bounded.load(load(limited), "test.map");
+		claim(bounded);
+		bounded.tick();
+		OperatingCommand launch;
+		const auto bounded_view = bounded.observe(101);
+		for (const auto &control : bounded_view->gameplay.at("controls"))
+			if (control.at("action") == "flight.impulse" && control.at("value") == 1)
+				launch = decode_operating_command(control);
+		const auto before = bounded.save();
+		require(launch.request_id && !bounded.can_submit(101, launch) && !bounded.submit(101, launch),
+		        "Coordinated launch preflights every participant's authored command bounds");
+		require(bounded.save() == before, "Refused group launch cannot stage a request on an earlier participant");
+	}
 }

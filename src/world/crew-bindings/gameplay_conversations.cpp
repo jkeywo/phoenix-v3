@@ -19,13 +19,16 @@ auto Runtime::comms_owner(EntityId id) const -> std::optional<ConsoleAddress>
 {
 	if (!entities.contains(id))
 		return {};
-	if (definition(id).layout)
-		for (const auto &controller : definition(id).layout->controllers)
+	const auto &ship = definition(id);
+	if (!ship.fitted)
+		return {};
+	if (ship.layout)
+		for (const auto &controller : ship.layout->controllers)
 			if (comms_controller(id, controller))
 				return ConsoleAddress{id, controller.console};
-	for (const auto &s : definition(id).consoles)
+	for (const auto &s : ship.consoles)
 		for (const auto &name : s.controlled_systems)
-			for (const auto &fit : definition(id).fitted->values)
+			for (const auto &fit : ship.fitted->values)
 				if (fit.id == name && fit.kind == OperatingSystem::Comms)
 					return ConsoleAddress{id, s.id};
 	return {};

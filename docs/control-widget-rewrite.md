@@ -339,3 +339,49 @@ acknowledging it. Entry actions do not replay merely because the operator change
 Environmental actors without equipment or player Consoles keep no invented widget
 layout. Actor creation, ticking and restoration support that empty equipment path;
 a synthetic lifecycle case protects it alongside the real-ship graphical journey.
+
+## Follow-up code review (29 October 2026)
+
+The review checked shared-widget compilation, fitted equipment binding, per-star
+ownership and presentation, split parts, staged tree command admission, and native
+operation routing against this contract. It found and closed these gaps:
+
+- Coordinated impulse repeated only some of the common command checks. A group
+  could pass its preliminary admission despite one member's authored bounds,
+  then fail after an earlier member had committed. Each proposal now passes the
+  ordinary admission function against copied state before any member commits.
+  Native-operation ownership and equipment scope remain explicit.
+- Split-part button filters could name values outside the fitted command range
+  or declared choices. Compilation now rejects those values, including unsigned
+  values that cannot fit the signed command envelope.
+- Boolean button filters were accepted by the compiler but compared directly
+  with numeric command envelopes. Rendering now matches false/true to 0/1.
+- Named datum labels could be empty. Compilation now requires a nonempty,
+  bounded localisable label for each datum.
+- The broader native gate exposed an intermittent Workshop crash for actors
+  without fitted equipment. Communications ownership dereferenced their absent
+  fitting definition. Such actors now correctly have no communications owner.
+  The existing disposable-World integration reproduces the affected lifecycle.
+
+Regression cases use the production loader and admission paths; the graphical
+journey exercises actual shared-widget rendering. The range-filter, boolean-filter
+and group-admission regressions failed before their fixes, and the broader gate
+reproduced the Workshop crash. No star responsibility, gameplay rule, physical
+tuning, save schema or command protocol changed.
+
+Review verification (fresh results for this follow-up):
+
+- Native application build and module-boundary check pass; the complete native
+  integration suite passes 49/49 after the communications fix. The affected
+  Workshop integration also passes 100 consecutive native runs.
+- Browser client, Workshop and server builds pass. Affected WASM Controller,
+  flight, content, Workshop and conversation integrations pass; Controller
+  continuation matches the fresh native run.
+- Base, test, test-3d and base plus Test Missions pass pack verification.
+- The explicitly invoked native GUI journey passes, including filtered buttons,
+  Main/Details, command admission, ranges, split parts, compact reunion and
+  Workshop previews. Formatting and diff checks pass.
+
+This review's logs use the `build/widget-review-*` prefix. The initial native
+suite exposed the Workshop crash; the final receipt is
+`build/widget-review-native-final-ctest.log` (49/49, 195.67 seconds).

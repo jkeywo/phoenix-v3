@@ -12,6 +12,7 @@ import phoenix.navigation;
 import phoenix.presentation;
 import phoenix.session.local;
 import phoenix.console;
+import phoenix.console_controls;
 import phoenix.content.documents;
 import phoenix.ui.preview;
 using namespace phoenix;
@@ -110,11 +111,28 @@ int main(int argc, char **argv)
 		require(app.session->command({1, "preset", 1, {}}), "select two-star responsibility");
 		app.session->tick();
 		frames();
-		const auto control = std::find_if(app.screen_controls.begin(), app.screen_controls.end(),
+		const auto controls = app.screen_controls;
+		const auto control = std::find_if(controls.begin(), controls.end(),
 		                                  [](const auto &row)
 		                                  {
-			                                  return row.first.starts_with("console/1/task/control/");
+			                                  return row.first.starts_with("console/1/task/control/") &&
+			                                         row.second.starts_with("Speed ");
 		                                  });
+		const auto permitted = app.session->observation();
+		for (const auto &descriptor : permitted->gameplay.at("controls"))
+			if (descriptor.value("channel", std::string{}) == "enabled")
+			{
+				const auto label = console_control_label(descriptor);
+				const bool rendered =
+				    std::any_of(controls.begin(), controls.end(),
+				                [&](const auto &row)
+				                {
+					                return row.first.starts_with("console/1/task/control/propulsion/controls/") &&
+					                       row.second == label;
+				                });
+				require(rendered == (descriptor.at("value") == 1),
+				        "Boolean part filter renders its matching numeric command and excludes the opposite control");
+			}
 		require(native_controls() == 0, "human flight commands do not expose delegated native workflow controls");
 		const auto range = "console/1/power/widget/control/propulsion/controls/trim";
 		require(std::any_of(app.screen_inputs.begin(), app.screen_inputs.end(),
@@ -129,13 +147,13 @@ int main(int argc, char **argv)
 		require(app.session->observation()->gameplay.at("controllers")[0].at("commands").at("trim").at("value") == 7,
 		        "widget slider changes its actual Controller setting");
 		TakeScreenshot("build/control-widget-two-star.png");
-		if (control == app.screen_controls.end())
+		if (control == controls.end())
 		{
 			std::cerr << app.session->observation()->gameplay.at("controllers").dump() << '\n';
 			for (const auto &[id, label] : app.screen_controls)
 				std::cerr << id << ": " << label << '\n';
 		}
-		require(control != app.screen_controls.end(), "interactive named part exposes admitted command controls");
+		require(control != controls.end(), "interactive named part exposes admitted command controls");
 		ConsoleModel labels;
 		labels.refresh(app.session);
 		const auto ordinary = labels.gameplay_controls();

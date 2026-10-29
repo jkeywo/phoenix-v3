@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -210,12 +211,13 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	for (const auto &[item, specification] : result.data.items())
 	{
 		(void)widget_name(Json(item), id + ".data");
-		widget_require(specification.is_object() && specification.contains("binding") &&
-		                   specification.at("binding").is_string() &&
-		                   !specification.at("binding").get<std::string>().empty() &&
-		                   specification.at("binding").get<std::string>().size() <= 256 &&
-		                   specification.contains("label") && specification.at("label").is_string(),
-		               id + ".data." + item, "data item needs a bounded binding and localisable label");
+		widget_require(
+		    specification.is_object() && specification.contains("binding") && specification.at("binding").is_string() &&
+		        !specification.at("binding").get<std::string>().empty() &&
+		        specification.at("binding").get<std::string>().size() <= 256 && specification.contains("label") &&
+		        specification.at("label").is_string() && !specification.at("label").get<std::string>().empty() &&
+		        specification.at("label").get<std::string>().size() <= 256,
+		    id + ".data." + item, "data item needs a bounded binding and localisable label");
 		const auto binding = specification.at("binding").get<std::string>();
 		bool resolved = binding.starts_with("command.") && commands.contains(binding.substr(8));
 		if (binding.starts_with("board:/"))
@@ -365,8 +367,14 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			widget_require(commands.contains(command) && options.is_array() && !options.empty() && options.size() <= 64,
 			               id, "invalid command values in part " + part);
 			for (const auto &option : options)
+			{
 				widget_require(option.is_number_integer() || option.is_boolean(), id,
 				               "part values must be scalar settings");
+				widget_require(!option.is_number_unsigned() ||
+				                   option.get<std::uint64_t>() <=
+				                       std::uint64_t(std::numeric_limits<std::int64_t>::max()),
+				               id, "part values must fit signed command integers");
+			}
 		}
 		widget_require(!binding.contains("details") || binding.at("details").is_boolean(), id,
 		               "part details flag must be boolean");
