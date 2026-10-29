@@ -262,6 +262,14 @@ auto Runtime::controller_native_command(EntityId id, std::size_t index, const st
 	const ConsoleAddress source{id, controller.definition.console};
 	if (name.starts_with("coordination."))
 		return controller_coordination_action(id, index, name, args, execute);
+	if (name == "alert.set" || name == "stance.set" || name == "objective.priority")
+	{
+		OperatingCommand command{id, name, args[1].number, args[0].text};
+		command.controller = controller.definition.id;
+		command.generation = controller.generation;
+		command.arguments = {args[2].number};
+		return bridge_command(source, command, execute, true);
+	}
 	if (name == "craft.return_home")
 	{
 		if ((!controller.definition.widget.empty() ? !controller_operation_owns(controller, "craft_return", {}) ||

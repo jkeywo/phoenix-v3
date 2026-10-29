@@ -473,6 +473,22 @@ struct OperatingCommand
 	Bytes speaker_avatar;
 	std::string text; // Bounded player-authored conversation text/choice identity.
 };
+constexpr std::string_view away_command_operation(std::string_view action, bool officer = false)
+{
+	if (action == "away.contribute")
+		return "contribution";
+	if (action == "away.select" || action == "away.unselect")
+		return "team_selection";
+	if (action == "away.send")
+		return "mission_send";
+	if (action == "away.quantity")
+		return "mission_quantity";
+	if (action == "away.assign" || action == "away.withdraw")
+		return officer ? "mission_staffing" : "transport";
+	if (action == "away.transport" || action == "away.escort")
+		return "transport";
+	return "mission";
+}
 Json encode_operating_command(const OperatingCommand &command);
 OperatingCommand decode_operating_command(const Json &value);
 // Capability masks above are legacy presentation hints. Instance identities are

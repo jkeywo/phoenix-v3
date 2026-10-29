@@ -1528,7 +1528,7 @@ struct Runtime
 	bool bridge_visible(const ConsoleAddress &address) const;
 	Json alert_board(EntityId ship) const;
 	Json stance_board(const ConsoleAddress &address) const;
-	bool bridge_command(const ConsoleAddress &source, const OperatingCommand &command, bool execute);
+	bool bridge_command(const ConsoleAddress &source, const OperatingCommand &command, bool execute, bool ai = false);
 	void bridge_controls(const ConsoleAddress &address, Json &buttons) const;
 	void restore_bridge(EntityId ship, const Json &saved);
 	// Private World adapter. Domain state is typed; content is compiled only at load.
@@ -1591,6 +1591,7 @@ struct Runtime
 	std::string away_blocker(std::size_t index, bool power = true) const;
 	void prepare_away_officers(const ConsoleAddress &address, std::size_t index);
 	void prepare_away_contribution(const ConsoleAddress &a, std::size_t index);
+	void withdraw_away_assignment(EntityId ship, AwayMission &, const std::string &slot);
 	bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false,
 	                  bool assisted = false);
 	void prepare_away_tick_contributions(std::size_t i);

@@ -231,21 +231,38 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 	for (const auto &m : away_missions())
 		if (m.at("id") == mission)
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
-				if (ctrl.value("human", false) ||
-				    ((action == "transport" || action == "escort") && ctrl.value("transport_authority", false)) ||
-				    ((action == "assign" || action == "withdraw" || action == "contribute") &&
-				     ctrl.value("contribution_authority", false)))
+			{
+				auto verb = action;
+				bool officer = action == "assign" && text.find("/officer:") != std::string::npos;
+				bool team = action == "assign" && text.find("/team:") != std::string::npos;
+				if (action == "withdraw")
+					for (const auto &slot : m.at("slots"))
+						if (slot.at("id") == text)
+						{
+							officer = slot.at("assigned").get<std::string>().starts_with("officer:");
+							team = slot.at("assigned").get<std::string>().starts_with("team:");
+						}
+				if (ctrl.contains("widget"))
 				{
-					OperatingCommand c{observation_->own.id, "away." + action, m.at("revision").get<std::int64_t>(),
-					                   mission};
-					c.text = text;
-					c.console = observation_->console;
-					c.controller = ctrl.at("id");
-					c.generation = ctrl.at("generation");
-					const auto session = owner_.lock();
-					if (session && session->dispatch_console_command(route_, c))
-						return true;
+					if (team && ctrl.at("operations").contains("team_selection"))
+						verb = action == "assign" ? "select" : "unselect";
+					if (!console_operation_human(ctrl, std::string(away_command_operation("away." + verb, officer))))
+						continue;
 				}
+				else if (!ctrl.value("human", false) &&
+				         !((action == "transport" || action == "escort") && ctrl.value("transport_authority", false)) &&
+				         !((action == "assign" || action == "withdraw" || action == "contribute") &&
+				           ctrl.value("contribution_authority", false)))
+					continue;
+				OperatingCommand command{observation_->own.id, "away." + verb, m.at("revision").get<std::int64_t>(),
+				                         mission};
+				command.text = text;
+				command.console = observation_->console;
+				command.controller = ctrl.at("id");
+				command.generation = ctrl.at("generation");
+				if (submit(command))
+					return true;
+			}
 	return false;
 }
 bool ConsoleModel::team_action(const std::string &action, const std::string &team, const std::string &text)

@@ -247,7 +247,7 @@ auto Runtime::project_controllers(const ConsoleAddress &address, const Observati
 				bay |= kind == OperatingSystem::ShuttleBay;
 			}
 		facts.contribution_authority = !controller.definition.widget.empty()
-		                                   ? controller_operation_human(controller, "transport")
+		                                   ? controller_operation_human(controller, "contribution")
 		                                   : contributes && console_operator(address) != 0;
 		facts.craft_authority = !controller.definition.widget.empty() ? controller_operation_human(controller, "craft")
 		                                                              : bay && assisted_workload(address, "craft");

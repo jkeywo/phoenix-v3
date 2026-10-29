@@ -68,7 +68,7 @@ inline void materialise_fixture_rules(Json &authored)
 	{
 		if (value.is_object())
 		{
-			if (value.contains("personnel"))
+			if (value.contains("personnel") && value.at("personnel").is_object())
 				for (auto &trait : value["personnel"]["traits"])
 					if (trait.contains("effects"))
 					{

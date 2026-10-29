@@ -156,9 +156,11 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	{
 		(void)widget_name(Json(operation), id + ".operations");
 		static const std::set<std::string> supported_operations{
-		    "team_assignment", "team_work", "medical",   "personnel",           "craft",
-		    "craft_return",    "transport", "logistics", "cargo_authorisation", "conversation",
-		    "mission",         "departure", "docking",   "coordination"};
+		    "team_assignment", "team_work", "medical",        "personnel",        "craft",
+		    "craft_return",    "transport", "team_selection", "logistics",        "cargo_authorisation",
+		    "conversation",    "mission",   "mission_send",   "mission_quantity", "mission_staffing",
+		    "contribution",    "departure", "docking",        "coordination",     "alert",
+		    "stance",          "objectives"};
 		widget_require(supported_operations.contains(operation), id, "unsupported native operation " + operation);
 
 		widget_require(responsibilities.insert(operation).second && roles.is_array(), id,
@@ -184,6 +186,18 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		               id + ".data." + item, "data item needs a bounded binding and localisable label");
 		const auto binding = specification.at("binding").get<std::string>();
 		bool resolved = binding.starts_with("command.") && commands.contains(binding.substr(8));
+		if (binding.starts_with("board:/"))
+		{
+			try
+			{
+				(void)Json::json_pointer(binding.substr(6));
+				resolved = true;
+			}
+			catch (const Json::exception &)
+			{
+				widget_require(false, id + ".data." + item, "invalid permitted-board JSON pointer");
+			}
+		}
 		for (const auto &[role, equipment] : result.equipment.items())
 			for (const auto *source_kind : {"system", "weapon"})
 			{
@@ -261,13 +275,18 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			                   renderer == "operations" || renderer == "docking" || renderer == "teams",
 			               id, "unsupported native widget renderer " + renderer);
 			const auto operation = renderer == "operations" ? "logistics" : renderer == "away" ? "mission" : renderer;
-			widget_require(result.operations.contains(operation) ||
-			                   (renderer == "away" && result.operations.contains("transport")) ||
-			                   (renderer == "teams" &&
-			                    (result.operations.contains("team_assignment") ||
-			                     result.operations.contains("team_work") || result.operations.contains("medical"))) ||
-			                   (renderer == "operations" && result.operations.contains("cargo_authorisation")),
-			               id, "native renderer needs its declared operation scope");
+			widget_require(
+			    result.operations.contains(operation) ||
+			        (renderer == "away" &&
+			         (result.operations.contains("transport") || result.operations.contains("mission_send") ||
+			          result.operations.contains("mission_quantity") ||
+			          result.operations.contains("mission_staffing") || result.operations.contains("contribution") ||
+			          result.operations.contains("team_selection"))) ||
+			        (renderer == "teams" &&
+			         (result.operations.contains("team_assignment") || result.operations.contains("team_work") ||
+			          result.operations.contains("medical") || result.operations.contains("team_selection"))) ||
+			        (renderer == "operations" && result.operations.contains("cargo_authorisation")),
+			    id, "native renderer needs its declared operation scope");
 		}
 		for (const auto *kind : {"commands", "data", "operations", "ranges"})
 		{

@@ -34,6 +34,7 @@ int main(int argc, char **argv)
 			phoenix::Json entities = phoenix::Json::object();
 			for (const auto &[id, entity] : catalog.entities)
 				entities[id] = entity;
+			entities["$consoles"] = catalog.consoles;
 			phoenix::write_file(inventory, phoenix::json_bytes(entities));
 		}
 

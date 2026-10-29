@@ -10,6 +10,7 @@ module;
 
 module phoenix.console;
 import phoenix.application.preferences;
+import phoenix.console_controls;
 
 namespace phoenix
 {
@@ -18,6 +19,11 @@ namespace
 std::optional<Json> widget_datum(const Observation &view, const Json &controller, const std::string &binding,
                                  const std::string &equipment)
 {
+	if (binding.starts_with("board:/"))
+	{
+		const Json::json_pointer pointer(binding.substr(6));
+		return view.gameplay.contains(pointer) ? std::optional<Json>(view.gameplay.at(pointer)) : std::nullopt;
+	}
 	if (binding.starts_with("command."))
 	{
 		const auto commands = controller.value("commands", Json::object());
@@ -113,7 +119,7 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 					datum.text = localise("Unavailable");
 				widget.data.push_back(std::move(datum));
 			};
-			if (binding.starts_with("command."))
+			if (binding.starts_with("command.") || binding.starts_with("board:/"))
 				append({}, binding, false);
 			else
 			{
@@ -140,6 +146,9 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 			if (control.value("controller", std::string{}) == widget.id && !channel.empty() &&
 			    controller.at("commands").contains(channel) &&
 			    controller.at("commands").at(channel).value("human", false))
+				widget.controls.push_back(control);
+			else if (control.value("controller", std::string{}) == widget.id && control.contains("operation") &&
+			         console_operation_human(controller, control.at("operation")))
 				widget.controls.push_back(control);
 		}
 		result.push_back(std::move(widget));

@@ -139,6 +139,59 @@ inline void control_widget_cases()
 		resumed.tick();
 		require(world.save() == resumed.save(), "native widget effects preserve checkpoint continuation");
 	}
+	{
+		auto bridge = source;
+		bridge["entities"][0]["bridge"] = {{"initial", "routine"},
+		                                   {"alert_console", "drive"},
+		                                   {"conditions", Json::array({{{"id", "routine"}, {"label", "Routine"}},
+		                                                               {{"id", "danger"}, {"label", "Danger"}}})}};
+		bridge["control_widgets"].push_back(Json::parse(R"json({
+		 "id":"test.widget.bridge","schema":1,"equipment":{},"commands":[],
+		 "operations":{"alert":[],"stance":[]},"tree":"test.widget.bridge-ai",
+		 "parts":["main"],"data":{"alert":{"binding":"board:/alert/label","label":"Alert","placement":"main"}},
+		 "levels":[{"id":"automated","human":[]},{"id":"manual","human":["alert","stance"]}]})json"));
+		bridge["trees"].push_back(Json::parse(R"json({
+		 "id":"test.widget.bridge-ai","context":"controller","initial":"run",
+		 "states":[{"id":"run","running":[{"attempt":[
+		  {"tasks":[{"action":"alert.set","arguments":["",1,0]}]},
+		  {"tasks":[]}]}]}]})json"));
+		bridge["entities"][0]["control_layout"]["controllers"].push_back(
+		    {{"id", "bridge"},
+		     {"console", "drive"},
+		     {"widget", "test.widget.bridge"},
+		     {"equipment", Json::object()},
+		     {"star_levels", {{"1", "manual"}, {"2", "manual"}, {"3", "automated"}}}});
+		const auto bridge_catalog = load(bridge);
+		World world;
+		world.load(bridge_catalog, "test.map");
+		require(world.claim(101, 1, "drive"), "claim bridge widget");
+		world.tick();
+		require(world.observe(101)->gameplay.at("alert").at("id") == "routine",
+		        "shared tree cannot change a human-owned alert operation");
+		require(!world.submit(101, {1, "alert.set", 1}), "bridge operation rejects missing widget authority");
+		const auto view = network::read_observation(network::observation_json(*world.observe(101)), bridge_catalog);
+		OperatingCommand alert;
+		bool found = false;
+		for (const auto &button : view.gameplay.at("controls"))
+			if (button.at("action") == "alert.set" && button.at("value") == 1)
+			{
+				alert = decode_operating_command(button);
+				alert.target = 1;
+				found = true;
+			}
+		require(found && alert.controller == "bridge", "remote descriptor carries bridge owner");
+		require(eligible_console_command(view, Json{{"widgets", Json::array()}}, Json::object(), alert).has_value(),
+		        "remote advisory admits the projected bridge descriptor");
+		require(world.submit(101, alert), "bridge admits current operator and domain revisions");
+		world.tick();
+		require(world.observe(101)->gameplay.at("alert").at("id") == "danger",
+		        "bridge widget uses existing alert mechanism");
+		World resumed;
+		resumed.restore(bridge_catalog, world.save());
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(), "bridge widget authority and continuation survive restore");
+	}
 	const auto catalog = load(source);
 	const auto widget = compile_control_widget(catalog, "test.widget.drive");
 	{

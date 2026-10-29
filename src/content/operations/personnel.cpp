@@ -306,8 +306,21 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		out.duty_indices.emplace(d.id, out.duties.size());
 		out.duties.push_back(d);
 	}
-	fail(out.duties.size() <= 256 && controllers.size() == layout.controllers.size(),
-	     "every Controller requires one duty (maximum 256)");
+	fail(out.duties.size() <= 256, "too many duties (maximum 256)");
+	for (const auto &controller : layout.controllers)
+	{
+		// Intrinsic bridge controls have no fitted machinery or officer post.
+		// Physical and department Controllers retain their ordinary duty binding.
+		const bool intrinsic = !controller.widget.empty() && controller.commands.empty() &&
+		                       std::all_of(controller.operations.begin(), controller.operations.end(),
+		                                   [](const auto &operation)
+		                                   {
+			                                   return operation.first == "alert" || operation.first == "stance" ||
+			                                          operation.first == "objectives";
+		                                   });
+		fail(intrinsic || controllers.contains(controller.console + "/" + controller.id),
+		     "physical and department Controllers require one duty");
+	}
 	for (const auto &[id, kind] : kinds)
 		if (kind == OperatingSystem::Team)
 			fail(teams.contains(id), "every team requires a duty");

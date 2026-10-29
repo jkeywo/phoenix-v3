@@ -192,7 +192,8 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 		for (const auto &control : widget->controls)
 		{
 			const auto channel = control.value("channel", std::string{});
-			if (!includes("commands", channel) || range_channels.contains(channel))
+			if (control.contains("operation") ? !includes("operations", control.at("operation"))
+			                                  : !includes("commands", channel) || range_channels.contains(channel))
 				continue;
 			const auto values = part_bindings.value("values", Json::object());
 			if (values.contains(channel) && std::find(values.at(channel).begin(), values.at(channel).end(),
@@ -244,11 +245,43 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 						manual = includes("operations", operation) && grants.contains(operation) &&
 						         grants.at(operation).value("human", false);
 						if (renderer == "teams")
-							for (const auto *work : {"team_assignment", "team_work", "medical"})
+							for (const auto *work : {"team_assignment", "team_work", "medical", "team_selection"})
 								manual |= includes("operations", work) && grants.contains(work) &&
 								          grants.at(work).value("human", false);
-						if (renderer == "away" && includes("operations", "transport") && grants.contains("transport"))
-							manual |= grants.at("transport").value("human", false);
+						if (renderer == "away" && native_action.starts_with("away/"))
+						{
+							const auto end = native_action.find('/', 5);
+							const auto verb = native_action.substr(5, end - 5);
+							bool officer = native_action.find("/officer:") != std::string::npos;
+							bool team = native_action.find("/team:") != std::string::npos;
+							if (verb == "withdraw" && end != std::string::npos)
+							{
+								const auto split = native_action.find('/', end + 1);
+								for (const auto &mission : owner->first->away_missions())
+									if (mission.at("id") == native_action.substr(end + 1, split - end - 1))
+										for (const auto &slot : mission.at("slots"))
+											if (slot.at("id") == native_action.substr(split + 1))
+											{
+												officer =
+												    slot.at("assigned").get<std::string>().starts_with("officer:");
+												team = slot.at("assigned").get<std::string>().starts_with("team:");
+											}
+							}
+							const auto permission =
+							    team && grants.contains("team_selection") && (verb == "assign" || verb == "withdraw")
+							        ? std::string("team_selection")
+							        : std::string(away_command_operation("away." + verb, officer));
+							manual = includes("operations", permission) && grants.contains(permission) &&
+							         grants.at(permission).value("human", false);
+						}
+						if (native_action.starts_with("asset-away/"))
+						{
+							const auto permission = native_action.find("/team:") != std::string::npos
+							                            ? "team_selection"
+							                            : "mission_staffing";
+							manual = includes("operations", permission) && grants.contains(permission) &&
+							         grants.at(permission).value("human", false);
+						}
 						if (renderer == "operations" && native_action.starts_with("supply/logistics/craft_allow/") &&
 						    grants.contains("cargo_authorisation"))
 							manual = includes("operations", "cargo_authorisation") &&

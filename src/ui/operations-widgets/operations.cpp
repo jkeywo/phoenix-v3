@@ -70,7 +70,7 @@ Json OperationsWidgetContext::board(const std::string &name) const
 		              [&](const auto &row)
 		              {
 			              return !owns("team_assignment", row.at("id")) && !owns("team_work", row.at("id")) &&
-			                     !owns("medical", row.at("id"));
+			                     !owns("medical", row.at("id")) && !owns("team_selection", row.at("id"));
 		              });
 	else if (name == "craft")
 		std::erase_if(result.get_ref<Json::array_t &>(),
@@ -132,7 +132,8 @@ Json OperationsWidgetContext::board(const std::string &name) const
 				              });
 				slot["owned"] = slot.value("owned", false) && transport_owned(slot.value("assigned", std::string{}));
 			}
-			if (!owns("transport", {}))
+			if (!owns("transport", {}) && !owns("contribution", {}) && !owns("team_selection", {}) &&
+			    !owns("mission_staffing", {}))
 			{
 				mission["can_contribute"] = false;
 				mission["transports"] = Json::array();
@@ -143,13 +144,15 @@ Json OperationsWidgetContext::board(const std::string &name) const
 				              [&](const auto &choice)
 				              {
 					              const auto asset = choice.template get<std::string>();
-					              return asset.starts_with("team:") ? !owns("transport", asset.substr(5))
-					                                                : !owns("personnel", {});
+					              return asset.starts_with("team:") ? !owns("transport", asset.substr(5)) &&
+					                                                      !owns("team_selection", asset.substr(5))
+					                                                : !owns("mission_staffing", {});
 				              });
 				const auto assigned = slot.value("assigned", std::string{});
-				slot["owned"] =
-				    slot.value("owned", false) &&
-				    (assigned.starts_with("team:") ? owns("transport", assigned.substr(5)) : owns("personnel", {}));
+				slot["owned"] = slot.value("owned", false) &&
+				                (assigned.starts_with("team:") ? owns("transport", assigned.substr(5)) ||
+				                                                     owns("team_selection", assigned.substr(5))
+				                                               : owns("mission_staffing", {}));
 			}
 		}
 	}
@@ -211,6 +214,9 @@ WidgetPanel OperationsWidgets::State::teams_panel(const OperationsWidgetContext 
 		panel.readouts.emplace_back(key, text);
 		panel.markup += "<p id=\"" + Rml::StringUtilities::EncodeRml(key) + "\"></p>";
 		selected |= context.model.selected_team() == identity;
+		if (context.owns("team_selection", identity) || context.owns("transport", identity))
+			for (const auto &[action, label] : context.model.asset_away_controls("team:" + identity))
+				panel.markup += context.button(action, label);
 		for (const auto &[action, label] : actions)
 			if (action.starts_with("game.team-order/" + identity + "/") || action == "game.team-cancel/" + identity ||
 			    (context.model.selected_team() == identity && action.starts_with("game.team-patient/")))

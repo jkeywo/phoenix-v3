@@ -115,7 +115,9 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 	const auto address = impl_->command_address(console, command);
 	if (address != claim->second && impl_->console_operator(address) != console)
 		return false;
-	if ((command.arguments.empty() || command.action.starts_with("display.")) && impl_->meta(console, command, false))
+	if ((command.arguments.empty() || command.action.starts_with("display.") || command.action == "alert.set" ||
+	     command.action == "stance.set" || command.action == "objective.priority") &&
+	    impl_->meta(console, command, false))
 		return impl_->meta_pending.size() < 4096;
 	if (impl_->entities.at(command.target).has<EntityControls>())
 		return impl_->controller_proposal(address, command, true).has_value() &&

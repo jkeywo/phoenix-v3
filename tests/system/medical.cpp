@@ -215,7 +215,7 @@ void deploy_clinical_party(World &w)
 	require(w.observe(101)->gameplay.at("away_missions")[0]["phase"] == "deployed",
 	        "clinical party physically arrived");
 }
-void assisted_team_destinations()
+void assisted_team_destinations(bool widgets = false)
 {
 	auto source = medical_fixture();
 	auto &ship = source["entities"][0];
@@ -238,6 +238,117 @@ void assisted_team_destinations()
 	source["trees"].push_back(Json::parse(R"json({"id":"test.local-repair","context":"controller",
  "command_bindings":[{"channel":"assignment","action":"repair_compartment"}],"initial":"work",
  "states":[{"id":"work","running":[{"action":"write.assignment","arguments":[0]}]}]})json"));
+	if (widgets)
+	{
+		source["control_widgets"] = Json::array();
+		for (auto &instance : layout["controllers"])
+		{
+			const auto identity = instance.at("id").get<std::string>();
+			auto commands = instance.at("commands");
+			Json all = Json::array(), assisted = Json::array(), operations = Json::object();
+			const auto &old_human =
+			    layout["profiles"][0]["consoles"][instance.at("console").get<std::string>()]["human"];
+			const bool human = std::find(old_human.begin(), old_human.end(), identity) != old_human.end();
+			for (auto &command : commands)
+			{
+				require(command.at("consumers") == Json::array({identity}),
+				        "synthetic widget commands bind their explicit subject");
+				command["consumers"] = {"$subject"};
+				all.push_back(command.at("id"));
+				if (human)
+					assisted.push_back(command.at("id"));
+			}
+			const auto operation = [&](const std::string &name, bool direct)
+			{
+				operations[name] = {"$subject"};
+				all.push_back(name);
+				if (direct)
+					assisted.push_back(name);
+			};
+			if (identity == "team" || identity == "medical")
+			{
+				operation("team_assignment", true);
+				operation("team_selection", true);
+				operation(identity == "team" ? "team_work" : "medical", false);
+				operation("transport", false);
+			}
+			if (identity == "dispatch")
+			{
+				operation("mission", true);
+				operation("mission_send", true);
+				operation("mission_quantity", false);
+				operation("transport", false);
+			}
+			if (identity == "transport")
+				operation("transport", true);
+			if (identity == "radio")
+				operation("conversation", true);
+			const auto widget = "test.assisted." + identity;
+			Json definition{{"id", widget},
+			                {"schema", 1},
+			                {"equipment", {{"subject", Json::object()}}},
+			                {"commands", commands},
+			                {"operations", operations},
+			                {"data", Json::object()},
+			                {"parts", {"main"}},
+			                {"levels", Json::array({{{"id", "automated"}, {"human", Json::array()}},
+			                                        {{"id", "assisted"}, {"human", assisted}},
+			                                        {{"id", "detailed"}, {"human", all}}})}};
+			if (instance.contains("tree"))
+				definition["tree"] = instance.at("tree");
+			source["control_widgets"].push_back(definition);
+			instance = {{"id", identity},
+			            {"console", instance.at("console")},
+			            {"widget", widget},
+			            {"equipment", {{"subject", identity}}},
+			            {"star_levels", {{"1", "assisted"}, {"2", "assisted"}, {"3", "detailed"}}}};
+		}
+		for (const auto *console : {"drive", "observer"})
+		{
+			const auto widget = "test.department." + std::string(console);
+			Json operations{{"personnel", Json::array()}, {"mission_staffing", Json::array()}};
+			Json equipment = Json::object(), bindings = Json::object();
+			if (std::string(console) == "observer")
+			{
+				equipment["teams"] = {{"multiple", true}};
+				bindings["teams"] = {"team", "medical"};
+				operations["contribution"] = {"$teams"};
+			}
+			Json middle = std::string(console) == "observer" ? Json::array({"contribution"}) : Json::array();
+			Json detailed = {"personnel", "mission_staffing"};
+			if (std::string(console) == "observer")
+				detailed.push_back("contribution");
+			source["control_widgets"].push_back(
+			    {{"id", widget},
+			     {"schema", 1},
+			     {"equipment", equipment},
+			     {"commands", Json::array()},
+			     {"operations", operations},
+			     {"data", Json::object()},
+			     {"parts", {"main"}},
+			     {"levels", Json::array({{{"id", "automated"}, {"human", Json::array()}},
+			                             {{"id", "middle"}, {"human", middle}},
+			                             {{"id", "detailed"}, {"human", detailed}}})}});
+			layout["controllers"].push_back(
+			    {{"id", "department"},
+			     {"console", console},
+			     {"widget", widget},
+			     {"equipment", bindings},
+			     {"star_levels", {{"1", "automated"}, {"2", "middle"}, {"3", "detailed"}}}});
+			ship["personnel"]["duties"].push_back(
+			    {{"id", "department-" + std::string(console)},
+			     {"label", "Department coordination"},
+			     {"controller", "department"},
+			     {"console", console},
+			     {"department", std::string(console) == "observer" ? "engineering" : "navigation"},
+			     {"compartment", "bridge"},
+			     {"bindings", Json::object()}});
+		}
+		layout["schema"] = 2;
+		layout.erase("manual_workloads");
+		layout["profiles"] = Json::array(
+		    {{{"id", "direct"}, {"stars", 1}}, {{"id", "middle"}, {"stars", 2}}, {{"id", "detailed"}, {"stars", 3}}});
+	}
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -300,6 +411,33 @@ void assisted_team_destinations()
 		if (team.at("id") == "medical")
 			require(team.at("location") == 1 && team.at("assigned_compartment") == 1,
 			        "Medical physically follows its destination even without a patient there");
+	if (widgets)
+	{
+		World selected;
+		selected.restore(catalog, world.save());
+		require(selected.submit(102, {2, "preset", 1}), "select mixed two-star department workload");
+		selected.tick();
+		require(selected.submit(101, away_order(selected, "open")), "activate mixed-control Away mission");
+		ticks(selected, 2);
+		require(selected.save().at("away_missions")[0].at("assignments").empty(),
+		        "AI waits for human department contribution at two stars");
+		require(!selected.submit(102, away_order(selected, "assign", "repair/team:team", 102, "team")),
+		        "high-level Team selection does not grant manual transport manifest control");
+		auto choose = away_order(selected, "select", "repair/team:team", 102, "team");
+		const auto remote = network::read_observation(network::observation_json(*selected.observe(102)), catalog);
+		require(
+		    eligible_console_command(remote, Json{{"widgets", Json::array()}}, Json::object(), choose).has_value() &&
+		        selected.submit(102, choose),
+		    "human Team selection is admitted through the permitted remote projection");
+		selected.tick();
+		require(selected.save().at("away_missions")[0].at("assignments").at("repair") == "team:team",
+		        "automatic preparation retains the human-selected Team");
+		require(selected.submit(102, away_order(selected, "contribute", "0", 102, "department")),
+		        "department widget revokes its contribution");
+		selected.tick();
+		require(selected.save().at("away_missions")[0].at("assignments").empty(),
+		        "revocation withdraws departmental assets without borrowing another operation's authority");
+	}
 	require(world.submit(101, away_order(world, "open")), "Activate away work with manual onboard destinations");
 	ticks(world, 6);
 	const auto manifest = world.save().at("away_missions")[0].at("assignments");
@@ -748,6 +886,7 @@ int main(int argc, char **argv)
 	try
 	{
 		assisted_team_destinations();
+		assisted_team_destinations(true);
 		team_effect_actions();
 		finite_clinical_jobs();
 		property_work_regressions();

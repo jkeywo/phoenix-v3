@@ -257,3 +257,27 @@ Controller setting, modal blocking, operation-specific native controls, compact
 reunion and Workshop pointer updates (`build/widget-finish-native-widget-ui.log`).
 The Controller suite passes, and the module boundary checker reports zero
 violations. The isolated build directory is `build/widget-finish-native`.
+
+## Away responsibilities and intrinsic Bridge widgets
+
+Away preparation now admits each automatic action as AI against its operation
+allocation. Team destination, useful work, high-level Team selection, manifest
+transport, officer mission staffing, contribution authorisation, dispatch and
+supply quantity are separate responsibilities. Human Team selection reuses the
+existing assignment path through explicit select/unselect requests; it does not
+grant control of automatic manifest preparation. Revoking a contribution clears
+its departmental assignments as part of the authorised operation.
+
+Alert, stance and objective priority use intrinsic operation-only widgets. Their
+commands carry both the widget operator generation and the existing native
+revision. World admission, remote advisory descriptors and state-tree attempts
+use the same domain adapter. These widgets require no invented physical officer
+post; fitted and department Controllers retain their duty requirement.
+
+Named data may bind a scalar JSON pointer within the already permitted gameplay
+board using `board:/path/to/value`. It provides no additional world visibility.
+
+The native Controller, Medical and Away integration suites pass, including mixed
+Away authority and Bridge remote admission/continuation. The base migration
+candidate now passes the production verifier with shared widget placements for
+its consoles; the maintained source packs have not yet been replaced.

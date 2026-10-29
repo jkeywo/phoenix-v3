@@ -723,7 +723,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					continue;
 				if (action.name.starts_with("away.") || action.name.starts_with("craft.") ||
 				    action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
-				    action.name.starts_with("dock."))
+				    action.name.starts_with("dock.") || action.name == "alert.set" || action.name == "stance.set" ||
+				    action.name == "objective.priority")
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")
@@ -853,7 +854,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			for (const auto &[operation, equipment] : left.operations)
 				if (const auto other = right.operations.find(operation); other != right.operations.end())
 					control_require((equipment.empty() || other->second.empty())
-					                    ? operation != "personnel"
+					                    ? operation != "personnel" && operation != "mission_staffing" &&
+					                          operation != "contribution"
 					                    : std::none_of(equipment.begin(), equipment.end(),
 					                                   [&](const auto &identity)
 					                                   {
@@ -1040,6 +1042,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			if (!layout.contains(variant))
 				continue;
 			std::set<std::size_t> declared;
+			if (widget_layout)
+				for (std::size_t index = 0; index < result.controllers.size(); ++index)
+					if (result.controllers[index].console == console.id)
+						declared.insert(index);
 			for (const int stars : {0, 1, 2, 3})
 			{
 				std::set<std::string> targets;

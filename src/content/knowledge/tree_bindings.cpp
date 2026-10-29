@@ -629,11 +629,14 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	if (resolved.value("docking_commands", false))
 		for (const auto *name : {"accept", "reject", "supply", "connect", "assist", "cancel", "undock", "emergency"})
 			registry.actions.push_back({std::string("dock.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
-	for (const auto &name : {"open", "assign", "withdraw", "transport", "send", "recall", "cancel"})
+	for (const auto &name : {"open", "assign", "withdraw", "select", "unselect", "contribute", "quantity", "transport",
+	                         "escort", "send", "recall", "cancel"})
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})
 		registry.actions.push_back({std::string("craft.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	registry.actions.push_back({"craft.return_home", 4, {}, true});
+	for (const auto *name : {"alert.set", "stance.set", "objective.priority"})
+		registry.actions.push_back({name, 4, {Type::Text, Type::Integer, Type::Integer}, true});
 	if (resolved.contains("ftl_system"))
 	{
 		binding_require(resolved.at("ftl_system").is_string() &&
@@ -798,7 +801,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	for (auto &action : registry.actions)
 		if (action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
 		    action.name.starts_with("dock.") || action.name.starts_with("away.") || action.name.starts_with("craft.") ||
-		    action.name.starts_with("coordination.") || action.name == "ftl.depart")
+		    action.name.starts_with("coordination.") || action.name == "ftl.depart" || action.name == "alert.set" ||
+		    action.name == "stance.set" || action.name == "objective.priority")
 			action.command = true;
 
 	return result;

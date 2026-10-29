@@ -201,10 +201,17 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 	       owner->value("transport_authority", false))) ||
 	    owner->at("generation") != c.generation)
 		return false;
-	const auto operation = (c.action == "away.transport" || c.action == "away.escort" ||
-	                        c.action == "away.contribute" || c.action == "away.assign" || c.action == "away.withdraw")
-	                           ? "transport"
-	                           : "mission";
+	bool officer =
+	    (c.action == "away.assign" || c.action == "away.select") && c.text.find("/officer:") != std::string::npos;
+	if (c.action == "away.withdraw" || c.action == "away.unselect")
+		for (const auto &mission : view.gameplay.value("away_missions", Json::array()))
+			if (mission.at("id") == c.system)
+				for (const auto &slot : mission.at("slots"))
+					if (slot.at("id") == c.text)
+						officer = slot.value("assigned", std::string{}).starts_with("officer:");
+	if ((c.action == "away.select" || c.action == "away.unselect") && officer)
+		return false;
+	const auto operation = std::string(away_command_operation(c.action, officer));
 	if (owner->contains("widget") && !console_operation_human(*owner, operation))
 		return false;
 	const auto owns = [&](const Json &, const std::string &equipment)
@@ -273,7 +280,7 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 				       std::find(m.at("transports").begin(), m.at("transports").end(), c.text) !=
 				           m.at("transports").end();
 			}
-			if (c.action == "away.assign")
+			if (c.action == "away.assign" || c.action == "away.select")
 			{
 				const auto slash = c.text.find('/');
 				if (slash == std::string::npos)
@@ -287,7 +294,7 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 						       slot.at("choices").end();
 				return false;
 			}
-			if (c.action == "away.withdraw")
+			if (c.action == "away.withdraw" || c.action == "away.unselect")
 			{
 				for (const auto &slot : m.at("slots"))
 					if (slot.at("id") == c.text && slot.at("owned").get<bool>())
