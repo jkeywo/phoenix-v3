@@ -176,6 +176,112 @@ bool ConsoleSurface::State::action(const std::string &name)
 	if (systems_open_ && (support_popup_ == "help" || support_popup_.starts_with("control/")) &&
 	    action != "systems-close")
 		return false;
+	if (const auto handled = popup_action(action))
+		return *handled;
+	if (action.starts_with("inline/"))
+	{
+		const bool accepted = !tactical_.console().empty() && tactical_.model().act(action.substr(7));
+		return accepted;
+	}
+	if (action.starts_with("contact-dock/"))
+	{
+		if (settings_open_ || !authored_component_visible("readouts"))
+			return false;
+		const auto target = tactical_.console().empty() ? model_.sensor_contact() : tactical_.model().sensor_contact();
+		cancel_pointer();
+		model_.release_controls();
+		return model_.target_docking_action(target, action);
+	}
+	if (action.starts_with("radar-contact/"))
+		return select_radar_contact(std::stoull(action.substr(14)));
+	if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
+	    action.starts_with("station-page/") || action.starts_with("console-page/"))
+		return authored_action(action);
+	if (action.starts_with("asset-away/"))
+	{
+		if (settings_open_ || (!station_component_active("personnel") && !systems_open_))
+			return false;
+		return model_.asset_away_action(action);
+	}
+	if (app_ && app_->session && operations_.action(operations_context(), action))
+		return true;
+	if (app_ && !settings_open_ && (route_ != 31 || app_->screen != Screen::settings) &&
+	    conversations_.action(model_, dom_, id(""), action))
+		return true;
+	if (app_ && navigation_.action(model_, dom_, id(""), app_->return_home, action))
+		return true;
+	if ((app_->screen != Screen::console && app_->screen != Screen::viewscreen &&
+	     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
+	    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
+		return false;
+	if (const auto handled = manual_flight_action(action))
+		return *handled;
+	if (action.starts_with("on-screen/"))
+		return !settings_open_ && model_.on_screen(action.substr(10), display_camera(action.substr(10)));
+	if (action == "settings" || action == "local-settings.close")
+		return open_local_settings(action);
+	if (action == "operations")
+		return authored_action("station-page/logistics");
+	if (const auto handled = local_settings_action(name, action))
+		return *handled;
+	if (const auto handled = lobby_profile_action(action))
+		return *handled;
+
+	if (action == "manual")
+	{
+		if (!manual_toggle_ || !game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings) ||
+		    !model_.observation())
+			return false;
+		const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
+		const auto preset = manual_preset(manual);
+		if (!preset)
+			return false;
+		const bool accepted = model_.act(descriptor_action(*preset));
+		app_->accessible_status = model_.announcement();
+		return accepted;
+	}
+
+	if (const auto handled = camera_navigation_action(action))
+		return *handled;
+
+	if (action == "release")
+	{
+#ifdef __EMSCRIPTEN__
+		return app_->session && app_->session->release_console(route_);
+#else
+		return false;
+#endif
+	}
+	if (action.starts_with("claim/"))
+	{
+#ifndef __EMSCRIPTEN__
+		if (game_active(*app_))
+			return false;
+#endif
+		for (const auto &seat : app_->session->console_seats())
+			if (action == "claim/" + std::to_string(seat.address.ship) + "/" + seat.address.console)
+				return app_->session->claim_console(route_, seat.address);
+		return false;
+	}
+	if (action.starts_with("pad/"))
+	{
+#ifdef __EMSCRIPTEN__
+		app_->gamepad_assignments[action.substr(4)] = route_;
+#else
+		return assign_screen_gamepad(*app_, route_, action.substr(4));
+#endif
+		return true;
+	}
+	if (model_.observation())
+		for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
+			if (control.value("action", "") == "preset" && descriptor_action(control.at("id")) == action)
+				return false;
+	const bool accepted = model_.act(action);
+	app_->accessible_status = model_.announcement();
+	return accepted;
+}
+std::optional<bool> ConsoleSurface::State::popup_action(const std::string &action)
+{
 	if (action.starts_with("control-details/") && model_.observation() && app_->session)
 	{
 		const auto reference = action.substr(16);
@@ -255,42 +361,10 @@ bool ConsoleSurface::State::action(const std::string &name)
 		}
 		return true;
 	}
-	if (action.starts_with("inline/"))
-	{
-		const bool accepted = !tactical_.console().empty() && tactical_.model().act(action.substr(7));
-		return accepted;
-	}
-	if (action.starts_with("contact-dock/"))
-	{
-		if (settings_open_ || !authored_component_visible("readouts"))
-			return false;
-		const auto target = tactical_.console().empty() ? model_.sensor_contact() : tactical_.model().sensor_contact();
-		cancel_pointer();
-		model_.release_controls();
-		return model_.target_docking_action(target, action);
-	}
-	if (action.starts_with("radar-contact/"))
-		return select_radar_contact(std::stoull(action.substr(14)));
-	if (action.starts_with("layout-page/") || action.starts_with("game.console/") ||
-	    action.starts_with("station-page/") || action.starts_with("console-page/"))
-		return authored_action(action);
-	if (action.starts_with("asset-away/"))
-	{
-		if (settings_open_ || (!station_component_active("personnel") && !systems_open_))
-			return false;
-		return model_.asset_away_action(action);
-	}
-	if (app_ && app_->session && operations_.action(operations_context(), action))
-		return true;
-	if (app_ && !settings_open_ && (route_ != 31 || app_->screen != Screen::settings) &&
-	    conversations_.action(model_, dom_, id(""), action))
-		return true;
-	if (app_ && navigation_.action(model_, dom_, id(""), app_->return_home, action))
-		return true;
-	if ((app_->screen != Screen::console && app_->screen != Screen::viewscreen &&
-	     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
-	    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
-		return false;
+	return std::nullopt;
+}
+std::optional<bool> ConsoleSurface::State::manual_flight_action(const std::string &action)
+{
 	if (action == "manual-mode")
 	{
 		if (settings_open_ || (route_ == 31 && app_->screen == Screen::settings))
@@ -319,74 +393,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 		cancel_pointer();
 		return true;
 	}
-	if (action.starts_with("on-screen/"))
-		return !settings_open_ && model_.on_screen(action.substr(10), display_camera(action.substr(10)));
-	if (action == "settings" || action == "local-settings.close")
-		return open_local_settings(action);
-	if (action == "operations")
-		return authored_action("station-page/logistics");
-	if (const auto handled = local_settings_action(name, action))
-		return *handled;
-	if (const auto handled = lobby_profile_action(action))
-		return *handled;
-
-	if (action == "manual")
-	{
-		if (!manual_toggle_ || !game_active(*app_) || (route_ == 31 && app_->screen == Screen::settings) ||
-		    !model_.observation())
-			return false;
-		const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
-		const auto preset = manual_preset(manual);
-		if (!preset)
-			return false;
-		const bool accepted = model_.act(descriptor_action(*preset));
-		app_->accessible_status = model_.announcement();
-		return accepted;
-	}
-
-	if (const auto handled = camera_navigation_action(action))
-		return *handled;
-
-	if (action == "settings")
-	{
-		app_->settings_console = route_;
-		return invoke_navigation(*app_, "settings");
-	}
-	if (action == "release")
-	{
-#ifdef __EMSCRIPTEN__
-		return app_->session && app_->session->release_console(route_);
-#else
-		return false;
-#endif
-	}
-	if (action.starts_with("claim/"))
-	{
-#ifndef __EMSCRIPTEN__
-		if (game_active(*app_))
-			return false;
-#endif
-		for (const auto &seat : app_->session->console_seats())
-			if (action == "claim/" + std::to_string(seat.address.ship) + "/" + seat.address.console)
-				return app_->session->claim_console(route_, seat.address);
-		return false;
-	}
-	if (action.starts_with("pad/"))
-	{
-#ifdef __EMSCRIPTEN__
-		app_->gamepad_assignments[action.substr(4)] = route_;
-#else
-		return assign_screen_gamepad(*app_, route_, action.substr(4));
-#endif
-		return true;
-	}
-	if (model_.observation())
-		for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
-			if (control.value("action", "") == "preset" && descriptor_action(control.at("id")) == action)
-				return false;
-	const bool accepted = model_.act(action);
-	app_->accessible_status = model_.announcement();
-	return accepted;
+	return std::nullopt;
 }
 bool ConsoleSurface::State::open_local_settings(const std::string &action)
 {

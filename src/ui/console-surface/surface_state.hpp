@@ -318,6 +318,8 @@ public:
 	bool open_local_settings(const std::string &action);
 	std::optional<bool> lobby_profile_action(const std::string &action);
 	std::optional<bool> camera_navigation_action(const std::string &action);
+	std::optional<bool> popup_action(const std::string &action);
+	std::optional<bool> manual_flight_action(const std::string &action);
 	bool action(const std::string &name);
 
 	bool controller_hold(const std::string &name, bool pressed);
