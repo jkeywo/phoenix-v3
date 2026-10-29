@@ -72,7 +72,7 @@ class PreviewSession final : public SessionPort
 			if (selected == definition.levels.end())
 				throw std::runtime_error("Unknown widget responsibility level in preview");
 			Json row{{"id", instance.at("id")},           {"console", view_.console},
-			         {"widget", definition.id},           {"generation", generation_},
+			         {"widget", definition.id},           {"generation", 1},
 			         {"human", !selected->human.empty()}, {"commands", Json::object()},
 			         {"equipment", Json::object()},       {"star_levels", instance.at("star_levels")},
 			         {"data_placement", Json::object()}};
@@ -154,8 +154,7 @@ class PreviewSession final : public SessionPort
 				for (const auto setting : values)
 				{
 					OperatingCommand proposal{
-					    1,          std::string(action->name), setting, {}, instance.at("id").get<std::string>(), name,
-					    generation_};
+					    1, std::string(action->name), setting, {}, instance.at("id").get<std::string>(), name, 1};
 					proposal.arguments = arguments;
 					if (action->semantics == CommandSemantics::Request)
 						proposal.request_id = request + 1;

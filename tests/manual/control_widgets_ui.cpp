@@ -136,8 +136,10 @@ int main(int argc, char **argv)
 					draw_console_preview(sample, 1200, 700, {950, 100}, pressed, !pressed, 0, false,
 					                     draft.preview_ui());
 				draw_console_preview(sample, 1200, 700, {-1, -1}, false, false, 0, false, draft.preview_ui());
-				require(console_preview_state().at("controllers")[0].at("commands").at("speed").at("value") == 17000,
-				        "Workshop pointer input changes the isolated widget sample through command admission");
+				const auto updated = console_preview_state().at("controllers")[0];
+				require(updated.at("commands").at("speed").at("value") == 17000 &&
+				            updated.at("generation") == preview.at("controllers")[0].at("generation"),
+				        "Workshop pointer input updates sample state without changing command ownership");
 			}
 		}
 		clear_console_preview();
