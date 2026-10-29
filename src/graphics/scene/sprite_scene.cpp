@@ -95,7 +95,23 @@ float activeHeight(){return instanced==1?fieldAnchor.w:height;}
 vec3 activeRight(){float a=instanced==1?fieldSpin.x+fieldSpin.y*simulationTime:0.0;return basisRight*cos(a)+basisUp*sin(a);}
 vec3 activeUp(){float a=instanced==1?fieldSpin.x+fieldSpin.y*simulationTime:0.0;return basisUp*cos(a)-basisRight*sin(a);}
 vec2 sampleUV(vec2 uv){vec4 c=activeCrop();return clamp((c.xy+sourceUV(uv)*c.zw)/atlasSize,(c.xy+.5)/atlasSize,(c.xy+c.zw-.5)/atlasSize);}
-float reliefAt(vec2 uv){return (instanced==1?fieldPivotDepth.w:depthOffset)+(hasDepth==1?texture(depthMap,sampleUV(uv)).r-.5:0.0)*(instanced==1?fieldPivotDepth.z:depthScale);}
+vec4 sampleMap(sampler2D image,vec2 uv){
+#ifdef VERTEX_STAGE
+  // Geometry must retain authored relief regardless of the colour-pass footprint.
+  return textureLod(image,sampleUV(uv),0.0);
+#else
+  vec4 c=activeCrop();vec2 texel=sourceUV(uv)*c.zw;
+  float footprint=max(length(dFdx(texel)),length(dFdy(texel)));
+  float limit=max(0.0,floor(log2(max(1.0,min(c.z,c.w)*.25))));
+  float lod=clamp(log2(max(1.0,footprint)),0.0,limit);
+  // Include the upper trilinear level and unaligned atlas frame boundaries.
+  // Derivatives above use unclamped UVs so the inset cannot select a sharper mip.
+  float inset=lod>0.0?exp2(ceil(lod)):.5;
+  vec2 at=clamp(c.xy+texel,c.xy+inset,c.xy+c.zw-inset)/atlasSize;
+  return textureLod(image,at,lod);
+#endif
+}
+float reliefAt(vec2 uv){return (instanced==1?fieldPivotDepth.w:depthOffset)+(hasDepth==1?sampleMap(depthMap,uv).r-.5:0.0)*(instanced==1?fieldPivotDepth.z:depthScale);}
 vec3 surfaceAt(vec2 uv){
   vec2 size=activeSize(), pv=activePivot();float h=activeHeight();
   vec3 plane=activeAnchor()+activeRight()*((uv.x*size.x-pv.x)*h/size.y)
@@ -179,11 +195,11 @@ void main(){
     if(r>edge)discard;
     finalColor=vec4(mix(vec3(1.0,.85,.48),burstTint.rgb,smoothstep(.05,.5,r)),burstTint.a);return;
   }
-  vec4 base=texture(texture0,sampleUV(uv));base.a*=instanced==1?1.0:itemAlpha;if(base.a<.01)discard;
+  vec4 base=sampleMap(texture0,uv);base.a*=instanced==1?1.0:itemAlpha;if(base.a<.01)discard;
   if(shadowPass==1){finalColor=packDepth(pixelDepth);return;}
   if(emissive==1||diagnostic==2){finalColor=applyFog(base,cameraPosition,p);return;}
   vec3 n;
-  if(hasNormal==1){vec3 raw=texture(normalMap,sampleUV(uv)).rgb*2.0-1.0;n=normalize(activeRight()*raw.x*mirrorSign()+activeUp()*raw.y+basisNear*raw.z);}
+  if(hasNormal==1){vec3 raw=sampleMap(normalMap,uv).rgb*2.0-1.0;n=normalize(activeRight()*raw.x*mirrorSign()+activeUp()*raw.y+basisNear*raw.z);}
   else {n=normalize(cross(dFdx(p),dFdy(p)));if(dot(n,basisNear)<0.0)n=-n;}
   if(diagnostic==3){finalColor=vec4(n*.5+.5,1);return;}
   if(diagnostic==4){finalColor=vec4(vec3(clamp(reliefAt(uv)+.5,0.0,1.0)),1);return;}
@@ -753,13 +769,11 @@ struct SpriteScene::State
 		data.sprite = compile_sprite(source, catalog, key);
 		auto texture = [&](const std::string &asset)
 		{
-			return textures.load(asset, catalog.assets.at(asset));
+			return textures.load(asset, catalog.assets.at(asset), true);
 		};
 		data.albedo = texture(data.sprite.albedo);
 		data.normal = data.sprite.normal.empty() ? white : texture(data.sprite.normal);
 		data.depth = data.sprite.depth.empty() ? white : texture(data.sprite.depth);
-		for (const auto texture : {data.albedo, data.normal, data.depth})
-			SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
 		for (const auto &asset : {data.sprite.albedo, data.sprite.depth})
 			if (!asset.empty())
 			{

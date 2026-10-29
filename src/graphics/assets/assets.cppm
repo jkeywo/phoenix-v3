@@ -22,7 +22,7 @@ public:
 	TextureCache(const TextureCache &) = delete;
 	TextureCache &operator=(const TextureCache &) = delete;
 	~TextureCache();
-	Texture2D load(const std::string &id, std::span<const std::uint8_t> png);
+	Texture2D load(const std::string &id, std::span<const std::uint8_t> png, bool mipmapped = false);
 	Texture2D load_file(const std::string &path);
 	void clear();
 

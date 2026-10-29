@@ -41,9 +41,10 @@ void TextureCache::clear()
 {
 	textures_.clear();
 }
-Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t> bytes)
+Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t> bytes, bool mipmapped)
 {
-	if (const auto found = textures_.find(id); found != textures_.end())
+	const auto key = id + (mipmapped ? ":mipmapped" : ":base");
+	if (const auto found = textures_.find(key); found != textures_.end())
 		return *found->second;
 	// Static scene owners can clear after the shared index has been destroyed.
 	// Prune only while loading; releasing a cache needs no access to that index.
@@ -52,7 +53,7 @@ Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t
 	              {
 		              return entry.second.expired();
 	              });
-	const auto hash = sha256(bytes);
+	const auto hash = sha256(bytes) + (mipmapped ? ":mipmapped" : ":base");
 	auto texture = shared_textures[hash].lock();
 	if (!texture)
 	{
@@ -72,10 +73,16 @@ Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t
 			UnloadImage(image);
 			throw std::runtime_error(id + ": image exceeds this graphics device's texture limit");
 		}
-		const auto uploaded = LoadTextureFromImage(image);
+		auto uploaded = LoadTextureFromImage(image);
 		UnloadImage(image);
 		if (!uploaded.id)
 			throw std::runtime_error(id + ": texture upload failed");
+		if (mipmapped)
+		{
+			GenTextureMipmaps(&uploaded);
+			SetTextureFilter(uploaded, TEXTURE_FILTER_TRILINEAR);
+			SetTextureWrap(uploaded, TEXTURE_WRAP_CLAMP);
+		}
 		texture = std::shared_ptr<Texture2D>(new Texture2D(uploaded),
 		                                     [](Texture2D *value)
 		                                     {
@@ -84,7 +91,7 @@ Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t
 		                                     });
 		shared_textures[hash] = texture;
 	}
-	textures_[id] = texture;
+	textures_[key] = texture;
 	return *texture;
 }
 Texture2D TextureCache::load_file(const std::string &path)

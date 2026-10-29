@@ -79,6 +79,7 @@ SceneBody body(int id, const char *definition, int x, int y, int heading = 0, in
 }
 #include "mirroring.hpp"
 #include "shield_heat.hpp"
+#include "minification.hpp"
 } // namespace
 int main()
 {
@@ -559,6 +560,7 @@ int main()
 		}
 
 		sprite_mirror_smoke();
+		sprite_minification_smoke();
 		shield_heat_smoke();
 		std::cout << "PASS production-loader graphical sprite depth, flat fallback, directional engines and internal "
 		             "explosion lighting\n";

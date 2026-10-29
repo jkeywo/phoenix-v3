@@ -212,7 +212,8 @@ struct ModelScene::State
 			auto image = load_asset_image(bytes);
 			auto t = LoadTextureFromImage(image);
 			UnloadImage(image);
-			SetTextureFilter(t, TEXTURE_FILTER_BILINEAR);
+			GenTextureMipmaps(&t);
+			SetTextureFilter(t, TEXTURE_FILTER_TRILINEAR);
 			return t;
 		};
 		for (const auto &cpu : model.parts)
