@@ -549,15 +549,20 @@ phoenix_intended_module(
 )
 phoenix_intended_module(phoenix_graphics_audio_policy phoenix_content_assets)
 phoenix_intended_module(phoenix_graphics_audio_backend raylib)
+set(phoenix_native_audio_dependencies)
+if(NOT EMSCRIPTEN)
+	set(phoenix_native_audio_dependencies phoenix_graphics_audio_backend)
+endif()
 phoenix_intended_module(
 	phoenix_graphics_audio
 	phoenix_graphics_audio_policy
-	phoenix_graphics_audio_backend
+	${phoenix_native_audio_dependencies}
 	phoenix_graphics_scene
 	raylib
 	phoenix_content_catalog
 	phoenix_content_assets
 )
+unset(phoenix_native_audio_dependencies)
 phoenix_intended_module(phoenix_ui_interaction phoenix_foundation)
 phoenix_intended_module(
 	phoenix_ui_navigation
