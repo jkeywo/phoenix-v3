@@ -26,6 +26,8 @@ Json save_controllers(const EntityControls &controls)
 		         {"generation", controller.generation},
 		         {"human", controller.human},
 		         {"commands", Json::array()}};
+		if (!controller.human_commands.empty())
+			row["human_commands"] = controller.human_commands;
 		for (const auto &command : controller.commands)
 			row["commands"].push_back({{"value", command.value},
 			                           {"arguments", command.arguments},
@@ -86,6 +88,17 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 		controller.generation = row.at("generation").get<std::uint64_t>();
 		fail(row.at("human").is_boolean());
 		controller.human = row.at("human").get<bool>();
+		controller.human_commands.clear();
+		if (row.contains("human_commands"))
+		{
+			const auto &ownership = row.at("human_commands");
+			fail(ownership.is_array() && ownership.size() == controller.commands.size());
+			for (const auto &owned : ownership)
+			{
+				fail(owned.is_boolean());
+				controller.human_commands.push_back(owned.get<bool>());
+			}
+		}
 		fail(row.at("commands").is_array() && row.at("commands").size() == controller.commands.size());
 		for (std::size_t j = 0; j < controller.commands.size(); ++j)
 		{

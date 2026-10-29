@@ -7,6 +7,7 @@ add_library(
 	presentation.cpp
 	formatting.cpp
 	availability.cpp
+	control_widgets.cpp
 )
 target_sources(phoenix_console_model PUBLIC FILE_SET CXX_MODULES FILES console.cppm)
 target_link_libraries(

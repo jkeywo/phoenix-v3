@@ -338,3 +338,10 @@ help popups across the eight stations and their supported workloads, including
 focus, dismissal and bounds checks. See the [authoring contract](station-help.md)
 and [verification receipt](smoke/station-help.md). Physical reader/device and
 browser graphical acceptance remain separate from these checks.
+
+# Control widget rewrite in progress
+
+The [control widget rewrite](control-widget-rewrite.md) tracks the new shared
+widget definitions, per-command human/AI responsibility, result-aware tree
+attempts, per-star data placement and remaining console/Workshop migration.
+Its partial implementation does not establish completion of the rewrite.

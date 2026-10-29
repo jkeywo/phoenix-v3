@@ -89,7 +89,7 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
 	{
 		auto &controller = controls.controllers[i];
-		if (controller.human)
+		if (controller.human && controller.definition.widget.empty())
 			continue;
 		if (encounter_owns_controller(id, controller.definition))
 		{
@@ -104,7 +104,7 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 		{
 			process_controller_coordination(id, i);
 			auto &brain = *controller.brain;
-			if (brain.continuation.interrupted)
+			if (brain.continuation.interrupted && controller.definition.widget.empty())
 				state_tree::resume(brain.continuation);
 			const auto observations = controller_observations(id, controller);
 

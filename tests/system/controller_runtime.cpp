@@ -15,6 +15,7 @@
 #include <vector>
 
 import phoenix.content.controllers;
+import phoenix.content.ui;
 import phoenix.control.protocol;
 import phoenix.content.distribution;
 import phoenix.content.resources;
@@ -113,12 +114,14 @@ std::int64_t requested(const World &world, const std::string &id)
 #include "../support/power_panel_cases.hpp"
 #include "../support/away_assignment_cases.hpp"
 #include "../support/target_docking_cases.hpp"
+#include "../support/control_widget_cases.hpp"
 
 int main(int argc, char **argv)
 {
 	try
 	{
 		officer_protocol_failure_boundary();
+		control_widget_cases();
 		objective_priority_cases();
 		stock_selection_cases();
 		power_panel_cases();
@@ -2121,7 +2124,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 32, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 33, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

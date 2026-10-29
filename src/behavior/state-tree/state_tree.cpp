@@ -18,6 +18,19 @@ module phoenix.state_tree;
 
 namespace phoenix::state_tree
 {
+EvaluationPorts::~EvaluationPorts() = default;
+bool EvaluationPorts::admits_commands() const
+{
+	return false;
+}
+CommandAttempt EvaluationPorts::command(const Program &, const Output &) const
+{
+	return {CommandOutcome::Refused, "staged_admission_unavailable"};
+}
+Value EvaluationPorts::observation(const Program &, Index, const Value &frozen) const
+{
+	return frozen;
+}
 namespace
 {
 #include "state_tree_validation.hpp"
@@ -41,6 +54,20 @@ Value saved_value(const Json &json)
 	                        std::numeric_limits<std::int64_t>::max(), "state tree: saved value"),
 	        json.at("text").get<std::string>()};
 }
+std::vector<const Task *> nested_tasks(const std::vector<Task> &tasks)
+{
+	std::vector<const Task *> result;
+	for (const auto &task : tasks)
+	{
+		result.push_back(&task);
+		for (const auto &branch : task.branches)
+		{
+			const auto children = nested_tasks(branch);
+			result.insert(result.end(), children.begin(), children.end());
+		}
+	}
+	return result;
+}
 struct Evaluation
 {
 	std::span<const Value> observations;
@@ -49,6 +76,7 @@ struct Evaluation
 	Result result;
 	std::vector<Index> call_path;
 	std::vector<std::uint64_t> call_activations;
+	const EvaluationPorts *ports = nullptr;
 	void spend(std::size_t work = 1)
 	{
 		if (work > budget - result.debug.work)
@@ -61,14 +89,20 @@ struct Evaluation
 		// captured maps. This bounds the total retained emission context per step.
 		spend(1 + (name.size() + 63) / 64 + (value.text.size() + 63) / 64);
 	}
-	Value read(const Binding &binding, const Instance &instance, const Frame &frame)
+	Value read(const Program &program, const Binding &binding, const Instance &instance, const Frame &frame)
 	{
 		switch (binding.source)
 		{
 		case Source::Literal:
 			return binding.literal;
 		case Source::Observation:
-			return observations[binding.index];
+		{
+			const auto &frozen = observations[binding.index];
+			const auto value = ports ? ports->observation(program, binding.index, frozen) : frozen;
+			if (!valid_value(value, binding.type, true))
+				fail("staged observation type mismatch");
+			return value;
+		}
 		case Source::Intent:
 			return result.intents[binding.index];
 		case Source::Memory:
@@ -79,13 +113,13 @@ struct Evaluation
 		}
 		return {};
 	}
-	bool matches(const Condition &condition, const Instance &instance, const Frame &frame)
+	bool matches(const Program &program, const Condition &condition, const Instance &instance, const Frame &frame)
 	{
 		spend();
-		const auto left = read(condition.left, instance, frame);
+		const auto left = read(program, condition.left, instance, frame);
 		if (condition.operation == Compare::Present)
 			return compare_values(left, condition.operation, {});
-		return compare_values(left, condition.operation, read(condition.right, instance, frame));
+		return compare_values(left, condition.operation, read(program, condition.right, instance, frame));
 	}
 	void emit(const Program &program, Output output)
 	{
@@ -122,20 +156,45 @@ struct Evaluation
 		}
 		result.outputs.push_back(std::move(output));
 	}
-	void tasks(const Program &program, Instance &instance, Frame &frame, const std::vector<Task> &tasks)
+	bool tasks(const Program &program, Instance &instance, Frame &frame, const std::vector<Task> &tasks,
+	           bool required = false)
 	{
 		for (const auto &task : tasks)
 		{
 			spend();
 			if (task.once && std::find(frame.fired.begin(), frame.fired.end(), task.id) != frame.fired.end())
 				continue;
+			if (task.kind == TaskKind::Guard)
+			{
+				for (const auto &condition : task.conditions)
+					if (!matches(program, condition, instance, frame))
+						return false;
+				continue;
+			}
+			if (task.kind == TaskKind::Attempt)
+			{
+				bool succeeded = false;
+				for (const auto &branch : task.branches)
+					if (this->tasks(program, instance, frame, branch, true))
+					{
+						succeeded = true;
+						break;
+					}
+				if (task.result_memory != none)
+					instance.memory[task.result_memory] = Value::boolean(succeeded);
+				if (!succeeded && required)
+					return false;
+				continue;
+			}
 			if (task.kind == TaskKind::Call)
 			{
 				call_path.push_back(task.id);
 				call_activations.push_back(frame.activation);
-				run(program.references[task.target], instance.calls[task.id]);
+				const auto succeeded = run(program.references[task.target], instance.calls[task.id], required);
 				call_activations.pop_back();
 				call_path.pop_back();
+				if (!succeeded && required)
+					return false;
 			}
 			else
 			{
@@ -143,7 +202,7 @@ struct Evaluation
 				bool complete = true;
 				for (const auto &binding : task.arguments)
 				{
-					args.push_back(read(binding, instance, frame));
+					args.push_back(read(program, binding, instance, frame));
 					if (args.back().type == Type::Missing)
 						complete = false;
 				}
@@ -151,6 +210,8 @@ struct Evaluation
 				{
 					result.debug.diagnostics.push_back("task " + std::to_string(task.id) +
 					                                   ": unavailable permitted input");
+					if (required)
+						return false;
 					continue;
 				}
 				if (task.kind == TaskKind::Memory)
@@ -160,9 +221,23 @@ struct Evaluation
 				else
 				{
 					const auto &spec = program.registry.actions[task.target];
-					if (spec.intent_field != none)
-						result.intents[spec.intent_field] = args[spec.value_argument];
 					Output output{task.target, std::move(args), frame.activation, task.id, call_path, call_activations};
+					CommandAttempt feedback{CommandOutcome::Applied, {}};
+					if (spec.command && ports && ports->admits_commands())
+					{
+						feedback = ports->command(program, output);
+						result.attempts.push_back({task.id, spec.name, feedback.outcome, feedback.reason});
+					}
+					else if (spec.command && required)
+						fail("attempt command requires staged admission port");
+					if (feedback.outcome == CommandOutcome::Refused)
+					{
+						if (required)
+							return false;
+						continue;
+					}
+					if (spec.intent_field != none)
+						result.intents[spec.intent_field] = output.arguments[spec.value_argument];
 					if (spec.capture_context)
 					{
 						for (const auto &[name, value] : program.parameters)
@@ -178,24 +253,29 @@ struct Evaluation
 						for (std::size_t i = 0; i < program.registry.intents.size(); ++i)
 							output.captured_intents.emplace(program.registry.intents[i].name, result.intents.at(i));
 					}
-					emit(program, std::move(output));
+					if (feedback.outcome != CommandOutcome::AlreadySatisfied)
+						emit(program, std::move(output));
 				}
 			}
 			if (task.once)
 				frame.fired.push_back(task.id);
 		}
+		return true;
 	}
-	void enter(const Program &program, Instance &instance, Index state)
+	bool enter(const Program &program, Instance &instance, Index state, bool required = false)
 	{
 		while (state != none)
 		{
 			spend();
 			if (instance.next_activation == std::numeric_limits<std::uint64_t>::max())
 				fail("activation sequence exhausted");
-			instance.path.push_back(Frame{state, 0, instance.next_activation++, {}});
-			tasks(program, instance, instance.path.back(), program.states[state].entry);
+			instance.path.push_back(Frame{state, 0, instance.next_activation++, {}, false});
+			if (!tasks(program, instance, instance.path.back(), program.states[state].entry, required))
+				return false;
+			instance.path.back().entered = true;
 			state = program.states[state].initial;
 		}
+		return true;
 	}
 	void exit_last(const Program &program, Instance &instance)
 	{
@@ -203,27 +283,27 @@ struct Evaluation
 		const auto &state = program.states[frame.state];
 		// Child decision work is interrupted before its caller exits.
 		for (const auto *list : {&state.entry, &state.running, &state.exit})
-			for (const auto &task : *list)
-				if (task.kind == TaskKind::Call && instance.calls.contains(task.id))
+			for (const auto *task : nested_tasks(*list))
+				if (task->kind == TaskKind::Call && instance.calls.contains(task->id))
 				{
-					call_path.push_back(task.id);
+					call_path.push_back(task->id);
 					call_activations.push_back(frame.activation);
-					stop(program.references[task.target], instance.calls.at(task.id));
+					stop(program.references[task->target], instance.calls.at(task->id));
 					call_activations.pop_back();
 					call_path.pop_back();
-					instance.calls.erase(task.id);
+					instance.calls.erase(task->id);
 				}
 		tasks(program, instance, frame, state.exit);
 		// Exit tasks may have started reference work; stop it as well.
-		for (const auto &task : state.exit)
-			if (task.kind == TaskKind::Call && instance.calls.contains(task.id))
+		for (const auto *task : nested_tasks(state.exit))
+			if (task->kind == TaskKind::Call && instance.calls.contains(task->id))
 			{
-				call_path.push_back(task.id);
+				call_path.push_back(task->id);
 				call_activations.push_back(frame.activation);
-				stop(program.references[task.target], instance.calls.at(task.id));
+				stop(program.references[task->target], instance.calls.at(task->id));
 				call_activations.pop_back();
 				call_path.pop_back();
-				instance.calls.erase(task.id);
+				instance.calls.erase(task->id);
 			}
 		instance.path.pop_back();
 	}
@@ -237,10 +317,10 @@ struct Evaluation
 		instance.interrupted = true;
 		instance.resume_pending = false;
 	}
-	void run(const Program &program, Instance &instance)
+	bool run(const Program &program, Instance &instance, bool required = false)
 	{
 		if (instance.interrupted)
-			return;
+			return false;
 		if (!instance.initialised || instance.resume_pending)
 		{
 			instance.resume_pending = false;
@@ -248,11 +328,22 @@ struct Evaluation
 			if (instance.memory.empty())
 				for (const auto &field : program.memory)
 					instance.memory.push_back(field.initial);
-			enter(program, instance, program.initial);
+			if (!enter(program, instance, program.initial, required))
+				return false;
+		}
+		if (!instance.path.empty() && !instance.path.back().entered)
+		{
+			auto &frame = instance.path.back();
+			if (!tasks(program, instance, frame, program.states[frame.state].entry, required))
+				return false;
+			frame.entered = true;
+			if (!enter(program, instance, program.states[frame.state].initial, required))
+				return false;
 		}
 		for (auto &frame : instance.path)
 		{
-			tasks(program, instance, frame, program.states[frame.state].running);
+			if (!tasks(program, instance, frame, program.states[frame.state].running, required) && required)
+				return false;
 			if (ticks > std::numeric_limits<std::uint64_t>::max() - frame.elapsed)
 				fail("elapsed timer exhausted");
 			frame.elapsed += ticks;
@@ -267,7 +358,7 @@ struct Evaluation
 				spend();
 				bool matched = true;
 				for (const auto &condition : transition.conditions)
-					if (!matches(condition, instance, frame))
+					if (!matches(program, condition, instance, frame))
 					{
 						matched = false;
 						break;
@@ -292,16 +383,21 @@ struct Evaluation
 					spend();
 					if (instance.next_activation == std::numeric_limits<std::uint64_t>::max())
 						fail("activation sequence exhausted");
-					instance.path.push_back(Frame{target_path[at], 0, instance.next_activation++, {}});
-					tasks(program, instance, instance.path.back(), program.states[target_path[at]].entry);
+					instance.path.push_back(Frame{target_path[at], 0, instance.next_activation++, {}, false});
+					if (!tasks(program, instance, instance.path.back(), program.states[target_path[at]].entry,
+					           required))
+						return false;
+					instance.path.back().entered = true;
 				}
 				const auto child = program.states[instance.path.back().state].initial;
 				if (child != none)
-					enter(program, instance, child);
+					if (!enter(program, instance, child, required))
+						return false;
 				result.debug.transition = reason;
-				return;
+				return true;
 			}
 		}
+		return true;
 	}
 };
 
@@ -326,9 +422,9 @@ const Task *find_call(const Program &program, Index id)
 {
 	for (const auto &state : program.states)
 		for (const auto *tasks : {&state.entry, &state.running, &state.exit})
-			for (const auto &task : *tasks)
-				if (task.id == id && task.kind == TaskKind::Call)
-					return &task;
+			for (const auto *task : nested_tasks(*tasks))
+				if (task->id == id && task->kind == TaskKind::Call)
+					return task;
 	return nullptr;
 }
 Json save_instance(const Program &program, const Instance &instance)
@@ -344,7 +440,8 @@ Json save_instance(const Program &program, const Instance &instance)
 		result["path"].push_back(Json{{"state", frame.state},
 		                              {"elapsed", frame.elapsed},
 		                              {"activation", frame.activation},
-		                              {"fired", frame.fired}});
+		                              {"fired", frame.fired},
+		                              {"entered", frame.entered}});
 	for (const auto &value : instance.memory)
 		result["memory"].push_back(value_json(value));
 	for (const auto &[id, child] : instance.calls)
@@ -375,7 +472,8 @@ Instance load_instance(const Program &program, const Json &json)
 		Frame frame{static_cast<Index>(unsigned_number(saved.at("state"), std::numeric_limits<Index>::max(), "state")),
 		            unsigned_number(saved.at("elapsed"), std::numeric_limits<std::uint64_t>::max(), "elapsed"),
 		            unsigned_number(saved.at("activation"), std::numeric_limits<std::uint64_t>::max(), "activation"),
-		            {}};
+		            {},
+		            saved.value("entered", true)};
 		if (!saved.at("fired").is_array() || saved.at("fired").size() > 8192)
 			fail("invalid saved one-shot list");
 		for (const auto &id : saved.at("fired"))
@@ -390,8 +488,8 @@ Instance load_instance(const Program &program, const Json &json)
 			bool found = false;
 			for (const auto *tasks : {&program.states[frame.state].entry, &program.states[frame.state].running,
 			                          &program.states[frame.state].exit})
-				for (const auto &task : *tasks)
-					if (task.id == id && task.once)
+				for (const auto *task : nested_tasks(*tasks))
+					if (task->id == id && task->once)
 						found = true;
 			if (!found || !fired.insert(id).second)
 				fail("invalid saved one-shot marker");
@@ -399,8 +497,11 @@ Instance load_instance(const Program &program, const Json &json)
 		parent = frame.state;
 		result.path.push_back(std::move(frame));
 	}
-	if (!result.path.empty() && program.states[result.path.back().state].initial != none)
+	if (!result.path.empty() && result.path.back().entered && program.states[result.path.back().state].initial != none)
 		fail("saved path must end at leaf");
+	for (std::size_t i = 0; i + 1 < result.path.size(); ++i)
+		if (!result.path[i].entered)
+			fail("unfinished entry must be the last active frame");
 	for (const auto &value : json.at("memory"))
 		result.memory.push_back(saved_value(value));
 	if (result.memory.size() != (result.initialised ? program.memory.size() : 0))
@@ -422,8 +523,8 @@ Instance load_instance(const Program &program, const Json &json)
 		bool active = false;
 		for (const auto &frame : result.path)
 			for (const auto *tasks : {&program.states[frame.state].entry, &program.states[frame.state].running})
-				for (const auto &candidate : *tasks)
-					if (candidate.id == id)
+				for (const auto *candidate : nested_tasks(*tasks))
+					if (candidate->id == id)
 						active = true;
 		if (!active)
 			fail("reference call outside active state");
@@ -435,9 +536,15 @@ Instance load_instance(const Program &program, const Json &json)
 
 Result step(const Program &program, Instance &instance, std::span<const Value> observations, std::uint64_t ticks)
 {
+	return step(program, instance, observations, ticks, {});
+}
+Result step(const Program &program, Instance &instance, std::span<const Value> observations, std::uint64_t ticks,
+            const EvaluationPorts &ports)
+{
 	if (ticks == 0 || ticks > 1000000)
 		fail("ticks outside 1..1000000");
 	auto eval = evaluation(program, observations, ticks);
+	eval.ports = &ports;
 	// Work is transactional: resource/action admission happens only after a complete
 	// successful evaluation. Budget failure cannot advance one-shot continuation.
 	auto next = instance;

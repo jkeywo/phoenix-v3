@@ -26,6 +26,22 @@ struct ConsoleMessageView
 	}
 };
 UiAvailability console_ui_availability(const Observation &);
+struct ControlWidgetDatum
+{
+	std::string id, label, text;
+	WidgetDataDestination destination = WidgetDataDestination::Details;
+	bool available = false;
+};
+struct ControlWidgetView
+{
+	std::string id, definition, level;
+	int stars = 0;
+	bool automated = true;
+	std::vector<ControlWidgetDatum> data;
+	std::vector<Json> controls;
+};
+// Presentation reads only the permitted observation and public widget metadata.
+std::vector<ControlWidgetView> console_control_widgets(const Catalog &, const Observation &);
 std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only = false);
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &, std::uint64_t now);
 enum class SystemCondition

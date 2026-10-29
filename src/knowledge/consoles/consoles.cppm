@@ -4,6 +4,7 @@ module;
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,7 +34,7 @@ public:
 	KnowledgeId console_id(const ConsoleAddress &address) const;
 	KnowledgeId system_id(EntityId ship, const std::string &system) const;
 	KnowledgeId controller_id(const ControllerAddress &address) const;
-	void set_controller_control(const ControllerAddress &address, bool present, bool human);
+	void set_controller_control(const ControllerAddress &address, bool present, bool human, bool ai_running = false);
 	void set_console_presence(const ConsoleAddress &address, bool present);
 	std::vector<CoordinationDelivery> peek_controller(const ControllerAddress &address);
 	void acknowledge_controller(const ControllerAddress &address, KnowledgeId through_message);
@@ -110,6 +111,7 @@ private:
 	std::map<EntityId, GameplayKnowledgeShipBinding> ships_;
 	std::map<KnowledgeId, ConsoleAddress> addresses_;
 	std::map<KnowledgeId, bool> human_consoles_, human_systems_;
+	std::set<KnowledgeId> assisted_controllers_;
 	std::map<KnowledgeId, KnowledgeId> publication_owners_;
 	std::map<KnowledgeId, std::vector<CoordinationDelivery>> notifications_;
 	KnowledgeId next_binding_ = 1;

@@ -195,7 +195,8 @@ KnowledgeId GameplayKnowledge::controller_id(const ControllerAddress &address) c
 	                  "unknown Controller");
 	return ships_.at(address.entity).controllers.at(key);
 }
-void GameplayKnowledge::set_controller_control(const ControllerAddress &address, bool present, bool human)
+void GameplayKnowledge::set_controller_control(const ControllerAddress &address, bool present, bool human,
+                                               bool ai_running)
 {
 	const auto &definition = definitions_.at(ships_.at(address.entity).definition);
 	knowledge_require(definition.controllers.at(address.console + "/" + address.controller) == address.console &&
@@ -206,11 +207,16 @@ void GameplayKnowledge::set_controller_control(const ControllerAddress &address,
 	human_consoles_[console_id({address.entity, address.console})] = present;
 	runtime_.set_system_human_control(id, human);
 	human_systems_[id] = human;
+	if (ai_running)
+		assisted_controllers_.insert(id);
+	else
+		assisted_controllers_.erase(id);
 }
 std::vector<CoordinationDelivery> GameplayKnowledge::peek_controller(const ControllerAddress &address)
 {
 	const auto id = controller_id(address);
-	knowledge_require(!human_systems_.at(id), "human-controlled Controller cannot inspect AI continuation");
+	knowledge_require(!human_systems_.at(id) || assisted_controllers_.contains(id),
+	                  "human-controlled Controller cannot inspect AI continuation");
 	const auto &memory = runtime_.private_memory(id);
 	knowledge_require(memory.console == console_id({address.entity, address.console}), "Controller Console mismatch");
 	auto result = runtime_.message_history(memory.console);

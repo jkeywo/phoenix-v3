@@ -127,6 +127,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 			if (controller.definition.console == seat.id && controller.human)
 				for (std::size_t i = 0; i < controller.commands.size(); ++i)
 				{
+					if (!controller_command_human(controller, i))
+						continue;
 					const auto &channel = controller.definition.commands[i];
 					const auto &state = controller.commands[i];
 					if (!channel.coordinated_group.empty())

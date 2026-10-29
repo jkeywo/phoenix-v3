@@ -167,6 +167,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				     {"magazines", d.get<WeaponDefinition>().magazines},
 				     {"selected", m->get<WeaponState>().selected_magazine},
 				     {"loaded", m->get<WeaponState>().loaded_magazine},
+				     {"loaded_resource", m->get<WeaponState>().loaded_resource},
+				     {"loaded_quantity", m->get<WeaponState>().loaded_quantity},
 				     {"loading", m->get<WeaponState>().loading},
 				     {"unloading", m->get<WeaponState>().unloading},
 				     {"load_ticks", load_duration(ship, *m)},

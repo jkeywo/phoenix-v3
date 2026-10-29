@@ -516,6 +516,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		result.commands.push_back({name, add({"command." + name, kind, 4, {}})});
 		registry.intents.push_back({name, kind, 4, {}});
 		registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
+		registry.actions.back().command = true;
 		if (contract)
 		{
 			for (const auto &field : operating_arguments(contract->action))

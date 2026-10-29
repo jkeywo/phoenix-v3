@@ -11,6 +11,10 @@ module phoenix.control.controllers;
 
 namespace phoenix
 {
+bool controller_command_human(const ConsoleControllerRuntime &controller, std::size_t channel)
+{
+	return controller.human_commands.empty() ? controller.human : controller.human_commands.at(channel);
+}
 const ControllerActionSpec &controller_action_spec(const ConsoleControllerRuntime &controller)
 {
 	for (const auto &spec : controller.actions)
@@ -48,7 +52,7 @@ void restore_controller_action(ConsoleControllerRuntime &controller, const Json 
 		return;
 	}
 	if (!controller.brain || !a.serial || a.invocation.empty() || a.status == "idle" ||
-	    (controller.human && a.status == "running"))
+	    (controller.human && controller.definition.widget.empty() && a.status == "running"))
 		throw std::runtime_error("Invalid action ownership");
 	const auto &spec = controller_action_spec(controller);
 	if (!saved.at("inputs").is_array() || saved.at("inputs").size() != spec.inputs.size())

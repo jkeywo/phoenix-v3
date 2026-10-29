@@ -43,6 +43,24 @@ std::string control_name(const Json &value, const char *field, const std::string
 	                path, std::string("invalid ") + field);
 	return name;
 }
+void control_layout_targets(const Catalog &catalog, Json node, std::set<std::string> &targets, unsigned depth = 0)
+{
+	control_require(depth <= 24, "control widget layout", "reusable group nesting exceeds 24 levels");
+	if (node.contains("group"))
+	{
+		const auto &group = catalog.ui_groups.at(node.at("group").get<std::string>());
+		auto expanded = group.at("root");
+		if (node.contains("overrides"))
+			expanded.merge_patch(node.at("overrides"));
+		control_layout_targets(catalog, std::move(expanded), targets, depth + 1);
+		return;
+	}
+	const auto component = node.value("component", std::string{});
+	if (component.starts_with("control/"))
+		targets.insert(component);
+	for (const auto &child : node.value("children", Json::array()))
+		control_layout_targets(catalog, child, targets, depth + 1);
+}
 bool ability_endpoint_owned(const Json &entity, const std::string &endpoint, const std::string &controller,
                             const std::string &console)
 {
@@ -409,8 +427,12 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			result.manual_workloads[console][family] = stars.get<int>();
 		}
 	}
-	control_require(layout.is_object() && layout.value("schema", 0) == 1, path,
-	                "unsupported layout schema (expected 1)");
+	const bool widget_layout = layout.value("schema", 0) == 2;
+	control_require(layout.is_object() && (layout.value("schema", 0) == 1 || widget_layout), path,
+	                "unsupported layout schema (expected 1 or 2)");
+	if (widget_layout)
+		control_require(!layout.contains("manual_workloads"), path,
+		                "widget layouts derive responsibility from widget levels, not manual workloads");
 	control_require(!entity.contains("controller") && !entity.contains("controllers") && !entity.contains("presets"),
 	                path, "explicit layout cannot mix legacy command AI or presets");
 	control_require(layout.contains("controllers") && layout.at("controllers").is_array() &&
@@ -418,8 +440,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	                path, "expected bounded controllers array");
 	std::map<std::pair<std::string, std::string>, std::size_t> controller_ids;
 	std::set<std::pair<std::size_t, OperatingAction>> inputs;
-	for (const auto &row : layout.at("controllers"))
+	for (const auto &instance : layout.at("controllers"))
 	{
+		control_require(!widget_layout || instance.contains("widget"), path,
+		                "schema 2 Controller requires a shared widget definition");
+		const auto row = instance.contains("widget") ? bind_control_widget(catalog, instance) : instance;
 		ConsoleControllerSpec controller;
 		controller.id = control_name(row, "id", path);
 		controller.console = control_name(row, "console", path);
@@ -707,6 +732,51 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				                where, "tree command type/semantics differs from owned channel");
 			}
 		}
+		if (row.contains("widget"))
+		{
+			controller.widget = row.at("widget").get<std::string>();
+			const auto widget = compile_control_widget(catalog, controller.widget);
+			for (const auto &[role, specification] : widget.equipment.items())
+			{
+				const auto &binding = row.at("equipment").at(role);
+				const auto identities = binding.is_array() ? binding : Json::array({binding});
+				const auto kinds = specification.value("kinds", Json::array());
+				control_require(kinds.is_array(), where, "equipment kinds must be an array");
+				for (const auto &identity : identities)
+				{
+					const auto name = identity.get<std::string>();
+					controller.equipment[role].push_back(name);
+					control_require(system_ids.contains(name), where, "unresolved attached equipment " + name);
+					const auto kind = std::string(operating_system_name(systems[system_ids.at(name)].kind));
+					control_require(kinds.empty() || std::find(kinds.begin(), kinds.end(), Json(kind)) != kinds.end(),
+					                where, "incompatible equipment for role " + role + ": " + name);
+				}
+			}
+			const auto &mapping = row.at("star_levels");
+			control_require(mapping.is_object() && mapping.size() == 3, where,
+			                "widget needs responsibility mappings for stars 1, 2 and 3");
+			std::size_t previous = 0;
+			for (int stars = 1; stars <= 3; ++stars)
+			{
+				const auto key = std::to_string(stars);
+				control_require(mapping.contains(key) && mapping.at(key).is_string(), where,
+				                "missing widget star mapping");
+				const auto level = mapping.at(key).get<std::string>();
+				const auto found = std::find_if(widget.levels.begin(), widget.levels.end(),
+				                                [&](const auto &candidate)
+				                                {
+					                                return candidate.id == level;
+				                                });
+				control_require(found != widget.levels.end(), where, "unknown widget responsibility level " + level);
+				const auto index = static_cast<std::size_t>(found - widget.levels.begin());
+				control_require(index >= previous, where, "widget responsibility must not decrease as stars increase");
+				previous = index;
+				controller.star_levels[stars] = level;
+				controller.human_channels[stars] = found->human;
+				controller.data_placement[stars] =
+				    control_widget_data_placement(widget, level, stars, row.value("data_placement", Json::object()));
+			}
+		}
 		result.controllers.push_back(std::move(controller));
 	}
 	for (const auto &controller : result.controllers)
@@ -778,29 +848,40 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		control_require(profiles.insert(profile.id).second, path, "duplicate profile");
 		profile.stars = row.value("stars", 0);
 		control_require(profile.stars >= 0 && profile.stars <= 3, path, "stars must be between zero and three");
-		control_require(row.contains("consoles") && row.at("consoles").is_object(), path,
-		                "profile requires Console allocations");
-		std::set<std::size_t> assigned;
-		for (auto console = row.at("consoles").begin(); console != row.at("consoles").end(); ++console)
+		if (widget_layout)
 		{
-			control_require(console_ids.contains(console.key()) && console.value().is_object(), path,
-			                "unknown profile Console");
-			for (const auto *operator_kind : {"human", "ai"})
+			control_require(!row.contains("consoles") && profile.stars >= 1, path,
+			                "widget profiles name stars, not separate Controller allocations");
+			for (std::size_t i = 0; i < result.controllers.size(); ++i)
+				profile.human[i] = !result.controllers[i].human_channels.at(profile.stars).empty();
+		}
+		else
+		{
+			control_require(row.contains("consoles") && row.at("consoles").is_object(), path,
+			                "profile requires Console allocations");
+			std::set<std::size_t> assigned;
+			for (auto console = row.at("consoles").begin(); console != row.at("consoles").end(); ++console)
 			{
-				const auto ids = console.value().value(operator_kind, Json::array());
-				control_require(ids.is_array(), path, "profile allocation must be an array");
-				for (const auto &id : ids)
+				control_require(console_ids.contains(console.key()) && console.value().is_object(), path,
+				                "unknown profile Console");
+				for (const auto *operator_kind : {"human", "ai"})
 				{
-					control_require(id.is_string(), path, "invalid profile Controller");
-					const auto key = std::pair{console.key(), id.get<std::string>()};
-					control_require(controller_ids.contains(key), path, "foreign or unknown profile Controller");
-					const auto i = controller_ids.at(key);
-					control_require(assigned.insert(i).second, path, "Controller allocated twice");
-					profile.human[i] = std::string(operator_kind) == "human";
+					const auto ids = console.value().value(operator_kind, Json::array());
+					control_require(ids.is_array(), path, "profile allocation must be an array");
+					for (const auto &id : ids)
+					{
+						control_require(id.is_string(), path, "invalid profile Controller");
+						const auto key = std::pair{console.key(), id.get<std::string>()};
+						control_require(controller_ids.contains(key), path, "foreign or unknown profile Controller");
+						const auto i = controller_ids.at(key);
+						control_require(assigned.insert(i).second, path, "Controller allocated twice");
+						profile.human[i] = std::string(operator_kind) == "human";
+					}
 				}
 			}
+			control_require(assigned.size() == result.controllers.size(), path,
+			                "profile must allocate every Controller");
 		}
-		control_require(assigned.size() == result.controllers.size(), path, "profile must allocate every Controller");
 		if (profile.id == layout.value("default_profile", std::string{}))
 			result.default_profile = result.profiles.size();
 		result.profiles.push_back(std::move(profile));
@@ -858,6 +939,51 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					                                                           : OperatingAction::Heading),
 					                path, "widget action differs from command channel");
 				}
+	for (const auto &console : consoles)
+	{
+		if (console.definition.empty())
+			continue;
+		const auto &definition = catalog.consoles.at(console.definition);
+		if (!definition.contains("layout"))
+			continue;
+		auto layout = definition.at("layout");
+		if (layout.is_string())
+			layout = catalog.layouts.at(layout.get<std::string>());
+		if (definition.contains("layout_overrides"))
+			layout.merge_patch(definition.at("layout_overrides"));
+		std::set<std::string> targets;
+		control_layout_targets(catalog, layout.at("root"), targets);
+		if (layout.contains("compact"))
+			control_layout_targets(catalog, layout.at("compact"), targets);
+		for (const auto &target : targets)
+		{
+			const auto last = target.rfind('/');
+			control_require(last > 8 && last + 1 < target.size(), path, "invalid widget placement " + target);
+			auto instance = target.substr(8, last - 8);
+			const auto part = target.substr(last + 1);
+			auto owner = console.id;
+			if (const auto scope = instance.find('/'); scope != std::string::npos)
+			{
+				owner = instance.substr(0, scope);
+				instance = instance.substr(scope + 1);
+			}
+			const auto controller = std::find_if(result.controllers.begin(), result.controllers.end(),
+			                                     [&](const auto &candidate)
+			                                     {
+				                                     return candidate.console == owner && candidate.id == instance;
+			                                     });
+			control_require(controller != result.controllers.end() && !controller->widget.empty(), path,
+			                "layout names an unbound control widget " + target);
+			const auto widget = compile_control_widget(catalog, controller->widget);
+			control_require(part == "complete" || part == "main" || widget.parts.contains(part), path,
+			                "layout names an unknown widget part " + target);
+			if (part != "complete" && part != "main")
+				control_require(catalog.control_widgets.at(controller->widget)
+				                    .value("part_bindings", Json::object())
+				                    .contains(part),
+				                path, "named widget part has no data/control bindings " + target);
+		}
+	}
 	std::size_t waypoints = 0;
 	for (const auto &controller : result.controllers)
 		for (const auto &command : controller.commands)

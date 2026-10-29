@@ -23,6 +23,9 @@ struct ControllerActionPorts
 	std::function<const Observation &()> observation;
 	std::function<void(const state_tree::Output &, std::span<const state_tree::Value>, const state_tree::Program *)>
 	    output;
+	std::function<state_tree::CommandAttempt(std::vector<ControllerChannelState> &, const state_tree::Program &,
+	                                         const state_tree::Output &)>
+	    command;
 };
 struct ControllerDecisionContext
 {
@@ -79,6 +82,9 @@ struct ControllerCommandChecks
 	std::function<bool(const ControllerCommandSpec &, const ControllerProposal &)> same_effect;
 };
 bool commit_controller_command(EntityControls &, const ControllerProposal &, const ControllerCommandChecks &);
+state_tree::CommandAttempt attempt_controller_command(const ConsoleControllerRuntime &,
+                                                      std::vector<ControllerChannelState> &, const ControllerProposal &,
+                                                      const ControllerCommandChecks &);
 Json save_controllers(const EntityControls &);
 void restore_controllers(EntityControls &, const Json &, const ControllerArgumentCheck &,
                          std::span<const KnowledgeId> known_peers);

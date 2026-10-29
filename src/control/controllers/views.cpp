@@ -30,6 +30,7 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 		                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
 		                     {"accepted", state.accepted},
 		                     {"request_id", state.request_id}};
+		commands[spec.id]["human"] = controller_command_human(controller, i);
 		if (!spec.ui_system.empty())
 			commands[spec.id]["ui_system"] = spec.ui_system;
 		auto &consumers = commands[spec.id]["consumers"] = Json::array();
@@ -41,6 +42,23 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	         {"human", controller.human},
 	         {"generation", controller.generation},
 	         {"commands", commands}};
+	if (!controller.definition.widget.empty())
+	{
+		row["widget"] = controller.definition.widget;
+		row["equipment"] = controller.definition.equipment;
+		row["star_levels"] = Json::object();
+		row["data_placement"] = Json::object();
+		for (const auto &[stars, level] : controller.definition.star_levels)
+			row["star_levels"][std::to_string(stars)] = level;
+		for (const auto &[stars, items] : controller.definition.data_placement)
+		{
+			auto &placement = row["data_placement"][std::to_string(stars)] = Json::object();
+			for (const auto &[item, target] : items)
+				placement[item] = target == WidgetDataDestination::Main      ? "main"
+				                  : target == WidgetDataDestination::Details ? "details"
+				                                                             : "hidden";
+		}
+	}
 	row["conversation_authority"] = facts.conversation_authority;
 	row["contribution_authority"] = facts.contribution_authority;
 	row["craft_authority"] = facts.craft_authority;

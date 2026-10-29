@@ -71,6 +71,7 @@ struct ActionSpec
 	// Composite conflict key. Empty retains target_argument compatibility.
 	std::vector<Index> key_arguments;
 	bool capture_context = false;
+	bool command = false;
 };
 struct Registry
 {
@@ -116,7 +117,9 @@ enum class TaskKind : std::uint8_t
 	Memory,
 	Intent,
 	Action,
-	Call
+	Call,
+	Attempt,
+	Guard
 };
 struct Task
 {
@@ -124,6 +127,9 @@ struct Task
 	Index id{}, target{none};
 	std::vector<Binding> arguments;
 	bool once{};
+	std::vector<std::vector<Task>> branches;
+	std::vector<Condition> conditions;
+	Index result_memory{none};
 };
 struct Transition
 {
@@ -155,6 +161,7 @@ struct Frame
 	Index state{none};
 	std::uint64_t elapsed{}, activation{};
 	std::vector<Index> fired;
+	bool entered = true;
 };
 struct Instance
 {
@@ -183,16 +190,45 @@ struct Debug
 	std::vector<std::string> diagnostics;
 	std::uint32_t work{};
 };
+enum class CommandOutcome : std::uint8_t
+{
+	Applied,
+	AlreadySatisfied,
+	Refused
+};
+struct CommandAttempt
+{
+	CommandOutcome outcome = CommandOutcome::Refused;
+	std::string reason;
+};
+struct AttemptTrace
+{
+	Index task = none;
+	std::string action;
+	CommandOutcome outcome = CommandOutcome::Refused;
+	std::string reason;
+};
+// These ports only inspect/update caller-owned staging state. They must not
+// publish effects or mutate authoritative state while a tree is evaluating.
+struct EvaluationPorts
+{
+	virtual ~EvaluationPorts();
+	virtual bool admits_commands() const;
+	virtual CommandAttempt command(const Program &, const Output &) const;
+	virtual Value observation(const Program &, Index, const Value &) const;
+};
 struct Result
 {
 	std::vector<Output> outputs;
 	std::vector<Value> intents;
 	Debug debug;
+	std::vector<AttemptTrace> attempts;
 };
 // Resolve inheritance/overrides without requiring a finished registry or tasks.
 Json resolve_definition(const Json &definition, const Catalog &catalog = {});
 Program compile(const Json &definition, const Registry &registry, const Catalog &catalog = {});
 Result step(const Program &program, Instance &instance, std::span<const Value> observations, std::uint64_t ticks = 1);
+Result step(const Program &, Instance &, std::span<const Value>, std::uint64_t ticks, const EvaluationPorts &);
 // Interruption runs exit tasks once, cancels child decision continuations, then
 // leaves this instance stopped until reset. Already returned effects are untouched.
 Result interrupt(const Program &program, Instance &instance, std::span<const Value> observations);

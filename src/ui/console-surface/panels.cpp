@@ -53,6 +53,130 @@ import phoenix.devices;
 #include "surface_state.hpp"
 namespace phoenix
 {
+void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
+{
+	if (!model_.observation() || !app_->session)
+		return;
+	const auto sources = task_sources();
+	std::map<ConsoleModel *, std::vector<ControlWidgetView>> views;
+	for (const auto &[source, prefix] : sources)
+		if (source->observation())
+			views[source] = console_control_widgets(app_->session->catalog(), *source->observation());
+	std::vector<std::pair<std::string, std::string>> readouts, buttons;
+	std::set<std::string> prepared;
+	const auto esc = [](const std::string &value)
+	{
+		return Rml::StringUtilities::EncodeRml(value);
+	};
+	for (const auto &placement : authored_resolved_.placements)
+	{
+		const auto &target = placement.component;
+		if (!placement.visible || !target.starts_with("control/") || !prepared.insert(target).second)
+			continue;
+		const auto separator = target.rfind('/');
+		if (separator == std::string::npos)
+			continue;
+		auto instance = target.substr(8, separator - 8);
+		const auto part = target.substr(separator + 1);
+		auto console = model_.observation()->console;
+		if (const auto scope = instance.find('/'); scope != std::string::npos)
+		{
+			console = instance.substr(0, scope);
+			instance = instance.substr(scope + 1);
+		}
+		const auto owner =
+		    std::find_if(sources.begin(), sources.end(),
+		                 [&](const auto &source)
+		                 {
+			                 return source.first->observation() && source.first->observation()->console == console;
+		                 });
+		if (owner == sources.end())
+			continue;
+		const auto &widgets = views.at(owner->first);
+		const auto widget = std::find_if(widgets.begin(), widgets.end(),
+		                                 [&](const auto &view)
+		                                 {
+			                                 return view.id == instance;
+		                                 });
+		if (widget == widgets.end())
+			continue;
+		const auto &definition = app_->session->catalog().control_widgets.at(widget->definition);
+		const auto part_bindings = definition.value("part_bindings", Json::object()).value(part, Json::object());
+		const bool complete = part == "complete" || part == "main";
+		auto includes = [&](const char *kind, const std::string &name)
+		{
+			const auto names = part_bindings.value(kind, Json::array());
+			return complete || std::find(names.begin(), names.end(), Json(name)) != names.end();
+		};
+		const auto label = localise(definition.value("label", widget->id));
+		std::string markup = complete ? "<h2>" + esc(label) + "</h2>" : "";
+		if (complete)
+		{
+			const auto key = id(target + "/operator");
+			readouts.emplace_back(key, localise(widget->automated ? "Automatic" : "Controls"));
+			markup += "<p id=\"" + esc(key) + "\"></p>";
+		}
+		for (const auto &datum : widget->data)
+			if (datum.destination == WidgetDataDestination::Main &&
+			    includes("data", datum.id.substr(0, datum.id.find('/'))))
+			{
+				const auto key = id(target + "/data/" + datum.id);
+				readouts.emplace_back(key, datum.label + ": " + datum.text);
+				markup += "<p id=\"" + esc(key) + "\"></p>";
+			}
+		for (const auto &control : widget->controls)
+		{
+			const auto channel = control.value("channel", std::string{});
+			if (!includes("commands", channel))
+				continue;
+			const auto values = part_bindings.value("values", Json::object());
+			if (values.contains(channel) && std::find(values.at(channel).begin(), values.at(channel).end(),
+			                                          control.at("value")) == values.at(channel).end())
+				continue;
+			const auto key = id(owner->second + descriptor_action(control.at("id").get<std::string>()));
+			const auto text = localise(control.value("label_key", control.value("label", channel)));
+			const bool enabled = control.value("enabled", true);
+			markup += "<button id=\"" + esc(key) + "\" class=\"task-button\"" +
+			          (enabled ? ">" : " disabled aria-disabled=\"true\">") + esc(text) + "</button>";
+			if (enabled)
+				buttons.emplace_back(key, text);
+		}
+		if ((complete || part_bindings.value("details", false)) &&
+		    std::any_of(widget->data.begin(), widget->data.end(),
+		                [](const auto &datum)
+		                {
+			                return datum.destination == WidgetDataDestination::Details;
+		                }))
+		{
+			const auto key = id("control-details/" + console + "/" + widget->id);
+			buttons.emplace_back(key, label + ": " + localise("Details"));
+			markup += "<button id=\"" + esc(key) + "\" class=\"task-button\">" + esc(localise("Details")) + "</button>";
+		}
+		if (auto *panel = authored_component(target); panel && station_component_markup_[target] != markup)
+		{
+			const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
+			panel->SetInnerRML(markup);
+			station_component_markup_[target] = markup;
+			dom_.forget_elements();
+			if (auto *previous = document_->GetElementById(focus))
+				previous->Focus();
+		}
+	}
+	for (const auto &[key, text] : readouts)
+	{
+		if (auto *element = document_->GetElementById(key))
+			dom_.leaf_markup(element, esc(text));
+		app_->screen_readouts.emplace_back(key, text);
+	}
+	context_->Update();
+	for (const auto &[key, text] : readouts)
+		place(*app_, region, key);
+	for (const auto &[key, text] : buttons)
+	{
+		app_->screen_controls.emplace_back(key, text);
+		place(*app_, region, key);
+	}
+}
 
 bool ConsoleSurface::State::select_radar_contact(EntityId contact)
 {
@@ -103,7 +227,37 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		popup_readouts.emplace_back(name, text);
 		return "<p id=\"" + esc(name) + "\"></p>";
 	};
-	if (systems_open_ && support_popup_ == "help")
+	const bool control_detail = systems_open_ && support_popup_.starts_with("control/");
+	std::string control_label;
+	if (control_detail && model_.observation() && app_->session)
+	{
+		const auto reference = support_popup_.substr(8);
+		const auto scope = reference.find('/');
+		const auto console = scope == std::string::npos ? model_.observation()->console : reference.substr(0, scope);
+		const auto instance = scope == std::string::npos ? reference : reference.substr(scope + 1);
+		std::optional<ControlWidgetView> widget;
+		for (const auto &[source, prefix] : task_sources())
+			if (source->observation() && source->observation()->console == console)
+				for (auto &candidate : console_control_widgets(app_->session->catalog(), *source->observation()))
+					if (candidate.id == instance)
+						widget = std::move(candidate);
+		if (widget)
+		{
+			const auto &definition = app_->session->catalog().control_widgets.at(widget->definition);
+			control_label = localise(definition.value("label", widget->id));
+			markup = "<h1>" + esc(control_label + ": " + localise("Details")) + "</h1>";
+			for (const auto &datum : widget->data)
+				markup +=
+				    readout("control/" + console + "/" + widget->id + "/" + datum.id, datum.label + ": " + datum.text);
+			markup += add("systems-close", localise("Close"));
+		}
+		else
+		{
+			systems_open_ = false;
+			support_popup_.clear();
+		}
+	}
+	else if (systems_open_ && support_popup_ == "help")
 	{
 		markup = "<h1>" + esc(localise("Help") + ": " + help_label_) + "</h1>";
 		markup += add("systems-close", localise("Close"));
@@ -367,7 +521,8 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		markup += add("systems-close", localise("Close"));
 	}
 	auto *dialog = document_->GetElementById("fault-dialog");
-	const bool help_focus = markup != fault_dialog_signature_ && systems_open_ && support_popup_ == "help";
+	const bool help_focus =
+	    markup != fault_dialog_signature_ && systems_open_ && (support_popup_ == "help" || control_detail);
 	if (markup != fault_dialog_signature_)
 	{
 		dom_.forget_elements();
@@ -376,11 +531,12 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 		dialog->SetInnerRML(markup);
 		syncing_values_ = false;
 		fault_dialog_signature_ = markup;
-		if (systems_open_ && support_popup_ == "help")
+		if (systems_open_ && (support_popup_ == "help" || control_detail))
 		{
 			dialog->SetAttribute("role", "dialog");
 			dialog->SetAttribute("aria-modal", "true");
-			dialog->SetAttribute("aria-label", localise("Help") + ": " + help_label_);
+			dialog->SetAttribute("aria-label", control_detail ? control_label + ": " + localise("Details")
+			                                                  : localise("Help") + ": " + help_label_);
 		}
 	}
 	dom_.property(dialog, "left", std::to_string(region.width * .1f) + "dp");
@@ -407,7 +563,7 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 	}
 	if (!markup.empty())
 	{
-		if (systems_open_ && support_popup_ == "help")
+		if (systems_open_ && (support_popup_ == "help" || control_detail))
 			std::erase_if(app_->screen_readouts,
 			              [&](const auto &entry)
 			              {

@@ -7,6 +7,7 @@ module;
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 module phoenix.control.execution;
@@ -14,6 +15,61 @@ import phoenix.world.state;
 
 namespace phoenix
 {
+namespace
+{
+class ControllerTreeEvaluation final : public state_tree::EvaluationPorts
+{
+	const ConsoleControllerRuntime &controller;
+	const ControllerActionPorts &ports;
+	mutable std::vector<ControllerChannelState> staged;
+
+public:
+	ControllerTreeEvaluation(const ConsoleControllerRuntime &owner, const ControllerActionPorts &bindings)
+	    : controller(owner), ports(bindings), staged(owner.commands)
+	{
+	}
+	bool admits_commands() const override
+	{
+		return static_cast<bool>(ports.command);
+	}
+	state_tree::CommandAttempt command(const state_tree::Program &program,
+	                                   const state_tree::Output &output) const override
+	{
+		return ports.command(staged, program, output);
+	}
+	state_tree::Value observation(const state_tree::Program &current, state_tree::Index index,
+	                              const state_tree::Value &frozen) const override
+	{
+		const auto &name = current.registry.observations.at(index).name;
+		for (std::size_t i = 0; i < controller.definition.commands.size(); ++i)
+		{
+			const auto prefix = "command." + controller.definition.commands[i].id;
+			if (name == prefix)
+				return state_tree::Value{frozen.type, staged[i].value, {}};
+			const auto arguments = operating_arguments(controller.definition.commands[i].action);
+			for (std::size_t argument = 0; argument < arguments.size(); ++argument)
+				if (name == prefix + "." + std::string(arguments[argument].name))
+					return state_tree::Value::integer(staged[i].arguments.at(argument));
+		}
+		return frozen;
+	}
+};
+state_tree::Result evaluate_controller_tree(ConsoleControllerRuntime &controller, const state_tree::Program &program,
+                                            state_tree::Instance &continuation,
+                                            std::span<const state_tree::Value> observations,
+                                            const ControllerActionPorts &ports)
+{
+	if (controller.definition.widget.empty())
+		return state_tree::step(program, continuation, observations);
+	auto next = continuation;
+	if (next.interrupted)
+		state_tree::resume(next);
+	const ControllerTreeEvaluation evaluation{controller, ports};
+	auto result = state_tree::step(program, next, observations, 1, evaluation);
+	continuation = std::move(next);
+	return result;
+}
+} // namespace
 std::vector<state_tree::Value> controller_action_observations(const ConsoleControllerRuntime &controller,
                                                               std::span<const state_tree::Value> source,
                                                               const ControllerActionPorts &ports)
@@ -116,7 +172,8 @@ void run_controller_action(ConsoleControllerRuntime &controller, std::span<const
 		return;
 	const auto &spec = controller_action_spec(controller);
 	const auto observations = controller_action_observations(controller, source, ports);
-	const auto result = state_tree::step(spec.program, controller.action.continuation, observations);
+	const auto result =
+	    evaluate_controller_tree(controller, spec.program, controller.action.continuation, observations, ports);
 	for (const auto &output : result.outputs)
 	{
 		ports.output(output, observations, &spec.program);
@@ -142,7 +199,8 @@ void step_controller_policy(ConsoleControllerRuntime &controller, std::span<cons
 	auto &brain = *controller.brain;
 	if (controller.effective_provider == "tree")
 	{
-		const auto result = state_tree::step(brain.program, brain.continuation, observations);
+		const auto result =
+		    evaluate_controller_tree(controller, brain.program, brain.continuation, observations, ports);
 		brain.debug = result.debug;
 		for (const auto &output : result.outputs)
 			ports.output(output, observations, nullptr);

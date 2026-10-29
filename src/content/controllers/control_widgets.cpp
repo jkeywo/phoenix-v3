@@ -1,0 +1,288 @@
+module;
+#include <algorithm>
+#include <map>
+#include <set>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <nlohmann/json.hpp>
+
+module phoenix.content.controllers;
+
+namespace phoenix
+{
+namespace
+{
+void widget_require(bool valid, const std::string &where, const std::string &reason)
+{
+	if (!valid)
+		throw std::runtime_error("control_widgets." + where + ": " + reason);
+}
+std::string widget_name(const Json &value, const std::string &where)
+{
+	widget_require(value.is_string(), where, "expected identifier");
+	const auto name = value.get<std::string>();
+	widget_require(!name.empty() && name.size() <= 128 &&
+	                   name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
+	                       std::string::npos,
+	               where, "invalid identifier");
+	return name;
+}
+WidgetDataDestination destination(const Json &value, const std::string &where)
+{
+	widget_require(value.is_string(), where, "expected main, details or hidden");
+	const auto name = value.get<std::string>();
+	widget_require(name == "main" || name == "details" || name == "hidden", where, "expected main, details or hidden");
+	return name == "main"      ? WidgetDataDestination::Main
+	       : name == "details" ? WidgetDataDestination::Details
+	                           : WidgetDataDestination::Hidden;
+}
+Json substitute(const Json &source, const Json &bindings, const std::string &where)
+{
+	if (source.is_string())
+	{
+		const auto text = source.get<std::string>();
+		if (text.starts_with("$"))
+		{
+			widget_require(bindings.contains(text.substr(1)), where, "unbound equipment role " + text);
+			return bindings.at(text.substr(1));
+		}
+		return source;
+	}
+	if (!source.is_structured())
+		return source;
+	Json result = source.is_array() ? Json::array() : Json::object();
+	for (auto it = source.begin(); it != source.end(); ++it)
+	{
+		auto value = substitute(it.value(), bindings, where);
+		if (source.is_array())
+		{
+			if (it.value().is_string() && it.value().get<std::string>().starts_with("$") && value.is_array())
+				for (const auto &element : value)
+					result.push_back(element);
+			else
+				result.push_back(std::move(value));
+		}
+		else
+			result[it.key()] = std::move(value);
+	}
+	return result;
+}
+} // namespace
+
+std::map<std::string, WidgetDataDestination> control_widget_data_placement(const ControlWidgetDefinition &definition,
+                                                                           const std::string &level, int stars,
+                                                                           const Json &overrides)
+{
+	const auto selected = std::find_if(definition.levels.begin(), definition.levels.end(),
+	                                   [&](const auto &candidate)
+	                                   {
+		                                   return candidate.id == level;
+	                                   });
+	widget_require(selected != definition.levels.end(), definition.id, "unknown responsibility level " + level);
+	widget_require(stars >= 1 && stars <= 3, definition.id, "expected stars 1..3");
+	widget_require(overrides.is_object(), definition.id, "data placement overrides must be an object");
+	for (const auto &[star, items] : overrides.items())
+	{
+		widget_require((star == "1" || star == "2" || star == "3") && items.is_object(), definition.id,
+		               "expected per-star data placement objects");
+		for (const auto &[item, value] : items.items())
+		{
+			widget_require(definition.data.contains(item), definition.id + "." + item, "unknown data item");
+			const auto target = destination(value, definition.id + "." + item);
+			widget_require(!definition.data.at(item).value("required", false) || target == WidgetDataDestination::Main,
+			               definition.id + "." + item, "required state indicator must remain on main presentation");
+		}
+	}
+	std::map<std::string, WidgetDataDestination> result;
+	for (const auto &[item, specification] : definition.data.items())
+	{
+		auto value = specification.value("placement", Json("details"));
+		if (selected->data.contains(item))
+			value = selected->data.at(item);
+		if (overrides.contains(std::to_string(stars)) && overrides.at(std::to_string(stars)).contains(item))
+			value = overrides.at(std::to_string(stars)).at(item);
+		const auto target = destination(value, definition.id + "." + item);
+		widget_require(!specification.value("required", false) || target == WidgetDataDestination::Main,
+		               definition.id + "." + item, "required state indicator must remain on main presentation");
+		result[item] = target;
+	}
+	return result;
+}
+
+ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std::string &id)
+{
+	widget_require(catalog.control_widgets.contains(id), id, "unresolved widget definition");
+	const auto &source = catalog.control_widgets.at(id);
+	widget_require(source.value("schema", 0) == 1, id, "expected widget schema 1");
+	ControlWidgetDefinition result;
+	result.id = id;
+	result.tree = source.value("tree", std::string{});
+	widget_require(result.tree.empty() || catalog.trees.contains(result.tree), id, "unresolved state tree");
+	result.commands = source.value("commands", Json::array());
+	result.equipment = source.value("equipment", Json::object());
+	result.data = source.value("data", Json::object());
+	widget_require(result.commands.is_array() && result.commands.size() <= 256 && result.equipment.is_object() &&
+	                   result.equipment.size() <= 64 && result.data.is_object() && result.data.size() <= 256,
+	               id, "invalid or oversized command, equipment or data declarations");
+	std::set<std::string> commands;
+	for (const auto &command : result.commands)
+	{
+		const auto name = widget_name(command.at("id"), id + ".commands");
+		widget_require(commands.insert(name).second, id, "duplicate command " + name);
+		widget_require(operating_action(command.at("action").get<std::string>()) != nullptr, id,
+		               "unsupported command action");
+	}
+	for (const auto &[role, specification] : result.equipment.items())
+	{
+		(void)widget_name(Json(role), id + ".equipment");
+		widget_require(specification.is_object(), id + ".equipment." + role, "expected equipment role object");
+	}
+	for (const auto &[item, specification] : result.data.items())
+	{
+		(void)widget_name(Json(item), id + ".data");
+		widget_require(specification.is_object() && specification.contains("binding") &&
+		                   specification.at("binding").is_string() &&
+		                   !specification.at("binding").get<std::string>().empty() &&
+		                   specification.at("binding").get<std::string>().size() <= 256 &&
+		                   specification.contains("label") && specification.at("label").is_string(),
+		               id + ".data." + item, "data item needs a bounded binding and localisable label");
+		const auto binding = specification.at("binding").get<std::string>();
+		bool resolved = binding.starts_with("command.") && commands.contains(binding.substr(8));
+		for (const auto &[role, equipment] : result.equipment.items())
+			for (const auto *source_kind : {"system", "weapon"})
+			{
+				const auto prefix = std::string(source_kind) + "." + role + ".";
+				if (binding.starts_with(prefix))
+				{
+					(void)widget_name(Json(binding.substr(prefix.size())), id + ".data." + item);
+					resolved = true;
+				}
+			}
+		widget_require(resolved, id + ".data." + item, "unresolved command or equipment data binding " + binding);
+	}
+	const auto levels = source.at("levels");
+	widget_require(levels.is_array() && !levels.empty() && levels.size() <= 32, id, "expected 1..32 ordered levels");
+	std::set<std::string> level_ids, previous;
+	for (const auto &level : levels)
+	{
+		ControlWidgetLevel compiled;
+		compiled.id = widget_name(level.at("id"), id + ".levels");
+		widget_require(level_ids.insert(compiled.id).second, id, "duplicate level");
+		const auto human = level.value("human", Json::array());
+		widget_require(human.is_array(), id, "human command set must be an array");
+		for (const auto &channel : human)
+		{
+			const auto name = widget_name(channel, id + ".levels." + compiled.id);
+			widget_require(commands.contains(name) && compiled.human.insert(name).second, id,
+			               "unknown or duplicate human command " + name);
+		}
+		const auto replacements = level.value("replaces", Json::object());
+		widget_require(replacements.is_object(), id, "replaces must map old commands to detailed commands");
+		for (const auto &[old, targets] : replacements.items())
+		{
+			widget_require(previous.contains(old) && !compiled.human.contains(old) && targets.is_array() &&
+			                   !targets.empty(),
+			               id, "replacement must retire a previous human command");
+			std::set<std::string> unique;
+			for (const auto &target : targets)
+			{
+				const auto name = widget_name(target, id + ".replaces");
+				widget_require(compiled.human.contains(name) && unique.insert(name).second, id,
+				               "replacement must name distinct human commands at this level");
+				compiled.replacements[old].push_back(name);
+			}
+		}
+		for (const auto &old : previous)
+			widget_require(compiled.human.contains(old) || compiled.replacements.contains(old), id,
+			               "responsibility removed without explicit replacement: " + old);
+		compiled.data = level.value("data", Json::object());
+		widget_require(compiled.data.is_object(), id, "level data placement must be an object");
+		for (const auto &[item, value] : compiled.data.items())
+		{
+			widget_require(result.data.contains(item), id, "unknown data item " + item);
+			(void)destination(value, id + "." + item);
+		}
+		previous = compiled.human;
+		result.levels.push_back(std::move(compiled));
+	}
+	widget_require(result.levels.front().id == "automated" && result.levels.front().human.empty(), id,
+	               "first level must be automated with no human commands");
+	const auto parts = source.value("parts", Json::array({"main"}));
+	widget_require(parts.is_array() && !parts.empty() && parts.size() <= 64, id, "expected 1..64 named parts");
+	for (const auto &part : parts)
+		widget_require(result.parts.insert(widget_name(part, id + ".parts")).second, id, "duplicate part");
+	const auto bindings = source.value("part_bindings", Json::object());
+	widget_require(bindings.is_object(), id, "part_bindings must be an object");
+	unsigned detail_entries = 0;
+	for (const auto &[part, binding] : bindings.items())
+	{
+		widget_require(result.parts.contains(part) && binding.is_object(), id,
+		               "unknown or invalid part binding " + part);
+		for (const auto *kind : {"commands", "data"})
+		{
+			const auto names = binding.value(kind, Json::array());
+			widget_require(names.is_array(), id + "." + part, "part bindings require identifier arrays");
+			std::set<std::string> unique;
+			for (const auto &name : names)
+			{
+				const auto key = widget_name(name, id + "." + part);
+				widget_require((std::string(kind) == "commands" ? commands.contains(key) : result.data.contains(key)) &&
+				                   unique.insert(key).second,
+				               id, "unknown or duplicate part member " + key);
+			}
+		}
+		const auto values = binding.value("values", Json::object());
+		widget_require(values.is_object(), id, "part values must map command names to value arrays");
+		for (const auto &[command, options] : values.items())
+		{
+			widget_require(commands.contains(command) && options.is_array() && !options.empty() && options.size() <= 64,
+			               id, "invalid command values in part " + part);
+			for (const auto &option : options)
+				widget_require(option.is_number_integer() || option.is_boolean(), id,
+				               "part values must be scalar settings");
+		}
+		widget_require(!binding.contains("details") || binding.at("details").is_boolean(), id,
+		               "part details flag must be boolean");
+		detail_entries += binding.value("details", false);
+	}
+	widget_require(detail_entries <= 1, id, "named parts may declare one shared detail entry point");
+	for (const auto &level : result.levels)
+		(void)control_widget_data_placement(result, level.id, 1);
+	return result;
+}
+
+Json bind_control_widget(const Catalog &catalog, const Json &instance)
+{
+	const auto id = widget_name(instance.at("widget"), "instance.widget");
+	const auto definition = compile_control_widget(catalog, id);
+	const auto bindings = instance.value("equipment", Json::object());
+	widget_require(bindings.is_object() && bindings.size() == definition.equipment.size(), id,
+	               "instance must bind every declared equipment role exactly once");
+	for (const auto &[role, specification] : definition.equipment.items())
+	{
+		widget_require(bindings.contains(role), id, "unbound equipment role " + role);
+		const auto &binding = bindings.at(role);
+		if (specification.value("multiple", false))
+		{
+			widget_require(binding.is_array() && !binding.empty() && binding.size() <= 256, id,
+			               "equipment set must contain 1..256 identities");
+			std::set<std::string> unique;
+			for (const auto &name : binding)
+				widget_require(unique.insert(widget_name(name, id + "." + role)).second, id,
+				               "duplicate attached equipment");
+		}
+		else
+			(void)widget_name(binding, id + "." + role);
+	}
+	Json result = instance;
+	widget_require(!instance.contains("commands") && !instance.contains("tree") && !instance.contains("fallback"), id,
+	               "instance cannot override shared commands or tree; derive a widget definition");
+	result["commands"] = substitute(definition.commands, bindings, id);
+	if (definition.tree.empty())
+		result["fallback"] = "hold";
+	else
+		result["tree"] = definition.tree;
+	return result;
+}
+} // namespace phoenix

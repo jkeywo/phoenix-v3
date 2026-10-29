@@ -21,6 +21,6 @@ struct ControllerHandoverPorts
 	std::function<void(bool present, bool human)> control;
 };
 void refresh_controller_operator(ConsoleControllerRuntime &, std::uint64_t claimant, bool human, std::int64_t stars,
-                                 bool validate, const ControllerHandoverPorts &);
+                                 bool validate, const ControllerHandoverPorts &, std::vector<bool> human_commands = {});
 void advance_controller_stance_epoch(BridgeBlackboard &, const std::string &console);
 } // namespace phoenix

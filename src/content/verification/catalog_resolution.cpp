@@ -199,6 +199,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("consoles", result.consoles);
 		add("layouts", result.layouts);
 		add("ui_groups", result.ui_groups);
+		add("control_widgets", result.control_widgets);
 		add("themes", result.themes);
 		add("trees", result.trees);
 		add("equipment", result.equipment);
@@ -248,6 +249,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(result.consoles, "consoles");
 	inherit_definitions(result.layouts, "layouts");
 	inherit_definitions(result.ui_groups, "ui_groups");
+	inherit_definitions(result.control_widgets, "control_widgets");
 	inherit_definitions(result.themes, "themes");
 	std::map<std::string, Json> legacy_trees;
 	for (const auto &[name, tree] : result.trees)
@@ -489,6 +491,8 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 	const auto rules_catalog = compile_rule_catalog(catalog, properties);
 	(void)compile_effect_rules(catalog, rules_catalog);
 	std::map<std::string, ControllableLayout> ability_layouts;
+	for (const auto &[id, definition] : catalog.control_widgets)
+		(void)compile_control_widget(catalog, id);
 	verify_ui_definitions(catalog);
 	if (catalog.selection && (!catalog.layouts.empty() || !catalog.ui_groups.empty() || !catalog.themes.empty() ||
 	                          !catalog.ui_theme.empty()))

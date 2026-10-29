@@ -310,6 +310,32 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		draft.manifest["loading_background"] = pack_id + ":assets/loading.png";
 	}
 	Json definitions{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}};
+	definitions["control_widgets"] = Json::array();
+	std::set<std::string> included_widgets;
+	for (const auto &controller : compile_controllable_layout(catalog, ship).controllers)
+	{
+		if (controller.widget.empty() ||
+		    (!console_ids.empty() &&
+		     std::find(console_ids.begin(), console_ids.end(), controller.console) == console_ids.end()) ||
+		    !included_widgets.insert(controller.widget).second)
+			continue;
+		const auto &source_widget = catalog.control_widgets.at(controller.widget);
+		Json widget{{"id", controller.widget}, {"schema", 1}, {"commands", Json::array()}, {"levels", Json::array()}};
+		for (const auto *field : {"label", "data", "parts", "part_bindings"})
+			if (source_widget.contains(field))
+				widget[field] = source_widget.at(field);
+		widget["equipment"] = Json::object();
+		const auto roles = source_widget.value("equipment", Json::object());
+		for (const auto &[role, specification] : roles.items())
+			widget["equipment"][role] = {{"multiple", specification.value("multiple", false)}};
+		for (const auto &command : source_widget.at("commands"))
+			widget["commands"].push_back({{"id", command.at("id")}, {"action", command.at("action")}});
+		for (const auto &level : source_widget.at("levels"))
+			widget["levels"].push_back({{"id", level.at("id")}, {"data", level.value("data", Json::object())}});
+		// Policy trees, command consumers/defaults and authority allocations are
+		// deliberately absent. Effective bindings/permissions arrive in projections.
+		definitions["control_widgets"].push_back(std::move(widget));
+	}
 	// Only definitions reachable from the admitted Console presentation are transferred.
 	std::set<std::string> layouts, groups, themes;
 	if (!catalog.ui_theme.empty())

@@ -20,6 +20,8 @@ void expand_combat_policies(Catalog &catalog)
 			continue;
 		for (auto &controller : entity["control_layout"]["controllers"])
 		{
+			if (controller.contains("widget"))
+				continue; // Shared widget definitions declare their complete policy explicitly.
 			if (controller.value("policy", std::string{}) != "combat")
 				continue;
 			const auto id = "phoenix.combat." + entity_id + "." + controller.at("console").get<std::string>() + "." +
@@ -232,6 +234,8 @@ void expand_officer_policies(Catalog &catalog)
 			continue;
 		for (auto &controller : entity["control_layout"]["controllers"])
 		{
+			if (controller.contains("widget"))
+				continue;
 			if (controller.value("officer_protocol", false))
 				continue;
 			std::map<std::string, Json> supported;

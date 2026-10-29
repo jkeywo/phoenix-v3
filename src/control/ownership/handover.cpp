@@ -6,6 +6,7 @@ module;
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 module phoenix.control.handover;
@@ -13,7 +14,8 @@ module phoenix.control.handover;
 namespace phoenix
 {
 void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint64_t claimant, bool human,
-                                 std::int64_t stars, bool validate, const ControllerHandoverPorts &ports)
+                                 std::int64_t stars, bool validate, const ControllerHandoverPorts &ports,
+                                 std::vector<bool> human_commands)
 {
 	const bool present = claimant != 0;
 	// A lower workload relinquishes settings whose individual controls are no longer available.
@@ -31,17 +33,18 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 				++state.revision;
 			}
 		}
-	if (validate && human != controller.human)
+	if (validate && (human != controller.human || human_commands != controller.human_commands))
 		throw std::runtime_error("Saved Controller operator differs from profile/claims");
 	if (validate)
 		controller.operator_claimant = claimant;
-	if (human == controller.human && (!human || claimant == controller.operator_claimant))
+	if (human == controller.human && human_commands == controller.human_commands &&
+	    (!human || claimant == controller.operator_claimant))
 	{
 		controller.operator_claimant = claimant;
 		ports.control(present, human);
 		return;
 	}
-	if (!controller.human && controller.brain)
+	if ((!controller.human || !controller.definition.widget.empty()) && controller.brain)
 	{
 		const auto observations = ports.observations();
 		ports.cancel(observations);
@@ -71,6 +74,7 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 	++controller.generation;
 	ports.advance_epoch();
 	controller.human = human;
+	controller.human_commands = std::move(human_commands);
 	controller.operator_claimant = claimant;
 	ports.control(present, human);
 	for (std::size_t j = 0; j < controller.commands.size(); ++j)

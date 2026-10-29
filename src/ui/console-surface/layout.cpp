@@ -96,6 +96,19 @@ void ConsoleSurface::State::restore_console_browsing()
 }
 Rml::Element *ConsoleSurface::State::authored_component(const std::string &target)
 {
+	if (target.starts_with("control/"))
+	{
+		if (auto *existing = document_->GetElementById(id(target)))
+			return existing;
+		if (auto *bank = document_->GetElementById("component-bank"))
+		{
+			auto created = document_->CreateElement("div");
+			created->SetId(id(target));
+			created->SetClass("station-panel", true);
+			return bank->AppendChild(std::move(created));
+		}
+		return nullptr;
+	}
 	const std::map<std::string, std::string> panels = {{"settings", id("settings")},
 	                                                   {"console-name", id("station-name")},
 	                                                   {"tabs", "console-tabs"},
@@ -259,6 +272,7 @@ void ConsoleSurface::State::prepare_station_components(const ConsoleRegion &regi
 	prepare_engineering_component("power", region, pregame);
 	prepare_engineering_component("repair", region, pregame);
 	prepare_task_panels(region);
+	prepare_control_widgets(region);
 	for (const char *component : {"operations", "docking", "craft", "personnel", "away"})
 	{
 		if (!station_component_active(component))

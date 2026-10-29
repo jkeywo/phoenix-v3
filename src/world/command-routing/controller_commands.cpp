@@ -489,13 +489,15 @@ auto Runtime::controller_proposal(const ConsoleAddress &address, OperatingComman
 		const auto &controller = controls.controllers[i];
 		if (controller.definition.console != address.console || controller.definition.id != command.controller)
 			continue;
-		if (controller.human != human || command.generation != controller.generation)
+		if (command.generation != controller.generation)
 			return {};
 		for (std::size_t field = 0; field < controller.definition.commands.size(); ++field)
 		{
 			const auto &spec = controller.definition.commands[field];
 			if (spec.id != command.channel)
 				continue;
+			if (human && !controller_command_human(controller, field))
+				return {};
 			if (human && station_stars(address) < spec.individual_stars)
 				return {};
 			if (spec.action == OperatingAction::RepairSystem && !spec.hull_priority && entity.has<CombatStructure>() &&
@@ -623,24 +625,27 @@ auto Runtime::commit_controller(const ControllerProposal &proposal) -> bool
 {
 	if (!entities.contains(proposal.address.entity))
 		return false;
-	const auto entity = entities.at(proposal.address.entity);
-	const ControllerCommandChecks checks{
-	    [this](const ControllerProposal &value)
-	    {
-		    return ability_channel_valid(value.address.entity, value.controller, value.channel, value.value,
-		                                 value.request_id) &&
-		           process_channel_valid(value.address.entity, value.controller, value.channel, value.value);
-	    },
-	    [this, id = proposal.address.entity](std::size_t controller, std::size_t channel, OperatingAction action,
-	                                         std::int64_t value, std::span<const std::int64_t> arguments)
-	    {
-		    return controller_arguments_valid(id, controller, channel, action, value, arguments);
-	    },
-	    [this, entity](const ControllerCommandSpec &spec, const ControllerProposal &value)
-	    {
-		    return controller_command_effect_matches(entity, spec, value);
-	    }};
-	return commit_controller_command(entity.get_mut<EntityControls>(), proposal, checks);
+	return commit_controller_command(entities.at(proposal.address.entity).get_mut<EntityControls>(), proposal,
+	                                 controller_command_checks(proposal.address.entity));
+}
+auto Runtime::controller_command_checks(EntityId id) const -> ControllerCommandChecks
+{
+	const auto entity = entities.at(id);
+	return {[this](const ControllerProposal &value)
+	        {
+		        return ability_channel_valid(value.address.entity, value.controller, value.channel, value.value,
+		                                     value.request_id) &&
+		               process_channel_valid(value.address.entity, value.controller, value.channel, value.value);
+	        },
+	        [this, id](std::size_t controller, std::size_t channel, OperatingAction action, std::int64_t value,
+	                   std::span<const std::int64_t> arguments)
+	        {
+		        return controller_arguments_valid(id, controller, channel, action, value, arguments);
+	        },
+	        [this, entity](const ControllerCommandSpec &spec, const ControllerProposal &value)
+	        {
+		        return controller_command_effect_matches(entity, spec, value);
+	        }};
 }
 
 auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
@@ -653,7 +658,22 @@ auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
 		const ConsoleAddress address{id, controller.definition.console};
 		const auto claimant = console_operator(address);
 		const bool present = claimant != 0;
-		const bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
+		bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
+		std::vector<bool> channels;
+		if (!controller.definition.widget.empty())
+		{
+			channels.resize(controller.commands.size(), false);
+			const auto stars = controls.layout.profiles.at(controls.profiles.at(address.console)).stars;
+			if (present && stars >= 1)
+				for (std::size_t channel = 0; channel < channels.size(); ++channel)
+					channels[channel] = controller.definition.human_channels.at(stars).contains(
+					    controller.definition.commands[channel].id);
+			human = std::any_of(channels.begin(), channels.end(),
+			                    [](bool owned)
+			                    {
+				                    return owned;
+			                    });
+		}
 		const ControllerHandoverPorts ports{
 		    [this, id, &controller]
 		    {
@@ -678,10 +698,10 @@ auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
 		    [this, id, address, &controller](bool current_present, bool current_human)
 		    {
 			    knowledge.set_controller_control({id, address.console, controller.definition.id}, current_present,
-			                                     current_human);
+			                                     current_human, !controller.definition.widget.empty());
 		    }};
 		refresh_controller_operator(controller, claimant, human, human && !validate ? station_stars(address) : 0,
-		                            validate, ports);
+		                            validate, ports, std::move(channels));
 	}
 	// Presence also matters for readers and human-seeking offers on Consoles
 	// that own no command Controller. Update after outgoing AI cleanup.

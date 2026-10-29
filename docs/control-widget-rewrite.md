@@ -1,0 +1,89 @@
+# Control widget rewrite
+
+Implementation in progress. This record tracks the console/Controller rewrite
+agreed on 28 October 2026; it is not a completion claim.
+
+## Contract
+
+A logical control widget owns one Controller and explicitly binds compatible
+equipment. Reusable definitions provide commands, one shared state tree, ordered
+responsibility levels, named visual parts and named data. Ship instances map
+stars to levels. Per-item Main/Details/Hidden presentation is independent of
+responsibility and can vary between stars sharing the same level.
+
+An Automated level has no human-owned commands. An occupied station uses the
+selected level's command allocation; absence, disconnect and Away give every
+command to AI. Presentation visibility never selects authority. Higher levels
+retain responsibilities or explicitly replace assisted commands with detailed
+equivalents. Existing gameplay responsibilities and physical execution remain
+the migration baseline.
+
+The shared tree attempts commands under all workloads. Attempts return Applied,
+AlreadySatisfied or Refused. Matching human-owned settings succeed without a
+write. Requests keep identity/receipt semantics; equality is not a new execution.
+Ordered attempt branches can fall back within one tick. Earlier successful
+commands survive branch failure, but failed/budget-exhausted evaluation commits
+neither staged commands nor continuation. Physical completion remains separate
+from accepted intent.
+
+## Delivery status
+
+| Step                                                                     | Status                                                                                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Complete responsibility/data inventory for maintained consoles           | Pending                                                                                                             |
+| Shared definitions, equipment roles, levels and per-star data resolution | Native and WASM Controller integration suites pass                                                                  |
+| Per-command admission and staged tree attempts                           | Native and WASM suites pass, including referenced continuation and rollback                                         |
+| Lifecycle, action/provider and specialised-command migration             | Partial; ordinary channel handover and continuation implemented                                                     |
+| Instance host, split visual parts and main/detail presentation           | Initial host builds; native automated readout rendered with synthetic content; full interactive journeys pending    |
+| Consolidated gameplay widgets and rebuilt shipped consoles               | Pending                                                                                                             |
+| Workshop definition, binding, placement and preview editors              | Pending                                                                                                             |
+| Client distribution, schema break and removal of old paths               | Public widget presentation metadata distributed; save schema 33; old allocation/content paths still pending removal |
+
+The maintained schema-1 content and allocation paths remain during implementation.
+They must be removed at the final migration gate, rather than retained as a
+compatibility layer. The new schema-2 Controller layout uses shared widget
+instances and star profiles without authored human/AI allocation lists.
+
+## Current definition vocabulary
+
+`control_widgets` is a pack definition table with ordinary dependency/override
+and inheritance resolution. A definition declares `schema: 1`, `equipment`,
+`commands`, optional `tree`, ordered `levels`, named `data` and `parts`.
+
+The first level is `automated`, with no human commands. Subsequent levels declare
+their complete `human` command set. `replaces` maps a retired assisted command to
+its detailed replacements. Data defaults use `main`, `details` or `hidden`;
+per-level defaults and per-instance `data_placement` overrides resolve in that
+order. Instance overrides use star keys `1`, `2`, `3`. Required main indicators
+cannot be moved to details or hidden.
+
+A schema-2 `control_layout` Controller instance declares `widget`, `equipment`
+role bindings and `star_levels` for all three ratings. Equipment placeholders
+such as `$engines` in command consumers bind to an explicit identity or set.
+Instances cannot replace shared commands or trees; derive a library definition
+for intentional differences. Profiles declare their identity and `stars`; there
+is no second authored command-allocation list.
+
+Controller tree task `attempt` contains ordered branches, each with optional
+`conditions` and ordered `tasks`. Optional `result` names boolean private memory
+for the outcome of the entire block. Nested attempts and referenced trees retain
+normal private continuation. Refused commands do not consume one-shot markers.
+
+## Verification boundaries
+
+The new synthetic Controller fixture goes through the production pack loader,
+definition compiler, World, command admission, state-tree execution and physical
+engine bindings. It covers partial ownership, preferred-branch refusal,
+same-value satisfaction, retained earlier writes, continuation and independent
+presentation placement. No production ship tuning is used as an expected value.
+
+Native/WebAssembly builds, content verification, complete relevant system suites,
+Workshop round trips and explicitly invoked graphical/device journeys remain
+required at their respective implementation gates. A compiled interpreter or a
+permitted data model does not establish a delivered player console.
+
+The native Controller, simulation and local-session suites pass with save schema 33. Earlier saves are rejected explicitly. The initial native graphical capture
+uses `python tests/manual/control_widgets_ui.py`, then
+`native.exe --base build/control-widgets-ui.zip --mission test.map --slot test.slot --ship test.widget-ship --seat drive --console --local-only --capture-frames 80`.
+It establishes the automated readout and Details entry rendering only; it is not
+evidence of popup interaction, a screen reader or physical device operation.

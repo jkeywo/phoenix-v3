@@ -23,6 +23,25 @@ export import phoenix.content.resources.types;
 
 export namespace phoenix
 {
+struct ControlWidgetLevel
+{
+	std::string id;
+	std::set<std::string> human;
+	std::map<std::string, std::vector<std::string>> replacements;
+	Json data;
+};
+struct ControlWidgetDefinition
+{
+	std::string id, tree;
+	Json commands, equipment, data;
+	std::vector<ControlWidgetLevel> levels;
+	std::set<std::string> parts;
+};
+ControlWidgetDefinition compile_control_widget(const Catalog &, const std::string &id);
+Json bind_control_widget(const Catalog &, const Json &instance);
+std::map<std::string, WidgetDataDestination> control_widget_data_placement(const ControlWidgetDefinition &,
+                                                                           const std::string &level, int stars,
+                                                                           const Json &overrides = Json::object());
 std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &, const Catalog &,
                                                                    const state_tree::Registry &);
 std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const Catalog &,

@@ -19,8 +19,8 @@ void validate_checkpoint_envelope(const Json &saved, std::span<const std::pair<s
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 32)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 32 required)");
+	if (saved.at("schema") != 33)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 33 required)");
 	if (saved.at("packs") != Json(std::vector(packs.begin(), packs.end())))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))

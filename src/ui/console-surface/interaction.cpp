@@ -173,8 +173,30 @@ bool ConsoleSurface::State::action(const std::string &name)
 		return false;
 	const auto action =
 	    name.substr(prefix.size()).starts_with("radar-systems/") ? std::string("systems") : name.substr(prefix.size());
-	if (systems_open_ && support_popup_ == "help" && action != "systems-close")
+	if (systems_open_ && (support_popup_ == "help" || support_popup_.starts_with("control/")) &&
+	    action != "systems-close")
 		return false;
+	if (action.starts_with("control-details/") && model_.observation() && app_->session)
+	{
+		const auto reference = action.substr(16);
+		const auto scope = reference.find('/');
+		const auto console = scope == std::string::npos ? model_.observation()->console : reference.substr(0, scope);
+		const auto instance = scope == std::string::npos ? reference : reference.substr(scope + 1);
+		bool found = false;
+		for (const auto &[source, prefix] : task_sources())
+			if (source->observation() && source->observation()->console == console)
+				for (const auto &widget : console_control_widgets(app_->session->catalog(), *source->observation()))
+					found |= widget.id == instance;
+		if (!found)
+			return false;
+		cancel_pointer();
+		for (const auto &[source, prefix] : task_sources())
+			source->release_controls();
+		control_detail_return_focus_ = id(action);
+		support_popup_ = "control/" + console + "/" + instance;
+		systems_open_ = true;
+		return true;
+	}
 	if (action == "help")
 	{
 		if (!game_active(*app_) || settings_open_ || console_help_systems(help_level_, help_page_).empty())
@@ -210,6 +232,7 @@ bool ConsoleSurface::State::action(const std::string &name)
 	if (action == "systems" || action == "systems-close")
 	{
 		const bool help = support_popup_ == "help";
+		const bool control_detail = support_popup_.starts_with("control/");
 		model_.act("game.status-close");
 		tactical_.model().act("game.status-close");
 		systems_open_ = action == "systems";
@@ -222,6 +245,13 @@ bool ConsoleSurface::State::action(const std::string &name)
 			dom_.property(document_->GetElementById("help-shade"), "display", "none");
 			if (auto *button = document_->GetElementById(id("help")))
 				button->Focus();
+		}
+		if (control_detail)
+		{
+			dom_.property(document_->GetElementById("fault-dialog"), "display", "none");
+			if (auto *button = document_->GetElementById(control_detail_return_focus_))
+				button->Focus();
+			control_detail_return_focus_.clear();
 		}
 		return true;
 	}
@@ -556,12 +586,14 @@ std::optional<bool> ConsoleSurface::State::camera_navigation_action(const std::s
 
 bool ConsoleSurface::State::controller_hold(const std::string &name, bool pressed)
 {
-	if (!name.starts_with(id("game.control/")))
+	if (!name.starts_with(id("")))
 		return false;
 	const auto key = name.substr(id("").size());
-	if (!pressed)
-		return model_.release_control(key);
-	return !settings_open_ && model_.hold_control(key);
+	for (const auto &[source, prefix] : task_sources())
+		if (key.starts_with(prefix + "game.control/"))
+			return pressed ? !settings_open_ && !systems_open_ && source->hold_control(key.substr(prefix.size()))
+			               : source->release_control(key.substr(prefix.size()));
+	return false;
 }
 std::string ConsoleSurface::State::controller_identity() const
 {
@@ -593,7 +625,7 @@ void ConsoleSurface::State::controller_cancel()
 }
 bool ConsoleSurface::State::controller_back()
 {
-	if (systems_open_ && support_popup_ == "help")
+	if (systems_open_ && (support_popup_ == "help" || support_popup_.starts_with("control/")))
 		return action(id("systems-close"));
 	if (settings_open_)
 		return action(id("local-settings.close"));
@@ -655,15 +687,14 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	}
 	if (event.GetType() == "mousedown" || event.GetType() == "touchstart")
 	{
-		if (name.starts_with(id("game.control/")) && model_.hold_control(name.substr(id("").size())))
+		if (controller_hold(name, true))
 			held_clicks_.insert(name);
 		return;
 	}
 	if (event.GetType() == "mouseup" || event.GetType() == "mouseout" || event.GetType() == "touchend" ||
 	    event.GetType() == "touchcancel")
 	{
-		if (name.starts_with(id("game.control/")))
-			model_.release_control(name.substr(id("").size()));
+		controller_hold(name, false);
 		if (event.GetType() == "mouseout" || event.GetType() == "touchcancel")
 			held_clicks_.erase(name);
 		return;
@@ -806,7 +837,7 @@ void ConsoleSurface::State::gamepad(const std::string &device, const std::string
 {
 	if (control == "flight.impulse")
 	{
-		if (value > 0 && !settings_open_)
+		if (value > 0 && !settings_open_ && !systems_open_)
 			model_.flight_button("impulse", -1, true);
 		return;
 	}
@@ -816,13 +847,13 @@ void ConsoleSurface::State::gamepad(const std::string &device, const std::string
 		                     control == "flight.port"        ? -1000
 		                     : control == "flight.starboard" ? 1000
 		                                                     : 1,
-		                     value > 0 && !settings_open_);
+		                     value > 0 && !settings_open_ && !systems_open_);
 		return;
 	}
 	auto &axes = pad_axes_[device];
 	(control == "flight.yaw" ? axes.yaw : axes.thrust) = static_cast<int>(std::lround(value * 1000));
 	manual_input_.sample("pad/" + device, axes);
-	if (!model_.manual_active() || settings_open_)
+	if (!model_.manual_active() || settings_open_ || systems_open_)
 		manual_input_.cancel();
 	// Both stick axes are sampled before the frame submits their combined value.
 }
@@ -831,8 +862,8 @@ void ConsoleSurface::State::manual_frame(bool keyboard_selected, FlightAxes keyb
 	if (keyboard_axes.yaw || keyboard_axes.thrust)
 		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 	const auto *keyboard_focus = context_->GetFocusElement();
-	const bool keyboard_enabled =
-	    keyboard_selected && focused && !settings_open_ && (!keyboard_focus || keyboard_focus->GetTagName() != "input");
+	const bool keyboard_enabled = keyboard_selected && focused && !settings_open_ && !systems_open_ &&
+	                              (!keyboard_focus || keyboard_focus->GetTagName() != "input");
 	const std::array<int, 3> keys{KEY_Q, KEY_E, KEY_LEFT_SHIFT};
 	if (keyboard_enabled && IsKeyPressed(KEY_I))
 		model_.flight_button("impulse", -1, true);
@@ -843,7 +874,7 @@ void ConsoleSurface::State::manual_frame(bool keyboard_selected, FlightAxes keyb
 			model_.flight_button(i == 2 ? "boost" : "lateral_thrust", i == 0 ? -1000 : i == 1 ? 1000 : 1, pressed);
 		keyboard_flight_[i] = pressed;
 	}
-	if (!focused || settings_open_)
+	if (!focused || settings_open_ || systems_open_)
 		model_.release_controls();
 	manual_input_.sample("keyboard", keyboard_axes);
 	if (!keyboard_selected)
@@ -853,9 +884,10 @@ void ConsoleSurface::State::manual_frame(bool keyboard_selected, FlightAxes keyb
 		manual_input_.cancel_source("keyboard");
 	const auto identity = controller_identity();
 	const bool active = model_.manual_active();
-	if (identity != manual_identity_ || active != manual_was_active_ || !active || settings_open_ || !focused)
+	if (identity != manual_identity_ || active != manual_was_active_ || !active || settings_open_ || systems_open_ ||
+	    !focused)
 	{
-		if (identity != manual_identity_ || !focused || settings_open_)
+		if (identity != manual_identity_ || !focused || settings_open_ || systems_open_)
 			model_.release_controls();
 		manual_input_.cancel();
 		if (manual_was_active_ || manual_sent_ != FlightAxes{})

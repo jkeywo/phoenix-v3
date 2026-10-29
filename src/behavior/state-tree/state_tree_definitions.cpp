@@ -284,8 +284,12 @@ struct Compiler
 		};
 		program.initial = state_index(source.at("initial"));
 		Index next_task = 0;
-		const auto tasks = [&](const Json &list) -> std::vector<Task>
+		unsigned task_depth = 0;
+		std::function<std::vector<Task>(const Json &)> tasks;
+		tasks = [&](const Json &list) -> std::vector<Task>
 		{
+			if (++task_depth > 24)
+				fail("attempt nesting exceeds 24 levels");
 			if (!list.is_array() || list.size() > 1024)
 				fail("tasks must be ordered bounded array");
 			std::vector<Task> result;
@@ -297,10 +301,59 @@ struct Compiler
 				task.id = next_task++;
 				const auto alternatives =
 				    static_cast<int>(json.contains("memory")) + static_cast<int>(json.contains("intent")) +
-				    static_cast<int>(json.contains("action")) + static_cast<int>(json.contains("call"));
+				    static_cast<int>(json.contains("action")) + static_cast<int>(json.contains("call")) +
+				    static_cast<int>(json.contains("attempt"));
 				if (alternatives != 1)
 					fail("task requires exactly one operation");
-				if (json.contains("memory") || json.contains("intent"))
+				if (json.contains("attempt"))
+				{
+					if (program.context != Context::Controller)
+						fail("attempt blocks require Controller context");
+					task.kind = TaskKind::Attempt;
+					const auto &branches = json.at("attempt");
+					if (!branches.is_array() || branches.empty() || branches.size() > 64)
+						fail("attempt requires 1..64 ordered branches");
+					if (json.contains("result"))
+					{
+						task.result_memory = field_index(program.memory, json.at("result").get<std::string>());
+						if (program.memory[task.result_memory].type != Type::Boolean)
+							fail("attempt result requires boolean memory");
+					}
+					for (const auto &branch : branches)
+					{
+						auto compiled = tasks(branch.at("tasks"));
+						Task guard;
+						guard.kind = TaskKind::Guard;
+						if (next_task >= 8192 || ++total_tasks > 65536)
+							fail("task count exceeded");
+						guard.id = next_task++;
+						const auto conditions = branch.value("conditions", Json::array());
+						if (!conditions.is_array() || conditions.size() > 128)
+							fail("attempt conditions must be bounded array");
+						for (const auto &condition : conditions)
+						{
+							Condition test;
+							test.left = binding(condition.at("left"));
+							static const std::vector<std::string> ops{"eq", "ne", "lt", "le", "gt", "ge", "present"};
+							const auto op = condition.at("op").get<std::string>();
+							const auto found = std::find(ops.begin(), ops.end(), op);
+							if (found == ops.end())
+								fail("unsupported attempt comparison");
+							test.operation = static_cast<Compare>(found - ops.begin());
+							if (test.operation != Compare::Present)
+							{
+								test.right = binding(condition.at("right"));
+								if (test.left.type != test.right.type ||
+								    (test.operation > Compare::NotEqual && test.left.type != Type::Integer))
+									fail("attempt comparison type mismatch");
+							}
+							guard.conditions.push_back(std::move(test));
+						}
+						compiled.insert(compiled.begin(), std::move(guard));
+						task.branches.push_back(std::move(compiled));
+					}
+				}
+				else if (json.contains("memory") || json.contains("intent"))
 				{
 					const bool memory = json.contains("memory");
 					task.kind = memory ? TaskKind::Memory : TaskKind::Intent;
@@ -377,8 +430,11 @@ struct Compiler
 					fail("effect actions execute once per activation");
 				if (task.kind == TaskKind::Call && task.once)
 					fail("reference calls cannot be once; place in running tasks");
+				if (task.kind == TaskKind::Attempt && task.once)
+					fail("attempt blocks cannot be once; revalidate their commands each evaluation");
 				result.push_back(std::move(task));
 			}
+			--task_depth;
 			return result;
 		};
 		for (Index i = 0; i < states.size(); ++i)
@@ -459,7 +515,7 @@ struct Compiler
 				types.push_back(static_cast<unsigned>(t));
 			fingerprint["registry"].push_back(
 			    Json::array({"action", a.name, a.contexts, types, a.effect, a.channel, a.target_argument,
-			                 a.intent_field, a.value_argument, a.key_arguments, a.capture_context}));
+			                 a.intent_field, a.value_argument, a.key_arguments, a.capture_context, a.command}));
 		}
 		for (const auto &ref : program.references)
 			fingerprint["references"].push_back(ref.signature);
@@ -494,6 +550,8 @@ void validate_registry(const Registry &registry)
 		for (auto type : action.arguments)
 			if (type <= Type::Missing || type > Type::Message)
 				fail("invalid action argument type");
+		if (action.command && action.contexts != static_cast<unsigned>(Context::Controller))
+			fail("command feedback requires Controller context");
 		if (action.target_argument != none && action.target_argument >= action.arguments.size())
 			fail("invalid action target argument");
 		std::set<Index> keys;

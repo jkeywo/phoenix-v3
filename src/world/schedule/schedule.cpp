@@ -124,7 +124,7 @@ void World::tick()
 			for (const auto &controller : entity.get<EntityControls>().controllers)
 			{
 				const ConsoleAddress address{id, controller.definition.console};
-				if (!controller.human)
+				if (!controller.human || !controller.definition.widget.empty())
 				{
 					const ControllerAddress target{id, controller.definition.console, controller.definition.id};
 					impl_->decision_frame.freeze_inbox(target, impl_->knowledge.peek_controller(target));

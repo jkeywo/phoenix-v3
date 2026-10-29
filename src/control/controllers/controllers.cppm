@@ -111,6 +111,9 @@ struct ConsoleControllerRuntime
 	ConsoleControllerSpec definition;
 	std::vector<ControllerChannelState> commands;
 	bool human = false;
+	// Empty only while pre-rewrite content is being migrated. A populated vector
+	// is authoritative per command; human remains a derived summary thereafter.
+	std::vector<bool> human_commands;
 	std::uint64_t generation = 1;
 	std::uint64_t operator_claimant = 0;
 	std::optional<ControllerBrain> brain;
@@ -171,6 +174,7 @@ struct ControllerDecisionProposal
 };
 
 const ControllerActionSpec &controller_action_spec(const ConsoleControllerRuntime &);
+bool controller_command_human(const ConsoleControllerRuntime &, std::size_t channel);
 Json save_controller_action(const ConsoleControllerRuntime &);
 void restore_controller_action(ConsoleControllerRuntime &, const Json &);
 void set_console_complexity(EntityControls &, const std::string &console, std::size_t profile);

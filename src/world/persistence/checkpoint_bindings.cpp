@@ -11,7 +11,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 32},           {"tick", ticks()},       {"map", impl_->map},
+	Json result{{"schema", 33},           {"tick", ticks()},       {"map", impl_->map},
 	            {"ships", impl_->ships},  {"packs", impl_->packs}, {"claims", impl_->ownership.claims()},
 	            {"bodies", Json::array()}};
 	result["custom_properties"] = impl_->save_custom_properties();

@@ -55,23 +55,48 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
 auto Runtime::controller_action_ports(EntityId id, std::size_t index, std::span<const state_tree::Value> source,
                                       std::optional<Observation> &fallback) -> ControllerActionPorts
 {
-	return {[this, id, index, source, &fallback]() -> const Observation &
-	        {
-		        const auto &controller = entities.at(id).get<EntityControls>().controllers.at(index);
-		        const auto &brain = *controller.brain;
-		        const ConsoleAddress address{
-		            static_cast<EntityId>(source[brain.own[ControllerOwnField::Entity]].number),
-		            controller.definition.console};
-		        if (decision_frame.observations().contains(address))
-			        return decision_frame.observations().at(address);
-		        fallback = capture_decision_observation(address);
-		        return *fallback;
-	        },
-	        [this, id, index](const state_tree::Output &output, std::span<const state_tree::Value> observations,
-	                          const state_tree::Program *program)
-	        {
-		        controller_output(id, index, output, observations, program);
-	        }};
+	return {
+	    [this, id, index, source, &fallback]() -> const Observation &
+	    {
+		    const auto &controller = entities.at(id).get<EntityControls>().controllers.at(index);
+		    const auto &brain = *controller.brain;
+		    const ConsoleAddress address{static_cast<EntityId>(source[brain.own[ControllerOwnField::Entity]].number),
+		                                 controller.definition.console};
+		    if (decision_frame.observations().contains(address))
+			    return decision_frame.observations().at(address);
+		    fallback = capture_decision_observation(address);
+		    return *fallback;
+	    },
+	    [this, id, index](const state_tree::Output &output, std::span<const state_tree::Value> observations,
+	                      const state_tree::Program *program)
+	    {
+		    controller_output(id, index, output, observations, program);
+	    },
+	    [this, id, index](std::vector<ControllerChannelState> &commands, const state_tree::Program &program,
+	                      const state_tree::Output &output) -> state_tree::CommandAttempt
+	    {
+		    const auto &controller = entities.at(id).get<EntityControls>().controllers.at(index);
+		    const auto &name = program.registry.actions.at(output.action).name;
+		    for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
+			    if (name == "write." + controller.definition.commands[channel].id)
+			    {
+				    const auto request = controller.definition.commands[channel].semantics == CommandSemantics::Request;
+				    std::vector<std::int64_t> arguments;
+				    for (std::size_t i = 1; i < output.arguments.size(); ++i)
+					    arguments.push_back(output.arguments[i].number);
+				    return attempt_controller_command(controller, commands,
+				                                      {{id, controller.definition.console, controller.definition.id},
+				                                       index,
+				                                       channel,
+				                                       output.arguments.at(0).number,
+				                                       controller.generation,
+				                                       request ? commands.at(channel).request_id + 1 : 0,
+				                                       false,
+				                                       std::move(arguments)},
+				                                      controller_command_checks(id));
+			    }
+		    return {state_tree::CommandOutcome::Refused, "unbound_command"};
+	    }};
 }
 
 auto Runtime::cancel_controller_action(EntityId id, std::size_t index, const std::string &reason,

@@ -304,11 +304,23 @@ struct ControllerCommandSpec
 	bool hull_priority = false;
 	std::string coordinated_group;
 };
+enum class WidgetDataDestination : std::uint8_t
+{
+	Main,
+	Details,
+	Hidden
+};
 struct ConsoleControllerSpec
 {
 	std::string id, console, tree;
 	std::string policy;
 	std::vector<ControllerCommandSpec> commands;
+	// Shared logical widget instance, independent of any rendered surface.
+	std::string widget;
+	std::map<int, std::string> star_levels;
+	std::map<int, std::set<std::string>> human_channels;
+	std::map<int, std::map<std::string, WidgetDataDestination>> data_placement;
+	std::map<std::string, std::vector<std::string>> equipment;
 };
 struct ConsoleComplexitySpec
 {

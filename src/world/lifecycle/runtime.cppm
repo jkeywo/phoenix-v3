@@ -320,6 +320,7 @@ struct Runtime
 	bool controller_command_effect_matches(flecs::entity entity, const ControllerCommandSpec &spec,
 	                                       const ControllerProposal &proposal) const;
 	bool commit_controller(const ControllerProposal &proposal);
+	ControllerCommandChecks controller_command_checks(EntityId id) const;
 	void refresh_controllers(EntityId id, bool validate = false);
 	std::uint64_t coordinated_generation(const ConsoleAddress &a, const std::string &group) const;
 	bool coordinated_impulse(const ConsoleAddress &a, const OperatingCommand &c, bool execute);

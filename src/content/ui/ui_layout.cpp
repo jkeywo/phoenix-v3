@@ -163,6 +163,45 @@ void targets(const UiNode &node, std::set<std::string> &result)
 	for (const auto &child : node.children)
 		targets(child, result);
 }
+bool control_target(const std::string &target)
+{
+	if (!target.starts_with("control/"))
+		return false;
+	unsigned count = 0;
+	for (std::size_t start = 8; start <= target.size();)
+	{
+		const auto end = target.find('/', start);
+		const auto name = target.substr(start, end == std::string::npos ? end : end - start);
+		if (name.empty() || name.size() > 128 ||
+		    name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
+		        std::string::npos)
+			return false;
+		++count;
+		if (end == std::string::npos)
+			break;
+		start = end + 1;
+	}
+	return count == 2 || count == 3;
+}
+std::set<std::string> logical_targets(const std::set<std::string> &targets)
+{
+	std::set<std::string> result;
+	std::map<std::string, std::set<std::string>> parts;
+	for (const auto &target : targets)
+		if (control_target(target))
+		{
+			const auto split = target.rfind('/');
+			const auto instance = target.substr(0, split), part = target.substr(split + 1);
+			parts[instance].insert(part);
+			result.insert(instance);
+		}
+		else
+			result.insert(target);
+	for (const auto &[instance, placed] : parts)
+		ui_require(placed.size() == 1 || (!placed.contains("complete") && !placed.contains("main")), instance,
+		           "place the complete widget or its named parts, not both");
+	return result;
+}
 } // namespace
 
 Json console_ui_header_template()
@@ -383,13 +422,15 @@ UiLayout compile_ui_tree(const Catalog &catalog, const Json &definition)
 	result.root = compile_node(catalog, expand_ui_groups(catalog, definition.at("root")), ids, {}, 0, count);
 	std::set<std::string> full;
 	targets(result.root, full);
+	(void)logical_targets(full);
 	if (definition.contains("compact"))
 	{
 		ids.clear();
 		result.compact = compile_node(catalog, expand_ui_groups(catalog, definition.at("compact")), ids, {}, 0, count);
 		std::set<std::string> compact;
 		targets(*result.compact, compact);
-		ui_require(full == compact, "layout.compact", "must preserve all component targets exactly once");
+		ui_require(logical_targets(full) == logical_targets(compact), "layout.compact",
+		           "must preserve logical widget instances and ordinary component targets");
 	}
 	return result;
 }
@@ -471,8 +512,8 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 			condition(*result.compact);
 	}
 	for (const auto &target : components)
-		ui_require(allowed.contains(target) && !header_targets.contains(target), "console.layout",
-		           "unknown or header-only component " + target);
+		ui_require((allowed.contains(target) || control_target(target)) && !header_targets.contains(target),
+		           "console.layout", "unknown or header-only component " + target);
 	return result;
 }
 UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float text_scale,

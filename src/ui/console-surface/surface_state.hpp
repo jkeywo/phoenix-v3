@@ -267,6 +267,8 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	bool station_component_active(const std::string &component);
 
 	void prepare_station_components(const ConsoleRegion &region, bool pregame);
+	void prepare_control_widgets(const ConsoleRegion &region);
+	std::string control_detail_return_focus_;
 
 	void prepare_local_settings(Application &app, const ConsoleRegion &region);
 
