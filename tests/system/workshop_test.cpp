@@ -78,6 +78,7 @@ void directed_template_roundtrip()
 	    {"kind", "radar"},
 	    {"range_mm", 40000},
 	    {"directed", {{"modes", {"test.scan-base", "test.scan-detail"}}, {"targeting", {"test.designated"}}}}};
+	phoenix::test::materialise_fixture_widgets(source);
 	WorkshopDocument document;
 	document.load_pack(phoenix::test::archive(source));
 	require(document.definitions().at("entities")[0].at("control_layout").at("controllers")[0] ==
@@ -143,8 +144,12 @@ int main()
 		 {"id":"test.child","extends":"test.base","arguments":{"target":6000}}])json");
 		auto &layout = authored["entities"][0]["control_layout"];
 		layout["default_profile"] = "automatic";
-		layout["controllers"][0].erase("fallback");
-		layout["controllers"][0]["tree"] = "test.child";
+		for (auto &widget : authored["control_widgets"])
+			if (widget.at("id") == layout["controllers"][0].at("widget"))
+			{
+				widget.erase("fallback");
+				widget["tree"] = "test.child";
+			}
 		const auto resolved_child = document.preview_tree(authored["trees"][1]);
 		require(resolved_child.at("context") == "controller" &&
 		            resolved_child.at("command_bindings")[0].at("channel") == "speed",

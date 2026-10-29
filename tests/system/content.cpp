@@ -44,6 +44,11 @@ namespace
 void console_help_content_contract()
 {
 	auto source = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "help fixture");
+	for (auto &entity : source["entities"])
+		entity["control_layout"] = {{"schema", 2},
+		                            {"controllers", Json::array()},
+		                            {"profiles", Json::array({{{"id", "direct"}, {"stars", 3}}})},
+		                            {"default_profile", "direct"}};
 	auto &console = source["consoles"][0];
 	const auto id = console.at("id").get<std::string>();
 	console["help"] = Json::parse(R"json({"required_levels":[1,3],"levels":{
@@ -257,6 +262,8 @@ int main()
 		{
 			auto source = base;
 			auto definitions = parse_json(source.files.at("definitions.json"), "UI fixture");
+			for (auto &entity : definitions["entities"])
+				entity["control_layout"]["controllers"] = Json::array();
 			auto &console = definitions["consoles"][0];
 			console["layout"] = convert_console_layout(console);
 			definitions["layouts"] = Json::array(
@@ -515,7 +522,7 @@ int main()
 			    {
 				    resolve_packs({read_pack(write_pack(source))});
 			    },
-			    "preserve all component targets");
+			    "preserve logical widget instances");
 		}
 
 		{
@@ -1200,8 +1207,7 @@ int main()
 			auto source = numeric_source;
 			source["maps"][0]["entities"][0]["x_mm"] = coordinate;
 			auto draft = base;
-			draft.files["definitions.json"] = json_bytes(source);
-			return resolve_packs({read_pack(write_pack(draft))});
+			return phoenix::test::load(source);
 		};
 		for (const Json coordinate : {Json(-1000000000LL), Json(1000000000ULL), Json(0)})
 			load_coordinate(coordinate);
@@ -1241,29 +1247,6 @@ int main()
 			    "x_mm");
 		}
 
-		// Migration is a compiler boundary: originals remain untouched and outputs use explicit contracts.
-		auto conversion_source = catalog;
-		conversion_source.entities.at("test.ship")["systems"]["engine"]["enabled"] = false;
-		const auto original_conversion = conversion_source.entities;
-		const auto converted = convert_controller_content(conversion_source);
-		require(conversion_source.entities == original_conversion &&
-		            !conversion_source.entities.at("test.ship").contains("control_layout"),
-		        "migration leaves source Catalog authored definitions unchanged");
-		require(converted.entities.at("test.ship").at("motion_model") == "vector" &&
-		            !converted.entities.at("test.ship").contains("controller"),
-		        "basic conversion selects vector mechanism and removes old owner");
-		const auto converted_layout = compile_controllable_layout(converted, "test.ship");
-		bool disabled_default = false, pose_heading = false;
-		for (const auto &owner : converted_layout.controllers)
-			for (const auto &command : owner.commands)
-			{
-				if (command.action == OperatingAction::EngineEnabled)
-					disabled_default = command.initial == 0;
-				if (command.action == OperatingAction::Heading)
-					pose_heading = command.initial_heading;
-			}
-		require(disabled_default && pose_heading,
-		        "converted physical defaults preserve disabled equipment and spawn heading");
 		{
 			auto retired = numeric_source;
 			retired["trees"] = Json::parse(
@@ -1277,26 +1260,17 @@ int main()
 			    },
 			    "timed tree format retired");
 		}
-		auto system_conversion = conversion_source;
-		system_conversion.entities.at("test.ship").erase("controller");
-		system_conversion.entities.at("test.ship")["controllers"] = {{"engine", "test.system"}};
-		system_conversion.trees["test.system"] = {{"id", "test.system"}};
-		system_conversion.tree_programs["test.system"] = {};
-		rejected(
-		    [&]
-		    {
-			    convert_controller_content(system_conversion);
-		    },
-		    "legacy System decision trees require");
-		auto summary_conversion = conversion_source;
-		summary_conversion.entities.at("test.ship")["presets"] = Json::parse(
-		    R"json([{"id":"old","consoles":{"main":{"summary_intents":[{"system":"engine","channel":"level"}]}}}])json");
-		rejected(
-		    [&]
-		    {
-			    convert_controller_content(summary_conversion);
-		    },
-		    "legacy summary intents require explicit Controller preference channels");
+		for (const int schema : {0, 1})
+		{
+			auto retired = catalog;
+			retired.entities.at("test.ship")["control_layout"]["schema"] = schema;
+			rejected(
+			    [&]
+			    {
+				    (void)compile_controllable_layout(retired, "test.ship");
+			    },
+			    "schema 2");
+		}
 		// Controller compilation is exercised through production pack loading, including unused variants.
 		auto control_source = parse_json(base.files.at("definitions.json"), "controller fixture");
 		control_source["consoles"][0]["widgets"] = Json::array();
@@ -1333,8 +1307,7 @@ int main()
 		auto load_controls = [&](const Json &source)
 		{
 			auto draft = base;
-			draft.files["definitions.json"] = json_bytes(source);
-			return resolve_packs({read_pack(write_pack(draft))});
+			return phoenix::test::load(source);
 		};
 		auto control_catalog = load_controls(control_source);
 		const auto whole_ship = resolve_packs({ship_client_assets(control_catalog, "test.ship")});
@@ -1363,8 +1336,7 @@ int main()
 			    "restricted remote Console bundles omit unavailable Station preferences without changing the source");
 		}
 		auto layout = compile_controllable_layout(control_catalog, "test.variant");
-		require(!layout.converted && layout.controllers.size() == 2 &&
-		            layout.controllers[0].commands[0].consumers.size() == 2,
+		require(layout.controllers.size() == 2 && layout.controllers[0].commands[0].consumers.size() == 2,
 		        "inherited layout shares one Controller command across two engine entities");
 		require(layout.profiles[0].human[0] && !layout.profiles[0].human[1], "profiles allocate Console Controllers");
 		require(layout.profiles[0].stars == 2, "Authored star rating survives profile compilation");
@@ -1394,14 +1366,7 @@ int main()
 		    },
 		    "multiple command sources");
 		bad_controls = control_source;
-		bad_controls["entities"][0]["control_layout"]["profiles"][0]["consoles"]["helm"]["ai"] = {"power"};
-		rejected(
-		    [&]
-		    {
-			    load_controls(bad_controls);
-		    },
-		    "foreign or unknown profile Controller");
-		bad_controls = control_source;
+		bad_controls["entities"][0]["motion_model"] = "inertial";
 		bad_controls["entities"][0]["systems"]["engine"]["impulse"] = Json::object();
 		bad_controls["entities"][0]["systems"]["reserve"]["impulse"] = Json::object();
 		bad_controls["entities"][0]["control_layout"]["controllers"][0]["commands"][0]["action"] = "impulse";
@@ -1420,8 +1385,6 @@ int main()
 			    load_controls(bad_controls);
 		    },
 		    "incompatible physical input");
-		require(compile_controllable_layout(catalog, "test.ship").converted,
-		        "old ownership converts at the compiler boundary");
 
 		WorkshopDocument history_document;
 		history_document.load_pack(bytes);
@@ -1483,6 +1446,9 @@ int main()
 		                                             {"systems", {"engine", "steering", "radar"}},
 		                                             {"feeds", Json::array()}}})}}});
 		station_ship.erase("console");
+		station_ship["control_layout"] = console_document.definitions()["entities"][0]["control_layout"];
+		for (auto &controller : station_ship["control_layout"]["controllers"])
+			controller["console"] = "controls";
 		console_document.rename_console("test.console", "test.bridge");
 		const auto &renamed_consoles = console_document.definitions();
 		require(renamed_consoles["entities"][0]["console"] == "test.bridge" &&
@@ -1864,6 +1830,7 @@ int main()
 			rock["id"] = "test.field-rock";
 			rock["systems"] = Json::object();
 			rock.erase("console");
+			rock.erase("control_layout");
 			authored["entities"].push_back(rock);
 			auto &field = entries.map()["regions"][0]["asteroids"];
 			field = {{"types", Json::array({{{"definition", "test.field-rock"}, {"sprite_entry", "variant"}}})},

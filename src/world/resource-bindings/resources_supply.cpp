@@ -50,7 +50,7 @@ auto Runtime::supply_manifest(std::size_t index, std::int64_t requested) const -
 		if (!empty)
 			continue;
 		const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
-		const bool manual_quantity = station_stars(owner) >= 3 && console_operator(owner) != 0;
+		const bool manual_quantity = manual_workload(owner, "mission_quantity", away_dispatch_system(ship, d.dispatch));
 		const auto chosen = requested >= 0 ? requested : manual_quantity ? m.supply_quantity : 0;
 		auto batches =
 		    std::min({offer.limit, chosen ? chosen : deficit, material_available(d.target, *provider, offer.material),

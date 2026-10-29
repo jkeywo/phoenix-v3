@@ -164,8 +164,7 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 	for (const auto &c : craft())
 		if (c.at("id") == craft_id && c.value("manual", true))
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
-				if (ctrl.contains("widget") ? console_operation_human(ctrl, "craft", c.at("bay"))
-				                            : ctrl.value("human", false) || ctrl.value("craft_authority", false))
+				if (console_operation_human(ctrl, "craft", c.at("bay")))
 				{
 					OperatingCommand command{observation_->own.id, "craft." + action,
 					                         c.at("revision").get<std::int64_t>(), craft_id};
@@ -242,17 +241,9 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 							officer = slot.at("assigned").get<std::string>().starts_with("officer:");
 							team = slot.at("assigned").get<std::string>().starts_with("team:");
 						}
-				if (ctrl.contains("widget"))
-				{
-					if (team && ctrl.at("operations").contains("team_selection"))
-						verb = action == "assign" ? "select" : "unselect";
-					if (!console_operation_human(ctrl, std::string(away_command_operation("away." + verb, officer))))
-						continue;
-				}
-				else if (!ctrl.value("human", false) &&
-				         !((action == "transport" || action == "escort") && ctrl.value("transport_authority", false)) &&
-				         !((action == "assign" || action == "withdraw" || action == "contribute") &&
-				           ctrl.value("contribution_authority", false)))
+				if (team && ctrl.at("operations").contains("team_selection"))
+					verb = action == "assign" ? "select" : "unselect";
+				if (!console_operation_human(ctrl, std::string(away_command_operation("away." + verb, officer))))
 					continue;
 				OperatingCommand command{observation_->own.id, "away." + verb, m.at("revision").get<std::int64_t>(),
 				                         mission};
@@ -272,13 +263,11 @@ bool ConsoleModel::team_action(const std::string &action, const std::string &tea
 	for (const auto &t : observation_->gameplay.value("teams", Json::array()))
 		if (t.at("id") == team && !t.at("reserved").get<bool>())
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
-				if (ctrl.contains("widget")
-				        ? console_operation_human(ctrl,
-				                                  action == "cancel" || text.starts_with("auto/")
-				                                      ? std::string("team_assignment")
-				                                      : t.value("work_operation", std::string("team_work")),
-				                                  team)
-				        : ctrl.value("human", false) || t.value("assignment_authority", false))
+				if (console_operation_human(ctrl,
+				                            action == "cancel" || text.starts_with("auto/")
+				                                ? std::string("team_assignment")
+				                                : t.value("work_operation", std::string("team_work")),
+				                            team))
 				{
 					OperatingCommand command{observation_->own.id, "team." + action, t.at("revision"), team};
 					command.text = text;
@@ -362,9 +351,7 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 		return false;
 	for (const auto &section : controller_rows(observation_->gameplay))
 	{
-		if (section.contains("widget")
-		        ? !console_operation_human(section, "conversation")
-		        : (!section.value("human", false) && !section.value("conversation_authority", false)))
+		if (!console_operation_human(section, "conversation"))
 			continue;
 		bool owns = false;
 		for (const auto &command : section.at("commands"))

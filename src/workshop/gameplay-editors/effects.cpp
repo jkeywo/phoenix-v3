@@ -318,6 +318,9 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        string(widget, "label");
 		        choice(widget, "extends", document.definition_choices(WorkshopDefinitionKind::ControlWidget), true);
 		        choice(widget, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true);
+		        choice(widget, "policy_template", {"combat"}, true);
+		        if (widget.contains("policy_template"))
+			        structured_field(widget, "ai");
 		        text("Choose a tree or an inline policy. Inline policies can bind equipment roles in their System "
 		             "observations. Repeat runs a member policy for each attached member under one Controller.");
 		        if (string(widget, "repeat") && widget.at("repeat") == "")

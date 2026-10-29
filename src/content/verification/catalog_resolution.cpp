@@ -1034,6 +1034,35 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 {
 	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
+	// Re-preparing an edited Catalog rebuilds only compilation artifacts recorded
+	// by the previous pass; authored widget and tree definitions stay untouched.
+	std::set<std::string> generated_prefixes, generated_widgets;
+	for (const auto &[entity, policies] : catalog.controller_policies)
+		for (const auto &[owner, policy] : policies)
+			for (const auto *family : {"phoenix.officer.", "phoenix.combat."})
+				generated_prefixes.insert(std::string(family) + entity + "." + owner.first + "." + owner.second);
+	for (const auto &[entity, instances] : catalog.widget_instances)
+		for (const auto &[owner, instance] : instances)
+		{
+			const auto id = instance.at("widget").get<std::string>();
+			if (id.starts_with("phoenix.widget."))
+			{
+				generated_widgets.insert(id);
+				generated_prefixes.insert(id);
+			}
+		}
+	std::erase_if(catalog.trees,
+	              [&](const auto &tree)
+	              {
+		              return std::any_of(generated_prefixes.begin(), generated_prefixes.end(),
+		                                 [&](const auto &prefix)
+		                                 {
+			                                 return tree.first == prefix || tree.first.starts_with(prefix + ".");
+		                                 });
+	              });
+	for (const auto &id : generated_widgets)
+		catalog.control_widgets.erase(id);
+	catalog.widget_instances.clear();
 	catalog.controller_policies.clear();
 	expand_transport_fittings(catalog, properties);
 	expand_control_widget_policies(catalog);

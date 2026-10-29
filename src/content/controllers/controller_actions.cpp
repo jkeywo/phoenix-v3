@@ -19,10 +19,18 @@ void expand_combat_policies(Catalog &catalog)
 	{
 		if (!entity.contains("control_layout"))
 			continue;
-		for (auto &controller : entity["control_layout"]["controllers"])
+		for (const auto &instance : entity["control_layout"]["controllers"])
 		{
-			if (controller.contains("widget"))
-				continue; // Shared widget definitions declare their complete policy explicitly.
+			const auto &effective = compiled_widget_instance(catalog, entity_id, instance);
+			if (!effective.contains("widget"))
+				continue;
+			const auto &definition = catalog.control_widgets.at(effective.at("widget").get<std::string>());
+			if (!definition.contains("policy_template"))
+				continue;
+			auto controller = bind_control_widget(compile_control_widget(catalog, effective.at("widget")), effective);
+			controller["policy"] = definition.at("policy_template");
+			if (definition.contains("ai"))
+				controller["ai"] = definition.at("ai");
 			if (controller.value("policy", std::string{}) != "combat")
 				continue;
 			const auto id = "phoenix.combat." + entity_id + "." + controller.at("console").get<std::string>() + "." +
@@ -221,9 +229,7 @@ void expand_combat_policies(Catalog &catalog)
 				policy["initial"] = "service";
 			}
 			catalog.trees.emplace(id, std::move(policy));
-			controller.erase("policy");
-			controller.erase("fallback");
-			controller["tree"] = id;
+			catalog.controller_policies[entity_id][{instance.at("console"), instance.at("id")}] = id;
 		}
 	}
 }
@@ -236,11 +242,18 @@ void expand_officer_policies(Catalog &catalog)
 		for (auto &instance : entity["control_layout"]["controllers"])
 		{
 			const auto &bound_instance = compiled_widget_instance(catalog, entity_id, instance);
-			const auto widget =
-			    instance.contains("widget")
-			        ? std::optional{compile_control_widget(catalog, bound_instance.at("widget").get<std::string>())}
-			        : std::nullopt;
-			auto controller = widget ? bind_control_widget(*widget, bound_instance) : instance;
+			if (!instance.contains("widget"))
+				continue;
+			const auto widget = compile_control_widget(catalog, bound_instance.at("widget").get<std::string>());
+			auto controller = bind_control_widget(widget, bound_instance);
+			if (const auto ship = catalog.controller_policies.find(entity_id);
+			    ship != catalog.controller_policies.end())
+				if (const auto policy = ship->second.find({instance.at("console"), instance.at("id")});
+				    policy != ship->second.end())
+				{
+					controller["tree"] = policy->second;
+					controller.erase("fallback");
+				}
 			if (controller.value("officer_protocol", false))
 				continue;
 			std::map<std::string, Json> supported;
@@ -270,6 +283,9 @@ void expand_officer_policies(Catalog &catalog)
 			// Only shared-action policies can delegate execution. Legacy direct-write packs retain their policy.
 			if (controller.contains("tree") && !policy.contains("action_bindings"))
 				continue;
+			if (catalog.trees.contains(id) || catalog.trees.contains(id + ".routine") ||
+			    catalog.trees.contains(id + ".support"))
+				throw std::runtime_error("Reserved compiled officer tree collision");
 			Json routine = policy;
 			routine["id"] = id + ".routine";
 			catalog.trees.emplace(id + ".routine", routine);
@@ -476,14 +492,7 @@ void expand_officer_policies(Catalog &catalog)
 			                            Json{{"action", "action.cancel"}, {"arguments", {"commitment_failed"}}}})},
 			     {"transitions", Json::array({{{"target", "normal"}}})}});
 			catalog.trees.emplace(id, policy);
-			if (widget)
-				catalog.controller_policies[entity_id][{instance.at("console"), instance.at("id")}] = id;
-			else
-			{
-				instance["tree"] = id;
-				instance.erase("fallback");
-				instance["officer_protocol"] = true;
-			}
+			catalog.controller_policies[entity_id][{instance.at("console"), instance.at("id")}] = id;
 		}
 	}
 }

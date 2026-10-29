@@ -19,6 +19,7 @@ import phoenix.content.distribution;
 import phoenix.simulation;
 
 using namespace phoenix;
+using phoenix::test::fixture_submit;
 using phoenix::test::load;
 using phoenix::test::require;
 Json instance(int id, const std::string &definition, int x, int heading = 0)
@@ -59,13 +60,13 @@ int main(int argc, char **)
 				{
 					if (tick == 0 || tick == 22)
 					{
-						require(world->submit(101, {1, "speed_mm_s", 7000}) &&
-						            world->submit(101, {1, "heading_mdeg", tick == 0 ? 90000 : 250000}) &&
-						            world->submit(101, {1, "engine_enabled", 1}),
+						require(fixture_submit(*world, 101, {1, "speed_mm_s", 7000}) &&
+						            fixture_submit(*world, 101, {1, "heading_mdeg", tick == 0 ? 90000 : 250000}) &&
+						            fixture_submit(*world, 101, {1, "engine_enabled", 1}),
 						        "Movement requests admitted");
 					}
 					if (tick == 13)
-						require(world->submit(101, {1, "engine_enabled", 0}), "Coasting request admitted");
+						require(fixture_submit(*world, 101, {1, "engine_enabled", 0}), "Coasting request admitted");
 					world->tick();
 				}
 				const auto a = legacy.inspect().at(0), b = fitted.inspect().at(0);
@@ -101,7 +102,7 @@ int main(int argc, char **)
 			        "radar projection supplies only visible contacts and their authored public symbols");
 			require(view->contacts[0].radar_sprite == radar_sprite_id(catalog.assets.at("test-core:assets/pixel.png")),
 			        "detected contacts carry the public radar PNG address through production simulation");
-			radar_symbols.submit(101, {1, "radar_enabled", 0});
+			fixture_submit(radar_symbols, 101, {1, "radar_enabled", 0});
 			radar_symbols.tick();
 			require(radar_symbols.observe(101)->contacts.empty(), "symbol metadata must not bypass radar disable");
 			require(radar_symbols.observe_shared(101) != shared && shared->contacts.size() == 1 &&
@@ -116,17 +117,17 @@ int main(int argc, char **)
 			World propulsion;
 			propulsion.load(catalog, "test.map");
 			require(propulsion.claim(101, 1), "synthetic drive Console can be claimed");
-			require(propulsion.submit(101, {1, "speed_mm_s", 1000}), "forward thrust request admitted");
+			require(fixture_submit(propulsion, 101, {1, "speed_mm_s", 1000}), "forward thrust request admitted");
 			propulsion.tick();
 			require(propulsion.scene().at(0).forward_thrust > 0,
 			        "applied forward propulsion must produce exhaust output");
 			for (int i = 0; i < 100; ++i)
 				propulsion.tick();
 			require(propulsion.scene().at(0).forward_thrust == 0, "coasting at requested speed must not invent thrust");
-			propulsion.submit(101, {1, "speed_mm_s", 0});
+			fixture_submit(propulsion, 101, {1, "speed_mm_s", 0});
 			propulsion.tick();
 			require(propulsion.scene().at(0).forward_thrust == 0, "braking must not draw rear exhaust");
-			propulsion.submit(101, {1, "engine_enabled", 0});
+			fixture_submit(propulsion, 101, {1, "engine_enabled", 0});
 			propulsion.tick();
 			require(propulsion.scene().at(0).forward_thrust == 0,
 			        "disabled engines must clear visual propulsion output");
@@ -197,11 +198,12 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "helm") && world.claim(2, 1, "sensors") && world.claim(3, 1, "observer") &&
 			            world.claim(4, 2, "helm"),
 			        "different Consoles and ships can be crewed independently");
-			require(!world.claim(5, 1, "helm") && !world.submit(2, {1, "speed_mm_s", 1000}) &&
-			            !world.submit(1, {1, "radar_enabled", 0}) && !world.submit(3, {1, "radar_enabled", 0}),
+			require(!world.claim(5, 1, "helm") && !fixture_submit(world, 2, {1, "speed_mm_s", 1000}) &&
+			            !fixture_submit(world, 1, {1, "radar_enabled", 0}) &&
+			            !fixture_submit(world, 3, {1, "radar_enabled", 0}),
 			        "Console ownership and read-only feeds constrain commands");
-			require(!world.submit(1, {1, "speed_mm_s", 1000, "radar"}) &&
-			            world.submit(1, {1, "speed_mm_s", 1000, "engine"}),
+			require(!fixture_submit(world, 1, {1, "speed_mm_s", 1000, "radar"}) &&
+			            fixture_submit(world, 1, {1, "speed_mm_s", 1000, "engine"}),
 			        "qualified commands cannot alias another System");
 			require(world.observe(1)->contacts.empty() && world.observe(2)->contacts.size() == 1 &&
 			            world.observe(3)->contacts.size() == 1,
@@ -209,8 +211,8 @@ int main(int argc, char **)
 			world.tick();
 			require(world.observe(1)->requested_speed == 1000 && world.observe(2)->requested_speed == 0,
 			        "controllers yield only owned Systems and feeds hide unbound requests");
-			world.submit(1, {1, "speed_mm_s", 2000});
-			world.submit(2, {1, "radar_enabled", 0});
+			fixture_submit(world, 1, {1, "speed_mm_s", 2000});
+			fixture_submit(world, 2, {1, "radar_enabled", 0});
 			world.release(2);
 			world.tick();
 			require(world.observe(1)->requested_speed == 2000 && !world.observe(3)->contacts.empty(),
@@ -220,7 +222,7 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "helm") && world.observe(1)->requested_speed == 3000,
 			        "released System controller resumes independently");
 			auto saved = world.save();
-			require(saved["schema"] == 33, "explicit Stations use versioned save state");
+			require(saved["schema"] == 34, "explicit Stations use versioned save state");
 			World resumed;
 			resumed.restore(content, saved);
 			require(resumed.save() == saved, "Console claims and independent controllers survive round-trip");
@@ -315,9 +317,9 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "port-seat") && world.claim(2, 1, "starboard-seat") &&
 			            world.claim(3, 1, "observer"),
 			        "same-kind instances can have different owning Consoles");
-			require(world.submit(1, {1, "speed_mm_s", 1000, "port"}) &&
-			            !world.submit(1, {1, "speed_mm_s", 2000, "starboard"}) &&
-			            !world.submit(3, {1, "speed_mm_s", 1000, "port"}),
+			require(fixture_submit(world, 1, {1, "speed_mm_s", 1000, "port"}) &&
+			            !fixture_submit(world, 1, {1, "speed_mm_s", 2000, "starboard"}) &&
+			            !fixture_submit(world, 3, {1, "speed_mm_s", 1000, "port"}),
 			        "instance ownership controls both qualified commands and read-only feeds");
 			world.tick();
 			require(world.observe(1)->systems.size() == 2 && world.observe(3)->systems.size() == 1 &&
@@ -328,7 +330,7 @@ int main(int argc, char **)
 			require(world.observe(3)->systems[0].requested == 1000,
 			        "the sibling's ordinary controller cannot write the human's instance");
 			auto saved = world.save();
-			require(saved["schema"] == 33 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
+			require(saved["schema"] == 34 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
 			        "instance save records preserve independently controlled machinery");
 			World resumed;
 			resumed.restore(data, saved);
@@ -374,7 +376,8 @@ int main(int argc, char **)
 			World both;
 			both.load(load(combined), "test.map");
 			both.claim(1, 1, "port-seat");
-			require(!both.submit(1, {1, "speed_mm_s", 1000}) && both.submit(1, {1, "speed_mm_s", 1000, "port"}),
+			require(!fixture_submit(both, 1, {1, "speed_mm_s", 1000}) &&
+			            fixture_submit(both, 1, {1, "speed_mm_s", 1000, "port"}),
 			        "ambiguous unqualified commands fail rather than choose a same-kind sibling");
 		}
 		Json trace = Json::array();
@@ -383,22 +386,25 @@ int main(int argc, char **)
 		require(engine.can_claim(101, 1) && engine.can_claim(102, 1) && !engine.observe(101),
 		        "checking console eligibility must not acquire ownership");
 		require(engine.claim(101, 1), "a vacant ship must admit one console claim");
-		require(!engine.claim(102, 1) && !engine.submit(102, {1, "speed_mm_s", 1000}),
+		require(!engine.claim(102, 1) && !fixture_submit(engine, 102, {1, "speed_mm_s", 1000}),
 		        "unclaimed/other-console commands must have no effect");
-		require(!engine.submit(101, {2, "speed_mm_s", 1000}) && !engine.submit(101, {1, "speed_mm_s", 999999}),
+		require(!fixture_submit(engine, 101, {2, "speed_mm_s", 1000}) &&
+		            !fixture_submit(engine, 101, {1, "speed_mm_s", 999999}),
 		        "wrong ship and requests beyond capability must be refused");
-		require(!engine.submit(101, {1, "unknown", 0}) && !engine.submit(101, {1, "engine_enabled", 2}) &&
-		            !engine.submit(101, {1, "radar_enabled", -1}) && !engine.submit(101, {1, "heading_mdeg", 360000}),
+		require(!fixture_submit(engine, 101, {1, "unknown", 0}) &&
+		            !fixture_submit(engine, 101, {1, "engine_enabled", 2}) &&
+		            !fixture_submit(engine, 101, {1, "radar_enabled", -1}) &&
+		            !fixture_submit(engine, 101, {1, "heading_mdeg", 360000}),
 		        "external requests must obey the supported action types and ranges");
 		require(engine.observe(101)->contacts.size() == 1 && engine.observe(101)->contacts[0].id == 2,
 		        "radar must expose the in-range contact and omit the out-of-range entity");
-		engine.submit(101, {1, "speed_mm_s", 5000});
+		fixture_submit(engine, 101, {1, "speed_mm_s", 5000});
 		for (int i = 0; i < 20; ++i)
 			engine.tick();
 		require(engine.inspect()[0].vx > 0 && engine.inspect()[0].x > 0,
 		        "admitted engine request must accelerate and move through Flecs execution");
-		engine.submit(101, {1, "engine_enabled", 0});
-		engine.submit(101, {1, "heading_mdeg", 90000});
+		fixture_submit(engine, 101, {1, "engine_enabled", 0});
+		fixture_submit(engine, 101, {1, "heading_mdeg", 90000});
 		engine.tick();
 		auto coast = engine.inspect()[0];
 		for (int i = 0; i < 5; ++i)
@@ -408,11 +414,11 @@ int main(int argc, char **)
 		            damped.vx * damped.vx + damped.vy * damped.vy <= coast.vx * coast.vx + coast.vy * coast.vy &&
 		            damped.heading > coast.heading,
 		        "engine disable must allow passive damping without adding speed while steering continues");
-		engine.submit(101, {1, "radar_enabled", 0});
+		fixture_submit(engine, 101, {1, "radar_enabled", 0});
 		engine.tick();
 		require(engine.observe(101)->contacts.empty(), "radar disable must remove its live observations");
 		require(!engine.observe(999), "no console claim means no permitted ship projection");
-		require(engine.release(101) && engine.claim(303, 1) && !engine.submit(101, {1, "speed_mm_s", 1000}),
+		require(engine.release(101) && engine.claim(303, 1) && !fixture_submit(engine, 101, {1, "speed_mm_s", 1000}),
 		        "release/reclaim must invalidate commands from the previous console");
 		for (int shape = 0; shape < 3; ++shape)
 		{
@@ -431,8 +437,8 @@ int main(int argc, char **)
 			collision.load(load(data), "test.map");
 			collision.claim(1, 1);
 			collision.claim(2, 2);
-			collision.submit(1, {1, "speed_mm_s", 10000});
-			collision.submit(2, {2, "speed_mm_s", 10000});
+			fixture_submit(collision, 1, {1, "speed_mm_s", 10000});
+			fixture_submit(collision, 2, {2, "speed_mm_s", 10000});
 			for (int tick = 0; tick < 80; ++tick)
 				collision.tick();
 			trace.push_back(collision.save().at("bodies"));
@@ -457,7 +463,7 @@ int main(int argc, char **)
 			World angled;
 			angled.load(load(data), "test.map");
 			angled.claim(1, 1);
-			angled.submit(1, {1, "speed_mm_s", 4000});
+			fixture_submit(angled, 1, {1, "speed_mm_s", 4000});
 			for (int tick = 0; tick < 35; ++tick)
 				angled.tick();
 			trace.push_back(angled.save().at("bodies"));
@@ -667,8 +673,8 @@ int main(int argc, char **)
 				if (tick == 3)
 				{
 					require(world->claim(77, 6), "mixed-world ship must be claimable");
-					world->submit(77, {6, "speed_mm_s", 2333});
-					world->submit(77, {6, "heading_mdeg", 274001});
+					fixture_submit(*world, 77, {6, "speed_mm_s", 2333});
+					fixture_submit(*world, 77, {6, "heading_mdeg", 274001});
 				}
 				if (tick == 11)
 					world->release(77);
@@ -683,7 +689,7 @@ int main(int argc, char **)
 			trace.push_back(ordered.save().at("bodies"));
 		}
 
-		for (int schema = 1; schema < 33; ++schema)
+		for (int schema = 1; schema < 34; ++schema)
 		{
 			auto legacy = ordered.save();
 			legacy["schema"] = schema;
@@ -750,7 +756,7 @@ int main(int argc, char **)
 		auto visible = indexed_radar.observe(1)->contacts;
 		require(visible.size() == 2 && visible[0].id == 2 && visible[1].id == 4,
 		        "radar index must be ready on load and include exact surface-range boundaries at negative coordinates");
-		indexed_radar.submit(1, {1, "speed_mm_s", 10000});
+		fixture_submit(indexed_radar, 1, {1, "speed_mm_s", 10000});
 		for (int tick = 0; tick < 8; ++tick)
 			indexed_radar.tick();
 		visible = indexed_radar.observe(1)->contacts;

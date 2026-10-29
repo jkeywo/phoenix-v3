@@ -162,7 +162,7 @@ std::uint64_t command(World &world, const std::string &channel, bool enabled,
 			const auto &setting = owner.at("commands").at(channel);
 			if (setting.at("action") == "ability_activate")
 				request.request_id = replay ? replay : setting.at("request_id").get<std::uint64_t>() + 1;
-			const bool admitted = world.submit(101, request);
+			const bool admitted = fixture_native_submit(world, 101, request);
 			if (admitted != expect_admitted)
 			{
 				std::string detail;
@@ -184,7 +184,7 @@ void assign(World &world, const std::string &officer, const std::string &duty)
 	OperatingCommand request{1, "personnel.assign", 0, officer};
 	request.text = duty;
 	request.generation = world.observe(101)->gameplay.at("personnel").at("revision");
-	require(world.submit(101, request), "ability source reassignment admitted");
+	require(fixture_native_submit(world, 101, request), "ability source reassignment admitted");
 	ticks(world);
 }
 std::int64_t quantity(const World &world, std::size_t index, EntityId actor = 1)
@@ -909,7 +909,7 @@ Json late_grant_replacement()
 			OperatingCommand stale{1, {}, 1, {}, "abilities", "temporary", controller.at("generation")};
 			stale.request_id = controller.at("commands").at("temporary").at("request_id").get<std::uint64_t>() + 1;
 			stale.arguments = {old_generation};
-			require(world.submit(101, stale),
+			require(fixture_native_submit(world, 101, stale),
 			        "old generation request is admitted before another activation replaces its grant");
 		}
 	command(world, "manager", true);
@@ -1184,8 +1184,8 @@ Json rich_ability_context()
 		bool submitted = false;
 		for (const auto &owner : observed->gameplay.at("controllers"))
 			if (owner.at("id") == "abilities")
-				submitted = world.submit(
-				    101, OperatingCommand{1, {}, 2, {}, "abilities", recipient_channel, owner.at("generation")});
+				submitted = fixture_native_submit(
+				    world, 101, OperatingCommand{1, {}, 2, {}, "abilities", recipient_channel, owner.at("generation")});
 		require(submitted, "ordinary Console selects an observed cross-ship ability recipient");
 		ticks(world);
 		command(world, endpoint, true);

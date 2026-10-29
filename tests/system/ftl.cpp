@@ -70,12 +70,12 @@ void displacement_departure()
 	const auto ship = *w.ship_for_slot("crew");
 	require(w.claim(101, ship, "drive") && w.claim(102, ship, "observer"), "displacement crew claims");
 	ticks(w, 4);
-	require(w.submit(101, away_order(w, "open")), "open mission");
+	require(fixture_native_submit(w, 101, away_order(w, "open")), "open mission");
 	w.tick();
-	require(w.submit(102, away_order(w, "assign", "repair/team:team", 102)), "assign engineering team");
+	require(fixture_native_submit(w, 102, away_order(w, "assign", "repair/team:team", 102)), "assign engineering team");
 	w.tick();
-	require(w.submit(101, away_order(w, "transport", "transport")), "assign displacement");
-	require(w.submit(101, command(w, "system_enabled", 1)), "enable rescue FTL");
+	require(fixture_native_submit(w, 101, away_order(w, "transport", "transport")), "assign displacement");
+	require(fixture_native_submit(w, 101, command(w, "system_enabled", 1)), "enable rescue FTL");
 	ticks(w, 650);
 	require(battery(w).at("ready"), "rescue FTL ready");
 	const auto staged = w.save();
@@ -88,14 +88,17 @@ void displacement_departure()
 		}
 	World damaged;
 	damaged.restore(catalog, disabled);
-	require(!damaged.submit(101, command(damaged, "ftl.depart")), "structural disablement prevents charged departure");
-	require(w.submit(101, away_order(w, "send")), "send team");
+	require(!fixture_native_submit(damaged, 101, command(damaged, "ftl.depart")),
+	        "structural disablement prevents charged departure");
+	require(fixture_native_submit(w, 101, away_order(w, "send")), "send team");
 	w.tick();
-	require(battery(w).at("blocker") == "Displacement transfer active" && !w.submit(101, command(w, "ftl.depart")),
+	require(battery(w).at("blocker") == "Displacement transfer active" &&
+	            !fixture_native_submit(w, 101, command(w, "ftl.depart")),
 	        "active displacement blocks FTL");
 	ticks(w, 5);
 	require(!battery(w).at("left_behind").empty(), "deployed personnel warning is visible before departure");
-	require(w.submit(101, command(w, "ftl.depart")), "deployed party does not prevent deliberate departure");
+	require(fixture_native_submit(w, 101, command(w, "ftl.depart")),
+	        "deployed party does not prevent deliberate departure");
 	w.tick();
 	const auto report = w.observe(101)->gameplay.at("mission_report");
 	require(!report.at("left_behind").empty(), "report records personnel left behind");
@@ -112,11 +115,11 @@ void displacement_departure()
 	w.restore(catalog, staged);
 	OperatingCommand relieve{ship, "personnel.relieve", 0, "nav"};
 	relieve.generation = w.observe(101)->gameplay.at("personnel").at("revision");
-	require(w.submit(101, relieve), "relieve displacement operator");
+	require(fixture_native_submit(w, 101, relieve), "relieve displacement operator");
 	w.tick();
-	require(w.submit(101, away_order(w, "send")), "queue unavailable transfer");
+	require(fixture_native_submit(w, 101, away_order(w, "send")), "queue unavailable transfer");
 	w.tick();
-	require(w.submit(101, command(w, "ftl.depart")), "queued transfer permits departure");
+	require(fixture_native_submit(w, 101, command(w, "ftl.depart")), "queued transfer permits departure");
 	w.tick();
 	require(w.save().at("away_missions").at(0).at("phase") == "open", "departure cancels queued transfer at origin");
 }
@@ -157,9 +160,9 @@ void race_departure()
 	World w;
 	w.load(catalog, "test.map");
 	require(w.claim(101, 1, "drive") && w.claim(102, 2, "drive"), "race crew claims");
-	require(w.submit(101, command(w, "system_enabled", 1)), "race FTL on");
+	require(fixture_native_submit(w, 101, command(w, "system_enabled", 1)), "race FTL on");
 	ticks(w, 650);
-	require(w.submit(101, command(w, "ftl.depart")), "race departure");
+	require(fixture_native_submit(w, 101, command(w, "ftl.depart")), "race departure");
 	w.tick();
 	const auto report = w.observe(101)->gameplay.at("mission_report");
 	require(report.at("objectives").size() == 1 && report.at("objectives").at(0).at("status") == "active",
@@ -171,8 +174,8 @@ void race_departure()
 	for (const auto &ctrl : other->gameplay.at("controllers"))
 		if (ctrl.at("id") == "propulsion")
 			speed.generation = ctrl.at("generation");
-	require(w.submit(102, speed), "remaining racer can still steer");
-	require(restored.submit(102, speed), "restored remaining racer can still steer");
+	require(fixture_native_submit(w, 102, speed), "remaining racer can still steer");
+	require(fixture_native_submit(restored, 102, speed), "restored remaining racer can still steer");
 	ticks(w, 400);
 	ticks(restored, 400);
 	require(w.save() == restored.save(), "race departure continuation survives recovery");
@@ -196,14 +199,14 @@ void shared_widget_departure_authority()
 		                                    source["maps"][0]["entities"].end());
 		source["control_widgets"] = Json::parse(R"json([{
    "id":"test.jump.widget","schema":1,"tree":"test.jump.policy",
-   "equipment":{"reserve":{"multiple":true}},
+   "equipment":{"reserve":{"multiple":true}},"operations":{"departure":["$reserve"]},
    "commands":[
     {"id":"enabled","action":"system_enabled","initial":1,"consumers":["$reserve"]},
     {"id":"choice","action":"intent_integer","minimum":0,"maximum":1,"initial":0,"consumers":[]}],
    "data":{"choice":{"binding":"command.choice","label":"Choice","placement":"main"}},
    "parts":["main"],
    "levels":[{"id":"automated","human":[]}, {"id":"assisted","human":["choice"]},
-             {"id":"direct","human":["choice","enabled"]}]
+             {"id":"direct","human":["choice","enabled","departure"]}]
   }])json");
 		source["trees"].push_back(Json::parse(R"json({
    "id":"test.jump.policy","context":"controller","command_bindings":[{"channel":"enabled","type":"boolean"},{"channel":"choice"}],
@@ -211,11 +214,12 @@ void shared_widget_departure_authority()
   })json"));
 		auto &layout = ship["control_layout"];
 		layout["schema"] = 2;
-		layout["controllers"] = Json::array({{{"id", "jump"},
-                        {"console", "navigator"},
-                        {"widget", "test.jump.widget"},
-                        {"equipment", {{"reserve", {"jump"}}}},
-                        {"star_levels", {{"1", "assisted"}, {"2", "assisted"}, {"3", "direct"}}}}});
+		layout["controllers"] =
+		    Json::array({{{"id", "jump"},
+		                  {"console", "navigator"},
+		                  {"widget", "test.jump.widget"},
+		                  {"equipment", {{"reserve", {"jump"}}}},
+		                  {"star_levels", {{"1", "assisted"}, {"2", "assisted"}, {"3", "direct"}}}}});
 		for (auto &profile : layout["profiles"])
 		{
 			profile["stars"] = human_drive ? 3 : 1;
@@ -227,8 +231,8 @@ void shared_widget_departure_authority()
 		for (int i = 0; i < 200 && !battery(world).at("ready").get<bool>(); ++i)
 			world.tick();
 		require(battery(world).at("ready"), "Synthetic shared-widget reserve charges through production actuation");
-		require(world.submit(101, command(world, "ftl.depart")) == human_drive,
-		        "FTL departure follows ownership of the drive channel, not an unrelated human channel");
+		require(fixture_native_submit(world, 101, command(world, "ftl.depart")) == human_drive,
+		        "FTL departure follows its explicit native operation grant");
 	}
 }
 int main(int argc, char **argv)
@@ -263,10 +267,11 @@ int main(int argc, char **argv)
 		World overheated;
 		overheated.load(thermal_catalog, "test.map");
 		require(overheated.claim(101, 1, "drive"), "thermal fixture claim");
-		require(overheated.submit(101, command(overheated, "system_enabled", 1)), "thermal fixture enabled");
+		require(fixture_native_submit(overheated, 101, command(overheated, "system_enabled", 1)),
+		        "thermal fixture enabled");
 		ticks(overheated, 200);
 		require(!battery(overheated).at("ready").get<bool>() && battery(overheated).at("power_draw") == 0 &&
-		            !overheated.submit(101, command(overheated, "ftl.depart")),
+		            !fixture_native_submit(overheated, 101, command(overheated, "ftl.depart")),
 		        "thermal stop blocks charging and departure");
 		source["entities"][0]["audio"]["ftl_departure"] = {{"asset", "test-core:assets/audio-tone.wav"}, {"gain", .4}};
 		auto audio_pack = fixture_pack(json_bytes(source), "test-core");
@@ -302,8 +307,8 @@ int main(int argc, char **argv)
 		require(w.claim(101, 1, "drive") && w.claim(102, 2, "drive"), "two ships claimed");
 		require(!w.can_claim(103, 1, "navigator"), "Navigator requires no lobby seat");
 		require(battery(w).at("energy") == 0 && battery(w).at("enabled") == false, "FTL starts empty and off");
-		require(!w.submit(101, command(w, "ftl.depart")), "uncharged click refused without queuing");
-		require(w.submit(101, command(w, "system_enabled", 1)), "enable through owned Controller");
+		require(!fixture_native_submit(w, 101, command(w, "ftl.depart")), "uncharged click refused without queuing");
+		require(fixture_native_submit(w, 101, command(w, "system_enabled", 1)), "enable through owned Controller");
 		ticks(w, 100);
 		const auto partial = battery(w);
 		require(partial.at("energy") > 0 && partial.at("energy") < partial.at("capacity") && partial.at("heat") > 0,
@@ -313,12 +318,12 @@ int main(int argc, char **argv)
 		ticks(w, 50);
 		ticks(resumed, 50);
 		require(w.save() == resumed.save(), "partial-charge continuation is exact");
-		require(w.submit(101, isolate(w, 1)), "isolate upstream supply");
+		require(fixture_native_submit(w, 101, isolate(w, 1)), "isolate upstream supply");
 		ticks(w, 30);
 		require(battery(w).at("energy") < partial.at("energy").get<std::int64_t>() + 250 &&
 		            battery(w).at("power_draw") == 0,
 		        "supply starvation prevents progress");
-		require(w.submit(101, isolate(w, 0)), "restore upstream supply");
+		require(fixture_native_submit(w, 101, isolate(w, 0)), "restore upstream supply");
 		for (int i = 0; i < 1000 && !battery(w).at("ready").get<bool>(); ++i)
 			w.tick();
 		require(battery(w).at("ready"), "fully powered reserve becomes ready");
@@ -330,9 +335,10 @@ int main(int argc, char **argv)
 		require(w.observe(101)->gameplay.at("mission_report").is_null(), "early rejected click never fires later");
 		auto stale = command(w, "ftl.depart");
 		++stale.generation;
-		require(!w.submit(101, stale) && !w.submit(102, command(w, "ftl.depart")),
+		require(!fixture_native_submit(w, 101, stale) && !fixture_native_submit(w, 102, command(w, "ftl.depart")),
 		        "stale generations and foreign ship commands refused");
-		require(w.submit(101, command(w, "ftl.depart")) && w.submit(101, command(w, "system_enabled", 0)),
+		require(fixture_native_submit(w, 101, command(w, "ftl.depart")) &&
+		            fixture_native_submit(w, 101, command(w, "system_enabled", 0)),
 		        "admit departure and simultaneous switch-off");
 		w.tick();
 		require(w.observe(101)->gameplay.at("mission_report").is_null(),
@@ -354,15 +360,15 @@ int main(int argc, char **argv)
 		ticks(w, 7);
 		ticks(resumed, 7);
 		require(w.save() == resumed.save(), "off discharge remainder survives save");
-		require(w.submit(101, command(w, "system_enabled", 1)), "re-enable");
+		require(fixture_native_submit(w, 101, command(w, "system_enabled", 1)), "re-enable");
 		for (int i = 0; i < 1000 && !battery(w).at("ready").get<bool>(); ++i)
 			w.tick();
 		const auto departure = command(w, "ftl.depart");
-		require(w.submit(101, departure) && w.submit(101, departure),
+		require(fixture_native_submit(w, 101, departure) && fixture_native_submit(w, 101, departure),
 		        "duplicate inputs admitted before departure boundary");
 		w.tick();
 		const auto report = w.observe(101)->gameplay.at("mission_report");
-		require(report.at("reason") == "ftl" && w.inspect().size() == 1 && !w.submit(101, departure),
+		require(report.at("reason") == "ftl" && w.inspect().size() == 1 && !fixture_native_submit(w, 101, departure),
 		        "one departure retires ship and closes gameplay commands");
 		unsigned departure_cues = 0;
 		for (const auto &body : w.scene())

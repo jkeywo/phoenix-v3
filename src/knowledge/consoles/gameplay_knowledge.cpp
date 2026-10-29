@@ -549,7 +549,8 @@ void GameplayKnowledge::admit_sender(const ConsoleAddress &source, KnowledgeId s
 		return;
 	}
 	const bool human = human_consoles_.at(console_id(source)) && human_systems_.at(sender);
-	knowledge_require((origin == ControlOrigin::Human && human) || (origin == ControlOrigin::AI && !human),
+	knowledge_require((origin == ControlOrigin::Human && human) ||
+	                      (origin == ControlOrigin::AI && (!human || assisted_controllers_.contains(sender))),
 	                  "sender origin does not hold effective control");
 }
 bool GameplayKnowledge::known_evidence(const ConsoleAddress &source, const KnowledgeRecordInput &value) const

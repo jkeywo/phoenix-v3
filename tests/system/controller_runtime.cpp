@@ -117,10 +117,38 @@ std::int64_t requested(const World &world, const std::string &id)
 #include "../support/target_docking_cases.hpp"
 #include "../support/control_widget_cases.hpp"
 
+void unfitted_environment_lifecycle()
+{
+	auto source = controller_fixture();
+	auto marker = source["entities"][0];
+	marker["id"] = "test.unfitted";
+	marker["systems"] = Json::object();
+	marker.erase("stations");
+	marker.erase("console");
+	marker.erase("control_layout");
+	source["entities"].push_back(marker);
+	source["maps"][0]["entities"].push_back(
+	    {{"id", 2}, {"definition", "test.unfitted"}, {"x_mm", 200000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+	const auto catalog = load(source);
+	require(!catalog.entities.at("test.unfitted").contains("control_layout"),
+	        "Environmental entity retains no invented Controller layout");
+	World world;
+	world.load(catalog, "test.map");
+	world.tick();
+	const auto saved = world.save();
+	World resumed;
+	resumed.restore(catalog, saved);
+	world.tick();
+	resumed.tick();
+	require(world.inspect().size() == 2 && world.save() == resumed.save(),
+	        "Unfitted environmental actors load, tick and resume through production paths");
+}
+
 int main(int argc, char **argv)
 {
 	try
 	{
+		unfitted_environment_lifecycle();
 		officer_protocol_failure_boundary();
 		control_widget_cases();
 		objective_priority_cases();
@@ -228,13 +256,14 @@ int main(int argc, char **argv)
 			            reduced_ui.systems.contains("port") && !reduced_ui.controllers.contains("starboard_drive") &&
 			            !reduced_ui.systems.contains("starboard"),
 			        "UI capabilities use per-Console human permissions at one star");
-			require(paired.submit(101, speed(paired, 101, "port_drive", 4200)), "Coordinated speed admitted");
+			require(fixture_native_submit(paired, 101, speed(paired, 101, "port_drive", 4200)),
+			        "Coordinated speed admitted");
 			paired.tick();
 			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 4200,
 			        "Assisted assembly follows shared command");
-			require(!paired.submit(101, speed(paired, 101, "starboard_drive", 7000)),
+			require(!fixture_native_submit(paired, 101, speed(paired, 101, "starboard_drive", 7000)),
 			        "Low workload rejects individual assembly command");
-			require(paired.submit(101, {1, "preset", 0, {}}), "Full assembly control selected");
+			require(fixture_native_submit(paired, 101, {1, "preset", 0, {}}), "Full assembly control selected");
 			paired.tick();
 			const auto full_ui = console_ui_availability(*paired.observe(101));
 			require(full_ui.stars == 3 && full_ui.bindings.contains("controller/starboard_drive/speed") &&
@@ -243,14 +272,15 @@ int main(int argc, char **argv)
 			const Json widget{{"kind", "throttle"}, {"controller", "starboard_drive"}, {"channel", "speed"}};
 			require(!ui_widget_available(widget, reduced_ui) && ui_widget_available(widget, full_ui),
 			        "individual controls appear only when their projected command is available");
-			require(paired.submit(101, speed(paired, 101, "starboard_drive", 7000)),
+			require(fixture_native_submit(paired, 101, speed(paired, 101, "starboard_drive", 7000)),
 			        "Individual assembly override admitted");
 			paired.tick();
-			require(paired.submit(101, speed(paired, 101, "port_drive", 3000)), "Shared source changes");
+			require(fixture_native_submit(paired, 101, speed(paired, 101, "port_drive", 3000)),
+			        "Shared source changes");
 			paired.tick();
 			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 7000,
 			        "Full workload preserves individual override");
-			require(paired.submit(101, {1, "preset", 1, {}}), "Return to assisted assembly control");
+			require(fixture_native_submit(paired, 101, {1, "preset", 1, {}}), "Return to assisted assembly control");
 			paired.tick();
 			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 3000,
 			        "Downgrade clears individual override");
@@ -279,7 +309,7 @@ int main(int argc, char **argv)
 			require(manual_console_binding(*flight.observe(101), widgets, "longitudinal_thrust", "speed_mm_s") ==
 			            "controller/manual/thrust",
 			        "Direct input resolves a separate human Controller on the same engine");
-			require(flight.submit(101, {1, "preset", 1, {}}), "Select assisted flight workload");
+			require(fixture_native_submit(flight, 101, {1, "preset", 1, {}}), "Select assisted flight workload");
 			flight.tick();
 			require(manual_console_binding(*flight.observe(101), widgets, "longitudinal_thrust", "speed_mm_s").empty(),
 			        "Direct input is unavailable while its Controller is AI operated");
@@ -310,7 +340,7 @@ int main(int argc, char **argv)
 				command.controller = owner;
 				command.channel = "target";
 				command.generation = controller(shared, 101, owner).at("generation");
-				require(shared.submit(101, command), "Permitted target selection admitted");
+				require(fixture_native_submit(shared, 101, command), "Permitted target selection admitted");
 				shared.tick();
 			};
 			target("radar", 2);
@@ -325,7 +355,7 @@ int main(int argc, char **argv)
 			shared.tick();
 			restored.tick();
 			require(shared.save() == restored.save(), "Explicit target override survives recovery");
-			require(shared.submit(101, {1, "preset", 1, {}}), "Assistance selected");
+			require(fixture_native_submit(shared, 101, {1, "preset", 1, {}}), "Assistance selected");
 			shared.tick();
 			require(controller(shared, 101, "gun")["commands"]["target"]["value"] == 0,
 			        "Returning weapon to AI removes independent target override");
@@ -347,7 +377,8 @@ int main(int argc, char **argv)
 			require(grouped.observe(102)->gameplay.at("profile") == "automatic" &&
 			            grouped.observe(103)->gameplay.at("profile") == "direct",
 			        "Preparation follows Station boundaries");
-			require(grouped.submit(102, {1, "preset", 0, {}}), "Auxiliary Console selects its Station profile");
+			require(fixture_native_submit(grouped, 102, {1, "preset", 0, {}}),
+			        "Auxiliary Console selects its Station profile");
 			grouped.tick();
 			require(grouped.observe(101)->gameplay.at("profile") == "direct" &&
 			            controller(grouped, 101, "propulsion").at("human").get<bool>(),
@@ -954,7 +985,7 @@ int main(int argc, char **argv)
 			command.channel = "follow";
 			command.generation = controller(human, 101, "propulsion").at("generation");
 			command.arguments = {1, 1000, 1000};
-			require(human.submit(101, command), "ordinary follow command reaches physical admission");
+			require(fixture_native_submit(human, 101, command), "ordinary follow command reaches physical admission");
 			human.tick();
 			require(!controller(human, 101, "propulsion").at("commands").at("follow").at("accepted").get<bool>(),
 			        "human and action follow commands respect the same physical target constraint");
@@ -1047,15 +1078,17 @@ int main(int argc, char **argv)
 			require(world.claim(102, 1, "observer"), "alert owner claims its Console");
 			require(!world.claim(31, 1, "command") && world.claim(31, 1, "command", true),
 			        "supplemental Command requires explicit host sidebar admission");
-			require(!world.submit(31, {1, "alert.set", 1, {}}), "Command does not inherit alert authority");
-			require(world.submit(102, {1, "alert.set", 1, {}}), "owner selects authored alert");
+			require(!fixture_native_submit(world, 31, {1, "alert.set", 1, {}}),
+			        "Command does not inherit alert authority");
+			require(fixture_native_submit(world, 102, {1, "alert.set", 1, {}}), "owner selects authored alert");
 			world.tick();
 			require(world.public_board(1).at("alert").at("id") == "danger" &&
 			            world.public_board(2).at("alert").at("id") == "routine",
 			        "alert state is ship-local");
 			world.tick();
 			require(world.observe(31)->gameplay.at("alert").at("severity") == 1, "all Consoles see accepted condition");
-			require(world.submit(31, {1, "stance.set", 1, "drive"}), "Command may select fully AI Console stance");
+			require(fixture_native_submit(world, 31, {1, "stance.set", 1, "drive"}),
+			        "Command may select fully AI Console stance");
 			world.tick();
 			world.tick();
 			require(world.claim(101, 1, "drive"), "human takes over drive");
@@ -1064,8 +1097,8 @@ int main(int argc, char **argv)
 			require(world.observe(101)->gameplay.at("stance").at("id") == "hold", "stance survives takeover");
 			require(controller(world, 101, "propulsion").at("commands").at("speed").at("value") == 0,
 			        "AI tree reads alert identity, severity and Console stance");
-			require(!world.submit(31, {1, "stance.set", 0, "drive"}), "Command refuses human Console");
-			require(world.submit(101, {1, "stance.set", 0, {}}), "own operator may select stance");
+			require(!fixture_native_submit(world, 31, {1, "stance.set", 0, "drive"}), "Command refuses human Console");
+			require(fixture_native_submit(world, 101, {1, "stance.set", 0, {}}), "own operator may select stance");
 			world.tick();
 			require(world.release(101), "drive returns to AI");
 			require(world.public_board(1).at("sidebar")[0].at("visible").get<bool>(),
@@ -1084,7 +1117,7 @@ int main(int argc, char **argv)
 			for (const auto &control : command_view->gameplay.at("controls"))
 				if (control.at("action") == "stance.set" && control.at("system") == "drive")
 					delayed_stance.generation = control.at("generation");
-			require(world.submit(31, delayed_stance) && world.claim(101, 1, "drive"),
+			require(fixture_native_submit(world, 31, delayed_stance) && world.claim(101, 1, "drive"),
 			        "queue stance before human takeover");
 			world.tick();
 			require(world.observe(101)->gameplay.at("stance").at("id") == "routine",
@@ -1101,7 +1134,7 @@ int main(int argc, char **argv)
 			require(condition_music(sound).empty(), "missing condition track uses mission music fallback");
 			sound["music"] = "test:music.ogg";
 			require(condition_music(sound) == "test:music.ogg", "audio reads authored condition track");
-			require(world.submit(102, {1, "alert.set", 1, {}}), "reselect current condition");
+			require(fixture_native_submit(world, 102, {1, "alert.set", 1, {}}), "reselect current condition");
 			world.tick();
 			require(world.public_board(1).at("alert").at("revision") == revision,
 			        "same condition has no new siren transition");
@@ -1242,12 +1275,12 @@ int main(int argc, char **argv)
 			nav.arguments = {50000, 0, 200000};
 			auto invalid = radar;
 			invalid.system = "missing";
-			require(!world.submit(101, invalid) && !world.submit(102, radar),
+			require(!fixture_native_submit(world, 101, invalid) && !fixture_native_submit(world, 102, radar),
 			        "unavailable or foreign display source refuses");
 			invalid = radar;
 			invalid.arguments = {0, 0, 0};
-			require(!world.submit(101, invalid), "shared camera rejects zero extent");
-			require(world.submit(101, radar), "radar sharing admitted through ordinary command path");
+			require(!fixture_native_submit(world, 101, invalid), "shared camera rejects zero extent");
+			require(fixture_native_submit(world, 101, radar), "radar sharing admitted through ordinary command path");
 			world.tick();
 			const auto radar_view = world.public_board(1).at("display");
 			require(radar_view.at("kind") == "radar" && radar_view.at("contacts").size() == 1 &&
@@ -1281,18 +1314,18 @@ int main(int argc, char **argv)
 			stale.action = "display.update";
 			stale.generation = radar_view.at("revision");
 			stale.arguments = {9, 9, 100};
-			require(world.submit(102, nav) && world.submit(101, stale),
+			require(fixture_native_submit(world, 102, nav) && fixture_native_submit(world, 101, stale),
 			        "replacement and earlier publisher update can be queued in one tick");
 			world.tick();
 			require(world.public_board(1).at("display").at("kind") == "navigation" &&
 			            world.public_board(1).at("display").at("camera") == Json(nav.arguments) &&
-			            !world.submit(101, stale),
+			            !fixture_native_submit(world, 101, stale),
 			        "last display command wins and stale live updates cannot reclaim the screen");
 			auto moved = nav;
 			moved.action = "display.update";
 			moved.generation = world.public_board(1).at("display").at("revision");
 			moved.arguments = {80000, 20000, 100000};
-			require(world.submit(102, moved), "current source pans and zooms live");
+			require(fixture_native_submit(world, 102, moved), "current source pans and zooms live");
 			world.tick();
 			require(world.public_board(1).at("display").at("camera") == Json(moved.arguments),
 			        "shared navigation follows current browsing");
@@ -1302,11 +1335,12 @@ int main(int argc, char **argv)
 			        "replica checkpoint preserves current shared view");
 			resumed.clear_claims();
 			require(!resumed.public_board(1).contains("display"), "user recovery clears transient sharing with claims");
-			require(world.submit(102, nav), "current source toggles back");
+			require(fixture_native_submit(world, 102, nav), "current source toggles back");
 			world.tick();
 			require(!world.public_board(1).contains("display"),
 			        "off restores normal view without resurrecting old radar");
-			require(world.submit(101, radar) && world.submit(102, nav) && world.submit(101, radar),
+			require(fixture_native_submit(world, 101, radar) && fixture_native_submit(world, 102, nav) &&
+			            fixture_native_submit(world, 101, radar),
 			        "competing explicit source changes queue in arrival order");
 			world.tick();
 			require(world.public_board(1).at("display").at("kind") == "radar",
@@ -1421,17 +1455,17 @@ int main(int argc, char **argv)
 			OperatingCommand command{1, "waypoint", 1, {}, "planner", "point", planner.at("generation")};
 			command.console = "navigation";
 			command.arguments = {30000, 0};
-			require(world.submit(101, command), "additional Console admits its owner's waypoint");
+			require(fixture_native_submit(world, 101, command), "additional Console admits its owner's waypoint");
 			world.tick();
 			require(world.claim(102, 1, "observer"), "preferred support operator joins");
 			require(world.observe(101)->additional_consoles.empty() &&
 			            world.observe(102)->additional_consoles.size() == 2,
 			        "preference transfers both generic Consoles");
-			require(!world.submit(101, command) && !world.submit(102, command),
+			require(!fixture_native_submit(world, 101, command) && !fixture_native_submit(world, 102, command),
 			        "old operator and old generation cannot write after transfer");
 			command.generation =
 			    world.observe(102)->additional_consoles[0].gameplay.at("controllers")[0].at("generation");
-			require(world.submit(102, command), "new operator generation can write");
+			require(fixture_native_submit(world, 102, command), "new operator generation can write");
 			world.tick();
 			World restored;
 			restored.restore(catalog, world.save());
@@ -1510,7 +1544,7 @@ int main(int argc, char **argv)
 					command.controller = owner;
 					command.channel = channel;
 					command.generation = controller(vector_world, 101, owner).at("generation");
-					require(vector_world.submit(101, command), "vector Controller command admitted");
+					require(fixture_native_submit(vector_world, 101, command), "vector Controller command admitted");
 				};
 				if (tick == 0 || tick == 22)
 				{
@@ -1519,18 +1553,20 @@ int main(int argc, char **argv)
 						submit_vector("starboard_drive", "speed", 3000);
 					submit_vector(first, "heading", tick == 0 ? 90000 : 250000);
 					submit_vector(first, "enabled", 1);
-					require(legacy_world.submit(101, {1, "speed_mm_s", 7000, "port"}) &&
-					            legacy_world.submit(101, {1, "speed_mm_s", split_vector ? 3000 : 7000, "starboard"}) &&
-					            legacy_world.submit(101, {1, "heading_mdeg", tick == 0 ? 90000 : 250000, "turn"}) &&
-					            legacy_world.submit(101, {1, "engine_enabled", 1, "port"}) &&
-					            legacy_world.submit(101, {1, "engine_enabled", 1, "starboard"}),
+					require(fixture_submit(legacy_world, 101, {1, "speed_mm_s", 7000, "port"}) &&
+					            fixture_submit(legacy_world, 101,
+					                           {1, "speed_mm_s", split_vector ? 3000 : 7000, "starboard"}) &&
+					            fixture_submit(legacy_world, 101,
+					                           {1, "heading_mdeg", tick == 0 ? 90000 : 250000, "turn"}) &&
+					            fixture_submit(legacy_world, 101, {1, "engine_enabled", 1, "port"}) &&
+					            fixture_submit(legacy_world, 101, {1, "engine_enabled", 1, "starboard"}),
 					        "legacy sequence admitted");
 				}
 				if (tick == 13)
 				{
 					submit_vector(first, "enabled", 0);
-					require(legacy_world.submit(101, {1, "engine_enabled", 0, "port"}) &&
-					            legacy_world.submit(101, {1, "engine_enabled", 0, "starboard"}),
+					require(fixture_submit(legacy_world, 101, {1, "engine_enabled", 0, "port"}) &&
+					            fixture_submit(legacy_world, 101, {1, "engine_enabled", 0, "starboard"}),
 					        "legacy coast");
 				}
 				vector_world.tick();
@@ -1596,7 +1632,8 @@ int main(int argc, char **argv)
 			timed_ai.load(timed_catalog, "test.map");
 			timed_human.load(timed_catalog, "test.map");
 			require(timed_human.claim(101, 1, "drive"), "vector timed human claim");
-			require(timed_human.submit(101, speed(timed_human, 101, first, 5000)), "equivalent human vector command");
+			require(fixture_native_submit(timed_human, 101, speed(timed_human, 101, first, 5000)),
+			        "equivalent human vector command");
 			for (int tick = 0; tick < 12; ++tick)
 			{
 				timed_ai.tick();
@@ -1686,11 +1723,12 @@ int main(int argc, char **argv)
 		preference_command.generation = controller(preferences, 101, "preference").at("generation");
 		auto bad_preference = preference_command;
 		bad_preference.value = 6001;
-		require(!preferences.submit(101, bad_preference),
+		require(!fixture_native_submit(preferences, 101, bad_preference),
 		        "intent numeric range is authoritative without physical consumers");
 		bad_preference.channel = "enabled";
 		bad_preference.value = 2;
-		require(!preferences.submit(101, bad_preference), "boolean preference rejects nonboolean value");
+		require(!fixture_native_submit(preferences, 101, bad_preference),
+		        "boolean preference rejects nonboolean value");
 		const auto preference_view = preferences.observe(101);
 		require(std::any_of(preference_view->gameplay.at("controls").begin(),
 		                    preference_view->gameplay.at("controls").end(),
@@ -1699,7 +1737,7 @@ int main(int argc, char **argv)
 			                    return control.value("action", "") == "intent_integer";
 		                    }),
 		        "generated human controls expose coarse preference settings");
-		require(preferences.submit(101, preference_command), "human coarse preference admitted");
+		require(fixture_native_submit(preferences, 101, preference_command), "human coarse preference admitted");
 		require(requested(preferences, "port") == 0 && requested(preferences, "starboard") == 0,
 		        "queued intent does not immediately mutate mechanisms");
 		preferences.tick();
@@ -1708,16 +1746,17 @@ int main(int argc, char **argv)
 		auto boolean_preference = preference_command;
 		boolean_preference.channel = "enabled";
 		boolean_preference.value = 0;
-		require(preferences.submit(101, boolean_preference), "human boolean preference admitted");
+		require(fixture_native_submit(preferences, 101, boolean_preference), "human boolean preference admitted");
 		preferences.tick();
 		preferences.tick();
 		const auto disabled_preference = preferences.observe(101);
 		for (const auto &system : disabled_preference->systems)
 			if (system.id == "port" || system.id == "starboard")
 				require(!system.enabled, "boolean preference reaches AI actuator decision");
-		require(preferences.submit(101, {1, "preset", 1, {}}), "preference owner yields through complexity");
+		require(fixture_native_submit(preferences, 101, {1, "preset", 1, {}}),
+		        "preference owner yields through complexity");
 		preferences.tick();
-		require(!preferences.submit(101, preference_command) &&
+		require(!fixture_native_submit(preferences, 101, preference_command) &&
 		            controller(preferences, 101, "preference").at("commands").at("cruise").at("value") == 5000,
 		        "handover invalidates human intent generation while preserving preference");
 		World preference_resumed;
@@ -1779,7 +1818,7 @@ int main(int argc, char **argv)
 				disable.controller = "sensor";
 				disable.channel = "enabled";
 				disable.generation = controller(contacts, 101, "sensor").at("generation");
-				require(contacts.submit(101, disable), "human sensor operator disables feed");
+				require(fixture_native_submit(contacts, 101, disable), "human sensor operator disables feed");
 				contacts.tick();
 				const auto stopped_value =
 				    controller(contacts, 101, "propulsion").at("commands").at("speed").at("value");
@@ -1885,14 +1924,15 @@ int main(int argc, char **argv)
 			navigation_command.arguments = tuple.get<std::vector<std::int64_t>>();
 			auto incomplete = navigation_command;
 			incomplete.arguments.pop_back();
-			require(!navigation_human.submit(101, incomplete), "partial compound command refuses atomically");
+			require(!fixture_native_submit(navigation_human, 101, incomplete),
+			        "partial compound command refuses atomically");
 			incomplete = navigation_command;
 			incomplete.controller = "foreign";
-			require(!navigation_human.submit(101, incomplete), "foreign compound Controller refuses");
+			require(!fixture_native_submit(navigation_human, 101, incomplete), "foreign compound Controller refuses");
 			const auto encoded_navigation = encode_operating_command(navigation_command);
 			require(decode_operating_command(encoded_navigation).arguments == navigation_command.arguments,
 			        "command codec preserves complete navigation tuple");
-			require(navigation_human.submit(101, navigation_command), "compound human intent admitted");
+			require(fixture_native_submit(navigation_human, 101, navigation_command), "compound human intent admitted");
 			for (int tick = 0; tick < 15; ++tick)
 			{
 				navigation_human.tick();
@@ -1939,15 +1979,19 @@ int main(int argc, char **argv)
 			    },
 			    "malformed saved compound tuple refuses");
 			require(navigation_resumed.save() == before_bad_navigation, "compound restore refusal is transactional");
-			require(navigation_human.submit(101, {1, "preset", 1, {}}), "compound Console yields to AI");
+			require(fixture_native_submit(navigation_human, 101, {1, "preset", 1, {}}),
+			        "compound Console yields to AI");
 			navigation_human.tick();
-			require(!navigation_human.submit(101, navigation_command),
+			require(!fixture_native_submit(navigation_human, 101, navigation_command),
 			        "handover invalidates complete old navigation tuple");
-			require(navigation_human.submit(101, {1, "preset", 0, {}}), "compound Console returns to human");
+			require(fixture_native_submit(navigation_human, 101, {1, "preset", 0, {}}),
+			        "compound Console returns to human");
 			navigation_human.tick();
-			require(!navigation_human.submit(101, navigation_command), "return does not revive old tuple generation");
+			require(!fixture_native_submit(navigation_human, 101, navigation_command),
+			        "return does not revive old tuple generation");
 			navigation_command.generation = controller(navigation_human, 101, "propulsion").at("generation");
-			require(navigation_human.submit(101, navigation_command), "fresh generation admits complete tuple");
+			require(fixture_native_submit(navigation_human, 101, navigation_command),
+			        "fresh generation admits complete tuple");
 			if (navigation == "destination")
 			{
 				auto snapshot_source = navigation_source;
@@ -1998,14 +2042,15 @@ int main(int argc, char **argv)
 					require(controller(route, 101, "propulsion").at("commands").at("navigate").at("arguments") ==
 					            Json::array({30000, 20000}),
 					        "second route destination executed");
-					require(route.submit(101, {1, "preset", 0, {}}), "route handed to human");
+					require(fixture_native_submit(route, 101, {1, "preset", 0, {}}), "route handed to human");
 					route.tick();
 					OperatingCommand destination{1, {}, 1, {}};
 					destination.controller = "propulsion";
 					destination.channel = "navigate";
 					destination.generation = controller(route, 101, "propulsion").at("generation");
 					destination.arguments = {40000, 30000};
-					require(route.submit(101, destination), "human changes destination without changing cruise");
+					require(fixture_native_submit(route, 101, destination),
+					        "human changes destination without changing cruise");
 					route.tick();
 					assert_cruise();
 					require(controller(route, 101, "propulsion").at("commands").at("cruise").at("revision") ==
@@ -2023,8 +2068,8 @@ int main(int argc, char **argv)
 				            snapshot_world.claim(101, 1, "drive"),
 				        "tuple snapshot Console remains inspectable under AI");
 				snapshot_world.tick();
-				require(controller(snapshot_world, 101, "propulsion").at("commands").at("cruise").at("value") == 1000,
-				        "tree tuple reads freeze before same-tick writes");
+				require(controller(snapshot_world, 101, "propulsion").at("commands").at("cruise").at("value") == 2000,
+				        "own command tuple reads see earlier admitted writes");
 				snapshot_world.tick();
 				require(controller(snapshot_world, 101, "propulsion").at("commands").at("cruise").at("value") == 2000,
 				        "accepted tuple becomes visible next decision tick");
@@ -2096,12 +2141,13 @@ int main(int argc, char **argv)
 		auto command = speed(world, 101, "propulsion", 5000);
 		auto scalar_with_tuple = command;
 		scalar_with_tuple.arguments = {1};
-		require(!world.submit(101, scalar_with_tuple), "scalar command rejects unexpected compound arguments");
-		require(!world.submit(102, command), "another Console cannot write a Controller section");
+		require(!fixture_native_submit(world, 101, scalar_with_tuple),
+		        "scalar command rejects unexpected compound arguments");
+		require(!fixture_native_submit(world, 102, command), "another Console cannot write a Controller section");
 		auto foreign = command;
 		foreign.target = 999;
-		require(!world.submit(101, foreign), "Controller identity never authorises a foreign entity");
-		require(world.submit(101, command), "own Controller accepts a valid human proposal");
+		require(!fixture_native_submit(world, 101, foreign), "Controller identity never authorises a foreign entity");
+		require(fixture_native_submit(world, 101, command), "own Controller accepts a valid human proposal");
 		world.tick();
 		require(requested(world, "port") == 5000 && requested(world, "starboard") == 5000,
 		        "one committed setting reaches both physical engines");
@@ -2112,20 +2158,23 @@ int main(int argc, char **argv)
 		        "accepted intent is exposed separately from physical observations");
 
 		const auto old_command = speed(world, 101, "propulsion", 9000);
-		require(world.submit(101, old_command) && world.submit(101, {1, "preset", 1, {}}),
+		require(fixture_native_submit(world, 101, old_command) &&
+		            fixture_native_submit(world, 101, {1, "preset", 1, {}}),
 		        "queued command and profile transition are admitted before commit");
 		world.tick();
 		require(!controller(world, 101, "propulsion").at("human").get<bool>(), "profile delegates the Controller");
-		require(requested(world, "port") == 5000 && !world.submit(101, old_command),
+		require(requested(world, "port") == 5000 && !fixture_native_submit(world, 101, old_command),
 		        "handover invalidates obsolete writes without erasing accepted settings");
-		require(world.submit(101, {1, "preset", 0, {}}), "Console returns to selected direct profile");
+		require(fixture_native_submit(world, 101, {1, "preset", 0, {}}), "Console returns to selected direct profile");
 		world.tick();
-		require(!world.submit(101, old_command), "previous human generation remains invalid after return");
-		require(world.submit(101, speed(world, 101, "propulsion", 7000)), "fresh operator generation can write");
+		require(!fixture_native_submit(world, 101, old_command),
+		        "previous human generation remains invalid after return");
+		require(fixture_native_submit(world, 101, speed(world, 101, "propulsion", 7000)),
+		        "fresh operator generation can write");
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 33, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 34, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)
@@ -2148,16 +2197,18 @@ int main(int argc, char **argv)
 		World disconnected;
 		disconnected.restore(content, saved);
 		auto obsolete = speed(disconnected, 101, "propulsion", 11000);
-		require(disconnected.submit(101, obsolete), "human command queues before recovery clears claims");
+		require(fixture_native_submit(disconnected, 101, obsolete),
+		        "human command queues before recovery clears claims");
 		disconnected.clear_claims();
 		disconnected.tick();
 		require(disconnected.claim(101, 1, "drive"), "Console can acquire a fresh claim after recovery");
-		require(requested(disconnected, "port") == 7000 && !disconnected.submit(101, obsolete),
+		require(requested(disconnected, "port") == 7000 && !fixture_native_submit(disconnected, 101, obsolete),
 		        "clearing claims cancels queued writes and resets the effective operator generation");
-		require(disconnected.submit(101, {1, "away", 1, {}}), "Away is a Console availability transition");
+		require(fixture_native_submit(disconnected, 101, {1, "away", 1, {}}),
+		        "Away is a Console availability transition");
 		disconnected.tick();
 		require(!controller(disconnected, 101, "propulsion").at("human").get<bool>(), "Away uses ordinary AI");
-		require(disconnected.submit(101, {1, "away", 0, {}}), "human can return from Away");
+		require(fixture_native_submit(disconnected, 101, {1, "away", 0, {}}), "human can return from Away");
 		disconnected.tick();
 		require(controller(disconnected, 101, "propulsion").at("human").get<bool>() &&
 		            requested(disconnected, "port") == 7000,
@@ -2166,8 +2217,8 @@ int main(int argc, char **argv)
 		World split;
 		split.load(load(controller_fixture(true)), "test.map");
 		require(split.claim(101, 1, "drive"), "split throttle Console claims through ordinary route");
-		require(split.submit(101, speed(split, 101, "port_drive", 3000)) &&
-		            split.submit(101, speed(split, 101, "starboard_drive", 8000)),
+		require(fixture_native_submit(split, 101, speed(split, 101, "port_drive", 3000)) &&
+		            fixture_native_submit(split, 101, speed(split, 101, "starboard_drive", 8000)),
 		        "separate sections accept separate intent");
 		split.tick();
 		require(requested(split, "port") == 3000 && requested(split, "starboard") == 8000,
@@ -2187,7 +2238,7 @@ int main(int argc, char **argv)
 		constrained_source["entities"][0]["systems"]["port"]["powerless_start"] = true;
 		constrained.load(load(constrained_source), "test.map");
 		require(constrained.claim(101, 1, "drive"), "constrained physical consumer claims");
-		require(constrained.submit(101, speed(constrained, 101, "propulsion", 5000)),
+		require(fixture_native_submit(constrained, 101, speed(constrained, 101, "propulsion", 5000)),
 		        "one setting drives both constrained engines");
 		std::int64_t paid = 0;
 		for (int tick = 0; tick < 5; ++tick)
@@ -2244,22 +2295,23 @@ int main(int argc, char **argv)
 		auto request = speed(requests, 101, "propulsion", 1);
 		request.channel = "impulse";
 		request.request_id = 1;
-		require(requests.submit(101, request) && requests.submit(101, request),
+		require(fixture_native_submit(requests, 101, request) && fixture_native_submit(requests, 101, request),
 		        "duplicate request identity is idempotent");
 		auto concurrent = request;
 		concurrent.request_id = 2;
-		require(!requests.submit(101, concurrent), "a second outstanding request cannot silently replace the first");
+		require(!fixture_native_submit(requests, 101, concurrent),
+		        "a second outstanding request cannot silently replace the first");
 		requests.tick();
 		const auto receipt = controller(requests, 101, "propulsion").at("commands").at("impulse");
 		require(receipt.at("accepted").get<bool>(), "request reaches its single physical executor");
-		require(requests.submit(101, request), "completed request retry returns its prior outcome");
+		require(fixture_native_submit(requests, 101, request), "completed request retry returns its prior outcome");
 		requests.tick();
 		require(controller(requests, 101, "propulsion").at("commands").at("impulse").at("revision") ==
 		            receipt.at("revision"),
 		        "retry does not create a second physical request revision");
 		World request_resumed;
 		request_resumed.restore(request_content, requests.save());
-		require(request_resumed.submit(101, request), "request identity survives restore");
+		require(fixture_native_submit(request_resumed, 101, request), "request identity survives restore");
 		request_resumed.tick();
 		requests.tick();
 		require(request_resumed.save() == requests.save(), "restored retry cannot restart physical work");
@@ -2315,7 +2367,8 @@ int main(int argc, char **argv)
 		const auto ai_content = load(ai_source);
 		automatic.load(ai_content, "test.map");
 		human.load(content, "test.map");
-		require(human.claim(101, 1, "drive") && human.submit(101, speed(human, 101, "propulsion", 5000)),
+		require(human.claim(101, 1, "drive") &&
+		            fixture_native_submit(human, 101, speed(human, 101, "propulsion", 5000)),
 		        "equivalent human command admitted");
 		for (int tick = 0; tick < 20; ++tick)
 		{
@@ -2371,15 +2424,16 @@ int main(int argc, char **argv)
 			    },
 			    "start a new session");
 			require(cycle.save() == saved, "retired saves cannot replace a live world");
-			require(cycle.claim(101, 1, "drive") && cycle.submit(101, speed(cycle, 101, "propulsion", 5000)),
+			require(cycle.claim(101, 1, "drive") &&
+			            fixture_native_submit(cycle, 101, speed(cycle, 101, "propulsion", 5000)),
 			        "human interrupts cyclic Controller");
 			cycle.tick();
 			require(cycle.save().at("bodies")[0].at("systems").at("port").at("speed").get<std::int64_t>() == 5000 &&
 			            cycle.release(101),
 			        "human owns accepted setting until release");
 			cycle.tick();
-			require(cycle.save().at("bodies")[0].at("systems").at("port").at("speed").get<std::int64_t>() == 1000,
-			        "handover restarts the ordinary tree at its initial state");
+			require(cycle.save().at("bodies")[0].at("systems").at("port").at("speed").get<std::int64_t>() == 5000,
+			        "handover preserves policy continuation and its completed one-shot markers");
 		}
 
 		auto contextual_source = controller_fixture();
@@ -2402,7 +2456,8 @@ int main(int argc, char **argv)
 		World contextual, direct;
 		contextual.load(contextual_content, "test.map");
 		direct.load(content, "test.map");
-		require(direct.claim(101, 1, "drive") && direct.submit(101, speed(direct, 101, "propulsion", 5000)),
+		require(direct.claim(101, 1, "drive") &&
+		            fixture_native_submit(direct, 101, speed(direct, 101, "propulsion", 5000)),
 		        "human supplies same setting as contextual Controller");
 		for (int tick = 0; tick < 5; ++tick)
 		{
@@ -2422,7 +2477,7 @@ int main(int argc, char **argv)
 		require(contextual.claim(101, 1, "drive"), "human takes over contextual Controller");
 		require(!controller(contextual, 101, "propulsion").contains("memory"),
 		        "private AI memory stays out of Console projection");
-		require(contextual.submit(101, speed(contextual, 101, "propulsion", 7000)),
+		require(fixture_native_submit(contextual, 101, speed(contextual, 101, "propulsion", 7000)),
 		        "human writes after tree interruption");
 		contextual.tick();
 		require(requested(contextual, "port") == 7000, "interrupted AI cannot overwrite human control");
@@ -2735,19 +2790,19 @@ int main(int argc, char **argv)
 		World messaging;
 		messaging.load(message_content, "test.map");
 		require(messaging.claim(101, 1, "drive") && messaging.claim(102, 1, "observer"), "message Consoles claimed");
-		require(messaging.submit(101, {1, "preset", 1, {}}), "recipient delegates before send");
+		require(fixture_native_submit(messaging, 101, {1, "preset", 1, {}}), "recipient delegates before send");
 		messaging.tick();
 		OperatingCommand send{1, "message.test.request", 7, {}};
 		send.controller = "port";
 		send.generation = controller(messaging, 102, "port").at("generation").get<std::uint64_t>();
-		require(messaging.submit(102, send), "human Controller sends permitted intent");
+		require(fixture_native_submit(messaging, 102, send), "human Controller sends permitted intent");
 		messaging.tick();
 		require(messaging.observe(101)->gameplay.at("messages").empty(), "Controller delivery respects authored delay");
 		World message_resume;
 		message_resume.restore(message_content, messaging.save());
 		for (auto *run : {&messaging, &message_resume})
 		{
-			require(run->submit(101, {1, "preset", 0, {}}), "recipient becomes human before delivery");
+			require(fixture_native_submit(*run, 101, {1, "preset", 0, {}}), "recipient becomes human before delivery");
 			bool notified = false;
 			for (int tick = 0; tick < 4; ++tick)
 			{
@@ -2774,13 +2829,15 @@ int main(int argc, char **argv)
 		stale_sender.load(message_content, "test.map");
 		require(stale_sender.claim(101, 1, "drive") && stale_sender.claim(102, 1, "observer"), "stale sender claims");
 		send.generation = controller(stale_sender, 102, "port").at("generation").get<std::uint64_t>();
-		require(stale_sender.submit(102, {1, "preset", 1, {}}) && stale_sender.submit(102, send),
+		require(fixture_native_submit(stale_sender, 102, {1, "preset", 1, {}}) &&
+		            fixture_native_submit(stale_sender, 102, send),
 		        "message admitted behind an uncommitted profile transition");
 		for (int tick = 0; tick < 5; ++tick)
 			stale_sender.tick();
 		require(stale_sender.observe(101)->gameplay.at("messages").empty(),
 		        "execution rechecks message sender generation after profile transition");
 		auto ai_messages_source = messages_source;
+		ai_messages_source["entities"][0]["control_layout"]["manual_workloads"]["observer"]["personnel"] = 1;
 		ai_messages_source["messages"][0]["fields"]["amount"] = {{"argument", "amount"}};
 		ai_messages_source["trees"] = Json::parse(R"json([
 		 {"id":"test.sender","context":"controller","initial":"send","message_templates":["test.request"],
@@ -2789,8 +2846,8 @@ int main(int argc, char **argv)
 		  "message_bindings":[{"name":"amount","schema":"request","field":"amount"}],
 		  "states":[{"id":"wait","transitions":[{"target":"received","conditions":[
 		    {"left":{"observation":"message.available"},"op":"eq","right":true}]}]},
-		   {"id":"received","entry":[{"action":"write.speed","arguments":[{"observation":"amount"}]},
-		    {"action":"acknowledge_message","arguments":[{"observation":"message.id"}]}]}]}
+		   {"id":"received","running":[{"attempt":[{"tasks":[{"action":"write.speed","arguments":[{"observation":"amount"}]},
+            {"action":"acknowledge_message","arguments":[{"observation":"message.id"}]}]},{"tasks":[]}]}]}]}
 		])json");
 		ai_messages_source["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.receiver";
 		ai_messages_source["entities"][0]["control_layout"]["controllers"][1]["tree"] = "test.sender";
@@ -2825,7 +2882,7 @@ int main(int argc, char **argv)
 		unstaffed_sender.load(load(unstaffed_source), "test.map");
 		require(unstaffed_sender.claim(101, 1, "drive") && unstaffed_sender.claim(102, 1, "observer"),
 		        "unstaffed message claims");
-		require(unstaffed_sender.submit(102, {1, "preset", 1, {}}), "unstaffed AI operates normally");
+		require(fixture_native_submit(unstaffed_sender, 102, {1, "preset", 1, {}}), "unstaffed AI operates normally");
 		for (int i = 0; i < 6; ++i)
 			unstaffed_sender.tick();
 		require(unstaffed_sender.observe(101)->gameplay.at("messages")[0].at("speaker_portrait") == "generic-crew",
@@ -2834,7 +2891,7 @@ int main(int argc, char **argv)
 		World ai_messages;
 		ai_messages.load(ai_message_content, "test.map");
 		require(ai_messages.claim(101, 1, "drive") && ai_messages.claim(102, 1, "observer"), "AI message claims");
-		require(ai_messages.submit(102, {1, "preset", 1, {}}), "sender delegates to AI");
+		require(fixture_native_submit(ai_messages, 102, {1, "preset", 1, {}}), "sender delegates to AI");
 		for (int tick = 0; tick < 6; ++tick)
 			ai_messages.tick();
 		require(ai_messages.observe(101)->gameplay.at("messages").size() == 1 && requested(ai_messages, "port") == 0,
@@ -2847,7 +2904,7 @@ int main(int argc, char **argv)
 		        "AI message snapshots the officer at its exact Console/Controller address");
 		OperatingCommand relief{1, "personnel.relieve", 0, "duty-officer"};
 		relief.generation = ai_messages.observe(102)->gameplay.at("personnel").at("revision");
-		require(ai_messages.submit(102, relief), "relieve the message sender");
+		require(fixture_native_submit(ai_messages, 102, relief), "relieve the message sender");
 		ai_messages.tick();
 		require(ai_messages.observe(101)->gameplay.at("messages")[0].at("speaker_name") == "Officer Test",
 		        "old messages retain officer identity after relief");
@@ -2855,7 +2912,8 @@ int main(int argc, char **argv)
 		ai_message_resume.restore(ai_message_content, ai_messages.save());
 		for (auto *run : {&ai_messages, &ai_message_resume})
 		{
-			require(run->submit(101, {1, "preset", 1, {}}), "human yields with delivered message history intact");
+			require(fixture_native_submit(*run, 101, {1, "preset", 1, {}}),
+			        "human yields with delivered message history intact");
 			for (int tick = 0; tick < 4; ++tick)
 				run->tick();
 			require(requested(*run, "port") == 6000 && run->observe(101)->gameplay.at("messages").size() == 1,
@@ -2915,7 +2973,8 @@ int main(int argc, char **argv)
 		World public_messages;
 		public_messages.load(public_content, "test.map");
 		claim_public(public_messages);
-		require(public_messages.submit(101, {1, "preset", 1, {}}) && public_messages.submit(102, {1, "preset", 1, {}}),
+		require(fixture_native_submit(public_messages, 101, {1, "preset", 1, {}}) &&
+		            fixture_native_submit(public_messages, 102, {1, "preset", 1, {}}),
 		        "important message sender and recipient use AI");
 		public_messages.tick();
 		World public_resume;
@@ -3030,10 +3089,12 @@ int main(int argc, char **argv)
 		World human_target;
 		human_target.load(public_content, "test.map");
 		claim_public(human_target);
-		require(human_target.submit(101, {1, "preset", 1, {}}) && human_target.submit(102, {1, "preset", 1, {}}),
+		require(fixture_native_submit(human_target, 101, {1, "preset", 1, {}}) &&
+		            fixture_native_submit(human_target, 102, {1, "preset", 1, {}}),
 		        "important message initially targets AI");
 		human_target.tick();
-		require(human_target.submit(101, {1, "preset", 0, {}}), "recipient becomes human before delayed delivery");
+		require(fixture_native_submit(human_target, 101, {1, "preset", 0, {}}),
+		        "recipient becomes human before delayed delivery");
 		for (int tick = 0; tick < 6; ++tick)
 			human_target.tick();
 		require(human_target.observe(101)->gameplay.at("messages").size() == 1 &&
@@ -3085,7 +3146,7 @@ int main(int argc, char **argv)
 			run.load(content, "test.map");
 			claim_public(run);
 			for (const auto claimant : {101, 102, 103})
-				require(run.submit(claimant, {1, "preset", 1, {}}), "mixed binding AI profile");
+				require(fixture_native_submit(run, claimant, {1, "preset", 1, {}}), "mixed binding AI profile");
 			for (int tick = 0; tick < 4; ++tick)
 				run.tick();
 			World resumed;
@@ -3104,7 +3165,7 @@ int main(int argc, char **argv)
 		claim_public(shared_reader);
 		require(shared_reader.claim(104, 2, "spectator"), "other entity public reader claim");
 		for (const auto claimant : {101, 102, 103})
-			require(shared_reader.submit(claimant, {1, "preset", 1, {}}), "shared reader AI profile");
+			require(fixture_native_submit(shared_reader, claimant, {1, "preset", 1, {}}), "shared reader AI profile");
 		for (int tick = 0; tick < 8; ++tick)
 			shared_reader.tick();
 		const auto shared_reader_view = shared_reader.observe(103);
@@ -3132,10 +3193,11 @@ int main(int argc, char **argv)
 		latest_world.load(latest_catalog, "test.map");
 		claim_public(latest_world);
 		for (const auto claimant : {101, 102, 103})
-			latest_world.submit(claimant, {1, "preset", 1, {}});
+			fixture_native_submit(latest_world, claimant, {1, "preset", 1, {}});
 		for (int tick = 0; tick < 8; ++tick)
 			latest_world.tick();
-		require(latest_world.submit(101, {1, "publish.objective", 0, {}}), "publish objective-like non-entity subject");
+		require(fixture_native_submit(latest_world, 101, {1, "publish.objective", 0, {}}),
+		        "publish objective-like non-entity subject");
 		latest_world.tick();
 		latest_world.tick();
 		require(latest_world.observe(103)->systems[0].requested == 77,
@@ -3176,7 +3238,8 @@ int main(int argc, char **argv)
 		evidence_world.load(evidence_catalog, "test.map");
 		claim_public(evidence_world);
 		for (const auto claimant : {101, 102, 103})
-			require(evidence_world.submit(claimant, {1, "preset", 1, {}}), "evidence reader AI profile");
+			require(fixture_native_submit(evidence_world, claimant, {1, "preset", 1, {}}),
+			        "evidence reader AI profile");
 		for (int tick = 0; tick < 8; ++tick)
 			evidence_world.tick();
 		require(evidence_world.observe(103)->systems[0].requested == 6000,
@@ -3217,8 +3280,8 @@ int main(int argc, char **argv)
 		World ordinary_messages;
 		ordinary_messages.load(load(ordinary_source), "test.map");
 		claim_public(ordinary_messages);
-		require(ordinary_messages.submit(101, {1, "preset", 1, {}}) &&
-		            ordinary_messages.submit(102, {1, "preset", 1, {}}),
+		require(fixture_native_submit(ordinary_messages, 101, {1, "preset", 1, {}}) &&
+		            fixture_native_submit(ordinary_messages, 102, {1, "preset", 1, {}}),
 		        "ordinary AI message operators");
 		for (int tick = 0; tick < 6; ++tick)
 			ordinary_messages.tick();
@@ -3229,11 +3292,13 @@ int main(int argc, char **argv)
 		auto broadcast_source = public_source;
 		broadcast_source["messages"][0]["destination"] = {{"kind", "ship"}};
 		broadcast_source["messages"][0]["urgency"] = 0;
+		broadcast_source["entities"][0]["control_layout"]["controllers"][1].erase("tree");
+		broadcast_source["entities"][0]["control_layout"]["controllers"][1]["fallback"] = "hold";
 		World broadcast;
 		broadcast.load(load(broadcast_source), "test.map");
 		claim_public(broadcast);
 		send.generation = controller(broadcast, 102, "port").at("generation").get<std::uint64_t>();
-		require(broadcast.submit(102, send), "human Controller sends entity-wide message");
+		require(fixture_native_submit(broadcast, 102, send), "human Controller sends entity-wide message");
 		for (int tick = 0; tick < 6; ++tick)
 			broadcast.tick();
 		require(broadcast.observe(103)->gameplay.at("messages").size() == 1 &&
@@ -3293,10 +3358,11 @@ int main(int argc, char **argv)
 		World reporting;
 		reporting.load(reporter_content, "test.map");
 		require(reporting.claim(101, 1, "drive") && reporting.claim(102, 1, "observer"), "reporter claims");
-		require(reporting.submit(102, {1, "preset", 1, {}}), "report recipient delegates to AI");
+		require(fixture_native_submit(reporting, 102, {1, "preset", 1, {}}), "report recipient delegates to AI");
 		reporting.tick();
 		require(reporting.observe(102)->gameplay.at("messages").empty(), "initial healthy telemetry is not recovery");
-		require(reporting.submit(101, speed(reporting, 101, "port", 6000)), "human controls reporting physical System");
+		require(fixture_native_submit(reporting, 101, speed(reporting, 101, "port", 6000)),
+		        "human controls reporting physical System");
 		reporting.tick();
 		reporting.tick();
 		require(reporting.observe(102)->gameplay.at("messages").empty(), "warning waits for configured debounce");
@@ -3314,14 +3380,14 @@ int main(int argc, char **argv)
 		reporting_resume.restore(reporter_content, reporting.save());
 		for (auto *run : {&reporting, &reporting_resume})
 		{
-			require(run->submit(101, {1, "preset", 1, {}}), "reporter producer hands over");
+			require(fixture_native_submit(*run, 101, {1, "preset", 1, {}}), "reporter producer hands over");
 			for (int tick = 0; tick < 3; ++tick)
 				run->tick();
 			require(run->observe(102)->gameplay.at("messages").size() == 1,
 			        "unchanged warning is not repeated after restore/handover");
-			require(run->submit(101, {1, "preset", 0, {}}), "producer returns human");
+			require(fixture_native_submit(*run, 101, {1, "preset", 0, {}}), "producer returns human");
 			run->tick();
-			require(run->submit(101, speed(*run, 101, "port", 0)), "physical source recovers");
+			require(fixture_native_submit(*run, 101, speed(*run, 101, "port", 0)), "physical source recovers");
 			run->tick();
 			run->tick();
 			require(run->observe(102)->gameplay.at("messages").size() == 1, "recovery waits for hysteresis");
@@ -3345,12 +3411,14 @@ int main(int argc, char **argv)
 		gap_reports.load(load(gap_source), "test.map");
 		require(gap_reports.claim(101, 1, "drive") && gap_reports.claim(102, 1, "observer"), "minimum-gap claims");
 		gap_reports.tick();
-		require(gap_reports.submit(101, speed(gap_reports, 101, "port", 6000)), "minimum-gap warning input");
+		require(fixture_native_submit(gap_reports, 101, speed(gap_reports, 101, "port", 6000)),
+		        "minimum-gap warning input");
 		for (int tick = 0; tick < 5; ++tick)
 			gap_reports.tick();
 		require(gap_reports.observe(102)->gameplay.at("messages").size() == 1,
 		        "first warning is not delayed by minimum gap");
-		require(gap_reports.submit(101, speed(gap_reports, 101, "port", 0)), "minimum-gap recovery input");
+		require(fixture_native_submit(gap_reports, 101, speed(gap_reports, 101, "port", 0)),
+		        "minimum-gap recovery input");
 		for (int tick = 0; tick < 5; ++tick)
 			gap_reports.tick();
 		require(gap_reports.observe(102)->gameplay.at("messages").size() == 1,

@@ -33,11 +33,7 @@ auto Runtime::comms_owner(EntityId id) const -> std::optional<ConsoleAddress>
 
 auto Runtime::conversation_operator(EntityId id, const ConsoleControllerRuntime &controller) const -> bool
 {
-	if (!controller.definition.widget.empty())
-		return controller_operation_human(controller, "conversation");
-	return controller.human ||
-	       (entities.at(id).get<EntityControls>().layout.complexity_groups.contains(controller.definition.console) &&
-	        console_operator({id, controller.definition.console}) != 0);
+	return controller_operation_human(controller, "conversation");
 }
 
 auto Runtime::register_comms(EntityId id, const std::string &definition) -> void
@@ -71,7 +67,7 @@ auto Runtime::refresh_comms(bool disclose) -> void
 		if (entity.has<EntityControls>())
 			for (const auto &c : entity.get<EntityControls>().controllers)
 				if (c.definition.console == owner->console && comms_controller(id, c.definition) &&
-				    (c.definition.widget.empty() ? c.human : controller_operation_human(c, "conversation")))
+				    controller_operation_human(c, "conversation"))
 					endpoint.human = true;
 		for (auto child : entity.get<EquipmentIndex>().values)
 		{
@@ -162,8 +158,7 @@ auto Runtime::comms_command(const ConsoleAddress &address, const OperatingComman
 		endpoint.human = false;
 		if (entities.contains(id) && entities.at(id).has<EntityControls>())
 			for (const auto &c : entities.at(id).get<EntityControls>().controllers)
-				if (comms_controller(id, c.definition) &&
-				    (c.definition.widget.empty() ? c.human : controller_operation_human(c, "conversation")))
+				if (comms_controller(id, c.definition) && controller_operation_human(c, "conversation"))
 					endpoint.human = true;
 	}
 	bool accepted = false;

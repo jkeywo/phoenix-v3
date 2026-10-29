@@ -124,78 +124,6 @@ bool ability_endpoint_owned(const Json &entity, const std::string &endpoint, con
 					       system.value("planning_controller", std::string{}) == controller;
 	return false;
 }
-bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction action)
-{
-	const auto kind = fit.kind;
-	const bool flight = kind == OperatingSystem::Engine || kind == OperatingSystem::Steering ||
-	                    kind == OperatingSystem::Lateral || kind == OperatingSystem::Boost ||
-	                    kind == OperatingSystem::Impulse;
-	switch (action)
-	{
-	case OperatingAction::DirectedOperatingMode:
-	case OperatingAction::DirectedTargetingMode:
-	case OperatingAction::DirectedTarget:
-		return spec.contains("directed");
-	case OperatingAction::Altitude:
-		return kind == OperatingSystem::Engine;
-	case OperatingAction::SensorTarget:
-		return kind == OperatingSystem::Radar;
-	case OperatingAction::MagazineSelect:
-	case OperatingAction::WeaponMode:
-	case OperatingAction::WeaponTarget:
-		return kind == OperatingSystem::Weapon;
-	case OperatingAction::ShieldDischarge:
-		return kind == OperatingSystem::Shield;
-	case OperatingAction::RepairSystem:
-	case OperatingAction::RepairCompartment:
-		return kind == OperatingSystem::Team;
-	case OperatingAction::IntentInteger:
-	case OperatingAction::IntentBoolean:
-	case OperatingAction::AbilityActivate:
-	case OperatingAction::Waypoint:
-		return false;
-	case OperatingAction::SystemEnabled:
-		return true;
-	case OperatingAction::EngineEnabled:
-		return flight;
-	case OperatingAction::RadarEnabled:
-		return kind == OperatingSystem::Radar;
-	case OperatingAction::Destination:
-	case OperatingAction::FollowContact:
-		return kind == OperatingSystem::Engine || kind == OperatingSystem::Steering;
-	case OperatingAction::Speed:
-	case OperatingAction::Longitudinal:
-	case OperatingAction::MatchSpeed:
-		return kind == OperatingSystem::Engine;
-	case OperatingAction::Heading:
-	case OperatingAction::ManualSteering:
-		return flight && spec.value("turn_mdeg_s", std::int64_t{0}) > 0;
-	case OperatingAction::Assisted:
-	case OperatingAction::SelectContact:
-		return flight;
-	case OperatingAction::Lateral:
-		return flight &&
-		       (spec.value("lateral_acceleration_mm_s2", std::int64_t{0}) > 0 || kind == OperatingSystem::Lateral);
-	case OperatingAction::Boost:
-		return flight && (spec.contains("boost") || kind == OperatingSystem::Boost);
-	case OperatingAction::Impulse:
-		return flight && (spec.contains("impulse") || kind == OperatingSystem::Impulse);
-	case OperatingAction::GeneratorOutput:
-		return spec.contains("generator");
-	case OperatingAction::ChargeLimit:
-	case OperatingAction::DischargeLimit:
-	case OperatingAction::ThermalOverride:
-	case OperatingAction::Overdrive:
-		return spec.contains("power_store");
-	case OperatingAction::GroupAllocation:
-		return spec.contains("power_group");
-	case OperatingAction::LinkIsolation:
-		return spec.contains("conduit");
-	case OperatingAction::CoolingAllocation:
-		return spec.contains("cooling_link");
-	}
-	return false;
-}
 using CommandBounds = std::map<OperatingAction, std::pair<std::int64_t, std::int64_t>>;
 CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const ShipResourcesDefinition *resources,
                               std::size_t index, bool advanced)
@@ -344,24 +272,6 @@ OperatingAction input_key(OperatingAction action)
 		return OperatingAction::DirectedTargetingMode;
 	return action;
 }
-ControllerCommandSpec command_spec(const FittedSystemSpec &fit, const OperatingActionSpec &action, std::size_t index)
-{
-	ControllerCommandSpec result;
-	result.id = action.name;
-	result.action = action.action;
-	result.physical_input = input_key(action.action);
-	result.initial_heading = action.action == OperatingAction::Heading;
-	result.type = action.boolean ? KnowledgeType::Boolean : KnowledgeType::Integer;
-	result.minimum = action.minimum;
-	result.maximum = action.maximum;
-	result.semantics = action.semantics;
-	if (action.action == OperatingAction::Speed)
-		result.maximum = fit.maximum;
-	for (const auto &argument : operating_arguments(action.action))
-		result.initial_arguments.push_back(std::max<std::int64_t>(0, argument.minimum));
-	result.consumers.push_back(index);
-	return result;
-}
 } // namespace
 
 ControllableLayout compile_controllable_layout(const Catalog &catalog, const std::string &entity_id,
@@ -379,52 +289,17 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		system_ids.emplace(systems[i].id, i);
 	for (const auto &console : consoles)
 		console_ids.insert(console.id);
+	control_require(!entity.contains("controller") && !entity.contains("controllers") && !entity.contains("presets"),
+	                path, "legacy Controller ownership retired; author schema 2 shared widgets");
 	if (!entity.contains("control_layout"))
 	{
-		result.converted = true;
-		for (const auto &console : consoles)
-			for (const auto &name : console.controlled_systems)
-			{
-				const auto i = system_ids.at(name);
-				const auto &fit = systems[i];
-				ConsoleControllerSpec controller{fit.id, console.id, fit.controller};
-				if (controller.tree.empty() && entity.contains("controller"))
-					controller.tree = entity.at("controller").get<std::string>();
-				for (const auto &action : operating_actions)
-					if (accepts(fit, entity.at("systems").at(fit.id), action.action) &&
-					    !(entity.at("systems").at(fit.id).contains("directed") &&
-					      (action.action == OperatingAction::WeaponTarget ||
-					       action.action == OperatingAction::SensorTarget ||
-					       action.action == OperatingAction::WeaponMode)) &&
-					    action.action != OperatingAction::SystemEnabled)
-						controller.commands.push_back(command_spec(fit, action, i));
-				if (std::none_of(controller.commands.begin(), controller.commands.end(),
-				                 [](const auto &c)
-				                 {
-					                 return input_key(c.action) == OperatingAction::SystemEnabled;
-				                 }))
-					controller.commands.push_back(
-					    command_spec(fit, operating_action(OperatingAction::SystemEnabled), i));
-				result.controllers.push_back(std::move(controller));
-			}
-		control_require(!entity.contains("controller"), path,
-		                "whole-entity timed policies retired; author explicit Console Controllers");
-		for (const auto &preset : entity.value("presets", Json::array()))
-		{
-			ConsoleComplexitySpec profile{preset.at("id").get<std::string>(),
-			                              std::vector<bool>(result.controllers.size(), true)};
-			for (auto row = preset.at("consoles").begin(); row != preset.at("consoles").end(); ++row)
-				for (const auto &delegated : row.value().value("delegated", Json::array()))
-					for (std::size_t i = 0; i < result.controllers.size(); ++i)
-						if (result.controllers[i].console == row.key() &&
-						    result.controllers[i].id == delegated.get<std::string>())
-							profile.human[i] = false;
-			if (profile.id == entity.value("default_preset", std::string{}))
-				result.default_profile = result.profiles.size();
-			result.profiles.push_back(std::move(profile));
-		}
-		if (result.profiles.empty())
-			result.profiles.push_back({"direct", std::vector<bool>(result.controllers.size(), true)});
+		control_require(catalog.presentation || std::none_of(consoles.begin(), consoles.end(),
+		                                                     [](const auto &console)
+		                                                     {
+			                                                     return !console.definition.empty();
+		                                                     }),
+		                path, "player Consoles require schema 2 shared widgets");
+		result.profiles.push_back({"direct", {}, 3});
 		return result;
 	}
 	const auto resources = compile_ship_resources(catalog, entity_id);
@@ -454,28 +329,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		if ((grouped.is_boolean() && grouped.get<bool>()) ||
 		    (grouped.is_array() && std::find(grouped.begin(), grouped.end(), Json(console.station)) != grouped.end()))
 			result.complexity_groups.emplace(console.id, console.station);
-	const auto workloads = layout.value("manual_workloads", Json::object());
-	control_require(workloads.is_object() && workloads.size() <= consoles.size(), path, "invalid manual workloads");
-	for (const auto &[console, families] : workloads.items())
-	{
-		control_require(console_ids.contains(console) && result.complexity_groups.contains(console) &&
-		                    families.is_object(),
-		                path, "unknown workload Console or Station complexity disabled");
-		for (const auto &[family, stars] : families.items())
-		{
-			control_require((family == "craft" || family == "transport" || family == "logistics" ||
-			                 family == "medical" || family == "team_assignment") &&
-			                    stars.is_number_integer() && stars >= 1 && stars <= 3,
-			                path, "invalid manual workload");
-			result.manual_workloads[console][family] = stars.get<int>();
-		}
-	}
-	const bool widget_layout = layout.value("schema", 0) == 2;
-	control_require(layout.is_object() && (layout.value("schema", 0) == 1 || widget_layout), path,
-	                "unsupported layout schema (expected 1 or 2)");
-	if (widget_layout)
-		control_require(!layout.contains("manual_workloads"), path,
-		                "widget layouts derive responsibility from widget levels, not manual workloads");
+	control_require(layout.is_object() && layout.value("schema", 0) == 2, path,
+	                "unsupported layout schema; schema 2 shared widgets required");
+	control_require(!layout.contains("manual_workloads"), path, "responsibility belongs in shared widget levels");
 	control_require(!entity.contains("controller") && !entity.contains("controllers") && !entity.contains("presets"),
 	                path, "explicit layout cannot mix legacy command AI or presets");
 	control_require(layout.contains("controllers") && layout.at("controllers").is_array() &&
@@ -486,10 +342,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	for (const auto &authored_instance : layout.at("controllers"))
 	{
 		const auto &instance = compiled_widget_instance(catalog, entity_id, authored_instance);
-		control_require(widget_layout || !instance.contains("widget"), path,
-		                "shared widget instances require schema 2; do not mix level ownership with legacy allocations");
-		control_require(!widget_layout || instance.contains("widget"), path,
-		                "schema 2 Controller requires a shared widget definition");
+		control_require(instance.contains("widget"), path, "schema 2 Controller requires a shared widget definition");
 		const auto widget =
 		    instance.contains("widget")
 		        ? std::optional{compile_control_widget(catalog, instance.at("widget").get<std::string>())}
@@ -506,10 +359,6 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		ConsoleControllerSpec controller;
 		controller.id = control_name(row, "id", path);
 		controller.console = control_name(row, "console", path);
-		controller.policy = row.value("policy", std::string{});
-		control_require(controller.policy.empty() || controller.policy == "combat", path,
-		                "unsupported Controller policy");
-		control_require(controller.policy.empty() || !row.contains("tree"), path, "choose tree or policy");
 		const auto where = path + "." + controller.console + "." + controller.id;
 		control_require(console_ids.contains(controller.console), where, "unknown Console");
 		control_require(
@@ -646,13 +495,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				command.shared_target_channel = control_name(shared, "channel", where);
 			}
 			control_require(command.label_key.size() <= 256, where, "command label too long");
-			command.individual_stars = field.value("individual_stars", 1);
 			command.hull_priority = field.value("hull_priority", false);
 			control_require(!command.hull_priority || command.action == OperatingAction::RepairSystem, where,
 			                "hull_priority requires repair_system");
 			command.coordinated_group = field.value("coordinated_group", std::string{});
-			control_require(command.individual_stars >= 1 && command.individual_stars <= 3 &&
-			                    command.coordinated_group.size() <= 64 &&
+			control_require(command.coordinated_group.size() <= 64 &&
 			                    (command.coordinated_group.empty() || command.action == OperatingAction::Impulse),
 			                where, "invalid coordinated flight command");
 			if (field.contains("choices"))
@@ -935,41 +782,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		control_require(profiles.insert(profile.id).second, path, "duplicate profile");
 		profile.stars = row.value("stars", 0);
 		control_require(profile.stars >= 0 && profile.stars <= 3, path, "stars must be between zero and three");
-		if (widget_layout)
-		{
-			control_require(!row.contains("consoles") && profile.stars >= 1, path,
-			                "widget profiles name stars, not separate Controller allocations");
-			for (std::size_t i = 0; i < result.controllers.size(); ++i)
-				profile.human[i] = !result.controllers[i].human_channels.at(profile.stars).empty() ||
-				                   !result.controllers[i].human_operations.at(profile.stars).empty();
-		}
-		else
-		{
-			control_require(row.contains("consoles") && row.at("consoles").is_object(), path,
-			                "profile requires Console allocations");
-			std::set<std::size_t> assigned;
-			for (auto console = row.at("consoles").begin(); console != row.at("consoles").end(); ++console)
-			{
-				control_require(console_ids.contains(console.key()) && console.value().is_object(), path,
-				                "unknown profile Console");
-				for (const auto *operator_kind : {"human", "ai"})
-				{
-					const auto ids = console.value().value(operator_kind, Json::array());
-					control_require(ids.is_array(), path, "profile allocation must be an array");
-					for (const auto &id : ids)
-					{
-						control_require(id.is_string(), path, "invalid profile Controller");
-						const auto key = std::pair{console.key(), id.get<std::string>()};
-						control_require(controller_ids.contains(key), path, "foreign or unknown profile Controller");
-						const auto i = controller_ids.at(key);
-						control_require(assigned.insert(i).second, path, "Controller allocated twice");
-						profile.human[i] = std::string(operator_kind) == "human";
-					}
-				}
-			}
-			control_require(assigned.size() == result.controllers.size(), path,
-			                "profile must allocate every Controller");
-		}
+		control_require(!row.contains("consoles") && profile.stars >= 1, path,
+		                "widget profiles name stars, not separate Controller allocations");
+		for (std::size_t i = 0; i < result.controllers.size(); ++i)
+			profile.human[i] = !result.controllers[i].human_channels.at(profile.stars).empty() ||
+			                   !result.controllers[i].human_operations.at(profile.stars).empty();
 		if (profile.id == layout.value("default_profile", std::string{}))
 			result.default_profile = result.profiles.size();
 		result.profiles.push_back(std::move(profile));
@@ -1044,10 +861,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			if (!layout.contains(variant))
 				continue;
 			std::set<std::size_t> declared;
-			if (widget_layout)
-				for (std::size_t index = 0; index < result.controllers.size(); ++index)
-					if (result.controllers[index].console == console.id)
-						declared.insert(index);
+			for (std::size_t index = 0; index < result.controllers.size(); ++index)
+				if (result.controllers[index].console == console.id)
+					declared.insert(index);
 			for (const int stars : {0, 1, 2, 3})
 			{
 				std::set<std::string> targets;
@@ -1104,157 +920,4 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	return result;
 }
 
-Catalog convert_controller_content(const Catalog &source, SharedPropertyCatalog compiled)
-{
-	const auto directed_catalog = compile_directed_catalog(source);
-	return convert_controller_content(source, directed_catalog, std::move(compiled));
-}
-Catalog convert_controller_content(const Catalog &source, const DirectedCatalog &directed_catalog,
-                                   SharedPropertyCatalog compiled)
-{
-	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(source);
-	auto result = source;
-	for (auto &[id, entity] : result.entities)
-	{
-		if (entity.contains("control_layout"))
-			continue;
-		const auto path = "entities." + id;
-		const auto systems = resolve_systems(source, id);
-		const auto seats = resolve_consoles(source, id);
-		const auto resources = compile_ship_resources(source, id);
-		const auto &directed = directed_catalog.at(id);
-		const bool advanced = uses_advanced_machinery(source, id);
-		for (const auto &preset : entity.value("presets", Json::array()))
-			for (const auto &console : preset.at("consoles"))
-				control_require(console.value("summary_intents", Json::array()).empty(), path,
-				                "legacy summary intents require explicit Controller preference channels");
-		auto layout = compile_controllable_layout(source, id, properties);
-		Json rows = Json::array();
-		for (const auto &controller : layout.controllers)
-		{
-			control_require(
-			    controller.tree.empty() ||
-			        (source.tree_programs.contains(controller.tree) &&
-			         source.tree_programs.at(controller.tree).context == state_tree::Context::Controller),
-			    path, "legacy System decision trees require an explicit controller-context tree and owned channels");
-			Json row{{"id", controller.id}, {"console", controller.console}, {"commands", Json::array()}};
-			if (controller.tree.empty())
-				row["fallback"] = "hold";
-			else
-				row["tree"] = controller.tree;
-			std::set<std::size_t> consumers;
-			for (const auto &command : controller.commands)
-				consumers.insert(command.consumers.begin(), command.consumers.end());
-			for (const auto i : consumers)
-			{
-				const auto &fit = systems.at(i);
-				const auto &spec = entity.at("systems").at(fit.id);
-				const auto capabilities = fitted_commands(fit, spec, resources ? &*resources : nullptr, i, advanced);
-				std::set<OperatingAction> emitted_inputs;
-				for (const auto &[action, bounds] : capabilities)
-				{
-					// New directed capabilities expose canonical commands. Legacy
-					// aliases remain supported only when explicitly authored.
-					if (spec.contains("directed") &&
-					    (action == OperatingAction::WeaponTarget || action == OperatingAction::SensorTarget ||
-					     action == OperatingAction::WeaponMode))
-						continue;
-					if (action == OperatingAction::SystemEnabled &&
-					    (capabilities.contains(OperatingAction::EngineEnabled) ||
-					     capabilities.contains(OperatingAction::RadarEnabled)))
-						continue;
-					// Compatibility aliases advertise the same physical input. A
-					// generated layout needs one owner, just like an authored layout.
-					if (!emitted_inputs.insert(input_key(action)).second)
-						continue;
-					const auto name = std::string(operating_action(action).name);
-					Json command{{"id", consumers.size() == 1 ? name : fit.id + "." + name},
-					             {"action", name},
-					             {"minimum", bounds.first},
-					             {"maximum", bounds.second},
-					             {"consumers", Json::array({fit.id})}};
-					if (operating_action(action).semantics == CommandSemantics::Request)
-						command["semantics"] = "request";
-					std::int64_t initial = 0;
-					if (const auto capability = directed.find(fit.id); capability != directed.end())
-					{
-						const auto &definition = capability->second;
-						if (action == OperatingAction::DirectedOperatingMode)
-							initial = static_cast<std::int64_t>(definition.initial_mode);
-						if (action == OperatingAction::DirectedTargetingMode)
-							initial = static_cast<std::int64_t>(definition.initial_targeting);
-						if (action == OperatingAction::WeaponMode)
-						{
-							const auto policy = definition.targeting.at(definition.initial_targeting).kind;
-							initial = policy == DirectedTargetingKind::Off         ? 0
-							          : policy == DirectedTargetingKind::Intercept ? 1
-							                                                       : 2;
-						}
-					}
-					if (action == OperatingAction::Assisted)
-						initial = 1;
-					if (action == OperatingAction::SystemEnabled || action == OperatingAction::EngineEnabled ||
-					    action == OperatingAction::RadarEnabled)
-						initial = spec.value("enabled", true);
-					if (resources)
-					{
-						const auto &binding = resources->systems.at(i);
-						const auto &network = resources->network;
-						if (action == OperatingAction::GeneratorOutput)
-							initial = network.generators.at(binding.generator).initial_output;
-						if (action == OperatingAction::ChargeLimit)
-							initial = network.stores.at(binding.store).charge_rate;
-						if (action == OperatingAction::DischargeLimit)
-							initial = network.stores.at(binding.store).discharge_rate;
-						if (action == OperatingAction::GroupAllocation)
-							initial = network.groups.at(binding.group).budget_rate;
-						if (action == OperatingAction::CoolingAllocation)
-							initial = network.cooling_links.at(binding.cooling).allocation_rate;
-						if (action == OperatingAction::LinkIsolation)
-							initial = network.links.at(binding.conduit).isolated;
-						if (action == OperatingAction::SystemEnabled && fit.kind == OperatingSystem::Storage)
-							initial = initial && network.stores.at(binding.store).enabled;
-						if (action == OperatingAction::SystemEnabled && fit.kind == OperatingSystem::Generator)
-							initial = initial && network.generators.at(binding.generator).enabled;
-					}
-					if (action != OperatingAction::Heading)
-						command["initial"] = initial;
-					Json arguments = Json::array();
-					for (const auto &argument : operating_arguments(action))
-						arguments.push_back(std::max<std::int64_t>(0, argument.minimum));
-					if (!arguments.empty())
-						command["arguments"] = std::move(arguments);
-					row["commands"].push_back(std::move(command));
-				}
-			}
-			rows.push_back(std::move(row));
-		}
-		Json profiles = Json::array();
-		for (const auto &profile : layout.profiles)
-		{
-			Json allocations = Json::object();
-			for (std::size_t i = 0; i < layout.controllers.size(); ++i)
-			{
-				const auto &controller = layout.controllers[i];
-				auto &ids = allocations[controller.console][profile.human[i] ? "human" : "ai"];
-				if (ids.is_null())
-					ids = Json::array();
-				ids.push_back(controller.id);
-			}
-			profiles.push_back({{"id", profile.id}, {"stars", profile.stars}, {"consoles", allocations}});
-		}
-		entity["motion_model"] = advanced ? "inertial" : "vector";
-		entity["control_layout"] = {{"schema", 1},
-		                            {"controllers", rows},
-		                            {"profiles", profiles},
-		                            {"default_profile", layout.profiles.at(layout.default_profile).id}};
-		for (const auto *key : {"controller", "controllers", "presets", "default_preset"})
-			entity.erase(key);
-		for (auto &system : entity.at("systems"))
-			system.erase("controller");
-		// Validate the generated definition through the same explicit-layout compiler.
-		(void)compile_controllable_layout(result, id, properties);
-	}
-	return result;
-}
 } // namespace phoenix

@@ -226,6 +226,11 @@ int main()
 			                   Json::array(
 			                       {{{"id", "a"}, {"definition", "ui.first"}, {"systems", {"engine"}}},
 			                        {{"id", "b"}, {"definition", "ui.second"}, {"systems", Json::array()}}})}}})}}})}};
+			definitions["control_widgets"] = Json::parse(
+			    R"json([{"id":"ui.engine.widget","schema":1,"fallback":"hold","equipment":{"engine":{}},"commands":[{"id":"speed","action":"speed_mm_s","consumers":["$engine"]},{"id":"thrust","action":"longitudinal_thrust","consumers":["$engine"]}],"levels":[{"id":"automated","human":[]},{"id":"manual","human":["speed","thrust"]}]}])json");
+			definitions["entities"][0]["motion_model"] = "inertial";
+			definitions["entities"][0]["control_layout"] = Json::parse(
+			    R"json({"schema":2,"default_profile":"manual","controllers":[{"id":"engine","console":"a","widget":"ui.engine.widget","equipment":{"engine":"engine"},"star_levels":{"1":"manual","2":"manual","3":"manual"}}],"profiles":[{"id":"manual","stars":3}]})json");
 			pack.files["definitions.json"] = json_bytes(definitions);
 			session->content = resolve_packs({read_pack(write_pack(pack))});
 			Observation first;
@@ -233,16 +238,23 @@ int main()
 			first.console = "a";
 			first.controls = first.feeds = system_bit(OperatingSystem::Engine);
 			first.systems = {{"engine", OperatingSystem::Engine, 0, 17000, true, true}};
+			first.gameplay["controllers"] = Json::parse(
+			    R"json([{"id":"engine","console":"a","widget":"ui.engine.widget","generation":1,"human":true,"commands":{"thrust":{"action":"longitudinal_thrust","human":true,"minimum":-1000,"maximum":1000,"value":0,"semantics":"setting","consumers":["engine"]}}}])json");
 			first.gameplay["controls"] = Json::array({{{"id", "axis"},
+			                                           {"target", 1},
 			                                           {"label", "Forward thrust"},
 			                                           {"action", "longitudinal_thrust"},
-			                                           {"system", "engine"},
+			                                           {"system", ""},
+			                                           {"controller", "engine"},
+			                                           {"channel", "thrust"},
+			                                           {"generation", 1},
 			                                           {"value", 1000}}});
 			auto second = first;
 			second.console = "b";
 			second.controls = 0;
 			second.systems[0].controlled = false;
 			second.gameplay["controls"] = Json::array();
+			second.gameplay["controllers"] = Json::array();
 			second.gameplay["conversations"] = {{"threads", Json::array({{{"unread", true}}})}};
 			first.additional_consoles = {second};
 			session->projection = first;

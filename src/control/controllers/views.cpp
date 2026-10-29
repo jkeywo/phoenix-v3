@@ -60,7 +60,6 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	         {"human", controller.human},
 	         {"generation", controller.generation},
 	         {"commands", commands}};
-	if (!controller.definition.widget.empty())
 	{
 		row["widget"] = controller.definition.widget;
 		row["operations"] = Json::object();

@@ -84,7 +84,7 @@ void generated_directed_controls()
 	const auto fire = ship["systems"]["gun"]["directed"]["modes"][1];
 	ship["systems"]["gun"]["directed"]["initial_mode"] = fire;
 	ship["systems"]["gun"]["directed"]["initial_targeting"] = "fixture.targeting.off";
-	const auto converted = convert_controller_content(load(source));
+	const auto converted = load(source);
 	const auto layout = compile_controllable_layout(converted, "test.combat");
 	const auto controller = std::find_if(layout.controllers.begin(), layout.controllers.end(),
 	                                     [](const auto &row)

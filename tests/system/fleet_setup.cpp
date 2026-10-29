@@ -136,6 +136,16 @@ int main(int argc, char **argv)
 			        "committed executor admits the owning server's Console lease");
 			Json request{{"kind", "command"},   {"owner", "crew"},        {"lease", token}, {"sequence", 1},
 			             {"target", seat.ship}, {"action", "speed_mm_s"}, {"value", 1000}};
+			const auto command_view = a.observe("ship1", "crew", 1);
+			require(command_view.has_value(), "Claimed fleet lease projects widget ownership");
+			for (const auto &controller : command_view->gameplay.at("controllers"))
+				for (const auto &[channel, field] : controller.at("commands").items())
+					if (field.at("action") == "speed_mm_s")
+					{
+						request["controller"] = controller.at("id");
+						request["channel"] = channel;
+						request["generation"] = controller.at("generation");
+					}
 			require(a.apply("ship1", request) && b.apply("ship1", request) && !a.apply("ship1", request),
 			        "committed requests obey lease ownership and sequence replay refusal");
 			Json tick{{"kind", "tick"}, {"tick", 1}};

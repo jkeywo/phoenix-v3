@@ -211,7 +211,8 @@ Json with_exit_cleanup()
  "publication_templates":["drive-request"],
 		 "memory":[{"name":"publication","type":"integer","initial":0}],
 		 "states":[
-			{"id":"active","initial":"opening","entry":[
+            {"id":"stopped"},
+			{"id":"active","initial":"opening","transitions":[{"target":"stopped","conditions":[{"left":{"observation":"command.engine_enabled"},"op":"eq","right":false}]}],"entry":[
 				{"action":"publish.drive-request","arguments":[]}],
 			 "exit":[
 				{"action":"stop_publication","arguments":[{"memory":"publication"}]},
@@ -554,8 +555,10 @@ void controller_exit_cleanup(const Catalog &catalog)
 	        "controller entry activates its declared live publication");
 	require(submit(world, 101, {1, "preset", 1, {}}), "human can take control from the running cleanup controller");
 	world.tick();
+	require(submit(world, 101, {1, "engine_enabled", 0, "engine"}), "Human stop intent drives authored policy cleanup");
+	world.tick();
 	require(can_submit(world, 101, {1, "speed_mm_s", 600, "engine"}),
-	        "exit cleanup completes before human actuator authority is granted");
+	        "Human actuator authority and authored policy cleanup coexist");
 	const auto stopped = projection(world, 101);
 	require(stopped.at("messages").size() == 1 && stopped.at("messages")[0].at("actionable") == false,
 	        "exit withdrawal invalidates an unconsumed delivered request");
@@ -592,9 +595,12 @@ void ordinary_claim_exit_cleanup(const Catalog &catalog)
 	require(!records(projection(world, 102), "shared", "drive-status").empty(),
 	        "unclaimed Console AI activates its live publication");
 	require(world.claim(101, 1, "helm"), "ordinary claim takes over an active AI Console");
+	require(submit(world, 101, {1, "engine_enabled", 0, "engine"}),
+	        "Claimed operator stops the live policy through its command");
+	world.tick();
 	const auto held = projection(world, 101);
 	require(held.at("messages").size() == 1 && held.at("messages")[0].at("actionable") == false,
-	        "ordinary claim executes exit withdrawal before marking the System human-held");
+	        "Authored stop transition executes exit withdrawal under human control");
 	const auto frozen = projection(world, 102).at("shared");
 	require(submit(world, 101, {1, "speed_mm_s", 700, "engine"}), "ordinary takeover grants actuator authority");
 	for (int i = 0; i < 24; ++i)
@@ -609,7 +615,6 @@ void delegated_manual_survives_route_release(const Catalog &catalog)
 		World world;
 		world.load(catalog, "test.map");
 		claim_all(world);
-		world.tick();
 		require(submit(world, 101, {1, "preset", 0, {}}), "entry-only manual AI is delegated");
 		world.tick();
 		world.tick();
@@ -633,8 +638,8 @@ void typed_message_emission(const Catalog &catalog)
 	claim_all(world);
 	require(!submit(world, 101, {1, "message.test.notice", 999, "engine"}),
 	        "human template command cannot invent unavailable AI memory or parameter bindings");
-	world.tick();
 	require(submit(world, 101, {1, "preset", 0, {}}), "typed sender receives delegated authority");
+	world.tick();
 	world.tick();
 	const auto delivered = projection(world, 101);
 	require(delivered.at("messages").size() == 1, "referenced controller emits one structured message");
@@ -747,7 +752,6 @@ void delayed_human_seeking()
 	world.load(catalog, "test.map");
 	claim_all(world);
 	require(world.claim(105, 1, "away-reader"), "eligible reader can explicitly go Away");
-	world.tick();
 	require(submit(world, 101, {1, "preset", 0, {}}), "human-seeking sender remains delegated AI");
 	world.tick();
 	require(projection(world, 102).at("messages").empty(), "human-seeking routing respects authored delay");
@@ -767,8 +771,14 @@ void delayed_human_seeking()
 	            offer.at("notifications").size() == 1 && late.at("messages").size() == 1 &&
 	            late.at("notifications").size() == 1,
 	        "human-seeking offers reach eligible current humans independently of the exact AI target");
+	const auto other_ship = projection(resumed, 201).at("messages");
+	const bool leaked = std::any_of(other_ship.begin(), other_ship.end(),
+	                                [](const auto &message)
+	                                {
+		                                return message.at("payload").at("subject") == 1;
+	                                });
 	require(records(offer, "records", "request").empty() && projection(resumed, 103).at("messages").empty() &&
-	            projection(resumed, 105).at("messages").empty() && projection(resumed, 201).at("messages").empty(),
+	            projection(resumed, 105).at("messages").empty() && !leaked,
 	        "extra offers do not ingest AI board data or reach forbidden, Away or other-ship readers");
 	require(!can_submit(resumed, 102, {1, "speed_mm_s", 700, "engine"}) &&
 	            !can_submit(resumed, 101, {1, "speed_mm_s", 700, "engine"}),
@@ -865,7 +875,7 @@ void authorized_message_producers()
 	require(submit(ai, 101, {1, "preset", 0, {}}), "AI sender receives effective control");
 	ai.tick();
 	const auto ai_pending = ai.save().at("knowledge").at("runtime").value("pending", Json::array());
-	require(ai_pending.size() == 1, "authorized AI send enters delayed transport");
+	require(ai_pending.size() == 2, "Each synthetic ship shared policy reports through its own delayed transport");
 	require(ai_pending[0].at("payload").at("producer") == ai_catalog.knowledge_definition.role("pilot"),
 	        "AI message also selects its actual authorized later producer role");
 	ai.tick();

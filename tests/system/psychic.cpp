@@ -160,7 +160,7 @@ void command(World &w, std::uint64_t claim, EntityId ship, const std::string &ct
 			OperatingCommand request{ship, {}, value, {}, ctrl, channel, c.at("generation")};
 			if (c.at("commands").at(channel).at("action") == "ability_activate")
 				request.request_id = c.at("commands").at(channel).at("request_id").get<std::uint64_t>() + 1;
-			require(w.submit(claim, request), "admitted psychic or equipment command");
+			require(fixture_native_submit(w, claim, request), "admitted psychic or equipment command");
 			return;
 		}
 	throw std::runtime_error("missing Controller " + ctrl);
@@ -547,7 +547,7 @@ Json strain_contract()
 	OperatingCommand assign{1, "personnel.assign", 0, "cloak"};
 	assign.text = "radar";
 	assign.generation = moving.observe(101)->gameplay.at("personnel").at("revision");
-	require(moving.submit(101, assign), "Psychic reassignment is admitted through Personnel");
+	require(fixture_native_submit(moving, 101, assign), "Psychic reassignment is admitted through Personnel");
 	ticks(moving, 2);
 	require(strain_value(moving).get<std::int64_t>() < 2000 && strain_value(moving).get<std::int64_t>() > 0,
 	        "Officer lifetime rules recover the same strain balance while travelling to another duty");
@@ -720,19 +720,19 @@ int main(int argc, char **argv)
 			};
 			require(value("ward-target") == 1 && value("ward-enabled") == 1 && value("scramble-enabled") == 0,
 			        "one-star protective policy wards self without offensive power");
-			require(ship.submit(101, {1, "preset", 1}), "take two-star psychic control");
+			require(fixture_native_submit(ship, 101, {1, "preset", 1}), "take two-star psychic control");
 			ticks(ship);
 			command(ship, 101, 1, "choir", "ward-enabled", 0);
 			ticks(ship);
 			require(value("ward-enabled") == 0, "two-star player psychic choice persists");
-			require(ship.submit(101, {1, "preset", 2}), "take full apparatus control");
+			require(fixture_native_submit(ship, 101, {1, "preset", 2}), "take full apparatus control");
 			ticks(ship);
 			command(ship, 101, 1, "choir", "apparatus", 0);
 			ticks(ship);
-			require(ship.submit(101, {1, "preset", 1}), "return apparatus to assistance");
+			require(fixture_native_submit(ship, 101, {1, "preset", 1}), "return apparatus to assistance");
 			ticks(ship);
 			require(value("apparatus") == 1, "hidden apparatus override resets on downgrade");
-			require(ship.submit(101, {1, "preset", 0}), "return to protective policy");
+			require(fixture_native_submit(ship, 101, {1, "preset", 0}), "return to protective policy");
 			ticks(ship, 3);
 			require(value("ward-target") == 1 && value("ward-enabled") == 1, "downgrade restores self-ward");
 		}
@@ -748,7 +748,7 @@ int main(int argc, char **argv)
 			require(ghosts(moved, 102).size() == 2, "projection is live before immediate Personnel interruption");
 			OperatingCommand relieve{1, "personnel.relieve", 0, "scramble"};
 			relieve.generation = moved.observe(101)->gameplay.at("personnel").at("revision");
-			require(moved.submit(101, relieve), "queue relief of a live psychic source");
+			require(fixture_native_submit(moved, 101, relieve), "queue relief of a live psychic source");
 			ticks(moved);
 			const auto interrupted = moved.save();
 			bool retained_fade = false;
@@ -885,8 +885,8 @@ int main(int argc, char **argv)
 				const auto observed = granted.observe(101);
 				for (const auto &controller : observed->gameplay.at("controllers"))
 					if (controller.at("id") == "choir")
-						require(!granted.submit(
-						            101,
+						require(!fixture_native_submit(
+						            granted, 101,
 						            OperatingCommand{
 						                1, {}, 1, {}, "choir", "temporary-enabled", controller.at("generation")}),
 						        "an expired native ability cannot admit a fresh activation at the boundary");
@@ -1018,7 +1018,7 @@ int main(int argc, char **argv)
 		command(w, 101, 1, "choir", "scramble-enabled", 1);
 		OperatingCommand relieve{1, "personnel.relieve", 0, "scramble"};
 		relieve.generation = roster.at("revision");
-		require(w.submit(101, relieve), "relieve psychic officer through Personnel");
+		require(fixture_native_submit(w, 101, relieve), "relieve psychic officer through Personnel");
 		ticks(w);
 		require(!w.observe(101)->gameplay.at("psychic").at("choirs")[0].at("seats")[1].at("enabled").get<bool>(),
 		        "reassignment clears previous power intent");
@@ -1258,7 +1258,7 @@ int main(int argc, char **argv)
 				if (c.at("id") == target)
 					finding = c.at("findings").contains("finding:dispelled");
 			require(finding, "dispel finding uses retained sensor evidence");
-			require(scans.submit(102, OperatingCommand{2, "publish.scan", 0, {}}),
+			require(fixture_native_submit(scans, 102, OperatingCommand{2, "publish.scan", 0, {}}),
 			        "publish apparent finding through ordinary knowledge");
 			ticks(scans);
 			const auto shared = scans.observe(104)->gameplay.at("sensors");
@@ -1299,7 +1299,8 @@ int main(int argc, char **argv)
 			command(reassigned, 101, 1, "orders", "cloak-enabled", 1);
 			OperatingCommand relieve{1, "personnel.relieve", 0, "scramble"};
 			relieve.generation = reassigned.observe(101)->gameplay.at("personnel").at("revision");
-			require(reassigned.submit(101, relieve), "relieve officer with queued planning and execution writes");
+			require(fixture_native_submit(reassigned, 101, relieve),
+			        "relieve officer with queued planning and execution writes");
 			ticks(reassigned);
 			const auto observation = reassigned.observe(101);
 			for (const auto &c : observation->gameplay.at("controllers"))
@@ -1424,7 +1425,7 @@ int main(int argc, char **argv)
 								                   depart ? "" : "enabled"};
 								c.console = "navigator";
 								c.generation = controller.at("generation");
-								require(departure.submit(101, c), "choir ship jump command admitted");
+								require(fixture_native_submit(departure, 101, c), "choir ship jump command admitted");
 								return;
 							}
 				throw std::runtime_error("Missing choir ship Navigator");

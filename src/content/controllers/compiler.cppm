@@ -53,11 +53,8 @@ const Json &compiled_widget_instance(const Catalog &, const std::string &entity,
 Json bind_widget_policy(const Catalog &, const Json &policy, const Json &equipment, const std::string &where);
 BridgeDefinition compile_bridge(const Catalog &, const std::string &entity);
 ConsoleBridgeDefinition compile_console_bridge(const Json &, const std::string &path);
-// Compiles explicit layout version 1 or converts unambiguous old ownership at the boundary.
+// Compile shared logical widget instances and their star mappings.
 ControllableLayout compile_controllable_layout(const Catalog &, const std::string &entity, SharedPropertyCatalog = {});
-// Boundary conversion only. Unsupported decision/ownership mappings fail before runtime creation.
-Catalog convert_controller_content(const Catalog &, SharedPropertyCatalog = {});
-Catalog convert_controller_content(const Catalog &, const DirectedCatalog &, SharedPropertyCatalog = {});
 std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
 // Resolves legacy single-console content and verifies explicit station ownership.
 std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::string &entity);

@@ -10,8 +10,6 @@ namespace
 {
 bool delegated_work(const ConsoleControllerRuntime &controller)
 {
-	if (controller.definition.widget.empty())
-		return !controller.human;
 	for (std::size_t channel = 0; channel < controller.commands.size(); ++channel)
 		if (!controller_command_human(controller, channel))
 			return true;
@@ -121,27 +119,11 @@ auto Runtime::stance_target(EntityId ship, const std::string &console) const -> 
 	const auto *controls = entities.at(ship).try_get<EntityControls>();
 	if (!controls)
 		return false;
-	const bool widgets =
-	    std::any_of(controls->controllers.begin(), controls->controllers.end(),
-	                [&](const auto &controller)
-	                {
-		                return controller.definition.console == console && !controller.definition.widget.empty();
-	                });
-	if (widgets)
-		return std::any_of(controls->controllers.begin(), controls->controllers.end(),
-		                   [&](const auto &controller)
-		                   {
-			                   return controller.definition.console == console && delegated_work(controller);
-		                   });
-	bool any = false;
-	for (const auto &controller : controls->controllers)
-		if (controller.definition.console == console)
-		{
-			any = true;
-			if (controller.human)
-				return false;
-		}
-	return any;
+	return std::any_of(controls->controllers.begin(), controls->controllers.end(),
+	                   [&](const auto &controller)
+	                   {
+		                   return controller.definition.console == console && delegated_work(controller);
+	                   });
 }
 
 auto Runtime::bridge_visible(const ConsoleAddress &address) const -> bool
@@ -191,13 +173,6 @@ auto Runtime::bridge_command(const ConsoleAddress &source, const OperatingComman
 	                       : command.action == "stance.set" ? "stance"
 	                                                        : "objectives";
 	const auto &controllers = entities.at(source.ship).get<EntityControls>().controllers;
-	const bool widgets =
-	    std::any_of(controllers.begin(), controllers.end(),
-	                [&](const auto &owner)
-	                {
-		                return owner.definition.console == source.console && !owner.definition.widget.empty();
-	                });
-	if (widgets)
 	{
 		const auto owner = std::find_if(controllers.begin(), controllers.end(),
 		                                [&](const auto &candidate)
@@ -310,32 +285,23 @@ auto Runtime::bridge_controls(const ConsoleAddress &address, Json &buttons) cons
 		if (console == address.console ||
 		    (data.console_bridge.at(address.console).command && stance_target(address.ship, console)))
 			add("stance.set", console, spec.stances, console + ": ");
-	const auto &controllers = entities.at(address.ship).get<EntityControls>().controllers;
-	const bool widgets =
-	    std::any_of(controllers.begin(), controllers.end(),
-	                [&](const auto &owner)
-	                {
-		                return owner.definition.console == address.console && !owner.definition.widget.empty();
-	                });
-	if (widgets)
-		std::erase_if(buttons.get_ref<Json::array_t &>(),
-		              [&](auto &button)
-		              {
-			              const auto action = button.value("action", std::string{});
-			              if (action != "alert.set" && action != "stance.set" && action != "objective.priority")
-				              return false;
-			              const auto operation = action == "alert.set"    ? "alert"
-			                                     : action == "stance.set" ? "stance"
-			                                                              : "objectives";
-			              const auto *owner = native_operation_controller(address, operation);
-			              if (!owner || !controller_operation_human(*owner, operation))
-				              return true;
-			              button["operation"] = operation;
-			              button["controller"] = owner->definition.id;
-			              button["arguments"] = Json::array({button.value("generation", std::uint64_t{0})});
-			              button["generation"] = owner->generation;
-			              return false;
-		              });
+	std::erase_if(
+	    buttons.get_ref<Json::array_t &>(),
+	    [&](auto &button)
+	    {
+		    const auto action = button.value("action", std::string{});
+		    if (action != "alert.set" && action != "stance.set" && action != "objective.priority")
+			    return false;
+		    const auto operation = action == "alert.set" ? "alert" : action == "stance.set" ? "stance" : "objectives";
+		    const auto *owner = native_operation_controller(address, operation);
+		    if (!owner || !controller_operation_human(*owner, operation))
+			    return true;
+		    button["operation"] = operation;
+		    button["controller"] = owner->definition.id;
+		    button["arguments"] = Json::array({button.value("generation", std::uint64_t{0})});
+		    button["generation"] = owner->generation;
+		    return false;
+	    });
 }
 
 auto Runtime::restore_bridge(EntityId ship, const Json &saved) -> void

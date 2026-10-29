@@ -112,10 +112,10 @@ void assisted_docking_mission()
 			malformed.speaker_avatar = {1};
 			break;
 		}
-		require(!world.submit(101, malformed), "native envelope refuses unrelated payload fields");
+		require(!fixture_native_submit(world, 101, malformed), "native envelope refuses unrelated payload fields");
 	}
 	require(world.save() == before_rejected_envelopes, "rejected native envelopes leave authoritative state unchanged");
-	require(world.submit(101, order(world, "open")), "Activate assisted docking mission");
+	require(fixture_native_submit(world, 101, order(world, "open")), "Activate assisted docking mission");
 	ticks(world, 20);
 	const auto prepared = board(world)[0];
 	require(prepared["slots"][0]["assigned"] == "team:team" && !prepared["accompanying"].empty(),
@@ -125,11 +125,12 @@ void assisted_docking_mission()
 	require(network::read_observation(network::observation_json(*world.observe(101)), catalog)
 	                .gameplay.at("away_missions") == board(world),
 	        "Assisted activation survives remote projection");
-	require(world.submit(101, order(world, "cancel")), "Cancel activated mission while waiting for docking");
+	require(fixture_native_submit(world, 101, order(world, "cancel")),
+	        "Cancel activated mission while waiting for docking");
 	ticks(world, 10);
 	require(board(world)[0]["phase"] == "available" && board(world)[0]["slots"][0]["assigned"] == "",
 	        "Cancellation removes activation and prevents automatic redeployment");
-	require(world.submit(101, order(world, "open")), "Reactivate cancelled docking mission");
+	require(fixture_native_submit(world, 101, order(world, "open")), "Reactivate cancelled docking mission");
 	ticks(world, 20);
 	World resumed;
 	resumed.restore(catalog, world.save());
@@ -144,7 +145,7 @@ void assisted_docking_mission()
 		for (const auto &controller : view.gameplay.at("controllers"))
 			if (controller.at("id") == "dispatch")
 				command.generation = controller.at("generation");
-		return w.submit(route, command);
+		return fixture_native_submit(w, route, command);
 	};
 	for (auto *w : {&world, &resumed})
 	{
@@ -220,13 +221,14 @@ void away_effect_actions()
 	const auto ship = *world.ship_for_slot("crew");
 	require(world.claim(101, ship, "drive") && world.claim(102, ship, "observer"), "Away effect claims");
 	ticks(world, 4);
-	require(world.submit(101, order(world, "open")), "Open away effect mission");
+	require(fixture_native_submit(world, 101, order(world, "open")), "Open away effect mission");
 	ticks(world, 1);
-	require(world.submit(102, order(world, "assign", "repair/team:team", 102)), "Assign away effect team");
+	require(fixture_native_submit(world, 102, order(world, "assign", "repair/team:team", 102)),
+	        "Assign away effect team");
 	ticks(world, 1);
-	require(world.submit(101, order(world, "transport", "transport")), "Select away effect transport");
+	require(fixture_native_submit(world, 101, order(world, "transport", "transport")), "Select away effect transport");
 	ticks(world, 12);
-	require(world.submit(101, order(world, "send")), "Send away effect party");
+	require(fixture_native_submit(world, 101, order(world, "send")), "Send away effect party");
 	ticks(world, 6);
 	const auto count = [](const World &w, EntityId entity) -> Json
 	{
@@ -287,18 +289,19 @@ int main(int argc, char **argv)
 			require(!board(departments, 101)[0]["dispatch"].get<bool>() &&
 			            board(departments, 102)[0]["dispatch"].get<bool>(),
 			        "mission lifecycle belongs to its routed Dispatch");
-			require(!departments.submit(101, order(departments, "open")), "other Dispatch cannot open routed mission");
+			require(!fixture_native_submit(departments, 101, order(departments, "open")),
+			        "other Dispatch cannot open routed mission");
 			auto command = order(departments, "open", "", 102);
 			command.controller = "engineering-dispatch";
 			const auto engineering = departments.observe(102);
 			for (const auto &controller : engineering->gameplay.at("controllers"))
 				if (controller.at("id") == command.controller)
 					command.generation = controller.at("generation");
-			require(departments.submit(102, command), "owning Engineering Dispatch opens mission");
+			require(fixture_native_submit(departments, 102, command), "owning Engineering Dispatch opens mission");
 			ticks(departments, 1);
 			command.action = "away.cancel";
 			command.value = board(departments, 102)[0].at("revision");
-			require(departments.submit(102, command), "owning Dispatch cancels preparation");
+			require(fixture_native_submit(departments, 102, command), "owning Dispatch cancels preparation");
 			ticks(departments, 1);
 			require(board(departments, 102)[0].at("phase") == "available",
 			        "cancelled preparation releases contributions");
@@ -354,35 +357,36 @@ int main(int argc, char **argv)
 		require(board(w).size() == 1, "delivered introduction discloses mission");
 		auto projected = network::read_observation(network::observation_json(*w.observe(101)), catalog);
 		require(projected.gameplay.at("away_missions") == board(w), "network mission projection round trip");
-		require(!w.submit(102, order(w, "open", "", 102)), "only Dispatch opens");
-		require(w.submit(101, order(w, "open")), "open");
+		require(!fixture_native_submit(w, 102, order(w, "open", "", 102)), "only Dispatch opens");
+		require(fixture_native_submit(w, 101, order(w, "open")), "open");
 		ticks(w, 1);
-		require(!w.submit(101, order(w, "assign", "repair/team:team")), "Helm cannot take Engineering team");
-		require(!w.submit(101, order(w, "send")), "mandatory slot required");
-		require(w.submit(102, order(w, "assign", "repair/team:team", 102)), "assign team");
+		require(!fixture_native_submit(w, 101, order(w, "assign", "repair/team:team")),
+		        "Helm cannot take Engineering team");
+		require(!fixture_native_submit(w, 101, order(w, "send")), "mandatory slot required");
+		require(fixture_native_submit(w, 102, order(w, "assign", "repair/team:team", 102)), "assign team");
 		ticks(w, 1);
-		require(w.submit(101, order(w, "transport", "transport")), "transport binding");
+		require(fixture_native_submit(w, 101, order(w, "transport", "transport")), "transport binding");
 		ticks(w, 12);
 		auto personnel = [&](const std::string &action, const std::string &duty)
 		{
 			OperatingCommand c{ship, "personnel." + action, 0, "nav"};
 			c.text = duty;
 			c.generation = w.observe(101)->gameplay.at("personnel").at("revision");
-			return w.submit(101, c);
+			return fixture_native_submit(w, 101, c);
 		};
 		require(personnel("relieve", ""), "relieve Navigator");
 		ticks(w, 1);
-		require(w.submit(101, order(w, "send")), "queue transport while Navigator absent");
+		require(fixture_native_submit(w, 101, order(w, "send")), "queue transport while Navigator absent");
 		ticks(w, 5);
 		require(board(w)[0]["phase"] == "outbound", "unqualified transport must wait");
-		require(w.submit(101, order(w, "cancel")), "cancel pending transport");
+		require(fixture_native_submit(w, 101, order(w, "cancel")), "cancel pending transport");
 		ticks(w, 1);
 		require(personnel("assign", "transport"), "restore Navigator");
 		ticks(w, 2);
 		auto stale = order(w, "send");
-		require(w.submit(101, stale), "send");
+		require(fixture_native_submit(w, 101, stale), "send");
 		ticks(w, 1);
-		require(!w.submit(101, stale), "stale manifest rejected");
+		require(!fixture_native_submit(w, 101, stale), "stale manifest rejected");
 		auto saved = w.save();
 		require(saved["away_missions"][0]["schema"] == 11 && !saved["away_missions"][0].contains("deployed"),
 		        "deployment is derived from the typed phase");
@@ -442,19 +446,19 @@ int main(int argc, char **argv)
 			for (const auto &ctrl : observed->gameplay.at("controllers"))
 				if (ctrl.at("id") == "radio")
 					c.generation = ctrl.at("generation");
-			return w.submit(101, c);
+			return fixture_native_submit(w, 101, c);
 		};
 		require(radio(0), "disable return Comms link");
 		ticks(w, 1);
-		require(w.submit(101, order(w, "recall")), "recall");
+		require(fixture_native_submit(w, 101, order(w, "recall")), "recall");
 		ticks(w, 5);
 		require(board(w)[0]["phase"] == "recovered", "recovered");
 		const auto progress = w.save()["away_missions"][0]["progress"];
 		ticks(w, 8);
 		require(w.save()["away_missions"][0]["progress"] == progress, "no remote work after recovery");
-		require(w.submit(102, order(w, "assign", "repair/team:team", 102)), "reassign recovered team");
+		require(fixture_native_submit(w, 102, order(w, "assign", "repair/team:team", 102)), "reassign recovered team");
 		ticks(w, 2);
-		require(w.submit(101, order(w, "send")), "resume send");
+		require(fixture_native_submit(w, 101, order(w, "send")), "resume send");
 		ticks(w, 70);
 		require(w.save()["away_missions"][0]["outcome"] == "complete:repaired", "work and timeout finish");
 		require(board(w)[0]["phase"] == "deployed", "completion does not teleport crew home");
@@ -493,19 +497,21 @@ int main(int argc, char **argv)
 		ticks(shared, 4);
 		for (const auto &job : {"job", "job2"})
 		{
-			require(shared.submit(101, order(shared, "open", "", 101, job)), "open shared job");
+			require(fixture_native_submit(shared, 101, order(shared, "open", "", 101, job)), "open shared job");
 			ticks(shared, 1);
-			require(shared.submit(101, order(shared, "transport", "transport", 101, job)), "share transport binding");
+			require(fixture_native_submit(shared, 101, order(shared, "transport", "transport", 101, job)),
+			        "share transport binding");
 			ticks(shared, 1);
 		}
-		require(shared.submit(102, order(shared, "assign", "repair/team:team", 102)), "shared team");
+		require(fixture_native_submit(shared, 102, order(shared, "assign", "repair/team:team", 102)), "shared team");
 		ticks(shared, 1);
-		require(!shared.submit(102, order(shared, "assign", "expert/officer:chief", 102, "job2")),
+		require(!fixture_native_submit(shared, 102, order(shared, "assign", "expert/officer:chief", 102, "job2")),
 		        "attached officer cannot be double-booked");
-		require(shared.submit(102, order(shared, "assign", "expert/officer:reserve", 102, "job2")),
+		require(fixture_native_submit(shared, 102, order(shared, "assign", "expert/officer:reserve", 102, "job2")),
 		        "independent officer slot");
 		ticks(shared, 12);
-		require(shared.submit(101, order(shared, "send")) && shared.submit(101, order(shared, "send", "", 101, "job2")),
+		require(fixture_native_submit(shared, 101, order(shared, "send")) &&
+		            fixture_native_submit(shared, 101, order(shared, "send", "", 101, "job2")),
 		        "queue shared transfers");
 		ticks(shared, 2);
 		require(shared.save()["away_missions"][0]["transfer"] == 2 &&
@@ -540,13 +546,14 @@ int main(int argc, char **argv)
 			world.claim(101, own, "drive");
 			world.claim(102, own, "observer");
 			ticks(world, 4);
-			require(world.submit(101, order(world, "open")), "open repair job");
+			require(fixture_native_submit(world, 101, order(world, "open")), "open repair job");
 			ticks(world, 1);
-			require(world.submit(102, order(world, "assign", "repair/team:team", 102)), "assign repair team");
+			require(fixture_native_submit(world, 102, order(world, "assign", "repair/team:team", 102)),
+			        "assign repair team");
 			ticks(world, 1);
-			require(world.submit(101, order(world, "transport", "transport")), "bind repair transport");
+			require(fixture_native_submit(world, 101, order(world, "transport", "transport")), "bind repair transport");
 			ticks(world, 12);
-			require(world.submit(101, order(world, "send")), "deploy repair team");
+			require(fixture_native_submit(world, 101, order(world, "send")), "deploy repair team");
 			ticks(world, 5);
 		};
 		auto repaired_compartment = [](const World &world)
@@ -572,14 +579,15 @@ int main(int argc, char **argv)
 		ticks(repair, 8);
 		ticks(repair_resumed, 8);
 		require(repair.save() == repair_resumed.save(), "partial remote repair resumes exactly");
-		require(repair.submit(101, order(repair, "recall")), "recall during structural repair");
+		require(fixture_native_submit(repair, 101, order(repair, "recall")), "recall during structural repair");
 		ticks(repair, 5);
 		const auto paused_hp = repaired_compartment(repair);
 		ticks(repair, 10);
 		require(repaired_compartment(repair) == paused_hp, "recovered team stops remote repair");
-		require(repair.submit(102, order(repair, "assign", "repair/team:team", 102)), "reassign repair party");
+		require(fixture_native_submit(repair, 102, order(repair, "assign", "repair/team:team", 102)),
+		        "reassign repair party");
 		ticks(repair, 2);
-		require(repair.submit(101, order(repair, "send")), "redeploy repair party");
+		require(fixture_native_submit(repair, 101, order(repair, "send")), "redeploy repair party");
 		ticks(repair, 200);
 		require(repaired_compartment(repair).at("hp") == 100 && !repaired_compartment(repair).at("disabled") &&
 		            repair.save()["away_missions"][0]["outcome"] == "complete:repaired",
@@ -600,24 +608,25 @@ int main(int argc, char **argv)
 			for (const auto &ctrl : observation->gameplay.at("controllers"))
 				if (ctrl.at("id") == "team")
 					c.generation = ctrl.at("generation");
-			return staging.submit(102, c);
+			return fixture_native_submit(staging, 102, c);
 		};
 		require(team_enabled(0), "disable team before reservation");
 		ticks(staging, 1);
-		staging.submit(101, order(staging, "open"));
+		fixture_native_submit(staging, 101, order(staging, "open"));
 		ticks(staging, 1);
-		staging.submit(102, order(staging, "assign", "repair/team:team", 102));
+		fixture_native_submit(staging, 102, order(staging, "assign", "repair/team:team", 102));
 		ticks(staging, 1);
-		staging.submit(101, order(staging, "transport", "transport"));
+		fixture_native_submit(staging, 101, order(staging, "transport", "transport"));
 		ticks(staging, 12);
-		require(!staging.submit(101, order(staging, "send")), "disabled team cannot walk to transport");
-		require(staging.submit(102, order(staging, "withdraw", "repair", 102)), "release disabled team");
+		require(!fixture_native_submit(staging, 101, order(staging, "send")), "disabled team cannot walk to transport");
+		require(fixture_native_submit(staging, 102, order(staging, "withdraw", "repair", 102)),
+		        "release disabled team");
 		ticks(staging, 1);
 		require(team_enabled(1), "enable released team");
 		ticks(staging, 1);
-		staging.submit(102, order(staging, "assign", "repair/team:team", 102));
+		fixture_native_submit(staging, 102, order(staging, "assign", "repair/team:team", 102));
 		ticks(staging, 12);
-		require(staging.submit(101, order(staging, "send")), "enabled team reaches transport");
+		require(fixture_native_submit(staging, 101, order(staging, "send")), "enabled team reaches transport");
 		auto ranged = away_fixture();
 		ranged["entities"][0]["systems"]["transport"]["range_mm"] = 1000;
 		auto ranged_catalog = load(ranged);
@@ -627,13 +636,13 @@ int main(int argc, char **argv)
 		far.claim(101, far_ship, "drive");
 		far.claim(102, far_ship, "observer");
 		ticks(far, 4);
-		far.submit(101, order(far, "open"));
+		fixture_native_submit(far, 101, order(far, "open"));
 		ticks(far, 1);
-		far.submit(102, order(far, "assign", "repair/team:team", 102));
+		fixture_native_submit(far, 102, order(far, "assign", "repair/team:team", 102));
 		ticks(far, 1);
-		far.submit(101, order(far, "transport", "transport"));
+		fixture_native_submit(far, 101, order(far, "transport", "transport"));
 		ticks(far, 12);
-		require(far.submit(101, order(far, "send")), "queue out-of-range transfer");
+		require(fixture_native_submit(far, 101, order(far, "send")), "queue out-of-range transfer");
 		ticks(far, 5);
 		require(far.save()["away_missions"][0]["transfer"] == 0, "no out-of-range displacement");
 
@@ -655,24 +664,26 @@ int main(int argc, char **argv)
 			require(protected_world.claim(101, crew, "drive") && protected_world.claim(102, crew, "observer"),
 			        "claim shield-blocked transport seats");
 			ticks(protected_world, 4);
-			require(protected_world.submit(101, order(protected_world, "open")), "open protected target mission");
+			require(fixture_native_submit(protected_world, 101, order(protected_world, "open")),
+			        "open protected target mission");
 			ticks(protected_world, 1);
-			require(protected_world.submit(102, order(protected_world, "assign", "repair/team:team", 102)),
-			        "stage team for shield-blocked target");
+			require(
+			    fixture_native_submit(protected_world, 102, order(protected_world, "assign", "repair/team:team", 102)),
+			    "stage team for shield-blocked target");
 			ticks(protected_world, 1);
-			require(protected_world.submit(101, order(protected_world, "transport", "transport")),
+			require(fixture_native_submit(protected_world, 101, order(protected_world, "transport", "transport")),
 			        "select displacement transport");
 			ticks(protected_world, 12);
 			require(board(protected_world)[0]["blocker"] == "Lower shields for displacement",
 			        "non-equipment shield must block the ordinary displacement path");
-			require(!protected_world.submit(101, order(protected_world, "send")),
+			require(!fixture_native_submit(protected_world, 101, order(protected_world, "send")),
 			        "shielded target refuses normal displacement command");
 			require(protected_world.save()["away_missions"][0]["transfer"] == 0,
 			        "shielded target cannot advance displacement");
 			ticks(protected_world, 13);
 			require(board(protected_world)[0]["blocker"] == "",
 			        "expired scenario contribution releases displacement blocker");
-			require(protected_world.submit(101, order(protected_world, "send")),
+			require(fixture_native_submit(protected_world, 101, order(protected_world, "send")),
 			        "normal displacement admitted after scenario shield expiry");
 			ticks(protected_world, 4);
 			require(protected_world.save()["away_missions"][0]["phase"] == "deployed",

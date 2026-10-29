@@ -11,11 +11,11 @@ not loading-screen artwork, lighting or the Workshop map grid.
 
 Source ZIPs and compiled DAT packages share this logical content format. Workshop packages both directly; see [packaging and loading assets](asset-loading.md) for encoding, limits and preload declarations.
 
-This page describes the foundation fields and legacy definition boundary. Current fitted equipment uses [gameplay content](gameplay-content.md); decision ownership, command channels, complexity profiles and save compatibility use [Console Controllers](controller-content.md). All live gameplay uses the Controller runtime, including unambiguous converted foundation definitions.
+This page describes the foundation fields and legacy definition boundary. Current fitted equipment uses [gameplay content](gameplay-content.md); decision ownership, command channels, complexity profiles and save compatibility use [Console Controllers](controller-content.md). All live gameplay uses shared-widget Controllers. Player Console layouts require schema 2; there is no implicit ownership converter.
 
 This is schema 1 for the foundation vocabulary, not the complete GDD equipment schema. Packs contain `manifest.json`, `definitions.json` and PNG files under `assets/`. Packs use ZIP; their identity is SHA-256 of the exact archive bytes. Limits are 64 MiB archived, 16 MiB per entry, 64 MiB expanded and 1024 entries. File paths must be relative, shorter than 512 bytes, and have no trailing slash, traversal, backslashes or drive prefixes. Archives are decoded into bounded memory, never extracted to paths supplied by the archive.
 
-Definitions schema 2 also supports explicit Stations. Each entity's `stations` array contains `{id, consoles:[...]}`; each Console contains `{id, definition, systems:[...], feeds:[...]}`. `definition` resolves a Console layout. In legacy definitions without `control_layout`, `systems` assigns exclusive ownership of fitted `engine`, `steering` and/or `radar`; `feeds` adds read access. Ownership also grants its own feed and supplies the conversion boundary's command owner. Read-only Consoles may have empty `systems`. Station and Console identities are stable strings, unique within their entity, with at most 32 of each. Explicit layouts instead declare Controller command subscriptions separately from observation ownership.
+Definitions schema 2 also supports explicit Stations. Each entity's `stations` array contains `{id, consoles:[...]}`; each Console contains `{id, definition, systems:[...], feeds:[...]}`. `definition` resolves a Console layout. `systems` and `feeds` expose fitted observations. Schema-2 shared-widget instances declare command ownership separately through explicit equipment roles and responsibility levels. Read-only Consoles may have empty `systems`. Station and Console identities are stable strings, unique within their entity, with at most 32 of each. Explicit layouts instead declare Controller command subscriptions separately from observation ownership.
 
 An explicit Station entity cannot also use legacy `console` or `controller`. Legacy `controllers` may map fitted System names to Controller-context trees using the generated owned channels. At load, unambiguous ownership converts to Console-owned Controllers and explicit physical subscriptions. Timed object-state trees and whole-entity `controller` policies are retired; author explicit Controller layouts and hierarchical trees. A legacy single Console normalizes to `main`. System-context decision trees, summary-intent presets and ambiguous ownership require explicit migration and are refused with diagnostics. There is no separate legacy or NPC runtime.
 
@@ -95,15 +95,13 @@ instances are accepted per entity. Console `systems` and `feeds` bind exact
 identities. Explicit Controller command channels bind physical consumers separately
 from their observation-owning Console; two engines may consume one shared throttle.
 
-Widgets may select an exact `controller` and `channel`; older `system` widgets
-must resolve a unique compatible owned channel. Legacy unqualified commands are accepted only
-for converted definitions with exactly one owned matching channel. Feed access grants no command
+Widgets select an exact `controller` and `channel`. Scalar command envelopes require that owner, channel and its current generation; unqualified commands are refused. Feed access grants no command
 authority. The capability masks retained on older interfaces are presentation
 hints, not the instance command boundary.
 
 Restricted crew packs retain only public instance kind/bounds and verified
 Console/widget bindings and public Controller channel/profile metadata, without private
-tree programs or other machinery definitions. World/session saves use schema 13 with
+tree programs or other machinery definitions. World/session saves use schema 34 with
 Controller continuation; old authority formats are refused. Packet schema 5 refuses
 older peers before interpreting commands or projections.
 

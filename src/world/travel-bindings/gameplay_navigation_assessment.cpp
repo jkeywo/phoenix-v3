@@ -52,11 +52,13 @@ auto Runtime::refresh_navigation_blackboard(EntityId id) -> void
 	std::int64_t port_acceleration = 0, starboard_acceleration = 0, port_cap = 0, starboard_cap = 0;
 	std::set<std::string> delegated_lateral;
 	for (const auto &owner : ship.get<EntityControls>().controllers)
-		if (!owner.human)
-			for (const auto &channel : owner.definition.commands)
-				if (channel.action == OperatingAction::Lateral)
-					for (auto consumer : channel.consumers)
-						delegated_lateral.insert(ship.get<EquipmentIndex>().values[consumer].get<Equipment>().id);
+		for (std::size_t i = 0; i < owner.definition.commands.size(); ++i)
+		{
+			const auto &channel = owner.definition.commands[i];
+			if (channel.action == OperatingAction::Lateral && !controller_command_human(owner, i))
+				for (auto consumer : channel.consumers)
+					delegated_lateral.insert(ship.get<EquipmentIndex>().values[consumer].get<Equipment>().id);
+		}
 	for (const auto &system : observation.systems)
 	{
 		if (!delegated_lateral.contains(system.id) || !system.enabled ||

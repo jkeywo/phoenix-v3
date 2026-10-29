@@ -93,7 +93,6 @@ EntityAssembly compile_world_entity(const Catalog &source, const Catalog &conten
 	if (definition.contains("control_layout"))
 	{
 		result.layout = ability_layout;
-		result.layout->converted = !source.entities.at(name).contains("control_layout");
 		result.controller_templates = compile_controller_templates(content, *result.layout);
 	}
 	for (const auto &publication : definition.value("publications", Json::array()))

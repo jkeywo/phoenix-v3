@@ -81,11 +81,43 @@ using phoenix::test::archive;
 using phoenix::test::load;
 Json explicit_fixture(Json source)
 {
-	const auto compiled = convert_controller_content(load(source));
+	const auto compiled = load(source);
 	for (auto &entity : source["entities"])
 		entity = compiled.entities.at(entity.at("id").get<std::string>());
+
+	// Keep this authoring builder editable before fixture_pack emits schema 2.
+	// Binding comes from the production shared-widget compiler.
+	for (auto &entity : source["entities"])
+		if (entity.contains("control_layout"))
+		{
+			const auto id = entity.at("id").get<std::string>();
+			const auto layout = compile_controllable_layout(compiled, id);
+			auto &authored = entity["control_layout"];
+			for (auto &instance : authored["controllers"])
+			{
+				auto row = bind_control_widget(compile_control_widget(compiled, instance.at("widget")), instance);
+				for (const auto *key : {"widget", "equipment", "star_levels", "operations", "data_placement"})
+					row.erase(key);
+				instance = row;
+			}
+			for (std::size_t p = 0; p < layout.profiles.size(); ++p)
+			{
+				auto &profile = authored["profiles"][p];
+				profile["consoles"] = Json::object();
+				for (std::size_t c = 0; c < layout.controllers.size(); ++c)
+				{
+					const auto &controller = layout.controllers[c];
+					profile["consoles"][controller.console][layout.profiles[p].human[c] ? "human" : "ai"].push_back(
+					    controller.id);
+				}
+			}
+			authored["schema"] = 1;
+		}
 	// The converted fittings reference the explicit catalogue produced by the
 	// synthetic fixture materialiser; retain those definitions with the fittings.
+	source["control_widgets"] = Json::array();
+	for (const auto &[id, widget] : compiled.control_widgets)
+		source["control_widgets"].push_back(widget);
 	source["effects"] = Json::array();
 	for (const auto &[id, effect] : compiled.effects)
 		source["effects"].push_back(effect);
@@ -148,7 +180,7 @@ std::int64_t paid(const World &world)
 	for (const auto console : {101u, 102u, 103u, 104u})
 		if (const auto observed = world.observe(console))
 			for (const auto &item : observed->systems)
-				if (item.controlled && counted.insert(item.id).second && item.telemetry.contains("used_power"))
+				if (counted.insert(item.id).second && item.telemetry.contains("used_power"))
 					total += item.telemetry.at("used_power") / World::ticks_per_second;
 	return total;
 }
@@ -1954,24 +1986,43 @@ void semantic_controls()
 	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
 	ConsoleModel model;
 	model.refresh(session);
-	require(model.command("speed_mm_s", 1000, "drive") && model.command("heading_mdeg", 33000, "drive") &&
-	            model.system_request("drive", "speed_mm_s") == 1000 &&
-	            model.system_request("drive", "heading_mdeg") == 33000,
+	const auto binding = [&](const std::string &action)
+	{
+		std::string result;
+		const auto observed = model.observation();
+		for (const auto &owner : observed->gameplay.at("controllers"))
+			for (const auto &[channel, field] : owner.at("commands").items())
+				if (field.at("action") == action &&
+				    std::find(field.at("consumers").begin(), field.at("consumers").end(), Json("drive")) !=
+				        field.at("consumers").end())
+				{
+					require(result.empty(), "Synthetic semantic action has one widget channel");
+					result = "controller/" + owner.at("id").get<std::string>() + "/" + channel;
+				}
+		require(!result.empty(), "Synthetic semantic widget channel exists");
+		return result;
+	};
+
+	require(model.command("speed_mm_s", 1000, binding("speed_mm_s")) &&
+	            model.command("heading_mdeg", 33000, binding("heading_mdeg")) &&
+	            model.system_request(binding("speed_mm_s"), "speed_mm_s") == 1000 &&
+	            model.system_request(binding("heading_mdeg"), "heading_mdeg") == 33000,
 	        "composite flight System must retain separate pending feedback for speed and heading writes in one tick");
 	session->tick();
 	model.refresh(session);
-	require(model.system_request("drive", "speed_mm_s") == 1000 &&
-	            model.system_request("drive", "heading_mdeg") == 33000,
+	require(model.system_request(binding("speed_mm_s"), "speed_mm_s") == 1000 &&
+	            model.system_request(binding("heading_mdeg"), "heading_mdeg") == 33000,
 	        "committed composite-channel feedback must retain each setting in its original units");
 	require(!control_id(model, "heading_mdeg", 50999).empty(),
 	        "composite Engine heading increment must use desired heading rather than its independent speed request");
-	require(model.system_minimum("drive") == -5000 && model.set_speed_fraction(0, "drive"),
+	require(model.system_minimum(binding("speed_mm_s")) == -5000 && model.set_speed_fraction(0, binding("speed_mm_s")),
 	        "reverse throttle semantics must map their lower endpoint to the authored reverse bound");
 	session->tick();
 	model.refresh(session);
-	require(model.system_request("drive") == -5000,
+	require(model.system_request(binding("speed_mm_s")) == -5000,
 	        "reverse slider command must commit through the live production session");
-	require(model.command("assisted", 0, "drive"), "the semantic model must admit the assisted/manual control");
+	require(model.command("assisted", 0, binding("assisted")),
+	        "the semantic model must admit the assisted/manual control");
 	session->tick();
 	model.refresh(session);
 	std::int64_t positive = 0;
@@ -2014,7 +2065,7 @@ void semantic_controls()
 	model.refresh(session);
 	require(model.announcement() == "Helm: Notice: Supply 7",
 	        "a newer delivery sequence must announce even when its translated text matches an older report");
-	require(model.command("longitudinal_thrust", positive, "drive"),
+	require(model.command("longitudinal_thrust", positive, binding("longitudinal_thrust")),
 	        "a manual axis can remain active before an explicit authority handover");
 	session->tick();
 	model.refresh(session);

@@ -1,3 +1,4 @@
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -133,6 +134,7 @@ Catalog scenario_fixture(bool limited_instances = false, bool limited_actions = 
 	if (unsupported_required_field)
 		data["knowledge"]["schemas"][0]["fields"].push_back(
 		    {{"id", "extra"}, {"type", "integer"}, {"required", true}, {"publishable", true}});
+	phoenix::test::materialise_fixture_widgets(data);
 	pack.files["definitions.json"] = json_bytes(data);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 	return resolve_packs({read_pack(write_pack(pack))});
@@ -409,6 +411,7 @@ void repeated_sequence()
 		{"id":"run","entry":[{"action":"start_objective_sequence","arguments":["patrol",{"observation":"self.entity"},"route"]}]}]}])");
 	PackDraft pack;
 	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
+	phoenix::test::materialise_fixture_widgets(data);
 	pack.files["definitions.json"] = json_bytes(data);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 	const auto catalog = resolve_packs({read_pack(write_pack(pack))});

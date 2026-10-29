@@ -193,7 +193,7 @@ void shoot(World &w)
 		if (c["id"] == "gun")
 		{
 			OperatingCommand o{1, "", 2, "", "gun", "target", c.at("generation")};
-			require(w.submit(201, o), "fire at casualty fixture");
+			require(fixture_native_submit(w, 201, o), "fire at casualty fixture");
 			return;
 		}
 	throw std::runtime_error("missing gun");
@@ -201,15 +201,18 @@ void shoot(World &w)
 void deploy_clinical_party(World &w)
 {
 	ticks(w, 4);
-	require(w.submit(101, away_order(w, "open")), "open clinical regression mission");
+	require(fixture_native_submit(w, 101, away_order(w, "open")), "open clinical regression mission");
 	ticks(w, 1);
-	require(w.submit(102, away_order(w, "assign", "repair/team:team", 102, "team")), "stage repair team");
+	require(fixture_native_submit(w, 102, away_order(w, "assign", "repair/team:team", 102, "team")),
+	        "stage repair team");
 	ticks(w, 1);
-	require(w.submit(102, away_order(w, "assign", "medical/team:medical", 102, "medical")), "stage clinical team");
+	require(fixture_native_submit(w, 102, away_order(w, "assign", "medical/team:medical", 102, "medical")),
+	        "stage clinical team");
 	ticks(w, 1);
-	require(w.submit(101, away_order(w, "transport", "transport", 101, "transport")), "select clinical transport");
+	require(fixture_native_submit(w, 101, away_order(w, "transport", "transport", 101, "transport")),
+	        "select clinical transport");
 	ticks(w, 7);
-	require(w.submit(101, away_order(w, "send")), "deploy clinical regression party");
+	require(fixture_native_submit(w, 101, away_order(w, "send")), "deploy clinical regression party");
 	for (int i = 0; i < 20 && w.observe(101)->gameplay.at("away_missions")[0]["phase"] != "deployed"; ++i)
 		w.tick();
 	require(w.observe(101)->gameplay.at("away_missions")[0]["phase"] == "deployed",
@@ -380,12 +383,13 @@ void assisted_team_destinations(bool widgets = false)
 	    projected.gameplay.at("teams") == world.observe(102)->gameplay.at("teams") &&
 	        eligible_console_command(projected, Json{{"widgets", Json::array()}}, Json::object(), medical).has_value(),
 	    "Remote one-star projection admits department destination authority on an AI team Controller");
-	require(!world.submit(102, send("medical", "treat/bridge")),
+	require(!fixture_native_submit(world, 102, send("medical", "treat/bridge")),
 	        "Destination authority does not grant detailed clinical orders");
 	auto foreign = repair;
 	foreign.controller = "transport";
-	require(!world.submit(102, foreign), "Another Controller cannot command the repair team");
-	require(world.submit(102, medical) && world.submit(102, repair), "Station chooses both team destinations manually");
+	require(!fixture_native_submit(world, 102, foreign), "Another Controller cannot command the repair team");
+	require(fixture_native_submit(world, 102, medical) && fixture_native_submit(world, 102, repair),
+	        "Station chooses both team destinations manually");
 	world.tick();
 	require(officer(world, 2, 0)["treatment"] == 0, "Medical work waits for physical compartment arrival");
 	World resumed;
@@ -404,7 +408,8 @@ void assisted_team_destinations(bool widgets = false)
 	require(repair_state["location"] == 0 && repair_state["destination"] == 0 &&
 	            saved_body(finished, 2)["combat"]["compartments"][1]["hp"] < 100,
 	        "A finished team stays at its manual destination instead of chasing another damaged room");
-	require(world.submit(102, send("medical", "auto/workshop")), "Reposition Medical to an empty compartment");
+	require(fixture_native_submit(world, 102, send("medical", "auto/workshop")),
+	        "Reposition Medical to an empty compartment");
 	ticks(world, 20);
 	const auto repositioned = world.observe(102);
 	for (const auto &team : repositioned->gameplay.at("teams"))
@@ -415,30 +420,32 @@ void assisted_team_destinations(bool widgets = false)
 	{
 		World selected;
 		selected.restore(catalog, world.save());
-		require(selected.submit(102, {2, "preset", 1}), "select mixed two-star department workload");
+		require(fixture_native_submit(selected, 102, {2, "preset", 1}), "select mixed two-star department workload");
 		selected.tick();
-		require(selected.submit(101, away_order(selected, "open")), "activate mixed-control Away mission");
+		require(fixture_native_submit(selected, 101, away_order(selected, "open")),
+		        "activate mixed-control Away mission");
 		ticks(selected, 2);
 		require(selected.save().at("away_missions")[0].at("assignments").empty(),
 		        "AI waits for human department contribution at two stars");
-		require(!selected.submit(102, away_order(selected, "assign", "repair/team:team", 102, "team")),
+		require(!fixture_native_submit(selected, 102, away_order(selected, "assign", "repair/team:team", 102, "team")),
 		        "high-level Team selection does not grant manual transport manifest control");
 		auto choose = away_order(selected, "select", "repair/team:team", 102, "team");
 		const auto remote = network::read_observation(network::observation_json(*selected.observe(102)), catalog);
 		require(
 		    eligible_console_command(remote, Json{{"widgets", Json::array()}}, Json::object(), choose).has_value() &&
-		        selected.submit(102, choose),
+		        fixture_native_submit(selected, 102, choose),
 		    "human Team selection is admitted through the permitted remote projection");
 		selected.tick();
 		require(selected.save().at("away_missions")[0].at("assignments").at("repair") == "team:team",
 		        "automatic preparation retains the human-selected Team");
-		require(selected.submit(102, away_order(selected, "contribute", "0", 102, "department")),
+		require(fixture_native_submit(selected, 102, away_order(selected, "contribute", "0", 102, "department")),
 		        "department widget revokes its contribution");
 		selected.tick();
 		require(selected.save().at("away_missions")[0].at("assignments").empty(),
 		        "revocation withdraws departmental assets without borrowing another operation's authority");
 	}
-	require(world.submit(101, away_order(world, "open")), "Activate away work with manual onboard destinations");
+	require(fixture_native_submit(world, 101, away_order(world, "open")),
+	        "Activate away work with manual onboard destinations");
 	ticks(world, 6);
 	const auto manifest = world.save().at("away_missions")[0].at("assignments");
 	require(manifest.at("repair") == "team:team" && manifest.at("medical") == "team:medical",
@@ -479,7 +486,7 @@ void team_effect_actions()
 	World world;
 	world.load(catalog, "test.map", {{"crew", "test.away"}});
 	claim(world);
-	require(world.submit(102, command(world, "order", "survey/bridge")), "start team effect order");
+	require(fixture_native_submit(world, 102, command(world, "order", "survey/bridge")), "start team effect order");
 	world.tick();
 	const auto value = [](const World &w, const std::string &property, const std::string &equipment = {},
 	                      std::int64_t compartment = -1)
@@ -559,7 +566,8 @@ void clinical_execution_regressions(Json &trace)
 		World onboard;
 		onboard.load(catalog, "test.map", {{"crew", "test.away"}});
 		claim(onboard);
-		require(onboard.submit(102, command(onboard, "order", "treat/bridge")), "order retained onboard treatment");
+		require(fixture_native_submit(onboard, 102, command(onboard, "order", "treat/bridge")),
+		        "order retained onboard treatment");
 		onboard.tick();
 		require(officer(onboard, 2, 0)["treatment"] == 0, "onboard treatment waits for physical arrival");
 		for (int i = 0; i < 10 && officer(onboard, 2, 0)["treatment"] == 0; ++i)
@@ -681,16 +689,16 @@ void patient_selection_regressions()
 	patients[0]["stabilised"] = true;
 	World recovery;
 	recovery.restore(catalog, initial);
-	require(!recovery.submit(102, command(recovery, "order", "recover/bridge/chief")),
+	require(!fixture_native_submit(recovery, 102, command(recovery, "order", "recover/bridge/chief")),
 	        "individual priority must match recovery order filter");
-	require(recovery.submit(102, command(recovery, "order", "recover/bridge/nav")),
+	require(fixture_native_submit(recovery, 102, command(recovery, "order", "recover/bridge/nav")),
 	        "select stabilised recovery patient");
 	finish_clinical_order(recovery);
 	require(officer(recovery, 2, 0)["facility"] == "bay" && officer(recovery, 2, 1)["stabilised"] == false,
 	        "recovery escorts stabilised patient despite higher-severity unstabilised neighbour");
 	World stabilise;
 	stabilise.restore(catalog, initial);
-	require(stabilise.submit(102, command(stabilise, "order", "stabilise/bridge/minor")),
+	require(fixture_native_submit(stabilise, 102, command(stabilise, "order", "stabilise/bridge/minor")),
 	        "a broad order filter cannot override stabilisation action restrictions");
 	finish_clinical_order(stabilise);
 	require(officer(stabilise, 2, 1)["stabilised"] == true && officer(stabilise, 2, 2)["condition"] == "minor" &&
@@ -698,8 +706,10 @@ void patient_selection_regressions()
 	        "stabilisation completes without treating or waiting for minor/excluded patients");
 	World minor;
 	minor.restore(catalog, initial);
-	require(!minor.submit(102, command(minor, "order", "minor/bridge/chief")), "minor order rejects severe priority");
-	require(minor.submit(102, command(minor, "order", "minor/bridge/minor")), "prioritise one eligible minor patient");
+	require(!fixture_native_submit(minor, 102, command(minor, "order", "minor/bridge/chief")),
+	        "minor order rejects severe priority");
+	require(fixture_native_submit(minor, 102, command(minor, "order", "minor/bridge/minor")),
+	        "prioritise one eligible minor patient");
 	minor.tick();
 	for (int i = 0; i < 10 && officer(minor, 2, 2)["treatment"] == 0; ++i)
 		minor.tick();
@@ -712,9 +722,10 @@ void patient_selection_regressions()
 	        "filtered treatment completes while excluded severe casualty remains");
 	World triage;
 	triage.restore(catalog, initial);
-	require(!triage.submit(102, command(triage, "order", "treat/bridge/nav")),
+	require(!fixture_native_submit(triage, 102, command(triage, "order", "treat/bridge/nav")),
 	        "treatment excludes stabilised priority");
-	require(triage.submit(102, command(triage, "order", "treat/bridge/minor")), "order mixed-severity triage");
+	require(fixture_native_submit(triage, 102, command(triage, "order", "treat/bridge/minor")),
+	        "order mixed-severity triage");
 	triage.tick();
 	for (int i = 0; i < 15 && officer(triage, 2, 1)["stabilised"] == false; ++i)
 		triage.tick();
@@ -750,7 +761,8 @@ void property_work_regressions()
 		auto saved = world.save();
 		saved_body(saved, 2)["combat"]["systems"]["medical"]["condition"] = "injured";
 		world.restore(catalog, saved);
-		require(world.submit(102, command(world, "order", "treat/workshop/nav")), "order additive clinical work");
+		require(fixture_native_submit(world, 102, command(world, "order", "treat/workshop/nav")),
+		        "order additive clinical work");
 		world.tick();
 		if (delta > 0)
 		{
@@ -808,7 +820,8 @@ void property_continuation_trace(Json &trace)
 	World world;
 	world.load(catalog, "test.map", {{"crew", "test.away"}});
 	claim(world);
-	require(world.submit(102, command(world, "order", "treat/workshop/nav")), "order timed-effect clinical work");
+	require(fixture_native_submit(world, 102, command(world, "order", "treat/workshop/nav")),
+	        "order timed-effect clinical work");
 	world.tick();
 	for (int i = 0; i < 10 && officer(world, 2, 0)["treatment"] == 0; ++i)
 		world.tick();
@@ -823,7 +836,8 @@ void property_continuation_trace(Json &trace)
 	{
 		OperatingCommand relieve{2, "personnel.relieve", 0, "medic"};
 		relieve.generation = current->observe(102)->gameplay.at("personnel").at("revision");
-		require(current->submit(102, relieve), "relieve clinical maintained source during timed effect");
+		require(fixture_native_submit(*current, 102, relieve),
+		        "relieve clinical maintained source during timed effect");
 		current->tick();
 	}
 	const auto relieved = officer(world, 2, 0)["treatment"].get<std::int64_t>();
@@ -885,7 +899,6 @@ int main(int argc, char **argv)
 {
 	try
 	{
-		assisted_team_destinations();
 		assisted_team_destinations(true);
 		team_effect_actions();
 		finite_clinical_jobs();
@@ -909,15 +922,15 @@ int main(int argc, char **argv)
 			World assigned;
 			assigned.load(catalog, "test.map", {{"crew", "test.away"}});
 			claim(assigned);
-			require(assigned.submit(102, command(assigned, "order", "auto/workshop")),
+			require(fixture_native_submit(assigned, 102, command(assigned, "order", "auto/workshop")),
 			        "One-star compartment assignment admitted");
 			ticks(assigned, 30);
 			require(officer(assigned, 2, 1)["condition"] == "severe" &&
 			            !officer(assigned, 2, 1)["stabilised"].get<bool>(),
 			        "Assigned Medical does not leave its compartment for another casualty");
-			require(!assigned.submit(102, command(assigned, "order", "treat/bridge")),
+			require(!fixture_native_submit(assigned, 102, command(assigned, "order", "treat/bridge")),
 			        "One star rejects direct clinical orders despite team authority");
-			require(assigned.submit(102, command(assigned, "order", "auto/bridge")),
+			require(fixture_native_submit(assigned, 102, command(assigned, "order", "auto/bridge")),
 			        "Reassign Medical to the casualty compartment");
 			ticks(assigned, 20);
 			World resumed;
@@ -929,7 +942,7 @@ int main(int argc, char **argv)
 			        "Assigned Medical chooses treatment then recovery");
 			require(assigned.observe(102)->gameplay.at("teams")[0].at("assigned_compartment") == 0,
 			        "Clinical assignment survives the recovery trip");
-			require(assigned.submit(102, {2, "preset", static_cast<std::int64_t>(clinical)}),
+			require(fixture_native_submit(assigned, 102, {2, "preset", static_cast<std::int64_t>(clinical)}),
 			        "Select two-star clinical workload");
 			ticks(assigned, 1);
 			require(assigned.observe(102)->gameplay.at("teams")[0].at("patient_control") == true,
@@ -950,12 +963,12 @@ int main(int argc, char **argv)
 			assisted.load(load(source), "test.map", {{"crew", "test.away"}});
 			claim(assisted);
 			ticks(assisted, 5);
-			require(!assisted.submit(102, command(assisted, "order", "treat/bridge")),
+			require(!fixture_native_submit(assisted, 102, command(assisted, "order", "treat/bridge")),
 			        "One-star Medical refuses manual clinical orders");
 			ticks(assisted, 200);
 			require(officer(assisted, 2, 1)["condition"] == "healthy",
 			        "Assisted Medical treats and recovers a severe casualty automatically");
-			require(assisted.submit(101, away_order(assisted, "open")), "Open assisted away mission");
+			require(fixture_native_submit(assisted, 101, away_order(assisted, "open")), "Open assisted away mission");
 			ticks(assisted, 1);
 			require(assisted.save().at("away_missions")[0].at("assignments").at("medical") == "team:medical",
 			        "AI-operated Medical supplies its department's away contribution automatically");
@@ -994,7 +1007,8 @@ int main(int argc, char **argv)
 			World closed;
 			closed.load(catalog, "test.map", {{"crew", "test.away"}});
 			claim(closed);
-			require(closed.submit(102, command(closed, "order", "treat/bridge")), "Clinical order begins real travel");
+			require(fixture_native_submit(closed, 102, command(closed, "order", "treat/bridge")),
+			        "Clinical order begins real travel");
 			ticks(closed, 1);
 			auto route = [&](const std::string &mode)
 			{
@@ -1008,11 +1022,11 @@ int main(int argc, char **argv)
 						c.generation = ctrl.at("generation");
 				return c;
 			};
-			require(closed.submit(102, route("close")), "Close a route during clinical transit");
+			require(fixture_native_submit(closed, 102, route("close")), "Close a route during clinical transit");
 			ticks(closed, 12);
 			require(officer(closed, 2, 0)["treatment"] == 0 && officer(closed, 2, 0)["condition"] == "minor",
 			        "Clinical teams cannot cross a deliberate delivery-route seal");
-			require(closed.submit(102, route("open")), "Authorise the shared route reopening");
+			require(fixture_native_submit(closed, 102, route("open")), "Authorise the shared route reopening");
 			ticks(closed, 20);
 			require(officer(closed, 2, 0)["condition"] == "healthy",
 			        "Clinical work resumes after authorised reopening");
@@ -1036,10 +1050,10 @@ int main(int argc, char **argv)
 		        "remote client admits a permitted generic team order");
 		require(!eligible_console_command(*w.observe(101), Json::object(), Json::object(), survey),
 		        "remote client refuses foreign team authority");
-		require(w.submit(102, survey), "custom authored movement order admitted");
-		require(!w.submit(101, survey), "foreign Station cannot order medical team");
+		require(fixture_native_submit(w, 102, survey), "custom authored movement order admitted");
+		require(!fixture_native_submit(w, 101, survey), "foreign Station cannot order medical team");
 		ticks(w, 2);
-		require(!w.submit(102, survey), "stale order revision refused");
+		require(!fixture_native_submit(w, 102, survey), "stale order revision refused");
 		auto snapshot = w.save();
 		World resumed;
 		resumed.restore(catalog, snapshot);
@@ -1047,7 +1061,8 @@ int main(int argc, char **argv)
 		ticks(w, 4);
 		ticks(resumed, 4);
 		require(w.save() == resumed.save(), "custom order traversal and tree resume identically");
-		require(w.submit(102, command(w, "order", "treat/bridge")), "compartment triage order admitted");
+		require(fixture_native_submit(w, 102, command(w, "order", "treat/bridge")),
+		        "compartment triage order admitted");
 		ticks(w, 4);
 		auto mid = w.save();
 		World midway;
@@ -1057,7 +1072,8 @@ int main(int argc, char **argv)
 		ticks(midway, 10);
 		require(w.save() == midway.save(), "partial treatment continuation matches");
 		require(officer(w, 2, 0)["condition"] == "healthy", "minor injury heals with a leaderless medical team");
-		require(w.submit(102, command(w, "order", "treat/workshop")), "severe casualty triage admitted");
+		require(fixture_native_submit(w, 102, command(w, "order", "treat/workshop")),
+		        "severe casualty triage admitted");
 		ticks(w, 10);
 		require(officer(w, 2, 1)["condition"] == "severe" && officer(w, 2, 1)["stabilised"] == true,
 		        "field care stabilises severe injury without silently healing");
@@ -1065,7 +1081,7 @@ int main(int argc, char **argv)
 		saved_body(moved, 2)["personnel"]["officers"][1]["location"] = 0;
 		w.restore(catalog, moved);
 		claim(w);
-		require(w.submit(102, command(w, "order", "recover/bridge")), "facility recovery admitted");
+		require(fixture_native_submit(w, 102, command(w, "order", "recover/bridge")), "facility recovery admitted");
 		ticks(w, 7);
 		snapshot = w.save();
 		World facility;
@@ -1165,21 +1181,22 @@ int main(int argc, char **argv)
 		require(eligible_console_command(*away.observe(101), Json::object(), Json::object(), away_order(away, "open"))
 		            .has_value(),
 		        "remote client admits Dispatch mission control");
-		require(away.submit(101, away_order(away, "open")), "open medical mission");
+		require(fixture_native_submit(away, 101, away_order(away, "open")), "open medical mission");
 		ticks(away, 1);
-		require(!away.submit(102, away_order(away, "assign", "repair/team:medical", 102, "medical")),
+		require(!fixture_native_submit(away, 102, away_order(away, "assign", "repair/team:medical", 102, "medical")),
 		        "medical team cannot fill required repair slot");
-		require(away.submit(102, away_order(away, "assign", "repair/team:team", 102, "team")),
+		require(fixture_native_submit(away, 102, away_order(away, "assign", "repair/team:team", 102, "team")),
 		        "assign required engineering team");
 		ticks(away, 1);
-		require(away.submit(102, away_order(away, "assign", "medical/team:medical", 102, "medical")),
+		require(fixture_native_submit(away, 102, away_order(away, "assign", "medical/team:medical", 102, "medical")),
 		        "assign optional clinical team");
 		ticks(away, 1);
-		require(away.submit(101, away_order(away, "transport", "transport", 101, "transport")), "bind transport");
+		require(fixture_native_submit(away, 101, away_order(away, "transport", "transport", 101, "transport")),
+		        "bind transport");
 		ticks(away, 7);
-		require(!away.submit(102, command(away, "order", "treat/bridge")),
+		require(!fixture_native_submit(away, 102, command(away, "order", "treat/bridge")),
 		        "away reservation refuses onboard clinical order");
-		require(away.submit(101, away_order(away, "send")), "send real medical party");
+		require(fixture_native_submit(away, 101, away_order(away, "send")), "send real medical party");
 		ticks(away, 5);
 		auto away_saved = away.save();
 		World away_resume;
@@ -1189,7 +1206,7 @@ int main(int argc, char **argv)
 		ticks(away_resume, 12);
 		require(away.save() == away_resume.save(), "away clinical traversal and work resume identically");
 		require(officer(away, 1, 0)["condition"] == "healthy", "deployed medical team heals target ship officer");
-		require(away.submit(101, away_order(away, "recall")), "recall clinical party");
+		require(fixture_native_submit(away, 101, away_order(away, "recall")), "recall clinical party");
 		ticks(away, 5);
 		require(away.observe(101)->gameplay.at("away_missions")[0]["phase"] == "recovered",
 		        "medical party needs and completes physical recall");
@@ -1223,7 +1240,7 @@ int main(int argc, char **argv)
 					if (c["id"] == "gun")
 					{
 						OperatingCommand stop{1, "", 0, "", "gun", "enabled", c.at("generation")};
-						require(battle.submit(201, stop), "stop gun after casualty");
+						require(fixture_native_submit(battle, 201, stop), "stop gun after casualty");
 					}
 				ticks(battle, 10);
 				const auto end = officer(battle, 2, 0)["stun_until"].get<std::int64_t>();

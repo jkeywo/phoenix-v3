@@ -379,6 +379,15 @@ inline void control_widget_cases()
 		bridge_source["entities"][0]["stations"][0]["consoles"][1]["definition"] = "test.widget.command";
 		bridge_source["consoles"][0]["stances"] =
 		    Json::array({{{"id", "routine"}, {"label", "Routine"}}, {{"id", "hold"}, {"label", "Hold"}}});
+		bridge_source["control_widgets"].push_back(Json::parse(
+		    R"json({"id":"test.widget.command-owner","schema":1,"commands":[],"equipment":{},"operations":{"stance":[]},"levels":[{"id":"automated","human":[]},{"id":"manual","human":["stance"]}]})json"));
+		bridge_source["entities"][0]["control_layout"]["controllers"].push_back(
+		    {{"id", "command"},
+		     {"console", "observer"},
+		     {"widget", "test.widget.command-owner"},
+		     {"equipment", Json::object()},
+		     {"star_levels", {{"1", "manual"}, {"2", "manual"}, {"3", "manual"}}}});
+
 		World bridge;
 		bridge.load(load(bridge_source), "test.map");
 		require(bridge.claim(101, 1, "drive") && bridge.claim(31, 1, "observer"),
@@ -390,6 +399,8 @@ inline void control_widget_cases()
 			if (control.value("action", "") == "stance.set" && control.value("system", "") == "drive")
 			{
 				stance.generation = control.at("generation");
+				stance.controller = control.at("controller");
+				stance.arguments = control.at("arguments").get<std::vector<std::int64_t>>();
 				offered = true;
 			}
 		if (!offered)
@@ -560,7 +571,7 @@ inline void control_widget_cases()
 		    {
 			    (void)load(invalid);
 		    },
-		    "shared widget instances require schema 2");
+		    "schema 2 shared widgets required");
 		invalid = source;
 		invalid["entities"][0]["control_layout"]["controllers"][0]["star_levels"] = {
 		    {"1", "detailed"}, {"2", "assisted"}, {"3", "automated"}};

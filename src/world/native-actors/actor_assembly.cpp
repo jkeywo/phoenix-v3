@@ -230,7 +230,7 @@ auto Runtime::compile(const Catalog &source, const DirectedCatalog &directed_cat
     -> void
 {
 	property_catalogue = std::move(properties);
-	const auto content = convert_controller_content(source, directed_catalog, property_catalogue);
+	const auto &content = source;
 	const auto ability_catalog = compile_ability_catalog(content, property_catalogue);
 	process_catalog = compile_process_catalog(content, property_catalogue);
 	rule_templates = compile_rule_catalog(content, property_catalogue);
@@ -380,85 +380,86 @@ auto Runtime::create(EntityId id, const std::string &definition, const Json &tra
 		if (data.gameplay->power)
 			entity.emplace<ShipResources>(*data.gameplay->power, std::uint64_t{1});
 	}
-	const auto &templates = data.fitted->values;
 	EquipmentIndex index;
-	for (std::size_t i = 0; i < templates.size(); ++i)
-	{
-		const auto &v = templates[i];
-		auto child = ecs.entity().child_of(entity).set<Equipment>({v.id, v.kind, i, v.maximum, v.advanced, v.enabled});
-		child.set<CustomPropertyState>(data.equipment_properties.at(v.id));
-		index.values.push_back(child);
-		index.by_id.emplace(v.id, child);
-		if (data.combat && data.combat->system_ids.contains(v.id))
+	if (data.fitted)
+		for (std::size_t i = 0; i < data.fitted->values.size(); ++i)
 		{
-			CombatMechanism mechanism;
-			mechanism.definition = data.combat->systems.at(data.combat->system_ids.at(v.id));
-			switch (mechanism.definition.kind)
+			const auto &v = data.fitted->values[i];
+			auto child =
+			    ecs.entity().child_of(entity).set<Equipment>({v.id, v.kind, i, v.maximum, v.advanced, v.enabled});
+			child.set<CustomPropertyState>(data.equipment_properties.at(v.id));
+			index.values.push_back(child);
+			index.by_id.emplace(v.id, child);
+			if (data.combat && data.combat->system_ids.contains(v.id))
 			{
-			case OperatingSystem::Weapon:
-				mechanism.state = WeaponState{};
-				break;
-			case OperatingSystem::Turret:
-				mechanism.state = TurretState{mechanism.definition.bearing, 0};
-				break;
-			case OperatingSystem::Magazine:
-				mechanism.state = MagazineState{"system:" + mechanism.definition.id};
-				break;
-			case OperatingSystem::Shield:
-				mechanism.state = ShieldBindingState{};
-				break;
-			case OperatingSystem::Team:
-				mechanism.state = TeamState{
-				    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment))};
-				break;
-			default:
-				throw std::runtime_error("Unsupported combat mechanism");
+				CombatMechanism mechanism;
+				mechanism.definition = data.combat->systems.at(data.combat->system_ids.at(v.id));
+				switch (mechanism.definition.kind)
+				{
+				case OperatingSystem::Weapon:
+					mechanism.state = WeaponState{};
+					break;
+				case OperatingSystem::Turret:
+					mechanism.state = TurretState{mechanism.definition.bearing, 0};
+					break;
+				case OperatingSystem::Magazine:
+					mechanism.state = MagazineState{"system:" + mechanism.definition.id};
+					break;
+				case OperatingSystem::Shield:
+					mechanism.state = ShieldBindingState{};
+					break;
+				case OperatingSystem::Team:
+					mechanism.state = TeamState{
+					    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment))};
+					break;
+				default:
+					throw std::runtime_error("Unsupported combat mechanism");
+				}
+				child.set<CombatMechanism>(std::move(mechanism));
 			}
-			child.set<CombatMechanism>(std::move(mechanism));
+			if (v.engine)
+				child.set<Engine>(*v.engine);
+			if (v.steering)
+			{
+				auto turn = *v.steering;
+				turn.heading = pose.heading;
+				child.set<Steering>(turn);
+			}
+			if (v.radar)
+				child.set<Radar>(*v.radar).set<SensorRuntime>({});
+			else if (data.sensors.contains(v.id))
+			{
+				std::int64_t range = 0;
+				for (const auto &mode : data.directed.at(v.id).modes)
+					if (mode.operation == DirectedOperationKind::Scan)
+						range = std::max(range, mode.range);
+				child.set<Radar>({range, v.enabled}).set<SensorRuntime>({});
+			}
+			if (!data.gameplay)
+			{
+				child.add<BasicEquipment>();
+				continue;
+			}
+			child.add<AdvancedEquipment>().set<OperatingHeat>({});
+			if (data.ftl.contains(v.id))
+				child.set<FtlReserve>({data.ftl.at(v.id), 0});
+			const auto &g = data.gameplay->values[i];
+			if (g.flight)
+			{
+				auto state = initial_flight(*g.flight, pose, Motion{});
+				state.enabled = v.enabled;
+				child.set<FlightRuntime>({*g.flight, state});
+			}
+			if (auto power = entity.try_get_mut<ShipResources>())
+			{
+				child.set<ResourceBinding>({i});
+				if (!v.enabled)
+					control_resource(*power, i,
+					                 v.kind == OperatingSystem::Coolant ? ResourceControl::CoolingIsolated
+					                                                    : ResourceControl::Enabled,
+					                 v.kind == OperatingSystem::Coolant ? 1 : 0);
+			}
 		}
-		if (v.engine)
-			child.set<Engine>(*v.engine);
-		if (v.steering)
-		{
-			auto turn = *v.steering;
-			turn.heading = pose.heading;
-			child.set<Steering>(turn);
-		}
-		if (v.radar)
-			child.set<Radar>(*v.radar).set<SensorRuntime>({});
-		else if (data.sensors.contains(v.id))
-		{
-			std::int64_t range = 0;
-			for (const auto &mode : data.directed.at(v.id).modes)
-				if (mode.operation == DirectedOperationKind::Scan)
-					range = std::max(range, mode.range);
-			child.set<Radar>({range, v.enabled}).set<SensorRuntime>({});
-		}
-		if (!data.gameplay)
-		{
-			child.add<BasicEquipment>();
-			continue;
-		}
-		child.add<AdvancedEquipment>().set<OperatingHeat>({});
-		if (data.ftl.contains(v.id))
-			child.set<FtlReserve>({data.ftl.at(v.id), 0});
-		const auto &g = data.gameplay->values[i];
-		if (g.flight)
-		{
-			auto state = initial_flight(*g.flight, pose, Motion{});
-			state.enabled = v.enabled;
-			child.set<FlightRuntime>({*g.flight, state});
-		}
-		if (auto power = entity.try_get_mut<ShipResources>())
-		{
-			child.set<ResourceBinding>({i});
-			if (!v.enabled)
-				control_resource(*power, i,
-				                 v.kind == OperatingSystem::Coolant ? ResourceControl::CoolingIsolated
-				                                                    : ResourceControl::Enabled,
-				                 v.kind == OperatingSystem::Coolant ? 1 : 0);
-		}
-	}
 	entity.set<EquipmentIndex>(std::move(index));
 	initialize_processors(entity, data);
 	entity.set<PropertyEffectOwner>({});

@@ -241,30 +241,20 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
 		    ctrl.generation == c.generation)
 		{
-			if (!ctrl.definition.widget.empty())
-			{
-				widget_destination |= destination_order && controller_operation_owns(ctrl, "team_assignment", c.system);
-				const auto operation =
-				    destination_order ? "team_assignment"
-				    : fit->entity.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
-				          "medical")
-				        ? "medical"
-				        : "team_work";
-				const auto work =
-				    fit->entity.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains("medical")
-				        ? "medical"
-				        : "team_work";
-				assisted_destination = !ai && destination_order &&
-				                       controller_operation_human(ctrl, "team_assignment") &&
-				                       !controller_operation_human(ctrl, work);
-				authority = controller_operation_owns(ctrl, operation, c.system) &&
-				            controller_operation_human(ctrl, operation) != ai;
-			}
-			else if (ctrl.human != ai || assisted_destination)
-				for (const auto &channel : ctrl.definition.commands)
-					for (auto consumer : channel.consumers)
-						if (definition(a.ship).fitted->values.at(consumer).id == c.system)
-							authority = true;
+			widget_destination |= destination_order && controller_operation_owns(ctrl, "team_assignment", c.system);
+			const auto operation =
+			    destination_order ? "team_assignment"
+			    : fit->entity.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains("medical")
+			        ? "medical"
+			        : "team_work";
+			const auto work =
+			    fit->entity.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains("medical")
+			        ? "medical"
+			        : "team_work";
+			assisted_destination = !ai && destination_order && controller_operation_human(ctrl, "team_assignment") &&
+			                       !controller_operation_human(ctrl, work);
+			authority = controller_operation_owns(ctrl, operation, c.system) &&
+			            controller_operation_human(ctrl, operation) != ai;
 		}
 	if (!authority)
 		return false;
@@ -300,7 +290,7 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (ai)
 			for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 				if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
-				    !ctrl.definition.widget.empty() && controller_operation_human(ctrl, "team_assignment") &&
+				    controller_operation_human(ctrl, "team_assignment") &&
 				    ((clinical && r.medical_compartment != static_cast<std::int64_t>(target)) ||
 				     (!clinical && r.destination != static_cast<std::int64_t>(target))))
 					return false;
@@ -340,9 +330,7 @@ auto Runtime::team_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	r.order = order ? order->id : std::string{};
 	if (clinical)
 	{
-		const auto &workloads = entities.at(a.ship).get<EntityControls>().layout.manual_workloads;
-		if (assignment || r.medical_compartment >= 0 ||
-		    (workloads.contains(a.console) && workloads.at(a.console).contains("medical")))
+		if (assignment || r.medical_compartment >= 0 || native_operation_controller(a, "medical", c.system) != nullptr)
 			r.medical_compartment = c.action == "team.order" ? static_cast<std::int64_t>(target) : -1;
 	}
 	r.patient = patient;
@@ -511,7 +499,8 @@ auto Runtime::step_teams() -> void
 			if (!manual_workload(enabled_system_owner(id, m->definition.id), "medical", m->definition.id))
 				r.patient.clear();
 			if (r.order.empty() && !d.capabilities.contains("repair") &&
-			    station_stars(enabled_system_owner(id, m->definition.id)) < 3)
+			    !manual_workload(enabled_system_owner(id, m->definition.id),
+			                     d.capabilities.contains("medical") ? "medical" : "team_work", m->definition.id))
 				r.repair_auto = true;
 			if (d.capabilities.contains("medical") && r.medical_compartment < 0 &&
 			    manual_team_destination(enabled_system_owner(id, m->definition.id), m->definition.id))
@@ -536,7 +525,8 @@ auto Runtime::step_teams() -> void
 						break;
 					if (&candidate != &d.orders.front() &&
 					    (candidate.target != "patients" ||
-					     (r.medical_compartment < 0 && station_stars(enabled_system_owner(id, m->definition.id)) >= 3)))
+					     (r.medical_compartment < 0 &&
+					      manual_workload(enabled_system_owner(id, m->definition.id), "medical", m->definition.id))))
 						continue;
 					for (std::size_t c = 0; c < definition(id).personnel.compartments.size(); ++c)
 						if ((r.medical_compartment < 0 || c == static_cast<std::size_t>(r.medical_compartment)) &&
@@ -689,17 +679,12 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		         {"orders", Json::array()}};
 		bool manual = false;
 		for (const auto &controller : ship.get<EntityControls>().controllers)
-			if (controller.definition.console == a.console && !controller.definition.widget.empty())
+			if (controller.definition.console == a.console)
 				manual |=
 				    controller_operation_owns(controller, d.capabilities.contains("medical") ? "medical" : "team_work",
 				                              m->definition.id) &&
 				    controller_operation_human(controller,
 				                               d.capabilities.contains("medical") ? "medical" : "team_work");
-			else if (controller.human && controller.definition.console == a.console)
-				for (const auto &command : controller.definition.commands)
-					if (command.action == OperatingAction::SystemEnabled)
-						for (auto consumer : command.consumers)
-							manual |= definition(a.ship).fitted->values.at(consumer).id == m->definition.id;
 		row["repair"] = d.capabilities.contains("repair");
 		row["work_operation"] = d.capabilities.contains("medical") ? "medical" : "team_work";
 		row["travel"] = r.travel;
@@ -732,7 +717,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		bool assignment_authority = manual_team_destination(a, m->definition.id) &&
 		                            (d.capabilities.contains("repair") || d.capabilities.contains("medical"));
 		for (const auto &controller : ship.get<EntityControls>().controllers)
-			if (controller.definition.console == a.console && !controller.definition.widget.empty() &&
+			if (controller.definition.console == a.console &&
 			    controller_operation_owns(controller, "team_assignment", m->definition.id))
 				assignment_authority = controller_operation_human(controller, "team_assignment") && !manual;
 		row["assignment_authority"] = assignment_authority;

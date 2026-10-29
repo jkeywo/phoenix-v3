@@ -279,7 +279,9 @@ std::string NativeAwayPeers::blocker(std::size_t index)
 
 bool NativeAwayPeers::automatic_repair(EntityId ship, const std::string &team)
 {
-	return owner.station_stars(owner.enabled_system_owner(ship, team)) < 3;
+	const auto &definition = owner.away_equipment(ship, team).get<CombatMechanism>().definition.get<TeamDefinition>();
+	return !owner.manual_workload(owner.enabled_system_owner(ship, team),
+	                              definition.capabilities.contains("medical") ? "medical" : "team_work", team);
 }
 
 void NativeAwayPeers::record_insertion(EntityId origin, EntityId target)

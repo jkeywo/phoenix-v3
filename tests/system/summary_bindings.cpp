@@ -104,6 +104,7 @@ void workshop_channel_authoring()
 	source["assemblies"][0]["resources"]["cooling_links"] = Json::array(
 	    {{{"id", "cooling"}, {"source", "pump"}, {"store", "reserve"}, {"capacity_rate", 10}, {"allocation_rate", 1}}});
 
+	phoenix::test::materialise_fixture_widgets(source);
 	const auto archive = write_pack(phoenix::test::fixture_pack(json_bytes(source), "test-core"));
 	WorkshopDocument document;
 	document.load_dependency(archive);
@@ -117,10 +118,36 @@ void workshop_channel_authoring()
 	    "drive.engine",       "spare.engine",       "drive.provider", "spare.provider",
 	    "drive.pump_control", "spare.pump_control", "steering",       "radar"};
 	ship["control_layout"] = source["entities"][0]["control_layout"];
-	for (auto &command : ship["control_layout"]["controllers"][1]["commands"])
-		command["consumers"] = {"drive.engine", "spare.engine"};
-	ship["control_layout"]["controllers"][1]["tree"] = "workshop.policy";
-	ship["control_layout"]["controllers"][0]["commands"][0]["id"] = "custom_policy";
+	auto local_widgets = source["control_widgets"];
+	for (auto &definition : local_widgets)
+		definition["id"] = "local." + definition.at("id").get<std::string>();
+	document.definitions()["control_widgets"] = local_widgets;
+	for (auto &row : ship["control_layout"]["controllers"])
+		row["widget"] = "local." + row.at("widget").get<std::string>();
+	auto widget = [](WorkshopDocument &draft, std::size_t index) -> Json &
+	{
+		const auto &ref = draft.definitions()["entities"][0]["control_layout"]["controllers"][index]["widget"];
+		for (auto &definition : draft.definitions()["control_widgets"])
+			if (definition.at("id") == ref)
+				return definition;
+		throw std::runtime_error("Missing synthetic widget definition");
+	};
+	auto &actuator = widget(document, 1);
+	actuator["equipment"]["engine"]["multiple"] = true;
+	ship["control_layout"]["controllers"][1]["equipment"]["engine"] = {"drive.engine", "spare.engine"};
+	actuator["tree"] = "workshop.policy";
+	auto rename_channel = [](Json &definition, const std::string &from, const std::string &to)
+	{
+		for (auto &command : definition["commands"])
+			if (command.at("id") == from)
+				command["id"] = to;
+		for (auto &level : definition["levels"])
+			for (auto &channel : level["human"])
+				if (channel == from)
+					channel = to;
+	};
+	rename_channel(widget(document, 0), "power", "custom_policy");
+
 	document.definitions()["trees"].push_back(
 	    {{"id", "workshop.policy"},
 	     {"extends", "test.summary-child"},
@@ -155,8 +182,13 @@ void workshop_channel_authoring()
 	downstream.create_entity(id);
 	auto &child = downstream.definitions()["entities"][0];
 	child["control_layout"] = ship["control_layout"];
-	child["control_layout"]["controllers"][0]["commands"][0]["id"] = "second_policy";
-	child["control_layout"]["controllers"][1]["tree"] = "downstream.policy";
+	downstream.definitions()["control_widgets"] = document.definitions()["control_widgets"];
+	for (auto &definition : downstream.definitions()["control_widgets"])
+		definition["id"] = "downstream." + definition.at("id").get<std::string>();
+	for (auto &row : child["control_layout"]["controllers"])
+		row["widget"] = "downstream." + row.at("widget").get<std::string>();
+	rename_channel(widget(downstream, 0), "custom_policy", "second_policy");
+	widget(downstream, 1)["tree"] = "downstream.policy";
 	downstream.definitions()["trees"].push_back(
 	    {{"id", "downstream.policy"},
 	     {"extends", "workshop.policy"},
@@ -170,15 +202,14 @@ void workshop_channel_authoring()
 	require(controller_command_reads(downstream_preview.trees.at("downstream.policy"), downstream_preview)[0].channel ==
 	            "second_policy",
 	        "Downstream composed dependency must preserve local Controller binding override");
-	ship["control_layout"]["controllers"][0]["commands"][0]["id"] = "unsupported_policy";
+	rename_channel(widget(document, 0), "custom_policy", "unsupported_policy");
 	phoenix::test::rejects(
 	    [&]
 	    {
 		    (void)document.export_pack();
 	    },
 	    "Unsupported imported Controller channel must refuse export");
-	require(ship["control_layout"]["controllers"][0]["commands"][0]["id"] == "unsupported_policy",
-	        "Refused export must retain the draft");
+	require(widget(document, 0)["commands"][0]["id"] == "unsupported_policy", "Refused export must retain the draft");
 }
 bool preference(World &world, const char *channel, std::int64_t value)
 {

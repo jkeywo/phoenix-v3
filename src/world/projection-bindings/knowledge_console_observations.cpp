@@ -247,14 +247,6 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 			else if (state.kind != OperatingSystem::Radar)
 				state.maximum = instance->maximum;
 		}
-		const auto &controls = entity.get<EntityControls>();
-		if (controls.layout.converted && instance)
-			for (const auto &controller : controls.controllers)
-				if (controller.definition.console == address.console && controller.human)
-					for (const auto &command : controller.definition.commands)
-						if (std::find(command.consumers.begin(), command.consumers.end(), instance->ordinal) !=
-						    command.consumers.end())
-							state.controlled = true;
 		if (state.kind == OperatingSystem::Radar)
 		{
 			state.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);

@@ -46,7 +46,8 @@ OperatingCommand command(const World &w, std::uint64_t claimant, const std::stri
 void submit(World &w, std::uint64_t claimant, const std::string &controller, const std::string &channel,
             std::int64_t value)
 {
-	require(w.submit(claimant, command(w, claimant, controller, channel, value)), "admitted combat command");
+	require(fixture_native_submit(w, claimant, command(w, claimant, controller, channel, value)),
+	        "admitted combat command");
 }
 Json state(const World &w, int id = 1)
 {
@@ -139,9 +140,9 @@ void repair_workload_contract()
 	require(state(world)["systems"]["team-a"]["destination"] == 1 && state(world)["compartments"][0]["hp"] == 40 &&
 	            state(world)["compartments"][1]["hp"] > 20,
 	        "One-star individual repair deployment persists while AI chooses local work");
-	require(!world.submit(102, command(world, 102, "team-a", "priority", 1)),
+	require(!fixture_native_submit(world, 102, command(world, 102, "team-a", "priority", 1)),
 	        "One star refuses detailed repair priority");
-	require(world.submit(102, {1, "preset", 1, {}}), "Two-star repair priorities selected");
+	require(fixture_native_submit(world, 102, {1, "preset", 1, {}}), "Two-star repair priorities selected");
 	world.tick();
 	submit(world, 102, "team-a", "assignment", 1);
 	world.tick();
@@ -506,7 +507,7 @@ void ordnance_contracts()
 		require(w.claim(201, 2, "drive"), "claim defender");
 		auto mode = command(w, 201, "pdc", "mode", 1);
 		mode.target = 2;
-		require(w.submit(201, mode), "activate defender automatic interception");
+		require(fixture_native_submit(w, 201, mode), "activate defender automatic interception");
 		submit(w, 101, "launcher", "target", 2);
 		advance(w, 10);
 		World resumed;
@@ -1137,7 +1138,7 @@ void stock_binding_contracts()
 		c.text = resource;
 		return c;
 	};
-	require(!world.submit(101, choose("test.round-b")),
+	require(!fixture_native_submit(world, 101, choose("test.round-b")),
 	        "A loaded return commitment blocks magazine resource switching");
 	World restored;
 	restored.restore(catalog, loaded);
@@ -1177,12 +1178,12 @@ void stock_binding_contracts()
 	            empty.at("capacity_claims").empty(),
 	        "Firing releases the return commitment while preserving empty magazine selection");
 	const auto selection = choose("test.round-b");
-	require(world.submit(101, selection),
+	require(fixture_native_submit(world, 101, selection),
 	        "The owner can deliberately select a different resource once the magazine is empty and free");
 	world.tick();
 	const auto selected = world.save();
 	require(saved_magazine_stock(selected.at("bodies")[0], "mag").at("selection") == "test.round-b" &&
-	            !world.submit(101, selection),
+	            !fixture_native_submit(world, 101, selection),
 	        "Resource selection persists and stale selection revisions are rejected");
 }
 void property_rate_contracts()
@@ -1432,7 +1433,7 @@ void effects_contracts()
 		advance(w, 20);
 		auto auto_mode = command(w, 201, "pdc", "mode", 1);
 		auto_mode.target = 2;
-		require(w.submit(201, auto_mode), "enable interception after missiles clear launch hull");
+		require(fixture_native_submit(w, 201, auto_mode), "enable interception after missiles clear launch hull");
 		w.tick();
 		const auto snapshot = w.save();
 		int missiles = 0;
@@ -1676,16 +1677,16 @@ void extended_contracts()
 		        "section damage remains visible without revealing individual faults");
 		auto enable = command(w, 202, "team-a", "enabled", 1);
 		enable.target = 2;
-		require(w.submit(202, enable), "enable inspecting team");
+		require(fixture_native_submit(w, 202, enable), "enable inspecting team");
 		auto repair = command(w, 202, "team-a", "assignment", 2);
 		repair.target = 2;
-		require(w.submit(202, repair), "assign inspecting team");
+		require(fixture_native_submit(w, 202, repair), "assign inspecting team");
 		advance(w, 12);
 		require(w.observe(201)->gameplay["combat"]["faults"][0]["diagnosed"].get<bool>(),
 		        "team arrival reveals diagnosis to owner");
 		auto leave = command(w, 202, "team-a", "assignment", 1);
 		leave.target = 2;
-		require(w.submit(202, leave), "inspection team can leave the damaged section");
+		require(fixture_native_submit(w, 202, leave), "inspection team can leave the damaged section");
 		advance(w, 2);
 		require(w.observe(201)->gameplay["combat"]["faults"].empty(),
 		        "previously diagnosed system damage disappears when the team leaves");
@@ -2033,7 +2034,8 @@ int main(int argc, char **argv)
 				if (d.at("id") == "leader-team-a")
 					stacked = d.at("effects")[0].at("multiplier") == 1500;
 			require(stacked, "Controller and team officer contributions sum once on physical team");
-			require(w.submit(102, command(w, 102, "team-a", "assignment", 2)), "move team with its officer");
+			require(fixture_native_submit(w, 102, command(w, 102, "team-a", "assignment", 2)),
+			        "move team with its officer");
 			for (int i = 0; i < 5; ++i)
 			{
 				w.tick();
@@ -2051,7 +2053,7 @@ int main(int argc, char **argv)
 			auto command_officer = OperatingCommand{1, "personnel.assign", 0, "controller"};
 			command_officer.text = "leader-team-b";
 			command_officer.generation = w.observe(102)->gameplay.at("personnel").at("revision");
-			require(w.submit(102, command_officer), "assign officer to another physical team");
+			require(fixture_native_submit(w, 102, command_officer), "assign officer to another physical team");
 			w.tick();
 			require(!w.observe(102)->gameplay.at("personnel").at("officers")[0].at("present").get<bool>(),
 			        "officer must reach moving team's actual compartment");
@@ -2102,7 +2104,8 @@ int main(int argc, char **argv)
 			World w;
 			w.load(catalog, map);
 			claim(w);
-			require(!w.submit(102, command(w, 101, "gun", "target", 2)), "Support cannot fire Tactical weapons");
+			require(!fixture_native_submit(w, 102, command(w, 101, "gun", "target", 2)),
+			        "Support cannot fire Tactical weapons");
 			submit(w, 101, "gun", "target", 2);
 			advance(w, 12);
 			require(hp(w) < 200, "physical shot crosses compartments and damages target");

@@ -41,7 +41,15 @@ state_tree::CommandAttempt attempt_controller_command(const ConsoleControllerRun
 	    (!spec.choices.empty() && !spec.choices.contains(proposal.value)) ||
 	    !checks.arguments_valid(proposal.controller, proposal.channel, spec.action, proposal.value, proposal.arguments))
 		return refused("invalid_arguments");
-	const bool owner = controller_command_human(controller, proposal.channel);
+	if (!proposal.operation.empty() &&
+	    (proposal.operation != "coordinated_impulse" || spec.action != OperatingAction::Impulse ||
+	     spec.coordinated_group.empty() || !controller.definition.operations.contains(proposal.operation)))
+		return refused("invalid_native_operation");
+	if (proposal.operation.empty() && !proposal.human && !spec.coordinated_group.empty() &&
+	    controller_operation_human(controller, "coordinated_impulse"))
+		return refused("coordinated_request_owned_by_human");
+	const bool owner = proposal.operation.empty() ? controller_command_human(controller, proposal.channel)
+	                                              : controller_operation_human(controller, proposal.operation);
 	if (owner != proposal.human)
 	{
 		if (!proposal.human && spec.semantics == CommandSemantics::Setting && state.value == proposal.value &&

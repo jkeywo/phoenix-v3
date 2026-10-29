@@ -1,6 +1,6 @@
 # Phoenix V3 — Game Design Document
 
-**Design baseline · 17 October 2026; Controller architecture revised 19 October 2026**
+**Design baseline · 17 October 2026; Controller/widget architecture revised 29 October 2026**
 
 Phoenix is a spaceship bridge game about solving changing problems together through complementary expertise. A crew operates a working vessel in the Settled Dark: interpreting incomplete evidence, negotiating demands, committing finite resources and coordinating action. The ship responds as one connected machine, while its officers retain distinct information, responsibilities and decisions.
 
@@ -105,7 +105,7 @@ Three introductory situations follow a frontier route under strain: routine work
 
 | Station     | Owns consequential decisions about                                                                                                                            | Depends on colleagues for                                                                        |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Captain     | Alert condition, supported stances for fully AI-operated Consoles, and the Objectives list with a priority objective when any ship Controller is AI-operated. | Crew conversation and each specialist's assessment of feasible actions.                          |
+| Captain     | Alert condition, supported stances for delegated work on Consoles, and the Objectives list with a priority objective when any ship Controller is AI-operated. | Crew conversation and each specialist's assessment of feasible actions.                          |
 | Helm        | Motion, heading, exposure, approach, docking and supported flight assistance.                                                                                 | Target/route evidence, passage coordination, power and operational geometry requirements.        |
 | Tactical    | Weapon targets, engagement/interception priorities, Security, combat craft and general Dispatch.                                                              | Findings, illumination where useful, geometry, resources and away-operation needs.               |
 | Engineering | Generation/distribution, coolant, repair/containment, main stores, reserves, utility shuttles and supply Dispatch.                                            | Predicted demands, delivered fault evidence, safe access, transport and negotiated supply terms. |
@@ -118,7 +118,20 @@ Captain can coordinate a request for maximum thrust, but Engineering decides fea
 
 ### 3.2 Complexity and delegation
 
-Players choose an authored complexity profile for each Console in the lobby or that Console's settings menu. The profile determines which Console-owned Controllers are human-operated and which use ordinary AI; there are no individual delegation toggles or per-System complexity settings. Station-depth descriptions below describe the resulting workload. Each Controller owns its own command section, and its effective human or AI operator writes through the same boundary. Simplified controls convey supported intent without granting a second writer to an AI-owned section. Scenario-required human work can use explicit human-seeking controls.
+Players choose an authored star profile for each Console in the lobby or its settings.
+Each shared GUI widget owns one Controller with explicit compatible equipment roles;
+ship instances independently map one, two and three stars to its responsibility
+levels. A level allocates individual commands and native operations to human or AI,
+including partial control within a Controller. Automated levels are read-only.
+Unoccupied, disconnected and Away Consoles give all responsibilities to AI. There
+are no separate delegation toggles or per-System complexity settings. The same
+state tree runs at every workload through command admission: a matching human-held
+setting succeeds without mutation, other writes are refused, and authored branches
+provide fallback. Existing Station-depth responsibilities below remain the rules.
+Named visual parts can split around a radar and reunite in compact layouts; named
+data independently selects Main, Details or Hidden per star. Presentation never
+grants authority. Scenario-required human work can use explicit human-seeking
+controls.
 
 The [Cruiser Helm, Tactical and Engineering workload contract](cruiser-complexity.md) settles their one-, two- and three-star responsibilities. Tactical owns general Dispatch; Engineering owns utility shuttles and supply Dispatch. Department contributions preserve local asset authority, and negotiated supply offers use physical cargo collection and unloading. Other Cruiser stations retain their existing complexity designs.
 
@@ -131,7 +144,7 @@ The [Cruiser Helm, Tactical and Engineering workload contract](cruiser-complexit
 | Science     | One star: shared scanner target, shield raise/lower and facing priority, individual Medical compartment assignment, mission contributions and FTL controls; automatic self-ward. | Two adds scanner targets, clinical orders/patient priorities and psychic choices. Three adds full shield/fitted equipment settings, medical stocks and officers. No Science Dispatch or shuttles.                                    |
 | Comms       | One star: hails, conversations, negotiations, requests, opportunities and away dialogue; automatic radio/reserve/officers.                                                       | Single profile. Psychic controls move to Science; Veil moves to Courier Support.                                                                                                                                                     |
 
-Captain's single-profile design was agreed on 23 October 2026. Its Objectives list is implemented as a dedicated GUI element. It displays the ship's published objectives from the entity blackboard. Whenever any Controller is effectively AI-operated, including delegated Controllers on human-operated Consoles, Captain can select one active priority objective or clear it. The accepted selection is stored with that objective list; ordinary Controller AI reads it and takes it into account where relevant, feasible and consistent with its existing orders and commitments. It is advisory and cannot override human control or reveal private scenario state. See the [Captain design agreement](bridge-command.md#captain-design-agreement--23-october-2026) for lifecycle and delivery boundaries.
+Captain's single-profile design was agreed on 23 October 2026. Its Objectives list is implemented as a dedicated GUI element. It displays the ship's published objectives from the entity blackboard. Whenever any Controller has delegated commands or native operations, Captain can select one active priority objective or clear it. The accepted selection is stored with that objective list; ordinary Controller AI reads it and takes it into account where relevant, feasible and consistent with its existing orders and commitments. It is advisory and cannot override human control or reveal private scenario state. See the [Captain design agreement](bridge-command.md#captain-design-agreement--23-october-2026) for lifecycle and delivery boundaries.
 
 The other station-depth candidates require workload validation, especially Science's passage responsibility. Exposing a control does not require continuous manual execution. Deeper presets must not impose clinical procedures, manual arithmetic or per-shot authorisation. An accessible simple station must still contribute meaningfully in combat and non-combat situations.
 
@@ -139,7 +152,7 @@ The other station-depth candidates require workload validation, especially Scien
 
 Ships author an ordered alert-condition list, normally five levels, with labels, colours, optional screen-edge glow, an entry siren and condition-specific music. Accepted alert state belongs to the entity blackboard and is readable by all Consoles and Controller trees. Alert controls are placed independently of Command: Courier Support owns them, while the reference Cruiser places them with the Captain.
 
-Consoles author named stances that guide their AI Controllers. Command can select stances for fully AI-operated Consoles; a Console's own human can select the stance used by its delegated Controllers. Command is normally human-seeking and may automatically hide when no eligible targets remain. Human-seeking Consoles may supply a special compact HUD for an interactive right-quarter Viewscreen sidebar. The host selects one eligible Console under exclusive authority. Couriers place Command there by default.
+Consoles author named stances that guide their AI Controllers. Command can select stances for Consoles with delegated work; a Console's own human can select the stance used by its delegated policy. Command is normally human-seeking and may automatically hide when no eligible targets remain. Human-seeking Consoles may supply a special compact HUD for an interactive right-quarter Viewscreen sidebar. The host selects one eligible Console under exclusive authority. Couriers place Command there by default.
 
 The ordinary journey is select a scenario/ship, join through the browser route, claim an eligible seat, choose depth, ready and enter play. Missing seats use ordinary AI. Individual practice and short shared exercises are optional; completing a tutorial is not a condition of joining live play.
 
@@ -203,7 +216,7 @@ Waypoint, route, escort and formation assistance remain supported equipment/AI c
 
 Fitted boost Systems modify selected equipment properties while held: initially maximum forward speed, acceleration and turn rate. Bonuses are authored multipliers with separate boost power/heat costs; target equipment still needs its own operating power. Multiple boosts use the strongest paid bonus per property. Release, input loss or Controller handover removes the bonus without erasing momentum. Boost is suppressed throughout impulse charging and transit.
 
-Lateral engines can provide port-only, starboard-only or bidirectional thrust. Two held controls command ship-relative movement; holding both means neutral. Release removes the lateral velocity request; passive damping then arrests drift. An AI-owned lateral Controller prefers feasible lateral collision avoidance using permitted navigation evidence and reported actuator capability, including when a human retains forward propulsion and steering on the same Console. Passive damping handles ordinary drift correction; the lateral Controller reports collision-avoidance intent through Controller messaging. Complexity profiles determine ownership per Controller; human ownership prevents AI intervention.
+Lateral engines can provide port-only, starboard-only or bidirectional thrust. Two held controls command ship-relative movement; holding both means neutral. Release removes the lateral velocity request; passive damping then arrests drift. An AI-owned lateral Controller prefers feasible lateral collision avoidance using permitted navigation evidence and reported actuator capability, including when a human retains forward propulsion and steering on the same Console. Passive damping handles ordinary drift correction; the lateral Controller reports collision-avoidance intent through Controller messaging. Widget responsibility levels determine lateral-channel ownership; human ownership prevents AI intervention on that channel.
 
 Impulse requires an authored minimum reserve in its connected local battery before charging. The threshold covers total charging energy and fits the battery's capacity. Energy is spent as charging progresses; insufficient energy pauses progress, and cancellation discards progress without refund. Completed charging enables continuous forward transit on the following tick, multiplying explicitly bound propulsion speed and acceleration. Steering remains normal during charging and is reduced by an authored fraction during transit. Manual cancellation, collision, disablement or insufficient operating power ends transit. Ordinary limits return without clamping velocity; subsequent braking and collision response use the ordinary physical rules.
 

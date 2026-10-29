@@ -107,7 +107,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	if (c.action == "away.contribute")
 		for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 			if (ctrl.definition.id == c.controller && ctrl.definition.console == a.console &&
-			    !ctrl.definition.widget.empty() && ctrl.definition.operations.contains("contribution"))
+			    ctrl.definition.operations.contains("contribution"))
 				for (const auto &asset : ctrl.definition.operations.at("contribution"))
 					if (const auto item = instance(entities.at(a.ship), asset);
 					    item && (item->kind == OperatingSystem::Team || item->kind == OperatingSystem::ShuttleBay))
@@ -120,38 +120,19 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	                           (c.action == "away.withdraw" && m.assignments.contains(c.text) &&
 	                            m.assignments.at(c.text).starts_with("officer:"));
 	const auto operation = std::string(away_command_operation(c.action, officer_order));
-	bool widget_command = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
-		    ctrl.generation == c.generation && !ctrl.definition.widget.empty())
-		{
-			widget_command = true;
-			authority |= controller_operation_owns(ctrl, operation, controlled_system) &&
-			             controller_operation_human(ctrl, operation) != ai;
-		}
-	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
-		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
-		    (ctrl.definition.widget.empty() &&
-		     (ctrl.human != ai || (!ai && c.action == "away.contribute" && !controlled_system.empty()) ||
-		      (!ai && (c.action == "away.transport" || c.action == "away.escort") &&
-		       assisted_workload(a, "transport")) ||
-		      (!ai && station_stars(a) < 3 && !controlled_system.empty() &&
-		       (c.action == "away.assign" || c.action == "away.withdraw")))) &&
 		    ctrl.generation == c.generation)
 		{
-			if (controlled_system.empty())
-				authority = true;
-			for (const auto &command : ctrl.definition.commands)
-				for (auto consumer : command.consumers)
-					if (definition(a.ship).fitted->values.at(consumer).id == controlled_system)
-						authority = true;
+			authority |= controller_operation_owns(ctrl, operation, controlled_system) &&
+			             controller_operation_human(ctrl, operation) != ai;
 		}
 	if (!authority)
 		return false;
 	if (c.action == "away.select" || c.action == "away.unselect")
 	{
 		const auto team = instance(entities.at(a.ship), controlled_system);
-		if (!widget_command || officer_order || !team || team->kind != OperatingSystem::Team)
+		if (officer_order || !team || team->kind != OperatingSystem::Team)
 			return false;
 	}
 	if (m.phase == AwayPhase::Hidden || m.revision >= 9007199254740991ULL ||
@@ -164,7 +145,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		action = "withdraw";
 	if (action == "quantity")
 	{
-		if (!d.supply || (!widget_command && station_stars(a) < 3) || !away_dispatch(a, d.dispatch) ||
+		if (!d.supply || !away_dispatch(a, d.dispatch) ||
 		    (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || m.supply_job)
 			return false;
 		const auto quantity = parse_material_number(c.text);
@@ -219,9 +200,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		{
 			m.phase = AwayPhase::Open;
 			m.authorised_departments.insert(a.console);
-			if (d.allow_ship_transport &&
-			    (widget_command ? !manual_workload(a, "transport", away_dispatch_system(a.ship, d.dispatch))
-			                    : station_stars(a) < 3))
+			if (d.allow_ship_transport && !manual_workload(a, "transport", away_dispatch_system(a.ship, d.dispatch)))
 				m.transport = "ship";
 			++m.revision;
 			prepare_away_officers(a, index);
@@ -392,8 +371,6 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	}
 	if (action == "transport")
 	{
-		if (!widget_command && !ai && !assisted && !manual_workload(a, "transport"))
-			return false;
 		const bool deployed = m.phase == AwayPhase::Deployed;
 		if (c.text.empty())
 		{
@@ -437,8 +414,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	}
 	if (action == "escort")
 	{
-		if ((!widget_command && !ai && !assisted && !manual_workload(a, "transport")) ||
-		    (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || !m.outcome.empty())
+		if ((m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || !m.outcome.empty())
 			return false;
 		const auto slash = c.text.find('/');
 		if (slash == std::string::npos)
@@ -487,8 +463,6 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (separator == std::string::npos)
 			return false;
 		const auto slot = c.text.substr(0, separator), asset = c.text.substr(separator + 1);
-		if (!widget_command && !ai && !assisted && station_stars(a) < 3 && asset.starts_with("officer:"))
-			return false;
 		const auto s = std::find_if(d.slots.begin(), d.slots.end(),
 		                            [&](const auto &s)
 		                            {
@@ -503,7 +477,7 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		if (asset.starts_with("team:"))
 		{
 			const auto *duty = away_team_duty(a.ship, asset.substr(5));
-			if (execute && (widget_command ? !manual_workload(a, "mission_staffing") : station_stars(a) < 3))
+			if (execute && !manual_workload(a, "mission_staffing"))
 				auto_assign_officer(a, duty->id, true);
 			for (std::size_t i = 0; i < pd.officers.size(); ++i)
 				if (ps.officers[i].duty == duty->id)
@@ -535,9 +509,6 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	{
 		if (!m.assignments.contains(c.text) || !away_asset_owned(a, m.assignments.at(c.text)))
 			return false;
-		if (!widget_command && !ai && !assisted && station_stars(a) < 3 &&
-		    m.assignments.at(c.text).starts_with("officer:"))
-			return false;
 		if (execute)
 		{
 			withdraw_away_assignment(a.ship, m, c.text);
@@ -559,18 +530,9 @@ auto Runtime::prepare_away_tick_contributions(std::size_t i) -> void
 			if (!m.authorised_departments.contains(console.id))
 				for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
 					if (controller.definition.console == console.id &&
-					    (controller.definition.widget.empty()
-					         ? !controller.human
-					         : controller_operation_owns(controller, "contribution", {}) &&
-					               !controller_operation_human(controller, "contribution")))
+					    controller_operation_owns(controller, "contribution", {}) &&
+					    !controller_operation_human(controller, "contribution"))
 					{
-						bool team_controller = false;
-						for (const auto &command : controller.definition.commands)
-							for (const auto consumer : command.consumers)
-								team_controller |=
-								    definition(ship).fitted->values.at(consumer).kind == OperatingSystem::Team;
-						if (controller.definition.widget.empty() && console_operator(owner) && !team_controller)
-							continue;
 						OperatingCommand c{ship, "away.contribute", static_cast<std::int64_t>(m.revision), d.id};
 						c.controller = controller.definition.id;
 						c.generation = controller.generation;
@@ -612,15 +574,14 @@ auto Runtime::prepare_away_assisted_send(std::size_t i) -> bool
 	const auto ship = away_ship(d);
 	const auto owner = enabled_system_owner(ship, away_dispatch_system(ship, d.dispatch));
 	const auto *native = native_operation_controller(owner, "mission_send", away_dispatch_system(ship, d.dispatch));
-	if (native ? !controller_operation_human(*native, "mission_send") : station_stars(owner) == 1)
+	if (native && !controller_operation_human(*native, "mission_send"))
 		for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
 			if (controller.definition.console == owner.console)
 			{
 				OperatingCommand command{ship, "away.send", static_cast<std::int64_t>(m.revision), d.id};
 				command.controller = controller.definition.id;
 				command.generation = controller.generation;
-				if (away_command(owner, command, true, controller.definition.widget.empty() ? !controller.human : true,
-				                 true))
+				if (away_command(owner, command, true, true, true))
 					return true;
 			}
 	return false;

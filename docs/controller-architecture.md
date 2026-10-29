@@ -49,7 +49,7 @@ Requested settings, actual execution and reported outcomes remain distinct. A Co
 
 ## Controllers, command ownership and bindings
 
-Each Controller belongs to exactly one Console and owns one command section. Only its effective operator can submit changes to that section. A human GUI and an AI state tree are alternative operator adapters, not competing writers. Reading a command section grants no writing permission.
+Each Controller belongs to exactly one Console and owns one command section. Each command and native operation has one effective operator. One shared widget presents the Controller, including named split parts; human input and the same continuously evaluated AI policy pass through per-command admission. Reading a command section grants no writing permission.
 
 Physical inputs bind to Controller outputs:
 
@@ -71,15 +71,15 @@ Commands are committed before resource demand calculation. Machinery computes de
 
 ## Complexity and operator lifecycle
 
-An authored Console complexity profile assigns each Controller to human or AI operation. The human selects it in the lobby or that Console's settings menu. There are no individual delegation toggles and no per-System complexity editor. Station-level Simple/Middle/Detailed descriptions in the GDD describe workloads implemented through these Console profiles.
+An authored Console profile selects a star rating. Each shared widget maps that rating to its own human command and native-operation responsibilities. An Automated level is read-only and AI-controlled. The human selects it in the lobby or that Console's settings menu. There are no individual delegation toggles and no per-System complexity editor. Station-level Simple/Middle/Detailed descriptions in the GDD describe workloads implemented through these Console profiles.
 
 Keep the selected profile separate from operator availability. An unoccupied, disconnected or explicitly Away Console runs all its Controllers with ordinary AI. A fully AI Console uses the same runtime with all effective operators set to AI. An AI entity is simply an entity whose Consoles are all AI-operated, regardless of player-slot eligibility.
 
-A profile change or handover is an atomic tick-boundary authority transition. Interrupt outgoing command trees where applicable, invalidate pending writes from the previous operator generation, clear supported held inputs safely, and activate the incoming operators. Preserve accepted settings, ongoing physical work, Console evidence and addressed message history unless a particular operation specifies a change. Returning to human operation restores the selected profile's allocation, not a stale snapshot of old machinery settings. Complexity transitions cannot create two writers.
+A profile change or handover is an atomic tick-boundary authority transition. Preserve the shared policy continuation, cancel outgoing selected actions and officer commitments, invalidate pending writes from the previous operator generation, and clear held inputs on channels that change owner. AI-owned inputs that retain their owner remain intact. Preserve accepted settings, ongoing physical work, Console evidence and addressed message history unless a particular operation specifies a change. Returning to human operation restores the selected profile's allocation, not a stale snapshot of old machinery settings. Complexity transitions cannot create two writers.
 
 ## State-tree execution
 
-Move command trees from equipment instances to Controller instances. Each AI Controller receives typed bindings to its Console observations, accepted commands, entity-wide observations and messages, addressed inbox and private memory. It cannot inspect arbitrary world components or another Controller's private continuation.
+Move command trees from equipment instances to Controller instances. Each Controller policy receives typed bindings to its Console observations, accepted commands, entity-wide observations and messages, addressed inbox and private memory. It cannot inspect arbitrary world components or another Controller's private continuation.
 
 The authoring editor exposes those available variables and supported actions. Command actions write only the Controller's own section through admission. Message actions address Controllers or publish entity-wide. Cross-Controller requests do not transfer authority. Reuse the existing hierarchical evaluator, inheritance, references, private continuation and deterministic internal later-write semantics. Later tasks can inspect earlier intent writes in the same evaluation; physical effects occur afterwards.
 

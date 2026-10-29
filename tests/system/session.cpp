@@ -93,6 +93,8 @@ int main()
 			      {"consoles",
 			       Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"engine", "steering"}}},
 			                    {{"id", "sensors"}, {"definition", "test.empty"}, {"systems", {"radar"}}}})}}});
+			data["entities"][0].erase("control_layout");
+			phoenix::test::materialise_fixture_widgets(data);
 			multi_pack.files["definitions.json"] = json_bytes(data);
 			auto multi = make_local_session();
 			multi->add_pack(write_pack(multi_pack));
@@ -118,8 +120,7 @@ int main()
 			helm.refresh(multi, 1);
 			sensors.refresh(multi, 2);
 			const auto layout_revision = helm.layout_revision();
-			require(helm.layout() && sensors.layout() && helm.act("game.faster/widget") &&
-			            helm.act("game.faster/widget"),
+			require(helm.layout() && sensors.layout() && helm.act("game.faster") && helm.act("game.faster"),
 			        "headless model resolves authored layouts and accumulates same-tick actions");
 			require(helm.requested_speed() > 0 && sensors.requested_speed() == 0 && !sensors.act("game.faster") &&
 			            !helm.act("game.contacts"),
@@ -130,8 +131,17 @@ int main()
 			        "Absolute slider/ring controls preserve value bounds and per-Console authority");
 			require(sensors.act("game.contacts/radar") && !sensors.announcement().empty(),
 			        "radar semantics use the permitted projection");
-			require(multi->console_command(2, {ship, "radar_enabled", 0}) &&
-			            !multi->console_command(2, {ship, "speed_mm_s", 1}),
+			OperatingCommand radar_toggle{ship, "radar_enabled", 0};
+			const auto radar_observation = multi->console_observation(2);
+			for (const auto &controller : radar_observation->gameplay.at("controllers"))
+				for (const auto &[channel, field] : controller.at("commands").items())
+					if (field.at("action") == "radar_enabled")
+					{
+						radar_toggle.controller = controller.at("id");
+						radar_toggle.channel = channel;
+						radar_toggle.generation = controller.at("generation");
+					}
+			require(multi->console_command(2, radar_toggle) && !multi->console_command(2, {ship, "speed_mm_s", 1}),
 			        "session route preserves System authority");
 			multi->tick();
 			require(multi->observation()->requested_heading == 123250 &&
@@ -179,6 +189,19 @@ int main()
 			extra["id"] = "starboard-slider";
 			extra["system"] = "starboard";
 			widgets.push_back(extra);
+			ship.erase("control_layout");
+			phoenix::test::materialise_fixture_widgets(data);
+			for (auto &widget : widgets)
+			{
+				const auto kind = widget.at("kind");
+				if (kind == "throttle" || kind == "heading")
+				{
+					const auto physical = widget.value("system", std::string{});
+					widget.erase("system");
+					widget["controller"] = physical;
+					widget["channel"] = kind == "throttle" ? "speed_mm_s" : "heading_mdeg";
+				}
+			}
 			instances.files["definitions.json"] = json_bytes(data);
 			auto session = make_local_session();
 			session->add_pack(write_pack(instances));
@@ -188,13 +211,18 @@ int main()
 			const auto snapshot = session->console_snapshot(1);
 			require(snapshot && snapshot == session->console_snapshot(1) && model.observation() == snapshot,
 			        "The Console model and other presentation consumers share one permitted snapshot");
-			require(model.widget_system("engine") == "port" && model.widget_system("starboard-slider") == "starboard" &&
-			            model.widget_system("radar") == "search" && model.system_maximum("starboard") == 20000,
+			require(model.widget_system("engine") == "controller/port/speed_mm_s" &&
+			            model.widget_system("starboard-slider") == "controller/starboard/speed_mm_s" &&
+			            model.widget_system("radar") == "search" &&
+			            model.system_maximum("controller/starboard/speed_mm_s") == 20000,
 			        "widget identity resolves exact fitted capability and public bounds");
-			require(model.set_speed_fraction(.2, "port") && model.set_speed_fraction(.7, "starboard") &&
-			            model.set_heading_degrees(33, "engine") && !model.set_speed_fraction(.5),
+			require(model.set_speed_fraction(.2, "controller/port/speed_mm_s") &&
+			            model.set_speed_fraction(.7, "controller/starboard/speed_mm_s") &&
+			            model.set_heading_degrees(33, "controller/engine/heading_mdeg") &&
+			            !model.set_speed_fraction(.5),
 			        "explicit widget commands admit independently while ambiguous implicit control refuses");
-			require(model.system_request("port") == 2000 && model.system_request("starboard") == 14000,
+			require(model.system_request("controller/port/speed_mm_s") == 2000 &&
+			            model.system_request("controller/starboard/speed_mm_s") == 14000,
 			        "same-tick pending feedback is independent per fitted instance");
 			require(session->console_snapshot(1) != snapshot,
 			        "Admitted same-tick commands invalidate presentation snapshots immediately");
@@ -203,15 +231,17 @@ int main()
 			require(model.act("game.faster/engine"), "semantic action resolves its widget's System");
 			session->tick();
 			model.refresh(session);
-			require(model.system_request("port") == 2500 && model.system_request("starboard") == 14000 &&
-			            model.system_request("engine") == 33000,
+			require(model.system_request("controller/port/speed_mm_s") == 2500 &&
+			            model.system_request("controller/starboard/speed_mm_s") == 14000 &&
+			            model.system_request("controller/engine/heading_mdeg") == 33000,
 			        "widget actions use their own request and maximum rather than a sibling's state");
 			auto resumed = make_local_session();
 			resumed->restore(session->save());
 			resumed->resume_local();
 			ConsoleModel recovered;
 			recovered.refresh(resumed);
-			require(recovered.system_request("port") == 2500 && recovered.system_request("starboard") == 14000,
+			require(recovered.system_request("controller/port/speed_mm_s") == 2500 &&
+			            recovered.system_request("controller/starboard/speed_mm_s") == 14000,
 			        "portable instance recovery preserves operations and restores fresh Console selection");
 		}
 		auto session = make_local_session();
@@ -272,7 +302,17 @@ int main()
 		require(session->viewscreen().size() == 2 && own != 1,
 		        "Selected slot must create and claim its own ship, not a map entity");
 		require(!session->command({1, "speed_mm_s", 1000}), "Local adapter must refuse another ship's commands");
-		require(session->command({own, "speed_mm_s", 1000}), "Local adapter must admit an owned engine request");
+		OperatingCommand owned_speed{own, "speed_mm_s", 1000};
+		const auto command_observation = session->observation();
+		for (const auto &controller : command_observation->gameplay.at("controllers"))
+			for (const auto &[channel, field] : controller.at("commands").items())
+				if (field.at("action") == "speed_mm_s")
+				{
+					owned_speed.controller = controller.at("id");
+					owned_speed.channel = channel;
+					owned_speed.generation = controller.at("generation");
+				}
+		require(session->command(owned_speed), "Local adapter must admit an owned widget request");
 		auto before = session->observation()->own.x;
 		for (int i = 0; i < 20; ++i)
 			session->tick();
@@ -411,7 +451,15 @@ int main()
 			for (std::uint64_t tick = 0; tick < worker->ticks(); ++tick)
 				serial->tick();
 			require(state(serial->save()) == worker_state, "Worker continuation must match serial execution exactly");
-			const OperatingCommand queued{retained->own.id, "speed_mm_s", 1200};
+			OperatingCommand queued{retained->own.id, "speed_mm_s", 1200};
+			for (const auto &controller : retained->gameplay.at("controllers"))
+				for (const auto &[channel, field] : controller.at("commands").items())
+					if (field.at("action") == "speed_mm_s")
+					{
+						queued.controller = controller.at("id");
+						queued.channel = channel;
+						queued.generation = controller.at("generation");
+					}
 			require(worker->dispatch_console_command(1, queued), "UI command delivery must enter the worker queue");
 			require(serial->console_command(1, queued), "Synthetic owned engine command must be admissible");
 			const OperatingCommand refused{retained->own.id + 9999, "speed_mm_s", 1200};

@@ -111,8 +111,7 @@ struct ConsoleControllerRuntime
 	ConsoleControllerSpec definition;
 	std::vector<ControllerChannelState> commands;
 	bool human = false;
-	// Empty only while pre-rewrite content is being migrated. A populated vector
-	// is authoritative per command; human remains a derived summary thereafter.
+	// Authoritative per command. human is a derived presentation summary.
 	std::vector<bool> human_commands;
 	std::set<std::string> human_operations;
 	std::uint64_t generation = 1;
@@ -164,6 +163,7 @@ struct ControllerProposal
 	std::uint64_t generation = 0, request_id = 0;
 	bool human = false;
 	std::vector<std::int64_t> arguments;
+	std::string operation; // Trusted native composition; never accepted from a scalar wire command.
 };
 // Policy-independent proposal; admission and native execution retain authority.
 struct ControllerDecisionProposal

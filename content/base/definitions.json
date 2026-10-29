@@ -5661,8 +5661,8 @@
 							"equipment": "drive.impulse"
 						},
 						"star_levels": {
-							"1": "automated",
-							"2": "automated",
+							"1": "coordinated",
+							"2": "coordinated",
 							"3": "responsibility1"
 						}
 					},
@@ -6140,8 +6140,8 @@
 							"equipment": "wing.impulse"
 						},
 						"star_levels": {
-							"1": "automated",
-							"2": "automated",
+							"1": "coordinated",
+							"2": "coordinated",
 							"3": "responsibility1"
 						}
 					},
@@ -98327,10 +98327,17 @@
 					"human": []
 				},
 				{
+					"id": "coordinated",
+					"human": ["coordinated_impulse"]
+				},
+				{
 					"id": "responsibility1",
-					"human": ["impulse"]
+					"human": ["impulse", "coordinated_impulse"]
 				}
-			]
+			],
+			"operations": {
+				"coordinated_impulse": ["$equipment"]
+			}
 		},
 		{
 			"id": "base.widget.32da4b37f29cc75d",

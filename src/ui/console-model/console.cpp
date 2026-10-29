@@ -247,6 +247,12 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		pending_requests_.clear();
 		speed_ = observation_->requested_speed;
 		heading_ = observation_->requested_heading;
+		const auto speed_binding = default_binding("speed_mm_s"), heading_binding = default_binding("heading_mdeg");
+		maximum_ = speed_binding.empty() ? 0 : system_maximum(speed_binding);
+		if (!speed_binding.empty())
+			speed_ = system_request(speed_binding, "speed_mm_s");
+		if (!heading_binding.empty())
+			heading_ = system_request(heading_binding, "heading_mdeg");
 		if (!layout_.is_null())
 			for (const auto &widget : layout_.at("widgets"))
 			{

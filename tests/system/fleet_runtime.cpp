@@ -46,8 +46,8 @@ void drive(FleetRuntime &runtime, std::shared_ptr<HostAccess> &world)
 		if (kind == "claim")
 			require(world->authoritative_world().claim(1, target), "Committed station claim failed");
 		if (kind == "command")
-			require(world->authoritative_world().submit(1, {target, "speed_mm_s", 1000}) &&
-			            world->authoritative_world().submit(1, {target, "heading_mdeg", 90000}),
+			require(phoenix::test::fixture_submit(world->authoritative_world(), 1, {target, "speed_mm_s", 1000}) &&
+			            phoenix::test::fixture_submit(world->authoritative_world(), 1, {target, "heading_mdeg", 90000}),
 			        "Committed operating request failed");
 		if (kind == "tick")
 			world->tick();

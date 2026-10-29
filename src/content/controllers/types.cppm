@@ -300,7 +300,6 @@ struct ControllerCommandSpec
 	std::string label_key, ui_system; // Optional presentation subject for abstract power intent.
 	std::map<std::int64_t, std::string> choices;
 	std::string shared_target_controller, shared_target_channel;
-	int individual_stars = 1;
 	bool hull_priority = false;
 	std::string coordinated_group;
 };
@@ -313,7 +312,6 @@ enum class WidgetDataDestination : std::uint8_t
 struct ConsoleControllerSpec
 {
 	std::string id, console, tree;
-	std::string policy;
 	std::vector<ControllerCommandSpec> commands;
 	// Shared logical widget instance, independent of any rendered surface.
 	std::string widget;
@@ -336,10 +334,8 @@ struct ControllableLayout
 	std::vector<ConsoleControllerSpec> controllers;
 	std::vector<ConsoleComplexitySpec> profiles;
 	std::map<std::string, std::string> complexity_groups;
-	std::map<std::string, std::map<std::string, int>> manual_workloads;
 	std::map<std::string, std::size_t> default_profiles;
 	std::map<std::string, std::size_t> fixed_profiles;
 	std::size_t default_profile = 0;
-	bool converted = false;
 };
 } // namespace phoenix

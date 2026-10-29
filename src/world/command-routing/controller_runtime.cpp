@@ -25,9 +25,12 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 			const auto &state = controller.commands[j];
 			if (spec.coordinated_group.empty() || spec.coordinated_group != c.system)
 				continue;
-			if (!controller_command_human(controller, j) || spec.action != OperatingAction::Impulse ||
-			    c.request_id < state.request_id || (c.request_id == state.request_id && c.value != state.value) ||
-			    (state.consumed < state.revision && c.request_id != state.request_id))
+			if (!controller_operation_human(controller, "coordinated_impulse") ||
+			    !controller_operation_owns(controller, "coordinated_impulse",
+			                               definition(a.ship).fitted->values.at(spec.consumers.front()).id) ||
+			    spec.action != OperatingAction::Impulse || c.request_id < state.request_id ||
+			    (c.request_id == state.request_id && c.value != state.value) ||
+			    (state.request_id && state.consumed < state.revision && c.request_id != state.request_id))
 				return false;
 			proposals.push_back({{a.ship, a.console, controller.definition.id},
 			                     i,
@@ -36,7 +39,8 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 			                     controller.generation,
 			                     c.request_id,
 			                     true,
-			                     {}});
+			                     {},
+			                     "coordinated_impulse"});
 		}
 	}
 	if (proposals.empty())
@@ -104,8 +108,6 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 		{
 			process_controller_coordination(id, i);
 			auto &brain = *controller.brain;
-			if (brain.continuation.interrupted && controller.definition.widget.empty())
-				state_tree::resume(brain.continuation);
 			const auto observations = controller_observations(id, controller);
 
 			std::optional<Observation> fallback;
@@ -238,22 +240,9 @@ auto Runtime::project_controllers(const ConsoleAddress &address, const Observati
 				facts.systems.push_back(system.id);
 		facts.conversation_authority =
 		    comms_controller(address.ship, controller.definition) && conversation_operator(address.ship, controller);
-		bool contributes = false, bay = false;
-		for (const auto &command : controller.definition.commands)
-			for (const auto consumer : command.consumers)
-			{
-				const auto kind = definition(address.ship).fitted->values.at(consumer).kind;
-				contributes |= kind == OperatingSystem::Team || kind == OperatingSystem::ShuttleBay;
-				bay |= kind == OperatingSystem::ShuttleBay;
-			}
-		facts.contribution_authority = !controller.definition.widget.empty()
-		                                   ? controller_operation_human(controller, "contribution")
-		                                   : contributes && console_operator(address) != 0;
-		facts.craft_authority = !controller.definition.widget.empty() ? controller_operation_human(controller, "craft")
-		                                                              : bay && assisted_workload(address, "craft");
-		facts.transport_authority = !controller.definition.widget.empty()
-		                                ? controller_operation_human(controller, "transport")
-		                                : bay && assisted_workload(address, "transport");
+		facts.contribution_authority = controller_operation_human(controller, "contribution");
+		facts.craft_authority = controller_operation_human(controller, "craft");
+		facts.transport_authority = controller_operation_human(controller, "transport");
 		const auto observations = controller.brain && controller_ai_running(controller) && !controller.actions.empty()
 		                              ? controller_observations(address.ship, controller, &projected, &board)
 		                              : std::vector<state_tree::Value>{};

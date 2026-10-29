@@ -364,7 +364,8 @@ void field_collision_safety()
 	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
 	const auto ship = *world.ship_for_slot("test.slot");
 	check(world.inspect().size() == 1, "small distant rock should begin outside streaming window");
-	check(world.claim(99, ship) && world.submit(99, {ship, "speed_mm_s", 4000000}), "high-speed field request refused");
+	check(world.claim(99, ship) && phoenix::test::fixture_submit(world, 99, {ship, "speed_mm_s", 4000000}),
+	      "high-speed field request refused");
 	world.tick();
 	const auto bodies = world.inspect();
 	const auto own = std::find_if(bodies.begin(), bodies.end(),
@@ -389,12 +390,13 @@ void field_collision_safety()
 	catalog = load_fixture(data);
 	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
 	const auto moving_ship = *world.ship_for_slot("test.slot");
-	check(world.claim(99, moving_ship) && world.submit(99, {moving_ship, "speed_mm_s", 4000000}),
+	check(world.claim(99, moving_ship) &&
+	          phoenix::test::fixture_submit(world, 99, {moving_ship, "speed_mm_s", 4000000}),
 	      "moving-rock drive request refused");
 	world.tick();
 	auto changed = world.save().at("asteroid_fields").at(0);
 	check(changed.at("vx").get<std::int64_t>() > 0, "collision did not mutate generated rock motion");
-	check(world.submit(99, {moving_ship, "heading_mdeg", 90000}), "departure heading refused");
+	check(phoenix::test::fixture_submit(world, 99, {moving_ship, "heading_mdeg", 90000}), "departure heading refused");
 	bool unloaded = false;
 	for (int tick = 0; tick < 150; ++tick)
 	{
@@ -429,8 +431,8 @@ void field_collision_safety()
 		const auto speed = std::clamp<std::int64_t>(static_cast<std::int64_t>(std::hypot(dx, dy) * 5), 100000, 4000000);
 		for (auto *w : {&world, &resumed})
 		{
-			check(w->submit(99, {moving_ship, "heading_mdeg", heading}) &&
-			          w->submit(99, {moving_ship, "speed_mm_s", speed}),
+			check(phoenix::test::fixture_submit(*w, 99, {moving_ship, "heading_mdeg", heading}) &&
+			          phoenix::test::fixture_submit(*w, 99, {moving_ship, "speed_mm_s", speed}),
 			      "revisit command refused");
 			w->tick();
 		}
@@ -700,7 +702,7 @@ void spawned_equipment_continuation(bool models = false)
 	for (std::size_t i = 0; i < spawned.size(); ++i)
 	{
 		check(world.claim(200 + i, spawned[i]), "Dynamically created equipment has no usable Console binding");
-		check(world.submit(200 + i, {spawned[i], "speed_mm_s", 2000, "engine"}),
+		check(phoenix::test::fixture_submit(world, 200 + i, {spawned[i], "speed_mm_s", 2000, "engine"}),
 		      "Dynamically created equipment refused an ordinary command");
 	}
 	world.tick();
@@ -1282,7 +1284,8 @@ int main(int argc, char **argv)
 		check(player.has_value(), "Scenario actor slot did not resolve to a physical ship");
 		check(original.claim(100, *player), "Scenario player Console claim failed");
 		check(original.claim(101, 1), "Independent ship Console claim failed");
-		check(original.submit(100, {*player, "speed_mm_s", 100000}), "High-speed experiment command was not admitted");
+		check(phoenix::test::fixture_submit(original, 100, {*player, "speed_mm_s", 100000}),
+		      "High-speed experiment command was not admitted");
 		original.tick();
 		const auto saved = original.save();
 		check(saved.contains("scenario"), "World did not persist its authoritative scenario continuation");

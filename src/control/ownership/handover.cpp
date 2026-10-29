@@ -15,25 +15,10 @@ module phoenix.control.handover;
 namespace phoenix
 {
 void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint64_t claimant, bool human,
-                                 std::int64_t stars, bool validate, const ControllerHandoverPorts &ports,
-                                 std::vector<bool> human_commands, std::set<std::string> human_operations)
+                                 bool validate, const ControllerHandoverPorts &ports, std::vector<bool> human_commands,
+                                 std::set<std::string> human_operations)
 {
 	const bool present = claimant != 0;
-	// A lower workload relinquishes settings whose individual controls are no longer available.
-	if (human && !validate)
-		for (std::size_t j = 0; j < controller.commands.size(); ++j)
-		{
-			const auto &spec = controller.definition.commands[j];
-			auto &state = controller.commands[j];
-			if (spec.semantics == CommandSemantics::Setting && stars < spec.individual_stars &&
-			    (state.value != spec.initial || state.arguments != spec.initial_arguments))
-			{
-				state.value = spec.initial;
-				state.arguments = spec.initial_arguments;
-				state.target_override = false;
-				++state.revision;
-			}
-		}
 	if (validate && (human != controller.human || human_commands != controller.human_commands ||
 	                 human_operations != controller.human_operations))
 		throw std::runtime_error("Saved Controller operator differs from profile/claims");
@@ -50,11 +35,8 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 	{
 		const auto observations = ports.observations();
 		ports.cancel(observations);
-		const auto result =
-		    state_tree::interrupt(controller.brain->program, controller.brain->continuation, observations);
-		for (const auto &output : result.outputs)
-			ports.output(output, observations);
-		ports.cancel(observations);
+		// Policy continuity is independent of who owns its command channels.
+		// Selected actions and commitments still belong to the outgoing operator.
 		for (auto &request : controller.incoming_requests)
 			if (request.status == OfficerStatus::Accepted || request.status == OfficerStatus::Completed)
 			{
@@ -75,6 +57,10 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 		throw std::runtime_error("Controller operator generation exhausted");
 	++controller.generation;
 	ports.advance_epoch();
+	std::vector<bool> reset_commands;
+	for (std::size_t j = 0; j < controller.commands.size(); ++j)
+		reset_commands.push_back(controller.human_commands[j] != human_commands[j] ||
+		                         (human_commands[j] && controller.operator_claimant != claimant));
 	controller.human = human;
 	controller.human_commands = std::move(human_commands);
 	controller.human_operations = std::move(human_operations);
@@ -83,8 +69,8 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 	for (std::size_t j = 0; j < controller.commands.size(); ++j)
 	{
 		const auto action = controller.definition.commands[j].action;
-		if (action == OperatingAction::Longitudinal || action == OperatingAction::Lateral ||
-		    action == OperatingAction::ManualSteering || action == OperatingAction::Boost)
+		if (reset_commands[j] && (action == OperatingAction::Longitudinal || action == OperatingAction::Lateral ||
+		                          action == OperatingAction::ManualSteering || action == OperatingAction::Boost))
 		{
 			auto &command = controller.commands[j];
 			command.value = 0;

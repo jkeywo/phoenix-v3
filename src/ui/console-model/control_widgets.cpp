@@ -175,8 +175,8 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 			    !channel.empty() && controller.at("commands").contains(channel) &&
 			    controller.at("commands").at(channel).value("human", false))
 				widget.controls.push_back(control);
-			else if (control.value("controller", std::string{}) == widget.id && control.contains("operation") &&
-			         console_operation_human(controller, control.at("operation")))
+			else if (control.value("widget_controller", control.value("controller", std::string{})) == widget.id &&
+			         control.contains("operation") && console_operation_human(controller, control.at("operation")))
 				widget.controls.push_back(control);
 		}
 		result.push_back(std::move(widget));

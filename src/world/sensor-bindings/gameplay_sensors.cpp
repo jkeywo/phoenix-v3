@@ -244,11 +244,11 @@ auto Runtime::route_finding(EntityId ship, const std::string &system, const Sens
 			for (const auto &controller : entities.at(ship).get<EntityControls>().controllers)
 			{
 				if (controller.definition.console == console.id && comms_controller(ship, controller.definition))
-					human |= controller.human;
-				for (const auto &command : controller.definition.commands)
-					for (const auto consumer : command.consumers)
+					human |= controller_operation_human(controller, "conversation");
+				for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
+					for (const auto consumer : controller.definition.commands[channel].consumers)
 						if (definition(ship).fitted->values.at(consumer).id == system)
-							human |= controller.human;
+							human |= controller_command_human(controller, channel);
 			}
 			if (announce && !human)
 			{

@@ -69,8 +69,6 @@ state_tree::Result evaluate_controller_tree(ConsoleControllerRuntime &controller
                                             std::span<const state_tree::Value> observations,
                                             const ControllerActionPorts &ports)
 {
-	if (controller.definition.widget.empty())
-		return state_tree::step(program, continuation, observations);
 	const ControllerTreeEvaluation evaluation{controller, ports};
 	// step already protects the continuation transactionally. Only resuming an
 	// interrupted owner needs a separate copy so failure also rolls back resume.

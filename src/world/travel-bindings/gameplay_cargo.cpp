@@ -66,8 +66,7 @@ auto Runtime::cargo_authorisation_console(const ConsoleAddress &a, bool human) c
 		return false;
 	for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
 		if (controller.definition.id == owner && controller.definition.console == a.console &&
-		    (!human || (controller.definition.widget.empty() ? controller.human
-		               : controller_operation_human(controller, "cargo_authorisation"))))
+		    (!human || controller_operation_human(controller, "cargo_authorisation")))
 			return true;
 	return false;
 }

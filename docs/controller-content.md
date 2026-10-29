@@ -1,50 +1,104 @@
 # Authoring Console Controllers
 
-This describes the implemented explicit-layout contract. See [the architecture](controller-architecture.md) for the target and [the refactor plan](controller-refactor-plan.md) for migration status. Maintained controllable craft use explicit layouts. Legacy definitions are converted at the compiler boundary only when their ownership has an unambiguous mapping; System-context policies and summary-intent presets require explicit migration.
+Player Consoles use schema-2 shared-widget layouts. Each logical widget owns one
+Controller, an explicit set of equipment roles, one policy and its responsibility
+levels. The same definition can be fitted to different ships or used several times
+on one ship. See [the rewrite contract](control-widget-rewrite.md) and
+[the architecture](controller-architecture.md).
 
-## Layout and commands
+## Shared definitions and instances
 
-A controllable entity declares `control_layout` with `schema: 1`, a Controller list, complexity profiles and a default profile. A Controller's identity is its entity, Console and local ID. Reusing an ID in another Console does not create a shared Controller.
-
-For example, this fragment gives two engines one throttle:
+This fragment gives two engines one throttle. It omits the surrounding pack,
+physical fittings and Console definition:
 
 ```json
 {
-  "control_layout": {
-    "schema": 1,
-    "controllers": [
-      {
-        "id": "propulsion",
-        "console": "helm",
-        "fallback": "hold",
-        "commands": [
-          {
-            "id": "speed",
-            "action": "speed_mm_s",
-            "initial": 0,
-            "consumers": ["port", "starboard"]
-          }
-        ]
-      }
-    ],
-    "profiles": [
-      {"id": "direct", "consoles": {"helm": {"human": ["propulsion"]}}},
-      {"id": "automatic", "consoles": {"helm": {"ai": ["propulsion"]}}}
-    ],
-    "default_profile": "direct"
-  }
+  "control_widgets": [{
+    "id": "example.drive", "schema": 1,
+    "equipment": {"engines": {"multiple": true, "kinds": ["engine"]}},
+    "commands": [{"id": "speed", "action": "speed_mm_s", "initial": 0, "consumers": ["$engines"]}],
+    "data": {
+      "enabled": {"binding": "system.engines.enabled", "label": "Enabled", "placement": "main", "required": true},
+      "speed": {"binding": "command.speed", "label": "Requested speed", "placement": "details"}
+    },
+    "parts": ["main"],
+    "levels": [
+      {"id": "automated", "human": []},
+      {"id": "manual", "human": ["speed"]}
+    ]
+  }],
+  "entities": [{
+    "id": "example.ship",
+    "control_layout": {
+      "schema": 2,
+      "controllers": [{
+        "id": "propulsion", "console": "helm", "widget": "example.drive",
+        "equipment": {"engines": ["port", "starboard"]},
+        "star_levels": {"1": "automated", "2": "manual", "3": "manual"},
+        "data_placement": {"3": {"speed": "main"}}
+      }],
+      "profiles": [{"id": "simple", "stars": 1}, {"id": "middle", "stars": 2}, {"id": "detailed", "stars": 3}],
+      "default_profile": "simple"
+    }
+  }]
 }
 ```
 
-`helm`, `port` and `starboard` must resolve in the enclosing entity. This is a layout fragment, not a complete pack. Each profile allocates every Controller exactly once. A Console selects its profile independently; human allocations take effect only while an operator is present and available. Unclaimed/Away Consoles use AI for every Controller. `fallback: hold` deliberately preserves accepted settings without making decisions; replace it with `tree` to author autonomous decisions.
+Place it with a Console layout component `control/propulsion/main`, or
+`control/propulsion/complete` for a reunited compact presentation. The compiler
+checks every rating and layout variant for access to human commands, native
+operations, required main readouts and Details. A definition without a policy
+holds accepted settings; author a `tree`, role-bound inline `policy`, or the
+existing `policy_template: "combat"` when it should make decisions.
 
-To author two throttles, declare two Controllers or two owned channels and bind each engine to one channel. The compiler rejects two channels supplying the same physical input, including aliases. Ordinary numeric settings remain accepted until changed. `impulse` is a one-shot request and currently requires one executor. Request IDs identify retries; replaying an accepted ID does not repeat its effect. Operator generations reject writes queued before a handover. Held thrust, steering and boost are neutralised when authority changes.
+Instances bind roles and map each rating independently. They cannot replace the
+shared commands, operations or policy. Derive a library definition for an
+intentional variation. An inline policy uses ordinary tree inheritance and `$role`
+bindings for System observations. `repeat` with an inline `member_policy` expands
+one equipment set into independent member channels and private continuations
+under the same Controller, using the ordinary evaluator.
 
-Initial settings are consumed through the same physical path at spawn, before the first decision snapshot. Inactive defaults therefore cannot overwrite a newer first-tick decision. Accepted commands record intent and consumption; actual mechanism telemetry reports whether navigation or other ongoing work is still active. Neutral manual-input releases preserve assisted guidance during handover.
+Each physical input has one owning channel. Settings persist until changed;
+requests retain their identity, receipt and single-executor rules. Queued inputs
+carry the Controller generation, so a stale input cannot survive a change of
+operator or responsibility. Held thrust, steering and boost return to neutral on
+handover. Physical telemetry remains separate from accepted intent.
 
-Players select a Console's complexity profile in the lobby or its settings. A lobby change regenerates the prepared world and resets readiness; reselecting the current profile is a no-op. A player can configure their selected Console, and a ship host can configure its unoccupied or local Consoles. Another ship's or another player's Console cannot be configured through that route. In-game settings use the ordinary authenticated Console command path. Recovery retains the saved live profile and offers changes through settings after launch.
+## Responsibilities, native workflows and data
 
-Throttle and heading widgets can name `controller` and `channel` instead of `system`. Both identifiers are required and resolve within the Console using that layout. The command must be a speed or heading setting matching the widget kind. The old semantic `binding` string is optional for this form. For example, a throttle widget can contain `"controller": "propulsion", "channel": "speed"`; its usual ID, label and layout coordinates are still required. It reads the accepted setting and compiled range from the Console board, so one widget can command both engines without choosing an engine as its target. An AI-owned section remains readable but refuses human writes.
+An Automated level has no human responsibilities and produces readouts. Other
+levels list the complete human command and operation set. Levels retain earlier
+responsibilities or explicitly `replaces` an assisted command with its detailed
+commands. Ratings can share a level or select an Automated replacement at a later
+rating. Unclaimed, disconnected and Away Consoles give all responsibilities to AI.
+
+The same tree evaluates at every rating. AI attempts at human settings succeed
+without mutation when the accepted setting already matches; other writes are
+refused. Ordered `attempt` branches allow explicit same-tick fallback. Author the
+rest of each branch for the setting actually accepted, including ammunition choice.
+A failed or exhausted evaluation commits neither staged commands nor continuation.
+
+Native workflow responsibilities live in the shared definition's `operations`,
+whose values name equipment roles. They include Team destination and work,
+Medical, personnel, Team selection and manifest transport, department contribution,
+mission staffing/lifecycle/send/quantity, craft, logistics, docking, departure,
+conversation, coordination, alert, stance and objectives. Allocation of one does
+not grant another. Native actions carry the widget generation and their existing
+domain revision. Physical mechanisms and their admission constraints are unchanged.
+
+Named data uses `command.channel`, `system.role.field`, `weapon.role.field`,
+`team.role.field`, `ftl.role.field`, `shield.role.field`, or a scalar
+`board:/json/pointer` into the permitted gameplay projection. Main/Details/Hidden
+placement resolves from definition, level, then instance per-star override,
+independently of control allocation. Required state indicators remain on Main.
+PDC definitions can put battery and ammunition on Main; missile definitions can
+put actual loaded resource and quantity there. Visibility grants no extra evidence.
+
+Named `part_bindings` divide commands, native operations and data between visual
+parts while retaining the same state, generation and browsing context. They may
+reuse an existing native `renderer`, declare setting `ranges`, filter button
+`values`, and expose one shared Details entry. Lateral left/right parts can occupy
+the radar gaps and reunite as `complete` in a compact layout.
 
 ## Physical motion and initial heading
 
@@ -56,11 +110,17 @@ An omitted `initial` on a heading channel uses the entity's spawn heading. An ex
 
 ### Star presentation and station selection
 
-Complexity profiles may declare `stars: 1`, `2` or `3`. The rating is presentation metadata; the profile's human/AI Controller allocations still define its behaviour. Omitted or zero ratings retain ungraded profiles, including internal Automatic operation. The player lobby and Console settings use filled/empty star sprites for rated profiles, while server station cards display the accepted rating without selection controls. Unrated legacy content retains its existing named choices.
+Profiles declare stars 1, 2 or 3. Widget instances map those ratings to their own
+responsibility levels; there is no second human/AI allocation table. The lobby
+and Console settings select the accepted profile. `station_complexity: true`, or
+an explicit list of Station ids, groups selection for those Stations. Other
+Stations retain their independent choice. Restore rejects contradictory selections
+within a group. Fixed auxiliary profiles retain their authored rating.
 
-An explicit layout may opt into `station_complexity: true`. Selecting a profile then changes every Console belonging to that Station together, including auxiliary Consoles, during lobby preparation and live play. Other Stations retain their selection. The existing Controller handover boundary applies after the grouped update; restore rejects contradictory selections within an authored group. This option is independent of the star rating and does not change existing ships unless enabled in their content.
-
-An opted-in Station below three stars assigns its own Duty Officers automatically and leaves Medical orders to assistance. Team contributions to away missions still require the owning Station's authorisation. Conversations remain available to the Station operator when radio readiness is automatic; this does not grant permission to change the radio's physical command channels.
+Native responsibility follows operations rather than hidden star thresholds.
+For example, a Team widget can grant `team_assignment` at one star while keeping
+`team_work` and `medical` automated, and add detailed work at a later rating.
+Conversations can remain human-controlled while the radio's readiness is automatic.
 
 A weapon-target command may declare `shared_target: {"controller": "scanner", "channel": "target"}`. The source must be a sensor-target or weapon-target command on the same Console and cannot itself follow another source. The weapon follows this accepted target until its human operator explicitly overrides it. AI handover clears the override, including when a lower complexity profile takes over. The override is saved with the command state.
 
@@ -143,13 +203,24 @@ Entity-wide messages use destination kind `ship` in the current serialized vocab
 
 ## Compatibility and verification
 
-Workshop's entity Properties inspector includes **Console Controllers and complexity**. Create an explicit layout or override the complete inherited layout, then edit Controllers, their commands and physical consumers, and each profile's Console allocations. Explicit layouts hide the old per-System policy and station-preset editors. Imported legacy policies must be removed before an explicit layout verifies.
+Workshop's **Console Controllers and complexity** inspector edits shared-widget
+instances, equipment role bindings, star-to-level mappings and per-item data
+placement. The shared-widget library edits commands, policies, responsibility
+levels and named visual parts. The layout editor places parts and the rendered
+ship-context preview checks each rating. Export/reopen retains authored bindings;
+compiled per-instance policies are regenerated.
 
 Controller trees expose command, System observation, peer-command and message bindings. Their task palette comes from the production registry for the resolved tree, including inherited bindings. Inherited binding groups remain read-only until explicitly overridden; removing a local group restores inheritance. System Properties expose factual reporters, and Coordination destinations include Console/Controller addresses.
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 13 with Console Controller continuation and knowledge binding metadata. Schemas 1-12 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
+World and portable session saves use schema 34 with per-channel and native-operation
+responsibilities and Controller continuation. Older saves and obsolete authority
+fields are refused transactionally; begin a new session. Authenticated command
+transport carries Controller, channel, generation, request identity and typed
+arguments. Native operations also carry their existing domain revision. Source
+Controller layouts before schema 2 are rejected; no runtime ownership converter
+or manual-workload fallback remains.
 
 Preference channels (`intent_integer` and `intent_boolean`) may declare `choices: [{"value":1000,"label_key":"Cruise policy"},{"value":3000,"label_key":"Fast policy"}]`. Choices are unique, in range, limited to 64 entries and include the initial value. Both human and AI admission enforce the list. Labels use ordinary localisation; Workshop can edit them. Omit choices for a continuous bounded setting. An optional channel `label_key` labels its generated controls.
 
@@ -157,29 +228,30 @@ Controller trees may declare `publication_templates: ["drive-request"]` to expos
 
 Use the production Catalog loader to validate bindings, then synthetic integration fixtures to verify behavior. `tests/support/controller_fixture.hpp` and `tests/system/controller_runtime.cpp` exercise the actual load, authority, command, physical, messaging and restore paths. Shipped ship tuning is not a test golden. The refactor plan remains the source for unimplemented migration and acceptance work.
 
-For an explicitly triggered graphical shared/split throttle journey, run `python tests/manual/controller_ui.py` from the repository root after building native. It creates independent test-only packs in `build/`. Run each with:
+For the explicitly triggered shared-widget graphical journey:
 
 ```powershell
-./build/native/Release/native.exe --local-only --game-pack build/controller-ui-shared.zip --mission test.map --slot test.slot --ship test.controllable --seat drive --console --helm-smoke --data build/controller-ui-shared-data
+python tests/manual/control_widgets_ui.py
+./build/widget-finish-native/Release/phoenix_control_widgets_smoke.exe build/control-widgets-ui.zip
 ```
 
-Repeat with `controller-ui-split.zip` and a separate data directory. The probe uses rendered throttle/heading pointer paths, checks distinct accepted/consumed channel values and every physical engine consumer, then exercises Console Settings Away/resume. It captures `console-smoke.png` and exits. Multiple throttles retain authored positions. An explicit `gameplay_panel` is respected rather than replaced by the compact single-throttle preset; report history stays within its scrolling viewport.
-
-Replace `--helm-smoke` with `--controller-report-smoke` to select automatic/direct complexity through the actual Console Settings controls and verify the resulting profile/operators across Away/return. It also verifies the factual report in Console semantics, scrolls it into view and captures `controller-report-console.png`. The probe then switches to the Viewscreen and checks that the public report appears while the ordinary addressed report remains private, capturing `viewscreen-smoke.png`.
-
-Run the Workshop journey with:
+It exercises the real Console and Workshop renderer, readouts and Details,
+command and range admission, independent widget state, per-star data placement,
+split parts and compact reunion. Production layouts can be inspected with:
 
 ```powershell
-./build/native/Release/native.exe --local-only --workshop-pack build/controller-ui-shared.zip --controller-workshop-smoke --data build/controller-workshop-data
+./build/widget-finish-native/Release/phoenix_control_widgets_smoke.exe --inspect build/widget-finish-native/base.zip base.rescue-under-threat courier base.rescue-courier helm build/courier-widgets
 ```
 
-This explicit test-only probe edits the initial command, verifies/exports/reopens the draft, and activates the rendered Test controls' production Start/Pause/Step/Restart handlers. It checks consumed output and exact single-step advancement, then captures `workshop-smoke.png`. It is an app-driven workflow probe, not simulated mouse editing. Inspect fresh screenshots for all graphical runs. These supplement integration checks; they do not establish physical touch/gamepad, screen-reader or six-display performance acceptance.
+These are manually triggered smoke runs. Physical touch/gamepad, screen-reader
+usability and simultaneous six-display performance require their own hardware
+acceptance checks.
 
 ## Cyclic policies
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves from schema 11 or earlier require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves before schema 34 require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
@@ -189,16 +261,20 @@ Existing `navigation.blocked`, `navigation.left_heading`, `navigation.lateral_th
 
 ## Shared action execution
 
-Maintained policies select reusable actions through typed invocation bindings. See [shared Controller actions, officer requests and fixed factions](controller-actions.md) for runtime inputs, channel remapping, outcomes, coordination and schema-13 persistence. Legacy `policy: combat` declarations convert at the content boundary; they no longer select a separate native decision loop.
+Maintained policies select reusable actions through typed invocation bindings. See [shared Controller actions, officer requests and fixed factions](controller-actions.md) for runtime inputs, channel remapping, outcomes, coordination and persistence. A shared widget can select `policy_template: "combat"`; it uses that same policy compiler and executor. Controller instances cannot override it.
 
 ## Power intent presentation
 
 A numeric `intent_integer` channel without discrete `choices` can name a fitted `ui_system` as its presentation subject, for example `"ui_system": "drive.distribution"`. This lets an abstract allocation intent appear beside the physical group or cooling link it describes. Verification requires a fitted subject and a numeric intent. The subject is projected with the channel; it neither adds a physical consumer nor grants control or a new observation feed. The Power board pairs it with the permitted resource projection. Native power actions use their actual consumer bindings directly.
 
-Power sliders submit values within the admitted setting channel's minimum/maximum range, including values between the old increment buttons. Slider travel follows the fitted generator rating, allocation budget, charge rate or cooling-link capacity. The client requires a currently projected human power channel; the server still checks operator, generation, star threshold, action and range. These rules also apply to abstract power intents.
+Power sliders submit values within the admitted setting channel's minimum/maximum range, including values between the old increment buttons. Slider travel follows the fitted generator rating, allocation budget, charge rate or cooling-link capacity. The client requires a currently projected human power channel; the server still checks operation/channel ownership, generation, action and range. These rules also apply to abstract power intents.
 
 ## Manual team destinations with assisted local work
 
-A Station complexity layout may declare `manual_workloads: {"support": {"team_assignment": 1, "medical": 3}}`. The `team_assignment` family grants an occupied one- or two-star Console department-scoped destination commands even while its team machinery Controllers remain AI-operated. Only `team.order` with `auto/<compartment>` and ordinary cancellation receive this assisted authority; it does not grant detailed clinical orders, individual patient selection, another department's teams, or readiness switches. Team projections carry bounded `assignment_authority` metadata through native/browser admission.
+A Team widget grants `team_assignment` to the human while its `team_work` or
+`medical` operation remains delegated. Only destination orders (`auto/<compartment>`)
+and cancellation use the assignment grant. Detailed clinical orders, patient
+selection, other departments and readiness remain separately admitted. The same
+operation mask is checked by native execution and remote presentation.
 
 Repair teams retain their assigned destination while the Controller chooses useful local repairs. Medical chooses eligible treatment/recovery orders for that compartment after physically arriving. With no explicit destination, an occupied assisted team holds its current compartment rather than selecting another room. Vacant stations retain ordinary AI operation. Existing team destination, compartment-assignment, clinical compartment, travel and work fields persist this state; no timer or personnel progress is reconstructed on resume. Away manifest preparation remains independent and retains its ordinary department authority.

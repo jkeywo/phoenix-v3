@@ -32,10 +32,21 @@ void coordinated_impulse_cases()
 			profile["consoles"][c.at("console").get<std::string>()]["human"].push_back(c.at("id"));
 		layout["profiles"].push_back(profile);
 	}
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.paired-ai","context":"controller","command_bindings":[{"channel":"pulse","action":"impulse","type":"boolean","semantics":"request"}],"initial":"run","states":[{"id":"run","running":[{"attempt":[{"tasks":[{"action":"write.pulse","arguments":[true]}]},{"tasks":[]}]}]}]})json"));
+	for (auto &controller : layout["controllers"])
+		if (controller.at("id").get<std::string>().starts_with("paired."))
+		{
+			controller.erase("fallback");
+			controller["tree"] = "test.paired-ai";
+		}
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");
 	claim(world);
+	world.tick();
+	require(telemetry(world, "impulse", "impulse_phase") == 0 && telemetry(world, "impulse-two", "impulse_phase") == 0,
+	        "Human coordinated launch grant refuses autonomous individual triggers");
 	const auto observed = *world.observe(101);
 	OperatingCommand individual{1, "impulse", 1, {}};
 	individual.controller = "paired.impulse";
@@ -49,6 +60,12 @@ void coordinated_impulse_cases()
 	for (const auto &d : observed.gameplay.at("controls"))
 		if (d.at("action") == "flight.impulse" && d.at("value") == 1)
 			group = decode_operating_command(d);
+	bool presented = false;
+	for (const auto &widget : console_control_widgets(catalog, observed))
+		for (const auto &control : widget.controls)
+			presented =
+			    presented || (control.value("action", std::string{}) == "flight.impulse" && control.at("value") == 1);
+	require(presented, "Coordinated launch is rendered by its logical widget at the assisted rating");
 	require(group.request_id && world.submit(101, group), "Coordinated impulse descriptor admits a request");
 	world.tick();
 	require(telemetry(world, "impulse", "impulse_phase") == telemetry(world, "impulse-two", "impulse_phase") &&

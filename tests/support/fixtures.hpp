@@ -1,8 +1,10 @@
 #pragma once
 #include <algorithm>
 #include <string>
+#include <source_location>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -14,6 +16,7 @@ import phoenix.content.verification;
 #include "directed_materialisation.hpp"
 #include "rule_materialisation.hpp"
 #include "process_materialisation.hpp"
+#include "widget_materialisation.hpp"
 namespace phoenix::test
 {
 // Legacy shorthand is confined to synthetic fixture construction. Production packs
@@ -247,6 +250,7 @@ inline PackDraft fixture_pack(const Bytes &definitions, const std::string &id)
 	materialise(authored);
 	materialise_fixture_processes(authored);
 	materialise_fixture_rules(authored);
+	materialise_fixture_widgets(authored);
 	pack.files["definitions.json"] = json_bytes(authored);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 	return pack;
@@ -255,9 +259,84 @@ inline Bytes archive(const Json &definitions, const std::string &id = "test-core
 {
 	return write_pack(fixture_pack(json_bytes(definitions), id));
 }
-inline Catalog load(const Json &definitions, const std::string &id = "test-core")
+inline Catalog load(const Json &definitions, const std::string &id = "test-core",
+                    const std::source_location location = std::source_location::current())
 {
-	return resolve_packs({read_pack(archive(definitions, id))});
+	try
+	{
+		return resolve_packs({read_pack(archive(definitions, id))});
+	}
+	catch (const std::exception &error)
+	{
+		throw std::runtime_error(std::string(location.file_name()) + ":" + std::to_string(location.line()) + ": " +
+		                         error.what());
+	}
+}
+
+// Native fixtures select the owning widget from the current permitted board.
+// They still pass their explicit domain revision so stale revisions stay stale.
+template <class FixtureWorld>
+bool fixture_native_submit(FixtureWorld &world, std::uint64_t claimant, OperatingCommand command)
+{
+	if (!command.controller.empty())
+		return world.submit(claimant, command);
+	const auto view = world.observe(claimant);
+	if (!view)
+		return false;
+	if (command.action == "alert.set" || command.action == "stance.set" || command.action == "objective.priority")
+	{
+		for (const auto &control : view->gameplay.at("controls"))
+			if (control.value("action", std::string{}) == command.action &&
+			    control.value("system", std::string{}) ==
+			        (command.action == "stance.set" && command.system.empty() ? view->console : command.system))
+			{
+				command.controller = control.at("controller");
+				command.arguments = {static_cast<std::int64_t>(command.generation)};
+				command.generation = control.at("generation");
+				return world.submit(claimant, command);
+			}
+		return false;
+	}
+	if (command.action.starts_with("personnel."))
+	{
+		const auto board = view->gameplay.value("personnel", Json::object());
+		if (!board.contains("controller"))
+			return false;
+		command.controller = board.at("controller");
+		command.value = command.generation;
+		command.generation = board.at("generation");
+	}
+	return world.submit(claimant, command);
+}
+// Resolve fixture input through the same current Controller descriptors a client
+// receives. Tests of malformed/stale envelopes call submit directly.
+template <class FixtureWorld> bool fixture_submit(FixtureWorld &world, std::uint64_t claimant, OperatingCommand command)
+{
+	if (!command.controller.empty() || !command.channel.empty() || !operating_action(command.action))
+		return world.submit(claimant, command);
+	const auto view = world.observe(claimant);
+	if (!view)
+		return false;
+	std::optional<OperatingCommand> selected;
+	for (const auto &owner : view->gameplay.at("controllers"))
+		for (const auto &[channel, field] : owner.at("commands").items())
+		{
+			if (field.at("action") != command.action ||
+			    (!command.system.empty() && std::find(field.at("consumers").begin(), field.at("consumers").end(),
+			                                          Json(command.system)) == field.at("consumers").end()))
+				continue;
+			if (selected)
+				return false;
+			auto bound = command;
+			bound.system.clear();
+			bound.controller = owner.at("id");
+			bound.channel = channel;
+			bound.generation = owner.at("generation");
+			if (field.at("semantics") == "request")
+				bound.request_id = field.at("request_id").template get<std::uint64_t>() + 1;
+			selected = bound;
+		}
+	return selected && world.submit(claimant, *selected);
 }
 inline void navigation_policy(Json &entity, const std::string &tree)
 {

@@ -43,6 +43,7 @@ void objective_priority_cases()
  {"action":"add_objective","arguments":["secret",{"observation":"self.entity"},"secret"]}],
  "transitions":[{"target":"cancel","conditions":[{"left":{"observation":"tick"},"op":"ge","right":40}]}]},
  {"id":"cancel","entry":[{"action":"set_objective_status","arguments":[{"observation":"objective.id"},4]}]}]})json"));
+	materialise_fixture_widgets(source);
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");
@@ -59,7 +60,9 @@ void objective_priority_cases()
 	        "Captain sees only ship publications and partial AI enables priority");
 	const auto first = board.at("objectives")[0].at("id").get<std::int64_t>();
 	OperatingCommand choose{1, "objective.priority", first};
-	choose.generation = board.at("revision");
+	choose.controller = "bridge";
+	choose.generation = controller(world, 102, "bridge").at("generation");
+	choose.arguments = {board.at("revision").get<std::int64_t>()};
 	require(!world.submit(101, choose) && world.submit(102, choose), "only Objectives Console may select priority");
 	world.tick();
 	world.tick();
@@ -72,12 +75,16 @@ void objective_priority_cases()
 			secret = objective.at("id");
 	require(secret != 0, "private scenario objective exists");
 	OperatingCommand hidden{1, "objective.priority", secret};
-	hidden.generation = world.observe(102)->gameplay.at("objective_board").at("revision");
+	hidden.controller = "bridge";
+	hidden.generation = controller(world, 102, "bridge").at("generation");
+	hidden.arguments = {world.observe(102)->gameplay.at("objective_board").at("revision").get<std::int64_t>()};
 	require(!world.submit(102, hidden), "private objective cannot become ship priority");
 	const auto priority = [&](std::int64_t id)
 	{
 		OperatingCommand request{1, "objective.priority", id};
-		request.generation = world.observe(102)->gameplay.at("objective_board").at("revision");
+		request.controller = "bridge";
+		request.generation = controller(world, 102, "bridge").at("generation");
+		request.arguments = {world.observe(102)->gameplay.at("objective_board").at("revision").get<std::int64_t>()};
 		require(world.submit(102, request), "admit current priority choice");
 		world.tick();
 	};

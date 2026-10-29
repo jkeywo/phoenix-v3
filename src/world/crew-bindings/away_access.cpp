@@ -385,8 +385,7 @@ auto Runtime::away_blocker(std::size_t index, bool power) const -> std::string
 auto Runtime::prepare_away_officers(const ConsoleAddress &address, std::size_t index) -> void
 {
 	const auto *staffing = native_operation_controller(address, "mission_staffing");
-	if (staffing ? controller_operation_human(*staffing, "mission_staffing")
-	             : station_stars(address) >= 3 && console_operator(address) != 0)
+	if (!staffing || controller_operation_human(*staffing, "mission_staffing"))
 		return;
 	const auto &d = away_operations.definitions().at(index);
 	for (const auto &slot : d.slots)
@@ -407,8 +406,7 @@ auto Runtime::prepare_away_officers(const ConsoleAddress &address, std::size_t i
 						command.text = slot.id + "/" + asset;
 						command.controller = controller.definition.id;
 						command.generation = controller.generation;
-						if (away_command(address, command, true,
-						                 controller.definition.widget.empty() ? !controller.human : true, true))
+						if (away_command(address, command, true, true, true))
 						{
 							assigned = true;
 							break;
@@ -427,7 +425,7 @@ auto Runtime::prepare_away_contribution(const ConsoleAddress &a, std::size_t ind
 	    (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || !m.outcome.empty())
 		return;
 	const bool native_transport = native_operation_controller(a, "transport") != nullptr;
-	if ((native_transport || station_stars(a) < 2 || console_operator(a) == 0) && m.transport.empty())
+	if (native_transport && m.transport.empty())
 		for (const auto &[id, e] : craft_rows())
 			if (e.get<CraftState>().home == a.ship && definition(id).craft->role == "shuttle" &&
 			    away_asset_owned(a, "craft:" + std::to_string(id)) && craft_available(id))
@@ -438,9 +436,9 @@ auto Runtime::prepare_away_contribution(const ConsoleAddress &a, std::size_t ind
 						c.controller = ctrl.definition.id;
 						c.generation = ctrl.generation;
 						c.text = "craft:" + std::to_string(id);
-						away_command(a, c, true, ctrl.definition.widget.empty() ? !ctrl.human : true, true);
+						away_command(a, c, true, true, true);
 					}
-	if (native_transport || station_stars(a) < 3 || console_operator(a) == 0)
+	if (native_transport)
 		for (const auto &slot : d.slots)
 			if (slot.kind == "team" && !m.assignments.contains(slot.id))
 				for (const auto &duty : definition(a.ship).personnel.duties)
@@ -452,9 +450,9 @@ auto Runtime::prepare_away_contribution(const ConsoleAddress &a, std::size_t ind
 								c.controller = ctrl.definition.id;
 								c.generation = ctrl.generation;
 								c.text = slot.id + "/team:" + duty.team;
-								away_command(a, c, true, ctrl.definition.widget.empty() ? !ctrl.human : true, true);
+								away_command(a, c, true, true, true);
 							}
-	if (native_transport || station_stars(a) < 2 || console_operator(a) == 0)
+	if (native_transport)
 		for (const auto &slot : d.craft_slots)
 			if (slot.role == "escort" && !m.escorts.contains(slot.id))
 				for (const auto &[id, e] : craft_rows())
@@ -467,7 +465,7 @@ auto Runtime::prepare_away_contribution(const ConsoleAddress &a, std::size_t ind
 								c.controller = ctrl.definition.id;
 								c.generation = ctrl.generation;
 								c.text = slot.id + "/craft:" + std::to_string(id);
-								away_command(a, c, true, ctrl.definition.widget.empty() ? !ctrl.human : true, true);
+								away_command(a, c, true, true, true);
 							}
 	prepare_away_officers(a, index);
 }

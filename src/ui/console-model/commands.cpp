@@ -424,20 +424,20 @@ void ConsoleModel::release_controls()
 }
 std::string ConsoleModel::default_binding(const std::string &action) const
 {
+	if (!observation_)
+		return {};
 	std::string result;
-	if (layout_.is_null())
-		return result;
-	for (const auto &widget : layout_.at("widgets"))
-		if ((widget.at("kind") == "throttle" && action == "speed_mm_s") ||
-		    (widget.at("kind") == "heading" && action == "heading_mdeg"))
-		{
-			const auto binding = widget_system(widget.at("id"));
-			if (!result.empty() && binding != result)
-				return {};
-			result = binding;
-		}
+	for (const auto &owner : observation_->gameplay.value("controllers", Json::array()))
+		for (const auto &[channel, field] : owner.at("commands").items())
+			if (field.value("human", false) && field.at("action") == action && field.at("semantics") == "setting")
+			{
+				if (!result.empty())
+					return {};
+				result = "controller/" + owner.at("id").get<std::string>() + "/" + channel;
+			}
 	return result;
 }
+
 bool ConsoleModel::submit(OperatingCommand command)
 {
 	auto session = owner_.lock();

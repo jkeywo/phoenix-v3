@@ -314,7 +314,8 @@ int main(int argc, char **argv)
 			for (const auto &controller : view.gameplay.at("controllers"))
 				if (controller.at("id") == "comms")
 				{
-					require(!controller.at("human").get<bool>(), "Radio readiness stays automatic");
+					for (const auto &[channel, field] : controller.at("commands").items())
+						require(!field.at("human").get<bool>(), "Radio readiness stays automatic");
 					hail.generation = controller.at("generation");
 				}
 			require(projected_command(view, hail) && assisted.submit(1, hail),

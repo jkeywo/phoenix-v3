@@ -76,11 +76,13 @@ int main()
 			World watch;
 			watch.load(load(source), "test.map");
 			require(watch.claim(101, 1, "drive"), "Claim assisted personnel watch");
-			require(watch.submit(101, command(watch, "relieve", "a")), "Three stars admits officer reassignment");
+			require(fixture_native_submit(watch, 101, command(watch, "relieve", "a")),
+			        "Three stars admits officer reassignment");
 			watch.tick();
-			require(watch.submit(101, {1, "preset", 2, {}}), "Select one-star personnel assistance");
+			require(fixture_native_submit(watch, 101, {1, "preset", 2, {}}), "Select one-star personnel assistance");
 			watch.tick();
-			require(!board(watch).at("manual").get<bool>() && !watch.submit(101, command(watch, "relieve", "a")),
+			require(!board(watch).at("manual").get<bool>() &&
+			            !fixture_native_submit(watch, 101, command(watch, "relieve", "a")),
 			        "One star hides and authoritatively refuses manual reassignment");
 			watch.tick();
 			require(board(watch).at("officers")[0].at("duty") == "port",
@@ -244,7 +246,7 @@ int main()
 
 		auto swap = command(world, "swap", "a", "starboard");
 		require(!world.can_submit(102, swap), "host refuses foreign Station reassignment");
-		require(world.submit(101, swap), "swap accepted");
+		require(fixture_native_submit(world, 101, swap), "swap accepted");
 		world.tick();
 		require(!board(world)["officers"][0]["present"].get<bool>(), "departing officer gives no bonus");
 		require(board(world)["officers"][0]["destination"] == "junction" &&
@@ -286,7 +288,7 @@ int main()
 		require(board(arrived_restore) == board(world), "restore rebuilds present officer bonuses without a tick");
 
 		auto relieve = command(world, "relieve", "a");
-		require(world.submit(101, relieve), "relieve officer");
+		require(fixture_native_submit(world, 101, relieve), "relieve officer");
 		world.tick();
 		require(board(world)["duties"][1]["effects"][0]["multiplier"] == 1000, "relief removes only its contributions");
 		for (const auto *mutation : {"duplicate", "department", "location", "slot"})

@@ -73,7 +73,8 @@ struct Cluster
 					require(entry.value.at("kind") == "tick",
 					        "Only synthetic committed tick frames reach the production world");
 					for (const auto &command : entry.value.at("commands"))
-						require(worlds[id]->submit(1, {1, "speed_mm_s", command.get<std::int64_t>()}),
+						require(phoenix::test::fixture_submit(*worlds[id], 1,
+						                                      {1, "speed_mm_s", command.get<std::int64_t>()}),
 						        "Replicated inputs must use normal World admission");
 					worlds[id]->tick();
 				}

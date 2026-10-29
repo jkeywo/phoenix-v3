@@ -51,11 +51,7 @@ bool conversation_allowed(const Observation &view, const OperatingCommand &comma
 	    !command.arguments.empty() || command.text.size() > 4096 || !view.gameplay.contains("conversations"))
 		return false;
 	const auto *owner = section(view, command.controller);
-	if (!owner ||
-	    (owner->contains("widget")
-	         ? !console_operation_human(*owner, "conversation")
-	         : (!owner->at("human").get<bool>() && !owner->value("conversation_authority", false))) ||
-	    owner->at("generation") != command.generation)
+	if (!owner || !console_operation_human(*owner, "conversation") || owner->at("generation") != command.generation)
 		return false;
 	bool authority = false;
 	for (const auto &channel : owner->at("commands"))
@@ -107,14 +103,10 @@ bool personnel_allowed(const Observation &view, const OperatingCommand &c)
 	const auto p = view.gameplay.value("personnel", Json::object());
 	if (p.empty() || !p.value("manual", true))
 		return false;
-	if (p.contains("controller"))
-	{
-		const auto *owner = section(view, c.controller);
-		if (!owner || c.controller != p.at("controller").get<std::string>() || c.generation != p.at("generation") ||
-		    c.value != p.at("revision") || !console_operation_human(*owner, "personnel"))
-			return false;
-	}
-	else if (!c.controller.empty() || c.value || p.at("revision") != c.generation)
+	const auto *owner = section(view, c.controller);
+	if (!p.contains("controller") || !owner || c.controller != p.at("controller").get<std::string>() ||
+	    c.generation != p.at("generation") || c.value != p.at("revision") ||
+	    !console_operation_human(*owner, "personnel"))
 		return false;
 	for (const auto &o : p.at("officers"))
 		if (o.at("id") == c.system)
@@ -147,11 +139,7 @@ bool team_allowed(const Observation &view, const OperatingCommand &c)
 			const auto operation = c.action == "team.cancel" || c.text.starts_with("auto/")
 			                           ? std::string("team_assignment")
 			                           : t.value("work_operation", std::string("team_work"));
-			if (owner->contains("widget") && !console_operation_human(*owner, operation, c.system))
-				return false;
-			if (!owner->contains("widget") && !owner->at("human").get<bool>() &&
-			    !(t.value("assignment_authority", false) &&
-			      (c.action == "team.cancel" || (c.action == "team.order" && c.text.starts_with("auto/")))))
+			if (!console_operation_human(*owner, operation, c.system))
 				return false;
 			if (c.action == "team.cancel")
 				return c.text.empty();
@@ -193,13 +181,7 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 	    !c.speaker_avatar.empty())
 		return false;
 	const auto *owner = section(view, c.controller);
-	if (!owner ||
-	    (!owner->contains("widget") && !owner->at("human").get<bool>() &&
-	     !(owner->value("contribution_authority", false) &&
-	       (c.action == "away.assign" || c.action == "away.withdraw" || c.action == "away.contribute")) &&
-	     !((c.action == "away.transport" || c.action == "away.escort") &&
-	       owner->value("transport_authority", false))) ||
-	    owner->at("generation") != c.generation)
+	if (!owner || owner->at("generation") != c.generation)
 		return false;
 	bool officer =
 	    (c.action == "away.assign" || c.action == "away.select") && c.text.find("/officer:") != std::string::npos;
@@ -212,12 +194,11 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 	if ((c.action == "away.select" || c.action == "away.unselect") && officer)
 		return false;
 	const auto operation = std::string(away_command_operation(c.action, officer));
-	if (owner->contains("widget") && !console_operation_human(*owner, operation))
+	if (!console_operation_human(*owner, operation))
 		return false;
 	const auto owns = [&](const Json &, const std::string &equipment)
 	{
-		return owner->contains("widget") ? console_operation_human(*owner, operation, equipment)
-		                                 : consumes(*owner, equipment);
+		return console_operation_human(*owner, operation, equipment);
 	};
 	for (const auto &m : view.gameplay.value("away_missions", Json::array()))
 		if (m.at("id") == c.system && m.at("revision") == c.value)
@@ -319,15 +300,13 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 bool craft_allowed(const Observation &view, const OperatingCommand &c)
 {
 	const auto *owner = section(view, c.controller);
-	if (!owner ||
-	    (!owner->contains("widget") && !owner->value("human", false) && !owner->value("craft_authority", false)) ||
-	    owner->at("generation") != c.generation || !c.channel.empty() || c.request_id || !c.arguments.empty())
+	if (!owner || owner->at("generation") != c.generation || !c.channel.empty() || c.request_id || !c.arguments.empty())
 		return false;
 	for (const auto &craft : view.gameplay.value("craft", Json::array()))
 		if (craft.at("id") == c.system && craft.value("manual", true) && craft.at("revision") == c.value &&
 		    consumes(*owner, craft.at("bay")))
 		{
-			if (owner->contains("widget") && !console_operation_human(*owner, "craft", craft.at("bay")))
+			if (!console_operation_human(*owner, "craft", craft.at("bay")))
 				return false;
 			if (c.action == "craft.recall")
 				return c.text.empty();
@@ -472,7 +451,7 @@ std::string manual_binding(const Observation &view, const Json &layout, const st
 			if (!s || !s->at("human").get<bool>())
 				return {};
 			const auto &c = s->at("commands").at(widget.at("channel").get<std::string>());
-			if (!c.value("human", s->value("human", false)))
+			if (!c.value("human", false))
 				return {};
 			if (c.at("action") != anchor_action)
 				continue;
@@ -594,7 +573,7 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 		if (!command.channel.empty())
 		{
 			const auto &c = s->at("commands").at(command.channel);
-			if (!c.value("human", s->value("human", false)))
+			if (!c.value("human", false))
 				return {};
 			if (!c.at("minimum").is_number_integer() || !c.at("maximum").is_number_integer() ||
 			    c.at("action") != command.action || command.value < c.at("minimum") || command.value > c.at("maximum"))
@@ -631,30 +610,14 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 	if ((!spec || !command.controller.empty()) && !projected)
 		return {};
 	if (spec && command.controller.empty())
-	{
-		if (!operating_value_valid(*spec, command.value))
-			return {};
-		if (command.system.empty())
-		{
-			const auto selected = select_system(view.systems, spec->system);
-			if (!selected)
-				return {};
-			command.system = *selected;
-		}
-		else if (!projected && std::none_of(view.systems.begin(), view.systems.end(),
-		                                    [&](const SystemView &s)
-		                                    {
-			                                    return s.id == command.system && s.controlled;
-		                                    }))
-			return {};
-	}
+		return {};
 	return EligibleConsoleCommand{std::move(command), std::move(matched)};
 }
 } // namespace
 bool console_operation_human(const Json &controller, const std::string &operation, const std::string &equipment)
 {
 	if (!controller.contains("widget"))
-		return controller.value("human", false) && (equipment.empty() || consumes(controller, equipment));
+		return false;
 	const auto operations = controller.value("operations", Json::object());
 	if (!operations.is_object() || !operations.contains(operation))
 		return false;

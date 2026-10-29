@@ -1297,7 +1297,6 @@ struct Runtime
 
 	OfficerState personnel_destination(EntityId id, const PersonnelDuty &duty) const;
 	bool personnel_owns(const ConsoleAddress &address, const std::string &department) const;
-	int station_stars(const ConsoleAddress &address) const;
 	bool manual_workload(const ConsoleAddress &address, const std::string &family,
 	                     const std::string &equipment = {}) const;
 	const ConsoleControllerRuntime *native_operation_controller(const ConsoleAddress &, const std::string &operation,

@@ -61,10 +61,8 @@ auto Runtime::encounter_owns_controller(EntityId ship, const ConsoleControllerSp
 	{
 		return encounter_owns_action(ship, command.action);
 	};
-	if (!controller.widget.empty())
-		return controller.operations.empty() && !controller.commands.empty() &&
-		       std::all_of(controller.commands.begin(), controller.commands.end(), managed);
-	return std::any_of(controller.commands.begin(), controller.commands.end(), managed);
+	return controller.operations.empty() && !controller.commands.empty() &&
+	       std::all_of(controller.commands.begin(), controller.commands.end(), managed);
 }
 
 auto Runtime::release_encounter_navigation(EntityId ship) -> void

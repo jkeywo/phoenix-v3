@@ -70,16 +70,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 			for (const auto &ctrl : entity.get<EntityControls>().controllers)
 				if (controller_operation_human(ctrl, "departure") && ctrl.definition.console == address.console)
 				{
-					const bool owns =
-					    !ctrl.definition.widget.empty()
-					        ? controller_operation_owns(ctrl, "departure", child.get<Equipment>().id)
-					        : std::any_of(ctrl.definition.commands.begin(), ctrl.definition.commands.end(),
-					                      [&](const auto &channel)
-					                      {
-						                      return std::find(channel.consumers.begin(), channel.consumers.end(),
-						                                       child.get<Equipment>().ordinal) !=
-						                             channel.consumers.end();
-					                      });
+					const bool owns = controller_operation_owns(ctrl, "departure", child.get<Equipment>().id);
 					if (!owns)
 						continue;
 					OperatingCommand command{
@@ -136,11 +127,10 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 			if (controller.definition.console == seat.id && controller.human)
 				for (std::size_t i = 0; i < controller.commands.size(); ++i)
 				{
-					if (!controller_command_human(controller, i))
-						continue;
 					const auto &channel = controller.definition.commands[i];
 					const auto &state = controller.commands[i];
-					if (!channel.coordinated_group.empty())
+					if (!channel.coordinated_group.empty() &&
+					    controller_operation_human(controller, "coordinated_impulse"))
 					{
 						const auto key = "flight.impulse." + channel.coordinated_group;
 						if (std::none_of(buttons.begin(), buttons.end(),
@@ -164,13 +154,14 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 								descriptor["id"] = key + "." + std::to_string(value);
 								descriptor["label_key"] = value ? "Start impulse" : "Cancel impulse";
 								descriptor["label"] = value ? "Start impulse" : "Cancel impulse";
+								descriptor["operation"] = "coordinated_impulse";
 								descriptor["widget_controller"] = controller.definition.id;
 								descriptor["widget_channel"] = channel.id;
 								buttons.push_back(std::move(descriptor));
 							}
 						}
 					}
-					if (impl_->station_stars(address) < channel.individual_stars)
+					if (!controller_command_human(controller, i))
 						continue;
 					if (impl_->process_controls(address, controller, i, buttons))
 						continue;

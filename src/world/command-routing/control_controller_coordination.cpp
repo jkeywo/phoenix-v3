@@ -144,8 +144,8 @@ auto Runtime::controller_coordination_action(EntityId id, std::size_t index, con
                                              std::span<const state_tree::Value> args, bool execute) -> bool
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	if (!controller.definition.widget.empty() && (!controller_operation_owns(controller, "coordination", {}) ||
-	                                              controller_operation_human(controller, "coordination")))
+	if (!controller_operation_owns(controller, "coordination", {}) ||
+	    controller_operation_human(controller, "coordination"))
 		return false;
 	std::optional<ConsoleControllerRuntime> staged;
 	if (!execute)

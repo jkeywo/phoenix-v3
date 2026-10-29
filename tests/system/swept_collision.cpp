@@ -63,7 +63,7 @@ Catalog load(const Json &definition)
 void drive(World &world, std::uint64_t claimant, EntityId entity)
 {
 	require(world.claim(claimant, entity), "synthetic flight Console must admit a claim");
-	require(world.submit(claimant, {entity, "speed_mm_s", 4000000}),
+	require(phoenix::test::fixture_submit(world, claimant, {entity, "speed_mm_s", 4000000}),
 	        "synthetic high-speed request must use ordinary admission");
 }
 } // namespace

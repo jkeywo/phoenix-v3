@@ -1,5 +1,10 @@
 # Console Controller refactoring plan
 
+The October 2026 [shared-widget rewrite](control-widget-rewrite.md) supersedes the
+older schema and conversion receipts below. Current authoring uses schema-2
+Controller layouts and per-command/operation responsibility levels; older runtime
+ownership conversion is retired. The dated sections remain historical evidence.
+
 Approved target · 19 October 2026. **Status: implemented and verified; all seven delivery steps complete.** Implements the [agreed architecture](controller-architecture.md) and revised [GDD](GDD.md), preserving existing physical capabilities and deterministic execution. Historical gameplay completion receipts describe the earlier architecture.
 
 ## Starting code and required changes

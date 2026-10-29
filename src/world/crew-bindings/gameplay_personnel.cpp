@@ -38,16 +38,8 @@ auto Runtime::personnel_owns(const ConsoleAddress &address, const std::string &d
 	return false;
 }
 
-auto Runtime::station_stars(const ConsoleAddress &address) const -> int
-{
-	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
-	if (!controls || !controls->layout.complexity_groups.contains(address.console))
-		return 3;
-	return controls->layout.profiles.at(controls->profiles.at(address.console)).stars;
-}
-
 auto Runtime::native_operation_controller(const ConsoleAddress &address, const std::string &operation,
-	                                      const std::string &equipment) const -> const ConsoleControllerRuntime *
+                                          const std::string &equipment) const -> const ConsoleControllerRuntime *
 {
 	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
 	if (controls)
@@ -62,50 +54,25 @@ auto Runtime::manual_workload(const ConsoleAddress &address, const std::string &
                               const std::string &equipment) const -> bool
 {
 	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
-	if (!controls)
-		return true;
-	bool widgets = false;
-	for (const auto &controller : controls->controllers)
-		if (controller.definition.console == address.console && !controller.definition.widget.empty())
-		{
-			widgets = true;
-			if (controller_operation_owns(controller, family, equipment) &&
-			    controller_operation_human(controller, family))
-				return true;
-		}
-	if (widgets)
-		return false;
-	if (family == "personnel")
-		return station_stars(address) >= 3;
-	const auto &workloads = controls->layout.manual_workloads;
-	return !workloads.contains(address.console) || !workloads.at(address.console).contains(family) ||
-	       station_stars(address) >= workloads.at(address.console).at(family);
+	return controls && std::any_of(controls->controllers.begin(), controls->controllers.end(),
+	                               [&](const auto &controller)
+	                               {
+		                               return controller.definition.console == address.console &&
+		                                      controller_operation_owns(controller, family, equipment) &&
+		                                      controller_operation_human(controller, family);
+	                               });
 }
 
 auto Runtime::assisted_workload(const ConsoleAddress &address, const std::string &family,
                                 const std::string &equipment) const -> bool
 {
-	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
-	if (!controls)
-		return false;
-	for (const auto &controller : controls->controllers)
-		if (controller.definition.console == address.console && !controller.definition.widget.empty() &&
-		    controller_operation_owns(controller, family, equipment))
-			return manual_workload(address, family, equipment) && console_operator(address) != 0;
-	const auto &workloads = controls->layout.manual_workloads;
-	return workloads.contains(address.console) && workloads.at(address.console).contains(family) &&
-	       manual_workload(address, family) && console_operator(address) != 0;
+	return console_operator(address) != 0 && manual_workload(address, family, equipment);
 }
 
 auto Runtime::manual_team_destination(const ConsoleAddress &address, const std::string &equipment) const -> bool
 {
-	if (const auto *controls = entities.at(address.ship).try_get<EntityControls>())
-		for (const auto &controller : controls->controllers)
-			if (controller.definition.console == address.console && !controller.definition.widget.empty())
-				return manual_workload(address, "team_assignment", equipment) &&
-				       !manual_workload(address, "team_work", equipment) &&
-				       !manual_workload(address, "medical", equipment);
-	return assisted_workload(address, "team_assignment") && station_stars(address) < 3;
+	return manual_workload(address, "team_assignment", equipment) &&
+	       !manual_workload(address, "team_work", equipment) && !manual_workload(address, "medical", equipment);
 }
 
 auto Runtime::advance_personnel(EntityId id) -> void
@@ -193,20 +160,15 @@ auto Runtime::personnel_command(const ConsoleAddress &address, const OperatingCo
 	if (!ai && !manual_workload(address, "personnel"))
 		return false;
 	const auto *owner = native_operation_controller(address, "personnel");
-	if (!owner)
-		for (const auto &controller : entities.at(address.ship).get<EntityControls>().controllers)
-			if (controller.definition.console == address.console && !controller.definition.widget.empty())
-				return false;
-	if (!native_command_envelope(command, {.allow_controller = owner != nullptr}))
+	if (!owner || !native_command_envelope(command))
 		return false;
 	const auto &d = definition(address.ship).personnel;
 	auto &state = entities.at(address.ship).get_mut<PersonnelState>();
 	if (state.revision >= 9007199254740991ULL)
 		return false;
-	if (owner ? (command.controller != owner->definition.id || command.generation != owner->generation ||
-	             command.value != static_cast<std::int64_t>(state.revision) ||
-	             controller_operation_human(*owner, "personnel") == ai)
-	          : (command.generation != state.revision || command.value != 0))
+	if (command.controller != owner->definition.id || command.generation != owner->generation ||
+	    command.value != static_cast<std::int64_t>(state.revision) ||
+	    controller_operation_human(*owner, "personnel") == ai)
 		return false;
 	const auto it = std::find_if(d.officers.begin(), d.officers.end(),
 	                             [&](const auto &o)

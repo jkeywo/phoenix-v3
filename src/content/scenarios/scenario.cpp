@@ -585,7 +585,8 @@ LoadClosure load_closure(const Catalog &catalog, const std::string &map)
 		}
 	}
 	for (const auto &id : result.definitions)
-		if (const auto program = catalog.tree_programs.find(id); program != catalog.tree_programs.end())
+		if (const auto program = catalog.tree_programs.find(id);
+		    program != catalog.tree_programs.end() && program->second.context == state_tree::Context::Scenario)
 			for (const auto &state : program->second.states)
 				for (const auto *tasks : {&state.entry, &state.running, &state.exit})
 					for (const auto &task : *tasks)

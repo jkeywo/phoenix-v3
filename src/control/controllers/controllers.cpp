@@ -13,15 +13,15 @@ namespace phoenix
 {
 bool controller_ai_running(const ConsoleControllerRuntime &controller)
 {
-	return !controller.human || !controller.definition.widget.empty();
+	return controller.brain.has_value();
 }
 bool controller_command_human(const ConsoleControllerRuntime &controller, std::size_t channel)
 {
-	return controller.human_commands.empty() ? controller.human : controller.human_commands.at(channel);
+	return controller.human_commands.at(channel);
 }
 bool controller_operation_human(const ConsoleControllerRuntime &controller, const std::string &operation)
 {
-	return controller.definition.widget.empty() ? controller.human : controller.human_operations.contains(operation);
+	return controller.human_operations.contains(operation);
 }
 bool controller_operation_owns(const ConsoleControllerRuntime &controller, const std::string &operation,
                                const std::string &equipment)

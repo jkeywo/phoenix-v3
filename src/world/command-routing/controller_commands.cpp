@@ -55,16 +55,8 @@ auto Runtime::selection_command(const ConsoleAddress &address, const OperatingCo
 		if (controller.definition.console == address.console && controller.definition.id == command.controller &&
 		    controller.generation == command.generation)
 		{
-			if (!controller.definition.widget.empty())
-			{
-				authority |= controller_operation_owns(controller, "logistics", equipment) &&
-				             controller_operation_human(controller, "logistics");
-				continue;
-			}
-			if (controller.human)
-				for (const auto &channel : controller.definition.commands)
-					for (const auto consumer : channel.consumers)
-						authority |= definition(address.ship).fitted->values.at(consumer).id == equipment;
+			authority |= controller_operation_owns(controller, "logistics", equipment) &&
+			             controller_operation_human(controller, "logistics");
 		}
 	if (!authority)
 		return false;
@@ -272,9 +264,8 @@ auto Runtime::controller_native_command(EntityId id, std::size_t index, const st
 	}
 	if (name == "craft.return_home")
 	{
-		if ((!controller.definition.widget.empty() ? !controller_operation_owns(controller, "craft_return", {}) ||
-		                                                 controller_operation_human(controller, "craft_return")
-		                                           : controller.human) ||
+		if ((!controller_operation_owns(controller, "craft_return", {}) ||
+		     controller_operation_human(controller, "craft_return")) ||
 		    !entities.at(id).has<CraftState>() ||
 		    std::none_of(controller.definition.commands.begin(), controller.definition.commands.end(),
 		                 [](const auto &command)
@@ -460,35 +451,6 @@ auto Runtime::controller_proposal(const ConsoleAddress &address, OperatingComman
 {
 	const auto entity = entities.at(address.ship);
 	const auto &controls = entity.get<EntityControls>();
-	if (controls.layout.converted && command.controller.empty() && command.channel.empty() && !command.generation &&
-	    !command.request_id)
-	{
-		// Compatibility ends here: queued work still carries an owned channel and operator generation.
-		const ConsoleControllerRuntime *owner = nullptr;
-		const ControllerCommandSpec *selected = nullptr;
-		for (const auto &controller : controls.controllers)
-			if (controller.definition.console == address.console)
-				for (const auto &field : controller.definition.commands)
-					if (operating_action(field.action).name == command.action &&
-					    (command.system.empty() || std::any_of(field.consumers.begin(), field.consumers.end(),
-					                                           [&](auto i)
-					                                           {
-						                                           return (*fittings(entity)).values[i].id ==
-						                                                  command.system;
-					                                           })))
-					{
-						if (selected)
-							return {};
-						owner = &controller;
-						selected = &field;
-					}
-		if (!selected || selected->semantics == CommandSemantics::Request)
-			return {};
-		command.controller = owner->definition.id;
-		command.channel = selected->id;
-		command.generation = owner->generation;
-		command.system.clear();
-	}
 	if (!command.system.empty())
 		return {};
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
@@ -504,8 +466,6 @@ auto Runtime::controller_proposal(const ConsoleAddress &address, OperatingComman
 			if (spec.id != command.channel)
 				continue;
 			if (human && !controller_command_human(controller, field))
-				return {};
-			if (human && station_stars(address) < spec.individual_stars)
 				return {};
 			if (spec.action == OperatingAction::RepairSystem && !spec.hull_priority && entity.has<CombatStructure>() &&
 			    command.value ==
@@ -665,10 +625,9 @@ auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
 		const ConsoleAddress address{id, controller.definition.console};
 		const auto claimant = console_operator(address);
 		const bool present = claimant != 0;
-		bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
+		bool human = false;
 		std::vector<bool> channels;
 		std::set<std::string> operations;
-		if (!controller.definition.widget.empty())
 		{
 			channels.resize(controller.commands.size(), false);
 			const auto stars = controls.layout.profiles.at(controls.profiles.at(address.console)).stars;
@@ -709,10 +668,10 @@ auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
 		    [this, id, address, &controller](bool current_present, bool current_human)
 		    {
 			    knowledge.set_controller_control({id, address.console, controller.definition.id}, current_present,
-			                                     current_human, !controller.definition.widget.empty());
+			                                     current_human, true);
 		    }};
-		refresh_controller_operator(controller, claimant, human, human && !validate ? station_stars(address) : 0,
-		                            validate, ports, std::move(channels), std::move(operations));
+		refresh_controller_operator(controller, claimant, human, validate, ports, std::move(channels),
+		                            std::move(operations));
 	}
 	// Presence also matters for readers and human-seeking offers on Consoles
 	// that own no command Controller. Update after outgoing AI cleanup.

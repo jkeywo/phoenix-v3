@@ -46,7 +46,8 @@ void assign(World &w, const std::string &transport)
 {
 	require(w.submit(101, command(w, "away", "open", "job")), "open mission");
 	ticks(w, 1);
-	require(w.submit(102, command(w, "away", "assign", "job", "repair/team:team", 102)), "assign real team");
+	if (missions(w)[0].at("slots")[0].at("assigned") != "team:team")
+		require(w.submit(102, command(w, "away", "select", "job", "repair/team:team", 102)), "assign real team");
 	ticks(w, 1);
 	require(w.submit(101, command(w, "away", "transport", "job", transport)), "select transport");
 	ticks(w, 15);
@@ -480,6 +481,8 @@ int main(int argc, char **argv)
 			const auto catalog = load(source);
 			World service;
 			service.load(catalog, "test.map", {{"crew", "test.away"}});
+			require(service.claim(101, *service.ship_for_slot("crew"), "drive"),
+			        "crew servicing watch to hold manual sorties");
 			auto changed = service.save();
 			for (auto &body : changed["bodies"])
 				if (body.at("body").at("id") == *service.ship_for_slot("crew") && body.contains("stocks") &&
@@ -509,7 +512,10 @@ int main(int argc, char **argv)
 			for (const auto &body : serviced.at("bodies"))
 				if (body.contains("stocks") && body.at("stocks").contains("system:magazine"))
 					supplied += saved_ammunition(body, "magazine");
-			require(supplied == 6, "Craft servicing follows live selected resource identity after continuation");
+			if (supplied != 6)
+				throw std::runtime_error(
+				    "Craft servicing follows live selected resource identity after continuation: got " +
+				    std::to_string(supplied));
 		}
 		{
 			const auto armed = load(armed_craft_fixture());

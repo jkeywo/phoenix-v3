@@ -128,6 +128,10 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	widget_require(source.value("schema", 0) == 1, id, "expected widget schema 1");
 	ControlWidgetDefinition result;
 	result.id = id;
+	widget_require(!source.contains("policy_template") ||
+	                   (source.at("policy_template") == "combat" && !source.contains("tree") &&
+	                    !source.contains("policy") && !source.contains("repeat")),
+	               id, "policy_template must name combat instead of another policy");
 	result.tree = source.value("tree", std::string{});
 	widget_require(result.tree.empty() || catalog.trees.contains(result.tree), id, "unresolved state tree");
 	result.commands = source.value("commands", Json::array());
@@ -166,12 +170,29 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	for (const auto &[operation, roles] : result.operations.items())
 	{
 		(void)widget_name(Json(operation), id + ".operations");
-		static const std::set<std::string> supported_operations{
-		    "team_assignment", "team_work", "medical",        "personnel",        "craft",
-		    "craft_return",    "transport", "team_selection", "logistics",        "cargo_authorisation",
-		    "conversation",    "mission",   "mission_send",   "mission_quantity", "mission_staffing",
-		    "contribution",    "departure", "docking",        "coordination",     "alert",
-		    "stance",          "objectives"};
+		static const std::set<std::string> supported_operations{"team_assignment",
+		                                                        "team_work",
+		                                                        "medical",
+		                                                        "personnel",
+		                                                        "craft",
+		                                                        "craft_return",
+		                                                        "transport",
+		                                                        "team_selection",
+		                                                        "logistics",
+		                                                        "cargo_authorisation",
+		                                                        "conversation",
+		                                                        "mission",
+		                                                        "mission_send",
+		                                                        "mission_quantity",
+		                                                        "mission_staffing",
+		                                                        "contribution",
+		                                                        "departure",
+		                                                        "docking",
+		                                                        "coordination",
+		                                                        "alert",
+		                                                        "stance",
+		                                                        "objectives",
+		                                                        "coordinated_impulse"};
 		widget_require(supported_operations.contains(operation), id, "unsupported native operation " + operation);
 
 		widget_require(responsibilities.insert(operation).second && roles.is_array(), id,

@@ -14,21 +14,13 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	const auto &d = away_operations.definitions()[i];
 	const auto &m = away_operations.missions()[i];
 	AwayPermittedRow row;
-	const auto &controls = entities.at(a.ship).get<EntityControls>();
-	const bool widgets =
-	    std::any_of(controls.controllers.begin(), controls.controllers.end(),
-	                [&](const auto &controller)
-	                {
-		                return controller.definition.console == a.console && !controller.definition.widget.empty();
-	                });
 	row.dispatch = away_dispatch(a, d.dispatch);
 	row.blocker = away_blocker(i);
 	row.owner = enabled_system_owner(a.ship, away_dispatch_system(a.ship, d.dispatch)).console;
 	row.dispatch_system = away_dispatch_system(a.ship, d.dispatch);
 	const auto *send_owner = native_operation_controller({a.ship, row.owner}, "mission_send", row.dispatch_system);
-	row.automatic_dispatch = !d.supply && d.allow_ship_transport &&
-	                         (send_owner ? !controller_operation_human(*send_owner, "mission_send")
-	                                     : station_stars({a.ship, row.owner}) == 1);
+	row.automatic_dispatch =
+	    !d.supply && d.allow_ship_transport && (send_owner && !controller_operation_human(*send_owner, "mission_send"));
 	bool owns_assets = false;
 	for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
 		if (controller.definition.console == a.console)
@@ -39,8 +31,7 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	row.can_contribute =
 	    owns_assets && (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered) && m.outcome.empty();
 	row.transport_owned = !m.transport.empty() && row.can_contribute &&
-	                      away_asset_owned(a, "transport:" + m.transport) && manual_workload(a, "transport") &&
-	                      (widgets || station_stars(a) >= 3 || controls.layout.manual_workloads.contains(a.console));
+	                      away_asset_owned(a, "transport:" + m.transport) && manual_workload(a, "transport");
 	for (const auto &slot : d.craft_slots)
 		if (slot.role == "escort")
 		{
@@ -62,18 +53,17 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 		for (const auto &candidate : cargo_deliveries)
 			if (candidate.id == m.supply_job)
 				job = &candidate;
-		row.supply = AwayPermittedSupply{
-		    job        ? job->amount
-		    : manifest ? manifest->amount
-		               : 0,
-		    job        ? job->payment_amount
-		    : manifest ? manifest->payment_amount
-		               : 0,
-		    job ? job->report : "preparation",
-		    job ? job->delivered : 0,
-		    (widgets ? manual_workload(a, "mission_quantity", row.dispatch_system) : station_stars(a) >= 3) &&
-		        away_dispatch(a, d.dispatch) && !m.supply_job,
-		    {0}};
+		row.supply = AwayPermittedSupply{job        ? job->amount
+		                                 : manifest ? manifest->amount
+		                                            : 0,
+		                                 job        ? job->payment_amount
+		                                 : manifest ? manifest->payment_amount
+		                                            : 0,
+		                                 job ? job->report : "preparation",
+		                                 job ? job->delivered : 0,
+		                                 manual_workload(a, "mission_quantity", row.dispatch_system) &&
+		                                     away_dispatch(a, d.dispatch) && !m.supply_job,
+		                                 {0}};
 		if (manifest && row.supply->manual)
 			for (const auto q :
 			     {std::max(d.supply->give, manifest->amount - d.supply->give), manifest->amount + d.supply->give})
@@ -114,26 +104,24 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	{
 		const auto assigned = m.assignments.contains(s.id) ? m.assignments.at(s.id) : std::string{};
 		AwayPermittedSlot r;
-		r.owned =
-		    !assigned.empty() && away_asset_owned(a, assigned) &&
-		    (widgets ? assigned.starts_with("officer:") ? manual_workload(a, "mission_staffing")
-		                                                : manual_workload(a, "team_selection", assigned.substr(5)) ||
-		                                                      manual_workload(a, "transport", assigned.substr(5))
-		             : station_stars(a) >= 3 || !assigned.starts_with("officer:"));
+		r.owned = !assigned.empty() && away_asset_owned(a, assigned) &&
+		          (assigned.starts_with("officer:") ? manual_workload(a, "mission_staffing")
+		                                            : manual_workload(a, "team_selection", assigned.substr(5)) ||
+		                                                  manual_workload(a, "transport", assigned.substr(5)));
 		if (m.outcome.empty() && (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered))
 		{
 			for (const auto &duty : definition(a.ship).personnel.duties)
 				if (!duty.team.empty())
 				{
 					const auto asset = "team:" + duty.team;
-					if ((!widgets || manual_workload(a, "team_selection", duty.team) ||
+					if ((manual_workload(a, "team_selection", duty.team) ||
 					     manual_workload(a, "transport", duty.team)) &&
 					    enabled_system_owner(a.ship, duty.team) == a && away_asset_owned(a, asset) &&
 					    !away_reserved(a.ship, asset) && away_asset_healthy(a.ship, asset) &&
 					    away_slot_accepts(a.ship, s, asset))
 						r.choices.push_back(asset);
 				}
-			if (widgets ? manual_workload(a, "mission_staffing") : station_stars(a) >= 3)
+			if (manual_workload(a, "mission_staffing"))
 				for (const auto &o : definition(a.ship).personnel.officers)
 				{
 					const auto asset = "officer:" + o.id;
@@ -144,8 +132,7 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 		}
 		row.slots.push_back(r);
 	}
-	if (!manual_workload(a, "transport") ||
-	    (!widgets && station_stars(a) < 3 && !controls.layout.manual_workloads.contains(a.console)))
+	if (!manual_workload(a, "transport"))
 		row.transports.clear();
 	row.labels["ship"] = "Own ship — docking";
 	for (const auto &[craft, e] : craft_rows())

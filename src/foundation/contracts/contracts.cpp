@@ -75,7 +75,7 @@ OperatingCommand decode_operating_command(const Json &value)
 		if (!value.contains(key))
 			return fallback;
 		const auto &n = value.at(key);
-		if (!n.is_number_integer() || n < 0 || n > std::numeric_limits<std::uint64_t>::max())
+		if (!n.is_number_integer() || (!n.is_number_unsigned() && n.get<std::int64_t>() < 0))
 			throw std::runtime_error("Invalid command counter");
 		return n.get<std::uint64_t>();
 	};

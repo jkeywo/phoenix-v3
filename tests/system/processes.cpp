@@ -166,7 +166,8 @@ void command(World &world, const std::string &controller, const std::string &cha
 	for (const auto &row : view->gameplay.at("controllers"))
 		if (row.at("id") == controller)
 		{
-			require(world.submit(101, OperatingCommand{1, {}, value, {}, controller, channel, row.at("generation")}),
+			require(fixture_native_submit(
+			            world, 101, OperatingCommand{1, {}, value, {}, controller, channel, row.at("generation")}),
 			        "Ordinary process control command admitted");
 			return;
 		}
@@ -235,7 +236,7 @@ Json four_owners_and_travel()
 	OperatingCommand assign{1, "personnel.assign", 0, "a"};
 	assign.text = "radar";
 	assign.generation = world.observe(101)->gameplay.at("personnel").at("revision");
-	require(world.submit(101, assign), "Process owner reassignment uses ordinary Personnel command");
+	require(fixture_native_submit(world, 101, assign), "Process owner reassignment uses ordinary Personnel command");
 	ticks(world, 2);
 	require(property(world, "test.work", {}, "a").get<std::int64_t>() > before &&
 	            state(world, "officer", {}, "a").at("run") == run &&
