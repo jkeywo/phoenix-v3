@@ -1073,6 +1073,35 @@ SpriteMaterial SpriteScene::prepared_sprite(const Catalog &catalog, const std::s
 {
 	return state_->load(definition, catalog.entities.at(definition).at("render").at("sprite"), catalog).sprite;
 }
+float SpriteScene::shield_radius(const Catalog &catalog, const SceneBody &body)
+{
+	const auto &render = catalog.entities.at(body.definition).at("render");
+	const float height = render.at("scale").get<float>() * body.visual_scale;
+	float radius = body.shield_radius;
+	if (render.contains("sprite"))
+	{
+		const auto &sprite = state_->load(body.definition, render.at("sprite"), catalog).sprite;
+		const auto &frames = sprite.entries.empty() ? sprite.frames : sprite.entries.at(body.sprite_entry).frames;
+		for (const auto &f : frames)
+		{
+			const float x = std::max(std::abs(f.pivot[0]), std::abs(f.rect[2] - f.pivot[0])) / f.rect[3],
+			            y = std::max(std::abs(f.pivot[1]), std::abs(f.rect[3] - f.pivot[1])) / f.rect[3],
+			            z = std::abs(f.depth_offset) + std::abs(f.depth_scale) * .5f;
+			radius = std::max(radius, height * std::sqrt(x * x + y * y + z * z));
+		}
+	}
+	else
+	{
+		for (const auto &asset : render.at("images"))
+		{
+			const auto name = asset.get<std::string>();
+			const auto texture = state_->textures.load(name, catalog.assets.at(name));
+			radius =
+			    std::max(radius, height * .5f * std::hypot(1.f, texture.width / static_cast<float>(texture.height)));
+		}
+	}
+	return std::max(.1f, radius * 1.1f);
+}
 void SpriteScene::preload_environment(const Catalog &catalog, const SceneEnvironment &environment)
 {
 	state_->init();

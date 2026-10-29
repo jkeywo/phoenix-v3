@@ -13,6 +13,7 @@ public:
 	std::optional<AttachmentPose> attachment(const Catalog &, const SceneBody &, const std::string &, Camera3D);
 	void preload_environment(const Catalog &, const SceneEnvironment &);
 	SpriteMaterial prepared_sprite(const Catalog &, const std::string &definition);
+	float shield_radius(const Catalog &, const SceneBody &);
 	void explosion(const ExplosionEffect &effect);
 	Json instance_statistics() const;
 	void draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
@@ -37,6 +38,7 @@ public:
 	~ModelScene();
 	void clear();
 	void preload(const Catalog &, const std::string &);
+	float shield_radius(const Catalog &, const SceneBody &);
 	std::optional<AttachmentPose> attachment(const Catalog &, const SceneBody &, const std::string &, Camera3D);
 	void draw(const Catalog &, std::span<const SceneBody>, Camera3D, Rectangle, const Json &, double, Vector2,
 	          const SceneEnvironment &, bool background = true, std::optional<unsigned> framebuffer = {});

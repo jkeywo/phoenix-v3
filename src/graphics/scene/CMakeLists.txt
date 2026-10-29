@@ -1,4 +1,4 @@
-add_library(phoenix_graphics_scene STATIC scene.cpp sprite_scene.cpp model_scene.cpp environment.cpp)
+add_library(phoenix_graphics_scene STATIC scene.cpp sprite_scene.cpp model_scene.cpp environment.cpp shield_scene.cpp)
 target_sources(phoenix_graphics_scene PUBLIC FILE_SET CXX_MODULES FILES scene.cppm)
 target_link_libraries(
 	phoenix_graphics_scene

@@ -112,6 +112,7 @@ struct ModelScene::State
 	Texture2D white{};
 	Mesh sphere{}, quad{}, cone{};
 	std::map<std::string, std::vector<GpuPart>> cache;
+	std::map<std::string, float> shield_bounds;
 	NavigationEffects navigation;
 	std::vector<DrawModel> items;
 	std::array<Vector4, 16> lights{}, cones{};
@@ -133,6 +134,7 @@ struct ModelScene::State
 					UnloadTexture(p.emissive);
 			}
 		cache.clear();
+		shield_bounds.clear();
 		navigation.clear();
 		if (shader.id)
 			UnloadShader(shader);
@@ -299,6 +301,25 @@ void ModelScene::preload(const Catalog &c, const std::string &id)
 	state_->init();
 	state_->load(c, c.entities.at(id).at("render"));
 }
+float ModelScene::shield_radius(const Catalog &catalog, const SceneBody &body)
+{
+	if (const auto found = state_->shield_bounds.find(body.definition); found != state_->shield_bounds.end())
+		return std::max(found->second, body.shield_radius * 1.1f);
+	const auto &r = catalog.entities.at(body.definition).at("render");
+	state_->load(catalog, r);
+	float radius = 0;
+	const auto local = local_matrix(r);
+	for (const auto &part : state_->cache.at(sha256(catalog.assets.at(r.at("model").at("asset").get<std::string>()))))
+		for (int i = 0; i < 8; ++i)
+		{
+			const auto &b = part.bounds;
+			const Vector3 p{i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z};
+			radius = std::max(radius, Vector3Length(Vector3Transform(p, local)));
+		}
+	const float visual = std::max(.1f, radius * 1.1f);
+	state_->shield_bounds.emplace(body.definition, visual);
+	return std::max(visual, body.shield_radius * 1.1f);
+}
 std::optional<AttachmentPose> ModelScene::attachment(const Catalog &catalog, const SceneBody &body,
                                                      const std::string &name, Camera3D)
 {
@@ -309,7 +330,8 @@ std::optional<AttachmentPose> ModelScene::attachment(const Catalog &catalog, con
 	const auto &p = a.at("position"), &d = a.at("direction");
 	auto transform =
 	    MatrixMultiply(local_matrix(r), MatrixMultiply(MatrixRotateY(body.heading * DEG2RAD / 1000.f - PI / 2),
-	                                                   MatrixTranslate(body.x / 1000.f, 0, -body.y / 1000.f)));
+	                                                   MatrixTranslate(body.x / 1000.f, body.visual_height_mm / 1000.f,
+	                                                                   -body.y / 1000.f)));
 	const auto root = Vector3Transform({p[0], p[1], p[2]}, transform),
 	           tip = Vector3Transform({p[0].get<float>() + d[0].get<float>(), p[1].get<float>() + d[1].get<float>(),
 	                                   p[2].get<float>() + d[2].get<float>()},
@@ -357,7 +379,8 @@ std::set<EntityId> ModelScene::prepare(const Catalog &catalog, std::span<const S
 		}
 		const auto &r = catalog.entities.at(body.definition).at("render");
 		s.load(catalog, r);
-		const Vector3 pos{body.x / 1000.f - rebase.x, -rebase.y, -body.y / 1000.f - rebase.z};
+		const Vector3 pos{body.x / 1000.f - rebase.x, body.visual_height_mm / 1000.f - rebase.y,
+		                  -body.y / 1000.f - rebase.z};
 		if (Vector3Distance(pos, camera.position) > 10000)
 			continue;
 		const auto heading = MatrixRotateY(body.heading * DEG2RAD / 1000.f - PI / 2);

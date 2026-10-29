@@ -13,6 +13,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include "../support/model_fixture.hpp"
 import phoenix.content.assets;
 import phoenix.content.catalog;
 import phoenix.content.packs;
@@ -77,6 +78,7 @@ SceneBody body(int id, const char *definition, int x, int y, int heading = 0, in
 	return b;
 }
 #include "mirroring.hpp"
+#include "shield_heat.hpp"
 } // namespace
 int main()
 {
@@ -557,6 +559,7 @@ int main()
 		}
 
 		sprite_mirror_smoke();
+		shield_heat_smoke();
 		std::cout << "PASS production-loader graphical sprite depth, flat fallback, directional engines and internal "
 		             "explosion lighting\n";
 		renderer.clear();
