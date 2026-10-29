@@ -290,7 +290,8 @@ void cancel_captures()
 	mouse_capture.reset();
 }
 
-Screen shown = Screen::gm;
+std::optional<Screen> shown;
+bool labels_ready = false, pseudo_shown = false;
 struct Navigation : Rml::EventListener
 {
 	void ProcessEvent(Rml::Event &event) override
@@ -356,8 +357,6 @@ struct Navigation : Rml::EventListener
 } navigation;
 void update_document(Application &app)
 {
-	static bool labels_ready = false;
-	static bool pseudo_shown = false;
 	if (!labels_ready || pseudo_shown != app.pseudo_locale)
 	{
 		for (const auto &control : navigation_controls(app))
@@ -811,6 +810,8 @@ bool probe_console_engineering(ConsoleId route, unsigned stage)
 }
 void open_window()
 {
+	shown.reset();
+	labels_ready = pseudo_shown = false;
 	game_screen = std::make_unique<GameScreen>();
 	native_menu = std::make_unique<NativeMenuScreen>();
 	server_music = std::make_unique<ServerMusic>();
@@ -1732,6 +1733,8 @@ void close_window()
 	current_app = nullptr;
 	context = nullptr;
 	document = nullptr;
+	shown.reset();
+	labels_ready = pseudo_shown = false;
 	CloseWindow();
 }
 } // namespace phoenix
