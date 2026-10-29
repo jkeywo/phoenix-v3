@@ -1,23 +1,31 @@
-#pragma once
+module;
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace phoenix::audio_backend
+export module phoenix.graphics.audio_backend;
+
+export namespace phoenix::audio_backend
 {
+class Outputs;
 class Voice
 {
 public:
-	struct Data;
-	std::shared_ptr<Data> data;
 	void start(bool loop, float gain, float pitch = 1);
 	void stop();
 	void gain(float);
 	bool playing() const;
+	// Clip initialization succeeded; its output may later become unavailable.
+	bool loaded() const;
 	bool valid() const;
 	bool shares_output(const Voice &) const;
+
+private:
+	struct Data;
+	std::shared_ptr<Data> data;
+	friend class Outputs;
 };
 class Outputs
 {

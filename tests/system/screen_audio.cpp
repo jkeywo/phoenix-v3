@@ -1,10 +1,13 @@
 #include "../support/assertions.hpp"
-#include "../../src/graphics/audio/native_backend.hpp"
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <stdexcept>
+#include <string>
 #include <vector>
+
+import phoenix.graphics.audio_backend;
 
 int main()
 {

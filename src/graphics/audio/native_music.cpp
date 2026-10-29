@@ -2,6 +2,7 @@ module;
 #include <raylib.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -9,8 +10,8 @@ module;
 #include <string>
 #include <utility>
 #include <vector>
-#include "native_backend.hpp"
 module phoenix.graphics.audio;
+import phoenix.graphics.audio_backend;
 import phoenix.content.assets;
 
 namespace phoenix
@@ -86,7 +87,7 @@ struct ServerMusic::State
 	{
 		refresh();
 		const auto resolved = outputs.resolve(app.output);
-		if (output != resolved || (!output.empty() && music.data && !music.valid()) || session != app.session ||
+		if (output != resolved || (!output.empty() && music.loaded() && !music.valid()) || session != app.session ||
 		    generation != app.generation)
 		{
 			clear();

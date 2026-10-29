@@ -548,9 +548,11 @@ phoenix_intended_module(
 	raylib
 )
 phoenix_intended_module(phoenix_graphics_audio_policy phoenix_content_assets)
+phoenix_intended_module(phoenix_graphics_audio_backend raylib)
 phoenix_intended_module(
 	phoenix_graphics_audio
 	phoenix_graphics_audio_policy
+	phoenix_graphics_audio_backend
 	phoenix_graphics_scene
 	raylib
 	phoenix_content_catalog

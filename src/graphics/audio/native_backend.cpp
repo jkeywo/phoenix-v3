@@ -1,3 +1,4 @@
+module;
 // Private miniaudio implementation. Vorbis uses raylib's pinned decoder exports;
 // miniaudio symbols have internal linkage and cannot collide with raudio.c.
 #define STB_VORBIS_HEADER_ONLY
@@ -10,12 +11,18 @@
 #define MA_NO_GENERATION
 #define MINIAUDIO_IMPLEMENTATION
 #include <external/miniaudio.h>
-#include "native_backend.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.graphics.audio_backend;
 
 namespace phoenix::audio_backend
 {
@@ -159,6 +166,10 @@ void Voice::gain(float value)
 bool Voice::playing() const
 {
 	return valid() && ma_sound_is_playing(&data->sound);
+}
+bool Voice::loaded() const
+{
+	return static_cast<bool>(data);
 }
 bool Voice::valid() const
 {
