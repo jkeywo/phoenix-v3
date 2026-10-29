@@ -16,6 +16,7 @@ import phoenix.knowledge;
 
 import phoenix.content.assets;
 import phoenix.content.catalog;
+import phoenix.content.controllers;
 import phoenix.content.distribution;
 import phoenix.content.equipment;
 import phoenix.content.knowledge;
@@ -176,6 +177,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	inherit_definitions(preview.consoles, "consoles");
 	inherit_definitions(preview.control_widgets, "control_widgets");
 	inherit_definitions(preview.entities, "entities");
+	expand_control_widget_repetition(preview);
 	const auto prefix = pack_.manifest.at("id").get<std::string>() + ":";
 	for (const auto &[path, bytes] : pack_.files)
 		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))

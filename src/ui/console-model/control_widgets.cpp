@@ -109,8 +109,10 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 			{
 				ControlWidgetDatum datum;
 				datum.id = id + (multiple ? "/" + identity : "");
-				datum.label =
-				    localise(data.at("label").get<std::string>()) + (multiple ? " / " + localise(identity) : "");
+				datum.label = localise(data.at("label").get<std::string>()) +
+				              (multiple                  ? " / " + localise(identity)
+				               : data.contains("member") ? " / " + localise(data.at("member").get<std::string>())
+				                                         : "");
 				datum.destination = destination;
 				const auto value = widget_datum(view, controller, path, identity);
 				if (value && (value->is_primitive() && !value->is_null()))

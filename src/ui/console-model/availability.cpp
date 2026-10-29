@@ -131,6 +131,7 @@ UiAvailability console_ui_availability(const Observation &view)
 		}
 	for (const auto &extra : view.additional_consoles)
 	{
+		result.features.insert("console/" + extra.console);
 		const auto granted = console_ui_availability(extra);
 		for (const auto &feature : granted.features)
 			if (feature == "weapons" || feature == "shields" || feature == "ftl" || feature == "camera" ||

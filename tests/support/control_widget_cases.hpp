@@ -140,6 +140,40 @@ inline void control_widget_cases()
 		require(world.save() == resumed.save(), "native widget effects preserve checkpoint continuation");
 	}
 	{
+		auto repeated = source;
+		auto &definition = repeated["control_widgets"][0];
+		definition.erase("tree");
+		definition["repeat"] = "engines";
+		definition["member_policy"] = Json::parse(R"json({"initial":"run",
+		 "command_bindings":[{"channel":"speed"},{"channel":"choice"},{"channel":"auxiliary"}],
+		 "system_bindings":[{"name":"enabled","system":"$engines","field":"enabled","type":"boolean"}],
+		 "states":[{"id":"run","running":[{"attempt":[
+		  {"conditions":[{"left":{"observation":"enabled"},"op":"eq","right":true}],
+		   "tasks":[{"action":"write.choice","arguments":[0]},{"action":"write.speed","arguments":[7000]}]},
+		  {"tasks":[{"action":"write.choice","arguments":[1]},{"action":"write.speed","arguments":[3000]}]}]}]}]})json");
+		repeated["entities"][0]["systems"]["starboard"]["enabled"] = false;
+		const auto repeated_catalog = load(repeated);
+		World world;
+		world.load(repeated_catalog, "test.map");
+		require(world.claim(101, 1, "drive"), "claim one repeated equipment-set widget");
+		world.tick();
+		const auto state = controller(world, 101, "propulsion");
+		require(state.at("commands").size() == 6 && state.at("commands").at("m0.speed").at("value") == 3000 &&
+		            state.at("commands").at("m1.speed").at("value") == 3000,
+		        "each member has separate channels while the same human-setting refusal drives fallback");
+		world.release(101);
+		world.tick();
+		auto saved = world.save();
+		const auto &commands = saved["bodies"][0]["console_controllers"]["controllers"][0]["commands"];
+		require(commands[0]["value"] == 7000 && commands[3]["value"] == 3000,
+		        "one Controller evaluates each member against its own bound physical observations");
+		World resumed;
+		resumed.restore(repeated_catalog, saved);
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(), "independent member policy continuations survive restore");
+	}
+	{
 		auto bridge = source;
 		bridge["entities"][0]["bridge"] = {{"initial", "routine"},
 		                                   {"alert_console", "drive"},
@@ -402,6 +436,16 @@ inline void control_widget_cases()
 			    (void)load(missing);
 		    },
 		    "unbound control widget");
+		missing = placed;
+		missing["consoles"].back()["layout"]["root"] = {
+		    {"id", "omitted"}, {"kind", "component"}, {"component", "target-info"}};
+		missing["consoles"].back()["layout"]["compact"] = missing["consoles"].back()["layout"]["root"];
+		rejected(
+		    [&]
+		    {
+			    (void)load(missing);
+		    },
+		    "human command has no placed part");
 		missing = placed;
 		missing["control_widgets"][0]["part_bindings"]["right"]["commands"] = {"unknown"};
 		rejected(

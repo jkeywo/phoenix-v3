@@ -281,3 +281,25 @@ The native Controller, Medical and Away integration suites pass, including mixed
 Away authority and Bridge remote admission/continuation. The base migration
 candidate now passes the production verifier with shared widget placements for
 its consoles; the maintained source packs have not yet been replaced.
+
+## Individual equipment members
+
+A shared widget can declare `repeat` naming one multiple equipment role and an
+inline `member_policy` instead of `tree`. Author commands, data and levels once
+against that role. Authoring expands each attached member into separate command
+channels and an ordinary referenced state tree under the same Controller. Native
+execution, staged admission, fallback and per-call continuation remain unchanged.
+Member policies bind scalar System observations through their equipment roles;
+actions and cross-controller command reads belong in ordinary explicit policies.
+
+Level responsibilities, data destinations, named-part commands/ranges/value
+filters and instance per-star data overrides expand with the member channels.
+The original common-command fan-out remains available by omitting `repeat`.
+Workshop uses the same expansion for its ship-context presentation preview.
+
+The synthetic Controller case checks two members with different physical
+observations, human-setting refusal/fallback and unattended individual decisions,
+then restores their independent continuations. It passes in the native Controller
+suite. Optional granted-console widget pages use the existing permitted additional
+Console projections; their visibility does not weaken required coverage in the
+actual owner's layout. An omitted-widget regression protects that distinction.

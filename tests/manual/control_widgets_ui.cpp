@@ -22,12 +22,17 @@ int main(int argc, char **argv)
 	bool opened = false;
 	try
 	{
-		require(argc == 2, "usage: phoenix_control_widgets_smoke synthetic-pack.zip");
+		const bool inspect = argc == 8 && std::string(argv[1]) == "--inspect";
+		require(argc == 2 || inspect, "usage: phoenix_control_widgets_smoke synthetic-pack.zip | --inspect pack map "
+		                              "slot ship console output-prefix");
 		Application app;
 		app.can_host = app.native_menu = true;
 		app.session = make_local_session();
-		app.session->add_pack(read_file(argv[1]));
-		app.session->start({"test.map", {{"test.slot", "test.widget-ship"}}, "test.slot", "drive"});
+		app.session->add_pack(read_file(argv[inspect ? 2 : 1]));
+		if (inspect)
+			app.session->start({argv[3], {{argv[4], argv[5]}}, argv[4], argv[6]});
+		else
+			app.session->start({"test.map", {{"test.slot", "test.widget-ship"}}, "test.slot", "drive"});
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
@@ -35,6 +40,8 @@ int main(int argc, char **argv)
 		{
 			for (int frame = 0; frame < 80; ++frame)
 			{
+				if (inspect)
+					app.session->tick();
 				BeginDrawing();
 				ClearBackground(BLACK);
 				draw_screen(app);
@@ -49,6 +56,30 @@ int main(int argc, char **argv)
 				                   return row.second.starts_with(label);
 			                   });
 		};
+		if (inspect)
+		{
+			const auto started = GetTime();
+			while (!app.session->observation() && GetTime() - started < 90)
+				frames();
+			require(app.session->observation().has_value(), "production Console preparation timed out");
+			frames();
+			TakeScreenshot((std::string(argv[7]) + "-main.png").c_str());
+			const auto controls = app.screen_controls;
+			int page = 0;
+			for (const auto &[action, label] : controls)
+				if (action.find("station-page/") != std::string::npos && app.screen_action(action))
+				{
+					frames();
+					TakeScreenshot((std::string(argv[7]) + "-page-" + std::to_string(++page) + ".png").c_str());
+					std::cout << "Captured " << label << ": " << app.screen_controls.size() << " controls, "
+					          << app.screen_readouts.size() << " readouts\n";
+				}
+			SetWindowSize(640, 720);
+			frames();
+			TakeScreenshot((std::string(argv[7]) + "-compact.png").c_str());
+			close_window();
+			return 0;
+		}
 		frames();
 		const auto native_controls = [&]
 		{

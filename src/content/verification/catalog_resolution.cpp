@@ -1035,6 +1035,7 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 {
 	const auto properties = compiled ? std::move(compiled) : compile_property_catalog(catalog);
 	catalog.controller_policies.clear();
+	expand_control_widget_repetition(catalog);
 	expand_transport_fittings(catalog, properties);
 	expand_combat_policies(catalog);
 	expand_officer_policies(catalog);

@@ -48,6 +48,7 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const
                                                              const state_tree::Registry &);
 void expand_combat_policies(Catalog &);
 void expand_officer_policies(Catalog &);
+void expand_control_widget_repetition(Catalog &);
 BridgeDefinition compile_bridge(const Catalog &, const std::string &entity);
 ConsoleBridgeDefinition compile_console_bridge(const Json &, const std::string &path);
 // Compiles explicit layout version 1 or converts unambiguous old ownership at the boundary.

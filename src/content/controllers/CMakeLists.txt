@@ -18,6 +18,6 @@ target_link_libraries(
 
 target_sources(
 	phoenix_content_compilers
-	PRIVATE bridge.cpp controller_actions.cpp controllers.cpp stations.cpp control_widgets.cpp
+	PRIVATE bridge.cpp controller_actions.cpp controllers.cpp stations.cpp control_widgets.cpp widget_repetition.cpp
 	PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES compiler.cppm
 )

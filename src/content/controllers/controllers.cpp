@@ -1082,8 +1082,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					parts[static_cast<std::size_t>(controller - result.controllers.begin())].insert(part);
 				}
 				if (!stars)
+				{
 					for (const auto &[index, placed] : parts)
-						declared.insert(index);
+						if (result.controllers.at(index).console == console.id)
+							declared.insert(index);
+				}
 				else
 					for (const auto index : declared)
 						verify_widget_part_coverage(catalog, result.controllers.at(index), parts[index], stars,
