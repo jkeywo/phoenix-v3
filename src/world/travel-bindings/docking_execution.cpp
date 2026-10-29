@@ -65,8 +65,6 @@ auto Runtime::dock_report_available(const ConsoleAddress &a, EntityId target) co
 	for (const auto &contact : capture_sensor_contacts(a))
 		if (contact.id == target)
 			return true;
-	const auto x = conversations.endpoints.find(a.ship), y = conversations.endpoints.find(target);
-	return x != conversations.endpoints.end() && y != conversations.endpoints.end() &&
-	       comms_endpoints_linked(x->second, y->second);
+	return conversations.hosts_linked(a.ship, target);
 }
 } // namespace phoenix::world_detail

@@ -226,8 +226,12 @@ bool ConversationRuntime::linked(const std::string &a, const std::string &b) con
 	if (!participants.contains(a) || !participants.contains(b))
 		return false;
 	const auto ah = participants.at(a).host, bh = participants.at(b).host;
-	return endpoints.contains(ah) && endpoints.contains(bh) &&
-	       comms_endpoints_linked(endpoints.at(ah), endpoints.at(bh));
+	return hosts_linked(ah, bh);
+}
+bool ConversationRuntime::hosts_linked(EntityId a, EntityId b) const
+{
+	const auto x = endpoints.find(a), y = endpoints.find(b);
+	return x != endpoints.end() && y != endpoints.end() && comms_endpoints_linked(x->second, y->second);
 }
 ConversationId ConversationRuntime::open(const std::string &program, std::map<std::string, std::string> bindings,
                                          const std::vector<std::string> &members, const std::string &title)

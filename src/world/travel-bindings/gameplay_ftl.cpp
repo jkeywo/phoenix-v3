@@ -164,23 +164,10 @@ auto Runtime::ftl_blocker(EntityId id, flecs::entity child) const -> std::string
 		return "Undock before FTL departure";
 	const auto ship = entities.at(id);
 	const auto &fit = child.get<Equipment>();
-	bool displacement = false;
-	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
-		if ((away_ship(away_operations.definitions()[i]) == id || away_operations.definitions()[i].target == id) &&
-		    away_ship(away_operations.definitions()[i]) &&
-		    definition(away_ship(away_operations.definitions()[i]))
-		        .displacements.contains(away_operations.missions()[i].transport) &&
-		    away_operations.missions()[i].transfer > 0 &&
-		    (away_operations.missions()[i].phase == AwayPhase::Outbound ||
-		     away_operations.missions()[i].phase == AwayPhase::Inbound))
-		{
-			displacement = true;
-			break;
-		}
 	return ftl_reserve_blocker(
 	    child.get<FtlReserve>(), ship.get<ShipResources>(), child.get<ResourceBinding>().slot,
 	    {fit.enabled, structurally_disabled(ship, fit.id), combat_dead(ship), fault_effectiveness(ship, fit.id), 0},
-	    displacement);
+	    active_displacement_transfer(id));
 }
 
 auto Runtime::prepare_ftl(flecs::entity ship) -> void

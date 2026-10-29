@@ -102,6 +102,8 @@ public:
 	bool offer(ConversationId, const std::string &prompt);
 	void disclose(EntityId viewer, const std::string &participant);
 	bool linked(const std::string &, const std::string &) const;
+	// Endpoint availability and physical communication range between hosts.
+	bool hosts_linked(EntityId a, EntityId b) const;
 	ConversationId open(const std::string &program, std::map<std::string, std::string> bindings,
 	                    const std::vector<std::string> &members, const std::string &title = {});
 	ConversationId hail(EntityId source, const std::string &target, bool execute = true);

@@ -7,6 +7,24 @@ import :away_adapters;
 
 namespace phoenix::world_detail
 {
+auto Runtime::active_displacement_transfer(EntityId id) const -> bool
+{
+	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
+	{
+		const auto &mission = away_operations.missions()[i];
+		const auto &mission_definition = away_operations.definitions()[i];
+		const auto origin = away_ship(mission_definition);
+		if (!origin || (origin != id && mission_definition.target != id))
+			continue;
+		if (!definition(origin).displacements.contains(mission.transport) || mission.transfer <= 0)
+			continue;
+		if (mission.phase == AwayPhase::Outbound || mission.phase == AwayPhase::Inbound)
+			return true;
+	}
+
+	return false;
+}
+
 auto Runtime::away_ship(const AwayDefinition &d) const -> EntityId
 {
 	return away_operations.origin(d, slot_entities);
