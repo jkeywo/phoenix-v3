@@ -1,9 +1,11 @@
 module;
 // Private miniaudio implementation. Vorbis uses raylib's pinned decoder exports;
-// miniaudio symbols have internal linkage and cannot collide with raudio.c.
+// miniaudio functions have internal linkage. Its fallback atomic lock ignores
+// MA_API in the pinned header, so give that global a backend-specific identity.
 #define STB_VORBIS_HEADER_ONLY
 #include <external/stb_vorbis.c>
 #define MA_API static
+#define ma_atomic_global_lock phoenix_native_audio_atomic_global_lock
 #define MA_NO_RESOURCE_MANAGER
 #define MA_NO_ENCODING
 #define MA_NO_FLAC
@@ -11,6 +13,7 @@ module;
 #define MA_NO_GENERATION
 #define MINIAUDIO_IMPLEMENTATION
 #include <external/miniaudio.h>
+#undef ma_atomic_global_lock
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
