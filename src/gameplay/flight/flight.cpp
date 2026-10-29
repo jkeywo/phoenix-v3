@@ -651,8 +651,7 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 		if (result.charge_milliticks % 1000 || result.charge_spent != expected)
 			throw std::runtime_error("flight save: charging progress disagrees with paid expenditure");
 	}
-	const bool legacy_remainders = saved.at("schema") == 2;
-	result.charge_remainder = legacy_remainders ? 0 : number("charge_remainder", 0, 999);
+	result.charge_remainder = number("charge_remainder", 0, 999);
 	result.work_remainder = number("work_remainder", 0, 999999);
 	result.selected_contact =
 	    static_cast<EntityId>(number("selected_contact", 0, std::numeric_limits<std::int64_t>::max()));
@@ -664,12 +663,11 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	result.uncertainty = static_cast<std::uint64_t>(number("uncertainty", 0, std::numeric_limits<std::int64_t>::max()));
 	result.matched_observed = flag("matched_observed");
 	result.match_stale = flag("match_stale");
-	const auto remainder_limit = legacy_remainders ? 19999999LL : 19999999999LL;
-	const auto remainder_scale = legacy_remainders ? 1000 : 1;
-	result.forward_remainder = number("forward_remainder", -remainder_limit, remainder_limit) * remainder_scale;
+	const auto remainder_limit = 19999999999LL;
+	result.forward_remainder = number("forward_remainder", -remainder_limit, remainder_limit);
 	result.damping_remainder = json_integer(saved, "damping_remainder", 0, 0, flight_hz - 1, "flight save");
-	result.lateral_remainder = number("lateral_remainder", -remainder_limit, remainder_limit) * remainder_scale;
-	result.turn_remainder = number("turn_remainder", -remainder_limit, remainder_limit) * remainder_scale;
+	result.lateral_remainder = number("lateral_remainder", -remainder_limit, remainder_limit);
+	result.turn_remainder = number("turn_remainder", -remainder_limit, remainder_limit);
 	result.actual_longitudinal = static_cast<int>(number("actual_longitudinal", -1000, 1000));
 	result.actual_lateral = static_cast<int>(number("actual_lateral", -1000, 1000));
 	result.actual_steering = static_cast<int>(number("actual_steering", -1000, 1000));
