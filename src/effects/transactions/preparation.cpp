@@ -67,45 +67,22 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 		if (!frame.rule_context && uses_payload_outcome)
 			address = *frame.hit_context;
 		auto ship = owner(id, uses_payload_outcome, actor.ordnance);
-		const auto *ability_state =
-		    quote.abilities.contains(id) ? &quote.abilities.at(id) : ship.try_get<AbilityRuntime>();
-		const auto ability_owner = op.officer.empty() ? op.equipment : op.officer;
-		const auto ability_source = op.officer.empty() ? "equipment" : "officer";
-		const auto ability_grant_id =
-		    "temporary:" + source + "." + op.grant + ":" + ability_source + ":" + ability_owner;
-		const bool removing_ability =
-		    op.kind == EffectOperationKind::Remove && ability_state && ability_state->grants.contains(ability_grant_id);
-		std::optional<CustomPropertyAddress> process_address;
-		if (!actor.ordnance &&
-		    (actor.kind != PayloadOutcomeKind::Shield || !op.equipment.empty() || !op.officer.empty() ||
-		     !op.compartment.empty()) &&
-		    (catalog_.process_grants.contains(op.effect) || op.kind == EffectOperationKind::Remove))
-		{
-			const auto candidate =
-			    custom_property_address(property_actor(frame, actor, op.equipment, op.officer, op.compartment));
-			const auto *runtime =
-			    quote.processes.contains(candidate) ? &quote.processes.at(candidate) : process_runtime(candidate);
-			if (catalog_.process_grants.contains(op.effect) ||
-			    (runtime && std::any_of(runtime->processes.begin(), runtime->processes.end(),
-			                            [&](const auto &entry)
-			                            {
-				                            return entry.second.source == source + "." + op.grant;
-			                            })))
-				process_address = candidate;
-		}
 		if (op.kind >= EffectOperationKind::StructuralRepair && op.kind <= EffectOperationKind::Recover)
 		{
 			ports_.native_outcome(quote, frame, op);
+			continue;
 		}
-		else if (op.kind == EffectOperationKind::HeatAdd || op.kind == EffectOperationKind::HeatRemove)
+		if (op.kind == EffectOperationKind::HeatAdd || op.kind == EffectOperationKind::HeatRemove)
 		{
 			thermal(quote, frame, op);
+			continue;
 		}
-		else if (op.kind >= EffectOperationKind::PropertySet && op.kind <= EffectOperationKind::PropertyRate)
+		if (op.kind >= EffectOperationKind::PropertySet && op.kind <= EffectOperationKind::PropertyRate)
 		{
 			property(quote, frame, op, actor, current_operation);
+			continue;
 		}
-		else if (op.kind == EffectOperationKind::Damage)
+		if (op.kind == EffectOperationKind::Damage)
 		{
 			if (op.damage < 0 || op.damage > 1000000)
 				throw std::runtime_error("Effect damage outside supported bounds");
@@ -120,8 +97,9 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 				quote.damages.push_back({id, op.damage,
 				                         uses_payload_outcome || actor.ordnance || !ship.has<CombatStructure>(),
 				                         address, invocation});
+			continue;
 		}
-		else if (op.kind >= EffectOperationKind::StoreAdd)
+		if (op.kind >= EffectOperationKind::StoreAdd)
 		{
 			if (actor.ordnance)
 				throw std::runtime_error("Ordnance does not own a stock store");
@@ -151,8 +129,35 @@ void EffectPreparation::stage(PreparedEffectGroup &quote, std::size_t invocation
 			}
 			if (!valid)
 				throw std::runtime_error("Store operation cannot satisfy exact stock/capacity commitment");
+			continue;
 		}
-		else if (process_address)
+		const auto *ability_state =
+		    quote.abilities.contains(id) ? &quote.abilities.at(id) : ship.try_get<AbilityRuntime>();
+		const auto ability_owner = op.officer.empty() ? op.equipment : op.officer;
+		const auto ability_source = op.officer.empty() ? "equipment" : "officer";
+		const auto ability_grant_id =
+		    "temporary:" + source + "." + op.grant + ":" + ability_source + ":" + ability_owner;
+		const bool removing_ability =
+		    op.kind == EffectOperationKind::Remove && ability_state && ability_state->grants.contains(ability_grant_id);
+		std::optional<CustomPropertyAddress> process_address;
+		if (!actor.ordnance &&
+		    (actor.kind != PayloadOutcomeKind::Shield || !op.equipment.empty() || !op.officer.empty() ||
+		     !op.compartment.empty()) &&
+		    (catalog_.process_grants.contains(op.effect) || op.kind == EffectOperationKind::Remove))
+		{
+			const auto candidate =
+			    custom_property_address(property_actor(frame, actor, op.equipment, op.officer, op.compartment));
+			const auto *runtime =
+			    quote.processes.contains(candidate) ? &quote.processes.at(candidate) : process_runtime(candidate);
+			if (catalog_.process_grants.contains(op.effect) ||
+			    (runtime && std::any_of(runtime->processes.begin(), runtime->processes.end(),
+			                            [&](const auto &entry)
+			                            {
+				                            return entry.second.source == source + "." + op.grant;
+			                            })))
+				process_address = candidate;
+		}
+		if (process_address)
 		{
 			auto &runtime = processes(quote, *process_address);
 			if (op.kind == EffectOperationKind::Remove)
