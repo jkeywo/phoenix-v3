@@ -110,7 +110,7 @@ bool personnel_allowed(const Observation &view, const OperatingCommand &c)
 	if (p.contains("controller"))
 	{
 		const auto *owner = section(view, c.controller);
-		if (!owner || c.controller != p.at("controller") || c.generation != p.at("generation") ||
+		if (!owner || c.controller != p.at("controller").get<std::string>() || c.generation != p.at("generation") ||
 		    c.value != p.at("revision") || !console_operation_human(*owner, "personnel"))
 			return false;
 	}
