@@ -312,6 +312,12 @@ auto Runtime::fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec orig
 		p.penetration = d.ammunition().projectile.penetration;
 		p.definition = d.ammunition().projectile;
 		p.heading = bearing;
+		// This transient beam payload has no travelling projectile. Supply its real
+		// ray for presentation instead of leaving the path at the world origin.
+		p.position = origin;
+		p.altitude = from_z;
+		p.velocity = full_end - origin;
+		p.vz = end_z - from_z;
 		penetrate(p, target, origin, full_end);
 		m.get<WeaponState>().bypass_remainder = p.bypass_remainder;
 	}

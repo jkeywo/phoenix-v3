@@ -248,6 +248,11 @@ void shield_visual_contracts()
 	{
 		auto source = powered_fixture();
 		add_beam(source, 400, bypass);
+		for (auto &placement : source["maps"][0]["entities"])
+		{
+			placement["x_mm"] = placement.value("x_mm", 0) + 123000;
+			placement["y_mm"] = placement.value("y_mm", 0) + 57000;
+		}
 		for (int layer = 0; layer < 2; ++layer)
 			add_fit(source, "visual-shield-" + std::to_string(layer),
 			        {{"kind", "shield"},
@@ -282,6 +287,8 @@ void shield_visual_contracts()
 			        "two partly depleted shield layers emit one combined actual-absorption event without audio");
 			require(hits[0].direction[0] < -.99f && hits[0].has_path,
 			        "beam impact points back along the incoming ship-local path");
+			require(hits[0].path_point[0] < -40 && hits[0].path_point[2] > -.001f && hits[0].path_point[2] < .001f,
+			        "beam visual path uses its actual mount origin after world translation");
 			require(impacts(world)[0].event == hits[0].event, "scene snapshots retain stable impact identities");
 			world.tick();
 			require(impacts(world).size() == 1, "depleted shields emit no additional heat");
