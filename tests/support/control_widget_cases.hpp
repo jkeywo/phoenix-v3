@@ -48,6 +48,46 @@ inline void control_widget_cases()
 	const auto catalog = load(source);
 	const auto widget = compile_control_widget(catalog, "test.widget.drive");
 	{
+		auto action_source = source;
+		auto action = action_source["trees"].back();
+		action["id"] = "test.widget.work";
+		action["controller_action"] = {{"label", "Operate drive"}, {"inputs", Json::array()}};
+		action_source["trees"].back() = Json::parse(R"json({
+          "id":"test.widget.policy","context":"controller",
+          "command_bindings":[{"channel":"speed"},{"channel":"choice"},{"channel":"auxiliary"}],
+          "action_bindings":[{"id":"operate","tree":"test.widget.work"}],
+          "initial":"operate","states":[{"id":"operate","running":[
+            {"action":"select.operate","arguments":["standing-duty"]}]}]
+        })json");
+		action_source["trees"].push_back(action);
+		World acting;
+		acting.load(load(action_source), "test.map");
+		require(acting.claim(101, 1, "drive"), "claim partially controlled action widget");
+		acting.tick();
+		const auto state = controller(acting, 101, "propulsion");
+		require(
+		    state["commands"]["speed"]["value"] == 3000 && state["actions"][0]["available"] == true,
+		    "shared widget action selection keeps running under partial ownership and uses admitted branch fallback");
+	}
+	{
+		WorkshopDocument draft;
+		draft.load_pack(archive(source));
+		require(draft.preview_definition(WorkshopDefinitionKind::ControlWidget, "test.widget.drive").at("commands") ==
+		                source["control_widgets"][0].at("commands") &&
+		            draft.preview_ui()->control_widgets.contains("test.widget.drive") &&
+		            draft.preview_ui()->entities.contains("test.controllable") &&
+		            draft.preview_equipment().control_widgets.contains("test.widget.drive"),
+		        "Workshop retains shared widget definitions and ship binding context in authoring previews");
+		draft.definitions()["entities"][0]["control_layout"]["controllers"][0]["data_placement"]["3"]["choice"] =
+		    "details";
+		WorkshopDocument reopened;
+		reopened.load_pack(draft.export_pack());
+		const auto exported = reopened.verify();
+		const auto layout = compile_controllable_layout(exported, "test.controllable");
+		require(layout.controllers[0].data_placement.at(3).at("choice") == WidgetDataDestination::Details,
+		        "Workshop export and reopen preserve independent per-star data placement and shared bindings");
+	}
+	{
 		auto placed = source;
 		auto console = placed["consoles"][0];
 		console["id"] = "test.widget.console";

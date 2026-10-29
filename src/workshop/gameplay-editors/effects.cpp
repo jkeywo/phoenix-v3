@@ -303,6 +303,40 @@ void GameplayEditors::State::effect_operations_fields(Json &group, WorkshopDocum
 void GameplayEditors::State::templates(WorkshopDocument &document)
 {
 	auto &defs = document.definitions();
+	records(defs, "control_widgets",
+	        {{"id", "widget"},
+	         {"schema", 1},
+	         {"label", "Widget"},
+	         {"equipment", Json::object()},
+	         {"commands", Json::array()},
+	         {"data", Json::object()},
+	         {"parts", {"main"}},
+	         {"levels", Json::array({{{"id", "automated"}, {"human", Json::array()}}})}},
+	        [&](Json &widget)
+	        {
+		        string(widget, "id");
+		        string(widget, "label");
+		        choice(widget, "extends", document.definition_choices(WorkshopDefinitionKind::ControlWidget), true);
+		        choice(widget, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true);
+		        text("Equipment roles use $role in command consumers. Instances bind fitted equipment; they cannot "
+		             "replace the shared policy.");
+		        structured_field(widget, "equipment");
+		        structured_field(widget, "commands");
+		        const auto commands = widget.value("commands", Json::array());
+		        records(widget, "levels", {{"id", "level"}, {"human", Json::array()}},
+		                [&](Json &level)
+		                {
+			                string(level, "id");
+			                names(level, "human", ids(commands));
+			                structured_field(level, "replaces");
+			                structured_field(level, "data");
+		                });
+		        text("Data items declare a label, permitted binding and main/details/hidden placement. Ship instances "
+		             "may override placement per star.");
+		        structured_field(widget, "data");
+		        strings(widget, "parts");
+		        structured_field(widget, "part_bindings");
+	        });
 	records(defs, "properties", {{"id", "property"}, {"kind", "quantity"}, {"label", "Property"}, {"default", 0}},
 	        [&](Json &property)
 	        {

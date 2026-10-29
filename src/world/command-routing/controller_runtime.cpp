@@ -25,8 +25,8 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 			const auto &state = controller.commands[j];
 			if (spec.coordinated_group.empty() || spec.coordinated_group != c.system)
 				continue;
-			if (!controller.human || spec.action != OperatingAction::Impulse || c.request_id < state.request_id ||
-			    (c.request_id == state.request_id && c.value != state.value) ||
+			if (!controller_command_human(controller, j) || spec.action != OperatingAction::Impulse ||
+			    c.request_id < state.request_id || (c.request_id == state.request_id && c.value != state.value) ||
 			    (state.consumed < state.revision && c.request_id != state.request_id))
 				return false;
 			proposals.push_back({{a.ship, a.console, controller.definition.id},
@@ -128,9 +128,10 @@ auto Runtime::consume_controller_commands(flecs::entity entity) -> void
 			const auto &spec = controller.definition.commands[i];
 			auto &state = controller.commands[i];
 			if (spec.shared_target_controller.empty() ||
-			    (!controller.human && encounter_owns_controller(entity.get<StableId>().id, controller.definition)))
+			    (!controller_command_human(controller, i) &&
+			     encounter_owns_controller(entity.get<StableId>().id, controller.definition)))
 				continue;
-			if (!controller.human)
+			if (!controller_command_human(controller, i))
 				state.target_override = false;
 			if (state.target_override)
 				continue;
@@ -248,7 +249,8 @@ auto Runtime::project_controllers(const ConsoleAddress &address, const Observati
 		facts.contribution_authority = contributes && console_operator(address) != 0;
 		facts.craft_authority = bay && assisted_workload(address, "craft");
 		facts.transport_authority = bay && assisted_workload(address, "transport");
-		const auto observations = controller.brain && !controller.human && !controller.actions.empty()
+		const auto observations = controller.brain && (!controller.human || !controller.definition.widget.empty()) &&
+		                                  !controller.actions.empty()
 		                              ? controller_observations(address.ship, controller, &projected, &board)
 		                              : std::vector<state_tree::Value>{};
 		result.push_back(project_controller_runtime(controller, facts, observations));

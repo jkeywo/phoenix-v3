@@ -595,7 +595,14 @@ bool ConsoleSurface::State::controller_hold(const std::string &name, bool presse
 {
 	if (!name.starts_with(id("")))
 		return false;
-	const auto key = name.substr(id("").size());
+	auto key = name.substr(id("").size());
+	if (key.starts_with("task/"))
+	{
+		const auto mapped = task_actions_.find(key);
+		if (mapped == task_actions_.end())
+			return false;
+		key = mapped->second;
+	}
 	for (const auto &[source, prefix] : task_sources())
 		if (key.starts_with(prefix + "game.control/"))
 			return pressed ? !settings_open_ && !systems_open_ && source->hold_control(key.substr(prefix.size()))

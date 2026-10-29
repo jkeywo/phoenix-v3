@@ -43,6 +43,8 @@ DraftTable draft_table(const Catalog &library, WorkshopDefinitionKind kind)
 		return {"ui_groups", library.ui_groups};
 	case WorkshopDefinitionKind::Theme:
 		return {"themes", library.themes};
+	case WorkshopDefinitionKind::ControlWidget:
+		return {"control_widgets", library.control_widgets};
 	case WorkshopDefinitionKind::Entity:
 		return {"entities", library.entities};
 	case WorkshopDefinitionKind::Map:
@@ -143,7 +145,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	// snapshot without copying/serialising unchanged rows. Imports and loads invalidate assets.
 	static const Json empty = Json::array();
 	bool unchanged = ui_preview_ && ui_preview_manifest_ == pack_.manifest;
-	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles"})
+	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities"})
 	{
 		const auto row = definitions_.find(kind);
 		unchanged = unchanged && ui_preview_source_.at(kind) == (row == definitions_.end() ? empty : *row);
@@ -151,7 +153,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	if (unchanged)
 		return ui_preview_;
 	Json source = Json::object();
-	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles"})
+	for (const char *kind : {"layouts", "ui_groups", "themes", "consoles", "control_widgets", "entities"})
 		source[kind] = draft_rows(definitions_, kind);
 	Catalog preview;
 	preview.ui_theme = library_catalog_.ui_theme;
@@ -164,10 +166,15 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	preview.ui_groups = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::UiGroup));
 	preview.themes = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Theme));
 	preview.consoles = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Console));
+	preview.control_widgets =
+	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::ControlWidget));
+	preview.entities = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Entity));
 	inherit_definitions(preview.layouts, "layouts");
 	inherit_definitions(preview.ui_groups, "ui_groups");
 	inherit_definitions(preview.themes, "themes");
 	inherit_definitions(preview.consoles, "consoles");
+	inherit_definitions(preview.control_widgets, "control_widgets");
+	inherit_definitions(preview.entities, "entities");
 	const auto prefix = pack_.manifest.at("id").get<std::string>() + ":";
 	for (const auto &[path, bytes] : pack_.files)
 		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))
@@ -201,14 +208,17 @@ Catalog WorkshopDocument::preview_equipment() const
 	preview.assemblies =
 	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Assembly));
 	preview.trees = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Tree));
-	for (const auto &[kind, table] :
-	     std::vector<std::pair<const char *, std::map<std::string, Json> *>>{{"effects", &preview.effects},
-	                                                                         {"resources", &preview.resources},
-	                                                                         {"recipes", &preview.recipes},
-	                                                                         {"properties", &preview.properties},
-	                                                                         {"entities", &preview.entities},
-	                                                                         {"equipment", &preview.equipment},
-	                                                                         {"assemblies", &preview.assemblies}})
+	preview.control_widgets =
+	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::ControlWidget));
+	for (const auto &[kind, table] : std::vector<std::pair<const char *, std::map<std::string, Json> *>>{
+	         {"effects", &preview.effects},
+	         {"resources", &preview.resources},
+	         {"recipes", &preview.recipes},
+	         {"properties", &preview.properties},
+	         {"entities", &preview.entities},
+	         {"equipment", &preview.equipment},
+	         {"assemblies", &preview.assemblies},
+	         {"control_widgets", &preview.control_widgets}})
 	{
 		inherit_definitions(*table, kind);
 	}
@@ -391,7 +401,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 			authored_entities[entity.at("id").get<std::string>()] = entity;
 	}
 	inherit_definitions(authored_entities, "entities");
-	for (auto kind : {"entities", "maps", "consoles", "trees", "layouts", "ui_groups", "themes"})
+	for (auto kind : {"entities", "maps", "consoles", "trees", "layouts", "ui_groups", "themes", "control_widgets"})
 		if (!definitions.contains(kind))
 			definitions[kind] = Json::array();
 	auto flatten = [&](const char *kind, const auto &table)

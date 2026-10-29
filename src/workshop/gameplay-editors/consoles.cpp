@@ -46,11 +46,83 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 		}
 		else if (button("Create Controller layout"))
 			(*ship)["control_layout"] = {
-			    {"schema", 1}, {"controllers", Json::array()}, {"profiles", Json::array()}, {"default_profile", ""}};
+			    {"schema", 2}, {"controllers", Json::array()}, {"profiles", Json::array()}, {"default_profile", ""}};
 		if (!ship->contains("control_layout"))
 			return;
 	}
 	auto &layout = (*ship)["control_layout"];
+	if (layout.value("schema", 1) == 2)
+	{
+		text("Each instance binds a shared widget to equipment. Stars select responsibility levels; data placement is "
+		     "independent.");
+		records(layout, "controllers",
+		        {{"id", "widget"},
+		         {"console", ""},
+		         {"widget", ""},
+		         {"equipment", Json::object()},
+		         {"star_levels", {{"1", "automated"}, {"2", "automated"}, {"3", "automated"}}}},
+		        [&](Json &instance)
+		        {
+			        string(instance, "id");
+			        choice(instance, "console", consoles);
+			        choice(instance, "widget", document.definition_choices(WorkshopDefinitionKind::ControlWidget));
+			        if (instance.value("widget", std::string{}).empty())
+				        return;
+			        const auto widget = document.preview_definition(WorkshopDefinitionKind::ControlWidget,
+			                                                        instance.at("widget").get<std::string>());
+			        auto &equipment = instance["equipment"];
+			        if (!equipment.is_object())
+				        equipment = Json::object();
+			        const auto roles = widget.value("equipment", Json::object());
+			        for (const auto &[role, specification] : roles.items())
+				        if (specification.value("multiple", false))
+					        names(equipment, role.c_str(), systems);
+				        else
+					        choice(equipment, role.c_str(), systems);
+			        for (auto it = equipment.begin(); it != equipment.end();)
+				        if (!roles.contains(it.key()))
+					        it = equipment.erase(it);
+				        else
+					        ++it;
+			        auto &levels = instance["star_levels"];
+			        if (!levels.is_object())
+				        levels = Json::object();
+			        for (const auto *star : {"1", "2", "3"})
+			        {
+				        ScopedId scope(star);
+				        heading((std::string(star) + " stars").c_str());
+				        choice(levels, star, ids(widget.at("levels")));
+				        const auto data = widget.value("data", Json::object());
+				        for (const auto &[item, specification] : data.items())
+				        {
+					        Json selected{{"placement", instance.value("data_placement", Json::object())
+					                                        .value(star, Json::object())
+					                                        .value(item, std::string("inherit"))}};
+					        ScopedId data_scope(item.c_str());
+					        heading(specification.value("label", item).c_str());
+					        if (choice(selected, "placement", {"inherit", "main", "details", "hidden"}))
+					        {
+						        if (selected.at("placement") == "inherit")
+						        {
+							        if (instance.contains("data_placement") &&
+							            instance["data_placement"].contains(star))
+								        instance["data_placement"][star].erase(item);
+						        }
+						        else
+							        instance["data_placement"][star][item] = selected.at("placement");
+					        }
+				        }
+			        }
+		        });
+		records(layout, "profiles", {{"id", "profile"}, {"stars", 1}},
+		        [&](Json &profile)
+		        {
+			        string(profile, "id");
+			        integer(profile, "stars", 1);
+		        });
+		choice(layout, "default_profile", ids(layout.at("profiles")));
+		return;
+	}
 	text("Controllers own command sections. Profiles choose human or AI operation; absent humans use AI. Remove "
 	     "legacy policy/preset bindings before verifying an explicit layout.");
 	records(

@@ -34,15 +34,29 @@ from accepted intent.
 | Shared definitions, equipment roles, levels and per-star data resolution | Native and WASM Controller integration suites pass                                                                  |
 | Per-command admission and staged tree attempts                           | Native and WASM suites pass, including referenced continuation and rollback                                         |
 | Lifecycle, action/provider and specialised-command migration             | Partial; ordinary channel handover and continuation implemented                                                     |
-| Instance host, split visual parts and main/detail presentation           | Initial host builds; native automated readout rendered with synthetic content; full interactive journeys pending    |
+| Instance host, split visual parts and main/detail presentation           | Native synthetic graphical journey passes for automated details, commands, star data placement and compact reunion  |
 | Consolidated gameplay widgets and rebuilt shipped consoles               | Pending                                                                                                             |
-| Workshop definition, binding, placement and preview editors              | Pending                                                                                                             |
+| Workshop definition, binding, placement and preview editors              | Shared definition/instance editors, ship-context palette and export/reopen checks implemented; full preview pending |
 | Client distribution, schema break and removal of old paths               | Public widget presentation metadata distributed; save schema 33; old allocation/content paths still pending removal |
 
 The maintained schema-1 content and allocation paths remain during implementation.
 They must be removed at the final migration gate, rather than retained as a
 compatibility layer. The new schema-2 Controller layout uses shared widget
 instances and star profiles without authored human/AI allocation lists.
+
+An inventory of the authored layouts on 29 October found 547 Controllers in
+`content/base`, 228 in `content/test` and 206 in `content/test-3d`. These are raw
+authored declarations, including ship variants, rather than distinct reusable
+widget types. Their 1,894 command declarations cover 34 action kinds in the base
+pack. Existing ship tuning and complexity allocations must be compared during
+migration; those counts are an audit observation, not a test baseline.
+
+The remaining authority work includes native medical, team assignment,
+transport, craft and logistics workload gates, officer/coordination actions,
+optional decision providers, encounter overrides and shared target propagation.
+These must use the same per-command admission contract before removing the old
+allocation schema. Grouped equipment also needs per-member command expansion,
+rather than only the current common-command fan-out.
 
 ## Current definition vocabulary
 
@@ -85,5 +99,11 @@ permitted data model does not establish a delivered player console.
 The native Controller, simulation and local-session suites pass with save schema 33. Earlier saves are rejected explicitly. The initial native graphical capture
 uses `python tests/manual/control_widgets_ui.py`, then
 `native.exe --base build/control-widgets-ui.zip --mission test.map --slot test.slot --ship test.widget-ship --seat drive --console --local-only --capture-frames 80`.
-It establishes the automated readout and Details entry rendering only; it is not
-evidence of popup interaction, a screen reader or physical device operation.
+The explicit `phoenix_control_widgets_smoke` target takes that ZIP and exercises
+the real rendered Console, modal details, human command admission, star changes
+and compact reunion. Its native journey passes, including background command
+refusal while details are open. Captures are written under `build/`.
+The native and WASM Controller traces match at
+`3965bd5877bf9991b5068c814456e2a39d69fbad6a3269552815bf48aa55fa8d`.
+This is synthetic UI input and semantic-list evidence; actual screen reader,
+physical-device and browser graphical journeys remain separate.

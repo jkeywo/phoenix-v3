@@ -35,7 +35,8 @@ enum class WorkshopDefinitionKind
 	Recipe,
 	Layout,
 	UiGroup,
-	Theme
+	Theme,
+	ControlWidget
 };
 class WorkshopDocument
 {

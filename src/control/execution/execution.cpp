@@ -132,8 +132,8 @@ bool select_controller_action(ConsoleControllerRuntime &controller, const std::s
                               std::span<const state_tree::Value> source, std::uint64_t generation,
                               const ControllerActionPorts &ports)
 {
-	if (controller.human || generation != controller.generation || !controller.brain || invocation.empty() ||
-	    invocation.size() > 1024)
+	if ((controller.human && controller.definition.widget.empty()) || generation != controller.generation ||
+	    !controller.brain || invocation.empty() || invocation.size() > 1024)
 		return false;
 	const auto found = std::find_if(controller.actions.begin(), controller.actions.end(),
 	                                [&](const auto &spec)

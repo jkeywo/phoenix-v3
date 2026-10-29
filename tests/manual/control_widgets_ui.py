@@ -28,11 +28,11 @@ source["control_widgets"] = [{
     "levels": [{"id": "automated", "human": []}, {"id": "direct", "human": ["speed"]}],
     "data": {
         "requested": {"label": "Requested speed", "binding": "command.speed", "placement": "main"},
-        "actual": {"label": "Actual speed", "binding": "system.engine.speed", "placement": "details"},
+        "actual": {"label": "Maximum speed", "binding": "system.engine.maximum", "placement": "details"},
     },
     "parts": ["readout", "controls"],
     "part_bindings": {
-        "readout": {"data": ["requested"], "details": True},
+        "readout": {"data": ["requested", "actual"], "details": True},
         "controls": {"commands": ["speed"]},
     },
 }]

@@ -139,7 +139,7 @@ auto Runtime::admit_controller_decision(const ControllerDecisionProposal &propos
 		if (controller.definition.console != proposal.address.console ||
 		    controller.definition.id != proposal.address.controller)
 			continue;
-		if (controller.human || controller.generation != proposal.generation)
+		if ((controller.human && controller.definition.widget.empty()) || controller.generation != proposal.generation)
 			return false;
 		if (proposal.operation == "select")
 			return select_controller_action(proposal.address.entity, index, proposal.action, proposal.invocation,

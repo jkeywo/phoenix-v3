@@ -1171,6 +1171,18 @@ else()
 	add_test(NAME system.ship-camera COMMAND phoenix_camera_tests)
 endif()
 
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_control_widgets_smoke EXCLUDE_FROM_ALL tests/manual/control_widgets_ui.cpp)
+	target_link_libraries(phoenix_control_widgets_smoke PRIVATE raylib phoenix_session phoenix_presentation)
+	add_custom_command(
+		TARGET phoenix_control_widgets_smoke
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:phoenix_control_widgets_smoke>/assets"
+	)
+endif()
+
 add_executable(phoenix_manual_flight_smoke EXCLUDE_FROM_ALL tests/manual/manual_flight_ui.cpp)
 target_link_libraries(phoenix_manual_flight_smoke PRIVATE phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)
@@ -1485,7 +1497,10 @@ target_link_libraries(
 # Synthetic cases link only the presentation contracts they exercise.
 target_link_libraries(phoenix_gameplay_flight_tests PRIVATE phoenix_console_model)
 target_link_libraries(phoenix_sensors_tests PRIVATE phoenix_console_model phoenix_gameplay_directed)
-target_link_libraries(phoenix_controller_runtime_tests PRIVATE phoenix_ui_navigation phoenix_console_model)
+target_link_libraries(
+	phoenix_controller_runtime_tests
+	PRIVATE phoenix_ui_navigation phoenix_console_model phoenix_content_documents
+)
 
 # These integration cases also call the Console free-function contracts.
 target_link_libraries(phoenix_craft_tests PRIVATE phoenix_console_model)

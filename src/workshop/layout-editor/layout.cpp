@@ -40,6 +40,7 @@ struct LayoutEditor::State
 	std::string last_error;
 	std::string selected, component = "gameplay", asset_name = "", asset_id = "button", theme_name;
 	std::string drag_source, drag_target, drag_component;
+	std::string widget_context;
 	int serial = 1;
 	LayoutPreviewSettings preview;
 	bool interact = false, compact = false, snap = true, resizing = false, focus_canvas = false, hud = false;
@@ -292,6 +293,42 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		if (!layout_workspace.preview.header)
 			for (const auto &widget : console.at("widgets"))
 				targets.push_back(widget.at("id"));
+		if (!layout_workspace.preview.header)
+		{
+			const auto catalog = document.preview_ui();
+			std::map<std::string, std::string> contexts;
+			for (const auto &[ship_id, ship] : catalog->entities)
+				for (const auto &station : ship.value("stations", Json::array()))
+					for (const auto &seat : station.at("consoles"))
+						if (seat.value("definition", std::string{}) == console.at("id").get<std::string>())
+							contexts[ship_id + "/" + seat.at("id").get<std::string>()] = ship_id;
+			if (!contexts.contains(layout_workspace.widget_context))
+				layout_workspace.widget_context = contexts.empty() ? std::string{} : contexts.begin()->first;
+			if (ImGui::BeginCombo(tool_label("Widget ship and console context").c_str(),
+			                      layout_workspace.widget_context.c_str()))
+			{
+				for (const auto &[context, ship] : contexts)
+					if (ImGui::Selectable(context.c_str(), context == layout_workspace.widget_context))
+						layout_workspace.widget_context = context;
+				ImGui::EndCombo();
+			}
+			if (contexts.contains(layout_workspace.widget_context))
+			{
+				const auto &ship = catalog->entities.at(contexts.at(layout_workspace.widget_context));
+				const auto seat = layout_workspace.widget_context.substr(layout_workspace.widget_context.find('/') + 1);
+				for (const auto &instance :
+				     ship.value("control_layout", Json::object()).value("controllers", Json::array()))
+					if (instance.value("console", std::string{}) == seat && instance.contains("widget"))
+					{
+						const auto prefix = "control/" + instance.at("id").get<std::string>() + "/";
+						targets.push_back(prefix + "complete");
+						const auto definition = catalog->control_widgets.find(instance.at("widget").get<std::string>());
+						if (definition != catalog->control_widgets.end())
+							for (const auto &part : definition->second.value("parts", Json::array({"main"})))
+								targets.push_back(prefix + part.get<std::string>());
+					}
+			}
+		}
 		if (ImGui::BeginCombo(tool_label("Available components").c_str(), layout_workspace.component.c_str()))
 		{
 			for (const auto &target : targets)

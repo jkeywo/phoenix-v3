@@ -185,8 +185,10 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 {
 	ScopedId id_scope_14(phase);
 	heading(phase);
-	for (const char *kind : {"action", "intent", "memory", "call"})
+	for (const char *kind : {"action", "intent", "memory", "call", "attempt"})
 	{
+		if (std::string(kind) == "attempt" && authoring_context(definition) != "controller")
+			continue;
 		ScopedId id_scope_15(kind);
 		if (button(kind))
 		{
@@ -196,6 +198,8 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 				state[phase].push_back({{"action", ""}, {"arguments", Json::array()}, {"once", true}});
 			else if (std::string(kind) == "call")
 				state[phase].push_back({{"call", ""}, {"parameters", Json::object()}});
+			else if (std::string(kind) == "attempt")
+				state[phase].push_back({{"attempt", Json::array({{{"tasks", Json::array()}}})}});
 			else
 				state[phase].push_back({{kind, ""}, {"value", 0}});
 		}
@@ -258,6 +262,28 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 					task["arguments"].erase(task["arguments"].begin() + remove_argument);
 				if (button("Add argument"))
 					task["arguments"].push_back(0);
+			}
+			else if (task.contains("attempt"))
+			{
+				text("Branches run in order. A refused command stops that branch and tries the next in the same tick. "
+				     "Earlier successful commands remain staged.");
+				std::vector<std::string> outcomes;
+				for (const auto &memory : definition.value("memory", Json::array()))
+					if (memory.value("type", std::string{}) == "boolean")
+						outcomes.push_back(memory.at("name").get<std::string>());
+				choice(task, "result", outcomes, true);
+				records(task, "attempt", {{"conditions", Json::array()}, {"tasks", Json::array()}},
+				        [&](Json &branch)
+				        {
+					        records(branch, "conditions", {{"left", 0}, {"op", "eq"}, {"right", 0}},
+					                [&](Json &condition)
+					                {
+						                binding(condition, "left", definition);
+						                choice(condition, "op", {"eq", "ne", "lt", "le", "gt", "ge"});
+						                binding(condition, "right", definition);
+					                });
+					        tasks(branch, "tasks", definition, document);
+				        });
 			}
 			else if (task.contains("call"))
 			{

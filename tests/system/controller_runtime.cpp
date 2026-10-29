@@ -18,6 +18,7 @@ import phoenix.content.controllers;
 import phoenix.content.ui;
 import phoenix.control.protocol;
 import phoenix.content.distribution;
+import phoenix.content.documents;
 import phoenix.content.resources;
 import phoenix.ui.engineering_widgets;
 import phoenix.graphics.audio_policy;

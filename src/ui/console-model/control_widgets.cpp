@@ -36,6 +36,16 @@ std::optional<Json> widget_datum(const Observation &view, const Json &controller
 		for (const auto &system : view.systems)
 			if (system.id == equipment)
 			{
+				if (field == "requested")
+					return Json(system.requested);
+				if (field == "maximum")
+					return Json(system.maximum);
+				if (field == "enabled")
+					return Json(system.enabled);
+				if (field == "status")
+					return Json(system.status);
+				if (field == "effective_range")
+					return Json(system.effective_range);
 				const auto value = system.telemetry.find(field);
 				if (value != system.telemetry.end())
 					return Json(value->second);

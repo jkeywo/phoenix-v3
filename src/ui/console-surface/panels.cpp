@@ -133,7 +133,10 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 			if (values.contains(channel) && std::find(values.at(channel).begin(), values.at(channel).end(),
 			                                          control.at("value")) == values.at(channel).end())
 				continue;
-			const auto key = id(owner->second + descriptor_action(control.at("id").get<std::string>()));
+			const auto command = owner->second + descriptor_action(control.at("id").get<std::string>());
+			const auto action = "task/" + target + "/" + descriptor_action(control.at("id").get<std::string>());
+			task_actions_[action] = command;
+			const auto key = id(action);
 			const auto text = localise(control.value("label_key", control.value("label", channel)));
 			const bool enabled = control.value("enabled", true);
 			markup += "<button id=\"" + esc(key) + "\" class=\"task-button\"" +
