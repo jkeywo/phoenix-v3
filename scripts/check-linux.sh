@@ -11,7 +11,7 @@ for supply_case in logistics docking cargo processors store_effects directed abi
 done
 
 ./build/linux/phoenix_psychic_tests --trace > build/linux/psychic-continuation.trace
-node --test tests/system/web_launcher.mjs
+node --test tests/system/web_launcher.mjs tests/system/wasm_trace.mjs
 npm ci --prefix service --ignore-scripts --no-audit --no-fund
 # A fresh local CA exercises successful verified TLS and refusal of an untrusted CA.
 fixture=$(mktemp -d "$repo/build/linux/tls-integration.XXXXXX")
