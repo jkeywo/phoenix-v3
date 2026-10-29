@@ -104,7 +104,7 @@ jobs:
           path: build/native
       - name: Build and run WASM system integration and continuation comparison
         shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Threaded:$false
+        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded:$false
       - name: Retain the ordinary browser runtimes
         shell: pwsh
         run: |
@@ -117,7 +117,7 @@ jobs:
           Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $fallback
       - name: Build and verify the isolated worker runtimes
         shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Threaded
+        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded
       - name: Stage public browser files
         shell: pwsh
         run: |
