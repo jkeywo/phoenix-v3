@@ -431,7 +431,7 @@ phoenix_fixture(phoenix_conversation_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.conversations COMMAND phoenix_conversation_tests)
 endif()
-add_executable(phoenix_scenario_tests tests/manual/scenario.cpp)
+add_executable(phoenix_scenario_tests tests/system/scenario.cpp)
 target_link_libraries(
 	phoenix_scenario_tests
 	PRIVATE phoenix_scenario_bridge phoenix_scenarios_runtime phoenix_behavior_state_tree
@@ -440,7 +440,7 @@ phoenix_fixture(phoenix_scenario_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.scenario-situations COMMAND phoenix_scenario_tests)
 endif()
-add_executable(phoenix_gameplay_tests tests/manual/gameplay.cpp tests/support/stock_accounting.cpp)
+add_executable(phoenix_gameplay_tests tests/system/gameplay.cpp tests/support/stock_accounting.cpp)
 target_link_libraries(
 	phoenix_gameplay_tests
 	PRIVATE
