@@ -64,6 +64,13 @@ rather than only the current common-command fan-out.
 and inheritance resolution. A definition declares `schema: 1`, `equipment`,
 `commands`, optional `tree`, ordered `levels`, named `data` and `parts`.
 
+Native workflow responsibilities are declared in `operations`, mapping each
+operation name to its equipment roles (for example `team_assignment: ["$teams"]`).
+The level's `human` set selects command channels and native operations together.
+They share operator generations, absence/Away handover, checkpoints and remote
+projection. A native operation is scoped to its declared equipment; owning one
+operation does not grant another operation on that equipment.
+
 The first level is `automated`, with no human commands. Subsequent levels declare
 their complete `human` command set. `replaces` maps a retired assisted command to
 its detailed replacements. Data defaults use `main`, `details` or `hidden`;

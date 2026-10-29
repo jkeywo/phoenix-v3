@@ -114,6 +114,7 @@ struct ConsoleControllerRuntime
 	// Empty only while pre-rewrite content is being migrated. A populated vector
 	// is authoritative per command; human remains a derived summary thereafter.
 	std::vector<bool> human_commands;
+	std::set<std::string> human_operations;
 	std::uint64_t generation = 1;
 	std::uint64_t operator_claimant = 0;
 	std::optional<ControllerBrain> brain;
@@ -175,6 +176,9 @@ struct ControllerDecisionProposal
 
 const ControllerActionSpec &controller_action_spec(const ConsoleControllerRuntime &);
 bool controller_command_human(const ConsoleControllerRuntime &, std::size_t channel);
+bool controller_operation_human(const ConsoleControllerRuntime &, const std::string &operation);
+bool controller_operation_owns(const ConsoleControllerRuntime &, const std::string &operation,
+                               const std::string &equipment);
 bool controller_ai_running(const ConsoleControllerRuntime &);
 Json save_controller_action(const ConsoleControllerRuntime &);
 void restore_controller_action(ConsoleControllerRuntime &, const Json &);

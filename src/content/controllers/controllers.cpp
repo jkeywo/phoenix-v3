@@ -78,7 +78,7 @@ void verify_widget_part_coverage(const Catalog &catalog, const ConsoleController
 {
 	if (parts.contains("main") || parts.contains("complete"))
 		return;
-	std::set<std::string> commands, data;
+	std::set<std::string> commands, data, operations;
 	bool details = false;
 	const auto bindings = catalog.control_widgets.at(controller.widget).value("part_bindings", Json::object());
 	for (const auto &part : parts)
@@ -88,10 +88,14 @@ void verify_widget_part_coverage(const Catalog &catalog, const ConsoleController
 			commands.insert(name.get<std::string>());
 		for (const auto &name : binding.value("data", Json::array()))
 			data.insert(name.get<std::string>());
+		for (const auto &name : binding.value("operations", Json::array()))
+			operations.insert(name.get<std::string>());
 		details |= binding.value("details", false);
 	}
 	for (const auto &channel : controller.human_channels.at(stars))
 		control_require(commands.contains(channel), path, "human command has no placed part: " + channel);
+	for (const auto &operation : controller.human_operations.at(stars))
+		control_require(operations.contains(operation), path, "human operation has no placed part: " + operation);
 	for (const auto &[item, destination] : controller.data_placement.at(stars))
 	{
 		control_require(destination != WidgetDataDestination::Main || data.contains(item), path,
@@ -796,6 +800,12 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					                where, "incompatible equipment for role " + role + ": " + name);
 				}
 			}
+			for (const auto &[operation, equipment] : row.at("operations").items())
+			{
+				auto &attached = controller.operations[operation];
+				for (const auto &identity : equipment)
+					attached.push_back(identity.get<std::string>());
+			}
 			const auto &mapping = row.at("star_levels");
 			control_require(mapping.is_object() && mapping.size() == 3, where,
 			                "widget needs responsibility mappings for stars 1, 2 and 3");
@@ -816,7 +826,13 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				control_require(index >= previous, where, "widget responsibility must not decrease as stars increase");
 				previous = index;
 				controller.star_levels[stars] = level;
-				controller.human_channels[stars] = found->human;
+				for (const auto &responsibility : found->human)
+					if (controller.operations.contains(responsibility))
+						controller.human_operations[stars].insert(responsibility);
+					else
+						controller.human_channels[stars].insert(responsibility);
+				controller.human_channels.try_emplace(stars);
+				controller.human_operations.try_emplace(stars);
 				controller.data_placement[stars] =
 				    control_widget_data_placement(*widget, level, stars, row.value("data_placement", Json::object()));
 			}
@@ -897,7 +913,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			control_require(!row.contains("consoles") && profile.stars >= 1, path,
 			                "widget profiles name stars, not separate Controller allocations");
 			for (std::size_t i = 0; i < result.controllers.size(); ++i)
-				profile.human[i] = !result.controllers[i].human_channels.at(profile.stars).empty();
+				profile.human[i] = !result.controllers[i].human_channels.at(profile.stars).empty() ||
+				                   !result.controllers[i].human_operations.at(profile.stars).empty();
 		}
 		else
 		{

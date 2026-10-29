@@ -63,6 +63,10 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 	if (!controller.definition.widget.empty())
 	{
 		row["widget"] = controller.definition.widget;
+		row["operations"] = Json::object();
+		for (const auto &[operation, equipment] : controller.definition.operations)
+			row["operations"][operation] = {{"human", controller_operation_human(controller, operation)},
+			                                {"consumers", equipment}};
 		row["equipment"] = controller.definition.equipment;
 		row["star_levels"] = Json::object();
 		row["data_placement"] = Json::object();

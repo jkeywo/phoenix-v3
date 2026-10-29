@@ -48,6 +48,40 @@ inline void control_widget_cases()
 	const auto catalog = load(source);
 	const auto widget = compile_control_widget(catalog, "test.widget.drive");
 	{
+		auto native_source = source;
+		auto &definition = native_source["control_widgets"][0];
+		definition["operations"] = {{"logistics", {"$engines"}}};
+		definition["levels"][2]["human"].push_back("logistics");
+		const auto native_catalog = load(native_source);
+		World native;
+		native.load(native_catalog, "test.map");
+		require(native.claim(101, 1, "drive"), "claim widget with native operation responsibility");
+		auto before = controller(native, 101, "propulsion");
+		require(before.at("operations").at("logistics").at("human") == false &&
+		            before.at("operations").at("logistics").at("consumers") == Json::array({"port", "starboard"}),
+		        "native operation binds the same explicit equipment roles and starts delegated");
+		require(native.submit(101, {1, "preset", 1, {}}), "select native operation workload");
+		native.tick();
+		const auto after = controller(native, 101, "propulsion");
+		require(after.at("operations").at("logistics").at("human") == true &&
+		            after.at("generation") != before.at("generation"),
+		        "widget level changes native authority through the common operator generation");
+		const auto projected =
+		    network::read_observation(network::observation_json(*native.observe(101)), native_catalog);
+		const auto &remote = projected.gameplay.at("controllers")[0];
+		require(console_operation_human(remote, "logistics", "port") &&
+		            !console_operation_human(remote, "logistics", "foreign") &&
+		            !console_operation_human(remote, "medical", "port"),
+		        "remote widget admission preserves operation scope without granting another equipment set or workflow");
+		World restored;
+		restored.restore(native_catalog, native.save());
+		require(native.save() == restored.save(), "native operation ownership survives a real checkpoint restore");
+		require(native.release(101), "release native operation widget");
+		const auto checkpoint = native.save();
+		const auto &saved = checkpoint.at("bodies")[0].at("console_controllers").at("controllers")[0];
+		require(saved.at("human_operations").empty(), "absence returns every native operation to AI");
+	}
+	{
 		auto staged_source = source;
 		staged_source["trees"].back()["states"][0]["running"] = Json::parse(R"json([
           {"action":"write.auxiliary","arguments":[{"observation":"tick"}]},
@@ -90,7 +124,8 @@ inline void control_widget_cases()
 				offered = true;
 			}
 		if (!offered)
-			throw std::runtime_error("Command did not offer stance: " + command_view->gameplay.at("controls").dump() + " / " + controller(bridge, 101, "propulsion").dump());
+			throw std::runtime_error("Command did not offer stance: " + command_view->gameplay.at("controls").dump() +
+			                         " / " + controller(bridge, 101, "propulsion").dump());
 		require(bridge.submit(31, stance), "Command can direct a delegated part of an interactive widget");
 		bridge.tick();
 		require(bridge.observe(101)->gameplay.at("stance").at("id") == "hold" &&

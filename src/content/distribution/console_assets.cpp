@@ -324,6 +324,7 @@ PackDraft console_assets_draft(const Catalog &catalog, const std::string &ship,
 		for (const auto *field : {"label", "data", "parts", "part_bindings"})
 			if (source_widget.contains(field))
 				widget[field] = source_widget.at(field);
+		widget["operations"] = source_widget.value("operations", Json::object());
 		widget["equipment"] = Json::object();
 		const auto roles = source_widget.value("equipment", Json::object());
 		for (const auto &[role, specification] : roles.items())

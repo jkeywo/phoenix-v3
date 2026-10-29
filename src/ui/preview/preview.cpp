@@ -76,6 +76,10 @@ class PreviewSession final : public SessionPort
 			         {"human", !selected->human.empty()}, {"commands", Json::object()},
 			         {"equipment", Json::object()},       {"star_levels", instance.at("star_levels")},
 			         {"data_placement", Json::object()}};
+			row["operations"] = Json::object();
+			for (const auto &[operation, equipment] : bound.at("operations").items())
+				row["operations"][operation] = {{"human", selected->human.contains(operation)},
+				                                {"consumers", equipment}};
 			const auto equipment = instance.at("equipment");
 			for (const auto &[role, identities] : equipment.items())
 				row["equipment"][role] = identities.is_array() ? identities : Json::array({identities});

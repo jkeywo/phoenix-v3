@@ -87,6 +87,8 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 		widget.definition = definition;
 		for (const auto &[channel, command] : controller.at("commands").items())
 			widget.automated &= !command.value("human", false);
+		for (const auto &operation : controller.value("operations", Json::object()))
+			widget.automated &= !operation.value("human", false);
 		const auto placements =
 		    controller.value("data_placement", Json::object()).value(std::to_string(stars), Json::object());
 		const auto data_items = source.value("data", Json::object());

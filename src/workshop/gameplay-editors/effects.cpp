@@ -323,11 +323,15 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        structured_field(widget, "equipment");
 		        structured_field(widget, "commands");
 		        const auto commands = widget.value("commands", Json::array());
+		        structured_field(widget, "operations");
+		        auto responsibilities = ids(commands);
+		        for (const auto &[operation, equipment] : widget.value("operations", Json::object()).items())
+			        responsibilities.push_back(operation);
 		        records(widget, "levels", {{"id", "level"}, {"human", Json::array()}},
 		                [&](Json &level)
 		                {
 			                string(level, "id");
-			                names(level, "human", ids(commands));
+			                names(level, "human", responsibilities);
 			                structured_field(level, "replaces");
 			                structured_field(level, "data");
 		                });

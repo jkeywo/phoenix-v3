@@ -4,6 +4,7 @@ module;
 #include <limits>
 #include <nlohmann/json.hpp>
 #include <span>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -15,7 +16,7 @@ namespace phoenix
 {
 void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint64_t claimant, bool human,
                                  std::int64_t stars, bool validate, const ControllerHandoverPorts &ports,
-                                 std::vector<bool> human_commands)
+                                 std::vector<bool> human_commands, std::set<std::string> human_operations)
 {
 	const bool present = claimant != 0;
 	// A lower workload relinquishes settings whose individual controls are no longer available.
@@ -33,12 +34,13 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 				++state.revision;
 			}
 		}
-	if (validate && (human != controller.human || human_commands != controller.human_commands))
+	if (validate && (human != controller.human || human_commands != controller.human_commands ||
+	                 human_operations != controller.human_operations))
 		throw std::runtime_error("Saved Controller operator differs from profile/claims");
 	if (validate)
 		controller.operator_claimant = claimant;
 	if (human == controller.human && human_commands == controller.human_commands &&
-	    (!human || claimant == controller.operator_claimant))
+	    human_operations == controller.human_operations && (!human || claimant == controller.operator_claimant))
 	{
 		controller.operator_claimant = claimant;
 		ports.control(present, human);
@@ -75,6 +77,7 @@ void refresh_controller_operator(ConsoleControllerRuntime &controller, std::uint
 	ports.advance_epoch();
 	controller.human = human;
 	controller.human_commands = std::move(human_commands);
+	controller.human_operations = std::move(human_operations);
 	controller.operator_claimant = claimant;
 	ports.control(present, human);
 	for (std::size_t j = 0; j < controller.commands.size(); ++j)

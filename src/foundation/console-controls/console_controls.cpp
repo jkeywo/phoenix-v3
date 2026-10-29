@@ -90,6 +90,10 @@ bool consumes(const Json &owner, const std::string &system)
 		for (const auto &consumer : channel.at("consumers"))
 			if (consumer == system)
 				return true;
+	for (const auto &operation : owner.value("operations", Json::object()))
+		for (const auto &consumer : operation.at("consumers"))
+			if (consumer == system)
+				return true;
 	return false;
 }
 bool personnel_allowed(const Observation &view, const OperatingCommand &c)
@@ -128,7 +132,12 @@ bool team_allowed(const Observation &view, const OperatingCommand &c)
 	for (const auto &t : view.gameplay.value("teams", Json::array()))
 		if (t.at("id") == c.system && !t.at("reserved").get<bool>() && t.at("revision") == c.value)
 		{
-			if (!owner->at("human").get<bool>() &&
+			const auto operation = c.action == "team.cancel" || c.text.starts_with("auto/")
+			                           ? std::string("team_assignment")
+			                           : t.value("work_operation", std::string("team_work"));
+			if (owner->contains("widget") && !console_operation_human(*owner, operation, c.system))
+				return false;
+			if (!owner->contains("widget") && !owner->at("human").get<bool>() &&
 			    !(t.value("assignment_authority", false) &&
 			      (c.action == "team.cancel" || (c.action == "team.order" && c.text.starts_with("auto/")))))
 				return false;
@@ -566,6 +575,19 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 	return EligibleConsoleCommand{std::move(command), std::move(matched)};
 }
 } // namespace
+bool console_operation_human(const Json &controller, const std::string &operation, const std::string &equipment)
+{
+	if (!controller.contains("widget"))
+		return controller.value("human", false) && (equipment.empty() || consumes(controller, equipment));
+	const auto operations = controller.value("operations", Json::object());
+	if (!operations.is_object() || !operations.contains(operation))
+		return false;
+	const auto &grant = operations.at(operation);
+	if (!grant.value("human", false))
+		return false;
+	const auto consumers = grant.value("consumers", Json::array());
+	return equipment.empty() || std::find(consumers.begin(), consumers.end(), Json(equipment)) != consumers.end();
+}
 std::optional<EligibleConsoleCommand> eligible_console_command(const Observation &view, const Json &layout,
                                                                const Json &public_board, OperatingCommand command)
 {

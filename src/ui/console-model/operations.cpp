@@ -255,14 +255,20 @@ bool ConsoleModel::team_action(const std::string &action, const std::string &tea
 	for (const auto &t : observation_->gameplay.value("teams", Json::array()))
 		if (t.at("id") == team && !t.at("reserved").get<bool>())
 			for (const auto &ctrl : controller_rows(observation_->gameplay))
-				if (ctrl.value("human", false) || t.value("assignment_authority", false))
+				if (ctrl.contains("widget")
+				        ? console_operation_human(ctrl,
+				                                  action == "cancel" || text.starts_with("auto/")
+				                                      ? std::string("team_assignment")
+				                                      : t.value("work_operation", std::string("team_work")),
+				                                  team)
+				        : ctrl.value("human", false) || t.value("assignment_authority", false))
 				{
 					OperatingCommand command{observation_->own.id, "team." + action, t.at("revision"), team};
 					command.text = text;
 					command.console = observation_->console;
 					command.controller = ctrl.at("id");
 					command.generation = ctrl.at("generation");
-					if (auto session = owner_.lock(); session && session->dispatch_console_command(route_, command))
+					if (submit(command))
 						return true;
 				}
 	return false;

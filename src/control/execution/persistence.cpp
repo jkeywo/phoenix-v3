@@ -28,6 +28,8 @@ Json save_controllers(const EntityControls &controls)
 		         {"commands", Json::array()}};
 		if (!controller.human_commands.empty())
 			row["human_commands"] = controller.human_commands;
+		if (!controller.definition.widget.empty())
+			row["human_operations"] = controller.human_operations;
 		for (const auto &command : controller.commands)
 			row["commands"].push_back({{"value", command.value},
 			                           {"arguments", command.arguments},
@@ -89,6 +91,15 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 		fail(row.at("human").is_boolean());
 		controller.human = row.at("human").get<bool>();
 		controller.human_commands.clear();
+		controller.human_operations.clear();
+		fail(!row.contains("human_operations") ||
+		     (row.at("human_operations").is_array() &&
+		      row.at("human_operations").size() <= controller.definition.operations.size()));
+		for (const auto &operation : row.value("human_operations", Json::array()))
+		{
+			fail(operation.is_string() && controller.definition.operations.contains(operation.get<std::string>()));
+			fail(controller.human_operations.insert(operation.get<std::string>()).second);
+		}
 		if (row.contains("human_commands"))
 		{
 			const auto &ownership = row.at("human_commands");

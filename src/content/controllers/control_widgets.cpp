@@ -122,6 +122,7 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	result.commands = source.value("commands", Json::array());
 	result.equipment = source.value("equipment", Json::object());
 	result.data = source.value("data", Json::object());
+	result.operations = source.value("operations", Json::object());
 	widget_require(result.commands.is_array() && result.commands.size() <= 256 && result.equipment.is_object() &&
 	                   result.equipment.size() <= 64 && result.data.is_object() && result.data.size() <= 256,
 	               id, "invalid or oversized command, equipment or data declarations");
@@ -148,6 +149,23 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	{
 		(void)widget_name(Json(role), id + ".equipment");
 		widget_require(specification.is_object(), id + ".equipment." + role, "expected equipment role object");
+	}
+	widget_require(result.operations.is_object() && result.operations.size() <= 64, id, "invalid native operations");
+	std::set<std::string> responsibilities = commands;
+	for (const auto &[operation, roles] : result.operations.items())
+	{
+		(void)widget_name(Json(operation), id + ".operations");
+		widget_require(responsibilities.insert(operation).second && roles.is_array(), id,
+		               "operation must have a distinct name and equipment role array");
+		std::set<std::string> unique;
+		for (const auto &role : roles)
+		{
+			widget_require(role.is_string(), id, "operation equipment must name roles");
+			const auto name = role.get<std::string>();
+			widget_require(name.starts_with("$") && result.equipment.contains(name.substr(1)) &&
+			                   unique.insert(name).second,
+			               id, "operation equipment must use distinct declared roles");
+		}
 	}
 	for (const auto &[item, specification] : result.data.items())
 	{
@@ -185,7 +203,7 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		for (const auto &channel : human)
 		{
 			const auto name = widget_name(channel, id + ".levels." + compiled.id);
-			widget_require(commands.contains(name) && compiled.human.insert(name).second, id,
+			widget_require(responsibilities.contains(name) && compiled.human.insert(name).second, id,
 			               "unknown or duplicate human command " + name);
 		}
 		const auto replacements = level.value("replaces", Json::object());
@@ -230,7 +248,7 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	{
 		widget_require(result.parts.contains(part) && binding.is_object(), id,
 		               "unknown or invalid part binding " + part);
-		for (const auto *kind : {"commands", "data"})
+		for (const auto *kind : {"commands", "data", "operations"})
 		{
 			const auto names = binding.value(kind, Json::array());
 			widget_require(names.is_array(), id + "." + part, "part bindings require identifier arrays");
@@ -238,7 +256,9 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			for (const auto &name : names)
 			{
 				const auto key = widget_name(name, id + "." + part);
-				widget_require((std::string(kind) == "commands" ? commands.contains(key) : result.data.contains(key)) &&
+				widget_require((std::string(kind) == "commands"     ? commands.contains(key)
+				                : std::string(kind) == "operations" ? result.operations.contains(key)
+				                                                    : result.data.contains(key)) &&
 				                   unique.insert(key).second,
 				               id, "unknown or duplicate part member " + key);
 			}
@@ -291,9 +311,10 @@ Json bind_control_widget(const ControlWidgetDefinition &definition, const Json &
 	}
 	Json result = instance;
 	widget_require(!instance.contains("commands") && !instance.contains("tree") && !instance.contains("fallback") &&
-	                   !instance.contains("policy") && !instance.contains("ai"),
+	                   !instance.contains("policy") && !instance.contains("ai") && !instance.contains("operations"),
 	               id, "instance cannot override shared commands or tree; derive a widget definition");
 	result["commands"] = substitute(definition.commands, bindings, id);
+	result["operations"] = substitute(definition.operations, bindings, id);
 	if (definition.tree.empty())
 		result["fallback"] = "hold";
 	else

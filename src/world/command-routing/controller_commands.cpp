@@ -660,19 +660,23 @@ auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
 		const bool present = claimant != 0;
 		bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
 		std::vector<bool> channels;
+		std::set<std::string> operations;
 		if (!controller.definition.widget.empty())
 		{
 			channels.resize(controller.commands.size(), false);
 			const auto stars = controls.layout.profiles.at(controls.profiles.at(address.console)).stars;
 			if (present && stars >= 1)
+			{
+				operations = controller.definition.human_operations.at(stars);
 				for (std::size_t channel = 0; channel < channels.size(); ++channel)
 					channels[channel] = controller.definition.human_channels.at(stars).contains(
 					    controller.definition.commands[channel].id);
-			human = std::any_of(channels.begin(), channels.end(),
-			                    [](bool owned)
-			                    {
-				                    return owned;
-			                    });
+			}
+			human = !operations.empty() || std::any_of(channels.begin(), channels.end(),
+			                                           [](bool owned)
+			                                           {
+				                                           return owned;
+			                                           });
 		}
 		const ControllerHandoverPorts ports{
 		    [this, id, &controller]
@@ -701,7 +705,7 @@ auto Runtime::refresh_controllers(EntityId id, bool validate) -> void
 			                                     current_human, !controller.definition.widget.empty());
 		    }};
 		refresh_controller_operator(controller, claimant, human, human && !validate ? station_stars(address) : 0,
-		                            validate, ports, std::move(channels));
+		                            validate, ports, std::move(channels), std::move(operations));
 	}
 	// Presence also matters for readers and human-seeking offers on Consoles
 	// that own no command Controller. Update after outgoing AI cleanup.

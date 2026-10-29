@@ -319,6 +319,8 @@ struct ConsoleControllerSpec
 	std::string widget;
 	std::map<int, std::string> star_levels;
 	std::map<int, std::set<std::string>> human_channels;
+	std::map<int, std::set<std::string>> human_operations;
+	std::map<std::string, std::vector<std::string>> operations;
 	std::map<int, std::map<std::string, WidgetDataDestination>> data_placement;
 	std::map<std::string, std::vector<std::string>> equipment;
 };

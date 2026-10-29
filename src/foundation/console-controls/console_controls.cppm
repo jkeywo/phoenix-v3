@@ -13,6 +13,7 @@ struct EligibleConsoleCommand
 	OperatingCommand command;
 	Json descriptor;
 };
+bool console_operation_human(const Json &controller, const std::string &operation, const std::string &equipment = {});
 // All inputs are permitted projections or a resolved, safe Console layout.
 // Refusal is advisory; the authoritative host still validates at commit.
 std::optional<EligibleConsoleCommand> eligible_console_command(const Observation &, const Json &layout,

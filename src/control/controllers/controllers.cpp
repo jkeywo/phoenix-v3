@@ -19,6 +19,18 @@ bool controller_command_human(const ConsoleControllerRuntime &controller, std::s
 {
 	return controller.human_commands.empty() ? controller.human : controller.human_commands.at(channel);
 }
+bool controller_operation_human(const ConsoleControllerRuntime &controller, const std::string &operation)
+{
+	return controller.definition.widget.empty() ? controller.human : controller.human_operations.contains(operation);
+}
+bool controller_operation_owns(const ConsoleControllerRuntime &controller, const std::string &operation,
+                               const std::string &equipment)
+{
+	const auto found = controller.definition.operations.find(operation);
+	return found != controller.definition.operations.end() &&
+	       (equipment.empty() ||
+	        std::find(found->second.begin(), found->second.end(), equipment) != found->second.end());
+}
 const ControllerActionSpec &controller_action_spec(const ConsoleControllerRuntime &controller)
 {
 	for (const auto &spec : controller.actions)

@@ -33,7 +33,7 @@ struct ControlWidgetLevel
 struct ControlWidgetDefinition
 {
 	std::string id, tree;
-	Json commands, equipment, data;
+	Json commands, equipment, data, operations;
 	std::vector<ControlWidgetLevel> levels;
 	std::set<std::string> parts;
 };

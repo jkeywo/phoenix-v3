@@ -36,6 +36,13 @@ Json board(const Json &source)
 			t["work"] = text(team.at("work"), 64);
 		if (team.contains("work_system"))
 			t["work_system"] = text(team.at("work_system"), 128);
+		if (team.contains("work_operation"))
+		{
+			const auto operation = text(team.at("work_operation"), 32);
+			if (operation != "medical" && operation != "team_work")
+				throw std::runtime_error("Invalid team work responsibility");
+			t["work_operation"] = operation;
+		}
 
 		if (team.contains("assignment_authority"))
 			t["assignment_authority"] = team.at("assignment_authority").get<bool>();

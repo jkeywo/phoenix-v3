@@ -1292,9 +1292,9 @@ struct Runtime
 	OfficerState personnel_destination(EntityId id, const PersonnelDuty &duty) const;
 	bool personnel_owns(const ConsoleAddress &address, const std::string &department) const;
 	int station_stars(const ConsoleAddress &address) const;
-	bool manual_workload(const ConsoleAddress &address, const std::string &family) const;
-	bool assisted_workload(const ConsoleAddress &address, const std::string &family) const;
-	bool manual_team_destination(const ConsoleAddress &address) const;
+	bool manual_workload(const ConsoleAddress &address, const std::string &family, const std::string &equipment = {}) const;
+	bool assisted_workload(const ConsoleAddress &address, const std::string &family, const std::string &equipment = {}) const;
+	bool manual_team_destination(const ConsoleAddress &address, const std::string &equipment = {}) const;
 	void advance_personnel(EntityId id);
 	std::pair<std::string, std::string> officer_speaker(EntityId id, const std::string &console,
 	                                                    const std::string &controller) const;
