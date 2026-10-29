@@ -450,34 +450,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	}
 	if (model_.announcement() != previous_announcement && !model_.announcement().empty())
 		app.accessible_status = model_.announcement();
-	if (owner_.lock() != app.session || (app.session && (generation_ != app.session->generation() ||
-	                                                     content_packs_ != app.session->catalog().ordered_packs)))
-	{
-		surface_browsing_.clear();
-		browsing_console_.clear();
-		owner_ = app.session;
-		content_packs_ =
-		    app.session ? app.session->catalog().ordered_packs : std::vector<std::pair<std::string, std::string>>{};
-		resolved_consoles_.clear();
-		prepared_layout_ = nullptr;
-		prepared_layout_revision_ = ~std::uint64_t{0};
-		command_choices_.clear();
-		command_language_.clear();
-		command_markup_.clear();
-		manual_profile_.clear();
-		manual_console_.clear();
-		local_language_ = app.language;
-		generation_ = app.session ? app.session->generation() : 0;
-		settings_open_ = false;
-		document_->SetClass("local-settings-open", false);
-		radar_textures_.clear();
-		shield_ship_sprite_.reset();
-		shield_ship_definition_.clear();
-		radar_sweeps_.clear();
-		signature_.clear();
-		cancel_pointer();
-		document_->Focus();
-	}
+	reconcile_preparation_session(app);
 	if (model_.observation())
 	{
 		const auto scope = std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
@@ -559,6 +532,145 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	app.frame_metrics["console/" + std::to_string(route_) + "/card-model"] = GetTime() - cards_started;
 	const bool engineering = !cards.empty();
 	document_->SetClass("engineering", engineering);
+	ConsoleLayoutMode mode{layout, pregame, command_console, helm, has_camera, engineering, team_dispatch};
+	const auto lobby_help = prepare_console_chrome(app, region, mode, pads);
+	layout = mode.layout;
+	app.frame_metrics["console/" + std::to_string(route_) + "/chrome"] = GetTime() - layout_started;
+	const auto readouts_started = GetTime();
+	auto gameplay_actions = prepare_gameplay_actions(region, mode);
+	const auto &gameplay_controls = gameplay_actions.controls;
+	const auto &gameplay_readouts = readout_values_;
+	prepare_engineering_cards(app, region, cards, gameplay_actions);
+	app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
+	const auto markup_started = GetTime();
+	const auto messages = pregame ? std::vector<ConsoleMessageView>{} : model_.messages();
+	const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty() || !messages.empty();
+	const bool placement_changed = place_gameplay_panel(region, mode, has_gameplay);
+	reconcile_gameplay_markup(app, gameplay_actions, team_dispatch);
+	const auto dock_control =
+	    helm ? model_.target_docking_control(tactical_.console().empty() ? model_.sensor_contact()
+	                                                                     : tactical_.model().sensor_contact())
+	         : std::optional<ConsoleDockAction>{};
+	reconcile_readout_markup(dock_control);
+	message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages,
+	                    app.session ? &app.session->catalog() : nullptr, app.screen_readouts, id(""));
+	conversations_.refresh(model_, conversation_frame(app, region));
+	for (const auto &[name, text] : gameplay_readouts)
+	{
+		update_readout(name, text, placement_changed || name.starts_with("game.scan-"));
+		if (name.starts_with("game.readout/system-"))
+			if (auto *readout = dom_.element(id(name)))
+			{
+				dom_.property(readout, "border-left",
+				              text.find("[!]") != std::string::npos ? "8dp #f08060" : "8dp #83be90");
+				dom_.property(readout, "padding-left", "8dp");
+			}
+
+		app.screen_readouts.emplace_back(id(name), text);
+	}
+	app.frame_metrics["console/" + std::to_string(route_) + "/markup"] = GetTime() - markup_started;
+	const auto navigation_started = GetTime();
+	navigation_.prepare(model_, navigation_frame(app, region, pregame));
+	prepare_manual(app, region, pregame);
+	app.frame_metrics["console/" + std::to_string(route_) + "/navigation"] = GetTime() - navigation_started;
+	if (!pregame)
+	{
+		const auto authored_started = GetTime();
+		prepare_authored_layout(layout, region);
+		conversations_.fit(model_, conversation_frame(app, region));
+		finish_support_panels(region);
+		app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
+	}
+	prepare_station_components(region, pregame);
+	if (layout && !pregame)
+		for (const auto &widget : layout->at("widgets"))
+		{
+			const bool available = ui_widget_available(widget, model_.ui_availability());
+			if (!layout->contains("layout") || !available)
+				dom_.property(document_->GetElementById("widget/" + widget.at("id").get<std::string>()), "display",
+				              available ? "block" : "none");
+		}
+	restore_console_browsing();
+	{
+		const auto update_started = GetTime();
+		context_->Update();
+		app.frame_metrics["console/" + std::to_string(route_) + "/before-widgets"] = GetTime() - update_started;
+	}
+	sync_live_widgets(app, layout, pregame, display_scale);
+	position_sharing_controls(physical_region, display_scale, mode);
+	{
+		const auto update_started = GetTime();
+		context_->Update();
+		app.frame_metrics["console/" + std::to_string(route_) + "/after-widgets"] = GetTime() - update_started;
+	}
+	const auto semantics_started = GetTime();
+	publish_widget_semantics(app, region, layout, display_scale);
+	publish_gameplay_semantics(app, region, gameplay_actions);
+	for (const auto &[name, text] : gameplay_readouts)
+		place(app, region, id(name));
+	if (dock_control)
+	{
+		app.screen_controls.emplace_back(id(dock_control->id), dock_control->label);
+		place(app, region, id(dock_control->id));
+	}
+	for (const auto &card : cards)
+		place(app, region, id("resource/" + card.id));
+	for (const auto &field : app.screen_inputs)
+		if (field.id.starts_with(id("")))
+			place(app, region, field.id);
+	if (pregame)
+		place(app, region, id("lobby-title"));
+	for (const auto &[name, text] : lobby_help)
+		place(app, region, name);
+	sync_viewscreen_publication(app, pregame);
+	prune_hidden_semantics(app, layout, pregame);
+	app.frame_metrics["console/" + std::to_string(route_) + "/placements"] = GetTime() - semantics_started;
+	if (!pregame && !settings_open_)
+	{
+		prepare_radar_choices(region);
+		prepare_help(region);
+		prepare_system_popup(region, cards);
+	}
+	app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
+}
+void ConsoleSurface::State::reconcile_preparation_session(Application &app)
+{
+	if (owner_.lock() != app.session || (app.session && (generation_ != app.session->generation() ||
+	                                                     content_packs_ != app.session->catalog().ordered_packs)))
+	{
+		surface_browsing_.clear();
+		browsing_console_.clear();
+		owner_ = app.session;
+		content_packs_ =
+		    app.session ? app.session->catalog().ordered_packs : std::vector<std::pair<std::string, std::string>>{};
+		resolved_consoles_.clear();
+		prepared_layout_ = nullptr;
+		prepared_layout_revision_ = ~std::uint64_t{0};
+		command_choices_.clear();
+		command_language_.clear();
+		command_markup_.clear();
+		manual_profile_.clear();
+		manual_console_.clear();
+		local_language_ = app.language;
+		generation_ = app.session ? app.session->generation() : 0;
+		settings_open_ = false;
+		document_->SetClass("local-settings-open", false);
+		radar_textures_.clear();
+		shield_ship_sprite_.reset();
+		shield_ship_definition_.clear();
+		radar_sweeps_.clear();
+		signature_.clear();
+		cancel_pointer();
+		document_->Focus();
+	}
+}
+
+std::vector<std::pair<std::string, std::string>>
+ConsoleSurface::State::prepare_console_chrome(Application &app, const ConsoleRegion &region, ConsoleLayoutMode &mode,
+                                              const std::set<std::string> &pads)
+{
+	auto &layout = mode.layout;
+	const bool pregame = mode.pregame;
 	std::string title = "Console", description, briefing;
 	std::string complexity;
 	std::vector<std::string> complexity_choices;
@@ -845,9 +957,20 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			                                : Rml::StringUtilities::EncodeRml(localise("Starting in")) + " " +
 			                                      std::to_string((left + 999) / 1000));
 		}
-	app.frame_metrics["console/" + std::to_string(route_) + "/chrome"] = GetTime() - layout_started;
-	const auto readouts_started = GetTime();
-	auto gameplay_controls = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
+	return lobby_help;
+}
+
+ConsoleSurface::State::GameplayActions ConsoleSurface::State::prepare_gameplay_actions(const ConsoleRegion &region,
+                                                                                       const ConsoleLayoutMode &mode)
+{
+	const auto *layout = mode.layout;
+	const bool pregame = mode.pregame;
+	const bool command_console = mode.command;
+	const bool helm = mode.helm;
+	const bool engineering = mode.engineering;
+	GameplayActions result;
+	auto &gameplay_controls = result.controls;
+	gameplay_controls = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
 	std::erase_if(gameplay_controls,
 	              [](const auto &control)
 	              {
@@ -860,7 +983,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		gameplay_controls = tactical_.weapon_controls();
 	}
 
-	std::map<std::string, ConsoleSystemStatus> status_controls;
+	auto &status_controls = result.statuses;
 	const auto owned_systems =
 	    model_.observation() ? station_owned_systems(*model_.observation()) : std::set<std::string>{};
 	if (!pregame)
@@ -919,8 +1042,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		                              descriptor.at("channel").get<std::string>();
 		return dial_bindings.contains({action, target}) ? ControlDestination::dial : ControlDestination::general;
 	};
-	std::set<std::string> specialised_controls, stance_controls, sensor_actions, objective_controls;
-	std::vector<StanceChoice> choices;
+	std::set<std::string> specialised_controls, sensor_actions;
+	auto &stance_controls = result.stances;
+	auto &objective_controls = result.objectives;
+	auto &choices = result.choices;
 	if (!pregame && model_.observation() && model_.observation()->gameplay.contains("controls"))
 		for (const auto &descriptor : model_.observation()->gameplay.at("controls"))
 		{
@@ -982,10 +1107,9 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		              {
 			              return readout.first.starts_with("game.readout/system-");
 		              });
-	const auto &gameplay_readouts = readout_values_;
 	dom_.leaf_markup(document_->GetElementById("sensor-title"),
 	                 Rml::StringUtilities::EncodeRml(localise("Contact scan")));
-	std::set<std::string> sensor_controls;
+	auto &sensor_controls = result.sensors;
 	for (const auto *section : {"sensor-controls", "sensor-readouts", "sensor-title"})
 		dom_.property(document_->GetElementById(section), "width", std::to_string(region.width * .30f - 18) + "dp");
 	std::string sensor_markup;
@@ -1013,7 +1137,15 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		                                                               }))
 		                  ? "block"
 		                  : "none");
-	std::set<std::string> engineering_controls;
+	return result;
+}
+
+void ConsoleSurface::State::prepare_engineering_cards(Application &app, const ConsoleRegion &region,
+                                                      const std::vector<EngineeringCard> &cards,
+                                                      GameplayActions &actions)
+{
+	auto &gameplay_controls = actions.controls;
+	auto &engineering_controls = actions.engineering;
 	dom_.property(document_->GetElementById("engineering-cards"), "width",
 	              std::to_string(region.width * .92f - 24) + "dp");
 	std::string engineering_markup;
@@ -1062,12 +1194,20 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				dom_.property(dom_.element(id("gauge/" + card.id + "/" + metric)), "width",
 				              std::to_string(*value) + "%");
 	}
-	app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
-	const auto markup_started = GetTime();
+}
+
+bool ConsoleSurface::State::place_gameplay_panel(const ConsoleRegion &region, const ConsoleLayoutMode &mode,
+                                                 bool has_gameplay)
+{
+	const auto *layout = mode.layout;
+	const bool pregame = mode.pregame;
+	const bool command_console = mode.command;
+	const bool helm = mode.helm;
+	const bool has_camera = mode.camera;
+	const bool engineering = mode.engineering;
+	const bool team_dispatch = mode.dispatch;
 	auto *gameplay = document_->GetElementById("gameplay");
 	auto *widgets = document_->GetElementById("widgets");
-	const auto messages = pregame ? std::vector<ConsoleMessageView>{} : model_.messages();
-	const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty() || !messages.empty();
 	const auto placement = signature_ + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) + "/" +
 	                       std::to_string(text_scale_) + (has_gameplay ? "/gameplay" : "/empty");
 	const bool placement_changed = placement_signature_ != placement;
@@ -1208,6 +1348,19 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	if (layout && layout->contains("layout"))
 		placement_signature_ = placement;
 
+	return placement_changed;
+}
+
+void ConsoleSurface::State::reconcile_gameplay_markup(Application &app, GameplayActions &actions, bool team_dispatch)
+{
+	auto &gameplay_controls = actions.controls;
+	const auto &status_controls = actions.statuses;
+	const auto &engineering_controls = actions.engineering;
+	const auto &stance_controls = actions.stances;
+	const auto &objective_controls = actions.objectives;
+	const auto &sensor_controls = actions.sensors;
+	auto &choices = actions.choices;
+	const auto &gameplay_readouts = readout_values_;
 	Json gameplay_identity = Json::array();
 	for (const auto &[name, label] : gameplay_controls)
 		if (!engineering_controls.contains(name))
@@ -1360,13 +1513,14 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				              : model_.selected_compartment() == c.at("index").get<std::int64_t>() ? "#486b56"
 				                                                                                   : "#164244");
 		}
-	gameplay_identity = Json::array();
+}
+
+void ConsoleSurface::State::reconcile_readout_markup(const std::optional<ConsoleDockAction> &dock_control)
+{
+	const auto &gameplay_readouts = readout_values_;
+	Json gameplay_identity = Json::array();
 	for (const auto &[name, text] : gameplay_readouts)
 		gameplay_identity.push_back(name);
-	const auto dock_control =
-	    helm ? model_.target_docking_control(tactical_.console().empty() ? model_.sensor_contact()
-	                                                                     : tactical_.model().sensor_contact())
-	         : std::optional<ConsoleDockAction>{};
 	const auto readout_signature =
 	    gameplay_identity.dump() + (dock_control ? dock_control->id + dock_control->label : "");
 	if (gameplay_readout_signature_ != readout_signature)
@@ -1389,50 +1543,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		document_->GetElementById("sensor-readouts")->SetInnerRML(sensor_readouts);
 		gameplay_readout_signature_ = readout_signature;
 	}
-	message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages,
-	                    app.session ? &app.session->catalog() : nullptr, app.screen_readouts, id(""));
-	conversations_.refresh(model_, conversation_frame(app, region));
-	for (const auto &[name, text] : gameplay_readouts)
-	{
-		update_readout(name, text, placement_changed || name.starts_with("game.scan-"));
-		if (name.starts_with("game.readout/system-"))
-			if (auto *readout = dom_.element(id(name)))
-			{
-				dom_.property(readout, "border-left",
-				              text.find("[!]") != std::string::npos ? "8dp #f08060" : "8dp #83be90");
-				dom_.property(readout, "padding-left", "8dp");
-			}
+}
 
-		app.screen_readouts.emplace_back(id(name), text);
-	}
-	app.frame_metrics["console/" + std::to_string(route_) + "/markup"] = GetTime() - markup_started;
-	const auto navigation_started = GetTime();
-	navigation_.prepare(model_, navigation_frame(app, region, pregame));
-	prepare_manual(app, region, pregame);
-	app.frame_metrics["console/" + std::to_string(route_) + "/navigation"] = GetTime() - navigation_started;
-	if (!pregame)
-	{
-		const auto authored_started = GetTime();
-		prepare_authored_layout(layout, region);
-		conversations_.fit(model_, conversation_frame(app, region));
-		finish_support_panels(region);
-		app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
-	}
-	prepare_station_components(region, pregame);
-	if (layout && !pregame)
-		for (const auto &widget : layout->at("widgets"))
-		{
-			const bool available = ui_widget_available(widget, model_.ui_availability());
-			if (!layout->contains("layout") || !available)
-				dom_.property(document_->GetElementById("widget/" + widget.at("id").get<std::string>()), "display",
-				              available ? "block" : "none");
-		}
-	restore_console_browsing();
-	{
-		const auto update_started = GetTime();
-		context_->Update();
-		app.frame_metrics["console/" + std::to_string(route_) + "/before-widgets"] = GetTime() - update_started;
-	}
+void ConsoleSurface::State::sync_live_widgets(Application &app, const Json *layout, bool pregame, float display_scale)
+{
 	heading_dial_.reset();
 	heading_dials_.clear();
 	dial_systems_.clear();
@@ -1565,6 +1679,14 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				displayed_values_["value/" + key] = value;
 			}
 		}
+}
+
+void ConsoleSurface::State::position_sharing_controls(const ConsoleRegion &physical_region, float display_scale,
+                                                      const ConsoleLayoutMode &mode)
+{
+	const auto *layout = mode.layout;
+	const bool pregame = mode.pregame;
+	const bool helm = mode.helm;
 	sharing_pods_.clear();
 	if (helm && !pregame && layout && !layout->contains("layout"))
 		for (const auto &w : layout->at("widgets"))
@@ -1592,12 +1714,11 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				dom_.property(control, "width", std::to_string(pod.width) + "px");
 				dom_.property(control, "height", std::to_string(pod.height) + "px");
 			}
-	{
-		const auto update_started = GetTime();
-		context_->Update();
-		app.frame_metrics["console/" + std::to_string(route_) + "/after-widgets"] = GetTime() - update_started;
-	}
-	const auto semantics_started = GetTime();
+}
+
+void ConsoleSurface::State::publish_widget_semantics(Application &app, const ConsoleRegion &region, const Json *layout,
+                                                     float display_scale)
+{
 	for (const auto &[name, label] : controls_)
 	{
 		if (name.starts_with(id("all-stop/")) && model_.manual_active())
@@ -1652,6 +1773,13 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			context_->Update();
 		place(app, region, name);
 	}
+}
+
+void ConsoleSurface::State::publish_gameplay_semantics(Application &app, const ConsoleRegion &region,
+                                                       const GameplayActions &actions)
+{
+	const auto &gameplay_controls = actions.controls;
+	const auto &stance_controls = actions.stances;
 	for (const auto &[name, label] : gameplay_controls)
 	{
 		app.screen_controls.emplace_back(id(name), label);
@@ -1663,22 +1791,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		}
 		place(app, region, id(name));
 	}
-	for (const auto &[name, text] : gameplay_readouts)
-		place(app, region, id(name));
-	if (dock_control)
-	{
-		app.screen_controls.emplace_back(id(dock_control->id), dock_control->label);
-		place(app, region, id(dock_control->id));
-	}
-	for (const auto &card : cards)
-		place(app, region, id("resource/" + card.id));
-	for (const auto &field : app.screen_inputs)
-		if (field.id.starts_with(id("")))
-			place(app, region, field.id);
-	if (pregame)
-		place(app, region, id("lobby-title"));
-	for (const auto &[name, text] : lobby_help)
-		place(app, region, name);
+}
+
+void ConsoleSurface::State::sync_viewscreen_publication(Application &app, bool pregame)
+{
 	if (!pregame && model_.observation())
 	{
 		const auto publication = app.session->public_board().value("display", Json(nullptr));
@@ -1702,6 +1818,10 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 			}
 		}
 	}
+}
+
+void ConsoleSurface::State::prune_hidden_semantics(Application &app, const Json *layout, bool pregame)
+{
 	if (layout && !pregame)
 	{
 		auto hidden = [&](const std::string &name)
@@ -1744,13 +1864,5 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 				joystick_area_ = {};
 		}
 	}
-	app.frame_metrics["console/" + std::to_string(route_) + "/placements"] = GetTime() - semantics_started;
-	if (!pregame && !settings_open_)
-	{
-		prepare_radar_choices(region);
-		prepare_help(region);
-		prepare_system_popup(region, cards);
-	}
-	app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 }
 } // namespace phoenix

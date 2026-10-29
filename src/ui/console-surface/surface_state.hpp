@@ -70,6 +70,37 @@ struct ConsoleSurface::State final : public Rml::EventListener
 		bool selected;
 		bool operator==(const StanceChoice &) const = default;
 	};
+	struct ConsoleLayoutMode
+	{
+		const Json *layout;
+		bool pregame, command, helm, camera, engineering, dispatch;
+	};
+	struct GameplayActions
+	{
+		std::vector<std::pair<std::string, std::string>> controls;
+		std::map<std::string, ConsoleSystemStatus> statuses;
+		std::set<std::string> stances, objectives, sensors, engineering;
+		std::vector<StanceChoice> choices;
+	};
+	void reconcile_preparation_session(Application &app);
+	std::vector<std::pair<std::string, std::string>> prepare_console_chrome(Application &app,
+	                                                                        const ConsoleRegion &region,
+	                                                                        ConsoleLayoutMode &mode,
+	                                                                        const std::set<std::string> &pads);
+	GameplayActions prepare_gameplay_actions(const ConsoleRegion &region, const ConsoleLayoutMode &mode);
+	void prepare_engineering_cards(Application &app, const ConsoleRegion &region,
+	                               const std::vector<EngineeringCard> &cards, GameplayActions &actions);
+	bool place_gameplay_panel(const ConsoleRegion &region, const ConsoleLayoutMode &mode, bool has_gameplay);
+	void reconcile_gameplay_markup(Application &app, GameplayActions &actions, bool team_dispatch);
+	void reconcile_readout_markup(const std::optional<ConsoleDockAction> &dock_control);
+	void sync_live_widgets(Application &app, const Json *layout, bool pregame, float display_scale);
+	void position_sharing_controls(const ConsoleRegion &physical_region, float display_scale,
+	                               const ConsoleLayoutMode &mode);
+	void publish_widget_semantics(Application &app, const ConsoleRegion &region, const Json *layout,
+	                              float display_scale);
+	void publish_gameplay_semantics(Application &app, const ConsoleRegion &region, const GameplayActions &actions);
+	void sync_viewscreen_publication(Application &app, bool pregame);
+	void prune_hidden_semantics(Application &app, const Json *layout, bool pregame);
 	std::vector<StanceChoice> command_choices_;
 	std::string command_language_, command_markup_;
 
