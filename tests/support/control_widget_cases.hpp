@@ -48,6 +48,56 @@ inline void control_widget_cases()
 	const auto catalog = load(source);
 	const auto widget = compile_control_widget(catalog, "test.widget.drive");
 	{
+		auto staged_source = source;
+		staged_source["trees"].back()["states"][0]["running"] = Json::parse(R"json([
+          {"action":"write.auxiliary","arguments":[{"observation":"tick"}]},
+          {"attempt":[
+            {"conditions":[{"left":{"observation":"command.auxiliary.pending"},"op":"eq","right":true},
+                           {"left":{"observation":"command.auxiliary.revision"},"op":"gt","right":{"observation":"command.auxiliary.consumed"}}],
+             "tasks":[{"action":"write.speed","arguments":[4321]}]},
+            {"tasks":[{"action":"write.speed","arguments":[0]}]}
+          ]}
+        ])json");
+		World staged;
+		staged.load(load(staged_source), "test.map");
+		require(staged.claim(101, 1, "drive"), "claim shared widget with same-evaluation metadata guards");
+		staged.tick();
+		staged.tick();
+		require(requested(staged, "port") == 4321,
+		        "fallback guards read staged command receipts and revisions alongside staged values");
+	}
+	{
+		auto bridge_source = source;
+		auto command = bridge_source["consoles"][0];
+		command["id"] = "test.widget.command";
+		command["command"] = true;
+		command["human_seeking"] = false;
+		bridge_source["consoles"].push_back(command);
+		bridge_source["entities"][0]["stations"][0]["consoles"][1]["definition"] = "test.widget.command";
+		bridge_source["consoles"][0]["stances"] =
+		    Json::array({{{"id", "routine"}, {"label", "Routine"}}, {{"id", "hold"}, {"label", "Hold"}}});
+		World bridge;
+		bridge.load(load(bridge_source), "test.map");
+		require(bridge.claim(101, 1, "drive") && bridge.claim(31, 1, "observer"),
+		        "claim partial widget and bridge Command");
+		OperatingCommand stance{1, "stance.set", 1, "drive"};
+		bool offered = false;
+		const auto command_view = bridge.observe(31);
+		for (const auto &control : command_view->gameplay.at("controls"))
+			if (control.value("action", "") == "stance.set" && control.value("system", "") == "drive")
+			{
+				stance.generation = control.at("generation");
+				offered = true;
+			}
+		if (!offered)
+			throw std::runtime_error("Command did not offer stance: " + command_view->gameplay.at("controls").dump() + " / " + controller(bridge, 101, "propulsion").dump());
+		require(bridge.submit(31, stance), "Command can direct a delegated part of an interactive widget");
+		bridge.tick();
+		require(bridge.observe(101)->gameplay.at("stance").at("id") == "hold" &&
+		            controller(bridge, 101, "propulsion")["commands"]["choice"]["human"] == true,
+		        "AI stance selection preserves the human command allocation in the same widget");
+	}
+	{
 		auto action_source = source;
 		auto action = action_source["trees"].back();
 		action["id"] = "test.widget.work";
@@ -56,6 +106,8 @@ inline void control_widget_cases()
           "id":"test.widget.policy","context":"controller",
           "command_bindings":[{"channel":"speed"},{"channel":"choice"},{"channel":"auxiliary"}],
           "action_bindings":[{"id":"operate","tree":"test.widget.work"}],
+          "decision_candidates":[{"id":"operate","description":"Perform the shared drive policy",
+            "tasks":[{"action":"select.operate","arguments":["model-duty"]}]}],
           "initial":"operate","states":[{"id":"operate","running":[
             {"action":"select.operate","arguments":["standing-duty"]}]}]
         })json");
@@ -68,6 +120,21 @@ inline void control_widget_cases()
 		require(
 		    state["commands"]["speed"]["value"] == 3000 && state["actions"][0]["available"] == true,
 		    "shared widget action selection keeps running under partial ownership and uses admitted branch fallback");
+		require(acting.configure_controller_provider({1, "drive", "propulsion"}, "anyjev"),
+		        "configure model provider on a partially controlled widget");
+		const auto snapshot = acting.controller_decision_snapshot({1, "drive", "propulsion"});
+		require(!snapshot.is_null() && acting.controller_ai(1)[0]["human"] == true &&
+		            acting.controller_ai(1)[0]["ai_running"] == true &&
+		            acting.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "operate"}}),
+		        "partial human ownership permits model decisions through the same admitted executor");
+		acting.tick();
+		require(controller(acting, 101, "propulsion")["commands"]["choice"]["value"] == 1 &&
+		            controller(acting, 101, "propulsion")["commands"]["speed"]["value"] == 3000,
+		        "model-selected widget action cannot overwrite human settings and keeps authored fallback");
+		require(acting.submit(101, {1, "preset", 1, {}}), "change partial ownership while model input is outstanding");
+		acting.tick();
+		require(!acting.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "operate"}}),
+		        "ownership changes invalidate provider decisions as well as human command descriptors");
 	}
 	{
 		WorkshopDocument draft;
@@ -107,6 +174,42 @@ inline void control_widget_cases()
 		            resolve_ui_layout(program, {0, 0, 360, 700}, 1).placements[0].component ==
 		                "control/propulsion/complete",
 		        "one logical widget has split wide parts and a reunited compact presentation");
+		{
+			auto conditional = placed;
+			conditional["consoles"].back()["layout"]["root"]["children"][1]["when"] = {{"min_stars", 3}};
+			(void)load(conditional);
+			conditional["consoles"].back()["layout"]["root"]["children"][0]["when"] = {{"min_stars", 2}};
+			rejected(
+			    [&]
+			    {
+				    (void)load(conditional);
+			    },
+			    "human command has no placed part");
+			auto missing_data = placed;
+			missing_data["control_widgets"][0]["part_bindings"]["right"]["data"] = Json::array();
+			rejected(
+			    [&]
+			    {
+				    (void)load(missing_data);
+			    },
+			    "main data item has no placed part");
+			missing_data = placed;
+			missing_data["control_widgets"][0]["part_bindings"]["left"]["details"] = false;
+			rejected(
+			    [&]
+			    {
+				    (void)load(missing_data);
+			    },
+			    "detail data has no placed entry point");
+			missing_data = placed;
+			missing_data["control_widgets"][0]["part_bindings"]["right"]["commands"] = Json::array();
+			rejected(
+			    [&]
+			    {
+				    (void)load(missing_data);
+			    },
+			    "human command has no placed part");
+		}
 		auto missing = placed;
 		missing["consoles"].back()["layout"]["root"]["children"][0]["component"] = "control/unknown/left";
 		missing["consoles"].back()["layout"]["root"]["children"][1]["component"] = "control/unknown/right";
@@ -137,6 +240,14 @@ inline void control_widget_cases()
 	}
 	{
 		auto invalid = source;
+		invalid["entities"][0]["control_layout"]["schema"] = 1;
+		rejected(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "shared widget instances require schema 2");
+		invalid = source;
 		invalid["entities"][0]["control_layout"]["controllers"][0]["star_levels"]["1"] = "detailed";
 		rejected(
 		    [&]
@@ -168,6 +279,22 @@ inline void control_widget_cases()
 			    (void)load(invalid);
 		    },
 		    "unresolved command or equipment data binding");
+		invalid = source;
+		invalid["control_widgets"][0]["commands"][0]["consumers"] = {"port"};
+		rejected(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "shared command consumers must use declared equipment roles");
+		invalid = source;
+		invalid["entities"][0]["control_layout"]["controllers"][0]["policy"] = "combat";
+		rejected(
+		    [&]
+		    {
+			    (void)load(invalid);
+		    },
+		    "instance cannot override shared commands or tree");
 	}
 	require(control_widget_data_placement(widget, "assisted", 1).at("choice") == WidgetDataDestination::Main &&
 	            control_widget_data_placement(widget, "assisted", 2, {{"2", {{"choice", "details"}}}}).at("choice") ==
@@ -181,9 +308,28 @@ inline void control_widget_cases()
 	        "widget level compiles exclusive command ownership inside one Controller");
 	require(!world.submit(101, speed(world, 101, "propulsion", 9000)),
 	        "human cannot write a delegated channel of an otherwise interactive Controller");
+	{
+		auto command = speed(world, 101, "propulsion", 9000);
+		command.action = "speed_mm_s";
+		require(!eligible_console_command(*world.observe(101), catalog.consoles.at("test.console"), Json::object(),
+		                                  command),
+		        "presentation admission checks channel ownership inside an interactive widget");
+	}
 	world.tick();
 	const auto after = controller(world, 101, "propulsion");
 	const auto presented = console_control_widgets(catalog, *world.observe(101));
+	{
+		auto projected = *world.observe(101);
+		projected.gameplay["controls"].push_back(
+		    {{"id", "legacy.native"}, {"controller", "propulsion"}, {"action", "ftl.depart"}});
+		const auto widgets = console_control_widgets(catalog, projected);
+		require(std::none_of(widgets[0].controls.begin(), widgets[0].controls.end(),
+		                     [](const auto &control)
+		                     {
+			                     return control.at("id") == "legacy.native";
+		                     }),
+		        "widget host only exposes allocated channel commands, not unrelated legacy native operations");
+	}
 	const auto client =
 	    resolve_packs({console_assets(catalog, "test.controllable", std::vector<std::string>{"drive"})});
 	require(client.control_widgets.contains("test.widget.drive") &&

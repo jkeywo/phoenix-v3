@@ -43,23 +43,62 @@ std::string control_name(const Json &value, const char *field, const std::string
 	                path, std::string("invalid ") + field);
 	return name;
 }
-void control_layout_targets(const Catalog &catalog, Json node, std::set<std::string> &targets, unsigned depth = 0)
+void control_layout_targets(const Catalog &catalog, Json node, std::set<std::string> &targets, int stars = 0,
+                            unsigned depth = 0)
 {
 	control_require(depth <= 24, "control widget layout", "reusable group nesting exceeds 24 levels");
+	if (stars && node.contains("when"))
+	{
+		const auto &condition = node.at("when");
+		if (stars < condition.value("min_stars", 1) || stars > condition.value("max_stars", 3))
+			return;
+		// Optional runtime capabilities cannot establish guaranteed access to a
+		// human command or required main/detail data. An unconditional fallback can.
+		for (const auto &[key, value] : condition.items())
+			if (key != "min_stars" && key != "max_stars")
+				return;
+	}
 	if (node.contains("group"))
 	{
 		const auto &group = catalog.ui_groups.at(node.at("group").get<std::string>());
 		auto expanded = group.at("root");
 		if (node.contains("overrides"))
 			expanded.merge_patch(node.at("overrides"));
-		control_layout_targets(catalog, std::move(expanded), targets, depth + 1);
+		control_layout_targets(catalog, std::move(expanded), targets, stars, depth + 1);
 		return;
 	}
 	const auto component = node.value("component", std::string{});
 	if (component.starts_with("control/"))
 		targets.insert(component);
 	for (const auto &child : node.value("children", Json::array()))
-		control_layout_targets(catalog, child, targets, depth + 1);
+		control_layout_targets(catalog, child, targets, stars, depth + 1);
+}
+void verify_widget_part_coverage(const Catalog &catalog, const ConsoleControllerSpec &controller,
+                                 const std::set<std::string> &parts, int stars, const std::string &path)
+{
+	if (parts.contains("main") || parts.contains("complete"))
+		return;
+	std::set<std::string> commands, data;
+	bool details = false;
+	const auto bindings = catalog.control_widgets.at(controller.widget).value("part_bindings", Json::object());
+	for (const auto &part : parts)
+	{
+		const auto &binding = bindings.at(part);
+		for (const auto &name : binding.value("commands", Json::array()))
+			commands.insert(name.get<std::string>());
+		for (const auto &name : binding.value("data", Json::array()))
+			data.insert(name.get<std::string>());
+		details |= binding.value("details", false);
+	}
+	for (const auto &channel : controller.human_channels.at(stars))
+		control_require(commands.contains(channel), path, "human command has no placed part: " + channel);
+	for (const auto &[item, destination] : controller.data_placement.at(stars))
+	{
+		control_require(destination != WidgetDataDestination::Main || data.contains(item), path,
+		                "main data item has no placed part: " + item);
+		control_require(destination != WidgetDataDestination::Details || details, path,
+		                "detail data has no placed entry point: " + item);
+	}
 }
 bool ability_endpoint_owned(const Json &entity, const std::string &endpoint, const std::string &controller,
                             const std::string &console)
@@ -442,6 +481,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	std::set<std::pair<std::size_t, OperatingAction>> inputs;
 	for (const auto &instance : layout.at("controllers"))
 	{
+		control_require(widget_layout || !instance.contains("widget"), path,
+		                "shared widget instances require schema 2; do not mix level ownership with legacy allocations");
 		control_require(!widget_layout || instance.contains("widget"), path,
 		                "schema 2 Controller requires a shared widget definition");
 		const auto row = instance.contains("widget") ? bind_control_widget(catalog, instance) : instance;
@@ -951,37 +992,54 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			layout = catalog.layouts.at(layout.get<std::string>());
 		if (definition.contains("layout_overrides"))
 			layout.merge_patch(definition.at("layout_overrides"));
-		std::set<std::string> targets;
-		control_layout_targets(catalog, layout.at("root"), targets);
-		if (layout.contains("compact"))
-			control_layout_targets(catalog, layout.at("compact"), targets);
-		for (const auto &target : targets)
+		for (const auto *variant : {"root", "compact"})
 		{
-			const auto last = target.rfind('/');
-			control_require(last > 8 && last + 1 < target.size(), path, "invalid widget placement " + target);
-			auto instance = target.substr(8, last - 8);
-			const auto part = target.substr(last + 1);
-			auto owner = console.id;
-			if (const auto scope = instance.find('/'); scope != std::string::npos)
+			if (!layout.contains(variant))
+				continue;
+			std::set<std::size_t> declared;
+			for (const int stars : {0, 1, 2, 3})
 			{
-				owner = instance.substr(0, scope);
-				instance = instance.substr(scope + 1);
+				std::set<std::string> targets;
+				control_layout_targets(catalog, layout.at(variant), targets, stars);
+				std::map<std::size_t, std::set<std::string>> parts;
+				for (const auto &target : targets)
+				{
+					const auto last = target.rfind('/');
+					control_require(last > 8 && last + 1 < target.size(), path, "invalid widget placement " + target);
+					auto instance = target.substr(8, last - 8);
+					const auto part = target.substr(last + 1);
+					auto owner = console.id;
+					if (const auto scope = instance.find('/'); scope != std::string::npos)
+					{
+						owner = instance.substr(0, scope);
+						instance = instance.substr(scope + 1);
+					}
+					const auto controller =
+					    std::find_if(result.controllers.begin(), result.controllers.end(),
+					                 [&](const auto &candidate)
+					                 {
+						                 return candidate.console == owner && candidate.id == instance;
+					                 });
+					control_require(controller != result.controllers.end() && !controller->widget.empty(), path,
+					                "layout names an unbound control widget " + target);
+					const auto widget = compile_control_widget(catalog, controller->widget);
+					control_require(part == "complete" || part == "main" || widget.parts.contains(part), path,
+					                "layout names an unknown widget part " + target);
+					if (part != "complete" && part != "main")
+						control_require(catalog.control_widgets.at(controller->widget)
+						                    .value("part_bindings", Json::object())
+						                    .contains(part),
+						                path, "named widget part has no data/control bindings " + target);
+					parts[static_cast<std::size_t>(controller - result.controllers.begin())].insert(part);
+				}
+				if (!stars)
+					for (const auto &[index, placed] : parts)
+						declared.insert(index);
+				else
+					for (const auto index : declared)
+						verify_widget_part_coverage(catalog, result.controllers.at(index), parts[index], stars,
+						                            path + "." + variant + ".stars" + std::to_string(stars));
 			}
-			const auto controller = std::find_if(result.controllers.begin(), result.controllers.end(),
-			                                     [&](const auto &candidate)
-			                                     {
-				                                     return candidate.console == owner && candidate.id == instance;
-			                                     });
-			control_require(controller != result.controllers.end() && !controller->widget.empty(), path,
-			                "layout names an unbound control widget " + target);
-			const auto widget = compile_control_widget(catalog, controller->widget);
-			control_require(part == "complete" || part == "main" || widget.parts.contains(part), path,
-			                "layout names an unknown widget part " + target);
-			if (part != "complete" && part != "main")
-				control_require(catalog.control_widgets.at(controller->widget)
-				                    .value("part_bindings", Json::object())
-				                    .contains(part),
-				                path, "named widget part has no data/control bindings " + target);
 		}
 	}
 	std::size_t waypoints = 0;

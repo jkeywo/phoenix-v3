@@ -19,6 +19,7 @@ Json World::controller_ai(EntityId id) const
 		                {"controller", c.definition.id},
 		                {"eligible", !c.candidates.empty()},
 		                {"human", c.human},
+		                {"ai_running", controller_ai_running(c)},
 		                {"selected", c.selected_provider},
 		                {"effective", c.effective_provider},
 		                {"reason", c.fallback_reason},
@@ -45,7 +46,7 @@ bool World::configure_controller_provider(const ControllerAddress &address, cons
 		return true;
 	const auto index =
 	    static_cast<std::size_t>(c - impl_->entities.at(address.entity).get_mut<EntityControls>().controllers.data());
-	if (c->brain && !c->human)
+	if (c->brain && controller_ai_running(*c))
 	{
 		const auto observations = impl_->controller_observations(address.entity, *c);
 		impl_->cancel_controller_action(address.entity, index, "provider_changed", observations);
@@ -70,7 +71,7 @@ bool World::submit_controller_decision(const Json &decision)
 		const auto &snapshot = decision.at("snapshot");
 		ControllerAddress address{snapshot.at("ship"), snapshot.at("console"), snapshot.at("controller")};
 		auto *c = impl_->model_controller(address);
-		if (c && !c->human && impl_->encounter_owns_controller(address.entity, c->definition))
+		if (c && controller_ai_running(*c) && impl_->encounter_owns_controller(address.entity, c->definition))
 			return false;
 		const auto chosen = decision.value("candidate", std::string("defer_to_tree"));
 		bool cancels_activity = false;
@@ -89,7 +90,7 @@ bool World::submit_controller_decision(const Json &decision)
 			current_basis.erase("action_serial");
 			current_basis.erase("action_status");
 		}
-		if (!c || c->human || c->selected_provider == "tree" || snapshot.at("schema") != 1 ||
+		if (!c || !controller_ai_running(*c) || c->selected_provider == "tree" || snapshot.at("schema") != 1 ||
 		    snapshot.at("provider") != c->selected_provider || snapshot.at("tick") > ticks() ||
 		    (!decision.value("failed", false) && snapshot.at("expires") < ticks()) ||
 		    snapshot.at("expires").get<std::uint64_t>() > snapshot.at("tick").get<std::uint64_t>() + 100 ||

@@ -46,6 +46,16 @@ public:
 			const auto prefix = "command." + controller.definition.commands[i].id;
 			if (name == prefix)
 				return state_tree::Value{frozen.type, staged[i].value, {}};
+			if (name == prefix + ".accepted")
+				return state_tree::Value::boolean(staged[i].accepted);
+			if (name == prefix + ".revision")
+				return state_tree::Value::integer(static_cast<std::int64_t>(staged[i].revision));
+			if (name == prefix + ".consumed")
+				return state_tree::Value::integer(static_cast<std::int64_t>(staged[i].consumed));
+			if (name == prefix + ".request_id")
+				return state_tree::Value::integer(static_cast<std::int64_t>(staged[i].request_id));
+			if (name == prefix + ".pending")
+				return state_tree::Value::boolean(staged[i].consumed < staged[i].revision);
 			const auto arguments = operating_arguments(controller.definition.commands[i].action);
 			for (std::size_t argument = 0; argument < arguments.size(); ++argument)
 				if (name == prefix + "." + std::string(arguments[argument].name))

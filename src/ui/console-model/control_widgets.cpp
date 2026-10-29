@@ -138,8 +138,13 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 			}
 		}
 		for (const auto &control : view.gameplay.value("controls", Json::array()))
-			if (control.value("controller", std::string{}) == widget.id)
+		{
+			const auto channel = control.value("channel", std::string{});
+			if (control.value("controller", std::string{}) == widget.id && !channel.empty() &&
+			    controller.at("commands").contains(channel) &&
+			    controller.at("commands").at(channel).value("human", false))
 				widget.controls.push_back(control);
+		}
 		result.push_back(std::move(widget));
 	}
 	return result;

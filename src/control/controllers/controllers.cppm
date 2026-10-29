@@ -175,6 +175,7 @@ struct ControllerDecisionProposal
 
 const ControllerActionSpec &controller_action_spec(const ConsoleControllerRuntime &);
 bool controller_command_human(const ConsoleControllerRuntime &, std::size_t channel);
+bool controller_ai_running(const ConsoleControllerRuntime &);
 Json save_controller_action(const ConsoleControllerRuntime &);
 void restore_controller_action(ConsoleControllerRuntime &, const Json &);
 void set_console_complexity(EntityControls &, const std::string &console, std::size_t profile);

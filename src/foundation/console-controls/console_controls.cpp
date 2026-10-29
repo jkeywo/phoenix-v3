@@ -390,6 +390,8 @@ std::string manual_binding(const Observation &view, const Json &layout, const st
 			if (!s || !s->at("human").get<bool>())
 				return {};
 			const auto &c = s->at("commands").at(widget.at("channel").get<std::string>());
+			if (!c.value("human", s->value("human", false)))
+				return {};
 			if (c.at("action") != anchor_action)
 				continue;
 			if (anchor && (owner != s || anchor != &c))
@@ -406,7 +408,7 @@ std::string manual_binding(const Observation &view, const Json &layout, const st
 			continue;
 		for (auto it = candidate.at("commands").begin(); it != candidate.at("commands").end(); ++it)
 			if (it.value().at("action") == action && it.value().at("semantics") == "setting" &&
-			    overlaps(*anchor, it.value()))
+			    it.value().value("human", candidate.value("human", false)) && overlaps(*anchor, it.value()))
 			{
 				if (!result.empty())
 					return {};
@@ -508,6 +510,8 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 		if (!command.channel.empty())
 		{
 			const auto &c = s->at("commands").at(command.channel);
+			if (!c.value("human", s->value("human", false)))
+				return {};
 			if (!c.at("minimum").is_number_integer() || !c.at("maximum").is_number_integer() ||
 			    c.at("action") != command.action || command.value < c.at("minimum") || command.value > c.at("maximum"))
 				return {};

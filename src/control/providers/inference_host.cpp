@@ -54,7 +54,7 @@ struct InferenceHost::Impl
 		{
 			const auto at = (first + i) % rows.size();
 			const auto &row = rows[at];
-			if (!row.at("eligible").get<bool>() || row.at("human").get<bool>() || row.at("selected") == "tree")
+			if (!row.at("eligible").get<bool>() || !row.at("ai_running").get<bool>() || row.at("selected") == "tree")
 				continue;
 			const auto key = row.at("console").get<std::string>() + "/" + row.at("controller").get<std::string>();
 			if (sent.contains(key) && now - sent.at(key) < std::chrono::milliseconds(500))
@@ -83,8 +83,8 @@ struct InferenceHost::Impl
 		bool waiting = false;
 		for (const auto &row : rows)
 			waiting = waiting ||
-			          (row.at("eligible").get<bool>() && !row.at("human").get<bool>() && row.at("selected") != "tree" &&
-			           row.at("effective") != "tree" && row.at("next") > world.ticks());
+			          (row.at("eligible").get<bool>() && row.at("ai_running").get<bool>() &&
+			           row.at("selected") != "tree" && row.at("effective") != "tree" && row.at("next") > world.ticks());
 		if (!batch.empty() && batch.size() < capacity && waiting &&
 		    coalesce_until == std::chrono::steady_clock::time_point{})
 		{

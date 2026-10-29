@@ -25,7 +25,7 @@ auto Runtime::model_basis(EntityId id, const ConsoleControllerRuntime &controlle
 auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
 {
 	auto *controller = model_controller(address);
-	if (!controller || controller->human || controller->candidates.empty() || !controller->brain ||
+	if (!controller || !controller_ai_running(*controller) || controller->candidates.empty() || !controller->brain ||
 	    encounter_owns_controller(address.entity, controller->definition))
 		return nullptr;
 	const auto observed = controller_observations(address.entity, *controller);

@@ -6,6 +6,18 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
+namespace
+{
+bool delegated_commands(const ConsoleControllerRuntime &controller)
+{
+	if (controller.definition.widget.empty())
+		return !controller.human;
+	for (std::size_t channel = 0; channel < controller.commands.size(); ++channel)
+		if (!controller_command_human(controller, channel))
+			return true;
+	return false;
+}
+} // namespace
 auto Runtime::ship_objectives(EntityId ship) const -> std::map<KnowledgeId, KnowledgeRecord>
 {
 	std::map<KnowledgeId, KnowledgeRecord> result;
@@ -41,7 +53,7 @@ auto Runtime::ship_has_ai(EntityId ship) const -> bool
 	return controls && std::any_of(controls->controllers.begin(), controls->controllers.end(),
 	                               [](const auto &controller)
 	                               {
-		                               return !controller.human;
+		                               return delegated_commands(controller);
 	                               });
 }
 
@@ -105,6 +117,18 @@ auto Runtime::stance_target(EntityId ship, const std::string &console) const -> 
 	const auto *controls = entities.at(ship).try_get<EntityControls>();
 	if (!controls)
 		return false;
+	const bool widgets =
+	    std::any_of(controls->controllers.begin(), controls->controllers.end(),
+	                [&](const auto &controller)
+	                {
+		                return controller.definition.console == console && !controller.definition.widget.empty();
+	                });
+	if (widgets)
+		return std::any_of(controls->controllers.begin(), controls->controllers.end(),
+		                   [&](const auto &controller)
+		                   {
+			                   return controller.definition.console == console && delegated_commands(controller);
+		                   });
 	bool any = false;
 	for (const auto &controller : controls->controllers)
 		if (controller.definition.console == console)

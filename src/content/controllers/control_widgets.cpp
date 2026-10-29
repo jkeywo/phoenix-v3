@@ -130,8 +130,19 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	{
 		const auto name = widget_name(command.at("id"), id + ".commands");
 		widget_require(commands.insert(name).second, id, "duplicate command " + name);
+		widget_require(!command.contains("individual_stars"), id,
+		               "shared widget command responsibility belongs in levels, not individual_stars");
 		widget_require(operating_action(command.at("action").get<std::string>()) != nullptr, id,
 		               "unsupported command action");
+		const auto consumers = command.value("consumers", Json::array());
+		widget_require(consumers.is_array(), id, "command consumers must name equipment roles");
+		for (const auto &consumer : consumers)
+		{
+			widget_require(consumer.is_string(), id, "command consumer must name an equipment role");
+			const auto role = consumer.get<std::string>();
+			widget_require(role.starts_with("$") && result.equipment.contains(role.substr(1)), id,
+			               "shared command consumers must use declared equipment roles");
+		}
 	}
 	for (const auto &[role, specification] : result.equipment.items())
 	{
@@ -236,6 +247,9 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		widget_require(values.is_object(), id, "part values must map command names to value arrays");
 		for (const auto &[command, options] : values.items())
 		{
+			const auto members = binding.value("commands", Json::array());
+			widget_require(std::find(members.begin(), members.end(), Json(command)) != members.end(), id,
+			               "part values must filter a command displayed by the same part");
 			widget_require(commands.contains(command) && options.is_array() && !options.empty() && options.size() <= 64,
 			               id, "invalid command values in part " + part);
 			for (const auto &option : options)
@@ -276,8 +290,9 @@ Json bind_control_widget(const Catalog &catalog, const Json &instance)
 			(void)widget_name(binding, id + "." + role);
 	}
 	Json result = instance;
-	widget_require(!instance.contains("commands") && !instance.contains("tree") && !instance.contains("fallback"), id,
-	               "instance cannot override shared commands or tree; derive a widget definition");
+	widget_require(!instance.contains("commands") && !instance.contains("tree") && !instance.contains("fallback") &&
+	                   !instance.contains("policy") && !instance.contains("ai"),
+	               id, "instance cannot override shared commands or tree; derive a widget definition");
 	result["commands"] = substitute(definition.commands, bindings, id);
 	if (definition.tree.empty())
 		result["fallback"] = "hold";

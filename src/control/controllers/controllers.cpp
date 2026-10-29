@@ -11,6 +11,10 @@ module phoenix.control.controllers;
 
 namespace phoenix
 {
+bool controller_ai_running(const ConsoleControllerRuntime &controller)
+{
+	return !controller.human || !controller.definition.widget.empty();
+}
 bool controller_command_human(const ConsoleControllerRuntime &controller, std::size_t channel)
 {
 	return controller.human_commands.empty() ? controller.human : controller.human_commands.at(channel);
