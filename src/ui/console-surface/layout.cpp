@@ -1026,7 +1026,7 @@ ConsoleSurface::State::GameplayActions ConsoleSurface::State::prepare_gameplay_a
 			return ControlDestination::message;
 		if (action == "stance.set")
 			return ControlDestination::stance;
-		const auto target = descriptor.value("controller", std::string{}).empty()
+		const auto target = descriptor.value("controller", std::string{}).empty() || !descriptor.contains("channel")
 		                        ? descriptor.value("system", std::string{})
 		                        : "controller/" + descriptor.at("controller").get<std::string>() + "/" +
 		                              descriptor.at("channel").get<std::string>();

@@ -894,6 +894,24 @@ auto OperationsWidgets::state(const OperationsWidgetContext &context) -> State &
 }
 WidgetPanel OperationsWidgets::render(const std::string &component, OperationsWidgetContext context)
 {
+	if (component == "objectives")
+	{
+		WidgetPanel result;
+		result.markup = "<h2>" + localise("Objectives") + "</h2>";
+		for (const auto &objective : context.model.objectives())
+		{
+			const auto status = objective.value("status", Json{});
+			static constexpr const char *statuses[]{"Pending", "Active", "Completed", "Failed", "Cancelled"};
+			const auto label = status.is_number_integer() ? std::string(statuses[std::clamp(status.get<int>(), 0, 4)])
+			                   : status.is_string()       ? status.get<std::string>()
+			                                              : std::string{};
+			const auto key = context.id("objectives/" + std::to_string(objective.value("id", 0ULL)));
+			result.readouts.emplace_back(key, localise(objective.value("title", "")) + " — " + localise(label));
+			result.markup += "<p id=\"" + key + "\"></p>";
+		}
+		return result;
+	}
+
 	auto &panel = state(context);
 	context.component = component;
 	if (component == "teams")

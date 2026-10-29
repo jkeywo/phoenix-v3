@@ -56,6 +56,14 @@ namespace phoenix
 
 bool ConsoleSurface::State::support_action(const std::string &action)
 {
+	if (action.starts_with("support-console/"))
+	{
+		const auto split = action.find('/', 16);
+		if (split == std::string::npos)
+			return false;
+		const auto source = support_models_.find(action.substr(16, split - 16));
+		return source != support_models_.end() && source->second->act(action.substr(split + 1));
+	}
 	if (!support_active() && !station_component_active("power") && !station_component_active("repair"))
 		return false;
 	if (action == "support-page/repair")
@@ -126,14 +134,6 @@ bool ConsoleSurface::State::support_action(const std::string &action)
 		support_popup_ = detail;
 		systems_open_ = true;
 		return true;
-	}
-	if (action.starts_with("support-console/"))
-	{
-		const auto split = action.find('/', 16);
-		if (split == std::string::npos)
-			return false;
-		const auto source = support_models_.find(action.substr(16, split - 16));
-		return source != support_models_.end() && source->second->act(action.substr(split + 1));
 	}
 	return false;
 }

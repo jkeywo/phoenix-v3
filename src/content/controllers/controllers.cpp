@@ -483,8 +483,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	                path, "expected bounded controllers array");
 	std::map<std::pair<std::string, std::string>, std::size_t> controller_ids;
 	std::set<std::pair<std::size_t, OperatingAction>> inputs;
-	for (const auto &instance : layout.at("controllers"))
+	for (const auto &authored_instance : layout.at("controllers"))
 	{
+		const auto &instance = compiled_widget_instance(catalog, entity_id, authored_instance);
 		control_require(widget_layout || !instance.contains("widget"), path,
 		                "shared widget instances require schema 2; do not mix level ownership with legacy allocations");
 		control_require(!widget_layout || instance.contains("widget"), path,
@@ -853,15 +854,16 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				continue;
 			for (const auto &[operation, equipment] : left.operations)
 				if (const auto other = right.operations.find(operation); other != right.operations.end())
-					control_require((equipment.empty() || other->second.empty())
-					                    ? operation != "personnel" && operation != "mission_staffing" &&
-					                          operation != "contribution"
-					                    : std::none_of(equipment.begin(), equipment.end(),
-					                                   [&](const auto &identity)
-					                                   {
-						                                   return std::find(other->second.begin(), other->second.end(),
-						                                                    identity) != other->second.end();
-					                                   }),
+					control_require(operation != "personnel" && operation != "mission_staffing" &&
+					                    operation != "contribution" && operation != "alert" && operation != "stance" &&
+					                    operation != "objectives" &&
+					                    (equipment.empty() || other->second.empty() ||
+					                     std::none_of(equipment.begin(), equipment.end(),
+					                                  [&](const auto &identity)
+					                                  {
+						                                  return std::find(other->second.begin(), other->second.end(),
+						                                                   identity) != other->second.end();
+					                                  })),
 					                path, "native operation has overlapping widget owners: " + operation);
 		}
 	for (const auto &controller : result.controllers)

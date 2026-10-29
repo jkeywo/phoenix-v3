@@ -318,6 +318,11 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        string(widget, "label");
 		        choice(widget, "extends", document.definition_choices(WorkshopDefinitionKind::ControlWidget), true);
 		        choice(widget, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true);
+		        text("Choose a tree or an inline policy. Inline policies can bind equipment roles in their System "
+		             "observations. Repeat runs a member policy for each attached member under one Controller.");
+		        if (string(widget, "repeat") && widget.at("repeat") == "")
+			        widget.erase("repeat");
+		        structured_field(widget, widget.contains("repeat") ? "member_policy" : "policy");
 		        text("Equipment roles use $role in command consumers. Instances bind fitted equipment; they cannot "
 		             "replace the shared policy.");
 		        structured_field(widget, "equipment");
@@ -325,7 +330,8 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        const auto commands = widget.value("commands", Json::array());
 		        structured_field(widget, "operations");
 		        auto responsibilities = ids(commands);
-		        for (const auto &[operation, equipment] : widget.value("operations", Json::object()).items())
+		        const auto operations = widget.value("operations", Json::object());
+		        for (const auto &[operation, equipment] : operations.items())
 			        responsibilities.push_back(operation);
 		        records(widget, "levels", {{"id", "level"}, {"human", Json::array()}},
 		                [&](Json &level)

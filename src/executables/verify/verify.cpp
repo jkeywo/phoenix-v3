@@ -7,6 +7,7 @@
 #include <vector>
 
 import phoenix.content.packs;
+import phoenix.content.knowledge;
 import phoenix.content.verification;
 
 int main(int argc, char **argv)
@@ -35,6 +36,10 @@ int main(int argc, char **argv)
 			for (const auto &[id, entity] : catalog.entities)
 				entities[id] = entity;
 			entities["$consoles"] = catalog.consoles;
+			entities["$trees"] = phoenix::Json::object();
+			for (const auto &[id, tree] : catalog.trees)
+				if (catalog.controller_bindings.contains(id))
+					entities["$trees"][id] = phoenix::resolve_tree_definition(tree, catalog);
 			phoenix::write_file(inventory, phoenix::json_bytes(entities));
 		}
 

@@ -303,3 +303,21 @@ then restores their independent continuations. It passes in the native Controlle
 suite. Optional granted-console widget pages use the existing permitted additional
 Console projections; their visibility does not weaken required coverage in the
 actual owner's layout. An omitted-widget regression protects that distinction.
+
+## Role-bound policies and production Console integration
+
+Shared widgets may declare an inline `policy`, including ordinary tree inheritance,
+whose `$role` bindings resolve against the instance equipment. Generated definitions
+and programs are compilation artifacts: authored widget ids, equipment bindings and
+data overrides remain intact on export and recompile. Repeated member policies use
+the same elaboration and the ordinary evaluator; they have independent continuations.
+Workshop edits and previews these declarations through the production compiler.
+
+Production migration candidates for all three maintained base packs pass verification.
+Native Controller and carried-craft integration checks pass, including re-preparing an
+edited inherited policy. The graphical journey verifies readouts, details, ranges,
+operation admission, independent instances and compact reunion. Real production
+Console captures exercise Courier and Cruiser Helm and Support. Bounded scroll groups
+keep flight widgets beside the radar, and granted Consoles use their own projections
+and independently selected star ratings. Native objective rendering is shared with the
+Bridge widget; FTL and coordinated impulse retain their existing command protocols.

@@ -83,13 +83,22 @@ void expand_transport_fittings(Catalog &catalog, SharedPropertyCatalog compiled)
 					if (commands[i].value("action", std::string{}) == "follow_contact")
 					{
 						craft_require(!guidance, name + ": needs one dedicated follow-contact Controller");
+						Json policy;
 						if (controller.contains("tree"))
+							policy = catalog.trees.at(controller.at("tree").get<std::string>());
+						else if (widget)
 						{
-							const auto tree = controller.at("tree").get<std::string>();
-							const auto bindings =
-							    compile_controller_bindings(catalog.trees.at(tree), catalog, properties);
-							const auto program =
-							    state_tree::compile(catalog.trees.at(tree), bindings.registry, catalog.trees);
+							const auto &source = catalog.control_widgets.at(instance.at("widget").get<std::string>());
+							craft_require(!source.contains("repeat"),
+							              name + ": dedicated idle guidance cannot repeat member policies");
+							if (source.contains("policy"))
+								policy =
+								    bind_widget_policy(catalog, source.at("policy"), instance.at("equipment"), name);
+						}
+						if (!policy.is_null())
+						{
+							const auto bindings = compile_controller_bindings(policy, catalog, properties);
+							const auto program = state_tree::compile(policy, bindings.registry, catalog.trees);
 							craft_require(program.states.size() == 1 && program.states[0].entry.empty() &&
 							                  program.states[0].running.empty() && program.states[0].exit.empty() &&
 							                  program.states[0].transitions.empty(),
@@ -139,6 +148,7 @@ void expand_transport_fittings(Catalog &catalog, SharedPropertyCatalog compiled)
 							auto shared = catalog.control_widgets.at(widget->id);
 							shared["id"] = generated;
 							shared["tree"] = tree;
+							shared.erase("policy");
 							craft_require(!shared["equipment"].contains("transport_engine"),
 							              name + ": reserved transport equipment role");
 							shared["equipment"]["transport_engine"] = {{"kinds", {"engine"}}};

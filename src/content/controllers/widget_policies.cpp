@@ -8,23 +8,65 @@ module;
 #include <vector>
 #include <nlohmann/json.hpp>
 module phoenix.content.controllers;
+import phoenix.content.knowledge;
 
 namespace phoenix
 {
+Json bind_widget_roles(const Json &, const Json &, const std::string &);
 // Authoring expansion only: execution uses ordinary referenced state trees and
 // their existing independent continuations. A repeated widget remains one owner.
-void expand_control_widget_repetition(Catalog &catalog)
+const Json &compiled_widget_instance(const Catalog &catalog, const std::string &entity, const Json &instance)
 {
+	const auto ship = catalog.widget_instances.find(entity);
+	if (ship != catalog.widget_instances.end())
+		if (const auto row = ship->second.find({instance.at("console"), instance.at("id")}); row != ship->second.end())
+			return row->second;
+	return instance;
+}
+Json bind_widget_policy(const Catalog &catalog, const Json &authored, const Json &equipment, const std::string &where)
+{
+	auto source = authored;
+	source["id"] = "phoenix.widget.template";
+	source["context"] = "controller";
+	return bind_widget_roles(resolve_tree_definition(source, catalog), equipment, where);
+}
+void expand_control_widget_policies(Catalog &catalog)
+{
+	catalog.widget_instances.clear();
 	for (auto &[entity_id, entity] : catalog.entities)
 	{
 		if (!entity.contains("control_layout"))
 			continue;
-		for (auto &instance : entity["control_layout"]["controllers"])
+		for (const auto &authored_instance : entity["control_layout"]["controllers"])
 		{
+			auto instance = authored_instance;
 			if (!instance.contains("widget"))
 				continue;
 			const auto original = instance.at("widget").get<std::string>();
 			const auto source = catalog.control_widgets.at(original);
+			if (source.contains("policy"))
+			{
+				if (!source.at("policy").is_object() || source.contains("tree") || source.contains("repeat") ||
+				    source.contains("member_policy"))
+					throw std::runtime_error("control_widgets." + original +
+					                         ": inline policy must be an object instead of tree or repeat");
+				(void)bind_control_widget(compile_control_widget(catalog, original), instance);
+				auto policy = bind_widget_policy(catalog, source.at("policy"), instance.at("equipment"), original);
+				const auto identity =
+				    "phoenix.widget." +
+				    sha256(json_bytes(Json::array({source, instance.at("equipment"), policy}))).substr(0, 32);
+				policy["id"] = identity + ".policy";
+				policy["context"] = "controller";
+				Json definition = source;
+				definition["id"] = identity;
+				definition.erase("policy");
+				definition["tree"] = policy.at("id");
+				catalog.trees[policy.at("id").get<std::string>()] = policy;
+				catalog.control_widgets[identity] = definition;
+				instance["widget"] = identity;
+				catalog.widget_instances[entity_id][{instance.at("console"), instance.at("id")}] = instance;
+				continue;
+			}
 			if (!source.contains("repeat"))
 				continue;
 			(void)bind_control_widget(compile_control_widget(catalog, original), instance);
@@ -42,8 +84,12 @@ void expand_control_widget_repetition(Catalog &catalog)
 			fail(attached.is_array() && !attached.empty() && attached.size() <= 64,
 			     "repeat needs 1..64 attached members");
 			fail(attached.size() * source.at("commands").size() <= 256, "expanded widget exceeds 256 commands");
+			auto member_source = source.at("member_policy");
+			member_source["id"] = "phoenix.widget.member-template";
+			const auto member_template = resolve_tree_definition(member_source, catalog);
 			const auto identity =
-			    "phoenix.widget." + sha256(json_bytes(Json::array({source, instance.at("equipment")}))).substr(0, 32);
+			    "phoenix.widget." +
+			    sha256(json_bytes(Json::array({source, instance.at("equipment"), member_template}))).substr(0, 32);
 			Json definition = source;
 			definition["id"] = identity;
 			definition.erase("repeat");
@@ -74,7 +120,7 @@ void expand_control_widget_repetition(Catalog &catalog)
 				for (const auto &command : source.at("commands"))
 					names[command.at("id")] = prefix + command.at("id").get<std::string>();
 				std::map<std::string, std::string> observations;
-				for (const auto &binding : source.at("member_policy").value("system_bindings", Json::array()))
+				for (const auto &binding : member_template.value("system_bindings", Json::array()))
 					observations[binding.at("name")] = prefix + binding.at("name").get<std::string>();
 				std::function<Json(const Json &)> rebind = [&](const Json &value) -> Json
 				{
@@ -88,7 +134,7 @@ void expand_control_widget_repetition(Catalog &catalog)
 						for (const auto &[channel, expanded] : names)
 							if (text == "command." + channel || text.starts_with("command." + channel + "."))
 								return "command." + expanded + text.substr(8 + channel.size());
-						for (const auto *kind : {"system", "weapon"})
+						for (const auto *kind : {"system", "weapon", "team", "ftl", "shield"})
 							if (text.starts_with(std::string(kind) + "." + role + "."))
 								return std::string(kind) + "." + member_role +
 								       text.substr(std::string(kind).size() + role.size() + 1);
@@ -125,7 +171,7 @@ void expand_control_widget_repetition(Catalog &catalog)
 					definition["data"][expanded] = rebind(datum);
 					definition["data"][expanded]["member"] = attached[index];
 				}
-				auto policy = rebind(source.at("member_policy"));
+				auto policy = rebind(member_template);
 				fail(!policy.contains("action_bindings") && !policy.contains("command_reads"),
 				     "member_policy cannot bind cross-controller actions or command reads");
 				policy["id"] = identity + "." + std::to_string(index);
@@ -226,6 +272,7 @@ void expand_control_widget_repetition(Catalog &catalog)
 			catalog.control_widgets[identity] = definition;
 			instance["widget"] = identity;
 			instance["equipment"] = bindings;
+			catalog.widget_instances[entity_id][{instance.at("console"), instance.at("id")}] = instance;
 		}
 	}
 }

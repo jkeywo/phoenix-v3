@@ -140,6 +140,69 @@ inline void control_widget_cases()
 		require(world.save() == resumed.save(), "native widget effects preserve checkpoint continuation");
 	}
 	{
+		auto shared = source;
+		auto &definition = shared["control_widgets"][0];
+		definition.erase("tree");
+		definition["equipment"]["engines"]["multiple"] = false;
+		definition["policy"] = Json::parse(R"json({"initial":"run",
+		 "command_bindings":[{"channel":"speed"},{"channel":"choice"},{"channel":"auxiliary"}],
+		 "system_bindings":[{"name":"enabled","system":"$engines","field":"enabled","type":"boolean"}],
+		 "states":[{"id":"run","running":[{"attempt":[
+		  {"conditions":[{"left":{"observation":"enabled"},"op":"eq","right":true}],
+		   "tasks":[{"action":"write.choice","arguments":[0]},{"action":"write.speed","arguments":[7000]}]},
+		  {"tasks":[{"action":"write.choice","arguments":[1]},{"action":"write.speed","arguments":[3000]}]}]}]}]})json");
+		auto routine = definition.at("policy");
+		routine["id"] = "test.shared-widget-routine";
+		routine["context"] = "controller";
+		routine["system_bindings"][0]["system"] = "port";
+		shared["trees"].push_back(routine);
+		definition["policy"] = {
+		    {"extends", "test.shared-widget-routine"},
+		    {"system_bindings",
+		     Json::array({{{"name", "enabled"}, {"system", "$engines"}, {"field", "enabled"}, {"type", "boolean"}}})}};
+		shared["entities"][0]["control_layout"]["controllers"][0]["equipment"]["engines"] = "port";
+		auto second = shared["entities"][0];
+		second["id"] = "test.other-widget-ship";
+		second["systems"]["starboard"]["enabled"] = false;
+		second["control_layout"]["controllers"][0]["equipment"]["engines"] = "starboard";
+		shared["entities"].push_back(second);
+		shared["maps"][0]["entities"].push_back(
+		    {{"id", 2}, {"definition", "test.other-widget-ship"}, {"x_mm", 100000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+		const auto shared_catalog = load(shared);
+		require(
+		    shared_catalog.entities.at("test.controllable").at("control_layout").at("controllers")[0].at("widget") ==
+		        "test.widget.drive",
+		    "policy compilation preserves authored shared widget identities");
+		World world;
+		world.load(shared_catalog, "test.map");
+		require(world.claim(101, 1, "drive") && world.claim(201, 2, "drive"),
+		        "claim shared widget on different ship fittings");
+		world.tick();
+		require(controller(world, 101, "propulsion").at("commands").at("speed").at("value") == 3000 &&
+		            controller(world, 201, "propulsion").at("commands").at("speed").at("value") == 3000,
+		        "shared role-bound policy preserves the human-setting fallback on both ships");
+		require(world.release(101) && world.release(201), "release both shared widget instances");
+		world.tick();
+		auto saved = world.save();
+		require(saved["bodies"][0]["console_controllers"]["controllers"][0]["commands"][0]["value"] == 7000 &&
+		            saved["bodies"][1]["console_controllers"]["controllers"][0]["commands"][0]["value"] == 3000,
+		        "one shared policy reads its explicitly bound equipment on each ship");
+		World resumed;
+		resumed.restore(shared_catalog, saved);
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(), "shared role-bound policy resumes deterministically");
+		auto edited = shared_catalog;
+		edited.trees.at(
+		    "test.shared-widget-routine")["states"][0]["running"][0]["attempt"][0]["tasks"][1]["arguments"][0] = 8000;
+		World recompiled;
+		recompiled.load(prepared_catalog(edited), "test.map");
+		recompiled.tick();
+		require(
+		    recompiled.save()["bodies"][0]["console_controllers"]["controllers"][0]["commands"][0]["value"] == 8000,
+		    "recompilation resolves edited inherited policies from authored bindings rather than a frozen expansion");
+	}
+	{
 		auto repeated = source;
 		auto &definition = repeated["control_widgets"][0];
 		definition.erase("tree");
@@ -195,6 +258,18 @@ inline void control_widget_cases()
 		     {"widget", "test.widget.bridge"},
 		     {"equipment", Json::object()},
 		     {"star_levels", {{"1", "manual"}, {"2", "manual"}, {"3", "automated"}}}});
+		{
+			auto duplicate = bridge;
+			auto owner = duplicate["entities"][0]["control_layout"]["controllers"].back();
+			owner["id"] = "second-bridge";
+			duplicate["entities"][0]["control_layout"]["controllers"].push_back(owner);
+			rejected(
+			    [&]
+			    {
+				    (void)load(duplicate);
+			    },
+			    "native operation has overlapping widget owners");
+		}
 		const auto bridge_catalog = load(bridge);
 		World world;
 		world.load(bridge_catalog, "test.map");
@@ -228,6 +303,19 @@ inline void control_widget_cases()
 	}
 	const auto catalog = load(source);
 	const auto widget = compile_control_widget(catalog, "test.widget.drive");
+	{
+		auto native_only = source;
+		native_only["consoles"][0]["objectives"] = true;
+		auto &definition = native_only["control_widgets"][0];
+		definition["operations"] = {{"logistics", {"$engines"}}};
+		definition["levels"][2]["human"] = {"speed", "choice", "auxiliary"};
+		World world;
+		world.load(load(native_only), "test.map");
+		require(world.prepare_console_profile({1, "drive"}, "automatic") && world.claim(101, 1, "drive"),
+		        "claim scalar-manual widget with delegated native work");
+		require(world.observe(101)->gameplay.at("objective_board").at("can_select").get<bool>(),
+		        "delegated native operations count as AI work for ship Command");
+	}
 	{
 		auto native_source = source;
 		auto &definition = native_source["control_widgets"][0];

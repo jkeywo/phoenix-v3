@@ -69,23 +69,29 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 		if (child.has<FtlReserve>() && impl_->ftl_owner(address.ship, child.get<Equipment>().id) == address)
 			for (const auto &ctrl : entity.get<EntityControls>().controllers)
 				if (controller_operation_human(ctrl, "departure") && ctrl.definition.console == address.console)
-					for (const auto &channel : ctrl.definition.commands)
-						if ((!ctrl.definition.widget.empty() &&
-						     controller_operation_owns(ctrl, "departure", child.get<Equipment>().id)) ||
-						    (ctrl.definition.widget.empty() &&
-						     std::find(channel.consumers.begin(), channel.consumers.end(),
-						               child.get<Equipment>().ordinal) != channel.consumers.end()))
-						{
-							OperatingCommand command{
-							    address.ship, "ftl.depart",   0, child.get<Equipment>().id, ctrl.definition.id,
-							    {},           ctrl.generation};
-							auto descriptor = encode_operating_command(command);
-							descriptor["id"] = "ftl.depart";
-							descriptor["label"] = "Leave mission";
-							descriptor["enabled"] = impl_->ftl_blocker(address.ship, child).empty();
-							buttons.push_back(std::move(descriptor));
-							break;
-						}
+				{
+					const bool owns =
+					    !ctrl.definition.widget.empty()
+					        ? controller_operation_owns(ctrl, "departure", child.get<Equipment>().id)
+					        : std::any_of(ctrl.definition.commands.begin(), ctrl.definition.commands.end(),
+					                      [&](const auto &channel)
+					                      {
+						                      return std::find(channel.consumers.begin(), channel.consumers.end(),
+						                                       child.get<Equipment>().ordinal) !=
+						                             channel.consumers.end();
+					                      });
+					if (!owns)
+						continue;
+					OperatingCommand command{
+					    address.ship, "ftl.depart",   0, child.get<Equipment>().id, ctrl.definition.id,
+					    {},           ctrl.generation};
+					auto descriptor = encode_operating_command(command);
+					descriptor["id"] = "ftl.depart";
+					descriptor["label"] = "Leave mission";
+					descriptor["operation"] = "departure";
+					descriptor["enabled"] = impl_->ftl_blocker(address.ship, child).empty();
+					buttons.push_back(std::move(descriptor));
+				}
 	const auto button = [&](const std::string &id, const std::string &label, const std::string &action,
 	                        const std::string &system, std::int64_t value)
 	{
@@ -158,6 +164,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 								descriptor["id"] = key + "." + std::to_string(value);
 								descriptor["label_key"] = value ? "Start impulse" : "Cancel impulse";
 								descriptor["label"] = value ? "Start impulse" : "Cancel impulse";
+								descriptor["widget_controller"] = controller.definition.id;
+								descriptor["widget_channel"] = channel.id;
 								buttons.push_back(std::move(descriptor));
 							}
 						}

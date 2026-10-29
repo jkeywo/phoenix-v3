@@ -185,13 +185,16 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 					setting.value = command.at("value");
 					setting.console = console;
 					setting.component = target;
-					const auto label = localise(channel);
+					std::string label = channel;
+					for (const auto &authored : definition.at("commands"))
+						if (authored.at("id") == channel)
+							label = console_control_label(Json{{"label_key", authored.value("label_key", channel)}});
 					markup += controller_range_markup(setting, label);
 					ranges.emplace_back(setting, label);
 				}
 		for (const auto &control : widget->controls)
 		{
-			const auto channel = control.value("channel", std::string{});
+			const auto channel = control.value("widget_channel", control.value("channel", std::string{}));
 			if (control.contains("operation") ? !includes("operations", control.at("operation"))
 			                                  : !includes("commands", channel) || range_channels.contains(channel))
 				continue;
@@ -906,7 +909,7 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 			}
 	std::string root, comms, navigation;
 	std::set<std::string> auxiliaries;
-	if (snapshot && panel_layout)
+	if (snapshot)
 		for (const auto &spec : resolve_consoles(app.session->catalog(), snapshot->own.definition))
 		{
 			if (spec.id == snapshot->console)
@@ -940,7 +943,7 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 	support_root_ = root;
 	support_comms_ = comms;
 	support_navigation_ = navigation;
-	if (!support_active())
+	if (!snapshot)
 		return;
 	for (const auto &console : auxiliaries)
 	{
@@ -1377,18 +1380,9 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 		}
 		else if (component == "objectives")
 		{
-			markup = "<h2>" + localise("Objectives") + "</h2>";
-			for (const auto &objective : model_.objectives())
-			{
-				const auto status = objective.value("status", Json{});
-				static constexpr const char *statuses[]{"Pending", "Active", "Completed", "Failed", "Cancelled"};
-				const auto label = status.is_number_integer()
-				                       ? std::string(statuses[std::clamp(status.get<int>(), 0, 4)])
-				                   : status.is_string() ? status.get<std::string>()
-				                                        : std::string{};
-				markup += line(std::to_string(objective.value("id", 0ULL)),
-				               localise(objective.value("title", "")) + " — " + localise(label));
-			}
+			const auto panel = operations_.render("objectives", operations_context());
+			markup = panel.structure();
+			readouts = panel.readouts;
 		}
 		else if (component == "team-roster" || component == "compartment-health")
 		{

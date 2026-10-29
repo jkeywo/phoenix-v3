@@ -56,8 +56,10 @@ class PreviewSession final : public SessionPort
 		view_.systems.clear();
 		view_.gameplay["controllers"] = Json::array();
 		view_.gameplay["controls"] = Json::array();
-		for (const auto &instance : instances)
+		for (const auto &authored_instance : instances)
 		{
+			const auto &instance =
+			    compiled_widget_instance(*authoring_identity_, context.substr(0, split), authored_instance);
 			if (instance.value("console", std::string{}) != context.substr(split + 1) || !instance.contains("widget"))
 				continue;
 			const auto definition =

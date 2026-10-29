@@ -46,7 +46,7 @@ Json expand_node(const Catalog &catalog, Json source, std::set<std::string> grou
 		if (source.contains("overrides"))
 			root.merge_patch(source.at("overrides"));
 		for (const char *field : {"label", "rect", "min_width", "min_height", "width", "height", "gap", "padding",
-		                          "stretch", "aspect", "align", "region", "circle", "style", "when"})
+		                          "stretch", "aspect", "align", "region", "circle", "style", "when", "scroll"})
 			if (source.contains(field))
 				root[field] = source.at(field);
 		root["id"] = source.at("id");
@@ -85,6 +85,8 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 	if (!node.style.empty())
 		(void)resolved_ui_theme(catalog, {}, Json{{"tokens", node.style}});
 	node.minimum_width = ui_number(source, "min_width", 44, 1);
+	ui_require(!source.contains("scroll") || source.at("scroll").is_boolean(), node.id, "scroll must be boolean");
+	node.scroll = source.value("scroll", false);
 	node.minimum_height = ui_number(source, "min_height", 44, 1);
 	node.preferred_width = ui_number(source, "width", 0);
 	node.preferred_height = ui_number(source, "height", 0);
@@ -133,7 +135,7 @@ UiNode compile_node(const Catalog &catalog, const Json &source, std::set<std::st
 std::pair<float, float> minimum_size(const UiNode &node, float scale)
 {
 	float width = node.minimum_width * scale, height = node.minimum_height * scale;
-	if (node.children.empty())
+	if (node.children.empty() || node.scroll)
 		return {width, height};
 	float w = 0, h = 0;
 	for (const auto &child : node.children)

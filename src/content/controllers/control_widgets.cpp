@@ -37,7 +37,9 @@ WidgetDataDestination destination(const Json &value, const std::string &where)
 	       : name == "details" ? WidgetDataDestination::Details
 	                           : WidgetDataDestination::Hidden;
 }
-Json substitute(const Json &source, const Json &bindings, const std::string &where)
+} // namespace
+
+Json bind_widget_roles(const Json &source, const Json &bindings, const std::string &where)
 {
 	if (source.is_string())
 	{
@@ -54,7 +56,7 @@ Json substitute(const Json &source, const Json &bindings, const std::string &whe
 	Json result = source.is_array() ? Json::array() : Json::object();
 	for (auto it = source.begin(); it != source.end(); ++it)
 	{
-		auto value = substitute(it.value(), bindings, where);
+		auto value = bind_widget_roles(it.value(), bindings, where);
 		if (source.is_array())
 		{
 			if (it.value().is_string() && it.value().get<std::string>().starts_with("$") && value.is_array())
@@ -68,7 +70,6 @@ Json substitute(const Json &source, const Json &bindings, const std::string &whe
 	}
 	return result;
 }
-} // namespace
 
 std::map<std::string, WidgetDataDestination> control_widget_data_placement(const ControlWidgetDefinition &definition,
                                                                            const std::string &level, int stars,
@@ -114,6 +115,16 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 {
 	widget_require(catalog.control_widgets.contains(id), id, "unresolved widget definition");
 	const auto &source = catalog.control_widgets.at(id);
+	widget_require(!source.contains("policy") || (source.at("policy").is_object() && !source.contains("tree") &&
+	                                              !source.contains("repeat") && !source.contains("member_policy")),
+	               id, "policy must be an object instead of tree or repeat");
+	widget_require(
+	    !source.contains("member_policy") ||
+	        (source.contains("repeat") && source.at("member_policy").is_object() && !source.contains("tree")),
+	    id, "member_policy requires repeat instead of tree");
+	widget_require(!source.contains("repeat") || (source.at("repeat").is_string() && source.contains("member_policy")),
+	               id, "repeat requires a role and member_policy");
+
 	widget_require(source.value("schema", 0) == 1, id, "expected widget schema 1");
 	ControlWidgetDefinition result;
 	result.id = id;
@@ -199,7 +210,7 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			}
 		}
 		for (const auto &[role, equipment] : result.equipment.items())
-			for (const auto *source_kind : {"system", "weapon"})
+			for (const auto *source_kind : {"system", "weapon", "team", "ftl", "shield"})
 			{
 				const auto prefix = std::string(source_kind) + "." + role + ".";
 				if (binding.starts_with(prefix))
@@ -272,7 +283,8 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		{
 			const auto renderer = widget_name(binding.at("renderer"), id + "." + part);
 			widget_require(renderer == "personnel" || renderer == "away" || renderer == "craft" ||
-			                   renderer == "operations" || renderer == "docking" || renderer == "teams",
+			                   renderer == "operations" || renderer == "docking" || renderer == "teams" ||
+			                   renderer == "objectives",
 			               id, "unsupported native widget renderer " + renderer);
 			const auto operation = renderer == "operations" ? "logistics" : renderer == "away" ? "mission" : renderer;
 			widget_require(
@@ -372,8 +384,8 @@ Json bind_control_widget(const ControlWidgetDefinition &definition, const Json &
 	widget_require(!instance.contains("commands") && !instance.contains("tree") && !instance.contains("fallback") &&
 	                   !instance.contains("policy") && !instance.contains("ai") && !instance.contains("operations"),
 	               id, "instance cannot override shared commands or tree; derive a widget definition");
-	result["commands"] = substitute(definition.commands, bindings, id);
-	result["operations"] = substitute(definition.operations, bindings, id);
+	result["commands"] = bind_widget_roles(definition.commands, bindings, id);
+	result["operations"] = bind_widget_roles(definition.operations, bindings, id);
 	if (definition.tree.empty())
 		result["fallback"] = "hold";
 	else

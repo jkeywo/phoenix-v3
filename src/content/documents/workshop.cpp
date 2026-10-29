@@ -177,7 +177,7 @@ std::shared_ptr<const Catalog> WorkshopDocument::preview_ui() const
 	inherit_definitions(preview.consoles, "consoles");
 	inherit_definitions(preview.control_widgets, "control_widgets");
 	inherit_definitions(preview.entities, "entities");
-	expand_control_widget_repetition(preview);
+	expand_control_widget_policies(preview);
 	const auto prefix = pack_.manifest.at("id").get<std::string>() + ":";
 	for (const auto &[path, bytes] : pack_.files)
 		if (path.starts_with("assets/") && (path.ends_with(".png") || path.ends_with(".ttf") || path.ends_with(".otf")))
@@ -264,6 +264,11 @@ std::vector<std::string> WorkshopDocument::definition_choices(WorkshopDefinition
 	const auto table = draft_table(library_catalog_, kind);
 	std::vector<std::string> result;
 	std::set<std::string> seen;
+	std::set<std::string> compiled_widgets;
+	if (kind == WorkshopDefinitionKind::ControlWidget)
+		for (const auto &[entity, instances] : library_catalog_.widget_instances)
+			for (const auto &[owner, instance] : instances)
+				compiled_widgets.insert(instance.at("widget").get<std::string>());
 	for (const auto &entry : draft_rows(definitions_, table.name))
 	{
 		const auto id = draft_identity(entry);
@@ -271,7 +276,7 @@ std::vector<std::string> WorkshopDocument::definition_choices(WorkshopDefinition
 			result.push_back(id);
 	}
 	for (const auto &[id, entry] : table.library)
-		if (seen.insert(id).second)
+		if (!compiled_widgets.contains(id) && seen.insert(id).second)
 			result.push_back(id);
 	return result;
 }

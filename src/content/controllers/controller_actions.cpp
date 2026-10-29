@@ -235,11 +235,12 @@ void expand_officer_policies(Catalog &catalog)
 			continue;
 		for (auto &instance : entity["control_layout"]["controllers"])
 		{
+			const auto &bound_instance = compiled_widget_instance(catalog, entity_id, instance);
 			const auto widget =
 			    instance.contains("widget")
-			        ? std::optional{compile_control_widget(catalog, instance.at("widget").get<std::string>())}
+			        ? std::optional{compile_control_widget(catalog, bound_instance.at("widget").get<std::string>())}
 			        : std::nullopt;
-			auto controller = widget ? bind_control_widget(*widget, instance) : instance;
+			auto controller = widget ? bind_control_widget(*widget, bound_instance) : instance;
 			if (controller.value("officer_protocol", false))
 				continue;
 			std::map<std::string, Json> supported;

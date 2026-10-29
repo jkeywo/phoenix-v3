@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 		{
 			for (int frame = 0; frame < 80; ++frame)
 			{
-				if (inspect)
+				if (inspect && !app.session->observation())
 					app.session->tick();
 				BeginDrawing();
 				ClearBackground(BLACK);
@@ -59,15 +59,22 @@ int main(int argc, char **argv)
 		if (inspect)
 		{
 			const auto started = GetTime();
-			while (!app.session->observation() && GetTime() - started < 90)
+			while ((!app.session->observation() || !app.console_surface_active || app.screen_controls.empty()) &&
+			       GetTime() - started < 90)
 				frames();
 			require(app.session->observation().has_value(), "production Console preparation timed out");
+			require(app.console_surface_active && !app.screen_controls.empty(),
+			        "production Console has no rendered controls");
+			for (const auto &[action, label] : app.screen_controls)
+				std::cout << "Visible " << action << ": " << label << '\n';
 			frames();
 			TakeScreenshot((std::string(argv[7]) + "-main.png").c_str());
 			const auto controls = app.screen_controls;
 			int page = 0;
 			for (const auto &[action, label] : controls)
-				if (action.find("station-page/") != std::string::npos && app.screen_action(action))
+				if ((action.find("station-page/") != std::string::npos ||
+				     action.find("console-page/") != std::string::npos) &&
+				    app.screen_action(action))
 				{
 					frames();
 					TakeScreenshot((std::string(argv[7]) + "-page-" + std::to_string(++page) + ".png").c_str());

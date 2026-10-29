@@ -47,6 +47,7 @@ struct UiNode
 	Json style = Json::object();
 	std::vector<Json> conditions;
 	std::vector<UiNode> children;
+	bool scroll = false;
 };
 struct UiLayout
 {

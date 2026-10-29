@@ -8,12 +8,16 @@ namespace phoenix::world_detail
 {
 namespace
 {
-bool delegated_commands(const ConsoleControllerRuntime &controller)
+bool delegated_work(const ConsoleControllerRuntime &controller)
 {
 	if (controller.definition.widget.empty())
 		return !controller.human;
 	for (std::size_t channel = 0; channel < controller.commands.size(); ++channel)
 		if (!controller_command_human(controller, channel))
+			return true;
+	for (const auto &[operation, equipment] : controller.definition.operations)
+		if (operation != "alert" && operation != "stance" && operation != "objectives" && operation != "coordination" &&
+		    !controller_operation_human(controller, operation))
 			return true;
 	return false;
 }
@@ -53,7 +57,7 @@ auto Runtime::ship_has_ai(EntityId ship) const -> bool
 	return controls && std::any_of(controls->controllers.begin(), controls->controllers.end(),
 	                               [](const auto &controller)
 	                               {
-		                               return delegated_commands(controller);
+		                               return delegated_work(controller);
 	                               });
 }
 
@@ -127,7 +131,7 @@ auto Runtime::stance_target(EntityId ship, const std::string &console) const -> 
 		return std::any_of(controls->controllers.begin(), controls->controllers.end(),
 		                   [&](const auto &controller)
 		                   {
-			                   return controller.definition.console == console && delegated_commands(controller);
+			                   return controller.definition.console == console && delegated_work(controller);
 		                   });
 	bool any = false;
 	for (const auto &controller : controls->controllers)

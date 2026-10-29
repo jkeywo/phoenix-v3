@@ -343,8 +343,9 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 		               const std::string &component)
 		{
 			station_pages_.push_back({tab.id, group, page,
-			                          localise(label) + (tab.attention ? " — " + localise("Unread") : ""), component,
-			                          "console-page/" + tab.id + "/" + page});
+			                          (tab.id == snapshot->console ? "" : localise(tab.label) + ": ") +
+			                              localise(label) + (tab.attention ? " — " + localise("Unread") : ""),
+			                          component, "console-page/" + tab.id + "/" + page});
 		};
 		if (definition->contains("layout"))
 		{
@@ -438,6 +439,7 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 	dom_.property(box, "min-height", unit(node.minimum_height));
 	dom_.property(box, "flex-direction", node.kind == "row" || node.kind == "wrap" ? "row" : "column");
 	dom_.property(box, "flex-wrap", node.kind == "wrap" ? "wrap" : "nowrap");
+	dom_.property(box, "overflow", node.scroll ? "auto" : "visible");
 	dom_.property(box, "gap", unit(node.gap));
 	dom_.property(
 	    box, "padding",

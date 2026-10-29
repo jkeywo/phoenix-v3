@@ -49,7 +49,7 @@ std::optional<Json> widget_datum(const Observation &view, const Json &controller
 				if (field == "enabled")
 					return Json(system.enabled);
 				if (field == "status")
-					return Json(system.status);
+					return Json(system.status.empty() ? (system.enabled ? "Ready" : "Disabled") : system.status);
 				if (field == "effective_range")
 					return Json(system.effective_range);
 				const auto value = system.telemetry.find(field);
@@ -57,11 +57,20 @@ std::optional<Json> widget_datum(const Observation &view, const Json &controller
 					return Json(value->second);
 			}
 	}
-	else if (source == "weapon")
+	else if (source == "weapon" || source == "team" || source == "ftl" || source == "shield")
 	{
-		for (const auto &weapon : view.gameplay.value("combat", Json::object()).value("weapons", Json::array()))
-			if (weapon.at("id") == equipment && weapon.contains(field))
-				return weapon.at(field);
+		const auto rows = source == "weapon" || source == "shield"
+		                      ? view.gameplay.value("combat", Json::object())
+		                            .value(source == "shield" ? "shields" : "weapons", Json::array())
+		                      : view.gameplay.value(source == "team" ? "teams" : "ftl", Json::array());
+		Json values = Json::array();
+		for (const auto &row : rows)
+			if (row.at(source == "ftl" ? "system" : "id") == equipment && row.contains(field))
+				values.push_back({{"label", row.value("contribution", std::string{})}, {"value", row.at(field)}});
+		if (values.size() == 1)
+			return values[0].at("value");
+		if (!values.empty())
+			return values;
 	}
 	return {};
 }
@@ -73,6 +82,19 @@ std::string datum_text(const Json &value)
 		return localise(value.get<bool>() ? "On" : "Off");
 	if (value.is_number())
 		return value.dump();
+	if (value.is_array())
+	{
+		std::string text;
+		for (const auto &member : value)
+			if (member.is_object() && member.contains("label") && member.at("label").is_string() &&
+			    member.contains("value"))
+			{
+				if (!text.empty())
+					text += "; ";
+				text += localise(member.at("label").get<std::string>()) + ": " + datum_text(member.at("value"));
+			}
+		return text;
+	}
 	return {};
 }
 } // namespace
@@ -115,8 +137,10 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				                                         : "");
 				datum.destination = destination;
 				const auto value = widget_datum(view, controller, path, identity);
-				if (value && (value->is_primitive() && !value->is_null()))
-					datum.text = datum_text(*value);
+				if (value && ((value->is_primitive() && !value->is_null()) || value->is_array()))
+					datum.text = value->is_string() && value->get<std::string>().empty()
+					                 ? localise(data.value("empty_text", std::string("—")))
+					                 : datum_text(*value);
 				else
 					datum.text = localise("Unavailable");
 				widget.data.push_back(std::move(datum));
@@ -129,7 +153,9 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				std::string matched_role;
 				for (const auto &[role, identities] : equipment.items())
 					if (role.size() > matched_role.size() &&
-					    (binding.starts_with("system." + role + ".") || binding.starts_with("weapon." + role + ".")))
+					    (binding.starts_with("system." + role + ".") || binding.starts_with("weapon." + role + ".") ||
+					     binding.starts_with("team." + role + ".") || binding.starts_with("ftl." + role + ".") ||
+					     binding.starts_with("shield." + role + ".")))
 						matched_role = role;
 				if (!matched_role.empty())
 				{
@@ -144,9 +170,9 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 		}
 		for (const auto &control : view.gameplay.value("controls", Json::array()))
 		{
-			const auto channel = control.value("channel", std::string{});
-			if (control.value("controller", std::string{}) == widget.id && !channel.empty() &&
-			    controller.at("commands").contains(channel) &&
+			const auto channel = control.value("widget_channel", control.value("channel", std::string{}));
+			if (control.value("widget_controller", control.value("controller", std::string{})) == widget.id &&
+			    !channel.empty() && controller.at("commands").contains(channel) &&
 			    controller.at("commands").at(channel).value("human", false))
 				widget.controls.push_back(control);
 			else if (control.value("controller", std::string{}) == widget.id && control.contains("operation") &&

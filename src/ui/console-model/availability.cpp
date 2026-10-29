@@ -133,6 +133,8 @@ UiAvailability console_ui_availability(const Observation &view)
 	{
 		result.features.insert("console/" + extra.console);
 		const auto granted = console_ui_availability(extra);
+		if (granted.stars >= 1 && granted.stars <= 3)
+			result.features.insert("console/" + extra.console + "/stars/" + std::to_string(granted.stars));
 		for (const auto &feature : granted.features)
 			if (feature == "weapons" || feature == "shields" || feature == "ftl" || feature == "camera" ||
 			    feature == "alert")
