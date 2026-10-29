@@ -105,12 +105,9 @@ void AwayRuntime::stage(EntityId ship, AwayMission &m, AwayExecution &execution)
 }
 void AwayRuntime::advance(std::uint64_t tick, AwayExecution &execution)
 {
-	const AwayObservation observation{execution.physical, execution.slots};
 	auto &physical = execution.physical;
 	auto &peers = execution.peers;
 	auto &conversations = execution.conversations;
-	auto *scenario = execution.scenario;
-	const auto rate = execution.ticks_per_second;
 	auto active = active_transfers(execution.slots);
 	for (std::size_t i = 0; i < missions().size(); ++i)
 	{
@@ -179,46 +176,7 @@ void AwayRuntime::advance(std::uint64_t tick, AwayExecution &execution)
 			if (peers.assisted_send(i))
 				active.try_emplace(std::pair{ship, m.transport}, i);
 		}
-		const auto transport = physical.transport(ship, m.transport);
-		if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
-		    std::as_const(physical.craft(transport)).state().phase == CraftPhase::Docked &&
-		    std::as_const(physical.craft(transport)).state().order == "transport" &&
-		    std::all_of(m.escorts.begin(), m.escorts.end(),
-		                [&](const auto &s)
-		                {
-			                return std::as_const(physical.craft(s.second)).state().phase == CraftPhase::Flying;
-		                }))
-		{
-			physical.craft(transport).launch();
-		}
-		if (transport && transport != ship && !m.transport_released &&
-		    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound || m.phase == AwayPhase::Deployed) &&
-		    std::as_const(physical.craft(transport)).state().phase == CraftPhase::Lost)
-		{
-			m.outcome = "fail:Transport lost";
-			m.phase = AwayPhase::Lost;
-			return_escorts(m, physical);
-			++m.revision;
-		}
-		if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
-		    std::as_const(physical.craft(transport)).state().phase == CraftPhase::Flying)
-			peers.record_insertion(ship, d.target);
-		if (transport && transport != ship)
-			peers.advance_craft_transport(i, transport);
-		else if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound) &&
-		         active.at({ship, m.transport}) == i && peers.blocker(i).empty() &&
-		         (m.deployed() || staged(ship, m, observation)))
-		{
-			if (m.phase == AwayPhase::Outbound)
-				peers.record_insertion(ship, d.target);
-			if (++m.transfer >= transfer_ticks(d, m, observation))
-			{
-				if (m.phase == AwayPhase::Inbound)
-					recover(ship, m, execution);
-				else
-					deploy(d, m, observation);
-			}
-		}
+		const auto transport = advance_transport(i, ship, active, execution);
 		if (m.phase == AwayPhase::Deployed)
 		{
 			if (d.boarding)
@@ -228,242 +186,312 @@ void AwayRuntime::advance(std::uint64_t tick, AwayExecution &execution)
 		}
 		if (m.outcome.empty())
 		{
-			const bool work_ready = m.work_capability.empty() || peers.has_capability(ship, m, m.work_capability);
-			if (m.deployed() && work_ready && m.work > 0 && m.timed_work)
-				m.progress = std::min(m.work, m.progress + 1000);
-			if (m.deployed() && work_ready && m.work > 0 && !m.timed_work)
-			{
-				std::vector<std::string> teams;
-				std::int64_t officer_work = 0;
-				for (const auto &[slot, asset] : m.assignments)
-					if (asset.starts_with("team:"))
-					{
-						const auto team = asset.substr(5);
-						if (std::as_const(physical.ship(ship))
-						        .team(team)
-						        .definition.get<TeamDefinition>()
-						        .capabilities.contains("repair"))
-							teams.push_back(team);
-					}
-					else
-						for (const auto &officer : physical.ship(ship).layout().personnel.officers)
-							if (asset == "officer:" + officer.id &&
-							    officer_healthy(
-							        std::as_const(physical.ship(ship))
-							            .personnel()
-							            .officers.at(&officer -
-							                         physical.ship(ship).layout().personnel.officers.data())))
-							{
-								officer_work += physical.ship(ship).officer_repair_work(d.id, officer.id);
-							}
-				const auto repair_at = m.repair_compartment.empty()
-				                           ? std::int64_t{-1}
-				                           : static_cast<std::int64_t>(d.repair_compartments.at(m.repair_compartment));
-				const auto effort = physical.ship(ship).structural_work(
-				    teams, d.target, repair_at, d.id + "/" + m.work_key, m.progress * rate, m.work * rate);
-				// Standalone officers can perform generic work, but structural repair needs a team.
-				const auto progress = teams.empty() ? officer_work : effort / rate;
-				m.progress = std::min(m.work, m.progress + progress);
-			}
-			const bool repaired =
-			    m.repair_compartment.empty() ||
-			    compartment_repaired(physical.ship(d.target).structure(), d.repair_compartments, m.repair_compartment);
-			if (scenario && !(*scenario).definition().event_bindings.empty() && m.work > 0 && m.progress >= m.work &&
-			    repaired && work_ready)
-				peers.mission_change("work/" + std::to_string(ship) + "/" + d.id + "/" + m.work_key, "completed",
-				                     "away.work_completed", ship, d.target, d.id, m.work_key);
-			const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
-			using state_tree::Value;
-			std::vector<Value> obs{Value::boolean(m.deployed()),
-			                       Value::boolean(m.recovered),
-			                       Value::boolean(m.work > 0 && m.progress >= m.work && repaired && work_ready),
-			                       Value::integer(tick),
-			                       Value::integer(m.progress),
-			                       Value::string(answer),
-			                       Value::string(m.checkpoint)};
-			const bool present = !m.transport_released && transport && !physical.ship(transport).dead() &&
-			                     (transport == ship ? physical.ship(ship).dock_ready(d)
-			                                        : physical.distance(transport, d.target) <= d.deployment_range) &&
-			                     (transport == ship || !physical.craft(transport).dormant());
-			obs.push_back(Value::boolean(present));
-			obs.push_back(Value::boolean(transport && !physical.ship(transport).dead() &&
-			                             (transport == ship || physical.craft(transport).available(d.id))));
-			for (std::size_t field = obs.size(); field < d.program.registry.observations.size() - (d.boarding ? 4 : 0);
-			     ++field)
-			{
-				const auto &name = d.program.registry.observations[field].name;
-				if (name.starts_with("flags."))
-				{
-					obs.push_back(Value::boolean(m.flags.contains(name.substr(6))));
-					continue;
-				}
-				if (name.starts_with("events."))
-				{
-					obs.push_back(Value::boolean(scenario && (*scenario).has_event(name.substr(7), {})));
-					continue;
-				}
-				if (name.starts_with("team_capabilities."))
-				{
-					obs.push_back(Value::boolean(peers.has_capability(ship, m, name.substr(18))));
-					continue;
-				}
-				const bool operational = name.starts_with("transport.operational.");
-				const auto tag = name.substr(operational ? 22 : 21);
-				bool has = false;
-				if (transport)
-				{
-					const auto &t = physical.ship(transport).layout().ship;
-					has = std::find(t.capabilities.begin(), t.capabilities.end(), tag) != t.capabilities.end();
-					if (operational)
-					{
-						has &= present;
-						if (t.capability_systems.contains(tag))
-							for (const auto &system : t.capability_systems.at(tag))
-								has &= physical.ship(transport).system_operational(system);
-					}
-				}
-				obs.push_back(Value::boolean(has));
-			}
-			if (d.boarding)
-			{
-				obs.push_back(Value::boolean(!m.boarding.travel && m.boarding.destination == m.boarding.location));
-				obs.push_back(Value::boolean(m.boarding.encounter_done));
-				obs.push_back(Value::boolean(m.boarding.encounter_success));
-				obs.push_back(Value::integer(m.boarding.defenders));
-			}
-			const auto outputs = state_tree::step(d.program, m.continuation, obs);
-			for (const auto &o : outputs.outputs)
-			{
-				if (!m.outcome.empty())
-					break;
-				if (!admit_effect(m.effects, o))
-					continue;
-				const auto &name = d.program.registry.actions.at(o.action).name;
-				const auto &arg = o.arguments.at(0);
-				if (name == "apply_effect_group")
-				{
-					NativeRuleContext context;
-					context.owner = context.source = context.instigator = {ship};
-					context.subject = context.target = {o.arguments.at(1).text == "self" ? ship : d.target};
-					context.hit = PayloadHitContext{context.target.entity};
-					context.tick = tick;
-					peers.execute_effect(
-					    arg.text, tree_effect_identity(o, "away." + d.id + "." + std::to_string(ship) + "."), context);
-					continue;
-				}
-				if (d.boarding && peers.boarding_action(i, name, arg.text))
-					continue;
-				if (name == "work" || name == "timed_work")
-				{
-					m.timed_work = name == "timed_work";
-					if (arg.number < 1 || arg.number > 1728000)
-						throw std::runtime_error("Invalid away work duration");
-					if (m.work_key != m.checkpoint || m.work != arg.number * 1000)
-					{
-						m.work_key = m.checkpoint;
-						m.work = arg.number * 1000;
-						m.progress = std::min(m.work, m.saved_progress[m.checkpoint]);
-					}
-				}
-				else if (name == "restore_compartment")
-				{
-					if (!m.deployed())
-						throw std::runtime_error("Away repairs require a deployed party");
-					m.repair_compartment = arg.text;
-				}
-				else if (name == "checkpoint")
-				{
-					m.work_capability.clear();
-					if (m.checkpoint != arg.text)
-					{
-						if (m.work > 0 && !m.work_key.empty())
-							m.saved_progress[m.work_key] = m.progress;
-						m.work = 0;
-						m.progress = 0;
-						m.repair_compartment.clear();
-					}
-					m.checkpoint = arg.text;
-				}
-				else if (name == "pause")
-				{
-					if (m.work > 0 && !m.work_key.empty())
-						m.saved_progress[m.work_key] = m.progress;
-					m.work = 0;
-					m.progress = 0;
-				}
-				else if (name == "mark")
-					m.flags.insert(arg.text);
-				else if (name == "claim")
-					peers.claim_target(i, arg.text);
-				else if (name == "require_team")
-					m.work_capability = arg.text;
-				else if (name == "crew_deaths")
-				{
-					if (arg.number < 0 || arg.number > 4096)
-						throw std::runtime_error("Invalid away casualty count");
-					m.crew_deaths = arg.number;
-				}
-				else if (name == "offer" && cid)
-					conversations.offer(cid, arg.text);
-				else if (name == "say" && cid)
-					conversations.report(cid, arg.text);
-				else if (name == "log")
-					peers.mission_transition("mission.log", ship, d.target, d.id, arg.text);
-				else if ((name == "injure_duty" || name == "kill_duty") && m.deployed())
-				{
-					if (m.assignments.contains(arg.text) && m.assignments.at(arg.text).starts_with("team:"))
-						if (const auto *duty =
-						        team_duty(physical.ship(ship).layout().personnel, m.assignments.at(arg.text).substr(5)))
-						{
-							auto &ps = physical.ship(ship).personnel();
-							const auto &pd = physical.ship(ship).layout().personnel;
-							for (std::size_t oi = 0; oi < pd.officers.size(); ++oi)
-								if (ps.officers[oi].duty == duty->id && ps.officers[oi].condition != "dead" &&
-								    std::find(m.accompanying.begin(), m.accompanying.end(), pd.officers[oi].id) !=
-								        m.accompanying.end())
-								{
-									auto &officer = ps.officers[oi];
-									officer.condition = name == "kill_duty" ? "dead" : "severe";
-									officer.present = false;
-									officer.casualty_tick = tick;
-									officer.stun_until = officer.treatment = officer.recovery = officer.remaining = 0;
-									officer.stabilised = false;
-									officer.edge_to = -1;
-									officer.facility.clear();
-									officer.escort.clear();
-									if (name == "kill_duty")
-									{
-										officer.duty.clear();
-										std::erase(m.accompanying, pd.officers[oi].id);
-									}
-									++ps.revision;
-									peers.mission_transition("mission.casualty", ship, ship, pd.officers[oi].id,
-									                         officer.condition);
-									break;
-								}
-						}
-				}
-				else if (name == "release_transport" && m.phase == AwayPhase::Deployed && transport &&
-				         transport != ship && !m.aboard_craft)
-				{
-					m.transport_released = true;
-					physical.craft(transport).state().mission.clear();
-					physical.craft(transport).return_home();
-					++m.revision;
-				}
-				else if (name == "report" && cid)
-					conversations.event(cid, arg.text);
-				else if (name == "complete" || name == "fail")
-				{
-					m.outcome = name + ":" + arg.text;
-					if (cid)
-						conversations.conversations.at(cid).prompt = {};
-				}
-				else if (name == "emit" && scenario)
-					peers.emit(ship, arg.text);
-			}
+			const bool work_complete = advance_deployed_work(i, ship, execution);
+			advance_script(i, tick, ship, transport, cid, work_complete, execution);
 		}
 	}
+}
+EntityId AwayRuntime::advance_transport(std::size_t i, EntityId ship,
+                                        const std::map<std::pair<EntityId, std::string>, std::size_t> &active,
+                                        AwayExecution &execution)
+{
+	const auto &d = definitions()[i];
+	auto &m = missions()[i];
+	auto &physical = execution.physical;
+	auto &peers = execution.peers;
+	const AwayObservation observation{execution.physical, execution.slots};
+	const auto transport = physical.transport(ship, m.transport);
+	if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
+	    std::as_const(physical.craft(transport)).state().phase == CraftPhase::Docked &&
+	    std::as_const(physical.craft(transport)).state().order == "transport" &&
+	    std::all_of(m.escorts.begin(), m.escorts.end(),
+	                [&](const auto &s)
+	                {
+		                return std::as_const(physical.craft(s.second)).state().phase == CraftPhase::Flying;
+	                }))
+	{
+		physical.craft(transport).launch();
+	}
+	if (transport && transport != ship && !m.transport_released &&
+	    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound || m.phase == AwayPhase::Deployed) &&
+	    std::as_const(physical.craft(transport)).state().phase == CraftPhase::Lost)
+	{
+		m.outcome = "fail:Transport lost";
+		m.phase = AwayPhase::Lost;
+		return_escorts(m, physical);
+		++m.revision;
+	}
+	if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
+	    std::as_const(physical.craft(transport)).state().phase == CraftPhase::Flying)
+		peers.record_insertion(ship, d.target);
+	if (transport && transport != ship)
+		peers.advance_craft_transport(i, transport);
+	else if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound) && active.at({ship, m.transport}) == i &&
+	         peers.blocker(i).empty() && (m.deployed() || staged(ship, m, observation)))
+	{
+		if (m.phase == AwayPhase::Outbound)
+			peers.record_insertion(ship, d.target);
+		if (++m.transfer >= transfer_ticks(d, m, observation))
+		{
+			if (m.phase == AwayPhase::Inbound)
+				recover(ship, m, execution);
+			else
+				deploy(d, m, observation);
+		}
+	}
+	return transport;
+}
+bool AwayRuntime::advance_deployed_work(std::size_t i, EntityId ship, AwayExecution &execution)
+{
+	const auto &d = definitions()[i];
+	auto &m = missions()[i];
+	auto &physical = execution.physical;
+	auto &peers = execution.peers;
+	auto *scenario = execution.scenario;
+	const auto rate = execution.ticks_per_second;
+	const bool work_ready = m.work_capability.empty() || peers.has_capability(ship, m, m.work_capability);
+	if (m.deployed() && work_ready && m.work > 0 && m.timed_work)
+		m.progress = std::min(m.work, m.progress + 1000);
+	if (m.deployed() && work_ready && m.work > 0 && !m.timed_work)
+	{
+		std::vector<std::string> teams;
+		std::int64_t officer_work = 0;
+		for (const auto &[slot, asset] : m.assignments)
+			if (asset.starts_with("team:"))
+			{
+				const auto team = asset.substr(5);
+				if (std::as_const(physical.ship(ship))
+				        .team(team)
+				        .definition.get<TeamDefinition>()
+				        .capabilities.contains("repair"))
+					teams.push_back(team);
+			}
+			else
+				for (const auto &officer : physical.ship(ship).layout().personnel.officers)
+					if (asset == "officer:" + officer.id &&
+					    officer_healthy(
+					        std::as_const(physical.ship(ship))
+					            .personnel()
+					            .officers.at(&officer - physical.ship(ship).layout().personnel.officers.data())))
+					{
+						officer_work += physical.ship(ship).officer_repair_work(d.id, officer.id);
+					}
+		const auto repair_at = m.repair_compartment.empty()
+		                           ? std::int64_t{-1}
+		                           : static_cast<std::int64_t>(d.repair_compartments.at(m.repair_compartment));
+		const auto effort = physical.ship(ship).structural_work(teams, d.target, repair_at, d.id + "/" + m.work_key,
+		                                                        m.progress * rate, m.work * rate);
+		// Standalone officers can perform generic work, but structural repair needs a team.
+		const auto progress = teams.empty() ? officer_work : effort / rate;
+		m.progress = std::min(m.work, m.progress + progress);
+	}
+	const bool repaired =
+	    m.repair_compartment.empty() ||
+	    compartment_repaired(physical.ship(d.target).structure(), d.repair_compartments, m.repair_compartment);
+	if (scenario && !(*scenario).definition().event_bindings.empty() && m.work > 0 && m.progress >= m.work &&
+	    repaired && work_ready)
+		peers.mission_change("work/" + std::to_string(ship) + "/" + d.id + "/" + m.work_key, "completed",
+		                     "away.work_completed", ship, d.target, d.id, m.work_key);
+	return m.work > 0 && m.progress >= m.work && repaired && work_ready;
+}
+void AwayRuntime::advance_script(std::size_t i, std::uint64_t tick, EntityId ship, EntityId transport,
+                                 ConversationId cid, bool work_complete, AwayExecution &execution)
+{
+	const auto &d = definitions()[i];
+	auto &m = missions()[i];
+	auto &physical = execution.physical;
+	auto &peers = execution.peers;
+	auto &conversations = execution.conversations;
+	auto *scenario = execution.scenario;
+	const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
+	using state_tree::Value;
+	std::vector<Value> obs{Value::boolean(m.deployed()), Value::boolean(m.recovered), Value::boolean(work_complete),
+	                       Value::integer(tick),         Value::integer(m.progress),  Value::string(answer),
+	                       Value::string(m.checkpoint)};
+	const bool present = !m.transport_released && transport && !physical.ship(transport).dead() &&
+	                     (transport == ship ? physical.ship(ship).dock_ready(d)
+	                                        : physical.distance(transport, d.target) <= d.deployment_range) &&
+	                     (transport == ship || !physical.craft(transport).dormant());
+	obs.push_back(Value::boolean(present));
+	obs.push_back(Value::boolean(transport && !physical.ship(transport).dead() &&
+	                             (transport == ship || physical.craft(transport).available(d.id))));
+	for (std::size_t field = obs.size(); field < d.program.registry.observations.size() - (d.boarding ? 4 : 0); ++field)
+	{
+		const auto &name = d.program.registry.observations[field].name;
+		if (name.starts_with("flags."))
+		{
+			obs.push_back(Value::boolean(m.flags.contains(name.substr(6))));
+			continue;
+		}
+		if (name.starts_with("events."))
+		{
+			obs.push_back(Value::boolean(scenario && (*scenario).has_event(name.substr(7), {})));
+			continue;
+		}
+		if (name.starts_with("team_capabilities."))
+		{
+			obs.push_back(Value::boolean(peers.has_capability(ship, m, name.substr(18))));
+			continue;
+		}
+		const bool operational = name.starts_with("transport.operational.");
+		const auto tag = name.substr(operational ? 22 : 21);
+		bool has = false;
+		if (transport)
+		{
+			const auto &t = physical.ship(transport).layout().ship;
+			has = std::find(t.capabilities.begin(), t.capabilities.end(), tag) != t.capabilities.end();
+			if (operational)
+			{
+				has &= present;
+				if (t.capability_systems.contains(tag))
+					for (const auto &system : t.capability_systems.at(tag))
+						has &= physical.ship(transport).system_operational(system);
+			}
+		}
+		obs.push_back(Value::boolean(has));
+	}
+	if (d.boarding)
+	{
+		obs.push_back(Value::boolean(!m.boarding.travel && m.boarding.destination == m.boarding.location));
+		obs.push_back(Value::boolean(m.boarding.encounter_done));
+		obs.push_back(Value::boolean(m.boarding.encounter_success));
+		obs.push_back(Value::integer(m.boarding.defenders));
+	}
+	const auto outputs = state_tree::step(d.program, m.continuation, obs);
+	for (const auto &o : outputs.outputs)
+	{
+		if (!m.outcome.empty())
+			break;
+		if (!admit_effect(m.effects, o))
+			continue;
+		const auto &name = d.program.registry.actions.at(o.action).name;
+		const auto &arg = o.arguments.at(0);
+		if (name == "apply_effect_group")
+		{
+			NativeRuleContext context;
+			context.owner = context.source = context.instigator = {ship};
+			context.subject = context.target = {o.arguments.at(1).text == "self" ? ship : d.target};
+			context.hit = PayloadHitContext{context.target.entity};
+			context.tick = tick;
+			peers.execute_effect(arg.text, tree_effect_identity(o, "away." + d.id + "." + std::to_string(ship) + "."),
+			                     context);
+			continue;
+		}
+		if (d.boarding && peers.boarding_action(i, name, arg.text))
+			continue;
+		if (name == "work" || name == "timed_work")
+		{
+			m.timed_work = name == "timed_work";
+			if (arg.number < 1 || arg.number > 1728000)
+				throw std::runtime_error("Invalid away work duration");
+			if (m.work_key != m.checkpoint || m.work != arg.number * 1000)
+			{
+				m.work_key = m.checkpoint;
+				m.work = arg.number * 1000;
+				m.progress = std::min(m.work, m.saved_progress[m.checkpoint]);
+			}
+		}
+		else if (name == "restore_compartment")
+		{
+			if (!m.deployed())
+				throw std::runtime_error("Away repairs require a deployed party");
+			m.repair_compartment = arg.text;
+		}
+		else if (name == "checkpoint")
+		{
+			m.work_capability.clear();
+			if (m.checkpoint != arg.text)
+			{
+				if (m.work > 0 && !m.work_key.empty())
+					m.saved_progress[m.work_key] = m.progress;
+				m.work = 0;
+				m.progress = 0;
+				m.repair_compartment.clear();
+			}
+			m.checkpoint = arg.text;
+		}
+		else if (name == "pause")
+		{
+			if (m.work > 0 && !m.work_key.empty())
+				m.saved_progress[m.work_key] = m.progress;
+			m.work = 0;
+			m.progress = 0;
+		}
+		else if (name == "mark")
+			m.flags.insert(arg.text);
+		else if (name == "claim")
+			peers.claim_target(i, arg.text);
+		else if (name == "require_team")
+			m.work_capability = arg.text;
+		else if (name == "crew_deaths")
+		{
+			if (arg.number < 0 || arg.number > 4096)
+				throw std::runtime_error("Invalid away casualty count");
+			m.crew_deaths = arg.number;
+		}
+		else if (name == "offer" && cid)
+			conversations.offer(cid, arg.text);
+		else if (name == "say" && cid)
+			conversations.report(cid, arg.text);
+		else if (name == "log")
+			peers.mission_transition("mission.log", ship, d.target, d.id, arg.text);
+		else if ((name == "injure_duty" || name == "kill_duty") && m.deployed())
+		{
+			apply_duty_casualty(tick, ship, m, arg.text, name == "kill_duty", execution);
+		}
+		else if (name == "release_transport" && m.phase == AwayPhase::Deployed && transport && transport != ship &&
+		         !m.aboard_craft)
+		{
+			m.transport_released = true;
+			physical.craft(transport).state().mission.clear();
+			physical.craft(transport).return_home();
+			++m.revision;
+		}
+		else if (name == "report" && cid)
+			conversations.event(cid, arg.text);
+		else if (name == "complete" || name == "fail")
+		{
+			m.outcome = name + ":" + arg.text;
+			if (cid)
+				conversations.conversations.at(cid).prompt = {};
+		}
+		else if (name == "emit" && scenario)
+			peers.emit(ship, arg.text);
+	}
+}
+void AwayRuntime::apply_duty_casualty(std::uint64_t tick, EntityId ship, AwayMission &m, const std::string &slot,
+                                      bool fatal, AwayExecution &execution)
+{
+	auto &physical = execution.physical;
+	auto &peers = execution.peers;
+	if (m.assignments.contains(slot) && m.assignments.at(slot).starts_with("team:"))
+		if (const auto *duty = team_duty(physical.ship(ship).layout().personnel, m.assignments.at(slot).substr(5)))
+		{
+			auto &ps = physical.ship(ship).personnel();
+			const auto &pd = physical.ship(ship).layout().personnel;
+			for (std::size_t oi = 0; oi < pd.officers.size(); ++oi)
+				if (ps.officers[oi].duty == duty->id && ps.officers[oi].condition != "dead" &&
+				    std::find(m.accompanying.begin(), m.accompanying.end(), pd.officers[oi].id) != m.accompanying.end())
+				{
+					auto &officer = ps.officers[oi];
+					officer.condition = fatal ? "dead" : "severe";
+					officer.present = false;
+					officer.casualty_tick = tick;
+					officer.stun_until = officer.treatment = officer.recovery = officer.remaining = 0;
+					officer.stabilised = false;
+					officer.edge_to = -1;
+					officer.facility.clear();
+					officer.escort.clear();
+					if (fatal)
+					{
+						officer.duty.clear();
+						std::erase(m.accompanying, pd.officers[oi].id);
+					}
+					++ps.revision;
+					peers.mission_transition("mission.casualty", ship, ship, pd.officers[oi].id, officer.condition);
+					break;
+				}
+		}
 }
 bool AwayRuntime::staged(EntityId ship, const AwayMission &m, const AwayObservation &observation) const
 {

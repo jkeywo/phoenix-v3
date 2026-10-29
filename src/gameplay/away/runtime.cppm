@@ -229,6 +229,15 @@ public:
 
 class AwayRuntime : public AwayOperations
 {
+	EntityId advance_transport(std::size_t i, EntityId ship,
+	                           const std::map<std::pair<EntityId, std::string>, std::size_t> &active,
+	                           AwayExecution &execution);
+	bool advance_deployed_work(std::size_t i, EntityId ship, AwayExecution &execution);
+	void advance_script(std::size_t i, std::uint64_t tick, EntityId ship, EntityId transport,
+	                    ConversationId conversation, bool work_complete, AwayExecution &execution);
+	void apply_duty_casualty(std::uint64_t tick, EntityId ship, AwayMission &mission, const std::string &slot,
+	                         bool fatal, AwayExecution &execution);
+
 public:
 	AwayRuntime();
 	~AwayRuntime();
