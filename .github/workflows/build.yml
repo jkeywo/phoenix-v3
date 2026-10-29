@@ -90,7 +90,8 @@ jobs:
   web:
     needs: native
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    # One cold WASM build and its checks already exceed 90 minutes; run both variants.
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Bootstrap pinned local tools
