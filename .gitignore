@@ -1,7 +1,11 @@
 build/
 .tools/
 .cache/
+.agents/
+.claude/
 out/
+output/
+art/
 *.user
 .env
 .env.*
