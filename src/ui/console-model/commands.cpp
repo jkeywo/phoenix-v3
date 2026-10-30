@@ -352,7 +352,7 @@ bool ConsoleModel::set_manual_axes(int yaw, int thrust)
 	}
 	return true;
 }
-bool ConsoleModel::flight_button(const std::string &action, std::int64_t value, bool pressed)
+bool ConsoleModel::flight_button(const std::string &action, std::int64_t value, bool pressed, const std::string &source)
 {
 	if (!observation_ || !observation_->gameplay.is_object())
 		return false;
@@ -378,11 +378,13 @@ bool ConsoleModel::flight_button(const std::string &action, std::int64_t value, 
 		    descriptor.value("value", std::int64_t{0}) == value)
 		{
 			const auto id = "game.control/" + console_encoded(descriptor.at("id").get<std::string>());
-			accepted |= action == "impulse" ? (pressed && act(id)) : pressed ? hold_control(id) : release_control(id);
+			accepted |= action == "impulse" ? (pressed && act(id))
+			            : pressed           ? hold_control(id, source)
+			                                : release_control(id, source);
 		}
 	return accepted;
 }
-bool ConsoleModel::hold_control(const std::string &id)
+bool ConsoleModel::hold_control(const std::string &id, const std::string &source)
 {
 	auto session = owner_.lock();
 	if (!session || !id.starts_with("game.control/"))
@@ -423,15 +425,18 @@ bool ConsoleModel::hold_control(const std::string &id)
 		request.system = *selected_system;
 	}
 	const auto previous = held_controls_;
-	held_controls_[id] = request;
+	held_controls_[source.empty() ? id : source + "|" + id] = request;
 	if (action == "lateral_thrust")
 	{
-		request.value = 0;
+		bool port = false, starboard = false;
 		for (const auto &[key, held] : held_controls_)
 			if (held.action == action && held.system == request.system && held.controller == request.controller &&
 			    held.channel == request.channel)
-				request.value += held.value;
-		request.value = std::clamp<std::int64_t>(request.value, -1000, 1000);
+			{
+				port |= held.value < 0;
+				starboard |= held.value > 0;
+			}
+		request.value = (int(starboard) - int(port)) * 1000;
 	}
 	if (!submit(request))
 	{
@@ -440,21 +445,34 @@ bool ConsoleModel::hold_control(const std::string &id)
 	}
 	return true;
 }
-bool ConsoleModel::release_control(const std::string &id)
+bool ConsoleModel::release_control(const std::string &id, const std::string &source)
 {
-	const auto found = held_controls_.find(id);
+	const auto found = held_controls_.find(source.empty() ? id : source + "|" + id);
 	if (found == held_controls_.end())
 		return false;
 	auto request = found->second;
 	request.value = 0;
 	held_controls_.erase(found);
+	bool port = false, starboard = false;
 	for (const auto &[key, held] : held_controls_)
 		if (held.action == request.action && held.system == request.system && held.controller == request.controller &&
 		    held.channel == request.channel)
-			request.value = request.action == "lateral_thrust"
-			                    ? std::clamp<std::int64_t>(request.value + held.value, -1000, 1000)
-			                    : held.value;
+		{
+			port |= held.value < 0;
+			starboard |= held.value > 0;
+			request.value = held.value;
+		}
+	if (request.action == "lateral_thrust")
+		request.value = (int(starboard) - int(port)) * 1000;
 	return submit(std::move(request));
+}
+void ConsoleModel::release_flight_source(const std::string &source)
+{
+	const auto held = held_controls_;
+	const auto prefix = source + "|";
+	for (const auto &[key, request] : held)
+		if (key.starts_with(prefix))
+			release_control(key.substr(prefix.size()), source);
 }
 void ConsoleModel::release_controls()
 {

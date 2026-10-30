@@ -22,19 +22,35 @@ int main(int argc, char **argv)
 	try
 	{
 		if (argc < 2)
-			throw std::runtime_error("Usage: phoenix_manual_flight_smoke pack-directory [portrait]");
+			throw std::runtime_error("Usage: phoenix_manual_flight_smoke pack-directory [portrait|narrow] [large]");
 		Application app;
 		app.can_host = app.native_menu = true;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		GameSetup setup{"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"};
+		GameSetup setup{"base.rescue-under-threat", {{"courier", "base.courier"}}, "courier", "helm"};
 		setup.console_profiles["courier"]["helm"] = "detailed";
 		app.session->start(setup);
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
-		if (argc > 2)
-			SetWindowSize(1080, 1920);
+		bool large = false;
+		int width = 0, height = 0;
+		for (int i = 2; i < argc; ++i)
+		{
+			const std::string option = argv[i];
+			if (option == "portrait")
+			{
+				width = 1080;
+				height = 1920;
+			}
+			else if (option == "narrow")
+			{
+				width = 800;
+				height = 900;
+			}
+			else if (option == "large")
+				large = true;
+		}
 		const auto frame = [&]
 		{
 			BeginDrawing();
@@ -92,6 +108,22 @@ int main(int argc, char **argv)
 		flight.refresh(app.session);
 		phoenix::test::require(flight.observation()->own.vx == 0 && flight.observation()->own.vy == 0,
 		                       "zero throttle passively brakes to rest");
+		// The legacy assisted dial journey uses its normal landscape geometry.
+		// Exercise the new inline manual controls at the requested size/text scale.
+		if (width)
+		{
+			SetWindowSize(width, height);
+			frame();
+		}
+		if (large)
+		{
+			phoenix::test::require(app.screen_action("console/1/settings"), "open text settings");
+			frame();
+			for (int i = 0; i < 3; ++i)
+				phoenix::test::require(app.screen_action("console/1/local-settings.larger"), "increase text scale");
+			phoenix::test::require(app.screen_action("console/1/local-settings.close"), "close text settings");
+			frame();
+		}
 		for (unsigned stage = 0; stage < 8; ++stage)
 		{
 			phoenix::test::require(probe_console_manual(1, stage),
@@ -110,6 +142,11 @@ int main(int argc, char **argv)
 #endif
 			}
 		}
+		phoenix::test::require(app.screen_action("console/1/manual"), "toggle restores assisted flight");
+		app.session->tick();
+		frame();
+		flight.refresh(app.session);
+		phoenix::test::require(!flight.manual_active(), "assistance is confirmed after the toggle request");
 		phoenix::test::require(app.screen_action("console/1/settings"), "Console settings open through ordinary UI");
 		frame();
 		phoenix::test::require(!app.screen_action("console/1/manual-mode") &&

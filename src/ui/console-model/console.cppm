@@ -96,9 +96,10 @@ public:
 	bool manual_active() const;
 	bool set_manual(bool enabled);
 	bool set_manual_axes(int yaw, int thrust);
-	bool hold_control(const std::string &action);
-	bool flight_button(const std::string &action, std::int64_t value, bool pressed);
-	bool release_control(const std::string &action);
+	bool hold_control(const std::string &action, const std::string &source = {});
+	bool flight_button(const std::string &action, std::int64_t value, bool pressed, const std::string &source = {});
+	bool release_control(const std::string &action, const std::string &source = {});
+	void release_flight_source(const std::string &source);
 	void release_controls();
 	bool set_speed_fraction(double fraction, const std::string &system = {});
 	bool set_heading_degrees(double degrees, const std::string &system = {});

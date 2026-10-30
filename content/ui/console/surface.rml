@@ -128,14 +128,17 @@ button.on-screen-active .share-live {display:block;}
 .helm .radar-widget button.manual-toggle:disabled {opacity:.5;}
 
 .profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
-#manual-flight {position:absolute;right:2%;top:76px;width:22%;min-width:180px;max-width:280px;max-height:80%;overflow:auto;z-index:8;background:#08171bee;padding:8px;box-sizing:border-box;}
-#manual-flight button {width:46%;min-height:44px;margin:2px;padding:6px;font-size:0.8em;box-sizing:border-box;}
-#manual-flight button.flight-mode {width:96%;}
-#manual-stick {display:block;position:relative;width:160px;height:160px;margin:8px auto;border:2px #98cbb8;border-radius:80px;background:#10292a;}
+#manual-flight {display:none;}
+#manual-controls {display:none;position:absolute;left:0;right:0;top:48dp;bottom:0;overflow-x:hidden;overflow-y:auto;padding:4dp;box-sizing:border-box;}
+#manual-controls button {position:relative;left:auto;right:auto;bottom:auto;width:46%;min-width:0;min-height:44dp;margin:1dp;padding:3dp;font-size:0.75em;box-sizing:border-box;}
+#manual-stick {display:block;position:relative;width:120dp;max-width:90%;height:120dp;margin:4dp auto;border:2px #98cbb8;border-radius:80px;background:#10292a;}
 #manual-knob {display:block;position:absolute;width:32px;height:32px;margin-left:-16px;margin-top:-16px;left:50%;top:50%;border-radius:16px;background:#bce8ad;pointer-events:none;}
-#manual-flight p {font-size:0.7em;}
-.manual-flight .throttle-widget,.manual-flight .heading-widget {visibility:hidden;}
-.local-settings-open #manual-flight {visibility:hidden;}
+#manual-controls p {font-size:0.7em;margin:3dp;}
+.courier-narrow #manual-controls .manual-hint {display:none;}
+.courier-narrow #manual-controls button {display:block;width:100%;}
+.manual-flight .heading-widget {visibility:hidden;}
+.manual-flight .throttle-widget .throttle,.manual-flight .throttle-widget .all-stop,.manual-flight .throttle-widget .readout {display:none;}
+.local-settings-open #manual-controls {visibility:hidden;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
 .local-settings-open #local-settings {display:block;}
 .local-settings-open #comms-layer,.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
@@ -327,8 +330,8 @@ progress fill {background:#83be90;}
 .courier-console .radar-widget button.radar-systems {display:none;}
 .courier-console .radar-widget button.manual-toggle {top:2%;bottom:auto;left:1%;}
 .courier-console .radar-widget button.on-screen {top:2%;bottom:auto;right:1%;left:auto;}
-.courier-console #manual-flight {background:#08171be0;}
-.courier-console.manual-flight .throttle-widget {visibility:visible;opacity:.65;}
+
+
 .courier-console .mission-list {display:inline-block;vertical-align:top;width:27%;box-sizing:border-box;padding:6dp;}
 .courier-console .mission-detail {display:inline-block;vertical-align:top;width:71%;box-sizing:border-box;padding:6dp;}
 .courier-console .mission-list button {display:block;width:98%;min-height:44dp;}

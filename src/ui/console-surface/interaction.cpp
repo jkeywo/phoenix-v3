@@ -401,10 +401,9 @@ std::optional<bool> ConsoleSurface::State::popup_action(const std::string &actio
 }
 std::optional<bool> ConsoleSurface::State::manual_flight_action(const std::string &action)
 {
-	if (action == "manual-mode" ||
-	    (action == "manual" && model_.layout() && model_.layout()->value("strict_widgets", false)))
+	if (action == "manual-mode" || (action == "manual" && model_.manual_available()))
 	{
-		if (settings_open_ || (route_ == 31 && app_->screen == Screen::settings))
+		if (settings_open_ || systems_open_ || (route_ == 31 && app_->screen == Screen::settings))
 			return false;
 		cancel_pointer();
 		const bool accepted = model_.set_manual(!model_.manual_active());
@@ -413,7 +412,8 @@ std::optional<bool> ConsoleSurface::State::manual_flight_action(const std::strin
 	}
 	if (action == "manual-left" || action == "manual-right" || action == "manual-forward" || action == "manual-reverse")
 	{
-		if (!model_.manual_active() || settings_open_ || (route_ == 31 && app_->screen == Screen::settings))
+		if (!model_.manual_active() || settings_open_ || systems_open_ ||
+		    (route_ == 31 && app_->screen == Screen::settings))
 			return false;
 		manual_input_.sample("accessible", {action == "manual-left"    ? 1000
 		                                    : action == "manual-right" ? -1000
@@ -895,7 +895,8 @@ void ConsoleSurface::State::flush_manual()
 void ConsoleSurface::State::cancel_gamepad(const std::string &device)
 {
 	manual_input_.cancel_source("pad/" + device);
-	model_.release_controls();
+	model_.release_flight_source("pad/" + device);
+	pad_axes_.erase(device);
 	flush_manual();
 }
 void ConsoleSurface::State::gamepad(const std::string &device, const std::string &control, float value)
@@ -914,7 +915,7 @@ void ConsoleSurface::State::gamepad(const std::string &device, const std::string
 		                     control == "flight.port"        ? -1000
 		                     : control == "flight.starboard" ? 1000
 		                                                     : 1,
-		                     value > 0 && !settings_open_ && !systems_open_);
+		                     value > 0 && !settings_open_ && !systems_open_, "pad/" + device);
 		return;
 	}
 	auto &axes = pad_axes_[device];
@@ -940,9 +941,15 @@ void ConsoleSurface::State::manual_frame(bool keyboard_selected, FlightAxes keyb
 	{
 		const bool pressed = keyboard_enabled && (keyboard_flight_[i] ? IsKeyDown(keys[i]) : IsKeyPressed(keys[i]));
 		if (pressed != keyboard_flight_[i])
-			model_.flight_button(i == 2 ? "boost" : "lateral_thrust", i == 0 ? -1000 : i == 1 ? 1000 : 1, pressed);
+			model_.flight_button(i == 2 ? "boost" : "lateral_thrust",
+			                     i == 0   ? -1000
+			                     : i == 1 ? 1000
+			                              : 1,
+			                     pressed, "keyboard");
 		keyboard_flight_[i] = pressed;
 	}
+	if (!keyboard_enabled)
+		model_.release_flight_source("keyboard");
 	if (!focused || settings_open_ || systems_open_)
 		model_.release_controls();
 	manual_input_.sample("keyboard", keyboard_axes);
@@ -977,16 +984,17 @@ void ConsoleSurface::State::manual_frame(bool keyboard_selected, FlightAxes keyb
 }
 void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion &region, bool pregame)
 {
-	auto *panel = document_->GetElementById("manual-flight");
+	// Manual controls live in the throttle slot, never over the radar.
+	dom_.property(document_->GetElementById("manual-flight"), "display", "none");
+	auto *panel = document_->GetElementById("manual-controls");
 	const bool available = !pregame && model_.manual_available();
-	if (!(model_.layout() && model_.layout()->contains("layout")))
-		dom_.property(panel, "display", available ? "block" : "none");
 	const bool active = available && model_.manual_active();
-	const bool specialised = model_.layout() && model_.layout()->value("strict_widgets", false);
-	if (specialised)
-		dom_.property(panel, "display", active ? "block" : "none");
 	document_->SetClass("manual-flight", active);
-	if (!available)
+	joystick_area_ = {};
+	if (!panel)
+		return;
+	dom_.property(panel, "display", active ? "block" : "none");
+	if (!active)
 		return;
 	std::vector<std::pair<std::string, std::string>> actions{{"manual-mode", "Manual flight"}};
 	if (active)
@@ -997,27 +1005,18 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 		                                                      {"manual-reverse", "Reverse thrust (pulse)"},
 		                                                      {"manual-neutral", "Release flight controls"}})
 			actions.emplace_back(name, label);
-	std::string markup = "<button class=\"flight-mode\" id=\"" + id("manual-mode") + "\">" +
-	                     Rml::StringUtilities::EncodeRml(localise(active ? "Manual flight" : "Assisted flight")) +
-	                     "</button>";
-	if (specialised)
-		markup.clear();
-	markup += "<p>" +
-	          Rml::StringUtilities::EncodeRml(
-	              localise("Q/E lateral thrust; Shift boost. Gamepad shoulders: lateral; west button: boost.")) +
-	          "</p>";
-	if (active)
-	{
-		markup += "<div id=\"manual-stick\"><div id=\"manual-knob\"/></div><p id=\"manual-values\"/><p>" +
-		          Rml::StringUtilities::EncodeRml(
-		              localise("W/S speed; A/D yaw. Left stick: yaw and speed. Release to brake.")) +
-		          "</p>";
-		for (std::size_t i = 1; i < actions.size(); ++i)
-			markup += "<button id=\"" + id(actions[i].first) + "\">" +
-			          Rml::StringUtilities::EncodeRml(localise(actions[i].second)) + "</button>";
-	}
+	std::string markup =
+	    "<div id=\"manual-stick\"><div id=\"manual-knob\"/></div><p id=\"manual-values\"/><p class=\"manual-hint\">" +
+	    Rml::StringUtilities::EncodeRml(
+	        localise("W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to brake.")) +
+	    "</p><p class=\"manual-hint\">" +
+	    Rml::StringUtilities::EncodeRml(localise("Q/LB: port; E/RB: starboard. Shift/west button: boost.")) + "</p>";
+	const std::array<std::string, 5> symbols{"&lt;", "&gt;", "^", "v", "0"};
+	for (std::size_t i = 1; i < actions.size(); ++i)
+		markup += "<button id=\"" + id(actions[i].first) + "\" aria-label=\"" +
+		          Rml::StringUtilities::EncodeRml(localise(actions[i].second)) + "\">" + symbols[i - 1] + "</button>";
 
-	if (manual_markup_ != markup)
+	if (manual_markup_ != markup || !document_->GetElementById("manual-stick"))
 	{
 		const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
 		dom_.forget_properties();
@@ -1027,10 +1026,16 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 		if (auto *previous = document_->GetElementById(focused))
 			previous->Focus();
 	}
+	const float density = context_->GetDensityIndependentPixelRatio();
+	auto *slot = panel->GetParentNode();
+	const float size = std::max(32.f * density, std::min({140.f * density, slot->GetOffsetWidth() - 16.f * density,
+	                                                      (slot->GetOffsetHeight() - 48.f * density) * .48f}));
+	dom_.property(document_->GetElementById("manual-stick"), "width", std::to_string(size) + "px");
+	dom_.property(document_->GetElementById("manual-stick"), "height", std::to_string(size) + "px");
 	context_->Update();
 	for (const auto &[name, label] : actions)
 	{
-		if (specialised && name == "manual-mode")
+		if (name == "manual-mode")
 			continue;
 		app.screen_controls.emplace_back(id(name), localise(label));
 		place(app, region, id(name));

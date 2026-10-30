@@ -521,14 +521,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		                                        return widget.at("kind") == "throttle";
 	                                        });
 
-	manual_toggle_ = !pregame && helm && layout &&
-	                 (layout->value("strict_widgets", false) ? model_.manual_available()
-	                                                         : (manual_preset(true) && manual_preset(false))) &&
-	                 std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
-	                             [](const auto &w)
-	                             {
-		                             return w.at("kind") == "radar";
-	                             });
+	manual_toggle_ =
+	    !pregame && helm && layout && (model_.manual_available() || (manual_preset(true) && manual_preset(false)));
 	const bool has_camera =
 	    layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
 	                          [](const auto &widget)
@@ -585,7 +579,6 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	app.frame_metrics["console/" + std::to_string(route_) + "/markup"] = GetTime() - markup_started;
 	const auto navigation_started = GetTime();
 	navigation_.prepare(model_, navigation_frame(app, region, pregame));
-	prepare_manual(app, region, pregame);
 	app.frame_metrics["console/" + std::to_string(route_) + "/navigation"] = GetTime() - navigation_started;
 	if (!pregame)
 	{
@@ -619,6 +612,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		context_->Update();
 		app.frame_metrics["console/" + std::to_string(route_) + "/after-widgets"] = GetTime() - update_started;
 	}
+	prepare_manual(app, region, pregame);
 	const auto semantics_started = GetTime();
 	publish_widget_semantics(app, region, layout, display_scale);
 	publish_gameplay_semantics(app, region, gameplay_actions);
@@ -822,6 +816,7 @@ ConsoleSurface::State::prepare_console_chrome(Application &app, const ConsoleReg
 		std::string widgets;
 		bool has_radar = false;
 		bool has_manual_toggle = false;
+		bool has_manual_controls = false;
 		int heading_count = 0;
 		if (layout && !pregame)
 			for (const auto &widget : layout->at("widgets"))
@@ -859,6 +854,16 @@ ConsoleSurface::State::prepare_console_chrome(Application &app, const ConsoleReg
 				}
 				if (kind == "throttle")
 				{
+					if (!has_manual_controls && ui_widget_available(widget, model_.ui_availability()))
+					{
+						widgets += "<div id=\"manual-controls\"/>";
+						if (!has_radar && manual_toggle_)
+						{
+							widgets += button("manual", "Manual");
+							has_manual_toggle = true;
+						}
+						has_manual_controls = true;
+					}
 					widgets += "<input class=\"throttle\" id=\"" + id("speed/" + key) +
 					           "\" type=\"range\" orientation=\"vertical\" min=\"-100\" max=\"0\" step=\"0.1\" "
 					           "value=\"0\"" +
@@ -1752,7 +1757,7 @@ void ConsoleSurface::State::publish_widget_semantics(Application &app, const Con
 			continue;
 		if (name == id("manual"))
 		{
-			const bool manual = layout && layout->value("strict_widgets", false)
+			const bool manual = model_.manual_available()
 			                        ? model_.manual_active()
 			                        : model_.observation()->gameplay.value("profile", "") != "automatic";
 			app.screen_toggles[name] = manual;
@@ -1761,11 +1766,14 @@ void ConsoleSurface::State::publish_widget_semantics(Application &app, const Con
 				toggle->SetClass("manual-on", manual);
 				toggle->SetAttribute("aria-pressed", manual ? "true" : "false");
 				// Keep the single switch inside the radar bezel at smaller viewport sizes.
-				const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f, 160.f * display_scale,
-				                               220.f * display_scale) *
-				                    text_scale_ / 100.f;
-				dom_.property(toggle, "width", std::to_string(width) + "px");
-				dom_.property(toggle, "height", std::to_string(width / 2.68f) + "px");
+				if (toggle->IsClassSet("manual-toggle"))
+				{
+					const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f,
+					                               160.f * display_scale, 220.f * display_scale) *
+					                    text_scale_ / 100.f;
+					dom_.property(toggle, "width", std::to_string(width) + "px");
+					dom_.property(toggle, "height", std::to_string(width / 2.68f) + "px");
+				}
 			}
 			update_readout("manual.lamp", manual ? "+" : "-", true);
 			update_readout("manual.state", localise(manual ? "On" : "Off"), true);

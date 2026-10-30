@@ -1197,7 +1197,8 @@ if(NOT EMSCRIPTEN)
 endif()
 
 add_executable(phoenix_manual_flight_smoke EXCLUDE_FROM_ALL tests/manual/manual_flight_ui.cpp)
-target_link_libraries(phoenix_manual_flight_smoke PRIVATE phoenix_session phoenix_presentation)
+# Resolve raylib's CloseWindow before the Windows import library's same-named thunk.
+target_link_libraries(phoenix_manual_flight_smoke PRIVATE raylib phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)
 	set_target_properties(phoenix_manual_flight_smoke PROPERTIES SUFFIX ".html")
 	target_link_options(

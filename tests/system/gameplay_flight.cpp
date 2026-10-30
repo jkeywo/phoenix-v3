@@ -1764,9 +1764,9 @@ void steady_throttle_heading_changes()
 	            system(*model.observation(), "drive").telemetry.at("desired_speed") == 0,
 	        "a heading-only change at zero throttle must not create translational thrust or motion");
 }
-void manual_console_controls()
+Json manual_helm_fixture(Json source)
 {
-	auto source = explicit_fixture(fixture());
+	source = explicit_fixture(std::move(source));
 	auto console = source["consoles"][0];
 	console["id"] = "test.manual-console";
 	source["consoles"].push_back(console);
@@ -1787,6 +1787,11 @@ void manual_console_controls()
 					                                            {"height", 200},
 					                                            {"controller", controller["id"]},
 					                                            {"channel", channel["id"]}});
+	return source;
+}
+void manual_console_controls()
+{
+	auto source = manual_helm_fixture(fixture());
 	auto session = make_local_session();
 	session->add_pack(archive(source));
 	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
@@ -1858,6 +1863,7 @@ void lateral_controls_and_delegation()
 	ship["stations"][0]["consoles"][0]["systems"].push_back("side");
 	ship["stations"][0]["consoles"].erase(1);
 	ship["systems"]["side"]["lateral_acceleration_mm_s2"] = 5000;
+	source = manual_helm_fixture(std::move(source));
 	auto session = make_local_session();
 	session->add_pack(archive(source));
 	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
@@ -1883,6 +1889,38 @@ void lateral_controls_and_delegation()
 	model.refresh(session);
 	require(system(*model.observation(), "side").telemetry.at("actual_lateral") == 0,
 	        "input loss neutralises lateral controls");
+	require(model.set_manual(true), "lateral fixture admits manual flight");
+	session->tick();
+	model.refresh(session);
+	require(model.set_manual_axes(300, 600) && model.flight_button("lateral_thrust", -1000, true, "keyboard") &&
+	            model.flight_button("lateral_thrust", -1000, true) &&
+	            model.flight_button("lateral_thrust", 1000, true, "pad/test"),
+	        "keyboard and shoulder controls coexist with manual yaw and longitudinal thrust");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") == 0 &&
+	            system(*model.observation(), "turn").telemetry.at("manual_steering") == 300 &&
+	            system(*model.observation(), "drive").telemetry.at("longitudinal_thrust") == 600,
+	        "opposite input sources neutralise lateral thrust without cancelling the manual axes");
+	model.release_flight_source("pad/test");
+	require(model.flight_button("lateral_thrust", -1000, false), "screen button releases independently");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") < 0,
+	        "disconnecting one source restores the remaining direction");
+	require(model.flight_button("lateral_thrust", -1000, true, "pad/test") &&
+	            model.flight_button("lateral_thrust", -1000, false, "keyboard"),
+	        "same-direction sources have independent held identities");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") < 0,
+	        "keyboard release cannot release the held shoulder");
+	require(model.set_manual(false), "mode change releases all manual inputs");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") == 0 &&
+	            system(*model.observation(), "drive").telemetry.at("longitudinal_thrust") == 0,
+	        "returning to assisted flight neutralises held lateral and longitudinal controls");
 	// Keep human forward/yaw commands while delegating only the lateral Controller.
 	source = explicit_fixture(source);
 	auto &layout = source["entities"][0]["control_layout"];

@@ -435,7 +435,9 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 	{
 		return std::to_string(value * text_scale_ / 100.f) + "dp";
 	};
-	if (node.component == "manual-flight" && !model_.manual_available())
+	// Older authored layouts may still contain the former floating flight panel.
+	// Its controls now belong to the throttle slot, including its accessible actions.
+	if (node.component == "manual-flight")
 		visible = false;
 	dom_.property(box, "display", visible ? "flex" : "none");
 	dom_.property(box, "position",

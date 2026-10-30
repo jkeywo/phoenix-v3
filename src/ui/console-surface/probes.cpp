@@ -501,11 +501,34 @@ bool ConsoleSurface::State::probe_manual(unsigned stage)
 	const auto cx = joystick_area_.x + joystick_area_.width / 2;
 	const auto cy = joystick_area_.y + joystick_area_.height / 2;
 	if (stage == 0)
-		return action(id("manual-mode"));
+		return action(id("manual"));
 	if (!model_.manual_active() || joystick_area_.width <= 0)
 		return false;
 	if (stage == 1)
 	{
+		auto *stick = document_->GetElementById("manual-stick");
+		if (!stick || !stick->IsVisible(true) || !stick->GetParentNode() ||
+		    stick->GetParentNode()->GetId() != "manual-controls")
+			return false;
+		auto *slot = stick->GetParentNode()->GetParentNode();
+		if (!slot || !slot->IsClassSet("throttle-widget"))
+			return false;
+		const auto slot_at = slot->GetAbsoluteOffset(Rml::BoxArea::Border);
+		if (joystick_area_.x < slot_at.x || joystick_area_.y < slot_at.y ||
+		    joystick_area_.x + joystick_area_.width > slot_at.x + slot->GetOffsetWidth() ||
+		    joystick_area_.y + joystick_area_.height > slot_at.y + slot->GetOffsetHeight())
+			return false;
+		if (auto *popup = document_->GetElementById("manual-flight"); popup && popup->IsVisible(true))
+			return false;
+		auto *left = document_->GetElementById(id("manual-left"));
+		auto *right = document_->GetElementById(id("manual-right"));
+		if (!left || !right)
+			return false;
+		const auto left_at = left->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const auto right_at = right->GetAbsoluteOffset(Rml::BoxArea::Border);
+		if (CheckCollisionRecs({left_at.x, left_at.y, left->GetOffsetWidth(), left->GetOffsetHeight()},
+		                       {right_at.x, right_at.y, right->GetOffsetWidth(), right->GetOffsetHeight()}))
+			return false;
 		if (!pointer(9001, cx - joystick_area_.width / 4, cy - joystick_area_.height / 4, DeviceEventKind::Down) ||
 		    !pointer(9001, cx - joystick_area_.width * .375f, cy - joystick_area_.height * .375f,
 		             DeviceEventKind::Move))

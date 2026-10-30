@@ -55,7 +55,7 @@ public:
 	std::map<ConsoleId, PadSelection> pad_selections;
 	Rml::Element *pad_element(ConsoleId route, const std::string &id);
 
-	void release_pad(ConsoleId route);
+	void release_pad(ConsoleId route, const std::string &device);
 
 	void cancel_pad(const std::string &device);
 
@@ -96,9 +96,15 @@ Rml::Element *PadDispatcher::State::pad_element(ConsoleId route, const std::stri
 		return console_surfaces.at(route)->controller_element(id);
 	return document->GetElementById(id);
 }
-void PadDispatcher::State::release_pad(ConsoleId route)
+void PadDispatcher::State::release_pad(ConsoleId route, const std::string &device)
 {
 	auto &selection = pad_selections[route];
+	if (!selection.held.empty() && selection.holder != device)
+	{
+		if (console_surfaces.contains(route))
+			console_surfaces.at(route)->cancel_gamepad(device);
+		return;
+	}
 	if (auto *select = dynamic_cast<Rml::ElementFormControlSelect *>(pad_element(route, selection.editing)))
 		select->HideSelectBox();
 	if (auto *element = pad_element(route, selection.selected))
@@ -107,7 +113,7 @@ void PadDispatcher::State::release_pad(ConsoleId route)
 	{
 		if (!selection.held.empty())
 			console_surfaces.at(route)->controller_hold(selection.held, false);
-		console_surfaces.at(route)->controller_cancel();
+		console_surfaces.at(route)->cancel_gamepad(device);
 	}
 	selection.held.clear();
 	selection.holder.clear();
@@ -117,7 +123,7 @@ void PadDispatcher::State::cancel_pad(const std::string &device)
 {
 	if (auto it = pad_surfaces.find(device); it != pad_surfaces.end())
 	{
-		release_pad(it->second.route);
+		release_pad(it->second.route, device);
 		it->second.navigation.cancel();
 		pad_surfaces.erase(it);
 	}
@@ -135,7 +141,7 @@ void PadDispatcher::State::prepare_pad(const std::string &device, ConsoleId rout
 	if (pad.route != route || pad.screen != screen || pad.session.lock() != app.session ||
 	    pad.generation != generation || pad.flight != flight || pad.identity != identity)
 	{
-		release_pad(pad.route);
+		release_pad(pad.route, pad.device);
 		input.assign_gamepad(device, {});
 		pad.navigation.cancel();
 		pad.route = route;
@@ -221,7 +227,7 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 	}
 	if (event.action == "mode" && pad.flight)
 	{
-		release_pad(pad.route);
+		release_pad(pad.route, pad.device);
 		pad.ui = !pad.ui;
 		pad.navigation.cancel();
 		for (const auto &[device, candidate] : pad_surfaces)
@@ -234,7 +240,7 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 		return;
 	if (event.action == "settings")
 	{
-		release_pad(pad.route);
+		release_pad(pad.route, pad.device);
 		invoke_navigation(app, pad.route ? "console/" + std::to_string(pad.route) + "/settings" : "settings");
 		return;
 	}
@@ -247,7 +253,7 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 			selection.editing.clear();
 			return;
 		}
-		release_pad(pad.route);
+		release_pad(pad.route, pad.device);
 		if (console_surfaces.contains(pad.route) && console_surfaces.at(pad.route)->controller_back())
 			return;
 		if (app.screen == Screen::settings)
@@ -268,7 +274,7 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 	auto controls = pad_controls(app, pad.route, pad.device);
 	if (controls.empty())
 	{
-		release_pad(pad.route);
+		release_pad(pad.route, pad.device);
 		selection.selected.clear();
 		return;
 	}
@@ -279,7 +285,7 @@ void PadDispatcher::State::pad_action(Application &app, PadSurface &pad, const P
 	                            });
 	if (current == controls.end())
 	{
-		release_pad(pad.route);
+		release_pad(pad.route, pad.device);
 		pad_select(selection, pad.route, controls.front(), app);
 		current = controls.begin();
 	}
@@ -394,7 +400,7 @@ void PadDispatcher::State::update_pads(Application &app)
 		if (app.gamepad_devices.contains(device) &&
 		    (!app.gamepad_assignments.contains(device) || app.gamepad_assignments.at(device) != pad.route))
 		{
-			release_pad(pad.route);
+			release_pad(pad.route, pad.device);
 			input.disconnect_gamepad(device);
 			pad.navigation.cancel();
 			continue;
@@ -406,7 +412,7 @@ void PadDispatcher::State::update_pads(Application &app)
 		    (pad.route &&
 		     (!app.gamepad_assignments.contains(device) || app.gamepad_assignments.at(device) != pad.route)))
 		{
-			release_pad(pad.route);
+			release_pad(pad.route, pad.device);
 			pad.navigation.cancel();
 			continue;
 		}
@@ -424,7 +430,7 @@ void PadDispatcher::State::update_pads(Application &app)
 		};
 		if ((!selection.held.empty() && !available(selection.held)) ||
 		    (!selection.editing.empty() && !available(selection.editing)))
-			release_pad(pad.route);
+			release_pad(pad.route, pad.device);
 		if (!selection.selected.empty() && !available(selection.selected))
 			selection.selected.clear();
 	}
