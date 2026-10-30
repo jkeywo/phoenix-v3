@@ -41,6 +41,8 @@ const globalPreferenceDefaults = {
 	volume: 50,
 	sfx_volume: 50,
 	siren_volume: 50,
+	message_muted: false,
+	message_seconds: 8,
 	master_volume: 50,
 	tools_scale: 100,
 	language: "en",
@@ -276,6 +278,8 @@ const encoder = new TextEncoder(),
 	decoder = new TextDecoder("utf-8", { fatal: true });
 const defaults = () => ({
 	schema: 1,
+	message_muted: false,
+	message_seconds: 8,
 	volume: 50,
 	sfx_volume: 50,
 	master_volume: 50,

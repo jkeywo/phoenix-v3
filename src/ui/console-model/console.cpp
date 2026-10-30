@@ -44,8 +44,6 @@ void ConsoleModel::reset()
 	pending_at_.reset();
 	pending_requests_.clear();
 	held_controls_.clear();
-	notification_sequence_ = 0;
-	notifications_initialised_ = false;
 	speed_ = heading_ = maximum_ = 0;
 	if (!layout_.is_null())
 		++layout_revision_;
@@ -183,8 +181,6 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		pending_requests_.clear();
 		held_controls_.clear();
 		announcement_.clear();
-		notification_sequence_ = 0;
-		notifications_initialised_ = false;
 		layout_ = nullptr;
 		speed_ = heading_ = maximum_ = 0;
 		if (next)
@@ -226,35 +222,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		if (!previous_alert.empty() && !alert.empty() && previous_alert.at("revision") != alert.at("revision"))
 			announcement_ = localise("Alert condition") + ": " + localise(alert.at("label"));
 	}
-	if (observation_ && observation_->gameplay.is_object())
-	{
-		const auto notifications = observation_->gameplay.value("notifications", Json::array());
-		std::string notification;
-		if (notifications.is_array())
-			for (const auto &message : notifications)
-			{
-				if (!message.is_object() || !message.contains("sequence"))
-					continue;
-				const auto sequence = console_unsigned(message.at("sequence"));
-				if (!sequence || *sequence == 0)
-					continue;
-				if (*sequence > notification_sequence_)
-				{
-					if (notifications_initialised_)
-					{
-						if (!notification.empty())
-							notification += " ";
-						const auto views = console_messages(Json{{"messages", Json::array({message})}});
-						if (!views.empty())
-							notification += views.front().accessible_text();
-					}
-					notification_sequence_ = *sequence;
-				}
-			}
-		notifications_initialised_ = true;
-		if (!notification.empty())
-			announcement_ = std::move(notification);
-	}
+
 	if (observation_ && (!pending_at_ || session->ticks() > *pending_at_))
 	{
 		pending_requests_.clear();

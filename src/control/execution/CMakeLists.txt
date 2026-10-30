@@ -4,6 +4,7 @@ add_library(
 	execution.cpp
 	persistence.cpp
 	decisions.cpp
+	report_facts.cpp
 	observations.cpp
 	admission.cpp
 )

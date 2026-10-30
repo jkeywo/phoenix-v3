@@ -2886,7 +2886,7 @@ int main(int argc, char **argv)
 					if (!view.at("messages").empty() && notice.at("sequence") == view.at("messages")[0].at("sequence"))
 						notified = true;
 			}
-			require(notified, "delivery notifies the current human Controller operator");
+			require(!notified, "human-origin delivery remains AI evidence without notifying another human");
 		}
 		const auto delivered = messaging.observe(101)->gameplay.at("messages");
 		require(delivered.size() == 1 && delivered[0].at("payload").at("fields").at("amount") == 7,
@@ -3037,6 +3037,7 @@ int main(int argc, char **argv)
 		                                                                   {"systems", Json::array()},
 		                                                                   {"knowledge_roles", Json::array()}});
 		public_source["messages"][0]["urgency"] = 2;
+		public_source["messages"][0]["emergency"] = true;
 		public_source["messages"][0]["automatic"] = true;
 		const auto public_content = load(public_source);
 		auto claim_public = [&](World &run)
@@ -3045,6 +3046,20 @@ int main(int argc, char **argv)
 			        "public messaging claims");
 		};
 		World public_messages;
+		{
+			auto addressed_source = public_source;
+			addressed_source["messages"][0]["emergency"] = false;
+			World addressed;
+			addressed.load(load(addressed_source), "test.map");
+			claim_public(addressed);
+			fixture_native_submit(addressed, 101, {1, "preset", 1, {}});
+			fixture_native_submit(addressed, 102, {1, "preset", 1, {}});
+			for (int tick = 0; tick < 8; ++tick)
+				addressed.tick();
+			require(addressed.observe(101)->gameplay.at("messages").size() == 1 &&
+			            addressed.observe(103)->gameplay.at("messages").empty(),
+			        "urgent AI coordination remains addressed without explicit emergency publication");
+		}
 		public_messages.load(public_content, "test.map");
 		claim_public(public_messages);
 		require(fixture_native_submit(public_messages, 101, {1, "preset", 1, {}}) &&
@@ -3099,12 +3114,7 @@ int main(int argc, char **argv)
 			        "Viewscreen excludes objectives, waypoints and transport/history diagnostics from gameplay "
 			        "presentation");
 		const auto board_rows = public_board_readouts(board, public_messages.ticks());
-		require(!board_rows.empty() && std::all_of(board_rows.begin(), board_rows.end(),
-		                                           [](const auto &row)
-		                                           {
-			                                           return row.first.starts_with("viewscreen.readout/");
-		                                           }),
-		        "Viewscreen exposes dedicated read-only semantic identities");
+		require(board_rows.empty(), "Viewscreen does not repeat message prose as raw payload diagnostics");
 		const auto board_messages = console_messages(board, true);
 		require(board_messages.size() == 1 && !board_messages[0].sender.empty() &&
 		            board_messages[0].accessible_text().find("sender_system") == std::string::npos,
@@ -3172,9 +3182,9 @@ int main(int argc, char **argv)
 		for (int tick = 0; tick < 6; ++tick)
 			human_target.tick();
 		require(human_target.observe(101)->gameplay.at("messages").size() == 1 &&
-		            human_target.observe(103)->gameplay.at("messages").empty() &&
-		            evidence_count(human_target.observe(103)->gameplay) == 0,
-		        "current human recipient suppresses automatic AI-to-AI public copy");
+		            human_target.observe(103)->gameplay.at("messages").size() == 1 &&
+		            evidence_count(human_target.observe(103)->gameplay) == 1,
+		        "explicit emergency publication survives recipient handover independently of urgency");
 		auto shared_reader_source = public_source;
 		auto &shared_entity = shared_reader_source["entities"][0];
 		shared_entity["systems"]["aux"] = {{"kind", "engine"}, {"max_speed_mm_s", 17000}, {"acceleration_mm_s2", 1000}};
@@ -3351,6 +3361,7 @@ int main(int argc, char **argv)
 		    "shared readability grants no Console-private reader authority");
 		auto ordinary_source = public_source;
 		ordinary_source["messages"][0]["urgency"] = 1;
+		ordinary_source["messages"][0]["emergency"] = false;
 		World ordinary_messages;
 		ordinary_messages.load(load(ordinary_source), "test.map");
 		claim_public(ordinary_messages);
@@ -3371,13 +3382,17 @@ int main(int argc, char **argv)
 		World broadcast;
 		broadcast.load(load(broadcast_source), "test.map");
 		claim_public(broadcast);
+		require(fixture_native_submit(broadcast, 101, {1, "preset", 1, {}}), "broadcast recipient delegates to AI");
 		send.generation = controller(broadcast, 102, "port").at("generation").get<std::uint64_t>();
 		require(fixture_native_submit(broadcast, 102, send), "human Controller sends entity-wide message");
 		for (int tick = 0; tick < 6; ++tick)
 			broadcast.tick();
-		require(broadcast.observe(103)->gameplay.at("messages").size() == 1 &&
-		            evidence_count(broadcast.observe(103)->gameplay) == 1,
-		        "human entity-wide message publishes regardless urgency");
+		require(broadcast.observe(101)->gameplay.at("messages").size() == 1 &&
+		            !broadcast.observe(101)->gameplay.at("messages")[0].at("human_visible").get<bool>() &&
+		            broadcast.observe(103)->gameplay.at("messages").empty() &&
+		            evidence_count(broadcast.observe(103)->gameplay) == 0 &&
+		            broadcast.public_board(1).at("messages").empty(),
+		        "human entity-wide message reaches AI inboxes without becoming a human-facing report");
 		auto private_publication = public_source;
 		private_publication["knowledge"]["schemas"][0]["ship_publishable"] = false;
 		rejects(
@@ -3429,6 +3444,9 @@ int main(int argc, char **argv)
 			initially_hot.tick();
 		require(initially_hot.observe(102)->gameplay.at("messages").size() == 1,
 		        "initial sustained warning eventually reports");
+		require(initially_hot.observe(102)->gameplay.at("notifications").empty() &&
+		            initially_hot.observe(102)->gameplay.at("messages")[0].at("human_visible") == false,
+		        "physical facts remain AI evidence without directly notifying a human");
 		World reporting;
 		reporting.load(reporter_content, "test.map");
 		require(reporting.claim(101, 1, "drive") && reporting.claim(102, 1, "observer"), "reporter claims");

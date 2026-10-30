@@ -612,6 +612,9 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
                                               const Bytes &speaker_avatar, const std::string &speaker_portrait)
 {
 	const auto &definition = message_definition(name);
+	knowledge_require(origin != ControlOrigin::Human || definition.player_command ||
+	                      (controller && definition.operator_report),
+	                  "automatic officer report is not a player message command");
 	knowledge_require(payload.schema == definition.schema, "payload does not match message template");
 	for (const auto &[key, value] : definition.literal_fields)
 		payload.fields.try_emplace(key, value);
@@ -636,7 +639,10 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
 		value.destination.id = system_id(source.ship, definition.destination_name);
 		break;
 	case MessageDestinationKind::Console:
-		value.destination.id = console_id({source.ship, definition.destination_name});
+		value.destination.id = console_id({source.ship, definition.destination_name == "self" ? source.console
+		                                                : ship.consoles.contains(definition.destination_name)
+		                                                    ? definition.destination_name
+		                                                    : definition.destination_fallback});
 		break;
 	case MessageDestinationKind::Station:
 		knowledge_require(ship.stations.contains(definition.destination_name), "unknown template destination Station");
@@ -802,6 +808,9 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"body_key", p.body_key},
 		     {"parameters", p.parameters},
 		     {"urgency", p.urgency},
+		     {"emergency", p.emergency},
+		     {"human_visible", message.value.origin == ControlOrigin::AI},
+		     {"recipient_console", address.console},
 		     {"payload", knowledge_record_json(compiled_, {message.id, projection.console, KnowledgeScope::Console,
 		                                                   message.value.payload, delivery.delivered_tick})}});
 		if (result["messages"].back().at("payload").value("schema", std::string{}) == "phoenix.coordination")

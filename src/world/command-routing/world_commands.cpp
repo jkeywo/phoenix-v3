@@ -124,6 +124,8 @@ auto Runtime::meta(const ConsoleCommandContext &context, const OperatingCommand 
 		try
 		{
 			const auto &message = knowledge.message_definition(name);
+			if (!message.player_command)
+				return false;
 			KnowledgeRecordInput payload;
 			payload.schema = message.schema;
 			payload.producer =

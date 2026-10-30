@@ -913,6 +913,11 @@ void draw_screen(Application &app)
 		server_music->click({app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume},
 		                    screen_audio_output(app, app.sound_route), screen_identity(app, app.sound_route));
 	};
+	app.message_cue = [&app](ConsoleId route)
+	{
+		server_music->click({app.master_volume, app.music_volume, app.siren_volume, app.sfx_volume},
+		                    screen_audio_output(app, route), screen_identity(app, route));
+	};
 	app.audio_outputs = server_music->outputs();
 	app.test_screen_audio = [&app](ConsoleId route)
 	{
@@ -1682,6 +1687,7 @@ void close_window()
 		current_app->screen_action = {};
 		current_app->button_click = {};
 		current_app->test_screen_audio = {};
+		current_app->message_cue = {};
 	}
 	primary_loading.reset();
 	game_screen.reset();

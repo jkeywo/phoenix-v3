@@ -436,6 +436,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                "registry context differs from authored tree");
 	using namespace state_tree;
 	ControllerTreeBindings result;
+	result.report_observations = resolve_tree_definition(tree, catalog).value("report_observations", false);
 	auto &registry = result.registry;
 	auto add = [&](FieldSpec field)
 	{
@@ -770,6 +771,19 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                         "tactical.pursuit_heading", "tactical.pursuit_speed", "tactical.pursuit_altitude"})
 		add({name, Type::Integer, 4, {}});
 	add({"tactical.point_defence", Type::Boolean, 4, {}});
+	for (const auto *name : {"hostiles",          "missiles",         "empty_weapons",
+	                         "thermal_stops",     "supply_limited",   "repair_needs",
+	                         "teams_working",     "teams_blocked",    "medical_patients",
+	                         "craft_out",         "craft_docked",     "craft_lost",
+	                         "craft_unlinked",    "craft_blocked",    "ftl_ready",
+	                         "ftl_blocked",       "away_deployed",    "away_recovered",
+	                         "away_failed",       "scan_findings",    "radios_unavailable",
+	                         "teams_complete",    "shields_depleted", "psychic_blocked",
+	                         "docked_ports",      "scan_blocked",     "mission_opportunities",
+	                         "navigation_blocked"})
+		add({std::string("report.") + name, Type::Integer, 4, {}});
+	add({"report.console_key", Type::Text, 4, {}});
+	add({"report.finding_text", Type::Text, 4, {}});
 	result.coordination_base = registry.observations.size();
 	add({"coordination.pending", Type::Boolean, 4, {}});
 	for (const auto *name : {"operation", "status", "reason", "invocation"})

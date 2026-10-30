@@ -436,6 +436,8 @@ try
 		app.music_volume = prefs.volume;
 		app.sfx_volume = prefs.sfx_volume;
 		app.siren_volume = prefs.siren_volume;
+		app.message_muted = prefs.message_muted;
+		app.message_seconds = prefs.message_seconds;
 		app.master_volume = prefs.master_volume;
 		app.tools_scale = prefs.tools_scale;
 		app.remembered_station_displays = prefs.station_displays;

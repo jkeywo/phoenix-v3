@@ -219,6 +219,8 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	for (std::size_t i = 0; i < facts.size(); ++i)
 		values.at(controller.brain->decision_base + i) = state_tree::Value::integer(facts[i]);
 	values.at(controller.brain->decision_base + facts.size()) = state_tree::Value::boolean(point_defence);
+	if (controller.brain->report_observations)
+		controller_report_facts(controller, observed, context, values);
 }
 
 } // namespace phoenix

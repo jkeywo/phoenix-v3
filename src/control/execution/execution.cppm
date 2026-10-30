@@ -61,6 +61,8 @@ void append_controller_execution_facts(EntityId, const ConsoleControllerRuntime 
 const Json &combat_observation(const Observation &);
 void controller_decision_facts(const ConsoleControllerRuntime &, const Observation &, const ControllerDecisionContext &,
                                std::vector<state_tree::Value> &);
+void controller_report_facts(const ConsoleControllerRuntime &, const Observation &, const ControllerDecisionContext &,
+                             std::vector<state_tree::Value> &);
 std::vector<state_tree::Value> controller_action_observations(const ConsoleControllerRuntime &,
                                                               std::span<const state_tree::Value>,
                                                               const ControllerActionPorts &);

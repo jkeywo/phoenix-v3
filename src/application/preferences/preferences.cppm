@@ -25,6 +25,8 @@ struct MenuPreferences
 	int sfx_volume = 50, master_volume = 50;
 	int siren_volume = 50;
 	int tools_scale = 100;
+	bool message_muted = false;
+	int message_seconds = 8;
 	std::map<std::string, std::map<std::string, std::string>> station_displays;
 	std::map<std::string, ScreenDevices> screen_devices;
 };

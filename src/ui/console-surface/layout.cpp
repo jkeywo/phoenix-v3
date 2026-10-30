@@ -340,11 +340,15 @@ void ConsoleSurface::State::prepare_local_settings(Application &app, const Conso
 		markup += "<p>" + localise("Text size") + ": " + std::to_string(text_scale_) + "%</p>";
 		markup += settings_button("local-settings.smaller", "Smaller text");
 		markup += settings_button("local-settings.larger", "Larger text");
+		markup += settings_button("local-settings.message-duration",
+		                          localise("Message duration") + ": " + std::to_string(app.message_seconds));
 	}
 	else if (local_settings_tab_ == "language")
 		markup += settings_button("local-settings.language", "Language: " + local_language_);
 	else if (local_settings_tab_ == "audio")
 	{
+		markup += settings_button("local-settings.message-mute",
+		                          app.message_muted ? "Message sounds: Off" : "Message sounds: On");
 		markup += settings_ui::audio_device_markup(app, route_, id(""));
 		if (!screen_device_controls(app, route_, "audio").empty())
 			local_settings_controls_.emplace_back(id("audio-device"), "Audio device");
@@ -490,6 +494,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	        "dp");
 	if (settings_open_)
 	{
+		prepare_messages(app, region, true);
 		prepare_local_settings(app, region);
 		return;
 	}
@@ -551,7 +556,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	prepare_engineering_cards(app, region, cards, gameplay_actions);
 	app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
 	const auto markup_started = GetTime();
-	const auto messages = pregame ? std::vector<ConsoleMessageView>{} : model_.messages();
+	const auto messages = std::vector<ConsoleMessageView>{};
 	const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty() || !messages.empty();
 	const bool placement_changed = place_gameplay_panel(region, mode, has_gameplay);
 	reconcile_gameplay_markup(app, gameplay_actions, team_dispatch);
@@ -642,6 +647,7 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		prepare_help(region);
 		prepare_system_popup(region, cards);
 	}
+	prepare_messages(app, region, pregame);
 	app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 }
 void ConsoleSurface::State::reconcile_preparation_session(Application &app)
@@ -653,6 +659,11 @@ void ConsoleSurface::State::reconcile_preparation_session(Application &app)
 	{
 		if (session_changed || content_changed)
 		{
+			message_history_ = MessageHistory{};
+			message_queue_.clear();
+			message_scope_.clear();
+			messages_open_ = false;
+			message_until_ = 0;
 			surface_browsing_.clear();
 			browsing_console_.clear();
 		}

@@ -106,13 +106,13 @@ A message carries an identity, typed source (System or Controller), destination,
 | Destination                         | Delivery                                                     |
 | ----------------------------------- | ------------------------------------------------------------ |
 | Specific Controller, AI-operated    | Addressed Controller inbox, available to its state tree      |
-| Specific Controller, human-operated | Text and accessible notification on its Console              |
-| Entity-wide                         | Entity blackboard and shared Viewscreen text                 |
-| Important AI-to-AI message          | Target inbox plus an entity-wide publication of that message |
+| Specific Controller, human-operated | AI officer text and accessible notification on its Console   |
+| Entity-wide                         | Eligible Controller inboxes across the entity                |
+| Critical AI emergency report        | Target inbox plus an entity-wide publication of that message |
 
-Retain Controller addressing and history across handover; delivery uses the current effective operator. A message for one Controller does not become actionable by every AI on its Console. Define importance deterministically through supported metadata/policy, not interpretation of the prose. Automatic entity-wide publication exposes only the message's publishable payload, never an entire private Console record. Verification must ensure a message eligible for mandatory important-message publication has a valid public payload.
+Retain Controller addressing and history across handover; delivery uses the current effective operator. AI recipients receive relevant messages from human actions, AI actions and factual reporters. Human recipients receive AI officer messages only; factual reporters remain evidence for AI, and humans communicate their own actions to other humans. A message for one Controller does not become actionable by every AI on its Console. Explicit emergency metadata controls shared publication independently of recipient urgency, without interpreting prose. Shared publication exposes only the message's publishable payload, never an entire private Console record. Verification must ensure an emergency message has a valid public payload. Internal reports introduce no approval prompts or acceptance chores.
 
-Entity-wide messages may be read by all Controller AIs on the entity and seen by humans through the Viewscreen. The Viewscreen keeps its world presentation and Settings access, with supported shared information/message overlays; it is not a specialist override panel. Accessible text presentation must preserve the same scope.
+Entity-wide messages may be read by relevant Controller AIs on the entity. Humans see explicitly published critical AI emergency reports on the Viewscreen. The Viewscreen keeps its world presentation and Settings access, with supported shared information/message overlays; it is not a specialist override panel. Accessible text presentation must preserve the same scope.
 
 These are local Coordination rules. They do not implement inter-entity Comms, signal propagation or interception; those retain their separate GDD constraints.
 

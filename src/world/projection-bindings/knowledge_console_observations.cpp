@@ -299,6 +299,27 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 	result.gameplay["ability_facts"] = ability_decision_facts(address, result);
 	result.gameplay["processes"] = process_board(address, &result);
 	result.gameplay["process_facts"] = process_decision_facts(result);
+	const auto owner = entities.find(address.ship);
+	if (owner == entities.end() || !owner->second.has<EntityControls>())
+		return result;
+	const auto &controllers = owner->second.get<EntityControls>().controllers;
+	if (std::any_of(controllers.begin(), controllers.end(),
+	                [&](const auto &controller)
+	                {
+		                return controller.definition.console == address.console && controller.brain &&
+		                       controller.brain->report_observations;
+	                }))
+	{
+		// Reuse the same scope-checked producers as the human projection.
+		result.gameplay["teams"] = team_board(address);
+		result.gameplay["away_missions"] = away_board(address);
+		result.gameplay["craft"] = craft_board(address);
+		result.gameplay["ftl"] = ftl_board(address);
+		result.gameplay["docking"] = docking_board(address);
+		result.gameplay["psychic"] = psychic_board(address);
+		result.gameplay["logistics"] = logistics_board(address);
+		result.gameplay["sensors"] = sensor_projection(address, sensor_evidence(address));
+	}
 	return result;
 }
 

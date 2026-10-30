@@ -20,10 +20,29 @@ struct ConsoleMessageView
 {
 	std::string id, sender, text, portrait;
 	Bytes avatar;
-	std::string accessible_text() const
+	std::string recipient;
+	std::uint64_t sequence = 0, delivered_tick = 0;
+	unsigned urgency = 0;
+	std::string accessible_text() const;
+};
+// Personal presentation state, independent of authoritative AI inbox acknowledgement.
+class MessageHistory
+{
+public:
+	std::vector<ConsoleMessageView> update(std::vector<ConsoleMessageView> messages, const std::string &scope);
+	void read(const std::string &id);
+	bool unread(const std::string &id) const;
+	std::size_t unread_count() const;
+	const std::vector<ConsoleMessageView> &rows() const
 	{
-		return sender + ": " + text;
+		return rows_;
 	}
+
+private:
+	std::string scope_;
+	bool initialised_ = false;
+	std::map<std::string, bool> seen_;
+	std::vector<ConsoleMessageView> rows_;
 };
 UiAvailability console_ui_availability(const Observation &);
 // Shared wording for Console controls, widget buttons and command feedback.
@@ -223,7 +242,5 @@ private:
 	std::string announcement_;
 	std::map<std::pair<std::string, std::string>, std::int64_t> pending_requests_;
 	std::map<std::string, OperatingCommand> held_controls_;
-	std::uint64_t notification_sequence_ = 0;
-	bool notifications_initialised_ = false;
 };
 } // namespace phoenix

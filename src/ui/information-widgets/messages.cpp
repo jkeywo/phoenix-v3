@@ -48,7 +48,9 @@ std::string markup(const ConsoleMessageView &message, bool compact)
 	       "\">" + "<img src=\"" + escape(portrait) +
 	       "\" style=\"display:block;position:absolute;left:0;top:0;width:" + avatar + ";height:" + avatar + ";\"/>" +
 	       "<div style=\"display:block;width:100%;box-sizing:border-box;font-size:0.85em;margin-bottom:" +
-	       std::string(compact ? "2px;" : "5px;") + "\">" + escape(message.sender) + "</div>" +
+	       std::string(compact ? "2px;" : "5px;") + "\">" + escape(message.sender) +
+	       (message.recipient.empty() ? "" : " / " + escape(message.recipient)) +
+	       (message.urgency >= 2 ? " — " + escape(localise("Urgent")) : "") + "</div>" +
 	       "<div "
 	       "style=\"display:block;position:relative;width:100%;box-sizing:border-box;background:#fff7e5;color:#191919;"
 	       "border:2px #191919;border-radius:12px;padding:" +

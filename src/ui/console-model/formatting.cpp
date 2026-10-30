@@ -7,6 +7,7 @@ module;
 #include <limits>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <iomanip>
 #include <string>
@@ -151,7 +152,8 @@ std::string console_message(const Json &message)
 					const auto name = text.substr(at + 1, end - at - 1);
 					if (parameters.contains(name))
 					{
-						result += console_scalar(parameters.at(name));
+						result += parameters.at(name).is_string() ? localise(parameters.at(name).get<std::string>())
+						                                          : console_scalar(parameters.at(name));
 						at = end + 1;
 						continue;
 					}
@@ -252,6 +254,16 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 				result.emplace_back("game.readout/omitted-" + console_encoded(entry.key()),
 				                    localise("Entries omitted from network view") + ": " + console_label(entry.key()) +
 				                        " " + std::to_string(*count));
+	const auto message_record_key = [](const Json &record)
+	{
+		return Json::array({record.value("schema", Json{}), record.value("subject", Json{}),
+		                    record.value("source", Json{}), record.value("observed_tick", Json{})})
+		    .dump();
+	};
+	std::set<std::string> message_records;
+	for (const auto &message : board.value("messages", Json::array()))
+		if (message.contains("payload") && message.at("payload").is_object())
+			message_records.insert(message_record_key(message.at("payload")));
 	for (const auto *scope : {"records", "shared"})
 	{
 		const auto records = board.value(scope, Json::array());
@@ -261,7 +273,8 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 		for (const auto &record : records)
 		{
 			if (!record.is_object() || console_string(record, "schema") == "phoenix.camera" ||
-			    console_string(record, "schema").starts_with("phoenix.sensor."))
+			    console_string(record, "schema").starts_with("phoenix.sensor.") ||
+			    message_records.contains(message_record_key(record)))
 				continue;
 			std::string identity = console_string(record, "schema");
 			for (const auto *key : {"subject", "source", "publication"})
@@ -368,6 +381,10 @@ std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_
 		if (!message.is_object() || (public_only && !message.value("public", false)))
 			continue;
 		ConsoleMessageView view;
+		view.sequence = message.value("sequence", std::uint64_t{0});
+		view.delivered_tick = message.value("delivered_tick", std::uint64_t{0});
+		view.urgency = message.value("urgency", 0u);
+		view.recipient = public_only ? std::string{} : message.value("recipient_console_label", std::string{});
 		view.id = std::string(public_only ? "viewscreen.message/" : "game.message/") +
 		          console_encoded(console_scalar(message.value("sequence", message.value("id", Json{}))));
 		const auto console = message.value("sender_console_key", std::string{});
@@ -423,13 +440,95 @@ std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_
 }
 std::vector<ConsoleMessageView> ConsoleModel::messages() const
 {
-	return observation_ ? console_messages(observation_->gameplay) : std::vector<ConsoleMessageView>{};
+	std::vector<ConsoleMessageView> result;
+	if (!observation_)
+		return result;
+	std::set<std::string> identities;
+	const auto append = [&](const Observation &observation)
+	{
+		auto board = Json{{"messages", Json::array()}};
+		for (const auto &message : observation.gameplay.value("messages", Json::array()))
+			if (message.value("human_visible", message.value("origin", 1u) == 1u))
+			{
+				auto row = message;
+				// One send may have several scoped deliveries. Display it once at this seat.
+				row["sequence"] = message.value("id", message.value("sequence", Json{0}));
+				for (const auto &[key, label] : available_consoles_)
+					if (key == observation.console)
+						row["recipient_console_label"] = localise(label);
+				board["messages"].push_back(std::move(row));
+			}
+		for (auto &row : console_messages(board))
+			if (identities.insert(row.id).second)
+			{
+				for (const auto &[key, label] : available_consoles_)
+					if (key == row.recipient)
+						row.recipient = localise(label);
+				result.push_back(std::move(row));
+			}
+	};
+	append(*observation_);
+	for (const auto &extra : observation_->additional_consoles)
+		append(extra);
+	std::sort(result.begin(), result.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.sequence < b.sequence;
+	          });
+	return result;
+}
+std::string ConsoleMessageView::accessible_text() const
+{
+	return sender + (recipient.empty() ? "" : ", " + localise("For") + " " + recipient) + ": " +
+	       (urgency >= 2 ? localise("Urgent") + ". " : "") + text;
+}
+std::vector<ConsoleMessageView> MessageHistory::update(std::vector<ConsoleMessageView> messages,
+                                                       const std::string &scope)
+{
+	if (scope_ != scope)
+	{
+		scope_ = scope;
+		seen_.clear();
+		initialised_ = false;
+	}
+	std::map<std::string, bool> retained;
+	std::vector<ConsoleMessageView> arrivals;
+	for (const auto &row : messages)
+	{
+		const auto found = seen_.find(row.id);
+		retained[row.id] = found == seen_.end() ? !initialised_ : found->second;
+		if (initialised_ && found == seen_.end())
+			arrivals.push_back(row);
+	}
+	seen_ = std::move(retained);
+	rows_ = std::move(messages);
+	initialised_ = true;
+	return arrivals;
+}
+void MessageHistory::read(const std::string &id)
+{
+	if (const auto found = seen_.find(id); found != seen_.end())
+		found->second = true;
+}
+bool MessageHistory::unread(const std::string &id) const
+{
+	const auto found = seen_.find(id);
+	return found != seen_.end() && !found->second;
+}
+std::size_t MessageHistory::unread_count() const
+{
+	return std::count_if(seen_.begin(), seen_.end(),
+	                     [](const auto &entry)
+	                     {
+		                     return !entry.second;
+	                     });
 }
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &board, std::uint64_t now)
 {
 	Json selected{{"shared", Json::array()}, {"messages", Json::array()}};
 	if (!board.is_object())
 		return {};
+	selected["messages"] = board.value("messages", Json::array());
 	const auto shared = board.value("shared", Json::array());
 	if (shared.is_array())
 	{

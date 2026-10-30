@@ -132,6 +132,7 @@ struct MessagePresentation
 	bool automatic = true;
 	std::string speaker_name, speaker_portrait;
 	Bytes speaker_avatar;
+	bool emergency = false; // Explicit shared publication; urgency alone never publishes.
 };
 struct CoordinationInput
 {

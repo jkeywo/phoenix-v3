@@ -195,6 +195,8 @@ int main(int argc, char **argv)
 			app.music_volume = preferences.volume;
 			app.sfx_volume = preferences.sfx_volume;
 			app.siren_volume = preferences.siren_volume;
+			app.message_muted = preferences.message_muted;
+			app.message_seconds = preferences.message_seconds;
 			app.master_volume = preferences.master_volume;
 			app.tools_scale = preferences.tools_scale;
 			app.language = preferences.language;

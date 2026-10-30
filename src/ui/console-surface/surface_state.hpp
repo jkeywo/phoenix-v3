@@ -204,6 +204,13 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::uint64_t manual_sent_tick_ = ~std::uint64_t{0};
 	bool syncing_values_ = false;
 	bool settings_open_ = false;
+	MessageHistory message_history_;
+	bool messages_open_ = false;
+	std::string message_filter_, message_scope_;
+	std::vector<ConsoleMessageView> message_queue_;
+	double message_until_ = 0, message_last_time_ = 0;
+	void prepare_messages(Application &, const ConsoleRegion &, bool pregame);
+	std::optional<bool> message_action(const std::string &);
 	bool station_loading_ = false;
 	std::string station_loading_markup_;
 	std::string local_settings_tab_ = "display", local_settings_markup_;

@@ -394,6 +394,12 @@ provided.
 
 Courier gains a third Nav/Comms seat. Its Navigation and Comms Consoles seek humans in Nav/Comms, Support, Helm order, then use existing AI. Comms is one composite widget; Navigation shares selection between map and target/waypoint parts and carries FTL. Support restores the illustrated camera widgets and numbered Condition slider. Existing mechanisms and star responsibilities are retained; Cruiser restoration remains deferred. See the [Courier restoration follow-up](courier-gui-restoration.md#navcomms-follow-up---30-october-2026) for implementation and verification receipts.
 
+## Officer reports and Messages history — 30 October 2026
+
+Authored reporting subtrees use permitted machinery and operation observations, with debounce, recovery and saved continuation. Native coordination reports describe actual lifecycle outcomes. Human displays receive AI officer reports; factual reporters and human work remain available to AI. Only explicitly published critical AI emergencies reach the Viewscreen.
+
+Player Consoles have queued portrait arrivals and a Messages button toggling filtered history across granted Consoles, with unread state, local duration/mute preferences and accessible semantics. Internal reports add no approval controls. Messaging saves now require version 4 and a new session for older content. The [message contract and validation receipt](messages.md) records the six passing affected native integrations, launcher checks, production verification and explicitly invoked wide/narrow graphical journey. Physical reader/device acceptance remains separate.
+
 ## Workshop visual authoring — 30 October 2026
 
 Map & Scenario shares a compact header. Map artwork follows authored world size;

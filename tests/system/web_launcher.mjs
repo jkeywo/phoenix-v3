@@ -939,6 +939,19 @@ test("standalone display settings retain their authored storage format", () => {
 		dust_motes: true,
 		reference_grid: false,
 		reduced_motion: true,
+		message_muted: false,
+		message_seconds: 8,
+	});
+	assert.equal(
+		storeDisplayPreferences(storage, () => assert.fail("No error is expected"), 5 | 8 | (16 << 4), 17, 512),
+		1,
+	);
+	assert.deepEqual(JSON.parse(values.get("phoenix-display-preferences-v1")), {
+		dust_motes: true,
+		reference_grid: false,
+		reduced_motion: true,
+		message_muted: true,
+		message_seconds: 16,
 	});
 });
 test("standalone display storage refusal returns a bounded diagnostic", () => {

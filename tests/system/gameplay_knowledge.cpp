@@ -818,6 +818,23 @@ void comic_message_presentation()
 		restored.tick();
 	const auto board = projection(restored, 102);
 	const auto views = console_messages(board);
+	MessageHistory history;
+	require(history.update(views, "crew-session").empty() && history.unread_count() == 0,
+	        "restored history establishes a silent read baseline");
+	auto arrival = views.front();
+	arrival.id = "new-arrival";
+	arrival.sequence += 1;
+	auto extended = views;
+	extended.push_back(arrival);
+	require(history.update(extended, "crew-session").size() == 1 && history.unread_count() == 1,
+	        "a new scoped arrival enters history unread exactly once");
+	require(history.update(extended, "crew-session").empty() && history.unread(arrival.id),
+	        "refreshing or expiring a bubble does not acknowledge its history entry");
+	history.read(arrival.id);
+	require(history.unread_count() == 0, "viewing a history entry marks it read independently of AI acknowledgements");
+	history.update(views, "crew-session");
+	require(history.rows().size() == views.size(), "scope loss removes inaccessible history");
+	require(history.update(extended, "reconnected-session").empty(), "reconnect does not replay historical arrivals");
 	require(views.size() == 1 && views[0].sender == "Morgan" && views[0].avatar == spoken.speaker_avatar &&
 	            views[0].text == "Power request: Please supply more power." &&
 	            views[0].accessible_text() == "Morgan: Power request: Please supply more power.",
@@ -846,6 +863,52 @@ void comic_message_presentation()
 	}
 	require(console_messages(public_copy, true).size() == 12,
 	        "message history has no extra eight-row presentation cut-off");
+}
+void authored_officer_reporting()
+{
+	auto definitions = with_notifier();
+	auto &tree = definitions["trees"][0];
+	tree["report_observations"] = true;
+	tree["states"][0]["transitions"][0]["conditions"].push_back(
+	    {{"left", {{"observation", "report.console_key"}}}, {"op", "eq"}, {"right", "helm"}});
+	definitions["messages"][1]["destination"] = {{"kind", "console"}, {"id", "engineering"}, {"fallback", "support"}};
+	definitions["messages"][1]["player_command"] = false;
+	definitions["messages"][1]["operator_report"] = true;
+	const auto catalog = load(definitions);
+	{
+		World human_work;
+		human_work.load(catalog, "test.map");
+		claim_all(human_work);
+		require(!can_submit(human_work, 101, {1, "message.test.notice", 0, "engine"}),
+		        "automatic reporting templates do not create human approval or send controls");
+		for (int tick = 0; tick < 12; ++tick)
+			human_work.tick();
+		const auto human_board = projection(human_work, 102);
+		require(human_board.at("messages").size() == 1 && human_board.at("notifications").empty() &&
+		            human_board.at("messages")[0].at("origin") == static_cast<unsigned>(ControlOrigin::Human) &&
+		            human_board.at("messages")[0].at("human_visible") == false,
+		        "shared reporting trees retain human-work messages for AI without human-to-human notifications");
+	}
+	World world;
+	world.load(catalog, "test.map");
+	claim_all(world);
+	require(submit(world, 101, {1, "preset", 0, {}}), "delegate the reporting policy through normal authority");
+	world.tick();
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int tick = 0; tick < 12; ++tick)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	const auto board = projection(world, 102);
+	require(board.at("messages").size() == 1 && board.at("notifications").size() == 1 &&
+	            board.at("messages")[0].at("human_visible") == true,
+	        "authored report consumes scoped observation summaries and reaches the fitted fallback Console once");
+	require(world.save() == resumed.save(), "report transition and delayed delivery resume without duplicate messages");
+	auto invalid = definitions;
+	invalid["messages"][1]["destination"]["fallback"] = "absent";
+	refused(invalid, "fallback Console names must resolve in the actual fitting");
 }
 void authorized_message_producers()
 {
@@ -1102,6 +1165,7 @@ int main()
 		station_recipient_set();
 		delayed_human_seeking();
 		comic_message_presentation();
+		authored_officer_reporting();
 		authorized_message_producers();
 		current_record_streams();
 		continuation_roster_validation(catalog);

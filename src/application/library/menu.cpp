@@ -26,6 +26,8 @@ const Json global_defaults = {{"tools_scale", 100},
                               {"volume", 50},
                               {"sfx_volume", 50},
                               {"siren_volume", 50},
+                              {"message_muted", false},
+                              {"message_seconds", 8},
                               {"master_volume", 50},
                               {"language", "en"},
                               {"pseudo", false},
@@ -95,6 +97,8 @@ void MenuLibrary::load()
 	MenuPreferences prefs;
 	prefs.volume = data.at("volume");
 	prefs.sfx_volume = data.value("sfx_volume", 50);
+	prefs.message_muted = data.value("message_muted", false);
+	prefs.message_seconds = std::clamp(data.value("message_seconds", 8), 4, 60);
 	prefs.siren_volume = data.value("siren_volume", 50);
 	if (prefs.siren_volume < 0 || prefs.siren_volume > 100)
 		throw std::runtime_error("Invalid siren volume");
@@ -192,6 +196,8 @@ void MenuLibrary::remember()
 	          {"volume", preferences.volume},
 	          {"sfx_volume", preferences.sfx_volume},
 	          {"siren_volume", preferences.siren_volume},
+	          {"message_muted", preferences.message_muted},
+	          {"message_seconds", preferences.message_seconds},
 	          {"master_volume", preferences.master_volume},
 	          {"language", preferences.language},
 	          {"pseudo", preferences.pseudo},

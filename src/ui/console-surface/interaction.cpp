@@ -318,6 +318,8 @@ bool ConsoleSurface::State::action(const std::string &name)
 }
 std::optional<bool> ConsoleSurface::State::popup_action(const std::string &action)
 {
+	if (const auto result = message_action(action))
+		return result;
 	if (action.starts_with("flight-stop/"))
 		return all_stop(action.substr(12));
 	if (action.starts_with("throttle-impulse/") || action.starts_with("flight-impulse/"))
@@ -483,6 +485,18 @@ bool ConsoleSurface::State::open_local_settings(const std::string &action)
 
 std::optional<bool> ConsoleSurface::State::local_settings_action(const std::string &name, const std::string &action)
 {
+	if (settings_open_ && (action == "local-settings.message-mute" || action == "local-settings.message-duration"))
+	{
+		if (action == "local-settings.message-mute")
+			app_->message_muted = !app_->message_muted;
+		else
+			app_->message_seconds = app_->message_seconds < 8    ? 8
+			                        : app_->message_seconds < 16 ? 16
+			                        : app_->message_seconds < 30 ? 30
+			                                                     : 4;
+		remember_preferences(*app_);
+		return true;
+	}
 	if (!settings_open_)
 		return std::nullopt;
 	if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
@@ -700,6 +714,8 @@ void ConsoleSurface::State::controller_cancel()
 }
 bool ConsoleSurface::State::controller_back()
 {
+	if (messages_open_)
+		return action(id("messages-close"));
 	if (systems_open_ && (support_popup_ == "help" || support_popup_.starts_with("control/")))
 		return action(id("systems-close"));
 	if (settings_open_)
@@ -716,6 +732,13 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	if (event.GetType() != "mousemove" && event.GetType() != "mouseover" && event.GetType() != "mouseout")
 		prepare_dirty_ = render_urgent_ = true;
 	const auto name = event.GetTargetElement()->GetId();
+	if (messages_open_ && event.GetType() == "keydown" &&
+	    event.GetParameter<int>("key_identifier", 0) == Rml::Input::KI_ESCAPE)
+	{
+		action(id("messages-close"));
+		event.StopPropagation();
+		return;
+	}
 	if (systems_open_ && support_popup_ == "help")
 	{
 		if (event.GetType() == "keydown")

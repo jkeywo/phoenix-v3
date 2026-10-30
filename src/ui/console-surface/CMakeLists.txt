@@ -8,6 +8,7 @@ add_library(
 	panels.cpp
 	specialised.cpp
 	help.cpp
+	messages.cpp
 	probes.cpp
 )
 target_sources(phoenix_ui_console_surface PUBLIC FILE_SET CXX_MODULES FILES surface.cppm)

@@ -609,12 +609,28 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 			knowledge_require(message.destination_name.empty() || message.destination_name == "self",
 			                  name + ": ship message must target self");
 		message.presentation.title_key = row.at("title_key").get<std::string>();
+		message.destination_fallback = row.at("destination").value("fallback", std::string{});
+		knowledge_require(message.destination_fallback.empty() ||
+		                      (message.destination_kind == MessageDestinationKind::Console &&
+		                       valid_identifier(message.destination_fallback)),
+		                  name + ": fallback requires a named Console destination");
 		message.presentation.body_key = row.at("body_key").get<std::string>();
 		const auto urgency = row.contains("urgency") ? knowledge_unsigned(row.at("urgency")) : 0;
 		knowledge_require(urgency <= 3, name + ": urgency must be 0..3");
 		message.presentation.urgency = static_cast<std::uint8_t>(urgency);
 		message.presentation.automatic = row.value("automatic", true);
+		message.presentation.emergency = row.value("emergency", false);
 		message.human_seeking = row.value("human_seeking", false);
+		message.player_command = row.value("player_command", true);
+		message.operator_report = row.value("operator_report", false);
+		message.source_operations = row.value("source_operations", std::vector<std::string>{});
+		knowledge_require(message.source_operations.size() <= 8 &&
+		                      std::all_of(message.source_operations.begin(), message.source_operations.end(),
+		                                  [](const auto &operation)
+		                                  {
+			                                  return valid_identifier(operation);
+		                                  }),
+		                  name + ": source_operations must contain at most eight operation names");
 		message.delay =
 		    row.contains("delay_ticks") ? std::max(KnowledgeTick{1}, knowledge_unsigned(row.at("delay_ticks"))) : 1;
 		message.expires_after =
@@ -679,8 +695,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 			                      message.destination_kind != MessageDestinationKind::System,
 			                  name + ": System message destination has no Controller inbox; migrate '" + id +
 			                      "' to an explicit Console/Controller destination");
-			if (message.destination_kind == MessageDestinationKind::Ship ||
-			    (message.destination_kind == MessageDestinationKind::Controller && message.presentation.urgency >= 2))
+			if (message.destination_kind == MessageDestinationKind::Ship || message.presentation.emergency)
 			{
 				const auto &schema = knowledge_schema(compiled.knowledge, message.schema);
 				knowledge_require(schema.ship_publishable, name + ": public message requires publishable schema");
@@ -714,12 +729,20 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 			                              }),
 			                  name + ": no Console operator can produce message template '" + id + "'");
 			std::vector<const GameplayKnowledgeConsoleDefinition *> recipients;
+			const bool primary_console_exists = std::any_of(ship.consoles.begin(), ship.consoles.end(),
+			                                                [&](const auto &console)
+			                                                {
+				                                                return console.console.id == message.destination_name;
+			                                                });
 			for (const auto &console : ship.consoles)
 			{
 				const bool target =
 				    message.destination_kind == MessageDestinationKind::Ship ||
 				    (message.destination_kind == MessageDestinationKind::Console &&
-				     console.console.id == message.destination_name) ||
+				     (console.console.id == message.destination_name ||
+				      (!primary_console_exists && console.console.id == message.destination_fallback) ||
+				      (message.destination_name == "self" &&
+				       knowledge_producible(compiled.knowledge, console, message.schema)))) ||
 				    (message.destination_kind == MessageDestinationKind::Station &&
 				     console.console.station == message.destination_name) ||
 				    (message.destination_kind == MessageDestinationKind::System &&
@@ -733,6 +756,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 			}
 			knowledge_require(!recipients.empty() && (message.destination_kind == MessageDestinationKind::Ship ||
 			                                          message.destination_kind == MessageDestinationKind::Station ||
+			                                          (message.destination_kind == MessageDestinationKind::Console &&
+			                                           message.destination_name == "self") ||
 			                                          recipients.size() == 1),
 			                  name + ": unknown/ambiguous message destination for '" + id + "'");
 			for (const auto *console : recipients)

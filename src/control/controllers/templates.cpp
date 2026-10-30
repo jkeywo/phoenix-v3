@@ -37,6 +37,7 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 				    compile_controller_candidates(content.trees.at(spec.tree), content, brain.program.registry);
 				const auto &bindings = content.controller_bindings.at(spec.tree);
 				brain.decision_base = bindings.decision_base;
+				brain.report_observations = bindings.report_observations;
 				brain.action_base = bindings.action_base;
 				brain.coordination_base = bindings.coordination_base;
 				brain.routine_stance =

@@ -240,6 +240,7 @@ struct ControllerTreeBindings
 {
 	std::string ftl_system;
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
+	bool report_observations = false;
 	state_tree::Registry registry;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;

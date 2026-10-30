@@ -46,6 +46,7 @@ struct ControllerBrain
 	std::optional<std::size_t> complexity_stars;
 	std::string routine_stance = "routine";
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
+	bool report_observations = false;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;
 	ControllerDestinations<ControllerResultField> result;

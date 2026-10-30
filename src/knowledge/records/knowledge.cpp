@@ -132,6 +132,7 @@ Json encode_message(const CoordinationMessage &message)
 	        {"body", v.presentation.body_key},
 	        {"parameters", v.presentation.parameters},
 	        {"urgency", v.presentation.urgency},
+	        {"emergency", v.presentation.emergency},
 	        {"automatic", v.presentation.automatic},
 	        {"speaker_name", v.presentation.speaker_name},
 	        {"speaker_portrait", v.presentation.speaker_portrait},
@@ -164,6 +165,7 @@ CoordinationMessage decode_message(const Json &j)
 	             m.value.presentation.speaker_portrait.size() < 128),
 	        "Invalid speaker portrait");
 	m.value.presentation.speaker_name = j.value("speaker_name", std::string{});
+	m.value.presentation.emergency = j.value("emergency", false);
 	m.value.presentation.speaker_avatar = j.value("speaker_avatar", Bytes{});
 	require(m.value.presentation.speaker_name.size() <= 64 && m.value.presentation.speaker_avatar.size() <= 12288,
 	        "message speaker profile exceeds limit");
@@ -530,10 +532,7 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 }
 bool KnowledgeRuntime::public_message_candidate(const CoordinationInput &input) const
 {
-	if (input.destination.kind == MessageDestinationKind::Ship)
-		return true;
-	return controllers_.contains(input.sender_system) && input.origin == ControlOrigin::AI &&
-	       input.destination.kind == MessageDestinationKind::Controller && input.presentation.urgency >= 2;
+	return input.origin == ControlOrigin::AI && input.presentation.emergency;
 }
 KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, bool execute)
 {
@@ -605,9 +604,7 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 		if (message.value.expires_tick != 0 && tick >= message.value.expires_tick)
 			continue;
 		std::map<KnowledgeId, bool> targets;
-		const bool publish = public_message_candidate(message.value) &&
-		                     (message.value.destination.kind == MessageDestinationKind::Ship ||
-		                      !system_human_.at(message.value.destination.id));
+		const bool publish = public_message_candidate(message.value);
 		if (publish)
 			write_ship(message.sender_ship, message.value.payload, tick);
 		for (const auto console : message.recipients)
@@ -634,8 +631,7 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			                                 ? system_human_.at(v.destination.id)
 			                                 : consoles_.at(console).human_controlled;
 			const auto notify = (addressed_human || v.human_seeking || publish) &&
-			                    consoles_.at(console).human_controlled &&
-			                    !(v.origin == ControlOrigin::Human && v.presentation.automatic);
+			                    consoles_.at(console).human_controlled && v.origin == ControlOrigin::AI;
 			require(next_delivery_ < std::numeric_limits<KnowledgeId>::max(), "delivery identity exhausted");
 			CoordinationDelivery delivery{next_delivery_++, console, message, tick, notify};
 			delivery.offer_only = offer_only;
@@ -805,7 +801,7 @@ void KnowledgeRuntime::trim()
 
 Json KnowledgeRuntime::save() const
 {
-	Json j{{"version", 2},          {"contract", contract_signature(schema_)},
+	Json j{{"version", 4},          {"contract", contract_signature(schema_)},
 	       {"next_id", next_id_},   {"next_delivery", next_delivery_},
 	       {"tick", current_tick_}, {"inactive_requests", inactive_requests_}};
 	for (const auto &[id, console] : consoles_)
@@ -821,8 +817,6 @@ Json KnowledgeRuntime::save() const
 			actor["controller"] = true;
 		j["systems"].push_back(std::move(actor));
 	}
-	if (!controllers_.empty())
-		j["version"] = 3;
 	for (const auto &[id, memory] : memory_)
 	{
 		Json values = Json::array();
@@ -869,7 +863,7 @@ Json KnowledgeRuntime::save() const
 }
 void KnowledgeRuntime::restore(const Json &j)
 {
-	require(j.at("version") == 2 || j.at("version") == 3, "unsupported save version");
+	require(j.at("version") == 4, "unsupported messaging save version; begin a new session");
 	auto loaded_contract = contract_signature(schema_);
 	auto saved_contract = j.at("contract");
 	if (saved_contract.is_object() && saved_contract.contains("schemas") && saved_contract.at("schemas").is_array() &&
@@ -906,7 +900,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		require(!restored.systems_.contains(id), "duplicate saved System");
 		if (v.value("controller", false))
 		{
-			require(j.at("version") == 3, "Controller identity requires save version 3");
+			require(j.at("version") == 4, "Controller identity requires messaging save version 4");
 			restored.register_controller(id, read_unsigned<KnowledgeId>(v.at("console")), v.at("human").get<bool>());
 		}
 		else

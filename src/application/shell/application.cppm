@@ -106,6 +106,9 @@ struct Application
 	std::set<std::string> gamepad_wait_neutral;
 	std::vector<std::pair<std::string, std::string>> audio_outputs;
 	std::function<void(ConsoleId)> test_screen_audio;
+	std::function<void(ConsoleId)> message_cue;
+	bool message_muted = false;
+	int message_seconds = 8;
 	ConsoleId sound_route = 0;
 	Screen screen = Screen::home;
 	Screen settings_return = Screen::home;

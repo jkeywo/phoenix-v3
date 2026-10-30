@@ -85,10 +85,14 @@ struct GameplayKnowledgeMessageDefinition
 	MessageDestinationKind destination_kind = MessageDestinationKind::Ship;
 	std::string destination_name;
 	std::string destination_console;
+	std::string destination_fallback;
 	MessagePresentation presentation;
 	KnowledgeTick delay = 1, expires_after = 0;
 	KnowledgeId request_key = 0;
 	bool human_seeking = false;
+	bool player_command = true;
+	bool operator_report = false;
+	std::vector<std::string> source_operations;
 	std::map<KnowledgeKey, KnowledgeValue> literal_fields;
 	std::vector<KnowledgeKey> bound_fields;
 	std::vector<std::string> bound_parameters;

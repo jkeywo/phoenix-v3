@@ -1237,6 +1237,14 @@ endif()
 # Explicit visual evidence only; never registered as an automatic test.
 add_executable(phoenix_messages_smoke EXCLUDE_FROM_ALL tests/manual/messages_ui.cpp)
 target_link_libraries(phoenix_messages_smoke PRIVATE phoenix_presentation)
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_officer_messages_smoke EXCLUDE_FROM_ALL tests/manual/officer_messages.cpp)
+	target_link_libraries(
+		phoenix_officer_messages_smoke
+		PRIVATE raylib phoenix_presentation phoenix_session phoenix_ui_console_surface
+	)
+	phoenix_fixture(phoenix_officer_messages_smoke)
+endif()
 if(EMSCRIPTEN)
 	set_target_properties(phoenix_messages_smoke PROPERTIES SUFFIX ".html")
 	target_link_options(

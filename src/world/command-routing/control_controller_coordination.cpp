@@ -47,8 +47,43 @@ auto Runtime::officer_message(EntityId id, ConsoleControllerRuntime &controller,
 	field("priority", request.priority);
 	field("expires", static_cast<std::int64_t>(request.expires));
 	message.presentation.title_key = "Officer coordination";
-	message.presentation.body_key =
-	    "{operation}: {status}; target {target}, amount {amount}, request {request}. {reason}";
+	const std::array<const char *, 4> needs{"I need additional power to carry out my assigned work.",
+	                                        "I need additional cooling to carry out my assigned work.",
+	                                        "Please manoeuvre so I can engage the assigned target.",
+	                                        "Observed damage is preventing my work. Repairs are needed."};
+	const std::array<const char *, 4> accepted{
+	    "I will provide the requested power.", "I will provide the requested cooling.",
+	    "I will manoeuvre for the assigned target.", "I will attend to the reported repair needs."};
+	const std::array<const char *, 4> completed{
+	    "The requested power supply is established.", "The requested cooling supply is established.",
+	    "The requested manoeuvre is complete.", "The reported repair work is complete."};
+	const auto operation = static_cast<std::size_t>(request.operation);
+	message.presentation.body_key = needs.at(operation);
+	if (reply)
+	{
+		switch (request.status)
+		{
+		case OfficerStatus::Accepted:
+			message.presentation.body_key =
+			    request.amount < request.requested_amount && operation < 2
+			        ? "I can provide some of the requested support, within the current operating limit."
+			        : accepted.at(operation);
+			break;
+		case OfficerStatus::Completed:
+			message.presentation.body_key = completed.at(operation);
+			break;
+		case OfficerStatus::Refused:
+			message.presentation.body_key = "I cannot take on that work under my current orders and operating limits.";
+			break;
+		case OfficerStatus::Failed:
+			message.presentation.body_key =
+			    "I cannot carry out the agreed support. Check the current operating constraints.";
+			break;
+		default:
+			message.presentation.body_key = "That support has ended.";
+			break;
+		}
+	}
 	message.presentation.parameters = {
 	    {"operation", officer_operations.at(static_cast<std::size_t>(request.operation))},
 	    {"status", officer_statuses.at(static_cast<std::size_t>(request.status))},

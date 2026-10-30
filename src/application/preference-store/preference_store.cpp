@@ -6,12 +6,12 @@ EM_JS_DEPS(display_preferences_deps, "$stringToUTF8");
 EM_JS(int, phoenix_display_preferences, (), {
     let p={}; try { p=JSON.parse(localStorage.getItem('phoenix-display-preferences-v1')||'{}')||{}; } catch {}
     return (p.dust_motes!==false?1:0)|(p.reference_grid!==false?2:0)|
-        ((typeof p.reduced_motion==='boolean'?p.reduced_motion:matchMedia('(prefers-reduced-motion: reduce)').matches)?4:0);
+        ((typeof p.reduced_motion==='boolean'?p.reduced_motion:matchMedia('(prefers-reduced-motion: reduce)').matches)?4:0)|(p.message_muted?8:0)|((Number.isInteger(p.message_seconds)?Math.max(4,Math.min(60,p.message_seconds)):8)<<4);
 });
 EM_JS(int, phoenix_store_display_preferences, (int bits, char* message, unsigned capacity), {
     try {
         localStorage.setItem('phoenix-display-preferences-v1', JSON.stringify({
-            dust_motes: !!(bits & 1), reference_grid: !!(bits & 2), reduced_motion: !!(bits & 4)
+            dust_motes: !!(bits & 1), reference_grid: !!(bits & 2), reduced_motion: !!(bits & 4), message_muted: !!(bits & 8), message_seconds: (bits >> 4) || 8
         }));
         return 1;
     } catch (error) {
@@ -110,9 +110,10 @@ void remember_preferences(Application &app)
 	if (!app.library)
 	{
 		std::array<char, 512> message{};
-		const auto saved = phoenix_store_display_preferences((app.dust_motes ? 1 : 0) | (app.reference_grid ? 2 : 0) |
-		                                                         (app.reduced_motion ? 4 : 0),
-		                                                     message.data(), static_cast<unsigned>(message.size()));
+		const auto saved = phoenix_store_display_preferences(
+		    (app.dust_motes ? 1 : 0) | (app.reference_grid ? 2 : 0) | (app.reduced_motion ? 4 : 0) |
+		        (app.message_muted ? 8 : 0) | (app.message_seconds << 4),
+		    message.data(), static_cast<unsigned>(message.size()));
 		complete_preference_persistence(app, saved ? std::string{} : std::string(message.data()),
 		                                PreferenceStorage::Display);
 	}
@@ -125,6 +126,8 @@ void remember_preferences(Application &app)
 		                            app.dust_motes,   app.reference_grid, app.player_name,   app.avatar};
 		app.library->preferences.sfx_volume = app.sfx_volume;
 		app.library->preferences.siren_volume = app.siren_volume;
+		app.library->preferences.message_muted = app.message_muted;
+		app.library->preferences.message_seconds = app.message_seconds;
 		app.library->preferences.master_volume = app.master_volume;
 		app.library->preferences.tools_scale = app.tools_scale;
 		app.library->preferences.station_displays = app.remembered_station_displays;
@@ -153,6 +156,8 @@ void load_display_preferences(Application &app)
 		app.dust_motes = (bits & 1) != 0;
 		app.reference_grid = (bits & 2) != 0;
 		app.reduced_motion = (bits & 4) != 0;
+		app.message_muted = (bits & 8) != 0;
+		app.message_seconds = bits >> 4;
 	}
 #endif
 }

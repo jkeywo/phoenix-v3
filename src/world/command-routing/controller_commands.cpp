@@ -384,11 +384,33 @@ auto Runtime::controller_output(EntityId id, std::size_t index, const state_tree
 			{
 				const auto name = action.name.substr(5);
 				const auto &message = knowledge.message_definition(name);
+				auto origin = ControlOrigin::AI;
+				if (message.operator_report)
+				{
+					origin = controller.human ? ControlOrigin::Human : ControlOrigin::AI;
+					bool native_source = false;
+					for (const auto &operation : message.source_operations)
+						if (controller.definition.operations.contains(operation))
+						{
+							origin = controller_operation_human(controller, operation) ? ControlOrigin::Human
+							                                                           : ControlOrigin::AI;
+							native_source = true;
+							break;
+						}
+					if (!native_source)
+						for (std::size_t channel = 0; channel < controller.definition.commands.size(); ++channel)
+							if (!controller.definition.commands[channel].consumers.empty() &&
+							    !controller_command_human(controller, channel))
+							{
+								origin = ControlOrigin::AI;
+								break;
+							}
+				}
 				const ConsoleAddress source{id, controller.definition.console};
 				KnowledgeRecordInput payload;
 				payload.schema = message.schema;
-				payload.producer = knowledge.message_producer(source, controller.definition.id, message.schema,
-				                                              ControlOrigin::AI, true);
+				payload.producer =
+				    knowledge.message_producer(source, controller.definition.id, message.schema, origin, true);
 				payload.subject = id;
 				payload.provenance = {knowledge.controller_id(address), ecs.get<Clock>().tick, ecs.get<Clock>().tick, 0,
 				                      EvidenceKind::Intent};
@@ -405,9 +427,9 @@ auto Runtime::controller_output(EntityId id, std::size_t index, const state_tree
 				const auto bound = evaluate_gameplay_message(message, context);
 				payload.fields = bound.fields;
 				const auto speaker = officer_speaker(id, controller.definition.console, controller.definition.id);
-				controller.result.id = knowledge.admit_template(
-				    source, controller.definition.id, name, payload, ControlOrigin::AI, ecs.get<Clock>().tick,
-				    bound.parameters, true, true, speaker.first, {}, speaker.second);
+				controller.result.id = knowledge.admit_template(source, controller.definition.id, name, payload, origin,
+				                                                ecs.get<Clock>().tick, bound.parameters, true, true,
+				                                                speaker.first, {}, speaker.second);
 				controller.result.message = controller.result.id;
 			}
 			else
