@@ -139,22 +139,30 @@ void draw_bearing_ring(const Observation &view, const SystemView &sensor, Vector
 	if (!sensor.enabled)
 		return;
 	bool any = false;
+	const BearingContactView *selected_bearing = nullptr;
 	for (const auto &b : view.bearing_contacts)
 		if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), b.id) != sensor.contact_ids.end())
 		{
 			any = true;
 			auto p = bearing_ring_point(centre, radius, b.bearing_mdeg);
-			DrawCircleV(p, 5, SKYBLUE);
+			DrawCircleV(p, 3, SKYBLUE);
 			if (b.id == selected)
-				draw_radar_selection(p, 14, selection_colour);
-			DrawText(TextFormat("#%llu", static_cast<unsigned long long>(b.id)), static_cast<int>(p.x + 8),
-			         static_cast<int>(p.y - 6), 14, SKYBLUE);
+				selected_bearing = &b;
 		}
 	if (any)
 	{
 		DrawCircleLinesV(centre, radius * 1.08f, {80, 135, 155, 180});
 		DrawText(localise("Range unknown").c_str(), static_cast<int>(centre.x - radius),
 		         static_cast<int>(centre.y - radius * 1.2f), 14, SKYBLUE);
+	}
+	// Dense debris bearings must not cover the selected return or fill the bezel
+	// with overlapping identity labels. Every return remains in the semantic list.
+	if (selected_bearing)
+	{
+		const auto p = bearing_ring_point(centre, radius, selected_bearing->bearing_mdeg);
+		draw_radar_selection(p, 14, selection_colour);
+		DrawText(TextFormat("#%llu", static_cast<unsigned long long>(selected_bearing->id)), static_cast<int>(p.x + 16),
+		         static_cast<int>(p.y - 6), 14, selection_colour);
 	}
 }
 void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Observation &view, const SystemView &sensor,

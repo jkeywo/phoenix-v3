@@ -1,5 +1,7 @@
 # Sensors and focused scanning
 
+Illustrated Helm radars draw bearing-only returns above the casing. Dense bearing bands label only the selected return and draw its highlight after the other blips; all returns retain their existing accessible selection entries and input positions. This presentation correction was checked through the native production Courier bearing-selection journey on 30 October 2026. Native/WASM sensor integration and fresh continuation comparison pass; see `build/courier-refinement-sensor-{native,wasm}.trace` and `build/courier-refinement-continuations.json`.
+
 Radar fittings provide contact detection plus independently authored capabilities. `shows` still filters contact types; it does not grant identity or internal information.
 
 ```json

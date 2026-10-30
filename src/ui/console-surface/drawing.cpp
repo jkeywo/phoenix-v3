@@ -275,6 +275,8 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 			const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
 			const float radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
 			const Vector2 centre{ox + at.x + dial->GetOffsetWidth() / 2, oy + at.y + dial->GetOffsetHeight() / 2};
+			auto bearing_colour = radar_selection_colour(app_->session->catalog(), "sensors",
+			                                             active_theme_.value("tokens", Json::object()));
 			if (view && view->feeds & system_bit(OperatingSystem::Radar))
 			{
 				const auto radar =
@@ -293,6 +295,9 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 									settings["fire_arcs"] = w.value("fire_arcs", false) && model_.fire_arcs_visible();
 								}
 						settings["contact_arcs"] = model_.contact_arcs_visible();
+						bearing_colour = radar_selection_colour(app_->session->catalog(),
+						                                        settings.value("selection_source", "sensors"),
+						                                        active_theme_.value("tokens", Json::object()));
 						settings["sensor_contact"] = model_.sensor_contact();
 						auto &sweep = radar_sweeps_[key];
 						if (!sweep)
@@ -322,6 +327,15 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 				}
 			}
 			image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
+			// Bearing-only returns sit on the casing, outside the positional plot.
+			// Paint them last so the opaque illustrated bezel cannot hide them.
+			if (view && view->feeds & system_bit(OperatingSystem::Radar))
+				if (const auto radar =
+				        select_system(view->systems, OperatingSystem::Radar, model_.widget_system(key), false))
+					for (const auto &sensor : view->systems)
+						if (sensor.id == *radar)
+							draw_bearing_ring(*view, sensor, centre, radius * .66f, model_.sensor_contact(),
+							                  bearing_colour);
 			if (sharing_pods_.contains(key))
 			{
 				const bool active = model_.is_on_screen(key);
