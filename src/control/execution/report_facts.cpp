@@ -63,14 +63,15 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 		return found == observed.gameplay.end() ? empty : *found;
 	};
 	for (const auto &team : rows("teams"))
-		if (owns_operation(team.value("repair", false) ? "team_work" : "medical", team.at("id")))
+		if (owns_operation(team.value("work_operation", team.value("repair", false) ? "team_work" : "medical"),
+		                   team.at("id")))
 		{
 			const auto activity = team.value("activity", std::string{}), work = team.value("work", std::string{});
 			facts[6] += activity == "treat" || activity == "stabilise" || work == "Repairing system" ||
 			            work == "Repairing hull";
 			facts[7] += activity == "blocked" || work == "blocked" || work == "no_parts" || work == "Unavailable";
 			facts[8] += team.value("patients", Json::array()).size();
-			facts[21] += activity == "complete";
+			facts[21] += team.value("completed", false);
 			if (team.value("repair", false) && team.value("travel", 0) == 0 && !team.value("reserved", false) &&
 			    work != "Unavailable")
 				repair_locations.insert(team.value("location", 0LL) + 1);

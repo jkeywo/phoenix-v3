@@ -581,6 +581,11 @@ void clinical_execution_regressions(Json &trace)
 		        "entry/running onboard action retains intent across ticks and restore");
 		finish_clinical_order(onboard);
 		require(officer(onboard, 2, 0)["condition"] == "healthy", "retained onboard treatment completes");
+		const auto finished = network::read_observation(network::observation_json(*onboard.observe(102)), catalog);
+		for (const auto &team : finished.gameplay.at("teams"))
+			if (team.at("id") == "medical")
+				require(team.at("completed").get<bool>() && team.at("activity") == "",
+				        "scoped completion evidence survives cleared activity and remote projection");
 
 		World away;
 		away.load(catalog, "test.map", {{"crew", "test.away"}});

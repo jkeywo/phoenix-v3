@@ -398,7 +398,7 @@ Courier gains a third Nav/Comms seat. Its Navigation and Comms Consoles seek hum
 
 Authored reporting subtrees use permitted machinery and operation observations, with debounce, recovery and saved continuation. Native coordination reports describe actual lifecycle outcomes. Human displays receive AI officer reports; factual reporters and human work remain available to AI. Only explicitly published critical AI emergencies reach the Viewscreen.
 
-Player Consoles have queued portrait arrivals and a Messages button toggling filtered history across granted Consoles, with unread state, local duration/mute preferences and accessible semantics. Internal reports add no approval controls. Messaging saves now require version 4 and a new session for older content. The [message contract and validation receipt](messages.md) records the six passing affected native integrations, launcher checks, production verification and explicitly invoked wide/narrow graphical journey. Physical reader/device acceptance remains separate.
+Player Consoles have queued portrait arrivals and a Messages button toggling filtered history across granted Consoles, with unread state, local duration/mute preferences and accessible semantics. Internal reports add no approval controls. Messaging saves now require version 4 and a new session for older content. The [message contract and validation receipt](messages.md) records the seven passing affected native integrations, launcher checks, production verification and explicitly invoked wide/narrow graphical journey. Physical reader/device acceptance remains separate.
 
 ## Workshop visual authoring — 30 October 2026
 

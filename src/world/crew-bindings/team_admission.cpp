@@ -686,6 +686,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 				    controller_operation_human(controller,
 				                               d.capabilities.contains("medical") ? "medical" : "team_work");
 		row["repair"] = d.capabilities.contains("repair");
+		row["completed"] = d.capabilities.contains("medical") && r.order.empty() && r.work_done;
 		row["work_operation"] = d.capabilities.contains("medical") ? "medical" : "team_work";
 		row["travel"] = r.travel;
 		row["work"] = row.at("reserved").get<bool>()                                        ? "Away mission"

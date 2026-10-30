@@ -30,6 +30,8 @@ Json board(const Json &source)
 		Json t;
 		if (team.contains("repair"))
 			t["repair"] = team.at("repair").get<bool>();
+		if (team.contains("completed"))
+			t["completed"] = team.at("completed").get<bool>();
 		if (team.contains("travel"))
 			t["travel"] = number(team.at("travel"), 0, 1000000);
 		if (team.contains("work"))
