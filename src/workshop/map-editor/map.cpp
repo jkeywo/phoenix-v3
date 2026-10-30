@@ -352,7 +352,7 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 					    }
 				    }
 			    });
-		if (selected || !has_icon)
+		if (selected || !has_icon || half_size.x < 8.f || half_size.y < 8.f)
 			draw->AddCircle(p, selected ? 14.0f : 8.0f,
 			                selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(118, 201, 232, 255));
 		float angle = instance["heading_mdeg"].get<float>() * 3.14159265f / 180000;

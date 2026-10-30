@@ -10,7 +10,9 @@ canvas verifies its interactions.
 atomic rejection of invalid bulk changes, instance/template isolation, override
 reversion, undo/redo, cancelled-move history, stable array-row targets, embedded
 scenario-tree compilation and source roundtrip, stable owner identities and
-hierarchical reparenting/cycle rejection.
+hierarchical reparenting/cycle rejection. Reopened policies can be edited again;
+identical policies on separate owners get separate private identities, and
+reordering owners preserves their identities.
 
 `phoenix_workshop_test_tests` passes. Its added Controller policy is embedded in
 the widget definition, exported and reopened through Workshop, loaded into the
@@ -24,6 +26,10 @@ build successfully. The browser `workshop` target also links successfully. The
 production base and Test Missions both pass source verification, archive
 verification and client-companion generation through the rebuilt packager;
 their tuning is not asserted by the synthetic checks.
+
+The WASM content check passes under the bundled Node runtime, launched from
+`build/web` with `phoenix_content_check.js` so its preloaded fixtures resolve.
+This is a loader/compiler check, not browser rendering evidence.
 
 ## Explicit native graphical probes
 

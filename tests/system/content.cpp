@@ -2239,6 +2239,17 @@ int main()
 			reopened.load_pack(workshop.export_pack());
 			require(reopened.map().at("scenario").at("tree").is_object(),
 			        "Source roundtrip preserves embedded tree authoring");
+			reopened.map()["scenario"]["tree"]["budget"] = 4096;
+			auto other_owner = reopened.map();
+			other_owner["id"] = "test.other-local-owner";
+			reopened.definitions()["maps"].push_back(other_owner);
+			const auto isolated = reopened.verify();
+			const auto other_id = isolated.maps.at("test.other-local-owner").at("scenario").at("tree");
+			require(isolated.maps.at(map_id).at("scenario").at("tree") == private_id && other_id != private_id,
+			        "Reopened policies remain editable and identical policies on different owners stay private");
+			std::reverse(reopened.definitions()["maps"].begin(), reopened.definitions()["maps"].end());
+			require(reopened.verify().maps.at(map_id).at("scenario").at("tree") == private_id,
+			        "Private policy identity is independent of owner array order");
 			{
 				auto tree = local;
 				tree["states"].push_back({{"id", "child"}, {"parent", "idle"}, {"running", Json::array()}});
