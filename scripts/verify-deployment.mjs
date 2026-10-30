@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { inflateRawSync } from "node:zlib";
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 import { zipEntry } from "../web/launcher.mjs";
 const root = path.resolve(process.argv[2] || "build/pages");
@@ -18,7 +19,20 @@ async function verifyDatImages(dat) {
 		const length = zip.readUInt16LE(at + 28);
 		const name = zip.subarray(at + 46, at + 46 + length).toString("utf8");
 		if (name.endsWith(".png")) {
-			const image = await zipEntry(dat, name);
+			// Compiled content entries permit 64 MiB plus their envelope (pack.cpp).
+			// The launcher's 1 MiB metadata-preview budget does not apply to images.
+			const packed = zip.readUInt32LE(at + 20),
+				size = zip.readUInt32LE(at + 24),
+				offset = zip.readUInt32LE(at + 42),
+				method = zip.readUInt16LE(at + 10);
+			if (size > 64 * 1024 * 1024 + 16 || zip.readUInt16LE(at + 8) & 1 || zip.readUInt32LE(offset) !== 0x04034b50)
+				throw Error("Unsupported or oversized DAT image: " + name);
+			const start = offset + 30 + zip.readUInt16LE(offset + 26) + zip.readUInt16LE(offset + 28);
+			if (start + packed > zip.length) throw Error("Truncated DAT image: " + name);
+			const payload = zip.subarray(start, start + packed);
+			if (method !== 0 && method !== 8) throw Error("Unsupported DAT image compression: " + name);
+			const image = method === 8 ? inflateRawSync(payload, { maxOutputLength: Math.max(1, size) }) : payload;
+			if (image.length !== size) throw Error("Invalid DAT image size: " + name);
 			if (Buffer.from(image.subarray(0, 8)).toString() !== "PHXWEBP1")
 				throw Error("DAT image has not been upgraded: " + name);
 		}
