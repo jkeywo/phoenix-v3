@@ -621,7 +621,7 @@ export function themeStyles(theme) {
 		if (
 			typeof source !== "string" ||
 			source.length > 24 * 1024 * 1024 ||
-			!/^data:(image\/png|font\/ttf);base64,[a-z0-9+/]*={0,2}$/i.test(source)
+			!/^data:(image\/(png|webp)|font\/ttf);base64,[a-z0-9+/]*={0,2}$/i.test(source)
 		)
 			throw Error("Invalid theme asset");
 		if (slot === "font" || /^fallback-[1-9][0-9]*$/.test(slot)) {

@@ -15,6 +15,7 @@ import phoenix.content.verification;
 
 int main(int argc, char **argv)
 {
+	std::string stage = "source";
 	try
 	{
 		if (argc < 3)
@@ -41,7 +42,9 @@ int main(int argc, char **argv)
 		std::vector<phoenix::Pack> ordered;
 		for (int i = 3; i < argc; ++i)
 			ordered.push_back(phoenix::read_pack(phoenix::read_file(argv[i])));
+		stage = "source verification";
 		const auto catalog = phoenix::resolve_draft(ordered, pack);
+		stage = "launcher metadata";
 		auto preview = phoenix::launcher_catalog(catalog);
 		const auto authored = phoenix::parse_json(pack.files.at("definitions.json"), "definitions.json")
 		                          .value("maps", phoenix::Json::array());
@@ -61,18 +64,21 @@ int main(int argc, char **argv)
 		if (pack.manifest.contains("base"))
 			preview["base"] = pack.manifest.at("base");
 		pack.files["launcher.json"] = phoenix::json_bytes(preview);
+		stage = "archive writing";
 		auto archive = phoenix::write_pack(pack, std::string(argv[2]).ends_with(".dat") ? phoenix::PackEncoding::Dat
 		                                                                                : phoenix::PackEncoding::Zip);
+		stage = "archive verification";
 		ordered.push_back(phoenix::read_pack(archive));
 		(void)phoenix::resolve_packs(ordered);
 		phoenix::write_file(argv[2], archive);
+		stage = "client companions";
 		phoenix::write_companions(
 		    argv[2], phoenix::pack_companions(ordered, std::filesystem::path(argv[2]).filename().string()));
 		std::cout << "Verified pack: " << argv[2] << '\n';
 	}
 	catch (const std::exception &error)
 	{
-		std::cerr << error.what() << '\n';
+		std::cerr << stage << ": " << error.what() << '\n';
 		return 1;
 	}
 }

@@ -793,6 +793,7 @@ test("pack themes share visual tokens without executable styles", () => {
 	assert.throws(() => themeStyles({ ...theme, tokens: { ...theme.tokens, gap: -1 } }));
 	assert.throws(() => themeStyles({ ...theme, tokens: { ...theme.tokens, font_family: "X;display:none" } }));
 	assert.throws(() => themeStyles({ ...theme, asset_data: { panel: "https://example.invalid/asset.png" } }));
+	assert.match(themeStyles({ ...theme, asset_data: { panel: "data:image/webp;base64,UklGRg==" } }), /image\/webp/);
 	assert.equal(themeStyles(undefined), "");
 });
 

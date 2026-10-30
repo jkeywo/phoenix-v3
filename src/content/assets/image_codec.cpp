@@ -228,6 +228,11 @@ Bytes compile_asset_image(std::span<const std::uint8_t> bytes)
 	return result;
 }
 
+Bytes browser_asset_image(std::span<const std::uint8_t> bytes)
+{
+	const auto compiled = compile_asset_image(bytes);
+	return Bytes(compiled.begin() + 16, compiled.end());
+}
 Bytes source_asset_image(std::span<const std::uint8_t> bytes)
 {
 	if (!compiled_image(bytes))

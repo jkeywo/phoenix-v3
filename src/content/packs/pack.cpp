@@ -269,8 +269,10 @@ void verify_pack_draft(const PackDraft &pack, ArchivePurpose purpose)
 			continue;
 		if (path.ends_with(".png") && signature(bytes, "PHX") && !compiled_image(bytes))
 			throw std::runtime_error(path + ": unsupported compiled image version; rebuild the DAT");
-		if (bytes.size() > max_file || bytes.size() > total_limit - total)
+		if (bytes.size() > max_file)
 			throw std::runtime_error(path + ": oversized pack entry");
+		if (bytes.size() > total_limit - total)
+			throw std::runtime_error("pack: combined uncompressed entries exceed the limit at " + path);
 		total += bytes.size();
 	}
 }

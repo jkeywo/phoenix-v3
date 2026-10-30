@@ -30,6 +30,8 @@ std::shared_ptr<const AssetImage> shared_asset_image(std::span<const std::uint8_
 // Fully validates pixels, reusing bounded success receipts for identical bytes.
 std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes);
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes);
+// Standard lossless WebP bytes for browser metadata, without the runtime container.
+Bytes browser_asset_image(std::span<const std::uint8_t> bytes);
 Bytes source_asset_image(std::span<const std::uint8_t> bytes);
 Bytes source_asset_image(const AssetImage &image);
 } // namespace phoenix

@@ -636,8 +636,8 @@ int main()
 			            .at("asset_data")
 			            .at("panel")
 			            .get<std::string>()
-			            .starts_with("data:image/png;base64,"),
-			        "launcher receives public browser-readable theme artwork");
+			            .starts_with("data:image/webp;base64,"),
+			        "launcher receives public lossless browser-readable theme artwork");
 			WorkshopDocument ui_draft;
 			ui_draft.load_pack(write_pack(source));
 			require(ui_draft.definitions().at("themes")[1].at("extends") == "test.theme",

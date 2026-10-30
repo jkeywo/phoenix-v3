@@ -887,9 +887,8 @@ Json public_ui_theme(const Catalog &catalog)
 		    !slot.starts_with("fallback-"))
 			continue;
 		const auto ref = value.get<std::string>();
-		const auto bytes = ref.ends_with(".ttf") || ref.ends_with(".otf")
-		                       ? catalog.assets.at(ref)
-		                       : source_asset_image(decode_asset_image(catalog.assets.at(ref)));
+		const auto bytes = ref.ends_with(".ttf") || ref.ends_with(".otf") ? catalog.assets.at(ref)
+		                                                                  : browser_asset_image(catalog.assets.at(ref));
 		std::string encoded;
 		for (std::size_t i = 0; i < bytes.size(); i += 3)
 		{
@@ -903,7 +902,7 @@ Json public_ui_theme(const Catalog &catalog)
 		}
 
 		theme["asset_data"][slot] = std::string("data:") +
-		                            (ref.ends_with(".ttf") || ref.ends_with(".otf") ? "font/ttf" : "image/png") +
+		                            (ref.ends_with(".ttf") || ref.ends_with(".otf") ? "font/ttf" : "image/webp") +
 		                            ";base64," + encoded;
 	}
 	theme.erase("assets");
