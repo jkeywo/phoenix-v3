@@ -187,6 +187,8 @@ void ConsoleSurface::State::render_ui(UiRenderer &renderer, const ConsoleRegion 
 }
 void ConsoleSurface::State::draw_profile(const ConsoleRegion &region)
 {
+	if (station_loading_)
+		return;
 	if (!settings_open_ && app_->session->lobby().active && !app_->session->lobby().launched && !profile_open_ &&
 	    !profile_avatar_.empty())
 	{
@@ -209,6 +211,8 @@ void ConsoleSurface::State::draw_profile(const ConsoleRegion &region)
 }
 void ConsoleSurface::State::draw(const ConsoleRegion &region)
 {
+	if (station_loading_)
+		return;
 	const Rectangle entire{region.x, region.y, region.width, region.height};
 	BeginScissorMode(static_cast<int>(region.x), static_cast<int>(region.y), static_cast<int>(region.width),
 	                 static_cast<int>(region.height));

@@ -651,11 +651,16 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 }
 void ConsoleSurface::State::reconcile_preparation_session(Application &app)
 {
-	if (owner_.lock() != app.session || (app.session && (generation_ != app.session->generation() ||
-	                                                     content_packs_ != app.session->catalog().ordered_packs)))
+	const bool session_changed = owner_.lock() != app.session;
+	const bool content_changed = app.session && content_packs_ != app.session->catalog().ordered_packs;
+	if (session_changed || (app.session && (generation_ != app.session->generation() ||
+	                                        content_packs_ != app.session->catalog().ordered_packs)))
 	{
-		surface_browsing_.clear();
-		browsing_console_.clear();
+		if (session_changed || content_changed)
+		{
+			surface_browsing_.clear();
+			browsing_console_.clear();
+		}
 		owner_ = app.session;
 		content_packs_ =
 		    app.session ? app.session->catalog().ordered_packs : std::vector<std::pair<std::string, std::string>>{};
@@ -671,13 +676,19 @@ void ConsoleSurface::State::reconcile_preparation_session(Application &app)
 		generation_ = app.session ? app.session->generation() : 0;
 		settings_open_ = false;
 		document_->SetClass("local-settings-open", false);
-		radar_textures_.clear();
+		if (content_changed)
+		{
+			radar_textures_.clear();
+			hud_cache_.clear();
+			hud_.clear();
+		}
 		shield_ship_sprite_.reset();
 		shield_ship_definition_.clear();
 		radar_sweeps_.clear();
 		signature_.clear();
 		cancel_pointer();
-		document_->Focus();
+		if (session_changed)
+			document_->Focus();
 	}
 }
 

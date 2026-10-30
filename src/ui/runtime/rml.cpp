@@ -22,9 +22,19 @@ module;
 #include <cstdlib>
 #include <stdexcept>
 module phoenix.ui.rml;
+import phoenix.graphics.assets;
 
 namespace phoenix
 {
+namespace
+{
+struct RmlTexture
+{
+	Texture2D texture{};
+	TextureCache owner;
+	bool generated = false;
+};
+} // namespace
 struct UiRenderer::State
 {
 	struct Geometry
@@ -182,7 +192,7 @@ void UiRenderer::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2
 	                bottom_bound + state_->origin_.y <= static_cast<int>(y) ||
 	                top_bound + state_->origin_.y >= static_cast<int>(y) + height))
 		return;
-	rlSetTexture(texture ? reinterpret_cast<Texture2D *>(texture)->id : rlGetTextureIdDefault());
+	rlSetTexture(texture ? reinterpret_cast<RmlTexture *>(texture)->texture.id : rlGetTextureIdDefault());
 	rlBegin(RL_TRIANGLES);
 	for (int index : geometry.indices)
 	{
@@ -201,27 +211,35 @@ void UiRenderer::RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2
 Rml::TextureHandle UiRenderer::LoadTexture(Rml::Vector2i &dimensions, const Rml::String &path)
 {
 	const auto *memory = menu_image_data(path);
-	Image image = memory ? LoadImageFromMemory(".png", memory->data(), static_cast<int>(memory->size()))
-	              : path.starts_with("phoenix-menu://image/") ? Image{}
-	                                                          : LoadImage(path.c_str());
-	if (!image.data)
+	if (!memory && path.starts_with("phoenix-menu://image/"))
 		return 0;
-	ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-	ImageAlphaPremultiply(&image);
-	auto *texture = new Texture2D(LoadTextureFromImage(image));
-	dimensions = {image.width, image.height};
-	UnloadImage(image);
-	return reinterpret_cast<Rml::TextureHandle>(texture);
+	try
+	{
+		auto texture = std::make_unique<RmlTexture>();
+		texture->texture =
+		    memory ? texture->owner.load(path, *memory, false, true) : texture->owner.load_file(path, true);
+		dimensions = {texture->texture.width, texture->texture.height};
+		return reinterpret_cast<Rml::TextureHandle>(texture.release());
+	}
+	catch (const std::exception &error)
+	{
+		TraceLog(LOG_WARNING, "UI image unavailable: %s", error.what());
+		return 0;
+	}
 }
 Rml::TextureHandle UiRenderer::GenerateTexture(Rml::Span<const Rml::byte> pixels, Rml::Vector2i size)
 {
 	Image image{const_cast<Rml::byte *>(pixels.data()), size.x, size.y, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
-	return reinterpret_cast<Rml::TextureHandle>(new Texture2D(LoadTextureFromImage(image)));
+	auto *texture = new RmlTexture;
+	texture->texture = LoadTextureFromImage(image);
+	texture->generated = true;
+	return reinterpret_cast<Rml::TextureHandle>(texture);
 }
 void UiRenderer::ReleaseTexture(Rml::TextureHandle handle)
 {
-	auto *texture = reinterpret_cast<Texture2D *>(handle);
-	UnloadTexture(*texture);
+	auto *texture = reinterpret_cast<RmlTexture *>(handle);
+	if (texture->generated)
+		UnloadTexture(texture->texture);
 	delete texture;
 }
 void UiRenderer::EnableScissorRegion(bool enabled)

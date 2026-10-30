@@ -70,180 +70,114 @@ std::string sidebar_selection;
 std::weak_ptr<SessionPort> sidebar_session;
 std::uint64_t sidebar_generation = 0;
 bool sidebar_user_selected = false;
-Rml::ElementDocument *loading_document = nullptr;
-Texture2D loading_background{};
-TextureCache loading_images;
-std::string loading_markup, loading_art_identity;
-bool loading_art_failed = false;
-bool loading_visible = false;
 std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
-std::optional<GameScreen::Loading> station_loading;
-std::set<ConsoleId> station_loading_routes;
-bool show_loading(Application &app)
+std::optional<GameScreen::Loading> primary_loading;
+void prepare_primary_loading(Application &app)
 {
-	const bool eligible = static_cast<bool>(app.content_action) || app.screen == Screen::console ||
-	                      app.screen == Screen::viewscreen || app.screen == Screen::server_lobby ||
-	                      app.screen == Screen::client_lobby;
-	if (!eligible)
+	auto *panel = document->GetElementById("screen-loading");
+	if (!panel)
 	{
-		if (loading_document)
-			loading_document->Hide();
-		if (loading_visible)
-		{
-			document->Show();
-			loading_visible = false;
-		}
-		return false;
+		auto node = document->CreateElement("div");
+		node->SetId("screen-loading");
+		panel = document->AppendChild(std::move(node));
+		panel->SetProperty("position", "absolute");
+		panel->SetProperty("background-color", "#102027f0");
+		panel->SetProperty("color", "#fff0d4");
+		panel->SetProperty("padding", "16px");
+		panel->SetProperty("box-sizing", "border-box");
+		panel->SetProperty("z-index", "50");
 	}
-	const auto progress = game_screen->preload(app);
-	if (app.screen == Screen::server_lobby && !app.console_regions.empty() && !app.content_action)
+	const bool visible = primary_loading && primary_loading->active &&
+	                     (app.content_action || app.screen == Screen::viewscreen ||
+	                      app.screen == Screen::server_lobby || app.screen == Screen::client_lobby);
+	panel->SetProperty("display", visible ? "block" : "none");
+	if (!visible)
+		return;
+	const auto &progress = *primary_loading;
+	const auto region =
+	    app.viewscreen_region.value_or(ConsoleRegion{0, 0, 0, float(GetScreenWidth()), float(GetScreenHeight())});
+	const float width = std::min(region.width * .8f, 560.f);
+	panel->SetProperty("left", std::to_string(region.x + region.width - width - 16) + "px");
+	panel->SetProperty("top", std::to_string(region.y + 16) + "px");
+	panel->SetProperty("width", std::to_string(width) + "px");
+	panel->SetProperty("max-height", std::to_string(std::max(1.f, region.height - 32)) + "px");
+	panel->SetProperty("overflow-y", "auto");
+	const auto text = localise(progress.phase) +
+	                  (progress.total ? " " + std::to_string(progress.completed * 100 / progress.total) + "%" : "");
+	const auto prefix = "loading/" + std::to_string(progress.target) + "/" + std::to_string(progress.request) + "/";
+	const auto action = prefix + (progress.state == LoadingProgress::State::preparing ? "cancel" : "retry");
+	const auto label =
+	    localise(progress.state == LoadingProgress::State::preparing ? "Cancel loading" : "Retry loading");
+	const auto markup = "<p id=\"loading.progress\">" + Rml::StringUtilities::EncodeRml(text) + "</p><p>" +
+	                    Rml::StringUtilities::EncodeRml(progress.error) + "</p><button id=\"" + action + "\">" + label +
+	                    "</button>";
+	if (panel->GetAttribute<Rml::String>("data-markup", "") != markup)
 	{
-		station_loading = progress.active ? std::optional(progress) : std::nullopt;
-		if (progress.active)
-			for (const auto &region : app.console_regions)
-				if (!console_surfaces.contains(region.console))
-					station_loading_routes.insert(region.console);
-		if (!progress.active)
-			station_loading_routes.clear();
-		if (loading_document)
-			loading_document->Hide();
-		document->Show();
-		loading_visible = false;
-		return false;
+		panel->SetInnerRML(markup);
+		panel->SetAttribute("data-markup", markup);
 	}
-	station_loading.reset();
-	station_loading_routes.clear();
-	if (!progress.active)
-	{
-		if (loading_document)
-			loading_document->Hide();
-		if (loading_visible)
-		{
-			document->Show();
-			loading_visible = false;
-		}
-		return false;
-	}
-	if (!loading_visible)
-	{
-		document->Hide();
-		loading_visible = true;
-	}
-	if (!loading_background.id)
-	{
-#ifdef __EMSCRIPTEN__
-		const std::string path = "/assets/menu/space-panorama.png";
-#else
-		const std::string path = std::string(GetApplicationDirectory()) + "assets/menu/space-panorama.png";
-#endif
-		loading_background = LoadTexture(path.c_str());
-	}
-	auto backdrop = loading_background;
-	if (app.session)
-	{
-		const auto &catalog = app.session->catalog();
-		auto reference = catalog.loading_background;
-		const auto mission = app.session->loading_scenario();
-		if (catalog.maps.contains(mission))
-			reference = catalog.maps.at(mission).value("loading_background", reference);
-		if (!reference.empty() && catalog.assets.contains(reference))
-			try
-			{
-				std::string identity = reference;
-				for (const auto &[id, hash] : catalog.ordered_packs)
-					identity += "/" + hash;
-				if (loading_art_identity != identity)
-				{
-					loading_images.clear();
-					loading_art_identity = identity;
-					loading_art_failed = false;
-				}
-				if (!loading_art_failed)
-					backdrop = loading_images.load(identity, catalog.assets.at(reference));
-			}
-			catch (const std::exception &error)
-			{
-				loading_art_failed = true;
-				TraceLog(LOG_WARNING, "Loading background unavailable: %s", error.what());
-			}
-	}
-	const auto host = app.viewscreen_region.value_or(
-	    ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
-	const Rectangle loading_area{host.x, host.y, host.width, host.height};
-	if (backdrop.id)
-		DrawTexturePro(backdrop, {0, 0, static_cast<float>(backdrop.width), static_cast<float>(backdrop.height)},
-		               loading_area, {0, 0}, 0, WHITE);
-	DrawRectangleRec(loading_area, {0, 0, 0, 150});
-	if (!loading_document)
-		loading_document = context->LoadDocumentFromMemory(R"(<rml><head><style>
-		body {width:100%;height:100%;font-family:LatoLatin;font-size:24px;color:#fff0d4;}
-		#loading-card {position:absolute;left:15%;top:36%;width:70%;padding:24px;background:#101c23ee;}
-		h1,p {display:block;margin-bottom:16px;} h1 {font-size:32px;}
-		#loading-track {display:block;height:20px;width:100%;background:#20313d;}
-		#loading-fill {display:block;height:20px;background:#d48a48;} button {display:block;margin-top:20px;padding:12px;background:#243c48;}
-		</style></head><body><div id="loading-card"/></body></rml>)");
-	const auto percent = progress.total ? std::min<std::size_t>(100, progress.completed * 100 / progress.total) : 0;
-	const auto phase = localise(progress.phase);
-	const auto text = phase + (progress.total ? " " + std::to_string(percent) + "%" : "");
-	const auto markup =
-	    "<h1>" + Rml::StringUtilities::EncodeRml(progress.title.empty() ? localise("Loading game") : progress.title) +
-	    "</h1><p>" + Rml::StringUtilities::EncodeRml(text) +
-	    "</p><div id='loading-track'><div id='loading-fill' style='width:" + std::to_string(percent) + "%'/></div><p>" +
-	    Rml::StringUtilities::EncodeRml(progress.error) + "</p><button>" + localise("Cancel loading") + "</button>";
-	if (markup != loading_markup)
-	{
-		loading_document->GetElementById("loading-card")->SetInnerRML(markup);
-		loading_markup = markup;
-	}
-	loading_document->Show();
-	context->SetDimensions({static_cast<int>(host.width), static_cast<int>(host.height)});
+	app.screen_controls.emplace_back(action, label);
+	app.screen_readouts.emplace_back("loading.progress", progress.error.empty() ? text : progress.error);
 	context->Update();
-	app.console_surface_active = false;
-	app.screen_controls = {{"loading.cancel", "Cancel loading"}};
-	app.screen_readouts = {{"loading.progress", text}};
-	app.screen_inputs.clear();
-	app.screen_toggles.clear();
-	app.control_placements.clear();
-	app.accessible_status = progress.error.empty() ? text : progress.error;
-	app.screen_action = [&app](const std::string &action)
-	{
-		if (action != "loading.cancel")
-			return false;
-		if (app.content_action)
+	for (const auto &id : {std::string("loading.progress"), action})
+		if (auto *element = document->GetElementById(id))
 		{
-			app.content_action = {};
+			const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+			app.control_placements[id] = {at.x,
+			                              at.y,
+			                              element->GetOffsetWidth(),
+			                              element->GetOffsetHeight(),
+			                              context->GetFocusElement() == element,
+			                              true};
+		}
+}
+void route_loading_actions(Application &app)
+{
+	const auto prior = app.screen_action;
+	app.screen_action = [prior, &app](const std::string &id)
+	{
+		std::string operation = id;
+		if (id.starts_with("console/"))
+		{
+			const auto marker = id.find("/loading/", 8);
+			if (marker != std::string::npos)
+				operation = "loading/" + id.substr(8, marker - 8) + "/" + id.substr(marker + 9);
+		}
+		if (!operation.starts_with("loading/"))
+			return prior ? prior(id) : false;
+		// Admit only this frame's published, display-scoped operation/ticket.
+		if (std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+		                 [&](const auto &row)
+		                 {
+			                 return row.first == id;
+		                 }))
+			return false;
+		const auto split = operation.find('/', 8), end = operation.find('/', split + 1);
+		if (split == std::string::npos || end == std::string::npos)
+			return false;
+		std::uint64_t route = 0, request = 0;
+		const auto route_result = std::from_chars(operation.data() + 8, operation.data() + split, route);
+		const auto request_result = std::from_chars(operation.data() + split + 1, operation.data() + end, request);
+		if (route_result.ec != std::errc{} || route_result.ptr != operation.data() + split ||
+		    request_result.ec != std::errc{} || request_result.ptr != operation.data() + end)
+			return false;
+		const bool retry = operation.substr(end + 1) == "retry";
+		if (app.content_action && primary_loading && route == primary_loading->target &&
+		    request == primary_loading->request)
+		{
+			if (!retry)
+			{
+				app.content_action = {};
+				return true;
+			}
+			if (!game_screen->loading_action(route, request, true))
+				return false;
+			if (app.await_content)
+				app.await_content(app.content_action);
 			return true;
 		}
-		if (app.return_home)
-			app.return_home();
-		else
-		{
-			if (app.session)
-				app.session->lobby_command({LobbyAction::leave});
-			app.screen = Screen::home;
-		}
-		app.status = localise("Loading cancelled");
-		return true;
+		return game_screen->loading_action(route, request, retry);
 	};
-	Rml::ElementList buttons;
-	loading_document->GetElementsByTagName(buttons, "button");
-	if (!buttons.empty())
-	{
-		auto *button = buttons.front();
-		const auto at = button->GetAbsoluteOffset(Rml::BoxArea::Border);
-		const Rectangle area{host.x + at.x, host.y + at.y, button->GetOffsetWidth(), button->GetOffsetHeight()};
-		app.control_placements["loading.cancel"] = {area.x, area.y, area.width, area.height, true, true};
-		if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) ||
-		    (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), area)))
-			app.screen_action("loading.cancel");
-	}
-	publish_semantics(app);
-	drain_semantic_actions(app);
-	renderer.viewport(loading_area);
-	// Render this document only; other contexts remain hidden behind the loading view.
-	context->Render();
-	renderer.finish();
-	return true;
 }
 
 InputRouter input;
@@ -987,8 +921,10 @@ void draw_screen(Application &app)
 	};
 	native_menu->poll(app);
 	select_language(app.language, app.pseudo_locale);
-	if (show_loading(app))
-		return;
+	const bool load_eligible = app.content_action || (app.screen == Screen::console && app.viewscreen_region) ||
+	                           app.screen == Screen::viewscreen || app.screen == Screen::server_lobby ||
+	                           app.screen == Screen::client_lobby;
+	primary_loading = load_eligible ? std::optional(game_screen->preload(app)) : std::nullopt;
 	if ((app.can_host || app.native_menu) && app.screen != Screen::workshop && app.screen != Screen::gm &&
 	    IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
 	{
@@ -1289,19 +1225,22 @@ void draw_screen(Application &app)
 		for (const auto &region : active_console_regions)
 			try
 			{
-				console_surfaces.at(region.console)
-				    ->prepare(app, region, gamepads,
-				              !app.budget_console_preparation || (preparation_index == selected_preparation));
-				console_surfaces.at(region.console)
-				    ->prepare_loading(station_loading && station_loading_routes.contains(region.console)
-				                          ? &*station_loading
-				                          : nullptr,
-				                      region);
+				const auto progress = game_screen->preload_console(app, region.console);
+				if (progress.active)
+					console_surfaces.at(region.console)->prepare_pending(app, region, progress);
+				else
+				{
+					console_surfaces.at(region.console)->prepare_loading(nullptr, region);
+					console_surfaces.at(region.console)
+					    ->prepare(app, region, gamepads,
+					              !app.budget_console_preparation || (preparation_index == selected_preparation));
+				}
 				++preparation_index;
 			}
 			catch (const std::exception &error)
 			{
-				throw std::runtime_error("Console " + std::to_string(region.console) + " preparation: " + error.what());
+				const auto failure = game_screen->console_preparation_failed(region.console, error.what());
+				console_surfaces.at(region.console)->prepare_pending(app, region, failure);
 			}
 	}
 	auto *sidebar_selector = document->GetElementById("sidebar-selector");
@@ -1362,6 +1301,8 @@ void draw_screen(Application &app)
 			return true;
 		};
 	}
+	prepare_primary_loading(app);
+	route_loading_actions(app);
 	app.frame_metrics["preparation"] = GetTime() - preparation_started;
 	const auto scene_preparation_started = GetTime();
 	const auto &scene_frame = game_screen->prepare_scene(app);
@@ -1742,14 +1683,7 @@ void close_window()
 		current_app->button_click = {};
 		current_app->test_screen_audio = {};
 	}
-	if (loading_background.id)
-		UnloadTexture(loading_background);
-	loading_background = {};
-	loading_images.clear();
-	loading_document = nullptr;
-	loading_art_identity.clear();
-	loading_art_failed = false;
-	loading_markup.clear();
+	primary_loading.reset();
 	game_screen.reset();
 	native_menu.reset();
 	server_music.reset();

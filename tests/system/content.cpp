@@ -1310,6 +1310,17 @@ int main()
 		const auto map_id = catalog.maps.begin()->first;
 		const auto required_images = scenario_assets(catalog, map_id);
 		require(!required_images.empty(), "scenario closure includes initial and allowed-ship sprites");
+		const auto retained_pixels = shared_asset_image(base.files.at("assets/pixel.png"));
+		require(retained_pixels == shared_asset_image(base.files.at("assets/pixel.png")),
+		        "Graphics owners share immutable decoded pixels for identical encoded content");
+		auto damaged_image = base.files.at("assets/pixel.png");
+		damaged_image.resize(16);
+		rejected(
+		    [&]
+		    {
+			    shared_asset_image(damaged_image);
+		    },
+		    "image:");
 		WorkshopDocument packaging;
 		packaging.load_pack(bytes);
 		packaging.map()["loading_background"] = "test-core:assets/pixel.png";
@@ -1319,6 +1330,11 @@ int main()
 		later["render"]["images"] = Json::array({extra_image});
 		packaging.definitions()["entities"].push_back(later);
 		const auto unused = scenario_assets(packaging.verify(), map_id);
+		const auto console_images = console_image_assets(packaging.verify(), "test.ship");
+		require(std::find(console_images.begin(), console_images.end(), "test-core:assets/pixel.png") !=
+		                console_images.end() &&
+		            std::find(console_images.begin(), console_images.end(), extra_image) == console_images.end(),
+		        "Console preparation uses the ship's presentation closure without unrelated scene images");
 		require(std::find(unused.begin(), unused.end(), extra_image) == unused.end(),
 		        "unrelated content is not preloaded");
 		packaging.map()["preload"] = Json::array({"test.later"});

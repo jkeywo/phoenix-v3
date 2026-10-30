@@ -24,6 +24,10 @@ public:
 	~GameScreen();
 	using Loading = LoadingProgress;
 	Loading preload(Application &app);
+	Loading preload_console(Application &app, ConsoleId route);
+	bool loading_action(ConsoleId route, std::uint64_t request, bool retry);
+	Loading console_preparation_failed(ConsoleId route, const std::string &error);
+	bool scene_ready() const;
 	void prepare(Application &app, Rml::ElementDocument &document);
 	void refresh_status(Application &app);
 	const SceneFrame &prepare_scene(Application &app);
@@ -31,6 +35,7 @@ public:
 	void draw_viewscreen(Application &app, Rectangle region);
 
 private:
+	Loading preload_step(Application &app);
 	struct State;
 	std::unique_ptr<State> state_;
 };

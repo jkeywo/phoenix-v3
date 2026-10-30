@@ -27,6 +27,58 @@ import phoenix.content.resources;
 
 namespace phoenix
 {
+std::vector<std::string> console_image_assets(const Catalog &catalog, const std::string &ship, bool ui_only)
+{
+	std::set<std::string> images, visited;
+	std::function<void(const Json &)> visit;
+	std::function<void(const std::string &)> reference = [&](const std::string &id)
+	{
+		if (!visited.insert(id).second)
+			return;
+		if (const auto asset = catalog.assets.find(id); asset != catalog.assets.end())
+		{
+			const auto &bytes = asset->second;
+			if ((bytes.size() >= 4 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71) ||
+			    (bytes.size() >= 8 && std::string(bytes.begin(), bytes.begin() + 8) == "PHXWEBP1"))
+				images.insert(id);
+		}
+		for (const auto *definitions :
+		     {&catalog.consoles, &catalog.layouts, &catalog.ui_groups, &catalog.themes, &catalog.control_widgets})
+			if (const auto found = definitions->find(id); found != definitions->end())
+				visit(found->second);
+	};
+	visit = [&](const Json &value)
+	{
+		if (value.is_string())
+			reference(value.get<std::string>());
+		else if (value.is_structured())
+			for (const auto &child : value)
+				visit(child);
+	};
+	if (catalog.entities.contains(ship))
+	{
+		if (!ui_only)
+			visit(catalog.entities.at(ship).at("render"));
+		for (const auto &console : resolve_consoles(catalog, ship))
+			reference(console.definition);
+	}
+	reference(catalog.ui_theme);
+	// These symbols can appear in permitted radar observations, without requiring
+	// the scene materials, maps or simulation definitions of those other hulls.
+	if (!ui_only)
+		for (const auto &[id, entity] : catalog.entities)
+		{
+			const auto &render = entity.at("render");
+			if (render.contains("radar_sprite"))
+				visit(render.at("radar_sprite"));
+			if (render.contains("sprite") && render.at("sprite").contains("radar_sprite"))
+				visit(render.at("sprite").at("radar_sprite"));
+		}
+	if (catalog.presentation && !ui_only)
+		for (const auto &[id, bytes] : catalog.assets)
+			reference(id);
+	return {images.begin(), images.end()};
+}
 void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 {
 	const auto directed_catalog = compile_directed_catalog(catalog);

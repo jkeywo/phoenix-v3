@@ -13,6 +13,8 @@ module;
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+#include <map>
 #include <stdexcept>
 #include <span>
 #include <string>
@@ -34,7 +36,22 @@ bool compiled_image(std::span<const std::uint8_t> bytes)
 {
 	return signature(bytes, webp_magic);
 }
-AssetImage decode_asset_image(std::span<const std::uint8_t> bytes)
+namespace
+{
+struct ImageCache
+{
+	std::mutex mutex;
+	std::map<std::string, std::weak_ptr<const AssetImage>> images;
+};
+ImageCache &image_cache()
+{
+	// Process-lifetime metadata: CPU jobs may finish during static
+	// graphics teardown. Destroying this mutex/index then would race those jobs.
+	// Entries are weak, pruned on use, and never retain pixel buffers themselves.
+	static auto *cache = new ImageCache;
+	return *cache;
+}
+AssetImage decode_pixels(std::span<const std::uint8_t> bytes)
 {
 	AssetImage result;
 	if (compiled_image(bytes))
@@ -81,6 +98,32 @@ AssetImage decode_asset_image(std::span<const std::uint8_t> bytes)
 	stbi_image_free(pixels);
 	return result;
 }
+} // namespace
+std::shared_ptr<const AssetImage> shared_asset_image(std::span<const std::uint8_t> bytes)
+{
+	auto &cache = image_cache();
+	const auto hash = sha256(bytes);
+	{
+		std::lock_guard lock(cache.mutex);
+		if (auto image = cache.images[hash].lock())
+			return image;
+	}
+	auto decoded = std::make_shared<const AssetImage>(decode_pixels(bytes));
+	std::lock_guard lock(cache.mutex);
+	std::erase_if(cache.images,
+	              [](const auto &entry)
+	              {
+		              return entry.second.expired();
+	              });
+	if (auto image = cache.images[hash].lock())
+		return image;
+	cache.images[hash] = decoded;
+	return decoded;
+}
+AssetImage decode_asset_image(std::span<const std::uint8_t> bytes)
+{
+	return *shared_asset_image(bytes);
+}
 std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes)
 {
 	// Never key validation by a mutable asset path: edited replacements need a new
@@ -100,8 +143,8 @@ std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes
 	for (const auto &receipt : verified.receipts)
 		if (receipt.encoded.size() == bytes.size() && std::equal(bytes.begin(), bytes.end(), receipt.encoded.begin()))
 			return receipt.dimensions;
-	const auto image = decode_asset_image(bytes);
-	const std::array dimensions{image.width, image.height};
+	const auto image = shared_asset_image(bytes);
+	const std::array dimensions{image->width, image->height};
 	constexpr std::size_t budget = 32 * 1024 * 1024;
 	if (bytes.size() <= budget)
 	{

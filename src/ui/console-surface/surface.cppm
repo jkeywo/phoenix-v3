@@ -65,6 +65,7 @@ public:
 	double paint_cost() const;
 	void render_ui(UiRenderer &renderer, const ConsoleRegion &region, bool allow_paint = true);
 	void prepare_loading(const LoadingProgress *loading, const ConsoleRegion &region);
+	void prepare_pending(Application &app, const ConsoleRegion &region, const LoadingProgress &loading);
 	void prepare_current(Application &app, const ConsoleRegion &physical_region, const std::set<std::string> &pads);
 	void draw_profile(const ConsoleRegion &region);
 	void draw(const ConsoleRegion &region);

@@ -573,7 +573,14 @@ phoenix_intended_module(
 	phoenix_application_displays
 	phoenix_application_connections
 )
-phoenix_intended_module(phoenix_ui_rml phoenix_foundation RmlUi::RmlUi raylib phoenix_shaping)
+phoenix_intended_module(
+	phoenix_ui_rml
+	phoenix_foundation
+	RmlUi::RmlUi
+	raylib
+	phoenix_shaping
+	phoenix_graphics_assets
+)
 phoenix_intended_module(phoenix_ui_skin phoenix_foundation)
 phoenix_intended_module(
 	phoenix_ui_theme

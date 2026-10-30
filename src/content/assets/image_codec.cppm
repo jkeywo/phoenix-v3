@@ -24,6 +24,9 @@ struct AssetImage
 };
 bool compiled_image(std::span<const std::uint8_t> bytes);
 AssetImage decode_asset_image(std::span<const std::uint8_t> bytes);
+// Immutable pixels can be retained by prepared graphics owners, so material
+// validation and CPU sampling reuse worker decoding instead of decoding again.
+std::shared_ptr<const AssetImage> shared_asset_image(std::span<const std::uint8_t> bytes);
 // Fully validates pixels, reusing bounded success receipts for identical bytes.
 std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes);
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes);

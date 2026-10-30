@@ -178,6 +178,8 @@ bool ConsoleSurface::State::action(const std::string &name)
 	const auto prefix = id("");
 	if (!app_ || !name.starts_with(prefix))
 		return false;
+	if (name.starts_with(prefix + "loading/"))
+		return app_->screen_action && app_->screen_action(name);
 	prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 	if (station_loading_)
 		return false;
@@ -628,6 +630,8 @@ std::optional<bool> ConsoleSurface::State::camera_navigation_action(const std::s
 
 bool ConsoleSurface::State::controller_hold(const std::string &name, bool pressed)
 {
+	if (station_loading_ && pressed)
+		return false;
 	if (!name.starts_with(id("")))
 		return false;
 	auto key = name.substr(id("").size());
@@ -795,6 +799,8 @@ void ConsoleSurface::State::focus(const std::string &name)
 }
 bool ConsoleSurface::State::set_value(const std::string &name, const std::string &text)
 {
+	if (station_loading_)
+		return false;
 	if (name == id("audio-device"))
 	{
 		if (!settings_open_ || local_settings_tab_ != "audio")
@@ -894,6 +900,8 @@ void ConsoleSurface::State::cancel_gamepad(const std::string &device)
 }
 void ConsoleSurface::State::gamepad(const std::string &device, const std::string &control, float value)
 {
+	if (station_loading_)
+		return;
 	if (control == "flight.impulse")
 	{
 		if (value > 0 && !settings_open_ && !systems_open_)
@@ -918,6 +926,8 @@ void ConsoleSurface::State::gamepad(const std::string &device, const std::string
 }
 void ConsoleSurface::State::manual_frame(bool keyboard_selected, FlightAxes keyboard_axes, bool focused)
 {
+	if (station_loading_)
+		return;
 	if (keyboard_axes.yaw || keyboard_axes.thrust)
 		prepare_dirty_ = render_dirty_ = render_urgent_ = true;
 	const auto *keyboard_focus = context_->GetFocusElement();
@@ -1106,6 +1116,8 @@ std::optional<bool> ConsoleSurface::State::select_radar_at(float x, float y)
 }
 bool ConsoleSurface::State::pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
 {
+	if (station_loading_)
+		return false;
 	render_dirty_ = true;
 	if (kind != DeviceEventKind::Move || heading_contacts_.contains(contact) || throttle_contacts_.contains(contact) ||
 	    navigation_.captures(contact) || joystick_contact_ == contact)

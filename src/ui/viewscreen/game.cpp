@@ -19,6 +19,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -82,14 +83,26 @@ struct GameScreen::State
 	std::vector<std::string> preload_images, preload_definitions, preload_ui;
 	std::size_t preload_done = 0;
 	std::string preload_error;
+	std::string resource_mission;
+	SurfaceLoad scene_loading;
+	struct ConsolePreparation
+	{
+		SurfaceLoad loading;
+		TextureCache textures;
+		std::string identity;
+		std::vector<std::string> images, files, ui_images;
+		std::size_t done = 0;
+	};
+	std::map<ConsoleId, ConsolePreparation> console_preparation;
 	~State()
 	{
 		close_resources();
 	}
-	void reset_session()
+	void reset_session(bool resources_changed = false)
 	{
 		imports.reset();
-		close_resources();
+		if (resources_changed)
+			close_resources();
 		mission.clear();
 		slot.clear();
 		ship.clear();
@@ -108,24 +121,34 @@ struct GameScreen::State
 		presentation_identity = nullptr;
 		grid_definition.clear();
 		markup_ready = false;
-		preload_planned = preload_finished = false;
-		preload_ui.clear();
-		preload_images.clear();
-		preload_definitions.clear();
-		preload_done = 0;
-		preload_error.clear();
+		if (resources_changed)
+		{
+			preload_planned = preload_finished = false;
+			preload_ui.clear();
+			preload_images.clear();
+			preload_definitions.clear();
+			preload_done = 0;
+			preload_error.clear();
+		}
 	}
 	void bind_session(const Application &app)
 	{
 		const decltype(content_identity) empty;
 		const auto &packs = app.session ? app.session->catalog().ordered_packs : empty;
 		const auto current_generation = app.session ? app.session->generation() : 0;
-		if (owner.lock() != app.session || generation != current_generation || content_identity != packs)
+		auto next_mission = app.session ? app.session->loading_scenario() : std::string{};
+		// A worker can briefly publish no scenario during handover. Absence is not
+		// a new asset requirement, and must not evict the ready scene.
+		if (next_mission.empty() && content_identity == packs)
+			next_mission = resource_mission;
+		const bool resources_changed = content_identity != packs || resource_mission != next_mission;
+		if (owner.lock() != app.session || generation != current_generation || resources_changed)
 		{
-			reset_session();
+			reset_session(resources_changed);
 			owner = app.session;
 			generation = current_generation;
 			content_identity = packs;
+			resource_mission = next_mission;
 		}
 	}
 	std::string label(const Application &app, const std::string &text)
@@ -656,6 +679,14 @@ struct GameScreen::State
 				if (body.audio_only && body.id == previous_focus->id)
 					environment.own = static_cast<const BodyView &>(body);
 		frame.focus_body = environment.own;
+		if (!preload_finished)
+		{
+			// Audio and permitted scene facts continue while graphics are pending,
+			// including a host that intentionally shows only Console displays.
+			if (environment.own)
+				frame.visible.insert(environment.own->id);
+			return frame;
+		}
 		environment.dust_enabled = app.dust_motes;
 		environment.grid_enabled = app.reference_grid;
 		environment.reduced_motion = app.reduced_motion;
@@ -691,11 +722,9 @@ struct GameScreen::State
 				else if (render.contains("images"))
 					for (const auto &reference : render.at("images"))
 					{
-						const auto &png = app.session->catalog().assets.at(reference.get<std::string>());
-						auto image = LoadImageFromMemory(".png", png.data(), static_cast<int>(png.size()));
-						if (image.height > 0)
-							camera_aspect = std::max(camera_aspect, static_cast<float>(image.width) / image.height);
-						UnloadImage(image);
+						const auto id = reference.get<std::string>();
+						const auto texture = textures.load(id, app.session->catalog().assets.at(id));
+						camera_aspect = std::max(camera_aspect, static_cast<float>(texture.width) / texture.height);
 					}
 				if (render.contains("reference_grid"))
 					environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
@@ -974,6 +1003,161 @@ GameScreen::~GameScreen() = default;
 GameScreen::Loading GameScreen::preload(Application &app)
 {
 	auto &s = *state_;
+	s.bind_session(app);
+	const auto route = app.viewscreen_region ? app.viewscreen_region->console : 0;
+	const auto identity =
+	    Json(s.content_identity).dump() + "/" + s.resource_mission + (app.content_action ? "/content" : "/scene");
+	const auto request = s.scene_loading.begin(route, identity);
+	if (s.scene_loading.progress().state != Loading::State::preparing)
+		return s.scene_loading.progress();
+	auto progress = preload_step(app);
+	s.scene_loading.advance(progress.completed, progress.total, progress.phase);
+	if (!progress.error.empty())
+		s.scene_loading.fail(request, progress.error);
+	else if (!progress.active)
+		s.scene_loading.complete(request);
+	progress.target = route;
+	progress.request = request;
+	progress.state = s.scene_loading.progress().state;
+	return progress;
+}
+bool GameScreen::scene_ready() const
+{
+	return state_->preload_finished;
+}
+GameScreen::Loading GameScreen::preload_console(Application &app, ConsoleId route)
+{
+	auto &p = state_->console_preparation[route];
+	if (!app.session)
+		return {};
+	const auto &catalog = app.session->catalog();
+	const auto source = app.session->console_snapshot(route);
+	std::string ship = source ? source->own.definition : std::string{};
+	if (ship.empty())
+	{
+		const auto lobby = app.session->lobby();
+		for (const auto &seat : lobby.consoles)
+			if (seat.local_screen == route)
+				for (const auto &slot : lobby.slots)
+					if (slot.id == seat.slot)
+						ship = slot.ship;
+	}
+	if (ship.empty())
+	{
+		if (app.session->content_progress())
+		{
+			p.loading.begin(route, "receiving/" + Json(catalog.ordered_packs).dump());
+			p.loading.advance(0, 0, "Receiving Console assets");
+			return p.loading.progress();
+		}
+		// Claim/reconnection UI still needs its ordinary preparation. Retain the
+		// previous asset owner until an actual replacement ship/content is known.
+		return {};
+	}
+	const auto identity = Json(catalog.ordered_packs).dump() + "/" + ship;
+	const auto request = p.loading.begin(route, identity);
+	if (p.identity != identity)
+	{
+		p.identity = identity;
+		p.textures.clear();
+		p.images.clear();
+		p.ui_images.clear();
+		p.files.clear();
+		p.done = 0;
+	}
+	if (p.loading.progress().state != Loading::State::preparing)
+		return p.loading.progress();
+	try
+	{
+		if (ship.empty() || !catalog.entities.contains(ship))
+		{
+			p.loading.advance(0, 0, "Receiving Console assets");
+			return p.loading.progress();
+		}
+		if (p.files.empty())
+		{
+			p.images = console_image_assets(catalog, ship);
+			p.ui_images = console_image_assets(catalog, ship, true);
+#ifdef __EMSCRIPTEN__
+			const std::string ui_root = "/assets/helm/";
+#else
+			const std::string ui_root = std::string(GetApplicationDirectory()) + "assets/helm/";
+#endif
+			for (const auto *name : {"helm-background-9slice", "readout-panel", "heading-pointer", "helm-radar-ring",
+			                         "helm-throttle-track", "helm-throttle-handle"})
+				p.files.push_back(ui_root + name + ".png");
+			p.files.push_back(ui_root + "../menu/helm-background-9slice.png");
+			p.files.push_back(ui_root + "../menu/button-generic-9slice.png");
+		}
+		const auto total = p.images.size() + p.files.size() + p.ui_images.size();
+		p.loading.advance(p.done, total, "Loading cockpit controls");
+		const auto started = GetTime();
+		while (p.done < total)
+		{
+			bool ready = false;
+			if (p.done < p.images.size())
+			{
+				const auto &image = p.images.at(p.done);
+				ready = p.textures.prepare(image, catalog.assets.at(image));
+			}
+			else if (p.done < p.images.size() + p.files.size())
+			{
+				const auto index = p.done - p.images.size();
+				ready = p.textures.prepare_file(p.files.at(index), index >= 6);
+			}
+			else
+			{
+				const auto &image = p.ui_images.at(p.done - p.images.size() - p.files.size());
+				ready = p.textures.prepare(image, catalog.assets.at(image), true);
+			}
+			if (!ready)
+				break;
+			++p.done;
+			if (GetTime() - started >= .002)
+				break;
+		}
+		if (p.done == total)
+			p.loading.complete(request);
+		p.loading.advance(p.done, total, "Loading cockpit controls");
+	}
+	catch (const std::exception &error)
+	{
+		p.loading.fail(request, error.what());
+	}
+	return p.loading.progress();
+}
+bool GameScreen::loading_action(ConsoleId route, std::uint64_t request, bool retry)
+{
+	SurfaceLoad *loading = &state_->scene_loading;
+	if (route != loading->progress().target)
+	{
+		const auto found = state_->console_preparation.find(route);
+		if (found == state_->console_preparation.end())
+			return false;
+		loading = &found->second.loading;
+	}
+	if (!loading->progress().active || loading->progress().request != request)
+		return false;
+	if (retry)
+	{
+		loading->retry();
+		if (loading == &state_->scene_loading)
+			state_->preload_error.clear();
+		return true;
+	}
+	return loading->cancel(request);
+}
+GameScreen::Loading GameScreen::console_preparation_failed(ConsoleId route, const std::string &error)
+{
+	auto &loading = state_->console_preparation.at(route).loading;
+	loading.retry();
+	loading.fail(loading.progress().request, error);
+	loading.advance(loading.progress().completed, loading.progress().total, "Loading failed");
+	return loading.progress();
+}
+GameScreen::Loading GameScreen::preload_step(Application &app)
+{
+	auto &s = *state_;
 	if (app.content_action)
 		return {true, 0, 0, "Loading game packs", {}, app.content_error};
 	s.bind_session(app);
@@ -1043,7 +1227,10 @@ GameScreen::Loading GameScreen::preload(Application &app)
 			const auto &bytes = catalog.assets.at(id);
 			if (compiled_image(bytes) ||
 			    (bytes.size() >= 4 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71))
-				s.textures.load(id, bytes);
+			{
+				if (!s.textures.prepare(id, bytes))
+					return {true, s.preload_done, total, phase, title, {}};
+			}
 			++s.preload_done;
 		}
 		else if (s.preload_done < s.preload_images.size() + s.preload_definitions.size())
@@ -1055,8 +1242,9 @@ GameScreen::Loading GameScreen::preload(Application &app)
 		else if (s.preload_done < total - 1)
 		{
 			phase = "Loading cockpit controls";
-			s.textures.load_file(
-			    s.preload_ui.at(s.preload_done - s.preload_images.size() - s.preload_definitions.size()));
+			if (!s.textures.prepare_file(
+			        s.preload_ui.at(s.preload_done - s.preload_images.size() - s.preload_definitions.size())))
+				return {true, s.preload_done, total, phase, title, {}};
 			++s.preload_done;
 		}
 		else if (s.preload_done == total - 1)
@@ -1113,6 +1301,8 @@ const SceneFrame &GameScreen::prepare_scene(Application &app)
 }
 void GameScreen::draw(const Application &app)
 {
+	if (!state_->preload_finished && (app.screen == Screen::viewscreen || app.screen == Screen::console))
+		return;
 	if (app.screen == Screen::viewscreen && app.viewscreen_region)
 	{
 		const auto &r = *app.viewscreen_region;
@@ -1123,6 +1313,8 @@ void GameScreen::draw(const Application &app)
 }
 void GameScreen::draw_viewscreen(Application &app, Rectangle region)
 {
+	if (!state_->preload_finished)
+		return;
 	state_->display_region = region;
 	state_->draw(app);
 	for (const auto &[name, duration] : state_->scene_metrics)

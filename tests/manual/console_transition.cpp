@@ -1,5 +1,6 @@
 // Explicit native graphical regression journey; never registered with CTest.
 #include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <raylib.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -11,8 +12,148 @@ import phoenix.navigation;
 import phoenix.console;
 import phoenix.network.lobby;
 import phoenix.session.local;
+import phoenix.content.image_codec;
+import phoenix.graphics.assets;
 using namespace phoenix;
 using phoenix::test::require;
+void verify_local_loading()
+{
+	Application app;
+	app.can_host = true;
+	app.session = make_local_session();
+	auto source = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "loading journey");
+	auto extra = source["maps"][0]["ship_slots"][0];
+	extra["id"] = "test.second";
+	extra["y_mm"] = 50000;
+	extra["allowed_ships"] = Json::array({"test.variant"});
+	source["maps"][0]["ship_slots"].push_back(extra);
+	source["entities"][1]["render"]["mode"] = "eight";
+	source["entities"][1]["render"]["images"] = Json::array();
+	for (int i = 0; i < 8; ++i)
+		source["entities"][1]["render"]["images"].push_back("test-core:assets/later-" + std::to_string(i) + ".png");
+	auto pack = phoenix::test::fixture_pack(json_bytes(source), "test-core");
+	for (std::uint8_t i = 0; i < 8; ++i)
+		pack.files["assets/later-" + std::to_string(i) + ".png"] =
+		    source_asset_image(AssetImage{1, 1, {i, 83, 137, 255}});
+	app.session->add_pack(write_pack(pack));
+	const GameSetup setup{
+	    "test.map", {{"test.slot", "test.ship"}, {"test.second", "test.variant"}}, "test.slot", "main"};
+	app.session->start(setup);
+	const auto first_ship = app.session->console_snapshot(1)->own.id;
+	ConsoleAddress second;
+	for (const auto &seat : app.session->console_seats())
+		if (seat.address.ship != first_ship)
+			second = seat.address;
+	require(second.ship && app.session->claim_console(2, second),
+	        "Second synthetic ship admits an independent Console");
+	app.screen = Screen::console;
+	app.console_regions = {{1, 0, 0, 1280, 720}};
+	open_window();
+	SetWindowState(FLAG_WINDOW_UNDECORATED);
+	SetWindowSize(2560, 720);
+	SetTargetFPS(60);
+	auto frame = [&]
+	{
+		app.session->tick();
+		BeginDrawing();
+		draw_screen(app);
+		EndDrawing();
+	};
+	auto has = [&](const std::string &id)
+	{
+		return std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                   [&](const auto &row)
+		                   {
+			                   return row.first == id;
+		                   });
+	};
+	for (unsigned i = 0; i < 300 && !app.set_control_value; ++i)
+		frame();
+	for (unsigned i = 0; i < 300 && has("console/1/loading"); ++i)
+		frame();
+	require(!has("console/1/loading") && app.set_control_value && app.set_control_value("console/1/speed/engine", "25"),
+	        "First Console becomes usable");
+	app.console_regions.push_back({2, 1280, 0, 1280, 720});
+	frame();
+	require(has("console/2/loading") && !has("console/1/loading"), "Only the newly added display shows loading");
+	std::string cancel;
+	for (const auto &[id, label] : app.screen_controls)
+		if (id.starts_with("console/2/loading/") && id.ends_with("/cancel"))
+			cancel = id;
+	require(!cancel.empty() && app.screen_action(cancel), "Pending display has its own cancellation action");
+	frame();
+	require(app.session->running() && has("console/2/loading") && !has("console/1/loading") &&
+	            app.set_control_value("console/1/speed/engine", "50"),
+	        "Cancelling a display leaves the session and ready Console interactive");
+	TakeScreenshot("build/screen-local-loading-cancelled.png");
+	std::string retry;
+	for (const auto &[id, label] : app.screen_controls)
+		if (id.starts_with("console/2/loading/") && id.ends_with("/retry"))
+			retry = id;
+	require(!retry.empty() && app.screen_action(retry), "Cancelled display can retry locally");
+	frame();
+	require(!app.screen_action(cancel), "A stale display action cannot cancel the retry");
+	frame();
+	TakeScreenshot("build/screen-local-loading.png");
+	unsigned interactive_frames = 0;
+	for (unsigned i = 0; i < 300 && has("console/2/loading"); ++i)
+	{
+		require(!has("console/1/loading") && app.set_control_value("console/1/speed/engine", "50"),
+		        "Ready display continues admitting commands on every pending frame");
+		++interactive_frames;
+		frame();
+	}
+	require(interactive_frames > 0 && !has("console/2/loading"), "Second display completes independently");
+	require(app.session->console_snapshot(1)->requested_speed > 0 &&
+	            app.session->console_snapshot(2)->requested_speed == 0,
+	        "Loading-time commands affect only the ready Console's ship");
+	{
+		TextureCache failed;
+		const Bytes invalid{1, 2, 3, 4};
+		require(!failed.prepare("failed-image", invalid), "Decode preparation yields before publishing a result");
+		bool reported = false;
+		for (unsigned i = 0; i < 120 && !reported; ++i)
+		{
+			try
+			{
+				failed.prepare("failed-image", invalid);
+			}
+			catch (const std::exception &)
+			{
+				reported = true;
+			}
+			frame();
+		}
+		require(reported, "Asynchronous decoder failure is delivered to its preparation owner");
+		failed.clear();
+		require(!failed.prepare("superseded-image", invalid), "Begin a request that will be superseded");
+		failed.clear();
+		bool ready = false;
+		for (unsigned i = 0; i < 120 && !ready; ++i)
+		{
+			ready = failed.prepare("replacement-image", pack.files.at("assets/pixel.png"));
+			frame();
+		}
+		require(ready, "A discarded decoder failure cannot poison the successful replacement");
+	}
+	std::swap(app.console_regions[0].x, app.console_regions[1].x);
+	frame();
+	require(!has("console/1/loading") && !has("console/2/loading") &&
+	            app.control_placements.at("console/1/speed/engine").x >= 1280,
+	        "Display reassignment retains resource readiness and moves the current controls");
+	const auto before = app.session->generation();
+	app.session->start(setup);
+	require(app.session->generation() != before && app.session->claim_console(2, second),
+	        "Restart changes session generation");
+	frame();
+	require(!has("console/1/loading") && !has("console/2/loading"),
+	        "Unchanged resources stay ready across generation changes");
+	app.session->release_console(1);
+	frame();
+	require(!app.set_control_value("console/1/speed/engine", "90"), "Revoked authority cannot use retained controls");
+	close_window();
+	std::cout << "PASS independent synthetic display loading, cancellation, retry, generation reuse and revocation\n";
+}
 void verify_planet(const std::string &directory, const std::string &selection_source = {})
 {
 	Application planet;
@@ -34,7 +175,7 @@ void verify_planet(const std::string &directory, const std::string &selection_so
 						widget["selection_source"] = selection_source;
 	draft.files["definitions.json"] = json_bytes(definitions);
 	planet.session->add_pack(write_pack(draft));
-	planet.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"});
+	planet.session->start({"base.rescue-under-threat", {{"courier", "base.courier"}}, "courier", "helm"});
 	planet.screen = Screen::console;
 	planet.console_regions = {{1, 0, 0, 1920, 1080}};
 	auto planet_frame = [&]
@@ -92,7 +233,7 @@ void verify_viewscreen(const std::string &directory)
 	app.can_host = true;
 	app.session = make_local_session();
 	app.session->add_pack(read_file(directory + "/base.zip"));
-	app.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"});
+	app.session->start({"base.rescue-under-threat", {{"courier", "base.courier"}}, "courier", "helm"});
 	app.screen = Screen::viewscreen;
 	SetTargetFPS(60);
 	for (const auto width : {1920, 3840})
@@ -128,7 +269,7 @@ void verify_support(const std::string &directory)
 	app.can_host = true;
 	app.session = make_local_session();
 	app.session->add_pack(read_file(directory + "/base.zip"));
-	app.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "support"});
+	app.session->start({"base.rescue-under-threat", {{"courier", "base.courier"}}, "courier", "support"});
 	app.screen = Screen::console;
 	app.console_regions = {{1, 0, 0, 1920, 1080}};
 	SetWindowSize(1920, 1080);
@@ -276,6 +417,11 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc == 2 && std::string(argv[1]) == "--loading-only")
+		{
+			verify_local_loading();
+			return 0;
+		}
 		require(argc == 2 || argc == 3, "Supply the native pack directory and optional private signalling URL");
 		if (argc == 3 && (std::string(argv[2]) == "--planet-only" || std::string(argv[2]) == "--sensors-only"))
 		{
@@ -304,16 +450,17 @@ int main(int argc, char **argv)
 		}
 		Application app;
 		app.can_host = app.native_menu = true;
+		const bool loading_lobby = argc == 3 && std::string(argv[2]) == "--loading-lobby";
 		NetworkOptions options;
 		options.link.self = "host";
 		options.link.room = "CONSOLE";
 		options.data_location = "build/console-transition-data";
-		if (argc == 3)
+		if (argc == 3 && !loading_lobby)
 			options.link.url = argv[2];
-		app.session = make_frame_session(make_game_lobby(options, argc == 2));
+		app.session = make_frame_session(make_game_lobby(options, argc == 2 || loading_lobby));
 		app.budget_console_preparation = true;
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->prepare_lobby({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", ""});
+		app.session->prepare_lobby({"base.rescue-under-threat", {{"courier", "base.courier"}}, "courier", ""});
 		app.screen = Screen::server_lobby;
 		app.viewscreen_region = ConsoleRegion{1, 0, 0, 3840, 2160};
 		app.console_regions = {{3, 3840, 0, 1920, 1080}, {4, 3840, 1080, 1920, 1080}};
@@ -434,6 +581,12 @@ int main(int argc, char **argv)
 			        "Courier rejects stale Flight operations navigation");
 			require(count > 0, "Routed Console has visible gameplay controls after launch");
 			require(probe_console_fit(route), "Radar fits its own 1080p monitor beside a 4K host");
+		}
+		if (loading_lobby)
+		{
+			close_window();
+			std::cout << "PASS production mixed-resolution lobby loading and Console activation" << std::endl;
+			return 0;
 		}
 		auto frames = [&](int count = 3)
 		{

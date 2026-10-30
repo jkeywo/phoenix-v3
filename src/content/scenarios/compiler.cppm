@@ -27,4 +27,6 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map, const Di
 // Resolved references, including future spawn content; no production-content assumptions.
 std::vector<std::string> scenario_definitions(const Catalog &catalog, const std::string &map);
 std::vector<std::string> scenario_assets(const Catalog &catalog, const std::string &map);
+// Public presentation dependencies of one ship, independent of scenario scenery.
+std::vector<std::string> console_image_assets(const Catalog &catalog, const std::string &ship, bool ui_only = false);
 } // namespace phoenix

@@ -1109,6 +1109,8 @@ void ConsoleSurface::State::update_view()
 	if (context_->GetNextUpdateDelay() <= 0)
 		render_dirty_ = true;
 	context_->Update();
+	if (station_loading_)
+		return;
 	measure_authored_geometry();
 	if (settings_open_)
 		return;
@@ -1200,14 +1202,27 @@ void ConsoleSurface::State::prepare_loading(const LoadingProgress *loading, cons
 	station_loading_ = loading != nullptr;
 	const auto text =
 	    loading ? localise(loading->phase) +
-	                  (loading->total ? " " + std::to_string(loading->completed * 100 / loading->total) + "%" : "")
+	                  (loading->total ? " " + std::to_string(loading->completed * 100 / loading->total) + "%" : "") +
+	                  (loading->error.empty() ? "" : ": " + loading->error)
 	            : std::string{};
-	if (text != station_loading_markup_)
+	const auto prefix = loading ? id("loading/") + std::to_string(loading->request) + "/" : std::string{};
+	const auto markup =
+	    text + (loading ? loading->error + prefix + std::to_string(static_cast<int>(loading->state)) : "");
+	if (markup != station_loading_markup_)
 	{
-		station_loading_markup_ = text;
-		panel->SetInnerRML("<div><h1>" + Rml::StringUtilities::EncodeRml(localise("Loading Console")) +
-		                   "</h1><p id=\"" + id("loading") + "\">" + Rml::StringUtilities::EncodeRml(text) +
-		                   "</p></div>");
+		station_loading_markup_ = markup;
+		dom_.forget_elements();
+		panel->SetInnerRML(
+		    "<div><h1>" + Rml::StringUtilities::EncodeRml(localise("Loading Console")) + "</h1><p id=\"" +
+		    id("loading") + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p><p>" +
+		    Rml::StringUtilities::EncodeRml(loading ? loading->error : "") + "</p>" +
+		    (loading ? "<button id=\"" + prefix +
+		                   (loading->state == LoadingProgress::State::preparing ? "cancel" : "retry") + "\">" +
+		                   localise(loading->state == LoadingProgress::State::preparing ? "Cancel loading"
+		                                                                                : "Retry loading") +
+		                   "</button>"
+		             : "") +
+		    "</div>");
 		render_dirty_ = render_urgent_ = true;
 	}
 	dom_.property(panel, "display", station_loading_ ? "block" : "none");
@@ -1224,6 +1239,9 @@ void ConsoleSurface::State::prepare_loading(const LoadingProgress *loading, cons
 			              return row.first.starts_with(id(""));
 		              });
 		app_->screen_readouts.emplace_back(id("loading"), localise("Loading Console") + ": " + text);
+		const auto action = prefix + (loading->state == LoadingProgress::State::preparing ? "cancel" : "retry");
+		app_->screen_controls.emplace_back(
+		    action, localise(loading->state == LoadingProgress::State::preparing ? "Cancel loading" : "Retry loading"));
 		std::erase_if(app_->screen_inputs,
 		              [&](const auto &field)
 		              {
@@ -1231,7 +1249,18 @@ void ConsoleSurface::State::prepare_loading(const LoadingProgress *loading, cons
 		              });
 		context_->Update();
 		place(*app_, region, id("loading"));
+		place(*app_, region, action);
 	}
+}
+void ConsoleSurface::prepare_pending(Application &app, const ConsoleRegion &region, const LoadingProgress &loading)
+{
+	state_->app_ = &app;
+	state_->context_->SetDensityIndependentPixelRatio(
+	    std::max(1.f, std::min(region.width / 1280.f, region.height / 720.f)));
+	state_->context_->SetDimensions({static_cast<int>(region.width), static_cast<int>(region.height)});
+	state_->cancel_pointer();
+	state_->model_.release_controls();
+	state_->prepare_loading(&loading, region);
 }
 ConsoleSurface::ConsoleSurface(ConsoleId route, const std::string &prefix, bool toolbar, Rml::RenderInterface *renderer)
     : state_(std::make_unique<State>(route, prefix, toolbar, renderer))
