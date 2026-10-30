@@ -369,7 +369,9 @@ void AuthoringControls::scalar_map(Json &parent, const char *key)
 	static std::map<std::string, int> pending_types;
 	const auto scope = std::to_string(ImGui::GetID(key));
 	ImGui::InputText(label("New field name").c_str(), &pending_names[scope]);
+	tool_prepare_action("Add field");
 	ImGui::Combo(label("New field type").c_str(), &pending_types[scope], "Integer\0Boolean\0Text\0");
+	tool_action_line("Add field");
 	if (button("Add field") && !pending_names[scope].empty())
 	{
 		if (!parent.contains(key))

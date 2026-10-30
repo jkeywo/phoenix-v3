@@ -203,7 +203,10 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 				}
 			ImGui::EndCombo();
 		}
+		tool_prepare_action("Rename layout template");
 		ImGui::InputText(tool_label("Reusable asset ID").c_str(), &layout_workspace.asset_name);
+		if (console[layout_field].is_string())
+			tool_action_line("Rename layout template");
 		if (console[layout_field].is_string() && tool_button(tool_label("Rename layout template").c_str()))
 		{
 			layout_workspace.rename_from = console[layout_field].get<std::string>();
@@ -755,7 +758,10 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						console["theme"] = id;
 				ImGui::EndCombo();
 			}
+			tool_prepare_action("Rename theme");
 			ImGui::InputText(tool_label("New reusable ID").c_str(), &layout_workspace.asset_name);
+			if (!current_theme.empty())
+				tool_action_line("Rename theme");
 			if (!current_theme.empty() && tool_button(tool_label("Rename theme").c_str()))
 			{
 				layout_workspace.rename_from = current_theme;
