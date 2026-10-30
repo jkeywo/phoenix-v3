@@ -2178,6 +2178,88 @@ int main()
 		auto instance = workshop.place(definition, 1000, 2000);
 		workshop.duplicate(instance);
 		require(workshop.map()["entities"].size() == 2, "Workshop duplicate must create a separate stable instance");
+		{
+			const auto second = workshop.map()["entities"].back().at("id").get<std::uint64_t>();
+			const std::set<std::uint64_t> selected{instance, second};
+			WorkshopHistory history;
+			history.reset(workshop);
+			const auto before = workshop.map()["entities"];
+			workshop.translate_instances(selected, 1700, -2300);
+			require(workshop.map()["entities"][0].at("x_mm") == 2700 &&
+			            workshop.map()["entities"][1].at("x_mm") == 7700,
+			        "Group translation preserves relative placement");
+			history.checkpoint(workshop);
+			require(history.undo(workshop) && workshop.map()["entities"] == before,
+			        "Group translation is one reversible document operation");
+			WorkshopHistory cancelled;
+			cancelled.reset(workshop);
+			workshop.translate_instances(selected, 10, 20);
+			workshop.translate_instances(selected, -10, -20);
+			cancelled.checkpoint(workshop);
+			require(!cancelled.can_undo(), "Cancelled movement does not create an empty undo entry");
+			workshop.edit_instances(selected, {{"heading_mdeg", 90000}}, {{"render", {{"scale", 2}}}});
+			require(workshop.definitions()["entities"][0].at("render").at("scale") == 1 &&
+			            workshop.map()["entities"][0].at("overrides").at("render").at("scale") == 2,
+			        "Bulk edits create local overrides without changing the template");
+			const auto changed = workshop.map();
+			bool refused = false;
+			try
+			{
+				workshop.edit_instances(selected, Json::object(), {{"render", {{"scale", -1}}}});
+			}
+			catch (const std::exception &)
+			{
+				refused = true;
+			}
+			require(refused && workshop.map() == changed, "Invalid bulk edits cannot partially update instances");
+			workshop.edit_instances(selected, Json::object(), Json::object(), {}, true);
+			workshop.edit_instances(selected, {{"heading_mdeg", 0}}, Json::object());
+			const Json local{{"context", "scenario"},
+			                 {"initial", "idle"},
+			                 {"states", Json::array({{{"id", "idle"},
+			                                          {"entry", Json::array()},
+			                                          {"running", Json::array()},
+			                                          {"exit", Json::array()},
+			                                          {"transitions", Json::array()}}})}};
+			workshop.map()["scenario"] = {{"tree", local}};
+			const auto target = WorkshopTarget::capture(workshop.definitions(), "/maps/0/scenario/tree");
+			workshop.definitions()["maps"].insert(workshop.definitions()["maps"].begin(), {{"id", "temporary.map"}});
+			require(target.resolve(workshop.definitions()) && *target.resolve(workshop.definitions()) == local,
+			        "Editor targets follow owners through array insertion");
+			workshop.definitions()["maps"].erase(workshop.definitions()["maps"].begin());
+			const auto loaded = workshop.verify();
+			const auto map_id = workshop.map().at("id").get<std::string>();
+			const auto private_id = loaded.maps.at(map_id).at("scenario").at("tree").get<std::string>();
+			require(private_id.starts_with("phoenix.local.") && loaded.tree_programs.contains(private_id),
+			        "Embedded trees use the production compiler");
+			workshop.map()["scenario"]["tree"]["budget"] = 2048;
+			require(workshop.verify().maps.at(map_id).at("scenario").at("tree") == private_id,
+			        "Editing local tree contents preserves owner identity");
+			WorkshopDocument reopened;
+			reopened.load_pack(workshop.export_pack());
+			require(reopened.map().at("scenario").at("tree").is_object(),
+			        "Source roundtrip preserves embedded tree authoring");
+			{
+				auto tree = local;
+				tree["states"].push_back({{"id", "child"}, {"parent", "idle"}, {"running", Json::array()}});
+				tree["states"][0]["initial"] = "child";
+				WorkshopDocument::reparent_tree_state(tree, "child", "");
+				require(!tree.at("states")[0].contains("initial") && !tree.at("states")[1].contains("parent"),
+				        "Reparenting maintains compound initial-state references");
+				const auto before = tree;
+				bool refused = false;
+				try
+				{
+					WorkshopDocument::reparent_tree_state(tree, "idle", "idle");
+				}
+				catch (const std::exception &)
+				{
+					refused = true;
+				}
+				require(refused && tree == before, "Cyclic reparenting is refused atomically");
+			}
+			workshop.map().erase("scenario");
+		}
 		workshop.map()["ship_slots"].push_back({{"id", "crew"},
 		                                        {"x_mm", 0},
 		                                        {"y_mm", 0},

@@ -119,6 +119,53 @@ struct PackView
 	const std::map<std::string, Bytes> &files;
 	std::string hash;
 };
+// Embedded authoring policies become ordinary private references at the load boundary.
+// Identity follows owner IDs rather than array order or policy contents.
+void expand_local_trees(Catalog &catalog)
+{
+	std::function<void(Json &, const std::string &)> visit;
+	visit = [&](Json &value, const std::string &path)
+	{
+		if (value.is_array())
+		{
+			for (std::size_t i = 0; i < value.size(); ++i)
+			{
+				auto &row = value[i];
+				const auto key = row.is_object() && row.contains("id") ? row.at("id").dump() : std::to_string(i);
+				visit(row, path + "/" + key);
+			}
+		}
+		else if (value.is_object())
+			for (auto &[key, child] : value.items())
+			{
+				if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree") &&
+				    child.is_object())
+				{
+					const auto owner = path + "/" + key;
+					const auto id = "phoenix.local." + sha256(json_bytes(Json(owner))).substr(0, 32);
+					auto tree = child;
+					tree["id"] = id;
+					tree["_local_owner"] = owner;
+					if (!tree.contains("context") && !tree.contains("extends"))
+						invalid(owner, "local tree needs a context");
+					if (catalog.trees.contains(id) && catalog.trees.at(id) != tree)
+						invalid(owner, "duplicate local tree owner");
+					catalog.trees[id] = std::move(tree);
+					child = id;
+				}
+				else
+					visit(child, path + "/" + key);
+			}
+	};
+	for (auto &[id, value] : catalog.entities)
+		visit(value, "entities/" + id);
+	for (auto &[id, value] : catalog.maps)
+		visit(value, "maps/" + id);
+	for (auto &[id, value] : catalog.equipment)
+		visit(value, "equipment/" + id);
+	for (auto &[id, value] : catalog.control_widgets)
+		visit(value, "control_widgets/" + id);
+}
 Catalog resolve(const std::vector<PackView> &ordered)
 {
 	Catalog result;
@@ -244,6 +291,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		if (!pack.hash.empty())
 			result.ordered_packs.emplace_back(id, pack.hash);
 	}
+	expand_local_trees(result);
 	inherit_definitions(result.entities, "entities");
 	inherit_definitions(result.maps, "maps");
 	resolve_instance_overrides(result);
@@ -277,6 +325,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
 	resolve_equipment(result, properties);
+	expand_local_trees(result);
 	if (!result.presentation)
 	{
 		auto &roles = result.knowledge["roles"];
@@ -1091,34 +1140,46 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 	catalog.conversation_programs.clear();
 	catalog.controller_bindings.clear();
 	for (const auto &[id, tree] : catalog.trees)
-		if (const auto context = contextual_tree(catalog.trees, id))
+	{
+		try
 		{
-			if (*context == state_tree::Context::Conversation)
+			if (const auto context = contextual_tree(catalog.trees, id))
 			{
-				auto program = compile_conversation(tree, catalog.trees);
-				catalog.tree_programs.emplace(id, program.tree);
-				catalog.conversation_programs.emplace(id, std::move(program));
-			}
-			else if (state_tree::resolve_definition(tree, catalog.trees).value("interdiction", false))
-				catalog.tree_programs.emplace(id, state_tree::compile(tree, interdiction_registry(), catalog.trees));
-			else if (*context == state_tree::Context::Team)
-				catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
-			else if (*context == state_tree::Context::Away)
-				catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(tree), catalog.trees));
-			else if (*context == state_tree::Context::Controller)
-			{
-				auto bindings = compile_controller_bindings(tree, catalog, properties);
-				(void)compile_controller_actions(tree, catalog, bindings.registry);
-				(void)compile_controller_candidates(tree, catalog, bindings.registry);
-				catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
-				catalog.controller_bindings.emplace(id, std::move(bindings));
+				if (*context == state_tree::Context::Conversation)
+				{
+					auto program = compile_conversation(tree, catalog.trees);
+					catalog.tree_programs.emplace(id, program.tree);
+					catalog.conversation_programs.emplace(id, std::move(program));
+				}
+				else if (state_tree::resolve_definition(tree, catalog.trees).value("interdiction", false))
+					catalog.tree_programs.emplace(id,
+					                              state_tree::compile(tree, interdiction_registry(), catalog.trees));
+				else if (*context == state_tree::Context::Team)
+					catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
+				else if (*context == state_tree::Context::Away)
+					catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(tree), catalog.trees));
+				else if (*context == state_tree::Context::Controller)
+				{
+					auto bindings = compile_controller_bindings(tree, catalog, properties);
+					(void)compile_controller_actions(tree, catalog, bindings.registry);
+					(void)compile_controller_candidates(tree, catalog, bindings.registry);
+					catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
+					catalog.controller_bindings.emplace(id, std::move(bindings));
+				}
+				else
+					catalog.tree_programs.emplace(
+					    id, state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees));
 			}
 			else
-				catalog.tree_programs.emplace(
-				    id, state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees));
+				invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
 		}
-		else
-			invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
+		catch (const std::exception &error)
+		{
+			if (tree.contains("_local_owner"))
+				throw std::runtime_error(tree.at("_local_owner").get<std::string>() + ": " + error.what());
+			throw;
+		}
+	}
 	for (const auto &[id, map] : catalog.maps)
 	{
 		verify_scenario_authoring(catalog, map, directed_catalog, properties);

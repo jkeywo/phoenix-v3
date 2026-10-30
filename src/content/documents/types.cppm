@@ -38,6 +38,18 @@ enum class WorkshopDefinitionKind
 	Theme,
 	ControlWidget
 };
+// Editor addresses follow authored identities through array insertion, deletion and undo.
+struct WorkshopTarget
+{
+	struct Segment
+	{
+		std::string key;
+		Json identity;
+	};
+	std::vector<Segment> segments;
+	static WorkshopTarget capture(const Json &, const std::string &pointer);
+	Json *resolve(Json &) const;
+};
 class WorkshopDocument
 {
 	friend class WorkshopHistory;
@@ -62,6 +74,11 @@ public:
 	std::uint64_t place(const std::string &definition, std::int64_t x, std::int64_t y);
 	void erase(std::uint64_t instance);
 	void duplicate(std::uint64_t instance);
+	std::set<std::uint64_t> duplicate_instances(const std::set<std::uint64_t> &);
+	void edit_instances(const std::set<std::uint64_t> &, const Json &fields, const Json &overrides,
+	                    const std::vector<std::string> &revert = {}, bool revert_all = false);
+	void translate_instances(const std::set<std::uint64_t> &, std::int64_t dx, std::int64_t dy);
+	static void reparent_tree_state(Json &, const std::string &state, const std::string &parent);
 	std::string import_image(const std::string &filename, Bytes bytes);
 	std::string import_font(const std::string &filename, Bytes bytes);
 	std::string import_model(const std::string &filename, Bytes bytes);
@@ -80,7 +97,10 @@ public:
 	void begin_frame();
 	void end_frame(bool may_have_edits);
 	std::uint64_t revision() const;
-	std::uint64_t resource_revision() const { return resource_revision_; }
+	std::uint64_t resource_revision() const
+	{
+		return resource_revision_;
+	}
 	Json &definitions();
 	const Json &definitions() const;
 	Json &map();

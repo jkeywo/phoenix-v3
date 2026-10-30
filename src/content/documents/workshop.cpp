@@ -136,6 +136,72 @@ Catalog tree_preview_catalog(const Json &tree, const Catalog &library, const Jso
 }
 } // namespace
 
+WorkshopTarget WorkshopTarget::capture(const Json &root, const std::string &pointer)
+{
+	WorkshopTarget result;
+	const Json *current = &root;
+	std::size_t start = 1;
+	while (start <= pointer.size() && !pointer.empty())
+	{
+		const auto end = pointer.find('/', start);
+		const auto escaped = pointer.substr(start, end == std::string::npos ? end : end - start);
+		std::string key;
+		for (std::size_t i = 0; i < escaped.size(); ++i)
+			if (escaped[i] == '~' && i + 1 < escaped.size())
+			{
+				key += escaped[++i] == '1' ? '/' : '~';
+			}
+			else
+				key += escaped[i];
+		Json id;
+		if (current->is_array())
+		{
+			current = &current->at(static_cast<std::size_t>(std::stoull(key)));
+			if (current->is_object() && current->contains("id"))
+				id = current->at("id");
+		}
+		else
+			current = &current->at(key);
+		result.segments.push_back({key, id});
+		if (end == std::string::npos)
+			break;
+		start = end + 1;
+	}
+	return result;
+}
+Json *WorkshopTarget::resolve(Json &root) const
+{
+	Json *current = &root;
+	try
+	{
+		for (const auto &segment : segments)
+		{
+			if (current->is_array())
+			{
+				if (!segment.identity.is_null())
+				{
+					auto found = std::find_if(current->begin(), current->end(),
+					                          [&](const Json &row)
+					                          {
+						                          return row.is_object() && row.value("id", Json()) == segment.identity;
+					                          });
+					if (found == current->end())
+						return nullptr;
+					current = &*found;
+				}
+				else
+					current = &current->at(static_cast<std::size_t>(std::stoull(segment.key)));
+			}
+			else
+				current = &current->at(segment.key);
+		}
+		return current;
+	}
+	catch (const std::exception &)
+	{
+		return nullptr;
+	}
+}
 WorkshopDocument::WorkshopDocument()
 {
 	reset();
@@ -434,6 +500,39 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 			}
 			entity.erase("_equipment_source");
 		}
+	// Restore embedded source policies after fitting expansion; private catalogue IDs
+	// must never replace owner-local authoring objects in an editable pack.
+	std::function<void(Json &, const Json &)> restore_local;
+	restore_local = [&](Json &destination, const Json &source)
+	{
+		if (source.is_object() && destination.is_object())
+			for (const auto &[key, child] : source.items())
+			{
+				if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree") &&
+				    child.is_object())
+					destination[key] = child;
+				else if (destination.contains(key))
+					restore_local(destination[key], child);
+			}
+		else if (source.is_array() && destination.is_array())
+			for (std::size_t i = 0; i < source.size(); ++i)
+			{
+				const auto &row = source[i];
+				if (row.is_object() && row.contains("id"))
+				{
+					for (auto &target : destination)
+						if (target.is_object() && target.value("id", Json()) == row.at("id"))
+						{
+							restore_local(target, row);
+							break;
+						}
+				}
+				else if (i < destination.size())
+					restore_local(destination[i], row);
+			}
+	};
+	for (auto &entity : definitions["entities"])
+		restore_local(entity, authored_entities.at(entity.at("id").get<std::string>()));
 	// Keep authored template references and local patches; compiled instance IDs are runtime-only.
 	flatten("maps", authored_maps);
 	flatten("consoles", resolved.consoles);
@@ -869,22 +968,137 @@ void WorkshopDocument::erase(std::uint64_t instance)
 }
 void WorkshopDocument::duplicate(std::uint64_t instance)
 {
-	for (const auto &entity : map()["entities"])
-		if (entity["id"] == instance)
+	(void)duplicate_instances({instance});
+}
+std::set<std::uint64_t> WorkshopDocument::duplicate_instances(const std::set<std::uint64_t> &ids)
+{
+	auto candidate = *this;
+	std::vector<Json> copies;
+	std::int64_t dx = 5000, dy = 5000;
+	for (const auto &entity : map().at("entities"))
+		if (ids.contains(entity.at("id").get<std::uint64_t>()))
 		{
-			auto copy = entity;
-			auto offset = [](std::int64_t position)
-			{
-				return std::clamp(position, static_cast<std::int64_t>(-1000000000),
-				                  static_cast<std::int64_t>(999995000)) +
-				       5000;
-			};
-			auto id = place(copy["definition"], offset(copy["x_mm"].get<std::int64_t>()),
-			                offset(copy["y_mm"].get<std::int64_t>()));
-			map()["entities"].back()["heading_mdeg"] = copy["heading_mdeg"];
-			(void)id;
-			return;
+			copies.push_back(entity);
+			dx = std::min(dx, 1000000000LL - entity.at("x_mm").get<std::int64_t>());
+			dy = std::min(dy, 1000000000LL - entity.at("y_mm").get<std::int64_t>());
 		}
+	if (copies.size() != ids.size())
+		throw std::runtime_error("Selection contains a missing entity");
+	std::set<std::uint64_t> result;
+	for (auto &copy : copies)
+	{
+		const auto x = copy.at("x_mm").get<std::int64_t>() + dx, y = copy.at("y_mm").get<std::int64_t>() + dy;
+		const auto id = candidate.place(copy.at("definition"), x, y);
+		copy["id"] = id;
+		copy["x_mm"] = x;
+		copy["y_mm"] = y;
+		candidate.map()["entities"].back() = copy;
+		result.insert(id);
+	}
+	*this = std::move(candidate);
+	return result;
+}
+void WorkshopDocument::edit_instances(const std::set<std::uint64_t> &ids, const Json &fields, const Json &overrides,
+                                      const std::vector<std::string> &revert, bool revert_all)
+{
+	auto candidate = *this;
+	std::size_t found = 0;
+	for (auto &entity : candidate.map()["entities"])
+		if (ids.contains(entity.at("id").get<std::uint64_t>()))
+		{
+			++found;
+			for (const auto &[key, value] : fields.items())
+			{
+				if (key != "x_mm" && key != "y_mm" && key != "heading_mdeg" && key != "faction" &&
+				    key != "sprite_entry")
+					throw std::runtime_error("Unsupported instance field: " + key);
+				entity[key] = value;
+			}
+			if (overrides.contains("id") || overrides.contains("extends"))
+				throw std::runtime_error("Instance identity cannot be overridden");
+			if (revert_all)
+				entity.erase("overrides");
+			else
+			{
+				auto patch = entity.value("overrides", Json::object());
+				patch.merge_patch(overrides);
+				for (const auto &key : revert)
+					patch.erase(key);
+				if (patch.empty())
+					entity.erase("overrides");
+				else
+					entity["overrides"] = std::move(patch);
+			}
+		}
+	if (found != ids.size())
+		throw std::runtime_error("Selection contains a missing entity");
+	candidate.verify();
+	*this = std::move(candidate);
+}
+void WorkshopDocument::reparent_tree_state(Json &tree, const std::string &state, const std::string &parent)
+{
+	auto candidate = tree;
+	auto &states = candidate.at("states");
+	auto find = [&](const std::string &id) -> Json *
+	{
+		for (auto &row : states)
+			if (row.at("id") == id)
+				return &row;
+		return nullptr;
+	};
+	auto *moving = find(state);
+	auto *destination = parent.empty() ? nullptr : find(parent);
+	if (!moving || (!parent.empty() && !destination))
+		throw std::runtime_error("Unknown state or parent");
+	if (!parent.empty() && candidate.value("initial", std::string{}) == state)
+		throw std::runtime_error("Select a different root initial state before reparenting this state");
+	std::set<std::string> seen{state};
+	auto ancestor = parent;
+	while (!ancestor.empty())
+	{
+		if (!seen.insert(ancestor).second)
+			throw std::runtime_error("State parent cycle");
+		auto *row = find(ancestor);
+		if (!row)
+			throw std::runtime_error("Unknown ancestor");
+		ancestor = row->value("parent", std::string{});
+	}
+	const auto old = moving->value("parent", std::string{});
+	if (parent.empty())
+		moving->erase("parent");
+	else
+		(*moving)["parent"] = parent;
+	if (auto *previous = find(old); previous && previous->value("initial", std::string{}) == state)
+	{
+		previous->erase("initial");
+		for (const auto &row : states)
+			if (row.value("parent", std::string{}) == old)
+			{
+				(*previous)["initial"] = row.at("id");
+				break;
+			}
+	}
+	if (destination && !destination->contains("initial"))
+		(*destination)["initial"] = state;
+	tree = std::move(candidate);
+}
+void WorkshopDocument::translate_instances(const std::set<std::uint64_t> &ids, std::int64_t dx, std::int64_t dy)
+{
+	auto candidate = *this;
+	std::size_t found = 0;
+	for (auto &entity : candidate.map()["entities"])
+		if (ids.contains(entity.at("id").get<std::uint64_t>()))
+		{
+			++found;
+			const auto x = entity.at("x_mm").get<std::int64_t>(), y = entity.at("y_mm").get<std::int64_t>();
+			if (dx < -1000000000LL - x || dx > 1000000000LL - x || dy < -1000000000LL - y || dy > 1000000000LL - y)
+				throw std::runtime_error("Position outside map coordinate limits");
+			entity["x_mm"] = x + dx;
+			entity["y_mm"] = y + dy;
+		}
+	if (found != ids.size())
+		throw std::runtime_error("Selection contains a missing entity");
+	*this = std::move(candidate);
 }
 std::string WorkshopDocument::import_model(const std::string &filename, Bytes bytes)
 {
@@ -1029,6 +1243,12 @@ void WorkshopHistory::checkpoint(const WorkshopDocument &document)
 {
 	if (!past_.empty() && past_.back().revision == document.revision())
 		return;
+	if (!past_.empty() && past_.back().definitions == document.definitions_ &&
+	    past_.back().manifest == document.pack_.manifest && same_resources(document, *past_.back().resources))
+	{
+		past_.back().revision = document.revision();
+		return;
+	}
 	past_.push_back(snapshot(document));
 	trim(past_);
 	future_.clear();

@@ -102,17 +102,62 @@ void directed_template_roundtrip()
 	        "Workshop export and reopen preserve directed, payload and periodic catalogue contracts");
 }
 } // namespace
-int main()
+int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc == 3 && std::string(argv[1]) == "--write-fixture")
+		{
+			WorkshopDocument smoke;
+			smoke.load_pack(phoenix::test::archive(phoenix::test::controller_session_fixture()));
+			smoke.definitions()["entities"][0]["render"]["scale"] = 10;
+			smoke.map()["entities"] = Json::array();
+			smoke.place("test.controllable", 0, 0);
+			smoke.place("test.controllable", 30000, 10000);
+			smoke.place("test.controllable", -20000, -10000);
+			smoke.definitions()["consoles"][0]["layout"] = {
+			    {"schema", 1},
+			    {"root",
+			     {{"id", "root"},
+			      {"kind", "row"},
+			      {"children",
+			       Json::array(
+			           {{{"id", "drive"}, {"kind", "component"}, {"component", "control/propulsion/complete"}}})}}}};
+			const Json policy = {{"context", "scenario"},
+			                     {"initial", "operating"},
+			                     {"states", Json::array({{{"id", "operating"}, {"initial", "normal"}},
+			                                             {{"id", "normal"}, {"parent", "operating"}},
+			                                             {{"id", "standby"}, {"parent", "operating"}}})}};
+			auto observer = smoke.definitions()["consoles"][0];
+			observer["id"] = "test.observer";
+			observer["layout"] = {{"schema", 1},
+			                      {"root", {{"id", "readouts"}, {"kind", "component"}, {"component", "readouts"}}}};
+			smoke.definitions()["consoles"].push_back(observer);
+			for (auto &station : smoke.definitions()["entities"][0]["stations"])
+				for (auto &console : station["consoles"])
+					if (console.at("id") == "observer")
+						console["definition"] = "test.observer";
+			smoke.map()["scenario"] = {{"tree", policy}};
+			auto shared = policy;
+			shared["id"] = "test.shared";
+			smoke.definitions()["trees"] = Json::array({shared});
+			write_file(argv[2], smoke.export_pack());
+			std::cout << "Wrote disposable Workshop authoring fixture\n";
+			return 0;
+		}
+
 		directed_template_roundtrip();
+
 		const auto snapshot = fixture();
+
 		GameplayTestHost first, second;
+
 		require(first.submit(snapshot),
 		        "disposable test must construct an isolated World through production pack/load paths");
 		require(second.submit(snapshot), "independent disposable hosts must support the same authored snapshot");
+
 		first.advance(100);
+
 		require(first.feedback().at("tick") == 2 && second.feedback().at("tick") == 0,
 		        "advancing a disposable host must not tick another World");
 		require(first.submit(operation(WorkshopTestAction::Pause)), "pause must address the existing disposable World");
@@ -134,6 +179,7 @@ int main()
 		require(first.submit(operation(WorkshopTestAction::Stop)) && !first.feedback().at("running").get<bool>(),
 		        "stop must dispose of the isolated World");
 		require(!first.submit(operation(WorkshopTestAction::Step)), "step without a running test must fail clearly");
+
 		WorkshopDocument document;
 		document.load_pack(phoenix::test::archive(phoenix::test::controller_session_fixture()));
 		auto &authored = document.definitions();
@@ -194,6 +240,39 @@ int main()
 		            inspected_command.at("revision").get<std::uint64_t>() > 0 &&
 		            inspected_command.at("consumed") == inspected_command.at("revision"),
 		        "Workshop inspection shows accepted Controller command consumed by production systems");
+		{
+
+			auto local_document = reopened;
+			for (auto &widget : local_document.definitions()["control_widgets"])
+				if (widget.value("tree", Json()) == "test.child")
+				{
+					widget["tree"] = resolved_child;
+					widget["tree"].erase("id");
+				}
+			WorkshopDocument local_reopened;
+			local_reopened.load_pack(local_document.export_pack());
+			const auto content = local_reopened.verify();
+
+			World uninterrupted, resumed;
+			uninterrupted.load(content, "test.map", {{"test.slot", "test.controllable"}});
+			uninterrupted.tick();
+			uninterrupted.tick();
+
+			resumed.restore(content, uninterrupted.save());
+			for (int i = 0; i < 5; ++i)
+			{
+				uninterrupted.tick();
+				resumed.tick();
+			}
+			require(uninterrupted.save() == resumed.save(),
+			        "Owner-local Controller trees preserve their continuation through production save/resume");
+			auto request = controller_test;
+			request.pack = local_reopened.export_pack();
+			require(second.submit(request), "Disposable Workshop host accepts an embedded Controller policy");
+			second.advance(100);
+			require(second.feedback().at("host_diagnostics").empty(),
+			        "Embedded policy executes through the ordinary Workshop Test host");
+		}
 		auto &bad_tree = reopened.definitions()["trees"][0];
 		bad_tree["command_bindings"][0]["channel"] = "foreign";
 		phoenix::test::rejects(
