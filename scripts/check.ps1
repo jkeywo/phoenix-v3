@@ -1,7 +1,8 @@
 param(
 	[ValidateSet('all', 'native', 'web')][string]$Target = 'all',
 	[switch]$Threaded,
-	[ValidateRange(1, 1024)][int]$Jobs = 8
+	[ValidateRange(1, 1024)][int]$Jobs = 8,
+	[string]$ContinuationOutputDirectory
 )
 $ErrorActionPreference = 'Stop'
 
@@ -15,7 +16,7 @@ else
 	'bin/node'
 }
 $node = Join-Path $repo ".tools/emsdk/node/24.19.0_64bit/$nodeName"
-& $node --test "$repo/tests/system/web_launcher.mjs" "$repo/tests/system/wasm_trace.mjs"
+& $node --test "$repo/tests/system/web_launcher.mjs" "$repo/tests/system/wasm_trace.mjs" "$repo/tests/system/wasm_continuations.mjs"
 if ($LASTEXITCODE)
 {
 	throw 'HTML launcher or WASM trace capture integration failed'
@@ -127,7 +128,18 @@ try
 	}
 	if ($Target -ne 'native')
 	{
-		$nativeTrace = Get-Content -LiteralPath "$repo/build/native/continuation.trace"
+		if (!$ContinuationOutputDirectory)
+		{
+			$null = Get-Content -LiteralPath "$repo/build/native/continuation.trace"
+		}
+		$continuationOutput = if ($ContinuationOutputDirectory)
+		{
+			[IO.Path]::GetFullPath($ContinuationOutputDirectory, $repo)
+		}
+		else
+		{
+			Join-Path $repo 'build/web-continuations/local'
+		}
 		$webOptions = @{}
 		if ($PSBoundParameters.ContainsKey('Threaded'))
 		{
@@ -234,108 +246,18 @@ try
 					throw "WASM system integration failed: $gameplayCase"
 				}
 			}
-			$combatNativeTrace = Get-Content -LiteralPath "$repo/build/native/combat-continuation.trace"
-			$combatWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_combat_tests.js --trace
-			if ($LASTEXITCODE -or ($combatNativeTrace -join "`n").Trim() -ne ($combatWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM combat continuation differs'
-			}
-			Write-Output 'PASS native/WASM combat projectile, refill and team-travel continuation'
-			$controllerNativeTrace = Get-Content -LiteralPath "$repo/build/native/controller-continuation.trace"
-			$controllerWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_controller_runtime_tests.js --trace
-			if ($LASTEXITCODE -or ($controllerNativeTrace -join "`n").Trim() -ne ($controllerWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM Controller action continuation differs'
-			}
-			Write-Output 'PASS native/WASM Controller action and coordination continuation'
-			$commsNativeTrace = Get-Content -LiteralPath "$repo/build/native/conversation-continuation.trace"
-			$commsWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_conversation_tests.js --trace
-			if ($LASTEXITCODE -or ($commsNativeTrace -join "`n").Trim() -ne ($commsWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM Comms continuation differs'
-			}
-			Write-Output 'PASS native/WASM Comms conversation continuation'
-			$psychicNativeTrace = Get-Content -LiteralPath "$repo/build/native/psychic-continuation.trace"
-			$psychicWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_psychic_tests.js --trace
-			if ($LASTEXITCODE -or ($psychicNativeTrace -join "`n").Trim() -ne ($psychicWebTrace -join "`n").Trim())
-			{
-				throw 'Psychic native/WASM continuation differs'
-			}
-			$sensorNativeTrace = Get-Content -LiteralPath "$repo/build/native/sensor-continuation.trace"
-			$sensorWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_sensors_tests.js --trace
-			if ($LASTEXITCODE -or ($sensorNativeTrace -join "`n").Trim() -ne ($sensorWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM sensor continuation differs'
-			}
-			Write-Output 'PASS native/WASM sensor traversal and partial acquisition continuation'
-			$medicalNativeTrace = Get-Content -LiteralPath "$repo/build/native/medical-continuation.trace"
-			$medicalWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_medical_tests.js --trace
-			if ($LASTEXITCODE -or ($medicalNativeTrace -join "`n").Trim() -ne ($medicalWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM Medical continuation differs'
-			}
-			Write-Output 'PASS native/WASM Medical continuation'
-			foreach ($supplyCaseName in @('logistics', 'docking', 'cargo', 'processors', 'store_effects', 'directed', 'abilities', 'rules', 'custom_properties', 'processes'))
-			{
-				$supplyNativeTrace = Get-Content -LiteralPath "$repo/build/native/$supplyCaseName-continuation.trace"
-				$supplyWebTrace = & $node "$repo/scripts/wasm-trace.mjs" "phoenix_${supplyCaseName}_tests.js" --trace
-				if ($LASTEXITCODE -or ($supplyNativeTrace -join "`n").Trim() -ne ($supplyWebTrace -join "`n").Trim())
-				{
-					throw "Native/WASM $supplyCaseName continuation differs"
-				}
-			}
-			Write-Output 'PASS native/WASM storage, docking and physical cargo continuation'
-
-			$securityNativeTrace = Get-Content -LiteralPath "$repo/build/native/security-continuation.trace"
-			$securityWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_security_tests.js --trace
-			if ($LASTEXITCODE -or ($securityNativeTrace -join "`n").Trim() -ne ($securityWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM security continuation differs'
-			}
-			Write-Output 'PASS native/WASM security continuation'
-			$awayNativeTrace = Get-Content -LiteralPath "$repo/build/native/away-continuation.trace"
-			$awayWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_away_tests.js --trace
-			if ($LASTEXITCODE -or ($awayNativeTrace -join "`n").Trim() -ne ($awayWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM away continuation differs'
-			}
-			Write-Output 'PASS native/WASM away mission continuation'
-			$craftNativeTrace = Get-Content -LiteralPath "$repo/build/native/craft-continuation.trace"
-			$craftWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_craft_tests.js --trace
-			if ($LASTEXITCODE -or ($craftNativeTrace -join "`n").Trim() -ne ($craftWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM craft continuation differs'
-			}
-			Write-Output 'PASS native/WASM craft, sortie and transport continuation'
-			$ftlNativeTrace = Get-Content -LiteralPath "$repo/build/native/ftl-continuation.trace"
-			$ftlWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_ftl_tests.js --trace
-			if ($LASTEXITCODE -or ($ftlNativeTrace -join "`n").Trim() -ne ($ftlWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM FTL continuation differs'
-			}
-			Write-Output 'PASS native/WASM FTL reserve and departure continuation'
-			$missionNativeTrace = Get-Content -LiteralPath "$repo/build/native/mission-continuation.trace"
-			$missionWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_missions_tests.js --trace
-			if ($LASTEXITCODE -or ($missionNativeTrace -join "`n").Trim() -ne ($missionWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM mission continuation differs'
-			}
-			Write-Output 'PASS native/WASM objectives, events, losses and frozen reports continuation'
-			$interdictionNativeTrace = Get-Content -LiteralPath "$repo/build/native/interdiction-continuation.trace"
-			$interdictionWebTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_interdictions_tests.js --trace
-			if ($LASTEXITCODE -or ($interdictionNativeTrace -join "`n").Trim() -ne ($interdictionWebTrace -join "`n").Trim())
-			{
-				throw 'Native/WASM interdiction continuation differs'
-			}
-			Write-Output 'PASS native/WASM coordinated takeover, custody and group departure continuation'
-			$wasmTrace = & $node "$repo/scripts/wasm-trace.mjs" phoenix_simulation_check.js --trace
+			& $node "$repo/scripts/wasm-continuations.mjs" record "$repo/build/web" $continuationOutput
 			if ($LASTEXITCODE)
 			{
-				throw 'WASM simulation trace failed'
+				throw 'WASM continuation recording failed'
 			}
-			if ($nativeTrace -cne $wasmTrace)
+			if (!$ContinuationOutputDirectory)
 			{
-				throw 'Native/WASM continuation differs in the same controlled fixture'
+				& $node "$repo/scripts/wasm-continuations.mjs" compare "$repo/build/native" $continuationOutput
+				if ($LASTEXITCODE)
+				{
+					throw 'Native/WASM continuation differs'
+				}
 			}
 		}
 		finally
