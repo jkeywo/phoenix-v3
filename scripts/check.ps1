@@ -16,10 +16,10 @@ else
 	'bin/node'
 }
 $node = Join-Path $repo ".tools/emsdk/node/24.19.0_64bit/$nodeName"
-& $node --test "$repo/tests/system/web_launcher.mjs" "$repo/tests/system/wasm_trace.mjs" "$repo/tests/system/wasm_continuations.mjs"
+& $node --test "$repo/tests/system/web_launcher.mjs" "$repo/tests/system/wasm_trace.mjs" "$repo/tests/system/wasm_continuations.mjs" "$repo/tests/system/deployment_verifier.mjs"
 if ($LASTEXITCODE)
 {
-	throw 'HTML launcher or WASM trace capture integration failed'
+	throw 'HTML launcher, WASM trace capture or deployment verification integration failed'
 }
 Push-Location $repo
 try
