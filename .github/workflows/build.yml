@@ -49,11 +49,15 @@ jobs:
             build/native/test-missions.zip
             build/native/test-missions.zip.menu.json
             build/native/test-missions.zip.clients/
-  web:
+  web-build:
     needs: packs
     runs-on: ubuntu-24.04
-    # One cold WASM build and its checks already exceed 90 minutes; run both variants.
+    # Each cold Release variant gets its own runner and the existing time budget.
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ordinary, threaded]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Bootstrap pinned local tools
@@ -64,28 +68,57 @@ jobs:
         with:
           name: web-pack-inputs
           path: build/native
-      - name: Build and run ordinary WASM integration; record continuations
+      - name: Build and run WASM integration; record continuations
         shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded:$false -ContinuationOutputDirectory build/web-continuations/ordinary
-      - name: Retain the ordinary browser runtimes
+        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded:('${{ matrix.variant }}' -eq 'threaded') -ContinuationOutputDirectory build/web-continuations/${{ matrix.variant }}
+      - name: Retain verified browser runtimes
         shell: pwsh
         run: |
-          $fallback = New-Item -ItemType Directory -Path build/web-fallback -Force
+          $runtime = New-Item -ItemType Directory -Path build/web-runtime -Force
+          Copy-Item -LiteralPath build/web/index.html,build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js -Destination $runtime
+          Copy-Item -LiteralPath build/web/assets -Destination $runtime -Recurse
           foreach ($role in @('server', 'client', 'workshop')) {
             foreach ($extension in @('js', 'wasm', 'data')) {
-              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $fallback
+              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $runtime
             }
           }
-          Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $fallback
-      - name: Build and verify the isolated worker runtimes
-        shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded -ContinuationOutputDirectory build/web-continuations/threaded
-      - name: Upload both WASM continuation sets
+          Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $runtime
+      - name: Upload verified browser runtimes
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: wasm-continuations
+          name: web-runtime-${{ matrix.variant }}
           if-no-files-found: error
-          path: build/web-continuations/
+          path: build/web-runtime/
+      - name: Upload WASM continuation set
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: wasm-continuations-${{ matrix.variant }}
+          if-no-files-found: error
+          path: build/web-continuations/${{ matrix.variant }}/
+  web:
+    needs: web-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+      - name: Download this run's verified pack inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: web-pack-inputs
+          path: build/native
+      - name: Download verified ordinary browser runtimes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: web-runtime-ordinary
+          path: build/web-fallback
+      - name: Download verified worker browser runtimes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: web-runtime-threaded
+          path: build/web
       - name: Stage public browser files
         shell: pwsh
         run: |
@@ -198,11 +231,16 @@ jobs:
         with:
           name: native-verification
           path: build/native
-      - name: Download both WASM continuation sets
+      - name: Download ordinary WASM continuations
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: wasm-continuations
-          path: build/web-continuations
+          name: wasm-continuations-ordinary
+          path: build/web-continuations/ordinary
+      - name: Download worker WASM continuations
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wasm-continuations-threaded
+          path: build/web-continuations/threaded
       - name: Compare native, ordinary WASM and worker WASM continuations
         run: node scripts/wasm-continuations.mjs compare build/native build/web-continuations/ordinary build/web-continuations/threaded
   deploy:
