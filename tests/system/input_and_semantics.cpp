@@ -624,7 +624,30 @@ int main()
 			require(pad.drain(2.61).size() == 1, "Neutral stick samples do not release a held D-pad direction");
 		}
 
-		std::cout << "PASS console routing, safe release, semantic admission and translation\n";
+		{
+			SurfaceLoad helm, support;
+			const auto initial = helm.begin(11, "verified-ship-a");
+			require(helm.complete(initial) && helm.ready(), "A display publishes completed content");
+			const auto replacement = helm.begin(11, "verified-ship-b");
+			const auto concurrent = support.begin(22, "verified-ship-c");
+			require(helm.has_content() && !helm.ready() && support.progress().target == 22,
+			        "Pending replacements retain the previous content and independent display ownership");
+			require(!helm.complete(initial) && !helm.fail(initial, "stale failure"),
+			        "Superseded success and failure cannot change a current request");
+			require(helm.cancel(replacement) && !helm.complete(replacement) && helm.has_content(),
+			        "Cancelling pending preparation retains completed content and refuses late completion");
+			require(support.complete(concurrent) && support.ready(), "Another display completes independently");
+			helm.retry();
+			const auto retried = helm.progress().request;
+			require(retried != replacement && helm.fail(retried, "decode failed") && helm.has_content(),
+			        "Retry has a new ticket and failure preserves the previous usable content");
+			helm.retry();
+			require(!helm.complete(retried) && helm.complete(helm.progress().request) && helm.ready(),
+			        "Only the current successful replacement is published");
+			require(helm.begin(11, "verified-ship-b") == helm.progress().request && helm.ready(),
+			        "Unchanged content and display retain readiness");
+		}
+		std::cout << "PASS console routing, safe release, semantic admission, display loading and translation\n";
 		configure_translations(
 		    Json{{"schema", 1}, {"languages", {{"en", {{"home", "Home"}}}, {"test", {{"home", "Translated home"}}}}}});
 		select_language("test");

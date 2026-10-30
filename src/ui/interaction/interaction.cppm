@@ -16,9 +16,46 @@ export namespace phoenix
 {
 struct LoadingProgress
 {
+	enum class State
+	{
+		preparing,
+		ready,
+		failed,
+		cancelled
+	};
 	bool active = false;
 	std::size_t completed = 0, total = 0;
 	std::string phase, title, error;
+	std::uint64_t target = 0, request = 0;
+	State state = State::preparing;
+};
+// A display owns its pending request independently of its last usable content.
+// Tickets prevent late success/error callbacks from publishing superseded work.
+class SurfaceLoad
+{
+public:
+	std::uint64_t begin(std::uint64_t target, const std::string &identity);
+	bool complete(std::uint64_t request);
+	bool fail(std::uint64_t request, const std::string &error);
+	bool cancel(std::uint64_t request);
+	void retry();
+	const LoadingProgress &progress() const
+	{
+		return progress_;
+	}
+	bool ready() const
+	{
+		return ready_identity_ == identity_ && progress_.state == LoadingProgress::State::ready;
+	}
+	bool has_content() const
+	{
+		return !ready_identity_.empty();
+	}
+	void advance(std::size_t completed, std::size_t total, const std::string &phase);
+
+private:
+	std::string identity_, ready_identity_;
+	LoadingProgress progress_;
 };
 // Presentation metadata shared by visual navigation and platform accessibility.
 // These records carry permitted UI state; they own no Application or session.
