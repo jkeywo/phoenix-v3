@@ -6,6 +6,8 @@ The initial selection is **First person / Forward**. First-person mode hides the
 
 Directions are clockwise relative to the ship: Forward, Forward-right, Right, Rear-right, Rear, Rear-left, Left, Forward-left. Each step is 45 degrees. They rotate with the ship's actual heading, rather than the world compass. In third person, Forward is the usual rear chase view; Rear moves the camera ahead looking back at the ship. Switching modes preserves direction. Selections change immediately; Reduced Motion still disables acceleration shake.
 
+The Viewscreen buffers permitted scene poses for one simulation tick (50 ms at 20 Hz), interpolating position and the shortest heading arc at presentation frequency. Camera and owning hull use the same rendered pose. Ordinary delivery jitter follows a simulation-paced presentation clock; stalled updates hold the latest pose. Session replacement, recovery, focus changes and relocations discard incompatible motion history. Acceleration shake uses authoritative velocity samples with reduced strength and slower offsets; Reduced Motion disables it. This does not alter physics, commands, radar evidence or saved/network formats.
+
 ## Console authoring
 
 Workshop's Console editor offers `camera_mode` and `camera_direction` widgets. Place them on any Console using the ordinary 1000-by-1000 authored layout. Their fixed bindings are `ship.camera.mode` and `ship.camera.direction`. They have no System, Controller or channel binding. Shipped Helm consoles include both widgets.

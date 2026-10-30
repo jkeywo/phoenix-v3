@@ -2,7 +2,13 @@ module;
 #include <algorithm>
 #include <cmath>
 #include <array>
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <span>
+#include <vector>
 export module phoenix.graphics.geometry;
+import phoenix.contracts;
 
 export namespace phoenix
 {
@@ -65,4 +71,21 @@ struct ShipCameraPose
 // from the ship's forward bearing. No graphics or simulation ownership here.
 ShipCameraPose ship_camera_pose(double x, double y, double heading, double scale, double aspect, int mode,
                                 int direction);
+
+// Presentation copies only: no changes to authoritative bodies or observations.
+class SceneMotion
+{
+public:
+	void reset();
+	void sample(std::uint64_t tick, double now, std::span<const SceneBody> bodies, std::optional<BodyView> focus);
+	void render(double now, std::vector<SceneBody> &bodies, std::optional<BodyView> &focus) const;
+
+private:
+	std::uint64_t tick_ = 0;
+	double received_ = 0, interval_ = .05;
+	bool ready_ = false;
+	std::map<EntityId, BodyView> previous_;
+	std::vector<SceneBody> current_;
+	std::optional<BodyView> focus_, previous_focus_;
+};
 } // namespace phoenix

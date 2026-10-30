@@ -52,6 +52,7 @@ struct GameScreen::State
 	std::map<std::string, std::unique_ptr<RadarSweep>> sweeps;
 	SceneRenderer scene;
 	SceneFrame frame;
+	SceneMotion motion;
 	Camera3D frame_camera{};
 	Json frame_lighting;
 	double frame_time = 0;
@@ -118,6 +119,7 @@ struct GameScreen::State
 		shake_energy = 0;
 		environment = {};
 		frame = {};
+		motion.reset();
 		presentation_identity = nullptr;
 		grid_definition.clear();
 		markup_ready = false;
@@ -662,6 +664,7 @@ struct GameScreen::State
 		if (!app.session || !app.session->running() || app.screen == Screen::workshop ||
 		    (!app.can_host && app.screen != Screen::viewscreen && !app.viewscreen_region))
 		{
+			motion.reset();
 			frame.bodies.clear();
 			frame.shared_bodies.reset();
 			return frame;
@@ -678,6 +681,10 @@ struct GameScreen::State
 			for (const auto &body : frame.view())
 				if (body.audio_only && body.id == previous_focus->id)
 					environment.own = static_cast<const BodyView &>(body);
+		const auto physical_own = environment.own;
+		motion.sample(app.session->ticks(), GetTime(), frame.view(), physical_own);
+		frame.shared_bodies.reset();
+		motion.render(GetTime(), frame.bodies, environment.own);
 		frame.focus_body = environment.own;
 		if (!preload_finished)
 		{
@@ -751,9 +758,9 @@ struct GameScreen::State
 		                CAMERA_PERSPECTIVE};
 		app.frame_metrics["scene-data"] = GetTime() - scene_data_started;
 		const auto tick = app.session->ticks();
-		if (!shake_previous || shake_previous->id != own.id || tick < shake_tick)
+		if (!shake_previous || shake_previous->id != physical_own->id || tick < shake_tick)
 		{
-			shake_previous = own;
+			shake_previous = physical_own;
 			shake_tick = tick;
 			shake_acceleration = {};
 			shake_energy = 0;
@@ -761,22 +768,22 @@ struct GameScreen::State
 		else if (tick > shake_tick)
 		{
 			const float seconds = static_cast<float>(tick - shake_tick) / 20.f;
-			const Vector2 acceleration{(own.vx - shake_previous->vx) / (1000.f * seconds),
-			                           (own.vy - shake_previous->vy) / (1000.f * seconds)};
+			const Vector2 acceleration{(physical_own->vx - shake_previous->vx) / (1000.f * seconds),
+			                           (physical_own->vy - shake_previous->vy) / (1000.f * seconds)};
 			const float change =
 			    std::hypot(acceleration.x - shake_acceleration.x, acceleration.y - shake_acceleration.y);
-			shake_energy = std::min(1.f, shake_energy + change * .025f);
-			shake_previous = own;
+			shake_energy = std::min(1.f, shake_energy + change * .006f);
+			shake_previous = physical_own;
 			shake_tick = tick;
 			shake_acceleration = acceleration;
 		}
 		shake_energy *= std::exp(-8.f * GetFrameTime());
 		if (app.reduced_motion)
 			shake_energy = 0;
-		const float shake = shake_energy * ahead * .006f;
-		camera.target.x += std::sin(heading) * shake * std::sin(GetTime() * 71);
-		camera.target.z += std::cos(heading) * shake * std::sin(GetTime() * 71);
-		camera.target.y += shake * std::sin(GetTime() * 53);
+		const float shake = shake_energy * ahead * .002f;
+		camera.target.x += std::sin(heading) * shake * std::sin(GetTime() * 9);
+		camera.target.z += std::cos(heading) * shake * std::sin(GetTime() * 9);
+		camera.target.y += shake * std::sin(GetTime() * 7);
 		frame_camera = camera;
 		frame_lighting = app.session->scene_lighting();
 		frame_time = GetTime();

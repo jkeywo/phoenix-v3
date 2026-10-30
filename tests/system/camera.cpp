@@ -43,6 +43,59 @@ void near(double actual, double expected)
 {
 	require(std::abs(actual - expected) < .000001, "camera geometry retains its selected bearing and ship anchor");
 }
+void motion_checks(std::vector<SceneBody> snapshot)
+{
+	require(!snapshot.empty(), "real fixture scene supplies the presentation bodies");
+	snapshot.resize(1);
+	auto &body = snapshot.front();
+	body.x = 0;
+	body.y = 0;
+	body.heading = 359000;
+	body.vx = 2000;
+	SceneMotion motion;
+	std::vector<SceneBody> rendered;
+	std::optional<BodyView> focus;
+	motion.sample(10, 1, snapshot, body);
+	motion.render(1, rendered, focus);
+	require(focus && focus->x == body.x, "first snapshot renders immediately");
+	body.x = 100;
+	body.heading = 1000;
+	motion.sample(11, 1.05, snapshot, body);
+	motion.render(1.075, rendered, focus);
+	require(rendered.front().x == 50 && focus->x == 50 && focus->heading == 0 && rendered.front().heading == 0,
+	        "camera and owning hull share intermediate position and shortest-path heading across zero");
+	const auto camera = ship_camera_pose(focus->x, focus->y, focus->heading, 10, 1, 1, 0);
+	near(camera.target[0], .05);
+	motion.sample(11, 1.08, snapshot, body);
+	motion.render(1.1, rendered, focus);
+	require(focus->x == 100, "repeated snapshots do not restart interpolation");
+	body.x = 200;
+	motion.sample(12, 1.104, snapshot, body);
+	motion.render(1.125, rendered, focus);
+	require(focus->x == 150, "ordinary delivery jitter does not shift the presentation clock");
+	motion.render(5, rendered, focus);
+	require(focus->x == 200, "stalled updates hold their latest pose without extrapolation");
+	body.x = 400;
+	motion.sample(14, 5, snapshot, body);
+	motion.render(5.025, rendered, focus);
+	require(focus->x == 350, "skipped ticks retain a bounded one-tick presentation delay");
+	body.x = 100000000;
+	motion.sample(15, 5.05, snapshot, body);
+	motion.render(5.05, rendered, focus);
+	require(focus->x == body.x, "relocation snaps instead of sweeping across the map");
+	body.x += 100;
+	motion.sample(1, 5.1, snapshot, body);
+	motion.render(5.1, rendered, focus);
+	require(focus->x == body.x, "recovery to an earlier tick clears motion history");
+	body.id += 100;
+	motion.sample(1, 5.1, snapshot, body);
+	motion.render(5.1, rendered, focus);
+	require(focus->id == body.id, "changing focus at the same tick resets interpolation");
+	motion.reset();
+	motion.sample(2, 6, {}, std::nullopt);
+	motion.render(6, rendered, focus);
+	require(rendered.empty() && !focus, "session reset and lost visibility retain no old bodies");
+}
 } // namespace
 int main()
 {
@@ -61,6 +114,7 @@ int main()
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map");
+		motion_checks(world.scene());
 		require(world.claim(101, 1, "drive") && world.claim(102, 1, "observer") && world.claim(103, 2, "drive") &&
 		            world.claim(104, 1, "plain"),
 		        "independent Console claims");
