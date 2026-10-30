@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Courier weapon coverage](docs/radar-coverage.md) corrects the two full-traverse gun turrets and two torpedo tubes, with authored, labelled radar coverage.
+
 [Modularisation implementation plan](docs/modularisation-plan.md) records the delivered family/module hierarchy, dependency rules and migration chunks. The [reading guide](docs/modules.md), [line counts](docs/module-sizes.md) and [verification evidence](docs/modularisation-evidence.md) describe the resulting code and checks.
 
 [World and Console refinement](docs/understandability-refactor.md) records the workflow folders, panel owners, presentation data and measured code growth from making the two largest modules easier to follow.
