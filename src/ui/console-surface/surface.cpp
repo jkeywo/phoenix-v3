@@ -337,7 +337,8 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 		for (const auto &spec : specs)
 			if (spec.id == tab.id)
 				definition = &catalog.consoles.at(spec.definition);
-		if (!definition || (!definition->value("tab", true) && tab.id != snapshot->console))
+		if (!definition ||
+		    (!definition->value("tab", true) && (tab.id != snapshot->console || definition->at("widgets").empty())))
 			continue;
 		auto add = [&](const std::string &group, const std::string &page, const std::string &label,
 		               const std::string &component)

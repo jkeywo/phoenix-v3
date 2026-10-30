@@ -136,6 +136,8 @@ Rml::Element *ConsoleSurface::State::authored_component(const std::string &targe
 	                                                   {"conversation-header", "comms-header"},
 	                                                   {"conversation-incoming", "comms-incoming"},
 	                                                   {"navigation", "navigation-layer"},
+	                                                   {"navigation-map", "navigation-map"},
+	                                                   {"navigation-details", "navigation-details"},
 	                                                   {"manual-flight", "manual-flight"}};
 	if (!panels.contains(target) && model_.layout())
 		for (const auto &widget : model_.layout()->at("widgets"))

@@ -1428,12 +1428,18 @@ int main(int argc, char **argv)
 			auto observer = entity["stations"][0]["consoles"][1];
 			entity["stations"][0]["consoles"].erase(1);
 			entity["stations"].push_back({{"id", "support"}, {"consoles", Json::array({observer})}});
+			auto dedicated = observer;
+			dedicated["id"] = "dedicated";
+			dedicated["definition"] = "test.entry";
+			source["consoles"].push_back({{"id", "test.entry"}, {"tab", false}, {"widgets", Json::array()}});
+			entity["stations"].push_back({{"id", "nav-comms"}, {"consoles", Json::array({dedicated})}});
 			source["consoles"].push_back({{"id", "test.seeking"}, {"human_seeking", true}, {"widgets", Json::array()}});
 			for (const auto *name : {"navigation", "reports"})
-				entity["stations"][0]["consoles"].push_back({{"id", name},
-				                                             {"definition", "test.seeking"},
-				                                             {"systems", Json::array()},
-				                                             {"human_preferences", {"support", "operations"}}});
+				entity["stations"][0]["consoles"].push_back(
+				    {{"id", name},
+				     {"definition", "test.seeking"},
+				     {"systems", Json::array()},
+				     {"human_preferences", {"nav-comms", "support", "operations"}}});
 			entity["control_layout"]["controllers"].push_back(
 			    {{"id", "planner"},
 			     {"console", "navigation"},
@@ -1446,6 +1452,32 @@ int main(int argc, char **argv)
 			for (auto &profile : entity["control_layout"]["profiles"])
 				profile["consoles"]["navigation"] = {{"human", {"planner"}}};
 			const auto catalog = load(source);
+			auto session_source = source;
+			session_source["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+			session_source["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+			    {{"id", "heading"}, {"action", "heading_mdeg"}, {"consumers", {"steering"}}});
+			session_source["maps"][0]["ship_slots"] = Json::array({{{"id", "test.slot"},
+			                                                        {"x_mm", 300000},
+			                                                        {"y_mm", 0},
+			                                                        {"heading_mdeg", 0},
+			                                                        {"allowed_ships", {"test.controllable"}}}});
+			auto session = make_local_session();
+			session->add_pack(archive(session_source));
+			session->start({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "dedicated"});
+			ConsoleModel ui;
+			ui.refresh(session);
+			require(ui.observation() && ui.observation()->console == "navigation",
+			        "nonvisual station entry opens its first granted workspace");
+			require(ui.command("away", 1), "Away from an auxiliary workspace addresses the claimed seat");
+			session->tick();
+			ui.refresh(session);
+			require(ui.observation()->console == "dedicated" &&
+			            session->console_snapshot(1)->additional_consoles.empty(),
+			        "Away relinquishes both human-seeking Consoles together");
+			require(ui.command("away", 0), "station entry can resume participation");
+			session->tick();
+			ui.refresh(session);
+			require(ui.observation()->console == "navigation", "resuming returns to Navigation");
 			World world;
 			world.load(catalog, "test.map");
 			require(world.claim(101, 1, "drive"), "fallback operator can claim primary console");
@@ -1467,6 +1499,26 @@ int main(int argc, char **argv)
 			    world.observe(102)->additional_consoles[0].gameplay.at("controllers")[0].at("generation");
 			require(fixture_native_submit(world, 102, command), "new operator generation can write");
 			world.tick();
+			require(world.claim(103, 1, "dedicated"), "dedicated Nav/Comms operator joins");
+			require(world.observe(101)->additional_consoles.empty() &&
+			            world.observe(102)->additional_consoles.empty() &&
+			            world.observe(103)->additional_consoles.size() == 2,
+			        "dedicated station takes both Consoles before Support and Helm");
+			require(!fixture_native_submit(world, 102, command), "former Support owner cannot command Navigation");
+			command.generation =
+			    world.observe(103)->additional_consoles[0].gameplay.at("controllers")[0].at("generation");
+			require(fixture_native_submit(world, 103, command),
+			        "dedicated owner commands the existing waypoint channel");
+			world.tick();
+			require(fixture_native_submit(world, 103, {1, "away", 1, {}}), "dedicated operator goes Away");
+			world.tick();
+			require(world.observe(102)->additional_consoles.size() == 2, "Away dedicated seat falls back to Support");
+			require(fixture_native_submit(world, 103, {1, "away", 0, {}}), "dedicated operator returns");
+			world.tick();
+			require(world.observe(103)->additional_consoles.size() == 2,
+			        "returning dedicated operator regains both Consoles");
+			require(world.release(103) && world.observe(102)->additional_consoles.size() == 2,
+			        "disconnect returns both Consoles to Support");
 			World restored;
 			restored.restore(catalog, world.save());
 			require(restored.observe(102)->additional_consoles.size() == 2,
@@ -1478,6 +1530,12 @@ int main(int argc, char **argv)
 			for (const auto &record : final_view->gameplay.at("shared"))
 				shared |= record.at("schema") == "phoenix.waypoint";
 			require(shared, "waypoint is published shipwide");
+			require(world.release(101), "last human leaves");
+			world.tick();
+			const auto unattended = world.save();
+			for (const auto &owner : unattended.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (owner.at("id") == "planner")
+					require(!owner.at("human").get<bool>(), "no eligible human leaves Navigation under AI control");
 		}
 		{
 			auto source = controller_fixture();

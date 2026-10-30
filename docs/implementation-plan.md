@@ -381,3 +381,7 @@ and [verification receipt](smoke/workshop-navigation-refinement.md), including
 the outstanding ordinary browser journey, pre-change scrolling percentiles and
 physical accessibility/device acceptance. No old-session content conversion is
 provided.
+
+## Courier Nav/Comms and Support widget correction - 30 October 2026
+
+Courier gains a third Nav/Comms seat. Its Navigation and Comms Consoles seek humans in Nav/Comms, Support, Helm order, then use existing AI. Comms is one composite widget; Navigation shares selection between map and target/waypoint parts and carries FTL. Support restores the illustrated camera widgets and numbered Condition slider. Existing mechanisms and star responsibilities are retained; Cruiser restoration remains deferred. See the [Courier restoration follow-up](courier-gui-restoration.md#navcomms-follow-up---30-october-2026) for implementation and verification receipts.

@@ -16,7 +16,7 @@ The offline [interactive module graph](docs/module-graph.html) groups modules by
 
 [Cruiser station complexity](docs/cruiser-complexity.md) defines the Helm, Tactical and Engineering workloads, department-owned Dispatch, utility shuttles and physical gift/barter supply missions.
 
-[Courier station complexity](docs/courier-complexity.md) defines the common Courier fitting and its one-, two- and three-star Helm and Support workloads.
+[Courier station complexity](docs/courier-complexity.md) defines the common Courier fitting and its one-, two- and three-star Helm, Support and Nav/Comms workloads.
 
 [Storage, logistics and docking](docs/storage-logistics.md) adds finite supplies, automatic replenishment, docked transfers, cargo shuttles and docking-supported away delivery.
 

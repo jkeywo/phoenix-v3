@@ -1144,13 +1144,17 @@
 								"shields-distribution"
 							],
 							"shield_feed": true
-						},
+						}
+					]
+				},
+				{
+					"id": "nav-comms",
+					"consoles": [
 						{
-							"id": "comms",
-							"definition": "base.console.courier.comms",
+							"id": "nav-comms",
+							"definition": "base.console.courier.nav-comms",
 							"systems": [],
-							"feeds": ["comms-radio", "radar"],
-							"human_preferences": ["support"]
+							"feeds": []
 						},
 						{
 							"id": "navigation",
@@ -1158,7 +1162,14 @@
 							"systems": [],
 							"feeds": ["radar", "ftl.drive"],
 							"knowledge_roles": ["base.crew"],
-							"human_preferences": ["support", "helm"]
+							"human_preferences": ["nav-comms", "support", "helm"]
+						},
+						{
+							"id": "comms",
+							"definition": "base.console.courier.comms",
+							"systems": [],
+							"feeds": ["comms-radio", "radar"],
+							"human_preferences": ["nav-comms", "support", "helm"]
 						}
 					]
 				}
@@ -2214,12 +2225,12 @@
 					{
 						"id": "signals",
 						"label": "Signals",
-						"station": "support"
+						"station": "nav-comms"
 					},
 					{
 						"id": "passage",
 						"label": "Guild passage",
-						"station": "support"
+						"station": "nav-comms"
 					},
 					{
 						"id": "medical",
@@ -2630,7 +2641,7 @@
 					{
 						"id": "ftl.supply",
 						"label": "FTL supply",
-						"department": "passage",
+						"department": "engineering",
 						"controller": "ftl.supply",
 						"compartment": "stern-port",
 						"bindings": {}
@@ -2638,7 +2649,7 @@
 					{
 						"id": "ftl.cooling",
 						"label": "FTL cooling",
-						"department": "passage",
+						"department": "engineering",
 						"controller": "ftl.cooling",
 						"compartment": "stern-port",
 						"bindings": {}
@@ -2899,7 +2910,7 @@
 						"label": "Department coordination",
 						"controller": "personnel",
 						"console": "comms",
-						"department": "medical",
+						"department": "signals",
 						"compartment": "stern-port",
 						"bindings": {}
 					},
@@ -2908,7 +2919,7 @@
 						"label": "Department coordination",
 						"controller": "personnel",
 						"console": "navigation",
-						"department": "medical",
+						"department": "passage",
 						"compartment": "stern-port",
 						"bindings": {}
 					},
@@ -2944,7 +2955,7 @@
 						"label": "Bridge orders",
 						"controller": "bridge",
 						"console": "comms",
-						"department": "command",
+						"department": "signals",
 						"compartment": "stern-port",
 						"bindings": {}
 					},
@@ -2953,7 +2964,7 @@
 						"label": "Bridge orders",
 						"controller": "bridge",
 						"console": "navigation",
-						"department": "command",
+						"department": "passage",
 						"compartment": "stern-port",
 						"bindings": {}
 					}
@@ -52144,12 +52155,33 @@
 											"widget_parts": []
 										},
 										{
-											"id": "ftl",
-											"kind": "component",
-											"component": "ftl-controls",
-											"widget_parts": [],
-											"height": 140,
-											"stretch": 0
+											"id": "viewscreen",
+											"kind": "wrap",
+											"label": "Camera controls",
+											"height": 300,
+											"min_height": 280,
+											"stretch": 0,
+											"scroll": true,
+											"children": [
+												{
+													"id": "mode",
+													"kind": "component",
+													"component": "camera-mode",
+													"width": 250,
+													"height": 270,
+													"min_width": 240,
+													"min_height": 250
+												},
+												{
+													"id": "direction",
+													"kind": "component",
+													"component": "camera-direction",
+													"width": 250,
+													"height": 270,
+													"min_width": 240,
+													"min_height": 250
+												}
+											]
 										}
 									]
 								},
@@ -52159,20 +52191,13 @@
 									"stretch": 1,
 									"children": [
 										{
-											"id": "viewscreen",
-											"kind": "component",
-											"component": "viewscreen-controls",
-											"widget_parts": [],
-											"height": 140,
-											"stretch": 0
-										},
-										{
 											"id": "alert",
 											"kind": "component",
 											"component": "alert-controls",
 											"widget_parts": ["control/bridge/presentation"],
-											"height": 90,
-											"stretch": 0
+											"height": 140,
+											"stretch": 0,
+											"min_height": 140
 										},
 										{
 											"id": "shields",
@@ -52247,18 +52272,13 @@
 				"required_levels": [1, 2, 3],
 				"levels": {
 					"1": {
-						"responsibilities": "Keep the Courier and its crew operational by deploying repair and Medical teams, handling conversations and planning deliberate FTL departure.",
+						"responsibilities": "Keep the Courier and its crew operational by deploying repair and Medical teams. Handle Navigation and Comms when their dedicated seat is unattended.",
 						"automation": "AI manages power and protection, Veil, local repair and Medical work, away contributions, radar and radio readiness, and Duty Officer assignments.",
 						"systems": [
 							{
 								"id": "objectives",
 								"label": "Objectives",
 								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
-							},
-							{
-								"id": "ftl",
-								"label": "FTL departure",
-								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
 							},
 							{
 								"id": "repair",
@@ -52273,12 +52293,12 @@
 							{
 								"id": "comms",
 								"label": "Communications",
-								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+								"text": "Use the Comms conversation tab when this work falls back from Nav/Comms to Support."
 							},
 							{
 								"id": "navigation",
 								"label": "Navigation map",
-								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+								"text": "Use the Navigation map and FTL tab when this work falls back from Nav/Comms to Support."
 							},
 							{
 								"id": "alerts",
@@ -52289,62 +52309,38 @@
 								"id": "power",
 								"label": "Power and cooling",
 								"text": "Monitor reactor output, reserves and distribution to understand the ship's power and cooling margins."
+							},
+							{
+								"id": "camera",
+								"label": "Camera controls",
+								"text": "Choose the shared camera mode and viewing direction separately from Condition and alert controls."
 							}
 						],
 						"tabs": {
-							"$console": [
-								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power"
-							],
-							"station": [
-								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power"
-							],
+							"$console": ["objectives", "repair", "medical", "comms", "navigation", "alerts", "power"],
+							"station": ["objectives", "repair", "medical", "comms", "navigation", "alerts", "power"],
 							"station.overview": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
 								"navigation",
 								"alerts",
-								"power"
+								"power",
+								"camera"
 							],
 							"station.overview.mission": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
 								"navigation",
 								"alerts",
-								"power"
+								"power",
+								"camera"
 							],
 							"station.overview.mission.objectives": [
 								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power"
-							],
-							"station.overview.mission.ftl": [
-								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52354,17 +52350,6 @@
 							],
 							"station.overview.ship": [
 								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power"
-							],
-							"station.overview.ship.viewscreen": [
-								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52374,7 +52359,6 @@
 							],
 							"station.overview.ship.alert": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52384,7 +52368,6 @@
 							],
 							"station.overview.ship.shields": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52394,7 +52377,6 @@
 							],
 							"station.overview.ship.veil": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52404,7 +52386,6 @@
 							],
 							"station.power": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52414,7 +52395,6 @@
 							],
 							"station.repair": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52424,29 +52404,26 @@
 							],
 							"station.personnel": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
 								"navigation",
 								"alerts",
 								"power"
-							]
+							],
+							"station.overview.mission.viewscreen": ["camera"],
+							"station.overview.mission.viewscreen.mode": ["camera"],
+							"station.overview.mission.viewscreen.direction": ["camera"]
 						}
 					},
 					"2": {
-						"responsibilities": "Keep the Courier operational through reactor output, shields, Veil, team deployment, communications and deliberate FTL departure.",
+						"responsibilities": "Keep the Courier operational through reactor output, shields, Veil, team deployment. Handle Navigation and Comms when their dedicated seat is unattended.",
 						"automation": "AI manages batteries, shield redistribution, local repair and Medical work, away contributions, radar and radio readiness, and Duty Officer assignments.",
 						"systems": [
 							{
 								"id": "objectives",
 								"label": "Objectives",
 								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
-							},
-							{
-								"id": "ftl",
-								"label": "FTL departure",
-								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
 							},
 							{
 								"id": "repair",
@@ -52461,12 +52438,12 @@
 							{
 								"id": "comms",
 								"label": "Communications",
-								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+								"text": "Use the Comms conversation tab when this work falls back from Nav/Comms to Support."
 							},
 							{
 								"id": "navigation",
 								"label": "Navigation map",
-								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+								"text": "Use the Navigation map and FTL tab when this work falls back from Nav/Comms to Support."
 							},
 							{
 								"id": "alerts",
@@ -52487,12 +52464,16 @@
 								"id": "veil",
 								"label": "Veil",
 								"text": "Enable or disable Veil to conceal the Courier within the limits of its resources and specialist availability."
+							},
+							{
+								"id": "camera",
+								"label": "Camera controls",
+								"text": "Choose the shared camera mode and viewing direction separately from Condition and alert controls."
 							}
 						],
 						"tabs": {
 							"$console": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52504,7 +52485,6 @@
 							],
 							"station": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52516,7 +52496,6 @@
 							],
 							"station.overview": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52524,11 +52503,11 @@
 								"alerts",
 								"power",
 								"shields",
-								"veil"
+								"veil",
+								"camera"
 							],
 							"station.overview.mission": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52536,23 +52515,11 @@
 								"alerts",
 								"power",
 								"shields",
-								"veil"
+								"veil",
+								"camera"
 							],
 							"station.overview.mission.objectives": [
 								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power",
-								"shields",
-								"veil"
-							],
-							"station.overview.mission.ftl": [
-								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52564,19 +52531,6 @@
 							],
 							"station.overview.ship": [
 								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power",
-								"shields",
-								"veil"
-							],
-							"station.overview.ship.viewscreen": [
-								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52588,7 +52542,6 @@
 							],
 							"station.overview.ship.alert": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52600,7 +52553,6 @@
 							],
 							"station.overview.ship.shields": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52612,7 +52564,6 @@
 							],
 							"station.overview.ship.veil": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52624,7 +52575,6 @@
 							],
 							"station.power": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52636,7 +52586,6 @@
 							],
 							"station.repair": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52648,7 +52597,6 @@
 							],
 							"station.personnel": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52657,22 +52605,20 @@
 								"power",
 								"shields",
 								"veil"
-							]
+							],
+							"station.overview.mission.viewscreen": ["camera"],
+							"station.overview.mission.viewscreen.mode": ["camera"],
+							"station.overview.mission.viewscreen.direction": ["camera"]
 						}
 					},
 					"3": {
-						"responsibilities": "Manage the Courier's power, protection, repairs, treatment and officers while handling communications, navigation and deliberate FTL departure.",
+						"responsibilities": "Manage the Courier's power, protection, repairs, treatment and officers. Handle Navigation and Comms when their dedicated seat is unattended.",
 						"automation": "AI carries out ordinary machinery and team execution and maintains radar and radio readiness, while FTL departure remains your decision.",
 						"systems": [
 							{
 								"id": "objectives",
 								"label": "Objectives",
 								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
-							},
-							{
-								"id": "ftl",
-								"label": "FTL departure",
-								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
 							},
 							{
 								"id": "repair",
@@ -52687,12 +52633,12 @@
 							{
 								"id": "comms",
 								"label": "Communications",
-								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+								"text": "Use the Comms conversation tab when this work falls back from Nav/Comms to Support."
 							},
 							{
 								"id": "navigation",
 								"label": "Navigation map",
-								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+								"text": "Use the Navigation map and FTL tab when this work falls back from Nav/Comms to Support."
 							},
 							{
 								"id": "alerts",
@@ -52718,12 +52664,16 @@
 								"id": "personnel",
 								"label": "Duty Officers",
 								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							},
+							{
+								"id": "camera",
+								"label": "Camera controls",
+								"text": "Choose the shared camera mode and viewing direction separately from Condition and alert controls."
 							}
 						],
 						"tabs": {
 							"$console": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52736,7 +52686,6 @@
 							],
 							"station": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52749,7 +52698,6 @@
 							],
 							"station.overview": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52758,11 +52706,11 @@
 								"power",
 								"shields",
 								"veil",
-								"personnel"
+								"personnel",
+								"camera"
 							],
 							"station.overview.mission": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52771,24 +52719,11 @@
 								"power",
 								"shields",
 								"veil",
-								"personnel"
+								"personnel",
+								"camera"
 							],
 							"station.overview.mission.objectives": [
 								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power",
-								"shields",
-								"veil",
-								"personnel"
-							],
-							"station.overview.mission.ftl": [
-								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52801,20 +52736,6 @@
 							],
 							"station.overview.ship": [
 								"objectives",
-								"ftl",
-								"repair",
-								"medical",
-								"comms",
-								"navigation",
-								"alerts",
-								"power",
-								"shields",
-								"veil",
-								"personnel"
-							],
-							"station.overview.ship.viewscreen": [
-								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52827,7 +52748,6 @@
 							],
 							"station.overview.ship.alert": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52840,7 +52760,6 @@
 							],
 							"station.overview.ship.shields": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52853,7 +52772,6 @@
 							],
 							"station.overview.ship.veil": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52866,7 +52784,6 @@
 							],
 							"station.power": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52879,7 +52796,6 @@
 							],
 							"station.repair": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52892,7 +52808,6 @@
 							],
 							"station.personnel": [
 								"objectives",
-								"ftl",
 								"repair",
 								"medical",
 								"comms",
@@ -52902,7 +52817,10 @@
 								"shields",
 								"veil",
 								"personnel"
-							]
+							],
+							"station.overview.mission.viewscreen": ["camera"],
+							"station.overview.mission.viewscreen.mode": ["camera"],
+							"station.overview.mission.viewscreen.direction": ["camera"]
 						}
 					}
 				}
@@ -52933,57 +52851,12 @@
 				"schema": 1,
 				"root": {
 					"id": "comms",
-					"kind": "row",
-					"children": [
-						{
-							"id": "list",
-							"kind": "component",
-							"component": "conversation-list",
-							"widget_parts": [],
-							"width": 280,
-							"stretch": 0
-						},
-						{
-							"id": "dialogue",
-							"kind": "column",
-							"children": [
-								{
-									"id": "header",
-									"kind": "component",
-									"component": "conversation-header",
-									"widget_parts": [
-										"control/external-comms/presentation",
-										"control/personnel/presentation",
-										"control/bridge/presentation"
-									]
-								},
-								{
-									"id": "history",
-									"kind": "component",
-									"component": "conversation-history",
-									"widget_parts": [],
-									"stretch": 2
-								},
-								{
-									"id": "incoming",
-									"kind": "component",
-									"component": "conversation-incoming",
-									"widget_parts": []
-								},
-								{
-									"id": "replies",
-									"kind": "component",
-									"component": "conversation-replies",
-									"widget_parts": []
-								},
-								{
-									"id": "compose",
-									"kind": "component",
-									"component": "conversation-compose",
-									"widget_parts": []
-								}
-							]
-						}
+					"kind": "component",
+					"component": "conversations",
+					"widget_parts": [
+						"control/external-comms/presentation",
+						"control/personnel/presentation",
+						"control/bridge/presentation"
 					]
 				}
 			},
@@ -53003,14 +52876,7 @@
 						],
 						"tabs": {
 							"$console": ["comms"],
-							"comms": ["comms"],
-							"comms.list": ["comms"],
-							"comms.dialogue": ["comms"],
-							"comms.dialogue.header": ["comms"],
-							"comms.dialogue.history": ["comms"],
-							"comms.dialogue.incoming": ["comms"],
-							"comms.dialogue.replies": ["comms"],
-							"comms.dialogue.compose": ["comms"]
+							"comms": ["comms"]
 						}
 					},
 					"2": {
@@ -53025,14 +52891,7 @@
 						],
 						"tabs": {
 							"$console": ["comms"],
-							"comms": ["comms"],
-							"comms.list": ["comms"],
-							"comms.dialogue": ["comms"],
-							"comms.dialogue.header": ["comms"],
-							"comms.dialogue.history": ["comms"],
-							"comms.dialogue.incoming": ["comms"],
-							"comms.dialogue.replies": ["comms"],
-							"comms.dialogue.compose": ["comms"]
+							"comms": ["comms"]
 						}
 					},
 					"3": {
@@ -53047,14 +52906,7 @@
 						],
 						"tabs": {
 							"$console": ["comms"],
-							"comms": ["comms"],
-							"comms.list": ["comms"],
-							"comms.dialogue": ["comms"],
-							"comms.dialogue.header": ["comms"],
-							"comms.dialogue.history": ["comms"],
-							"comms.dialogue.incoming": ["comms"],
-							"comms.dialogue.replies": ["comms"],
-							"comms.dialogue.compose": ["comms"]
+							"comms": ["comms"]
 						}
 					}
 				}
@@ -53088,31 +52940,99 @@
 				"schema": 1,
 				"root": {
 					"id": "navigation",
+					"kind": "overlay",
+					"children": [
+						{
+							"id": "map",
+							"kind": "component",
+							"component": "navigation-map",
+							"widget_parts": ["control/navigation.orders/map"],
+							"region": "background",
+							"min_width": 440,
+							"min_height": 300
+						},
+						{
+							"id": "details",
+							"label": "Target and waypoint",
+							"kind": "component",
+							"component": "navigation-details",
+							"widget_parts": [
+								"control/navigation.orders/presentation",
+								"control/personnel/presentation",
+								"control/bridge/presentation"
+							],
+							"region": "top-left",
+							"width": 340,
+							"height": 210,
+							"min_width": 260,
+							"min_height": 180,
+							"scroll": true
+						},
+						{
+							"id": "ftl",
+							"label": "FTL",
+							"kind": "component",
+							"component": "ftl-controls",
+							"widget_parts": ["control/ftl.drive/presentation"],
+							"region": "bottom-right",
+							"width": 400,
+							"height": 240,
+							"min_width": 280,
+							"min_height": 200,
+							"scroll": true
+						}
+					]
+				},
+				"compact": {
+					"id": "navigation-compact",
 					"kind": "column",
 					"children": [
 						{
 							"id": "map",
 							"kind": "component",
-							"component": "navigation",
-							"widget_parts": [
-								"control/navigation.orders/presentation",
-								"control/personnel/presentation",
-								"control/bridge/presentation"
-							]
+							"component": "navigation-map",
+							"widget_parts": ["control/navigation.orders/map"],
+							"min_width": 440,
+							"min_height": 300,
+							"height": 300,
+							"stretch": 0
 						},
 						{
-							"id": "ftl",
-							"kind": "component",
-							"component": "ftl-controls",
-							"widget_parts": ["control/ftl.drive/presentation"],
-							"height": 140,
-							"stretch": 0
+							"id": "panels",
+							"kind": "column",
+							"scroll": true,
+							"children": [
+								{
+									"id": "details",
+									"label": "Target and waypoint",
+									"kind": "component",
+									"component": "navigation-details",
+									"widget_parts": [
+										"control/navigation.orders/presentation",
+										"control/personnel/presentation",
+										"control/bridge/presentation"
+									],
+									"min_width": 260,
+									"min_height": 180,
+									"scroll": true
+								},
+								{
+									"id": "ftl",
+									"label": "FTL",
+									"kind": "component",
+									"component": "ftl-controls",
+									"widget_parts": ["control/ftl.drive/presentation"],
+									"min_width": 280,
+									"min_height": 200,
+									"scroll": true
+								}
+							]
 						}
 					]
 				}
 			},
 			"hud_layout": "base.console.navigation.hud",
-			"tab": false,
+			"tab": true,
 			"help": {
 				"default_level": 1,
 				"required_levels": [1, 2, 3],
@@ -53135,8 +53055,14 @@
 						"tabs": {
 							"$console": ["navigation", "ftl"],
 							"navigation": ["navigation", "ftl"],
-							"navigation.map": ["navigation", "ftl"],
-							"navigation.ftl": ["navigation", "ftl"]
+							"navigation.map": ["navigation"],
+							"navigation.details": ["navigation"],
+							"navigation.ftl": ["ftl"],
+							"navigation-compact": ["navigation", "ftl"],
+							"navigation-compact.map": ["navigation"],
+							"navigation-compact.panels": ["navigation", "ftl"],
+							"navigation-compact.panels.details": ["navigation"],
+							"navigation-compact.panels.ftl": ["ftl"]
 						}
 					},
 					"2": {
@@ -53157,8 +53083,14 @@
 						"tabs": {
 							"$console": ["navigation", "ftl"],
 							"navigation": ["navigation", "ftl"],
-							"navigation.map": ["navigation", "ftl"],
-							"navigation.ftl": ["navigation", "ftl"]
+							"navigation.map": ["navigation"],
+							"navigation.details": ["navigation"],
+							"navigation.ftl": ["ftl"],
+							"navigation-compact": ["navigation", "ftl"],
+							"navigation-compact.map": ["navigation"],
+							"navigation-compact.panels": ["navigation", "ftl"],
+							"navigation-compact.panels.details": ["navigation"],
+							"navigation-compact.panels.ftl": ["ftl"]
 						}
 					},
 					"3": {
@@ -53179,8 +53111,14 @@
 						"tabs": {
 							"$console": ["navigation", "ftl"],
 							"navigation": ["navigation", "ftl"],
-							"navigation.map": ["navigation", "ftl"],
-							"navigation.ftl": ["navigation", "ftl"]
+							"navigation.map": ["navigation"],
+							"navigation.details": ["navigation"],
+							"navigation.ftl": ["ftl"],
+							"navigation-compact": ["navigation", "ftl"],
+							"navigation-compact.map": ["navigation"],
+							"navigation-compact.panels": ["navigation", "ftl"],
+							"navigation-compact.panels.details": ["navigation"],
+							"navigation-compact.panels.ftl": ["ftl"]
 						}
 					}
 				}
@@ -53202,6 +53140,92 @@
 						"channel": "waypoint"
 					}
 				]
+			}
+		},
+		{
+			"id": "base.console.courier.nav-comms",
+			"name": "Nav/Comms",
+			"description": "Plot waypoints, prepare FTL and handle ship communications. Navigation and Comms pass to Support, then Helm, when this seat is unattended.",
+			"widgets": [],
+			"tab": false,
+			"strict_widgets": true,
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Plot waypoints, prepare FTL and handle hails and conversations.",
+						"automation": "AI maintains radio readiness and its reserve and executes accepted navigation orders through the ordinary ship Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and personnel warnings, then deliberately authorise departure."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation", "ftl", "comms"]
+						}
+					},
+					"2": {
+						"responsibilities": "Plot waypoints, prepare FTL and handle hails and conversations.",
+						"automation": "AI maintains radio readiness and its reserve and executes accepted navigation orders through the ordinary ship Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and personnel warnings, then deliberately authorise departure."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation", "ftl", "comms"]
+						}
+					},
+					"3": {
+						"responsibilities": "Plot waypoints, prepare FTL and handle hails and conversations.",
+						"automation": "AI maintains radio readiness and its reserve and executes accepted navigation orders through the ordinary ship Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and personnel warnings, then deliberately authorise departure."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation", "ftl", "comms"]
+						}
+					}
+				}
 			}
 		}
 	],
@@ -105203,7 +105227,7 @@
 			],
 			"part_bindings": {
 				"presentation": {
-					"renderer": "console.conversation-header",
+					"renderer": "console.conversations",
 					"commands": [],
 					"operations": ["conversation"],
 					"data": [
@@ -105782,7 +105806,7 @@
 					"placement": "details"
 				}
 			},
-			"parts": ["presentation"],
+			"parts": ["map", "presentation"],
 			"levels": [
 				{
 					"id": "automated",
@@ -105795,11 +105819,18 @@
 			],
 			"part_bindings": {
 				"presentation": {
-					"renderer": "console.navigation",
+					"renderer": "console.navigation-details",
 					"commands": ["waypoint"],
 					"operations": [],
 					"data": ["waypoint"],
 					"details": true
+				},
+				"map": {
+					"renderer": "console.navigation-map",
+					"commands": [],
+					"operations": [],
+					"data": [],
+					"details": false
 				}
 			},
 			"label": "Navigation"
@@ -107786,7 +107817,7 @@
 			"parts": ["presentation"],
 			"part_bindings": {
 				"presentation": {
-					"renderer": "console.conversation-header",
+					"renderer": "console.conversations",
 					"commands": [],
 					"operations": ["personnel", "mission_staffing"],
 					"data": [],
@@ -107822,7 +107853,7 @@
 			"parts": ["presentation"],
 			"part_bindings": {
 				"presentation": {
-					"renderer": "console.navigation",
+					"renderer": "console.navigation-details",
 					"commands": [],
 					"operations": ["personnel", "mission_staffing"],
 					"data": [],
@@ -107976,7 +108007,7 @@
 			"parts": ["presentation"],
 			"part_bindings": {
 				"presentation": {
-					"renderer": "console.conversation-header",
+					"renderer": "console.conversations",
 					"commands": [],
 					"operations": ["stance"],
 					"data": ["stance"],
@@ -108013,7 +108044,7 @@
 			"parts": ["presentation"],
 			"part_bindings": {
 				"presentation": {
-					"renderer": "console.navigation",
+					"renderer": "console.navigation-details",
 					"commands": [],
 					"operations": ["stance"],
 					"data": ["stance"],

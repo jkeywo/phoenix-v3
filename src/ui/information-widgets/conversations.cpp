@@ -238,7 +238,7 @@ void ConversationPanel::refresh(ConsoleModel &model, ConversationFrame frame)
 	}
 	const bool text =
 	    (split ? frame.compose_visible : detail_visible) && thread && thread->value("text_allowed", false);
-	if (!authored)
+	if (!split)
 		frame.dom.property(document_->GetElementById("comms-compose"), "display", text ? "block" : "none");
 	if (text)
 	{

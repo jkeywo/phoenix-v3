@@ -306,6 +306,8 @@ std::vector<UiComponentSpec> console_ui_components()
 	        {"conversation-compose", "Conversation composer", {}},
 	        {"conversation-incoming", "Incoming conversations", {}},
 	        {"navigation", "Navigation", {}},
+	        {"navigation-map", "Navigation map", {}},
+	        {"navigation-details", "Target and waypoint", {}},
 	        {"manual-flight", "Manual flight", {}},
 	        {"power", "Power", "power"},
 	        {"repair", "Repair", "repair"},
@@ -538,7 +540,10 @@ UiLayout compile_ui_layout(const Catalog &catalog, const Json &console)
 			verify_ui_condition(widget.at("when"));
 		std::function<void(UiNode &)> condition = [&](UiNode &node)
 		{
-			if (node.component == id || (widget.at("kind") == "navigation" && node.component == "navigation") ||
+			if (node.component == id ||
+			    (widget.at("kind") == "navigation" &&
+			     (node.component == "navigation" || node.component == "navigation-map" ||
+			      node.component == "navigation-details")) ||
 			    (widget.at("kind") == "conversations" &&
 			     (node.component == "conversations" || node.component.starts_with("conversation-"))))
 			{

@@ -24,6 +24,8 @@ struct NavigationBrowsing
 {
 	NavigationCamera camera;
 	double x = 0, y = 0;
+	bool selected = false;
+	EntityId contact = 0;
 };
 struct NavigationPointerResult
 {

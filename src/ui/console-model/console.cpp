@@ -119,6 +119,19 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 			tabs.push_back({key, label, true, unread});
 		}
 		granted_tabs_.update(std::move(tabs));
+		// A nonvisual station entry claims the seat while its human-seeking Consoles
+		// supply the actual workspace. Enter the first granted visible Console.
+		for (const auto &seat : resolved_consoles_)
+			if (seat.id == granted_tabs_.selected())
+			{
+				const auto &definition = catalog.consoles.at(seat.definition);
+				if (!definition.value("tab", true) && definition.at("widgets").empty())
+					for (const auto &candidate : resolved_consoles_)
+						if (catalog.consoles.at(candidate.definition).value("tab", true) &&
+						    granted_tabs_.select(candidate.id))
+							break;
+				break;
+			}
 		const auto &selected_console = granted_tabs_.selected();
 		if (!selected_console.empty() && selected_console != next->console)
 		{

@@ -3,9 +3,9 @@
 Player clients show an introduction after claiming a station in the lobby. It
 follows the host's accepted complexity selection and gives responsibilities,
 one sentence for each player-facing system, and one sentence describing AI work.
-The eight authored stations are Courier Helm/Support and Cruiser Helm, Tactical,
+The nine authored stations are Courier Helm/Support/Nav/Comms and Cruiser Helm, Tactical,
 Engineering, Science, Comms and Captain. Cruiser Comms and Captain remain fixed
-at one star; the other six have three levels.
+at one star; the other seven have three levels.
 
 In game, `?` sits at the top right below the tabs. It opens help for the active
 page and accepted workload, including auxiliary Console pages. Close, Escape or

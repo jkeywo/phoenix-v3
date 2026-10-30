@@ -128,6 +128,9 @@ are no separate delegation toggles or per-System complexity settings. The same
 state tree runs at every workload through command admission: a matching human-held
 setting succeeds without mutation, other writes are refused, and authored branches
 provide fallback. Existing Station-depth responsibilities below remain the rules.
+Courier has Helm, Support and Nav/Comms seats. Navigation and Comms seek a human
+in Nav/Comms, Support, Helm order, then use AI. The dedicated seat contains only
+Navigation and Comms; Support retains camera controls separately from Condition/alert.
 Named visual parts can split around a radar and reunite in compact layouts; named
 data independently selects Main, Details or Hidden per star. Presentation never
 grants authority. Scenario-required human work can use explicit human-seeking

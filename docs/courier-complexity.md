@@ -8,7 +8,7 @@ All playable Courier mission slots use the rescue-based fit, displayed as **Cour
 
 Use one, two or three stars in the player interface and a read-only star display on the server. Clicking star N selects level N. Filled and empty sprites show the accepted level; interactive backgrounds, hover and keyboard focus distinguish selection from read-only display. Keyboard, controller and screen-reader actions remain equivalent.
 
-Courier defaults to one star. One selection covers Helm/Tactical; another covers Support/Comms/Navigator. Automatic operation while vacant or Away is separate from the selected level. Cruiser retains its current allocations, presented as one/two/three stars.
+Courier defaults to one star. One selection covers Helm/Tactical; another covers Support, and a third covers Nav/Comms. Navigation and Comms seek an available human in the order Nav/Comms, Support, Helm; otherwise AI operates them. The dedicated seat opens Navigation and has only Navigation and Comms tabs. Automatic operation while vacant or Away is separate from the selected level. Cruiser retains its current allocations, presented as one/two/three stars.
 
 ## Helm
 
@@ -65,3 +65,11 @@ The browser server, client and Workshop builds also passed. WebAssembly passed t
 ## Veil completion
 
 The [remaining Cruiser station revision](cruiser-science-comms-captain.md) moves Veil to the standard Courier Support fit. One star operates it automatically; two stars adds enable/disable; three stars adds specialist reassignment and machinery settings. The apparatus uses a real local reserve, supply and cooling, and existing emission rules determine its concealment.
+
+## Nav/Comms seat and restored auxiliary widgets - 30 October 2026
+
+Courier has three claimable seats: Helm, Support and Nav/Comms. Navigation and Comms retain their own Console identities and move together to the first available human in Nav/Comms, Support, Helm order. Joining, disconnecting and Away use ordinary ownership and command generations. Signals and Guild passage belong to Nav/Comms; FTL supply and cooling remain engineering work on Support.
+
+Comms is one reusable conversation widget containing the ship/contact list and conversation workspace. Navigation is one logical widget with separately placed map and target/waypoint parts: the map fills the background, details and set/clear waypoint controls sit top-left, and the existing FTL panel sits bottom-right. Compact layouts stack these parts in a scrolling workspace. FTL preparation and deliberate departure appear on Navigation rather than Support Overview.
+
+Support Overview retains the existing illustrated camera mode and direction widgets, separate from the numbered Condition/alert slider. Ship mechanisms, star responsibilities, knowledge permissions and underlying commands are unchanged.

@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
 		app.session->add_pack(read_file(std::string(argv[1]) + "/test-missions.zip"));
 		app.session->start({"base.comms-demonstration",
-		                    {{"courier", "base.rescue-courier"}, {"partner", "base.rescue-courier"}},
+		                    {{"courier", "base.courier"}, {"partner", "base.courier"}},
 		                    "courier",
 		                    "support"});
 		app.screen = Screen::console;

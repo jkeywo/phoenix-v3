@@ -64,6 +64,8 @@ void NavigationPanel::prepare(ConsoleModel &model_, NavigationFrame frame)
 	if (!mission_outcome_.empty())
 		navigation_visible_ = false;
 	document_->SetClass("navigation-console", navigation_visible_);
+	dom_.property(document_->GetElementById("navigation-map"), "display", navigation_visible_ ? "block" : "none");
+	dom_.property(document_->GetElementById("navigation-details"), "display", navigation_visible_ ? "block" : "none");
 	if ((navigation_visible_ || navigator_panel || !mission_outcome_.empty()) &&
 	    (!(model_.layout() && model_.layout()->contains("layout")) || !mission_outcome_.empty()))
 		dom_.property(document_->GetElementById("gameplay"), "display", "none");
@@ -228,38 +230,55 @@ void NavigationPanel::prepare(ConsoleModel &model_, NavigationFrame frame)
 	}
 	else if (navigation_visible_)
 	{
-		markup = "<div class=\"navigation-canvas\" id=\"" + frame.id("nav.map") +
-		         "\" tabindex=\"0\" aria-label=\"Navigation map. Arrow keys select a "
-		         "position; Page Up and Page Down zoom; Tab reaches the waypoint action.\" "
-		         "style=\"position:absolute;left:0;top:0;width:100%;height:88%;\"></div><div "
-		         "class=\"navigation-controls\" style=\"position:absolute;left:0;bottom:0;width:100%;height:12%;\">";
+		std::string map = "<div class=\"navigation-canvas\" id=\"" + frame.id("nav.map") +
+		                  "\" tabindex=\"0\" aria-label=\"Navigation map. Arrow keys select a position; "
+		                  "Page Up and Page Down zoom; Tab reaches the waypoint action.\" "
+		                  "style=\"position:absolute;left:0;top:0;width:100%;height:100%;\"></div>";
+		if (const auto *layout = model_.layout())
+			for (const auto &widget : layout->at("widgets"))
+				if (widget.at("kind") == "navigation")
+					map += "<div style=\"position:absolute;right:90dp;top:8dp;\">" +
+					       button("on-screen/" + widget.at("id").get<std::string>(), "On screen") + "</div>";
+		std::string details;
 		if (navigation_selected_contact_ && model_.observation())
 			for (const auto &contact : model_.observation()->contacts)
 				if (contact.id == navigation_selected_contact_)
-					markup += "<span>" +
-					          Rml::StringUtilities::EncodeRml(localise(contact.definition) + " #" +
-					                                          std::to_string(contact.id)) +
-					          "</span>";
+					details += "<p>" +
+					           Rml::StringUtilities::EncodeRml(localise(contact.definition) + " #" +
+					                                           std::to_string(contact.id)) +
+					           "</p>";
 		if (navigation_selected_)
 		{
+			details += "<p>" +
+			           Rml::StringUtilities::EncodeRml(localise("Selected position") + ": " +
+			                                           std::to_string(static_cast<std::int64_t>(navigation_x_)) + ", " +
+			                                           std::to_string(static_cast<std::int64_t>(navigation_y_))) +
+			           "</p>";
 			const auto waypoint = model_.waypoint();
 			const bool selected_waypoint =
 			    waypoint.value("active", false) &&
 			    std::hypot(navigation_x_ - waypoint.value("x", 0.0), navigation_y_ - waypoint.value("y", 0.0)) <=
 			        navigation_camera_.scale * 18;
-			markup += button(selected_waypoint ? "nav.clear" : "nav.set",
-			                 selected_waypoint ? "Clear waypoint" : "Set waypoint");
+			details += button(selected_waypoint ? "nav.clear" : "nav.set",
+			                  selected_waypoint ? "Clear waypoint" : "Set waypoint");
 		}
-		if (const auto *layout = model_.layout())
-			for (const auto &widget : layout->at("widgets"))
-				if (widget.at("kind") == "navigation")
-					markup += button("on-screen/" + widget.at("id").get<std::string>(), "On screen");
-		markup += "</div>";
+		else
+			details = "<p>" + localise("Select a contact or position on the map.") + "</p>";
+		// These hosts may be mounted independently by an authored layout. Update their
+		// contents in place so rebuilding one part never destroys or duplicates another.
+		const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
+		dom_.leaf_markup(document_->GetElementById("navigation-map"), map);
+		dom_.leaf_markup(document_->GetElementById("navigation-details"), details);
+		dom_.forget_elements();
+		if (!focus.empty() && !context_->GetFocusElement())
+			if (auto *previous = document_->GetElementById(focus))
+				previous->Focus();
 	}
+
 	if (markup != navigation_markup_)
 	{
 		const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
-		document_->GetElementById("navigation-layer")->SetInnerRML(markup);
+		document_->GetElementById("navigation-report")->SetInnerRML(markup);
 		// Size the report after insertion; this layer has no intrinsic layout width.
 		if (!mission_outcome_.empty())
 			if (auto *copy = document_->QuerySelector(".mission-copy"))
@@ -537,13 +556,15 @@ void NavigationPanel::draw(const ConsoleModel &model_, TextureCache &radar_textu
 }
 NavigationBrowsing NavigationPanel::browsing() const
 {
-	return {navigation_camera_, navigation_x_, navigation_y_};
+	return {navigation_camera_, navigation_x_, navigation_y_, navigation_selected_, navigation_selected_contact_};
 }
 void NavigationPanel::restore_browsing(const NavigationBrowsing &saved)
 {
 	navigation_camera_ = saved.camera;
 	navigation_x_ = saved.x;
 	navigation_y_ = saved.y;
+	navigation_selected_ = saved.selected;
+	navigation_selected_contact_ = saved.contact;
 }
 std::vector<std::int64_t> NavigationPanel::display_camera() const
 {

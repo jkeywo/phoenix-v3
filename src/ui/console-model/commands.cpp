@@ -489,7 +489,22 @@ bool ConsoleModel::submit(OperatingCommand command)
 	if (!session || !observation_)
 		return false;
 	command.console = observation_->console;
-	const auto eligible = eligible_console_command(*observation_, layout_, session->public_board(), std::move(command));
+	// Away belongs to the claimed seat even while browsing a human-seeking Console.
+	// Otherwise only that auxiliary Console would stop, leaving the seat eligible
+	// for its other delegated work instead of handing it to the next human.
+	const auto claimed = command.action == "away" ? session->console_snapshot(route_) : nullptr;
+	const Observation *scope = observation_.get();
+	const Json *definition = &layout_;
+	if (claimed && claimed->console != observation_->console)
+		for (const auto &seat : resolved_consoles_)
+			if (seat.id == claimed->console)
+			{
+				scope = claimed.get();
+				definition = &session->catalog().consoles.at(seat.definition);
+				command.console = claimed->console;
+				break;
+			}
+	const auto eligible = eligible_console_command(*scope, *definition, session->public_board(), std::move(command));
 	if (!eligible)
 		return false;
 	command = eligible->command;

@@ -1,6 +1,6 @@
 # Comms conversations
 
-Comms uses a human-seeking Console, preferring the Courier's Support operator (Engineering on the engineering fit). The Cruiser retains its Comms identity. Conversation UI and authority are shared across native and browser clients.
+Comms uses a human-seeking Console, preferring the Courier's Nav/Comms operator, then Support, then Helm. The Cruiser retains its Comms identity. Conversation UI and authority are shared across native and browser clients.
 
 ## Playing
 
@@ -69,3 +69,5 @@ Pop-Location
 ```
 
 Local evidence is in `build/comms-ctest-final.log`, `build/comms-web-check.log`, `build/comms-network-final.log`, `build/comms-network-focused2.log`, `build/comms-smoke.log`, and `build/native/comms-*.png`. These are run receipts, not production-content goldens. Browser graphical playthroughs, actual screen-reader/device operation and six-display performance are separate acceptance work.
+
+Courier Comms is authored as one `conversations` component with its internal list and conversation workspace managed by the shared renderer. Its human preference order is Nav/Comms, Support, Helm. Selection, history, replies, free-text eligibility, unread state and On Screen still use the existing conversation model and admission paths.

@@ -101,7 +101,9 @@ bool ConsoleSurface::State::probe_conversation() const
 			return false;
 	const float density = context_->GetDensityIndependentPixelRatio();
 	auto *choices = document_->GetElementById("comms-choices");
-	if (history->GetClientHeight() <= choices->GetClientHeight() * 4)
+	// The composite owns its internal proportions; require a readable transcript
+	// larger than the reply area rather than the old six-component stretch ratio.
+	if (history->GetClientHeight() < 120 * density || history->GetClientHeight() <= choices->GetClientHeight())
 		return false;
 	Rml::ElementList replies;
 	choices->GetElementsByTagName(replies, "button");
@@ -219,8 +221,10 @@ bool ConsoleSurface::State::probe_navigation(unsigned stage)
 	}
 	if (stage == 0)
 	{
-		const auto x = navigation_.area().x + navigation_.area().width * .12f,
-		           y = navigation_.area().y + navigation_.area().height * .12f;
+		if (navigation_.area().width < 44 || navigation_.area().height < 44)
+			return false;
+		const auto x = navigation_.area().x + navigation_.area().width * .55f,
+		           y = navigation_.area().y + navigation_.area().height * .4f;
 		pointer(9888, x, y, DeviceEventKind::Down);
 		pointer(9888, x, y, DeviceEventKind::Up);
 		return navigation_.selected() && model_.waypoint() == before;
@@ -266,6 +270,9 @@ bool ConsoleSurface::State::probe_support_visuals()
 	auto *diagram = document_->GetElementById(id("shield-diagram"));
 	auto *slider = document_->GetElementById(id("support-condition"));
 	Rml::ElementList bars;
+	Rml::ElementList ticks;
+	if (auto *condition = document_->QuerySelector(".condition-ticks"))
+		condition->GetElementsByTagName(ticks, "span");
 	if (slider)
 		for (int i = 0; i < slider->GetNumChildren(true); ++i)
 			if (auto *child = slider->GetChild(i); child->GetTagName() == "sliderbar")
@@ -273,7 +280,16 @@ bool ConsoleSurface::State::probe_support_visuals()
 	const bool valid = diagram && slider && diagram->IsVisible(true) && slider->IsVisible(true) &&
 	                   diagram->GetClientHeight() >= 80 * context_->GetDensityIndependentPixelRatio() &&
 	                   shield_ship_sprite_ && !shield_sectors_.empty() && !bars.empty() &&
-	                   bars.front()->GetOffsetWidth() > 8 && bars.front()->GetOffsetHeight() > 8;
+	                   bars.front()->GetOffsetWidth() > 8 && bars.front()->GetOffsetHeight() > 8 && !ticks.empty() &&
+	                   std::all_of(ticks.begin(), ticks.end(),
+	                               [&](auto *tick)
+	                               {
+		                               const auto at = tick->GetAbsoluteOffset(Rml::BoxArea::Border);
+		                               auto *panel = slider->GetParentNode();
+		                               const auto panel_at = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
+		                               return tick->IsVisible(true) && tick->GetOffsetHeight() > 0 &&
+		                                      at.y + tick->GetOffsetHeight() <= panel_at.y + panel->GetClientHeight();
+	                               });
 	if (!valid)
 		std::cout << "Support visual probe: canvas " << (diagram ? diagram->GetClientHeight() : -1) << " / density "
 		          << context_->GetDensityIndependentPixelRatio() << "; image " << bool(shield_ship_sprite_)

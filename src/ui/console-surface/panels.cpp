@@ -1193,9 +1193,13 @@ void ConsoleSurface::State::prepare_engineering_component(const std::string &com
 std::vector<std::pair<ConsoleModel *, std::string>> ConsoleSurface::State::task_sources()
 {
 	std::vector<std::pair<ConsoleModel *, std::string>> sources{{&model_, ""}};
+	std::set<std::string> seen;
+	if (model_.observation())
+		seen.insert(model_.observation()->console);
 	for (auto &[console, source] : support_models_)
-		sources.emplace_back(source.get(), "support-console/" + console + "/");
-	if (!tactical_.console().empty())
+		if (seen.insert(console).second)
+			sources.emplace_back(source.get(), "support-console/" + console + "/");
+	if (!tactical_.console().empty() && seen.insert(tactical_.console()).second)
 		sources.emplace_back(&tactical_.model(), "inline/");
 	return sources;
 }

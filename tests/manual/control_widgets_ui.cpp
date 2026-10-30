@@ -70,6 +70,7 @@ int main(int argc, char **argv)
 			if (courier)
 			{
 				const bool helm = std::string(argv[6]) == "helm";
+				const bool nav_comms = std::string(argv[6]) == "nav-comms";
 				for (int stars = 1; stars <= 3; ++stars)
 				{
 					std::cout << "Begin Courier star " << stars << std::endl;
@@ -87,7 +88,7 @@ int main(int argc, char **argv)
 						if (row.first.find("station-page/") != std::string::npos ||
 						    row.first.find("console-page/") != std::string::npos)
 							tabs.push_back(row);
-					require(tabs.size() == static_cast<std::size_t>((helm ? 2 : 4) + (stars == 3)),
+					require(tabs.size() == static_cast<std::size_t>(nav_comms ? 2 : (helm ? 4 : 5) + (stars == 3)),
 					        "Courier has exactly its agreed station pages");
 					const auto prefix = std::string(argv[7]) + "-" + std::to_string(stars);
 					for (std::size_t page = 0; page < tabs.size(); ++page)
@@ -100,6 +101,55 @@ int main(int argc, char **argv)
 						for (const auto &[key, value] : app.screen_readouts)
 							std::cout << "Readout " << value << '\n';
 						TakeScreenshot((prefix + "-page-" + std::to_string(page) + ".png").c_str());
+						const auto action_label = [&](const std::string &label)
+						{
+							const auto controls = app.screen_controls;
+							for (const auto &[id, text] : controls)
+								if (text == label)
+									return app.screen_action(id);
+							return false;
+						};
+						if (tabs[page].second == "Navigation")
+						{
+							require(probe_console_navigation(1, 0) && probe_console_navigation(1, 1),
+							        "Navigation map supports pointer and keyboard selection");
+							frames();
+							require(action_label("Set waypoint"), "details panel sets the map selection as waypoint");
+							app.session->tick();
+							frames();
+							require(action_label("Clear waypoint"), "details panel clears the shared waypoint");
+							app.session->tick();
+							frames();
+							require(probe_console_navigation(1, 2), "FTL overlay does not select or pan the map");
+							require(std::count_if(app.screen_controls.begin(), app.screen_controls.end(),
+							                      [](const auto &row)
+							                      {
+								                      return row.second == "Prepare FTL";
+							                      }) == 1,
+							        "Navigation renders a single FTL panel");
+							require(action_label("Prepare FTL"), "existing FTL preparation is available on Navigation");
+							app.session->tick();
+							frames();
+							require(action_label("Cancel FTL"), "existing FTL preparation can be cancelled");
+							app.session->tick();
+							frames();
+						}
+						if (tabs[page].second == "Overview")
+						{
+							require(app.screen_action("console/1/camera/camera-mode/1") &&
+							            app.screen_action("console/1/camera/camera-direction/2"),
+							        "Support camera controls remain operable");
+							require(std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+							                    [](const auto &row)
+							                    {
+								                    return row.first.find("/camera/camera-direction/") !=
+								                           std::string::npos;
+							                    }),
+							        "Support reuses the illustrated camera direction widget");
+							app.session->tick();
+							frames();
+							require(probe_console_support_visuals(1), "Condition slider numbers remain visible");
+						}
 						if (helm && page == 0)
 						{
 							require(std::any_of(app.screen_inputs.begin(), app.screen_inputs.end(),
@@ -281,6 +331,8 @@ int main(int argc, char **argv)
 					require(app.screen_action(tabs.front().first), "return to primary Courier view");
 					SetWindowSize(640, 720);
 					frames();
+					if (nav_comms)
+						require(probe_console_navigation(1, 0), "compact Navigation retains a usable map");
 					TakeScreenshot((prefix + "-compact.png").c_str());
 					SetWindowSize(1920, 1080);
 					frames();

@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 		for (int i = 0; i < 200; ++i)
 			frame();
 		advance(5);
-		action("console/1/console-page/navigation/station.navigation-map");
+		action("console/1/console-page/navigation/");
 		advance(20);
 		if (!probe_console_navigation(1, 2))
 			throw std::runtime_error("FTL corner leaked pointer input to the map");
@@ -72,11 +72,11 @@ int main(int argc, char **argv)
 		SetWindowSize(1280, 900);
 		app.console_regions = {{1, 0, 0, 1280, 900}};
 		advance(20);
-		action("Turn FTL battery on");
+		action("Prepare FTL");
 		advance(20);
-		action("Turn FTL battery off");
+		action("Cancel FTL");
 		advance(20);
-		action("Turn FTL battery on");
+		action("Prepare FTL");
 		advance(300);
 		TakeScreenshot("build/ftl-charging.png");
 		auto state = [&]() -> Json
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 			throw std::runtime_error("Authored FTL never became ready");
 		advance(20);
 		TakeScreenshot("build/ftl-ready.png");
-		action("Leave mission");
+		action("Depart");
 		advance(20);
 		if (app.session->console_observation(1)->gameplay.at("mission_report").is_null())
 			throw std::runtime_error("Crew report missing after departure");

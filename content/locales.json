@@ -1895,7 +1895,12 @@
 			"Set the Courier's speed and heading or follow navigation orders and contacts using assisted flight.": "Set the Courier's speed and heading or follow navigation orders and contacts using assisted flight.",
 			"Activate an away mission, dock for insertion, and recall or cancel it while tracking the party's physical recovery.": "Activate an away mission, dock for insertion, and recall or cancel it while tracking the party's physical recovery.",
 			"Set assisted speed and heading or use direct thrust and steering to manoeuvre the Courier.": "Set assisted speed and heading or use direct thrust and steering to manoeuvre the Courier.",
-			"Operate assisted or direct flight and adjust the Courier's fitted propulsion settings.": "Operate assisted or direct flight and adjust the Courier's fitted propulsion settings."
+			"Operate assisted or direct flight and adjust the Courier's fitted propulsion settings.": "Operate assisted or direct flight and adjust the Courier's fitted propulsion settings.",
+			"Nav/Comms": "Nav/Comms",
+			"Camera controls": "Camera controls",
+			"Target and waypoint": "Target and waypoint",
+			"Selected position": "Selected position",
+			"Select a contact or position on the map.": "Select a contact or position on the map."
 		}
 	}
 }
