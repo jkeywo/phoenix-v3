@@ -23,7 +23,100 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  packs:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Bootstrap pinned local tools
+        shell: pwsh
+        run: ./scripts/bootstrap.ps1
+      - name: Build the packager and verify browser pack inputs
+        shell: pwsh
+        run: ./scripts/build.ps1 -Target native -BuildTarget base_pack,test_missions_pack
+      - name: Upload verified browser pack inputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-pack-inputs
+          if-no-files-found: error
+          path: |
+            build/native/base.zip
+            build/native/base.zip.menu.json
+            build/native/base.zip.clients/
+            build/native/test-missions.zip
+            build/native/test-missions.zip.menu.json
+            build/native/test-missions.zip.clients/
+  web:
+    needs: packs
+    runs-on: ubuntu-24.04
+    # One cold WASM build and its checks already exceed 90 minutes; run both variants.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Bootstrap pinned local tools
+        shell: pwsh
+        run: ./scripts/bootstrap.ps1
+      - name: Download this run's verified pack inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: web-pack-inputs
+          path: build/native
+      - name: Build and run ordinary WASM integration; record continuations
+        shell: pwsh
+        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded:$false -ContinuationOutputDirectory build/web-continuations/ordinary
+      - name: Retain the ordinary browser runtimes
+        shell: pwsh
+        run: |
+          $fallback = New-Item -ItemType Directory -Path build/web-fallback -Force
+          foreach ($role in @('server', 'client', 'workshop')) {
+            foreach ($extension in @('js', 'wasm', 'data')) {
+              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $fallback
+            }
+          }
+          Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $fallback
+      - name: Build and verify the isolated worker runtimes
+        shell: pwsh
+        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded -ContinuationOutputDirectory build/web-continuations/threaded
+      - name: Upload both WASM continuation sets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: wasm-continuations
+          if-no-files-found: error
+          path: build/web-continuations/
+      - name: Stage public browser files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path (Get-Location) 'build/pages'
+          if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+          $site = New-Item -ItemType Directory -Path $stage
+          Copy-Item -LiteralPath build/web/index.html -Destination $site
+          Copy-Item -LiteralPath build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js -Destination $site
+          New-Item -ItemType Directory -Path build/pages/assets | Out-Null
+          Copy-Item -LiteralPath build/web/assets/menu -Destination build/pages/assets -Recurse
+          Copy-Item -LiteralPath build/web/assets/audio -Destination build/pages/assets -Recurse
+          Copy-Item -LiteralPath build/web/assets/LatoLatin-Regular.ttf,build/web/assets/FONT-LICENSE.txt,build/web/assets/UnifrakturCook-Bold.ttf,build/web/assets/UnifrakturCook-OFL.txt,build/web/assets/ComicNeue-Regular.ttf,build/web/assets/ComicNeue-OFL.txt,build/web/assets/locales.json -Destination build/pages/assets
+          $threaded = New-Item -ItemType Directory -Path build/pages/threaded
+          foreach ($role in @('server', 'client', 'workshop'))
+          {
+            foreach ($extension in @('js', 'wasm', 'data'))
+            {
+              Copy-Item -LiteralPath "build/web-fallback/$role.$extension" -Destination $site
+              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $threaded
+            }
+          }
+          Copy-Item -LiteralPath build/web-fallback/phoenix_workshop_test.js,build/web-fallback/phoenix_workshop_test.wasm,build/web-fallback/workshop-test-worker.js -Destination $site
+          Set-Content -LiteralPath build/pages/runtime-capabilities.json -Value '{"root_threaded":false,"threaded_directory":true}'
+          Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json,build/native/base.zip.clients,build/native/test-missions.zip,build/native/test-missions.zip.menu.json,build/native/test-missions.zip.clients -Destination $site -Recurse
+          Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
+          node scripts/verify-deployment.mjs build/pages
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: build/pages
   native:
+    needs: web
     runs-on: windows-2022
     # Hosted MSVC module builds have exhausted 45 minutes before reaching CTest.
     timeout-minutes: 90
@@ -63,6 +156,7 @@ jobs:
             build/native/continuation.trace
             build/native/*-continuation.trace
   linux:
+    needs: web
     runs-on: ubuntu-24.04
     # Allow the full trace/network gate after the cold module build and CTest.
     timeout-minutes: 90
@@ -87,72 +181,30 @@ jobs:
           # World module consumers can each use several GiB while Clang compiles them.
           JOBS: "2"
         run: ./scripts/check-linux.sh
-  web:
-    needs: native
+  continuation:
+    needs: [web, native]
     runs-on: ubuntu-24.04
-    # One cold WASM build and its checks already exceed 90 minutes; run both variants.
-    timeout-minutes: 240
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Bootstrap pinned local tools
-        shell: pwsh
-        run: ./scripts/bootstrap.ps1
-      - name: Download this run's verified native inputs
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.19.0"
+      - name: Download native continuations
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: native-verification
           path: build/native
-      - name: Build and run WASM system integration and continuation comparison
-        shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded:$false
-      - name: Retain the ordinary browser runtimes
-        shell: pwsh
-        run: |
-          $fallback = New-Item -ItemType Directory -Path build/web-fallback -Force
-          foreach ($role in @('server', 'client', 'workshop')) {
-            foreach ($extension in @('js', 'wasm', 'data')) {
-              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $fallback
-            }
-          }
-          Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $fallback
-      - name: Build and verify the isolated worker runtimes
-        shell: pwsh
-        run: ./scripts/check.ps1 -Target web -Jobs 2 -Threaded
-      - name: Stage public browser files
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $stage = Join-Path (Get-Location) 'build/pages'
-          if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
-          $site = New-Item -ItemType Directory -Path $stage
-          Copy-Item -LiteralPath build/web/index.html -Destination $site
-          Copy-Item -LiteralPath build/web/menu.css,build/web/launcher.mjs,build/web/base-verifier.mjs,build/web/base-verifier-worker.js,build/web/session-pump.mjs,build/web/session-clock.js,build/web/session-profile.mjs,build/web/runtime-environment.mjs,build/web/isolation-worker.js -Destination $site
-          New-Item -ItemType Directory -Path build/pages/assets | Out-Null
-          Copy-Item -LiteralPath build/web/assets/menu -Destination build/pages/assets -Recurse
-          Copy-Item -LiteralPath build/web/assets/audio -Destination build/pages/assets -Recurse
-          Copy-Item -LiteralPath build/web/assets/LatoLatin-Regular.ttf,build/web/assets/FONT-LICENSE.txt,build/web/assets/UnifrakturCook-Bold.ttf,build/web/assets/UnifrakturCook-OFL.txt,build/web/assets/ComicNeue-Regular.ttf,build/web/assets/ComicNeue-OFL.txt,build/web/assets/locales.json -Destination build/pages/assets
-          $threaded = New-Item -ItemType Directory -Path build/pages/threaded
-          foreach ($role in @('server', 'client', 'workshop'))
-          {
-            foreach ($extension in @('js', 'wasm', 'data'))
-            {
-              Copy-Item -LiteralPath "build/web-fallback/$role.$extension" -Destination $site
-              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $threaded
-            }
-          }
-          Copy-Item -LiteralPath build/web-fallback/phoenix_workshop_test.js,build/web-fallback/phoenix_workshop_test.wasm,build/web-fallback/workshop-test-worker.js -Destination $site
-          Set-Content -LiteralPath build/pages/runtime-capabilities.json -Value '{"root_threaded":false,"threaded_directory":true}'
-          Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json,build/native/base.zip.clients,build/native/test-missions.zip,build/native/test-missions.zip.menu.json,build/native/test-missions.zip.clients -Destination $site -Recurse
-          Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
-          node scripts/verify-deployment.mjs build/pages
-      - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+      - name: Download both WASM continuation sets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: build/pages
+          name: wasm-continuations
+          path: build/web-continuations
+      - name: Compare native, ordinary WASM and worker WASM continuations
+        run: node scripts/wasm-continuations.mjs compare build/native build/web-continuations/ordinary build/web-continuations/threaded
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [native, web]
+    needs: [web, native, linux, continuation]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

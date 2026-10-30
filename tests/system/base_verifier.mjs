@@ -71,6 +71,15 @@ function verify(bytes) {
 	}
 }
 const definitions = JSON.parse(await readFile(new URL("../fixtures/content/definitions.json", import.meta.url)));
+// This preflight uses the production loader directly, rather than the C++
+// fixtures' legacy-shorthand materialisation. Author the current layout schema.
+for (const entity of definitions.entities)
+	entity.control_layout = {
+		schema: 2,
+		controllers: [],
+		profiles: [{ id: "direct", stars: 3 }],
+		default_profile: "direct",
+	};
 const pixel = await readFile(new URL("../fixtures/content/pixel.png", import.meta.url));
 const source = {
 	"manifest.json": JSON.stringify({ schema: 1, id: "test-core", base: { render_mode: "sprites" } }),
@@ -79,7 +88,7 @@ const source = {
 	"launcher.json": JSON.stringify({ scenarios: [{ id: "forged-preview" }] }),
 };
 const valid = verify(zip(source));
-assert.equal(valid.ok, true);
+assert.equal(valid.ok, true, valid.error);
 assert.equal(valid.preview.id, "test-core");
 assert.equal(valid.preview.scenarios[0].id, definitions.maps[0].id);
 assert.equal(valid.preview.base.interface_style, "current");
