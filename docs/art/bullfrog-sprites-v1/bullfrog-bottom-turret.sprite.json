@@ -1,0 +1,96 @@
+{
+	"schema_version": 1,
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"id": "bullfrog-bottom-turret",
+	"image_size": [2560, 256],
+	"files": {
+		"sprite": "bullfrog-bottom-turret.png"
+	},
+	"billboard_mode": "eight",
+	"render_scale": 0.2,
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [0, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 0,
+				"mirror_x": false,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "bow_port",
+				"rect": [512, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 45,
+				"mirror_x": false,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "port",
+				"rect": [1024, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 90,
+				"mirror_x": false,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "stern_port",
+				"rect": [1536, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 135,
+				"mirror_x": false,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "stern",
+				"rect": [2048, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 180,
+				"mirror_x": false,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [1536, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 225,
+				"mirror_x": true,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "starboard",
+				"rect": [1024, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 270,
+				"mirror_x": true,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [512, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 315,
+				"mirror_x": true,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {}
+			}
+		]
+	}
+}

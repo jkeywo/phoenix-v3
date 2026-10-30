@@ -1,0 +1,37 @@
+{
+	"sidecar_dimensions_and_bearings": true,
+	"transparent_backgrounds": true,
+	"pixel_resampling": false,
+	"frames": [
+		{
+			"frame": "bow",
+			"saved_rgb_identity": true,
+			"exact_visible_recomposition": true,
+			"no_overlapping_layers": true
+		},
+		{
+			"frame": "bow_port",
+			"saved_rgb_identity": true,
+			"exact_visible_recomposition": true,
+			"no_overlapping_layers": true
+		},
+		{
+			"frame": "port",
+			"saved_rgb_identity": true,
+			"exact_visible_recomposition": true,
+			"no_overlapping_layers": true
+		},
+		{
+			"frame": "stern_port",
+			"saved_rgb_identity": true,
+			"exact_visible_recomposition": true,
+			"no_overlapping_layers": true
+		},
+		{
+			"frame": "stern",
+			"saved_rgb_identity": true,
+			"exact_visible_recomposition": true,
+			"no_overlapping_layers": true
+		}
+	]
+}
