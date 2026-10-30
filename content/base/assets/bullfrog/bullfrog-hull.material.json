@@ -1,0 +1,577 @@
+{
+	"albedo": "phoenix-base:assets/bullfrog/bullfrog-hull.png",
+	"normal": "phoenix-base:assets/bullfrog/bullfrog-hull-normal.png",
+	"depth": "phoenix-base:assets/bullfrog/bullfrog-hull-depth.png",
+	"frames": [
+		{
+			"name": "bow",
+			"rect": [0, 0, 1536, 1280],
+			"pivot": [768, 683],
+			"azimuth": 0,
+			"mirror_x": false,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 768,
+					"y": 308,
+					"layer": 1,
+					"depth_offset": -0.0862745
+				},
+				"turret_bottom": {
+					"x": 768,
+					"y": 971,
+					"layer": 1,
+					"depth_offset": 0.1637255
+				},
+				"sensor_starboard": {
+					"x": 470,
+					"y": 808,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 768,
+					"y": 468,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 470,
+					"y": 848,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 768,
+					"y": 468,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 768,
+					"y": 603,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 1390,
+					"y": 778,
+					"layer": -1,
+					"depth_offset": -0.5068627
+				},
+				"engine_starboard": {
+					"x": 145,
+					"y": 778,
+					"layer": -1,
+					"depth_offset": -0.5068627
+				},
+				"engine_stern": {
+					"x": 920,
+					"y": 628,
+					"layer": -1,
+					"depth_offset": -1.5462745
+				}
+			}
+		},
+		{
+			"name": "bow_port",
+			"rect": [1536, 0, 1536, 1280],
+			"pivot": [781, 703],
+			"azimuth": 45,
+			"mirror_x": false,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 839,
+					"y": 321,
+					"layer": 1,
+					"depth_offset": 0.0250001
+				},
+				"turret_bottom": {
+					"x": 348,
+					"y": 881,
+					"layer": 1,
+					"depth_offset": -0.1495958
+				},
+				"sensor_starboard": {
+					"x": 531,
+					"y": 711,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 249,
+					"y": 418,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 531,
+					"y": 751,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 249,
+					"y": 418,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 288,
+					"y": 533,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 1116,
+					"y": 833,
+					"layer": 1,
+					"depth_offset": -0.2748901
+				},
+				"engine_starboard": {
+					"x": 351,
+					"y": 748,
+					"layer": -1,
+					"depth_offset": -0.9981239
+				},
+				"engine_stern": {
+					"x": 1351,
+					"y": 573,
+					"layer": -1,
+					"depth_offset": -0.4167883
+				}
+			}
+		},
+		{
+			"name": "port",
+			"rect": [3072, 0, 1536, 1280],
+			"pivot": [760, 718],
+			"azimuth": 90,
+			"mirror_x": false,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 797,
+					"y": 356,
+					"layer": 1,
+					"depth_offset": -0.0062745
+				},
+				"turret_bottom": {
+					"x": 546,
+					"y": 974,
+					"layer": 1,
+					"depth_offset": -0.0062745
+				},
+				"sensor_starboard": {
+					"x": 285,
+					"y": 698,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 82,
+					"y": 448,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 285,
+					"y": 738,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 82,
+					"y": 448,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 125,
+					"y": 548,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 1145,
+					"y": 878,
+					"layer": 1,
+					"depth_offset": -0.0541176
+				},
+				"engine_starboard": {
+					"x": 1145,
+					"y": 878,
+					"layer": -1,
+					"depth_offset": -1.4141176
+				},
+				"engine_stern": {
+					"x": 1500,
+					"y": 578,
+					"layer": -1,
+					"depth_offset": -0.2070588
+				}
+			}
+		},
+		{
+			"name": "stern_port",
+			"rect": [4608, 0, 1536, 1280],
+			"pivot": [841, 683],
+			"azimuth": 135,
+			"mirror_x": false,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 763,
+					"y": 354,
+					"layer": 1,
+					"depth_offset": -0.1128432
+				},
+				"turret_bottom": {
+					"x": 977,
+					"y": 943,
+					"layer": 1,
+					"depth_offset": -0.3900121
+				},
+				"sensor_starboard": {
+					"x": 296,
+					"y": 698,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 240,
+					"y": 485,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 296,
+					"y": 738,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 240,
+					"y": 485,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 219,
+					"y": 568,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 801,
+					"y": 863,
+					"layer": 1,
+					"depth_offset": 0.0569474
+				},
+				"engine_starboard": {
+					"x": 1301,
+					"y": 818,
+					"layer": -1,
+					"depth_offset": -0.1517766
+				},
+				"engine_stern": {
+					"x": 1121,
+					"y": 573,
+					"layer": 1,
+					"depth_offset": -0.0600745
+				}
+			}
+		},
+		{
+			"name": "stern",
+			"rect": [6144, 0, 1536, 1280],
+			"pivot": [768, 693],
+			"azimuth": 180,
+			"mirror_x": false,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 768,
+					"y": 301,
+					"layer": 1,
+					"depth_offset": 0.0737255
+				},
+				"turret_bottom": {
+					"x": 768,
+					"y": 967,
+					"layer": 1,
+					"depth_offset": -0.1762745
+				},
+				"sensor_starboard": {
+					"x": 1120,
+					"y": 813,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 768,
+					"y": 558,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 1120,
+					"y": 853,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 768,
+					"y": 558,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 768,
+					"y": 668,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 275,
+					"y": 808,
+					"layer": 1,
+					"depth_offset": 0.055098
+				},
+				"engine_starboard": {
+					"x": 1265,
+					"y": 808,
+					"layer": 1,
+					"depth_offset": 0.055098
+				},
+				"engine_stern": {
+					"x": 768,
+					"y": 533,
+					"layer": 1,
+					"depth_offset": 0.0654902
+				}
+			}
+		},
+		{
+			"name": "stern_starboard",
+			"rect": [4608, 0, 1536, 1280],
+			"pivot": [841, 683],
+			"azimuth": 225,
+			"mirror_x": true,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 763,
+					"y": 354,
+					"layer": 1,
+					"depth_offset": -0.1128432
+				},
+				"turret_bottom": {
+					"x": 977,
+					"y": 943,
+					"layer": 1,
+					"depth_offset": -0.3900121
+				},
+				"sensor_starboard": {
+					"x": 296,
+					"y": 698,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 240,
+					"y": 485,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 296,
+					"y": 738,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 240,
+					"y": 485,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 219,
+					"y": 568,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 1301,
+					"y": 818,
+					"layer": -1,
+					"depth_offset": -0.1517766
+				},
+				"engine_starboard": {
+					"x": 801,
+					"y": 863,
+					"layer": 1,
+					"depth_offset": 0.0569474
+				},
+				"engine_stern": {
+					"x": 1121,
+					"y": 573,
+					"layer": 1,
+					"depth_offset": -0.0600745
+				}
+			}
+		},
+		{
+			"name": "starboard",
+			"rect": [3072, 0, 1536, 1280],
+			"pivot": [760, 718],
+			"azimuth": 270,
+			"mirror_x": true,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 797,
+					"y": 356,
+					"layer": 1,
+					"depth_offset": -0.0062745
+				},
+				"turret_bottom": {
+					"x": 546,
+					"y": 974,
+					"layer": 1,
+					"depth_offset": -0.0062745
+				},
+				"sensor_starboard": {
+					"x": 285,
+					"y": 698,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 82,
+					"y": 448,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 285,
+					"y": 738,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 82,
+					"y": 448,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 125,
+					"y": 548,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 1145,
+					"y": 878,
+					"layer": -1,
+					"depth_offset": -1.4141176
+				},
+				"engine_starboard": {
+					"x": 1145,
+					"y": 878,
+					"layer": 1,
+					"depth_offset": -0.0541176
+				},
+				"engine_stern": {
+					"x": 1500,
+					"y": 578,
+					"layer": -1,
+					"depth_offset": -0.2070588
+				}
+			}
+		},
+		{
+			"name": "bow_starboard",
+			"rect": [1536, 0, 1536, 1280],
+			"pivot": [781, 703],
+			"azimuth": 315,
+			"mirror_x": true,
+			"depth_scale": 3.2,
+			"depth_offset": 0,
+			"attachments": {
+				"turret_top": {
+					"x": 839,
+					"y": 321,
+					"layer": 1,
+					"depth_offset": 0.0250001
+				},
+				"turret_bottom": {
+					"x": 348,
+					"y": 881,
+					"layer": 1,
+					"depth_offset": -0.1495958
+				},
+				"sensor_starboard": {
+					"x": 531,
+					"y": 711,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_beam": {
+					"x": 249,
+					"y": 418,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"aux_pdc": {
+					"x": 531,
+					"y": 751,
+					"layer": 2,
+					"depth_offset": 0.015
+				},
+				"muzzle": {
+					"x": 249,
+					"y": 418,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"torpedo": {
+					"x": 288,
+					"y": 533,
+					"layer": 1,
+					"depth_offset": 0
+				},
+				"engine_port": {
+					"x": 351,
+					"y": 748,
+					"layer": -1,
+					"depth_offset": -0.9981239
+				},
+				"engine_starboard": {
+					"x": 1116,
+					"y": 833,
+					"layer": 1,
+					"depth_offset": -0.2748901
+				},
+				"engine_stern": {
+					"x": 1351,
+					"y": 573,
+					"layer": -1,
+					"depth_offset": -0.4167883
+				}
+			}
+		}
+	],
+	"radar_icon": "ship",
+	"radar_sprite": "phoenix-base:assets/radar/ship.png"
+}

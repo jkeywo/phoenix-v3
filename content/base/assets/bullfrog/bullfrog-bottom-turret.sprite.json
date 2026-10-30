@@ -1,0 +1,151 @@
+{
+	"schema_version": 1,
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"id": "bullfrog-bottom-turret",
+	"image_size": [2560, 256],
+	"files": {
+		"sprite": "bullfrog-bottom-turret.png",
+		"normal": "bullfrog-bottom-turret-normal.png",
+		"depth": "bullfrog-bottom-turret-depth.png"
+	},
+	"billboard_mode": "eight",
+	"render_scale": 5.0,
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [0, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 0,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [256, 103, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "bow_port",
+				"rect": [512, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 45,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [232, 86, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "port",
+				"rect": [1024, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 90,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [40, 97, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "stern_port",
+				"rect": [1536, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 135,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [150, 107, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "stern",
+				"rect": [2048, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 180,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [256, 97, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [1536, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 225,
+				"mirror_x": true,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [150, 107, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "starboard",
+				"rect": [1024, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 270,
+				"mirror_x": true,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [40, 97, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [512, 0, 512, 256],
+				"pivot": [256, 64],
+				"camera_azimuth_degrees": 315,
+				"mirror_x": true,
+				"depth_scale": 1.8,
+				"depth_offset": -0.0035294,
+				"markers": {
+					"muzzle": [232, 86, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.004
+				}
+			}
+		]
+	},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"white": "near",
+		"quality": "registered_geometric_proxy_not_luminance"
+	},
+	"normal_encoding": {
+		"space": "view",
+		"x": "right",
+		"y": "up",
+		"z": "toward_viewer",
+		"quality": "gradient_of_continuous_geometric_depth"
+	}
+}

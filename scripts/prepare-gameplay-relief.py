@@ -1,4 +1,4 @@
-"""Explicit, reproducible proxy-depth bake for the ten formerly flat game sprites.
+"""Explicit, reproducible proxy-depth bake for legacy game sprites.
 
 Requires numpy, scipy and Pillow. Builds consume the tracked PNG/JSON outputs.
 Only alpha coverage and authored view geometry are inputs; colour/lighting never
@@ -23,7 +23,8 @@ PREFIX = "phoenix-base:"
 # Broadside artwork establishes length/beam; bow/stern establish cross section.
 # Depth remains centred on the entity's authored origin, not each view's minimum.
 ASSETS = {
-    "combat/courier-hull.png": (1.15, .38),
+    # Bullfrog Courier hull/top/bottom now have their own registered component
+    # geometry in prepare-bullfrog-materials.py. Legacy auxiliary turret stays.
     "combat/courier-turret.png": (.65, .38),
     "combat/pirate-hull.png": (1.40, .85),
     "combat/pirate-turret.png": (.70, .45),
