@@ -1,5 +1,6 @@
 module;
 #include <imgui.h>
+#include <algorithm>
 #include <misc/cpp/imgui_stdlib.h>
 #include <raylib.h>
 #include <nlohmann/json.hpp>
@@ -103,6 +104,21 @@ inline bool tool_window(const char *label)
 inline std::string tool_label(const std::string &text)
 {
 	return localise(text) + "###" + text;
+}
+
+// Reserve room before drawing a field, then place its action beside it when it fits.
+inline void tool_prepare_action(const std::string &action)
+{
+	const auto width = ImGui::CalcTextSize(localise(action).c_str()).x + ImGui::GetStyle().FramePadding.x * 2 +
+	                   ImGui::GetStyle().ItemSpacing.x;
+	ImGui::SetNextItemWidth(std::max(80.f, ImGui::GetContentRegionAvail().x - width - ImGui::GetFontSize() * 9));
+}
+inline void tool_action_line(const std::string &action)
+{
+	const auto width = ImGui::CalcTextSize(localise(action).c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+	if (ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x - ImGui::GetItemRectMax().x >=
+	    width + ImGui::GetStyle().ItemSpacing.x)
+		ImGui::SameLine();
 }
 
 struct ToolPointerSample

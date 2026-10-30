@@ -934,7 +934,9 @@ add_executable(phoenix_comic_probe EXCLUDE_FROM_ALL tests/manual/comic.cpp)
 target_link_libraries(phoenix_comic_probe PRIVATE raylib phoenix_presentation)
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_layout_probe EXCLUDE_FROM_ALL tests/manual/layout_workshop.cpp)
-	target_link_libraries(phoenix_layout_probe PRIVATE phoenix_tools)
+	target_link_libraries(phoenix_layout_probe PRIVATE raylib phoenix_tools)
+	add_executable(phoenix_map_authoring_probe EXCLUDE_FROM_ALL tests/manual/map_workshop.cpp)
+	target_link_libraries(phoenix_map_authoring_probe PRIVATE raylib phoenix_tools phoenix_workshop_map)
 	add_custom_command(
 		TARGET phoenix_layout_probe
 		POST_BUILD

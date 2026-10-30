@@ -118,8 +118,9 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        integer(m, "target_entity", 1);
 		        string(m, "start_event");
 		        optional_string(m, "target_character");
-		        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
-		        choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
+		        optional_string(m, "attacker_character");
+		        tree_editor.tree_binding(document, m, "tree", "scenario", false);
+		        tree_editor.tree_binding(document, m, "dialogue", "conversation", false);
 		        for (auto key : {"threat_radius_mm", "clearance_radius_mm", "engagement_radius_mm",
 		                         "formation_radius_mm", "takeover_ticks", "combat_standoff_mm", "cruise_speed_mm_s"})
 			        integer(m, key, 1);
@@ -151,7 +152,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        string(m, "conversation");
 		        string(m, "reveal_event");
 		        boolean(m, "retain_craft", true);
-		        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+		        tree_editor.tree_binding(document, m, "tree", "away", false);
 		        boolean(m, "allow_ship_transport", false);
 		        strings(m, "docking_ports");
 		        optional_string(m, "ship_transport_reason");
@@ -174,7 +175,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	        [&](Json &c)
 	        {
 		        string(c, "id");
-		        choice(c, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+		        tree_editor.tree_binding(document, c, "tree", "conversation", false);
 		        optional_string(c, "title_key");
 		        optional_string(c, "start_event");
 		        strings(c, "cancel_events");
@@ -298,7 +299,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		return;
 	}
 	auto &scenario = map["scenario"];
-	choice(scenario, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true);
+	tree_editor.tree_binding(document, scenario, "tree", "scenario", true);
 	scalar_map(scenario, "parameters");
 	strings(scenario, "events");
 	strings(scenario, "publications");
@@ -319,7 +320,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	        [&](Json &situation)
 	        {
 		        string(situation, "id");
-		        choice(situation, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+		        tree_editor.tree_binding(document, situation, "tree", "scenario", false);
 		        scalar_map(situation, "parameters");
 		        if (situation.contains("bindings"))
 			        scenario_selectors(situation["bindings"], scenario, map, slots);

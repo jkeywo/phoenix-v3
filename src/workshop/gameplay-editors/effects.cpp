@@ -317,7 +317,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        string(widget, "id");
 		        string(widget, "label");
 		        choice(widget, "extends", document.definition_choices(WorkshopDefinitionKind::ControlWidget), true);
-		        choice(widget, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true);
+		        tree_editor.tree_binding(document, widget, "tree", "controller", true);
 		        choice(widget, "policy_template", {"combat"}, true);
 		        if (widget.contains("policy_template"))
 			        structured_field(widget, "ai");
@@ -702,7 +702,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 		                "boost", "impulse", "shield", "magazine", "weapon", "turret", "team"});
 		        const auto kind = equipment_kind(document, equipment);
-		        system_details(equipment, kind);
+		        system_details(document, equipment, kind);
 		        rule_bindings_fields(equipment, document);
 		        owner_properties_fields(equipment, document);
 		        if (kind == "shield")
@@ -719,7 +719,9 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		    text("Assembly internal identities receive a placement prefix. Bind service names explicitly; "
 		         "$service references resolve to those bindings.");
 		    static std::string system_id, service_id;
+		    tool_prepare_action("Add internal System");
 		    ImGui::InputText(label("Internal System identity").c_str(), &system_id);
+		    tool_action_line("Add internal System");
 		    if (button("Add internal System") && !system_id.empty())
 		    {
 			    assembly["systems"][system_id] = {{"template", ""}};
@@ -736,14 +738,16 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 				           {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 				            "boost", "impulse"},
 				           true);
-				    system_details(it.value(), equipment_kind(document, it.value()));
+				    system_details(document, it.value(), equipment_kind(document, it.value()));
 				    owner_processes_fields(it.value(), document);
 				    text("Absent values inherit from the equipment template. Endpoint names and $service "
 				         "bindings remain local to this assembly until placement.");
 				    scalar_map(it.value(), "parameters");
 				    telemetry_records(it.value(), document);
 			    }
+		    tool_prepare_action("Add service");
 		    ImGui::InputText(label("Service name").c_str(), &service_id);
+		    tool_action_line("Add service");
 		    if (button("Add service") && !service_id.empty())
 		    {
 			    assembly["services"][service_id] = {{"kind", "power"}, {"direction", "input"}};

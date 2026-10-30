@@ -1,5 +1,9 @@
 # Workshop foundation
 
+See [visual authoring](workshop-visual-authoring.md) for the combined Map & Scenario
+workspace, map selection and bulk instance edits, Ship setup graph, hierarchical
+state-tree canvas and Console palette-to-canvas editing.
+
 The Map panel's **Skybox** picker selects a 2:1 panoramic PNG from the current pack
 or its dependencies. **None** clears it; new maps start with None. Import a suitable
 PNG through the normal image import flow to add a choice. Save/reopen and both
@@ -27,7 +31,7 @@ To author a mod, first give it its own pack ID. **Load dependency pack** imports
 
 Static tool labels use the shared translation resources, with stable ImGui identities across pseudo-localisation. English and pseudo-localisation are the current tool language baseline; ImGui does not provide the player's HarfBuzz shaping and full bidirectional editing. Additional tool languages need their own validation before being declared supported. GM mode keeps world mutation disabled: remote GM clients require host approval, while the trusted local host can inspect directly, including in a reserved display region. See [MVP status](mvp-status.md) for acceptance limits.
 
-Workshop-wide **Edit > Undo/Redo** covers authored data, assets and dependencies, with Ctrl+Z / Ctrl+Y (also Ctrl+Shift+Z). **Verify** checks the whole draft. Separate **State trees**, **Scenario** and **Test** areas handle graph navigation, map/scenario selection and disposable execution; their authoring fields use Properties. See [gameplay authoring](gameplay-workshop.md).
+Workshop-wide **Edit > Undo/Redo** covers authored data, assets and dependencies, with Ctrl+Z / Ctrl+Y (also Ctrl+Shift+Z). **Verify** checks the whole draft. **Map & Scenario**, **State trees**, **Ship setup** and **Test** handle map/scenario editing, visual authoring and disposable execution; their authoring fields use Properties. See [gameplay authoring](gameplay-workshop.md).
 
 ## Comic materials and lighting
 

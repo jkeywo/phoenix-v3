@@ -50,6 +50,22 @@ struct ScopedCombo
 	}
 	ScopedCombo(const ScopedCombo &) = delete;
 };
+struct ScopedWindow
+{
+	bool open;
+	explicit ScopedWindow(const char *name) : open(tool_window(name))
+	{
+	}
+	~ScopedWindow()
+	{
+		ImGui::End();
+	}
+	explicit operator bool() const
+	{
+		return open;
+	}
+	ScopedWindow(const ScopedWindow &) = delete;
+};
 struct ScopedChild
 {
 	ScopedChild(const char *name, ImVec2 size, ImGuiWindowFlags flags)

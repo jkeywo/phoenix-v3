@@ -138,9 +138,10 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 			    controller.erase("tree");
 			    controller["fallback"] = "hold";
 		    }
-		    if (choice(controller, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true))
+		    if (tree_editor.tree_binding(document, controller, "tree", "controller", true))
 		    {
-			    if (controller.contains("tree") && !controller.at("tree").get<std::string>().empty())
+			    if (controller.contains("tree") &&
+			        (controller.at("tree").is_object() || !controller.at("tree").get<std::string>().empty()))
 				    controller.erase("fallback");
 			    else
 			    {
@@ -412,11 +413,12 @@ void GameplayEditors::State::areas(WorkshopDocument &document, bool pseudo_langu
 	tree_editor.presentation(pseudo, test_client.probing());
 	tree_editor.runtime_feedback(test_client.feedback(), test_client.inspected_controller());
 	controller_probe = test_client.probing();
+	ship_graph(document, selection);
 	if (tool_window(label("State trees").c_str()))
 	{
 		try
 		{
-			tree_editor.draw(document, false, selection);
+			tree_editor.database(document, selection);
 		}
 		catch (const std::exception &error)
 		{
@@ -424,25 +426,8 @@ void GameplayEditors::State::areas(WorkshopDocument &document, bool pseudo_langu
 		}
 	}
 	ImGui::End();
-	if (tool_window(label("Scenario").c_str()))
-	{
-		text("Select a map to inspect its regions, objectives, spawns and situations in Properties.");
-		auto &maps = document.definitions()["maps"];
-		const auto current = document.map().value("id", std::string{});
-		for (std::size_t i = 0; i < maps.size(); ++i)
-		{
-			const auto id = maps[i].at("id").get<std::string>();
-			if (ImGui::Selectable(id.c_str(), selection == "Scenario" && current == id))
-			{
-				document.select_map(i);
-				selection = "Scenario";
-			}
-		}
-		if (button("Inspect scenario"))
-			selection = "Scenario";
-		if (button("Inspect ship slots"))
-			selection = "Ship slots";
-	}
+	if (tool_window(label("State tree editor").c_str()))
+		tree_editor.draw(document, false, selection);
 	ImGui::End();
 	if (controller_probe)
 		ImGui::SetNextWindowFocus();

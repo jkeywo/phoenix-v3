@@ -31,6 +31,9 @@ struct WorkshopWorkspace::State
 	std::map<std::string, Json> mod_manifests;
 	std::map<std::string, std::string> mod_hashes;
 	std::string rename_from, template_id;
+	std::map<std::string, Json> bulk_values;
+	std::string bulk_selection;
+	std::uint64_t bulk_revision = 0;
 	std::string console_rename_from, console_id;
 	WorkshopAssetPreview assets;
 	MaterialPreview preview;
@@ -56,6 +59,7 @@ struct WorkshopWorkspace::State
 	void string_field(const char *label, Json &object, const char *key);
 	void integer_field(const char *label, Json &object, const char *key);
 	void transform_fields(Json &value);
+	void bulk_instance_properties();
 	Json *selected_instance();
 	void radar_icon_picker(Json &material);
 	void material_properties(Json &sprite, bool with_radar_icon = true);

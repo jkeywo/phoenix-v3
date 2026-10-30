@@ -4,6 +4,13 @@ struct GameplayEditors::State : AuthoringControls
 {
 
 	std::string entity;
+	bool ship_graph_open = false, ship_graph_focus = false, graph_fit = true;
+	std::string graph_entity, graph_node, graph_link, graph_port;
+	WorkshopTarget graph_target;
+	float graph_zoom = 1, graph_pan_x = 0, graph_pan_y = 0;
+	std::string graph_new_kind = "System", graph_new_id, graph_new_template;
+	std::set<std::string> graph_hidden;
+	void ship_graph(WorkshopDocument &, std::string &selection);
 	WorkshopTestClient test_client;
 	std::string selected_system, system_entity, message_tree;
 	TreeEditor tree_editor;
@@ -13,7 +20,7 @@ struct GameplayEditors::State : AuthoringControls
 	std::string composition_error;
 	Json *select_entity(WorkshopDocument &document);
 	std::vector<std::string> fitted_ids(const WorkshopDocument &document, const Json &ship);
-	void system_details(Json &spec, const std::string &fallback_kind = "engine");
+	void system_details(WorkshopDocument &document, Json &spec, const std::string &fallback_kind = "engine");
 	void fitted(WorkshopDocument &document);
 	void placements(WorkshopDocument &document);
 	void services(Json &parent);

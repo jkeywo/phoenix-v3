@@ -393,3 +393,22 @@ provided.
 ## Courier Nav/Comms and Support widget correction - 30 October 2026
 
 Courier gains a third Nav/Comms seat. Its Navigation and Comms Consoles seek humans in Nav/Comms, Support, Helm order, then use existing AI. Comms is one composite widget; Navigation shares selection between map and target/waypoint parts and carries FTL. Support restores the illustrated camera widgets and numbered Condition slider. Existing mechanisms and star responsibilities are retained; Cruiser restoration remains deferred. See the [Courier restoration follow-up](courier-gui-restoration.md#navcomms-follow-up---30-october-2026) for implementation and verification receipts.
+
+## Workshop visual authoring — 30 October 2026
+
+Map & Scenario shares a compact header. Map artwork follows authored world size;
+instance sets support rectangle selection, group translation, batch duplication
+and deletion, mixed-value bulk overrides and cancelled gestures. Ship setup adds
+a connection canvas with explicit inherited overrides. The state-tree database
+opens a hierarchical canvas for reusable and owner-local policies, and Console
+palettes can insert and move layout elements directly on the production preview.
+Owner-local trees retain their embedded source form while compiling to stable
+private catalogue entries.
+
+Native synthetic checks, the map pointer-sample probe, the existing layout
+graphical journey and production pack verification pass. Native Workshop and
+browser Workshop targets build. This increment does not establish all visual
+authoring acceptance: the additional Computer Use session was stopped, and the
+new graph/tree/GUI gesture journeys and physical device/accessibility checks
+remain pending. See [authoring behaviour](workshop-visual-authoring.md) and the
+[evidence receipt](smoke/workshop-visual-authoring.md).

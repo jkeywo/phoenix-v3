@@ -2,6 +2,7 @@ module;
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -21,9 +22,23 @@ namespace phoenix
 {
 struct TreeEditor::State : AuthoringControls
 {
-	std::string tree, inspected_controller;
+	std::string tree, inspected_controller, local_path, selected_state_id;
+	bool database = false;
+	WorkshopTarget local_target;
+	std::set<std::string> collapsed;
+	float zoom = 1.f;
+	bool fit_tree = false;
+	std::string reparent_source, reparent_target;
 	Json vocabulary = Json::object(), feedback = Json::object();
 	int selected_state = -1;
+	void resolve_selected_state(const Json &definition)
+	{
+		selected_state = -1;
+		if (definition.contains("states"))
+			for (std::size_t i = 0; i < definition.at("states").size(); ++i)
+				if (definition.at("states")[i].at("id") == selected_state_id)
+					selected_state = static_cast<int>(i);
+	}
 	std::vector<std::string> vocabulary_ids(const std::string &context, const char *kind) const;
 	std::string authoring_context(const Json &definition) const;
 	Json action_signature(const std::string &context, const std::string &name) const;
@@ -36,7 +51,8 @@ struct TreeEditor::State : AuthoringControls
 	                                                            "observation", "intent", "memory", "elapsed"});
 	void tasks(Json &state, const char *phase, Json &definition, WorkshopDocument &document);
 	void tree_graph(const Json &definition, std::string &selection);
-	void state_inspector(Json &state, Json &definition, WorkshopDocument &document, bool patch = false);
+	void state_inspector(Json &state, Json &definition, WorkshopDocument &document, bool patch = false,
+	                     Json *owner = nullptr);
 	void trees(WorkshopDocument &document, bool inspector, std::string &selection);
 	void record_bindings(Json &tree, WorkshopDocument &document, const Json &resolved);
 	void controller_bindings(Json &tree, WorkshopDocument &document, const Json &resolved);
@@ -331,7 +347,25 @@ void TreeEditor::State::tree_graph(const Json &definition, std::string &selectio
 	if (!definition.contains("states"))
 		return;
 	const auto &states = definition.at("states");
-	ScopedChild child("state-graph", {0, 290}, ImGuiWindowFlags_HorizontalScrollbar);
+	if (button("Fit tree"))
+	{
+		zoom = 1;
+		fit_tree = true;
+	}
+	ImGui::SameLine();
+	ImGui::SliderFloat(label("Tree zoom").c_str(), &zoom, .4f, 2.f);
+	ScopedChild child("state-graph", {0, 0}, ImGuiWindowFlags_HorizontalScrollbar);
+	if (fit_tree)
+	{
+		ImGui::SetScrollX(0);
+		ImGui::SetScrollY(0);
+		fit_tree = false;
+	}
+	if (ImGui::IsWindowHovered() && ImGui::IsMouseDragging(2))
+	{
+		ImGui::SetScrollX(ImGui::GetScrollX() - ImGui::GetIO().MouseDelta.x);
+		ImGui::SetScrollY(ImGui::GetScrollY() - ImGui::GetIO().MouseDelta.y);
+	}
 	const auto origin = ImGui::GetCursorScreenPos();
 	std::map<std::string, ImVec2> positions;
 	float width = 500;
@@ -347,26 +381,30 @@ void TreeEditor::State::tree_graph(const Json &definition, std::string &selectio
 	}
 	if (runtime && runtime->contains("tree") && runtime->at("tree") != definition.value("id", std::string{}))
 		runtime = nullptr;
-	for (std::size_t i = 0; i < states.size(); ++i)
+	std::size_t visible_row = 0;
+	std::set<std::string> visited;
+	std::function<void(const Json &, std::size_t)> place;
+	place = [&](const Json &state, std::size_t depth)
 	{
-		const auto &state = states[i];
-		std::size_t depth = 0;
-		auto parent = state.value("parent", std::string{});
-		for (; !parent.empty() && depth < states.size(); ++depth)
-		{
-			auto found = std::find_if(states.begin(), states.end(),
-			                          [&](const auto &row)
-			                          {
-				                          return row.value("id", std::string{}) == parent;
-			                          });
-			if (found == states.end())
-				break;
-			parent = found->value("parent", std::string{});
-		}
-		positions[state.value("id", std::to_string(i))] = {
-		    origin.x + static_cast<float>(std::min<std::size_t>(depth, 16)) * 190, origin.y + i * 65.f};
-		width = std::max(width, static_cast<float>(std::min<std::size_t>(depth, 16)) * 190 + 180);
-	}
+		const auto id = state.value("id", std::string{});
+		if (!visited.insert(id).second)
+			return;
+		positions[id] = {origin.x + std::min<std::size_t>(depth, 64) * 190.f * zoom,
+		                 origin.y + visible_row++ * 65.f * zoom};
+		width = std::max(width, std::min<std::size_t>(depth, 64) * 190.f * zoom + 180.f * zoom);
+		if (collapsed.contains(id))
+			return;
+		for (const auto &child : states)
+			if (child.value("parent", std::string{}) == id)
+				place(child, depth + 1);
+	};
+	for (const auto &state : states)
+		if (state.value("parent", std::string{}).empty())
+			place(state, 0);
+	// Orphans remain discoverable while a draft is being repaired.
+	for (const auto &state : states)
+		if (!visited.contains(state.value("id", std::string{})) && !state.contains("parent"))
+			place(state, 0);
 	auto *draw = ImGui::GetWindowDrawList();
 	for (const auto &state : states)
 	{
@@ -374,7 +412,12 @@ void TreeEditor::State::tree_graph(const Json &definition, std::string &selectio
 		if (!positions.contains(id))
 			continue;
 		const auto start = positions.at(id);
-		if (state.contains("transitions"))
+		const auto parent = state.value("parent", std::string{});
+		if (positions.contains(parent))
+			draw->AddLine({positions.at(parent).x + 85 * zoom, positions.at(parent).y + 45 * zoom}, start,
+			              IM_COL32(140, 180, 200, 255), 2);
+		if (selected_state >= 0 && selected_state < static_cast<int>(states.size()) &&
+		    states[selected_state].at("id") == id && state.contains("transitions"))
 			for (const auto &edge : state.at("transitions"))
 			{
 				const auto target = edge.value("target", std::string{});
@@ -384,11 +427,18 @@ void TreeEditor::State::tree_graph(const Json &definition, std::string &selectio
 				draw->AddBezierCubic({start.x + 170, start.y + 25}, {start.x + 205, start.y + 25},
 				                     {end.x - 35, end.y + 25}, {end.x, end.y + 25},
 				                     ImGui::GetColorU32(ImGuiCol_PlotLines), 2);
+				const ImVec2 tip{end.x, end.y + 25};
+				draw->AddTriangleFilled(tip, {tip.x - 8, tip.y - 5}, {tip.x - 8, tip.y + 5},
+				                        ImGui::GetColorU32(ImGuiCol_PlotLines));
+				draw->AddText({(start.x + end.x) * .5f, (start.y + end.y) * .5f}, ImGui::GetColorU32(ImGuiCol_Text),
+				              edge.value("reason", std::string{}).c_str());
 			}
 	}
 	for (std::size_t i = 0; i < states.size(); ++i)
 	{
 		const auto id = states[i].value("id", std::to_string(i));
+		if (!positions.contains(id))
+			continue;
 		ImGui::SetCursorScreenPos(positions.at(id));
 		ScopedId id_scope_18(static_cast<int>(i));
 		if (runtime && runtime->contains("active_states") && runtime->at("active_states").is_array() &&
@@ -399,24 +449,95 @@ void TreeEditor::State::tree_graph(const Json &definition, std::string &selectio
 			draw->AddRect({position.x - 2, position.y - 2}, {position.x + 174, position.y + 48},
 			              ImGui::GetColorU32(ImGuiCol_CheckMark), 2, 0, 3);
 		}
-		if (ImGui::Selectable((id + "###node").c_str(), selected_state == static_cast<int>(i), 0, {170, 45}))
+		if (ImGui::Selectable((id + "###node").c_str(), selected_state == static_cast<int>(i),
+		                      ImGuiSelectableFlags_AllowDoubleClick, {170 * zoom, 45 * zoom}))
 		{
+			if (ImGui::IsMouseDoubleClicked(0))
+			{
+				if (collapsed.contains(id))
+					collapsed.erase(id);
+				else
+					collapsed.insert(id);
+			}
 			selected_state = static_cast<int>(i);
+			selected_state_id = id;
 			selection = "State trees";
+		}
+		if (ImGui::BeginDragDropSource())
+		{
+			ImGui::SetDragDropPayload("PHOENIX_STATE", id.c_str(), id.size() + 1);
+			text(id.c_str());
+			ImGui::EndDragDropSource();
+		}
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (const auto *payload = ImGui::AcceptDragDropPayload("PHOENIX_STATE"))
+			{
+				reparent_source = static_cast<const char *>(payload->Data);
+				reparent_target = id;
+			}
+			ImGui::EndDragDropTarget();
 		}
 	}
 	ImGui::SetCursorScreenPos(origin);
-	ImGui::Dummy({width, std::max(260.f, states.size() * 65.f)});
+	ImGui::Dummy({width, std::max(260.f, visible_row * 65.f * zoom)});
 }
 
-void TreeEditor::State::state_inspector(Json &state, Json &definition, WorkshopDocument &document, bool patch)
+void TreeEditor::State::state_inspector(Json &state, Json &definition, WorkshopDocument &document, bool patch,
+                                        Json *owner)
 {
 	const auto states = definition.contains("states") ? ids(definition.at("states")) : std::vector<std::string>{};
 	if (patch)
 		choice(state, "state", states);
 	else
-		string(state, "id");
-	choice(state, "parent", states, true);
+	{
+		const auto old = state.value("id", std::string{});
+		if (string(state, "id") && owner)
+		{
+			const auto name = state.at("id").get<std::string>();
+			if (name.empty() || std::any_of(owner->at("states").begin(), owner->at("states").end(),
+			                                [&](const Json &row)
+			                                {
+				                                return &row != &state && row.at("id") == name;
+			                                }))
+				state["id"] = old;
+			else
+			{
+				if (selected_state_id == old)
+					selected_state_id = name;
+				if (owner->value("initial", std::string{}) == old)
+					(*owner)["initial"] = name;
+				for (auto &row : (*owner)["states"])
+				{
+					for (const auto *key : {"parent", "initial"})
+						if (row.value(key, std::string{}) == old)
+							row[key] = name;
+					if (row.contains("transitions"))
+						for (auto &edge : row["transitions"])
+							if (edge.at("target") == old)
+								edge["target"] = name;
+				}
+			}
+		}
+	}
+	const auto previous_parent = state.value("parent", Json());
+	if (choice(state, "parent", states, true) && owner)
+	{
+		const auto desired = state.value("parent", std::string{}), id = state.at("id").get<std::string>();
+		if (previous_parent.is_null())
+			state.erase("parent");
+		else
+			state["parent"] = previous_parent;
+		try
+		{
+			WorkshopDocument::reparent_tree_state(*owner, id, desired);
+		}
+		catch (const std::exception &error)
+		{
+			text(error.what());
+		}
+		return;
+	}
 	choice(state, "initial", states, true);
 	for (const char *phase : {"entry", "running", "exit"})
 		tasks(state, phase, definition, document);
@@ -441,7 +562,7 @@ void TreeEditor::State::state_inspector(Json &state, Json &definition, WorkshopD
 void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::string &selection)
 {
 	auto &defs = document.definitions();
-	if (!inspector)
+	if (!inspector && database)
 	{
 		static std::string derive_base;
 		Json derivation{{"Base tree", derive_base}};
@@ -454,11 +575,13 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			tree = fresh(defs.at("trees"), "tree");
 			defs["trees"].push_back({{"id", tree}, {"extends", derive_base}});
 			selected_state = -1;
+			selected_state_id.clear();
 			selection = "State trees";
 		}
 		if (button("New hierarchical tree"))
 		{
 			selected_state = -1;
+			selected_state_id.clear();
 			selection = "State trees";
 			if (!defs.contains("trees"))
 				defs["trees"] = Json::array();
@@ -472,36 +595,186 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			                                                  {"exit", Json::array()},
 			                                                  {"transitions", Json::array()}}})}});
 		}
-		if (!defs.contains("trees"))
-			return;
-		Json tree_choice{{"Tree", tree}};
-		if (choice(tree_choice, "Tree", ids(defs.at("trees"))))
-		{
-			tree = tree_choice.at("Tree").get<std::string>();
-			selected_state = -1;
-			selection = "State trees";
-		}
-		for (const auto &definition : defs["trees"])
-			if (definition.at("id") == tree)
+		for (const auto &definition : defs.value("trees", Json::array()))
+			if (ImGui::Selectable(definition.at("id").get_ref<const std::string &>().c_str(),
+			                      local_path.empty() && definition.at("id") == tree,
+			                      ImGuiSelectableFlags_AllowDoubleClick))
 			{
-				auto resolved = document.preview_tree(definition);
-				if (resolved.contains("context"))
-				{
-					tree_graph(resolved, selection);
-				}
+				tree = definition.at("id");
+				local_path.clear();
+				selected_state = -1;
+				selected_state_id.clear();
+				selection = "State trees";
+				if (ImGui::IsMouseDoubleClicked(0))
+					ImGui::SetWindowFocus(tool_label("State tree editor").c_str());
 			}
+		for (const auto &[id, definition] : document.libraries().trees)
+			if (!id.starts_with("phoenix."))
+				if (ImGui::Selectable((id + " (dependency)").c_str(), tree == id && local_path.empty(),
+				                      ImGuiSelectableFlags_AllowDoubleClick))
+				{
+					tree = id;
+					if (ImGui::IsMouseDoubleClicked(0))
+						ImGui::SetWindowFocus(tool_label("State tree editor").c_str());
+					local_path.clear();
+					selected_state = -1;
+					selected_state_id.clear();
+					selection = "State trees";
+				}
+		std::function<void(Json &, const std::string &)> local;
+		local = [&](Json &value, const std::string &path)
+		{
+			if (value.is_array())
+			{
+				for (std::size_t i = 0; i < value.size(); ++i)
+					local(value[i], path + "/" + std::to_string(i));
+			}
+			else if (value.is_object())
+				for (auto &[key, child] : value.items())
+				{
+					const auto target = path + "/" + key;
+					if ((key == "tree" || key == "dialogue" || key == "default_conversation" || key == "hail_tree" ||
+					     key == "policy" || key == "member_policy") &&
+					    ((child.is_string() && key != "policy" && key != "member_policy") ||
+					     (child.is_object() && (child.contains("states") || child.contains("extends")))))
+					{
+						ScopedId scope(target.c_str());
+						const auto caption = target + (child.is_object() ? " (local)" : " (reference)");
+						if (ImGui::Selectable(caption.c_str(), local_path == target,
+						                      ImGuiSelectableFlags_AllowDoubleClick))
+						{
+							local_path = target;
+							local_target = WorkshopTarget::capture(defs, target);
+							if (ImGui::IsMouseDoubleClicked(0))
+								ImGui::SetWindowFocus(tool_label("State tree editor").c_str());
+							tree.clear();
+							selected_state = -1;
+							selected_state_id.clear();
+							selection = "State trees";
+						}
+						if (local_path == target && child.is_string())
+						{
+							if (button("Copy referenced tree locally"))
+							{
+								child = document.preview_tree(child.get<std::string>());
+								child.erase("id");
+							}
+							if (button("New local tree"))
+								child = {{"context", key == "dialogue"            ? "conversation"
+								                     : path.starts_with("/maps/") ? "scenario"
+								                                                  : "controller"},
+								         {"initial", "operating"},
+								         {"states", Json::array({{{"id", "operating"},
+								                                  {"entry", Json::array()},
+								                                  {"running", Json::array()},
+								                                  {"exit", Json::array()},
+								                                  {"transitions", Json::array()}}})}};
+						}
+					}
+					else
+						local(child, target);
+				}
+		};
+		for (const auto *kind : {"entities", "maps", "equipment", "control_widgets"})
+			if (defs.contains(kind))
+				local(defs[kind], std::string("/") + kind);
 		if (button("Inspect selected tree") && !tree.empty())
 			selection = "State trees";
 		return;
 	}
-	if (!defs.contains("trees"))
-		return;
-	for (auto &definition : defs["trees"])
-		if (definition.at("id") == tree)
+	Json dependency;
+	Json *target = nullptr;
+	if (!local_path.empty())
+	{
+		auto *found = local_target.resolve(defs);
+		if (!found)
 		{
-			string(definition, "id");
-			tree = definition.at("id").get<std::string>();
-			Json resolved = document.preview_tree(definition);
+			local_path.clear();
+			selected_state = -1;
+			selected_state_id.clear();
+			return;
+		}
+		auto &local = *found;
+		if (local.is_object())
+			target = &local;
+		else if (local.is_string())
+		{
+			dependency = document.preview_tree(local.get<std::string>());
+			target = &dependency;
+		}
+	}
+	else if (defs.contains("trees"))
+		for (auto &row : defs["trees"])
+			if (row.at("id") == tree)
+				target = &row;
+	if (!target && document.libraries().trees.contains(tree))
+	{
+		dependency = document.preview_tree(tree);
+		target = &dependency;
+	}
+	if (!target)
+		return;
+	if (!inspector)
+	{
+		auto source = *target;
+		if (!source.contains("context") && !source.contains("extends"))
+			source["context"] = "controller";
+		auto resolved = document.preview_tree(source);
+		resolve_selected_state(resolved);
+		tree_graph(resolved, selection);
+		if (!reparent_source.empty() && target->contains("states") && dependency.is_null())
+		{
+			try
+			{
+				WorkshopDocument::reparent_tree_state(*target, reparent_source, reparent_target);
+			}
+			catch (const std::exception &error)
+			{
+				text(error.what());
+			}
+		}
+		reparent_source.clear();
+		reparent_target.clear();
+		return;
+	}
+	if (!dependency.is_null())
+	{
+		text("Referenced or inherited tree: create a local copy to edit.");
+		structure(dependency, false);
+		return;
+	}
+	for (auto *selected : std::vector<Json *>{target})
+		if (auto &definition = *selected; true)
+		{
+			if (local_path.empty())
+			{
+				string(definition, "id");
+				tree = definition.at("id");
+			}
+			else
+			{
+				text(local_path.c_str());
+				if (button("Promote to reusable tree"))
+				{
+					auto copy = definition;
+					const auto id = fresh(defs["trees"], "tree");
+					copy["id"] = id;
+					if (!copy.contains("context") && !copy.contains("extends"))
+						copy["context"] = "controller";
+					definition = local_path.ends_with("/policy") || local_path.ends_with("/member_policy")
+					                 ? Json{{"extends", id}}
+					                 : Json(id);
+					defs["trees"].push_back(copy);
+					local_path.clear();
+					tree = id;
+					return;
+				}
+			}
+			auto preview_source = definition;
+			if (!preview_source.contains("context") && !preview_source.contains("extends"))
+				preview_source["context"] = "controller";
+			Json resolved = document.preview_tree(preview_source);
+			resolve_selected_state(resolved);
 
 			choice(definition, "extends", document.definition_choices(WorkshopDefinitionKind::Tree), true);
 			if (definition.contains("extends"))
@@ -570,7 +843,9 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 					}
 				}
 			static std::string parameter_name;
+			tool_prepare_action("Add parameter");
 			ImGui::InputText(label("Parameter name").c_str(), &parameter_name);
+			tool_action_line("Add parameter");
 			if (button("Add parameter") && !parameter_name.empty())
 			{
 				if (!definition.contains("parameters"))
@@ -611,15 +886,32 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 					                                {"exit", Json::array()},
 					                                {"transitions", Json::array()}});
 					selected_state = static_cast<int>(definition.at("states").size() - 1);
+					selected_state_id = definition.at("states").back().at("id");
 				}
 				if (selected_state >= 0 && selected_state < static_cast<int>(definition.at("states").size()))
 				{
 					ScopedId identity("selected-state");
-					state_inspector(definition["states"][selected_state], resolved, document);
-					if (button("Remove state"))
+					state_inspector(definition["states"][selected_state], resolved, document, false, &definition);
+					const auto removing = definition["states"][selected_state].at("id");
+					bool referenced = definition.value("initial", Json()) == removing;
+					for (const auto &row : definition["states"])
+					{
+						if (row.value("parent", Json()) == removing || row.value("initial", Json()) == removing)
+							referenced = true;
+						for (const auto &edge : row.value("transitions", Json::array()))
+							if (edge.at("target") == removing)
+								referenced = true;
+					}
+					ImGui::BeginDisabled(referenced);
+					const bool remove = button("Remove state");
+					ImGui::EndDisabled();
+					if (referenced)
+						text("Resolve initial, child and transition references before deleting this state.");
+					if (remove)
 					{
 						definition["states"].erase(definition["states"].begin() + selected_state);
 						selected_state = -1;
+						selected_state_id.clear();
 						selection = "State trees";
 					}
 				}
@@ -863,6 +1155,99 @@ void TreeEditor::State::controller_palette(const Json &tree, WorkshopDocument &d
 	}
 }
 
+bool TreeEditor::tree_binding(WorkshopDocument &document, Json &owner, const char *key, const char *context,
+                              bool optional)
+{
+	ScopedId scope(key);
+	bool changed = false;
+	if (!owner.contains(key) || owner.at(key).is_string())
+	{
+		std::vector<std::string> compatible;
+		for (const auto &id : document.definition_choices(WorkshopDefinitionKind::Tree))
+			try
+			{
+				if (document.preview_tree(id).value("context", std::string{}) == context)
+					compatible.push_back(id);
+			}
+			catch (const std::exception &)
+			{
+			}
+		changed = state_->choice(owner, key, compatible, optional);
+	}
+	else
+		state_->text("Owner-local tree");
+	auto open = [&]
+	{
+		std::function<bool(Json &, const std::string &)> locate;
+		locate = [&](Json &value, const std::string &path)
+		{
+			if (&value == &owner)
+			{
+				state_->local_path = path + "/" + key;
+				state_->local_target = WorkshopTarget::capture(document.definitions(), state_->local_path);
+				state_->tree.clear();
+				state_->selected_state = -1;
+				state_->selected_state_id.clear();
+				ImGui::SetWindowFocus(tool_label("State tree editor").c_str());
+				return true;
+			}
+			if (value.is_structured())
+				for (auto it = value.begin(); it != value.end(); ++it)
+				{
+					const auto part = value.is_array() ? std::to_string(it - value.begin()) : it.key();
+					if (locate(it.value(), path + "/" + part))
+						return true;
+				}
+			return false;
+		};
+		locate(document.definitions(), "");
+	};
+	if (state_->button("New local tree"))
+	{
+		owner[key] = {{"context", context},
+		              {"initial", "operating"},
+		              {"states", Json::array({{{"id", "operating"},
+		                                       {"entry", Json::array()},
+		                                       {"running", Json::array()},
+		                                       {"exit", Json::array()},
+		                                       {"transitions", Json::array()}}})}};
+		changed = true;
+		open();
+	}
+	if (owner.contains(key))
+	{
+		if (owner.at(key).is_string() && !owner.at(key).get<std::string>().empty() &&
+		    state_->button("Copy referenced tree locally"))
+		{
+			owner[key] = document.preview_tree(owner.at(key).get<std::string>());
+			owner[key].erase("id");
+			changed = true;
+			open();
+		}
+		if (state_->button("Open tree editor"))
+			open();
+		if (optional && owner.at(key).is_object() && state_->button("Remove local tree"))
+		{
+			owner.erase(key);
+			changed = true;
+		}
+	}
+	return changed;
+}
+void TreeEditor::database(WorkshopDocument &document, std::string &selection)
+{
+	state_->database = true;
+	try
+	{
+		state_->trees(document, false, selection);
+	}
+	catch (...)
+	{
+		state_->database = false;
+		throw;
+	}
+	state_->database = false;
+}
 TreeEditor::TreeEditor() : state_(std::make_unique<State>())
 {
 }

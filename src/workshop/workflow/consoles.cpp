@@ -83,7 +83,9 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 	const auto original_id = selected.at("id").get<std::string>();
 	if (console_rename_from != original_id)
 		console_id = console_rename_from = original_id;
+	tool_prepare_action("Rename console");
 	ImGui::InputText(tool_label("Console ID").c_str(), &console_id);
+	tool_action_line("Rename console");
 	if (tool_button(tool_label("Rename console").c_str()))
 		attempt(
 		    [&]

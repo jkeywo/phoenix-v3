@@ -43,6 +43,11 @@ void AuthoringControls::heading(const char *message) const
 
 bool AuthoringControls::string(Json &value, const char *key, const char *title)
 {
+	if (value.contains(key) && value.at(key).is_object())
+	{
+		text("Local tree: edit in State trees");
+		return false;
+	}
 	return edit_field(label(title ? title : key).c_str(), value, key, std::string{});
 }
 
@@ -121,6 +126,11 @@ void AuthoringControls::gameplay_panel(Json &owner)
 
 bool AuthoringControls::choice(Json &value, const char *key, const std::vector<std::string> &options, bool optional)
 {
+	if (value.contains(key) && value.at(key).is_object())
+	{
+		text("Local tree: edit in State trees");
+		return false;
+	}
 	const auto current = value.value(key, std::string{});
 	bool changed = false;
 	if (ScopedCombo scope(label(key).c_str(), current.empty() ? translate("None", pseudo).c_str() : current.c_str());

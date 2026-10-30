@@ -6,6 +6,7 @@ module;
 #include <charconv>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -34,7 +35,10 @@ void layout_string_field(const char *label, Json &object, const char *key)
 struct LayoutEditor::State
 {
 	float drag_start_x = 0, drag_start_y = 0;
-	Json drag_rect;
+	Json drag_rect, drag_root;
+	std::string drag_kind, drag_group;
+	int drop_index = -1;
+	float drop_x = 0, drop_y = 0;
 	bool canvas_drag = false;
 	std::string rename_from;
 	WorkshopDefinitionKind rename_kind = WorkshopDefinitionKind::Layout;
@@ -243,29 +247,117 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		if (layout_workspace.compact && definition.contains("compact") &&
 		    tool_button(tool_label("Restore automatic compact layout").c_str()))
 			definition.erase("compact");
-		auto &root = definition[layout_workspace.compact && definition.contains("compact") ? "compact" : "root"];
-		layout_hierarchy(layout_workspace, root);
-		if (!layout_workspace.drag_component.empty())
+		if (layout_workspace.compact && !definition.contains("compact"))
 		{
-			if (auto *target = layout_find_node(root, layout_workspace.drag_target))
-				(*target)["children"].push_back({{"id", "panel" + std::to_string(layout_workspace.serial++)},
-				                                 {"kind", "component"},
-				                                 {"label", layout_workspace.drag_component},
-				                                 {"component", layout_workspace.drag_component}});
-			layout_workspace.drag_component.clear();
+			ImGui::EndDisabled();
+			ImGui::End();
+			return;
 		}
-		if (!layout_workspace.drag_source.empty())
+		auto &root = definition[layout_workspace.compact ? "compact" : "root"];
+		layout_hierarchy(layout_workspace, root);
+		if (!layout_workspace.drag_component.empty() || !layout_workspace.drag_source.empty() ||
+		    !layout_workspace.drag_kind.empty() || !layout_workspace.drag_group.empty())
 		{
-			const auto from = layout_workspace.drag_source, to = layout_workspace.drag_target;
-			if (from != to && !to.starts_with(from + "."))
-				if (auto *node = layout_find_node(root, from))
+			try
+			{
+				auto candidate = root;
+				const auto from = layout_workspace.drag_source, to = layout_workspace.drag_target;
+				int insertion = layout_workspace.drop_index;
+				if (!from.empty() && insertion >= 0 && from.substr(0, from.find_last_of('.')) == to)
+					if (const auto *parent = layout_find_node(candidate, to); parent && parent->contains("children"))
+						for (std::size_t i = 0; i < parent->at("children").size(); ++i)
+							if (to + "." + parent->at("children")[i].value("id", std::string{}) == from &&
+							    static_cast<int>(i) < insertion)
+								--insertion;
+				Json added;
+				if (!from.empty())
 				{
-					const auto copy = *node;
-					if (layout_remove_node(root, from))
-						if (auto *target = layout_find_node(root, to))
-							target->at("children").push_back(copy);
+					if (from == to || to.starts_with(from + "."))
+						throw std::runtime_error("A container cannot be moved inside itself");
+					if (auto *node = layout_find_node(candidate, from))
+						added = *node;
+					if (!layout_remove_node(candidate, from))
+						throw std::runtime_error("Cannot move the layout root");
 				}
+				else
+				{
+					std::string id;
+					do
+					{
+						id = "panel" + std::to_string(layout_workspace.serial++);
+					} while (layout_find_node(candidate, to + "." + id));
+					added = {{"id", id}, {"label", "Panel"}};
+					if (!layout_workspace.drag_component.empty())
+					{
+						added["kind"] = "component";
+						added["component"] = layout_workspace.drag_component;
+					}
+					else if (!layout_workspace.drag_group.empty())
+						added["group"] = layout_workspace.drag_group;
+					else
+					{
+						added["kind"] = layout_workspace.drag_kind;
+						added["children"] = Json::array();
+					}
+				}
+				auto *target = layout_find_node(candidate, to);
+				if (target && target->contains("children") && !added.is_null())
+				{
+					if (target->value("kind", "") == "overlay")
+					{
+						std::set<std::string> used;
+						for (const auto &child : target->at("children"))
+							used.insert(child.value("region", std::string{}));
+						std::string region;
+						for (const auto *r : {"background", "top-left", "top-right", "bottom-left", "bottom-right"})
+							if (!used.contains(r))
+							{
+								region = r;
+								break;
+							}
+						if (region.empty())
+							throw std::runtime_error("All overlay regions are occupied");
+						added["region"] = region;
+					}
+					else
+						added.erase("region");
+					if (target->value("kind", "") == "instruments" && !added.contains("rect"))
+						added["rect"] = {{"x", static_cast<int>(layout_workspace.drop_x)},
+						                 {"y", static_cast<int>(layout_workspace.drop_y)},
+						                 {"width", 300},
+						                 {"height", 300}};
+					auto &children = (*target)["children"];
+					auto index = insertion < 0 ? children.size()
+					                           : std::min(children.size(), static_cast<std::size_t>(insertion));
+					if (!layout_workspace.drag_kind.empty() && !children.empty())
+					{
+						index = std::min(index, children.size() - 1);
+						auto wrapped = children[index];
+						wrapped.erase("region");
+						if (layout_workspace.drag_kind == "overlay")
+							wrapped["region"] = "background";
+						if (layout_workspace.drag_kind == "cutout")
+							wrapped["region"] = "centre";
+						added["children"].push_back(wrapped);
+						children.erase(children.begin() + index);
+					}
+					children.insert(children.begin() + index, added);
+					Json checked = {{"schema", 1}, {"root", candidate}};
+					(void)compile_ui_tree(*catalog, checked);
+					root = std::move(candidate);
+					layout_workspace.selected = to + "." + added.at("id").get<std::string>();
+				}
+			}
+			catch (const std::exception &error)
+			{
+				layout_workspace.last_error = error.what();
+				status = error.what();
+			}
+			layout_workspace.drag_component.clear();
 			layout_workspace.drag_source.clear();
+			layout_workspace.drag_kind.clear();
+			layout_workspace.drag_group.clear();
+			layout_workspace.drop_index = -1;
 		}
 		if (tool_button(tool_label("Save layout template").c_str()) && !layout_workspace.asset_name.empty())
 		{
@@ -383,6 +475,26 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						     {"rect", {{"x", 0}, {"y", 0}, {"width", 500}, {"height", 500}}}});
 				}
 
+			for (const char *kind : {"row", "column", "wrap", "tabs", "instruments", "cutout", "overlay"})
+			{
+				ImGui::Selectable(tool_label(std::string("Drag ") + kind).c_str());
+				if (ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("PHOENIX_CONTAINER", kind, std::strlen(kind) + 1);
+					ImGui::TextUnformatted(localise(kind).c_str());
+					ImGui::EndDragDropSource();
+				}
+			}
+			for (const auto &[id, group] : catalog->ui_groups)
+			{
+				ImGui::Selectable((localise("Drag group") + " " + id).c_str());
+				if (ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("PHOENIX_GROUP", id.c_str(), id.size() + 1);
+					ImGui::TextUnformatted(id.c_str());
+					ImGui::EndDragDropSource();
+				}
+			}
 			for (const char *kind : {"component", "row", "column", "wrap", "tabs", "instruments", "cutout", "overlay"})
 				if (tool_button(tool_label(std::string("Add ") + kind).c_str()))
 				{
@@ -431,6 +543,42 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			if (selected)
 			{
 				layout_string_field("Panel name", *selected, "label");
+				if (auto *parent = layout_find_parent(root, layout_workspace.selected))
+				{
+					auto &children = (*parent)["children"];
+					auto found =
+					    std::find_if(children.begin(), children.end(),
+					                 [&](const Json &row)
+					                 {
+						                 return row.value("id", std::string{}) == selected->value("id", std::string{});
+					                 });
+					if (found != children.end())
+					{
+						const auto index = found - children.begin();
+						ImGui::BeginDisabled(index == 0);
+						const bool up = tool_button(tool_label("Move panel up").c_str());
+						ImGui::EndDisabled();
+						ImGui::SameLine();
+						ImGui::BeginDisabled(index + 1 == static_cast<std::ptrdiff_t>(children.size()));
+						const bool down = tool_button(tool_label("Move panel down").c_str());
+						ImGui::EndDisabled();
+						if (up || down)
+						{
+							std::iter_swap(found, found + (up ? -1 : 1));
+							selected = layout_find_node(root, layout_workspace.selected);
+						}
+						const auto split = layout_workspace.selected.find_last_of('.');
+						const auto parent_id = layout_workspace.selected.substr(0, split);
+						const auto grand = parent_id.find_last_of('.');
+						if (grand != std::string::npos &&
+						    tool_button(tool_label("Move panel out of container").c_str()))
+						{
+							layout_workspace.drag_source = layout_workspace.selected;
+							layout_workspace.drag_target = parent_id.substr(0, grand);
+						}
+					}
+				}
+
 				if (tool_button(tool_label("Duplicate panel").c_str()))
 				{
 					if (auto *parent = layout_find_parent(root, layout_workspace.selected))
@@ -754,9 +902,15 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			ImGui::Combo(tool_label("Sample state").c_str(), &layout_workspace.preview.sample_state,
 			             "Normal\0Engineering\0Conversations\0Faults\0Empty\0Long text\0");
 			auto sample = console;
+			auto preview_definition = definition;
+			if (layout_workspace.compact && definition.contains("compact"))
+				preview_definition["root"] = definition.at("compact");
+			preview_definition.erase("compact");
+			sample[layout_field] = preview_definition;
+			sample.erase(override_field);
 			if (layout_workspace.hud)
 			{
-				sample["layout"] = console[layout_field];
+				sample["layout"] = preview_definition;
 				if (console.contains("compact"))
 					sample["widgets"] = console.at("compact").at("widgets");
 				sample.erase("layout_overrides");
@@ -795,6 +949,103 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			    layout_workspace.preview.text_scale);
 			const auto &resolved = console_preview_geometry();
 			ImGui::Image(static_cast<ImTextureID>(texture.id), size, {0, 1}, {1, 0});
+			if (!read_only && !layout_workspace.interact && ImGui::BeginDragDropTarget())
+			{
+				std::string target_id = root.value("id", std::string{});
+				float smallest = 1e30f;
+				for (const auto &[id, r] : resolved.containers)
+					if (mouse.x >= origin.x + r.x * scale && mouse.y >= origin.y + (r.y + resolved.body.y) * scale &&
+					    mouse.x <= origin.x + (r.x + r.width) * scale &&
+					    mouse.y <= origin.y + (r.y + resolved.body.y + r.height) * scale &&
+					    r.width * r.height < smallest)
+					{
+						smallest = r.width * r.height;
+						target_id = id;
+					}
+				if (auto *target = layout_find_node(root, target_id); target && target->contains("children"))
+				{
+					const auto r = resolved.containers.find(target_id);
+					layout_workspace.drop_x = layout_workspace.drop_y = 0;
+					if (r != resolved.containers.end())
+					{
+						layout_workspace.drop_x = std::clamp(((mouse.x - origin.x) / scale - r->second.x) /
+						                                         std::max(1.f, r->second.width) * 1000.f,
+						                                     0.f, 700.f);
+						layout_workspace.drop_y =
+						    std::clamp(((mouse.y - origin.y) / scale - r->second.y - resolved.body.y) /
+						                   std::max(1.f, r->second.height) * 1000.f,
+						               0.f, 700.f);
+					}
+					if (r != resolved.containers.end())
+						ImGui::GetWindowDrawList()->AddRect(
+						    {origin.x + r->second.x * scale, origin.y + (r->second.y + resolved.body.y) * scale},
+						    {origin.x + (r->second.x + r->second.width) * scale,
+						     origin.y + (r->second.y + resolved.body.y + r->second.height) * scale},
+						    IM_COL32(80, 230, 160, 255), 0, 0, 3);
+					int index = 0;
+					const bool horizontal = target->value("kind", "") == "row";
+					for (const auto &child : target->at("children"))
+					{
+						const auto id = target_id + "." + child.value("id", std::string{});
+						for (const auto &placement : resolved.placements)
+							if (placement.id == id &&
+							    (horizontal
+							         ? mouse.x > origin.x + (placement.bounds.x + placement.bounds.width * .5f) * scale
+							         : mouse.y > origin.y + (placement.bounds.y + resolved.body.y +
+							                                 placement.bounds.height * .5f) *
+							                                    scale))
+								++index;
+					}
+					if (r != resolved.containers.end())
+					{
+						float coordinate = horizontal ? r->second.x + r->second.width : r->second.y + r->second.height;
+						if (index < static_cast<int>(target->at("children").size()))
+						{
+							const auto next =
+							    target_id + "." + target->at("children")[index].value("id", std::string{});
+							for (const auto &placement : resolved.placements)
+								if (placement.id == next)
+									coordinate = horizontal ? placement.bounds.x : placement.bounds.y;
+						}
+						const ImVec2 a = horizontal ? ImVec2{origin.x + coordinate * scale,
+						                                     origin.y + (r->second.y + resolved.body.y) * scale}
+						                            : ImVec2{origin.x + r->second.x * scale,
+						                                     origin.y + (coordinate + resolved.body.y) * scale};
+						const ImVec2 b = horizontal ? ImVec2{a.x, a.y + r->second.height * scale}
+						                            : ImVec2{a.x + r->second.width * scale, a.y};
+						ImGui::GetWindowDrawList()->AddLine(a, b, IM_COL32(255, 210, 80, 255), 3);
+					}
+					for (const auto &[payload_type, destination] : std::vector<std::pair<const char *, std::string *>>{
+					         {"PHOENIX_COMPONENT", &layout_workspace.drag_component},
+					         {"PHOENIX_LAYOUT", &layout_workspace.drag_source},
+					         {"PHOENIX_CONTAINER", &layout_workspace.drag_kind},
+					         {"PHOENIX_GROUP", &layout_workspace.drag_group}})
+						if (const auto *payload = ImGui::AcceptDragDropPayload(payload_type))
+						{
+							*destination = static_cast<const char *>(payload->Data);
+							layout_workspace.drag_target = target_id;
+							layout_workspace.drop_index = index;
+						}
+				}
+				ImGui::EndDragDropTarget();
+			}
+			if (!read_only && !layout_workspace.interact && hovered && layout_workspace.canvas_drag &&
+			    ImGui::IsMouseDragging(0))
+				if (auto *parent = layout_find_parent(root, layout_workspace.selected);
+				    parent && parent->value("kind", "") != "instruments")
+					if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+					{
+						ImGui::SetDragDropPayload("PHOENIX_LAYOUT", layout_workspace.selected.c_str(),
+						                          layout_workspace.selected.size() + 1);
+						ImGui::TextUnformatted(layout_workspace.selected.c_str());
+						ImGui::EndDragDropSource();
+					}
+			if (layout_workspace.canvas_drag && (ImGui::IsKeyPressed(ImGuiKey_Escape) || !IsWindowFocused()))
+			{
+				root = layout_workspace.drag_root;
+				layout_workspace.canvas_drag = false;
+			}
+
 			if (!ImGui::IsMouseDown(0) || (hovered && ImGui::IsMouseClicked(0)))
 				layout_workspace.canvas_drag = false;
 			if (!layout_workspace.interact)
@@ -816,6 +1067,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					{
 						layout_workspace.selected = it->id;
 						layout_workspace.canvas_drag = true;
+						layout_workspace.drag_root = root;
 						layout_workspace.drag_start_x = mouse.x;
 						layout_workspace.drag_start_y = mouse.y;
 						if (auto *node = layout_find_node(root, it->id))

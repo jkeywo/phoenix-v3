@@ -2,6 +2,7 @@ add_library(
 	phoenix_workshop_gameplay
 	STATIC
 	gameplay_editor.cpp
+	ship_graph.cpp
 	equipment.cpp
 	combat.cpp
 	operations.cpp

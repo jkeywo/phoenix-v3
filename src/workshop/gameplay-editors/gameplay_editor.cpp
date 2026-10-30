@@ -30,6 +30,13 @@ GameplayEditors::GameplayEditors() : state_(std::make_unique<State>())
 {
 }
 GameplayEditors::~GameplayEditors() = default;
+void GameplayEditors::open_ship(const std::string &id)
+{
+	state_->graph_entity = id;
+	state_->graph_node.clear();
+	state_->ship_graph_open = true;
+	state_->ship_graph_focus = true;
+}
 void GameplayEditors::areas(WorkshopDocument &document, bool pseudo, ToolMessage &status, std::string &selection)
 {
 	if (!state_->tree_editor.has_vocabulary())

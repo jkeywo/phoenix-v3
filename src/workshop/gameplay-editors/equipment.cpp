@@ -69,7 +69,7 @@ std::vector<std::string> GameplayEditors::State::fitted_ids(const WorkshopDocume
 	return fallback;
 }
 
-void GameplayEditors::State::system_details(Json &spec, const std::string &fallback_kind)
+void GameplayEditors::State::system_details(WorkshopDocument &document, Json &spec, const std::string &fallback_kind)
 {
 	const auto kind = spec.value("kind", fallback_kind);
 	for (const char *key : {"power_store", "generator", "power_group", "conduit", "cooling_link", "coolant_source"})
@@ -259,7 +259,7 @@ void GameplayEditors::State::system_details(Json &spec, const std::string &fallb
 			        choice(o, "target", {"compartments", "damage", "patients"});
 			        optional_string(o, "capability");
 			        strings(o, "patient_states");
-			        string(o, "tree");
+			        tree_editor.tree_binding(document, o, "tree", "team", false);
 		        });
 	}
 
@@ -533,8 +533,8 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				        string(m, "id");
 				        string(m, "title_key");
 				        string(m, "entry");
-				        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
-				        choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
+				        tree_editor.tree_binding(document, m, "tree", "away", false);
+				        tree_editor.tree_binding(document, m, "dialogue", "conversation", false);
 				        boolean(m, "retain_craft", true);
 				        strings(m, "docking_ports");
 				        records(m, "slots",
@@ -611,8 +611,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				ship["comms"] = {{"characters", Json::array()}};
 			if (ship.contains("comms"))
 			{
-				choice(ship["comms"], "default_conversation", document.definition_choices(WorkshopDefinitionKind::Tree),
-				       true);
+				tree_editor.tree_binding(document, ship["comms"], "default_conversation", "conversation", true);
 				records(ship["comms"], "characters",
 				        {{"id", "character"}, {"name_key", "New character"}, {"public", true}},
 				        [&](Json &p)
@@ -621,8 +620,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 					        string(p, "name_key");
 					        optional_string(p, "portrait");
 					        boolean(p, "public", true);
-					        choice(p, "default_conversation", document.definition_choices(WorkshopDefinitionKind::Tree),
-					               true);
+					        tree_editor.tree_binding(document, p, "default_conversation", "conversation", true);
 				        });
 			}
 		}
@@ -664,7 +662,9 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 	}
 	heading("Fitted Systems");
 	static std::string new_system;
+	tool_prepare_action("Add System");
 	ImGui::InputText(label("New System identity").c_str(), &new_system);
+	tool_action_line("Add System");
 	if (button("Add System") && !new_system.empty())
 	{
 		if (!ship.contains("systems"))
@@ -695,7 +695,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			auto kind = equipment_kind(document, spec);
 			if (kind.empty())
 				kind = selected_system;
-			system_details(spec, kind);
+			system_details(document, spec, kind);
 			rule_bindings_fields(spec, document);
 			owner_properties_fields(spec, document);
 			telemetry_records(spec, document);
@@ -774,7 +774,9 @@ void GameplayEditors::State::services(Json &parent)
 	heading("External service endpoints");
 	static std::map<ImGuiID, std::string> names;
 	const auto identity = ImGui::GetID("service-name");
+	tool_prepare_action("Add endpoint");
 	ImGui::InputText(label("Service name").c_str(), &names[identity]);
+	tool_action_line("Add endpoint");
 	if (button("Add endpoint") && !names[identity].empty())
 	{
 		if (!parent.contains("services"))

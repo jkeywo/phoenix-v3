@@ -22,6 +22,7 @@ public:
 	                const std::string &entity);
 	void console_properties(WorkshopDocument &, bool pseudo, Json &);
 	void set_vocabulary(const Json &);
+	void open_ship(const std::string &);
 	void set_feedback(const Json &);
 	std::optional<GameplayTestRequest> take_request();
 	bool probe_test(WorkshopDocument &, unsigned stage);

@@ -56,6 +56,212 @@ void WorkshopWorkspace::State::transform_fields(Json &value)
 		string_field("Sprite entry override", value, "sprite_entry");
 }
 
+void WorkshopWorkspace::State::bulk_instance_properties()
+{
+	ImGui::Text("%zu %s", selection.instances.size(), localise("selected instances").c_str());
+	static std::int64_t dx = 0, dy = 0;
+	ImGui::InputScalar(tool_label("Offset X (mm)").c_str(), ImGuiDataType_S64, &dx);
+	ImGui::InputScalar(tool_label("Offset Y (mm)").c_str(), ImGuiDataType_S64, &dy);
+	if (tool_button(tool_label("Translate selection").c_str()))
+		attempt(
+		    [&]
+		    {
+			    document.translate_instances(selection.instances, dx, dy);
+			    dx = dy = 0;
+		    });
+	std::vector<Json> effective;
+	for (const auto &instance : document.map()["entities"])
+		if (selection.instances.contains(instance.at("id").get<std::uint64_t>()))
+		{
+			auto value = document.preview_definition(WorkshopDefinitionKind::Entity, instance.at("definition"));
+			value.merge_patch(instance.value("overrides", Json::object()));
+			value["heading_mdeg"] = instance.at("heading_mdeg");
+			if (!value.contains("faction"))
+				value["faction"] = "";
+			value["sprite_entry"] = value.value("render", Json::object()).value("sprite_entry", std::string{});
+			for (const auto *key : {"faction", "sprite_entry"})
+				if (instance.contains(key))
+					value[key] = instance.at(key);
+			effective.push_back(std::move(value));
+		}
+	if (effective.empty())
+		return;
+	std::set<std::string> sprite_choices;
+	bool first_sprite = true;
+	for (const auto &entity : effective)
+	{
+		std::set<std::string> choices;
+		const auto render = entity.value("render", Json::object());
+		if (render.contains("sprite"))
+		{
+			choices.insert("");
+			for (const auto &entry : render.at("sprite").value("entries", Json::array()))
+				choices.insert(entry.at("name").get<std::string>());
+		}
+		if (first_sprite)
+			sprite_choices = choices;
+		else
+			std::erase_if(sprite_choices,
+			              [&](const auto &choice)
+			              {
+				              return !choices.contains(choice);
+			              });
+		first_sprite = false;
+	}
+	std::string signature = document.map().at("id").get<std::string>() + ":";
+	for (const auto id : selection.instances)
+		signature += std::to_string(id) + ",";
+	if (signature != bulk_selection || (bulk_revision != document.revision() && !ImGui::IsAnyItemActive()))
+	{
+		bulk_values.clear();
+		bulk_selection = signature;
+		bulk_revision = document.revision();
+	}
+	std::function<void(const std::vector<Json> &, const std::string &, bool)> fields;
+	fields = [&](const std::vector<Json> &values, const std::string &path, bool direct)
+	{
+		const auto &first = values.front();
+		if (first.is_object())
+		{
+			for (const auto *discriminator : {"kind", "mode", "shape"})
+				if (first.contains(discriminator) && std::any_of(values.begin(), values.end(),
+				                                                 [&](const auto &row)
+				                                                 {
+					                                                 return !row.contains(discriminator) ||
+					                                                        row.at(discriminator) !=
+					                                                            first.at(discriminator);
+				                                                 }))
+					return;
+			for (const auto &[key, value] : first.items())
+			{
+				if (key == "id" || key == "extends" || key == "kind" || key == "mode" || key == "shape" ||
+				    key.starts_with("_") || (key == "sprite_entry" && sprite_choices.empty()))
+					continue;
+				std::vector<Json> common;
+				for (const auto &row : values)
+					if (row.is_object() && row.contains(key) &&
+					    (row.at(key).type() == value.type() ||
+					     (row.at(key).is_number_integer() && value.is_number_integer())))
+						common.push_back(row.at(key));
+				if (common.size() != values.size())
+					continue;
+				auto escaped = key;
+				for (std::size_t i = 0; i < escaped.size(); ++i)
+					if (escaped[i] == '~' || escaped[i] == '/')
+					{
+						const auto c = escaped[i];
+						escaped.replace(i, 1, c == '~' ? "~0" : "~1");
+						++i;
+					}
+				const auto child = path + "/" + escaped;
+				if (value.is_object())
+				{
+					if (ImGui::TreeNode(child.c_str(), "%s", key.c_str()))
+					{
+						fields(common, child, false);
+						ImGui::TreePop();
+					}
+				}
+				else if (!value.is_array())
+					fields(common, child,
+					       path.empty() && (key == "heading_mdeg" || key == "faction" || key == "sprite_entry"));
+			}
+			return;
+		}
+		const bool mixed = std::any_of(values.begin(), values.end(),
+		                               [&](const Json &v)
+		                               {
+			                               return v != first;
+		                               });
+		if (!bulk_values.contains(path))
+			bulk_values[path] = first;
+		auto &value = bulk_values.at(path);
+		ImGui::PushID(path.c_str());
+		if (mixed)
+			ImGui::TextUnformatted(localise("Mixed").c_str());
+		const auto title = path.substr(path.find_last_of('/') + 1);
+		bool changed = false;
+		const auto field_label = tool_label(title);
+		if (title == "sprite_entry")
+		{
+			if (ImGui::BeginCombo(field_label.c_str(),
+			                      mixed ? localise("Mixed").c_str() : value.get_ref<const std::string &>().c_str()))
+			{
+				for (const auto &entry : sprite_choices)
+					if (ImGui::Selectable(entry.empty() ? tool_label("Default").c_str() : entry.c_str(),
+					                      value == entry))
+					{
+						value = entry;
+						changed = true;
+					}
+				ImGui::EndCombo();
+			}
+		}
+		else if (value.is_string())
+		{
+			auto v = value.get<std::string>();
+			changed = edit_value(field_label.c_str(), v);
+			value = v;
+		}
+		else if (value.is_boolean())
+		{
+			auto v = value.get<bool>();
+			changed = edit_value(field_label.c_str(), v);
+			value = v;
+		}
+		else if (value.is_number_integer() && title != "scale")
+		{
+			auto v = value.get<std::int64_t>();
+			changed = edit_value(field_label.c_str(), v);
+			value = v;
+		}
+		else if (value.is_number())
+		{
+			auto v = value.get<double>();
+			changed = edit_value(field_label.c_str(), v);
+			value = v;
+		}
+		if ((changed && (value.is_boolean() || title == "sprite_entry")) || ImGui::IsItemDeactivatedAfterEdit())
+			attempt(
+			    [&]
+			    {
+				    Json patch = Json::object(), direct_fields = Json::object();
+				    if (direct)
+					    direct_fields[title] = value;
+				    else
+					    patch[Json::json_pointer(path)] = value;
+				    document.edit_instances(selection.instances, direct_fields, patch);
+			    });
+		ImGui::PopID();
+	};
+	attempt(
+	    [&]
+	    {
+		    fields(effective, "", false);
+	    });
+	std::set<std::string> overridden;
+	for (const auto &instance : document.map()["entities"])
+		if (selection.instances.contains(instance.at("id").get<std::uint64_t>()))
+			for (const auto &[key, value] : instance.value("overrides", Json::object()).items())
+				overridden.insert(key);
+	for (const auto &key : overridden)
+	{
+		ImGui::PushID(key.c_str());
+		if (tool_button((localise("Revert override") + " " + key).c_str()))
+			attempt(
+			    [&]
+			    {
+				    document.edit_instances(selection.instances, Json::object(), Json::object(), {key});
+			    });
+		ImGui::PopID();
+	}
+	if (tool_button(tool_label("Revert all instance overrides").c_str()))
+		attempt(
+		    [&]
+		    {
+			    document.edit_instances(selection.instances, Json::object(), Json::object(), {}, true);
+		    });
+}
 Json *WorkshopWorkspace::State::selected_instance()
 {
 	for (auto &instance : document.map()["entities"])
@@ -249,9 +455,13 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 	ImGui::TextWrapped("%s",
 	                   ToolMessage("Reusable definition: {id}", {{"id", entity.at("id").get<std::string>()}}).c_str());
 	const auto id = entity.at("id").get<std::string>();
+	if (tool_button(tool_label("Open ship setup").c_str()))
+		gameplay.open_ship(id);
 	if (rename_from != id)
 		template_id = rename_from = id;
+	tool_prepare_action("Rename template");
 	ImGui::InputText(tool_label("Template ID").c_str(), &template_id);
+	tool_action_line("Rename template");
 	if (tool_button(tool_label("Rename template").c_str()))
 		attempt(
 		    [&]
