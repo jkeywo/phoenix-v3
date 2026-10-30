@@ -13,6 +13,8 @@ scenario-tree compilation and source roundtrip, stable owner identities and
 hierarchical reparenting/cycle rejection. Reopened policies can be edited again;
 identical policies on separate owners get separate private identities, and
 reordering owners preserves their identities.
+Derived ships also retain their authored `extends` source after export/reopen,
+while the production fitting preview resolves inherited Systems for the graph.
 
 `phoenix_workshop_test_tests` passes. Its added Controller policy is embedded in
 the widget definition, exported and reopened through Workshop, loaded into the

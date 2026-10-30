@@ -459,6 +459,19 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	if (resolved.presentation)
 		throw std::runtime_error("Console assets are not an editable gameplay pack");
 	auto definitions = parse_json(loaded.files().at("definitions.json"), "definitions.json");
+	DefinitionTable local_derivations;
+	std::function<void(const Json &)> retain_source = [&](const Json &entity)
+	{
+		if (!local_derivations.emplace(entity.at("id").get<std::string>(), entity).second)
+			return;
+		if (entity.contains("extends"))
+			for (const auto &parent : definitions.at("entities"))
+				if (parent.at("id") == entity.at("extends"))
+					retain_source(parent);
+	};
+	for (const auto &entity : definitions.value("entities", Json::array()))
+		if (entity.contains("extends"))
+			retain_source(entity);
 	// Resolved Controllers can refer to generated officer/combat programs. Keep
 	// their authored layouts so export regenerates those programs on the next
 	// load instead of serialising references to programs absent from the draft.
@@ -533,6 +546,12 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	};
 	for (auto &entity : definitions["entities"])
 		restore_local(entity, authored_entities.at(entity.at("id").get<std::string>()));
+	// Keep derivations authored: the graph must distinguish inherited items after
+	// reopening, and ordinary forms retain their explicit Flatten action.
+	for (auto &entity : definitions["entities"])
+		if (const auto source = local_derivations.find(entity.at("id").get<std::string>());
+		    source != local_derivations.end())
+			entity = source->second;
 	// Keep authored template references and local patches; compiled instance IDs are runtime-only.
 	flatten("maps", authored_maps);
 	flatten("consoles", resolved.consoles);

@@ -1603,6 +1603,11 @@ int main()
 		        "Large unchanged pack resources are shared across multiple undo steps");
 		WorkshopDocument console_document;
 		console_document.load_pack(bytes);
+		// This rename fixture deliberately edits independent fitted hulls. Flatten
+		// explicitly now that reopening retains authored inheritance.
+		const auto rename_fittings = console_document.verify().entities;
+		for (auto &entity : console_document.definitions()["entities"])
+			entity = rename_fittings.at(entity.at("id").get<std::string>());
 		console_document.definitions()["consoles"].push_back(
 		    {{"id", "test.child-console"}, {"extends", "test.console"}});
 		auto &station_ship = console_document.definitions()["entities"][1];
@@ -2250,6 +2255,13 @@ int main()
 			std::reverse(reopened.definitions()["maps"].begin(), reopened.definitions()["maps"].end());
 			require(reopened.verify().maps.at(map_id).at("scenario").at("tree") == private_id,
 			        "Private policy identity is independent of owner array order");
+			reopened.definitions()["entities"].push_back({{"id", "test.visual-derived"}, {"extends", definition}});
+			WorkshopDocument derived_reopened;
+			derived_reopened.load_pack(reopened.export_pack());
+			const auto &derived_source = derived_reopened.definitions().at("entities").back();
+			require(derived_source.at("extends") == definition && !derived_source.contains("systems") &&
+			            derived_reopened.preview_equipment().entities.at("test.visual-derived").contains("systems"),
+			        "Reopening retains authored inheritance while the ship graph resolves inherited items");
 			{
 				auto tree = local;
 				tree["states"].push_back({{"id", "child"}, {"parent", "idle"}, {"running", Json::array()}});
