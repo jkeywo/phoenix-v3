@@ -29,9 +29,17 @@ production base and Test Missions both pass source verification, archive
 verification and client-companion generation through the rebuilt packager;
 their tuning is not asserted by the synthetic checks.
 
-The WASM content check passes under the bundled Node runtime, launched from
-`build/web` with `phoenix_content_check.js` so its preloaded fixtures resolve.
-This is a loader/compiler check, not browser rendering evidence.
+The final WASM content and disposable Workshop checks both pass under the
+bundled Node runtime, launched from `build/web` with `phoenix_content_check.js`
+and `phoenix_workshop_test_tests.js` so their preloaded fixtures resolve. These
+include the reopened-inheritance and owner-isolation checks and embedded-policy
+continuation. These are loader/compiler/runtime checks, not browser rendering
+evidence.
+
+The final native Workshop probe links successfully with the updated editor
+libraries. Browser Workshop and both WASM checks build in the existing Release
+configuration with threads enabled and development linking enabled. Optimised
+C++ is exercised; this receipt does not claim the separate full Release LTO gate.
 
 ## Explicit native graphical probes
 
