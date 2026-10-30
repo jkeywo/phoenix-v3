@@ -395,6 +395,59 @@ Json missile_fixture(bool defence = false)
 	}
 	return s;
 }
+void salvo_contracts()
+{
+	auto source = missile_fixture();
+	auto &ship = source["entities"][0];
+	ship["systems"]["launcher"]["load_ticks"] = 4;
+	ship["systems"]["launcher"]["fire_ticks"] = 1;
+	add_fit(source, "second-launcher", ship["systems"]["launcher"], {{"target", "weapon_target"}});
+	for (auto &owner : ship["control_layout"]["controllers"])
+		if (owner.at("id") == "launcher" || owner.at("id") == "second-launcher")
+			owner["commands"].push_back({{"id", "fire"},
+			                             {"action", "weapon_fire"},
+			                             {"initial", 0},
+			                             {"coordinated_group", "test.salvo"},
+			                             {"consumers", {owner.at("id")}}});
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	submit(world, 101, "launcher", "target", 2);
+	submit(world, 101, "second-launcher", "target", 2);
+	advance(world, 8);
+	require(state(world)["systems"]["launcher"]["shots"] == 0, "occupied manual launchers wait for Fire");
+	const auto fire = [&]()
+	{
+		const auto observed = world.observe(101);
+		for (const auto &d : observed->gameplay.at("controls"))
+			if (d.at("action") == "weapon.salvo")
+				return decode_operating_command(d);
+		throw std::runtime_error("missing salvo descriptor " + world.observe(101)->gameplay.at("controllers").dump());
+	};
+	submit(world, 101, "second-launcher", "enabled", 0);
+	world.tick();
+	const auto request = fire();
+	require(world.submit(101, request), "group Fire admits its projected request envelope");
+	world.tick();
+	const auto shots = state(world)["systems"]["launcher"]["shots"].get<int>() +
+	                   state(world)["systems"]["second-launcher"]["shots"].get<int>();
+	require(shots == 1, "group Fire launches its eligible loaded tube and skips the disabled tube");
+	require(world.submit(101, request), "replayed Fire is idempotent after consumption");
+	submit(world, 101, "second-launcher", "enabled", 1);
+	world.tick();
+	const auto after = world.save();
+	World resumed;
+	resumed.restore(catalog, after);
+	advance(world, 18);
+	advance(resumed, 18);
+	require(world.save() == resumed.save(), "salvo receipts and physical loading continue identically after restore");
+	require(state(world)["systems"]["launcher"]["shots"].get<int>() +
+	                state(world)["systems"]["second-launcher"]["shots"].get<int>() ==
+	            shots,
+	        "reloading and request replay never queue a delayed shot");
+}
+
 void ordnance_contracts()
 {
 	// An anonymous bearing can be selected, but cannot establish offensive authority.
@@ -2603,6 +2656,7 @@ int main(int argc, char **argv)
 		extended_contracts();
 		review_contracts();
 		ordnance_contracts();
+		salvo_contracts();
 		stock_binding_contracts();
 		property_rate_contracts();
 		effects_contracts();

@@ -26,8 +26,8 @@ auto Runtime::meta(const ConsoleCommandContext &context, const OperatingCommand 
 		return false;
 	if (command.action.starts_with("ftl."))
 		return departures.admit(departure_admission_facts(), address, command, execute);
-	if (command.action == "flight.impulse")
-		return coordinated_impulse(address, command, execute);
+	if ((command.action == "flight.impulse" || command.action == "weapon.salvo"))
+		return coordinated_request(address, command, execute);
 	if (command.action.starts_with("away."))
 		return away_command(address, command, execute);
 	if (command.action.starts_with("dock."))

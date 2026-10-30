@@ -19,6 +19,9 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	row.owner = enabled_system_owner(a.ship, away_dispatch_system(a.ship, d.dispatch)).console;
 	row.dispatch_system = away_dispatch_system(a.ship, d.dispatch);
 	const auto *send_owner = native_operation_controller({a.ship, row.owner}, "mission_send", row.dispatch_system);
+	row.launch_blocker = away_launch_blocker(i);
+	row.launch_ready = row.dispatch && send_owner && controller_operation_human(*send_owner, "mission_send") &&
+	                   row.launch_blocker.empty();
 	row.automatic_dispatch =
 	    !d.supply && d.allow_ship_transport && (send_owner && !controller_operation_human(*send_owner, "mission_send"));
 	bool owns_assets = false;
@@ -150,6 +153,29 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	}
 	for (const auto &key : m.accompanying)
 		row.labels["officer:" + key] = away_asset_label(a.ship, "officer:" + key);
+
+	const auto &crew = definition(a.ship).personnel;
+	const auto &state = entities.at(a.ship).get<PersonnelState>();
+	for (const auto &[asset, label] : row.labels)
+	{
+		std::string officer;
+		if (asset.starts_with("officer:"))
+			officer = asset.substr(8);
+		else if (asset.starts_with("team:"))
+		{
+			for (const auto &duty : crew.duties)
+				if (duty.team == asset.substr(5))
+					for (std::size_t j = 0; j < state.officers.size(); ++j)
+						if (state.officers[j].duty == duty.id)
+							officer = crew.officers[j].id;
+		}
+		for (const auto &person : crew.officers)
+			if (person.id == officer)
+			{
+				row.portraits[asset] = person.portrait;
+				row.crew_names[asset] = person.name;
+			}
+	}
 	return row;
 }
 

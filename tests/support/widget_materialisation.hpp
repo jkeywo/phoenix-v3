@@ -403,21 +403,27 @@ inline void materialise_fixture_widgets(Json &source)
 				}
 			}
 
-			Json coordinated = Json::array();
+			std::map<std::string, Json> coordinated;
 			for (const auto &command : row.at("commands"))
 				if (command.contains("coordinated_group"))
+				{
+					const std::string operation =
+					    command.at("action") == "weapon_fire" ? "weapon_salvo" : "coordinated_impulse";
+					if (!coordinated.contains(operation))
+						coordinated[operation] = Json::array();
 					for (const auto &member : command.at("consumers"))
-						coordinated.push_back("$" + member.get<std::string>());
-			if (!coordinated.empty())
+						coordinated[operation].push_back("$" + member.get<std::string>());
+				}
+			for (const auto &[operation, consumers] : coordinated)
 			{
-				definition["operations"]["coordinated_impulse"] = coordinated;
+				definition["operations"][operation] = consumers;
 				for (const auto &profile : layout["profiles"])
 				{
 					const int stars = profile.at("stars");
 					const auto allocated =
 					    profile.at("consoles").value(console, Json::object()).value("human", Json::array());
 					if (std::find(allocated.begin(), allocated.end(), Json(id)) != allocated.end())
-						human[stars].push_back("coordinated_impulse");
+						human[stars].push_back(operation);
 				}
 			}
 			std::vector<Json> levels;

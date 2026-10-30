@@ -211,12 +211,13 @@ struct AwayPermittedSupply
 // mission identity, disclosure, phase, result and assignment fields stay here.
 struct AwayPermittedRow
 {
-	bool dispatch = false, automatic_dispatch = false, can_contribute = false, transport_owned = false;
-	std::string blocker, owner, dispatch_system;
+	bool dispatch = false, automatic_dispatch = false, can_contribute = false, transport_owned = false,
+	     launch_ready = false;
+	std::string blocker, owner, dispatch_system, launch_blocker;
 	std::vector<AwayPermittedSlot> slots, craft_slots;
 	std::vector<std::string> transports;
 	std::optional<AwayPermittedSupply> supply;
-	std::map<std::string, std::string> labels;
+	std::map<std::string, std::string> labels, portraits, crew_names;
 };
 class AwayProjectionSource
 {

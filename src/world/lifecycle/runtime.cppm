@@ -334,7 +334,7 @@ struct Runtime
 	ControllerCommandChecks controller_command_checks(EntityId id) const;
 	void refresh_controllers(EntityId id, bool validate = false);
 	std::uint64_t coordinated_generation(const ConsoleAddress &a, const std::string &group) const;
-	bool coordinated_impulse(const ConsoleAddress &a, const OperatingCommand &c, bool execute);
+	bool coordinated_request(const ConsoleAddress &a, const OperatingCommand &c, bool execute);
 	bool controller_meta(const ConsoleAddress &address, const OperatingCommand &command, bool execute);
 	void run_console_controllers(flecs::entity entity);
 	void consume_controller_commands(flecs::entity entity);
@@ -1588,6 +1588,7 @@ struct Runtime
 	void finish_away_recovery(EntityId ship, AwayMission &m);
 	std::string boarding_insertion_blocker(std::size_t index, const std::string &transport) const;
 	std::string away_blocker(std::size_t index, bool power = true) const;
+	std::string away_launch_blocker(std::size_t index) const;
 	void prepare_away_officers(const ConsoleAddress &address, std::size_t index);
 	void prepare_away_contribution(const ConsoleAddress &a, std::size_t index);
 	void withdraw_away_assignment(EntityId ship, AwayMission &, const std::string &slot);

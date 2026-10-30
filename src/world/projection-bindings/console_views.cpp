@@ -46,6 +46,24 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	if (impl_->definition(address.ship).console_bridge.at(address.console).objectives)
 		result.gameplay["objective_board"] = impl_->objectives_board(address.ship);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
+	// The slot picker uses the same admission path as a real assignment, including reservations and routes.
+	auto &personnel = result.gameplay["personnel"];
+	for (auto &officer : personnel.at("officers"))
+	{
+		officer["assignable_duties"] = Json::array();
+		if (!personnel.contains("controller"))
+			continue;
+		for (const auto &duty : personnel.at("duties"))
+		{
+			OperatingCommand proposal{address.ship, "personnel.assign", personnel.at("revision"), officer.at("id")};
+			proposal.controller = personnel.at("controller");
+			proposal.generation = personnel.at("generation");
+			proposal.text = duty.at("id");
+			if (impl_->personnel_command(address, proposal, false))
+				officer["assignable_duties"].push_back(duty.at("id"));
+		}
+	}
+
 	result.gameplay["psychic"] = impl_->psychic_board(address);
 	result.gameplay["abilities"] = impl_->ability_board(address);
 	if (auto rules = impl_->rules_board(address); !rules.empty())
@@ -130,9 +148,13 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					const auto &channel = controller.definition.commands[i];
 					const auto &state = controller.commands[i];
 					if (!channel.coordinated_group.empty() &&
-					    controller_operation_human(controller, "coordinated_impulse"))
+					    controller_operation_human(controller, channel.action == OperatingAction::WeaponFire
+					                                               ? "weapon_salvo"
+					                                               : "coordinated_impulse"))
 					{
-						const auto key = "flight.impulse." + channel.coordinated_group;
+						const bool salvo = channel.action == OperatingAction::WeaponFire;
+						const auto action = salvo ? "weapon.salvo" : "flight.impulse";
+						const auto key = std::string(action) + "." + channel.coordinated_group;
 						if (std::none_of(buttons.begin(), buttons.end(),
 						                 [&](const auto &b)
 						                 {
@@ -147,14 +169,16 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 											next = std::max(next, peer.commands[j].request_id + 1);
 							for (const auto value : {0, 1})
 							{
-								OperatingCommand c{address.ship, "flight.impulse", value, channel.coordinated_group};
+								if (salvo && !value)
+									continue;
+								OperatingCommand c{address.ship, action, value, channel.coordinated_group};
 								c.generation = impl_->coordinated_generation(address, channel.coordinated_group);
 								c.request_id = next;
 								auto descriptor = encode_operating_command(c);
 								descriptor["id"] = key + "." + std::to_string(value);
-								descriptor["label_key"] = value ? "Start impulse" : "Cancel impulse";
-								descriptor["label"] = value ? "Start impulse" : "Cancel impulse";
-								descriptor["operation"] = "coordinated_impulse";
+								descriptor["label_key"] = salvo ? "Fire" : value ? "Start impulse" : "Cancel impulse";
+								descriptor["label"] = descriptor["label_key"];
+								descriptor["operation"] = salvo ? "weapon_salvo" : "coordinated_impulse";
 								descriptor["widget_controller"] = controller.definition.id;
 								descriptor["widget_channel"] = channel.id;
 								buttons.push_back(std::move(descriptor));

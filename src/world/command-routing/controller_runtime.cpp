@@ -6,12 +6,14 @@ import :command_routing;
 
 namespace phoenix::world_detail
 {
-auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingCommand &c, bool execute) -> bool
+auto Runtime::coordinated_request(const ConsoleAddress &a, const OperatingCommand &c, bool execute) -> bool
 {
 	if (!c.controller.empty() || !c.channel.empty() || !c.arguments.empty() || !c.text.empty() ||
 	    !c.speaker_name.empty() || !c.speaker_avatar.empty() || !c.request_id || c.value < 0 || c.value > 1 ||
 	    c.request_id >= 9007199254740991ULL || c.generation != coordinated_generation(a, c.system))
 		return false;
+	const bool salvo = c.action == "weapon.salvo";
+	const auto operation = salvo ? "weapon_salvo" : "coordinated_impulse";
 	const auto &controls = entities.at(a.ship).get<EntityControls>();
 	const auto checks = controller_command_checks(a.ship);
 	std::vector<ControllerProposal> proposals;
@@ -25,9 +27,11 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 			const auto &spec = controller.definition.commands[j];
 			if (spec.coordinated_group.empty() || spec.coordinated_group != c.system)
 				continue;
-			if (!controller_operation_human(controller, "coordinated_impulse") ||
-			    !controller_operation_owns(controller, "coordinated_impulse",
+			if (!controller_operation_human(controller, operation) ||
+			    !controller_operation_owns(controller, operation,
 			                               definition(a.ship).fitted->values.at(spec.consumers.front()).id))
+				return false;
+			if (salvo && spec.action != OperatingAction::WeaponFire)
 				return false;
 			ControllerProposal proposal{{a.ship, a.console, controller.definition.id},
 			                            i,
@@ -37,7 +41,7 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 			                            c.request_id,
 			                            true,
 			                            {},
-			                            "coordinated_impulse"};
+			                            operation};
 			auto staged = controller.commands;
 			if (attempt_controller_command(controller, staged, proposal, checks).outcome ==
 			    state_tree::CommandOutcome::Refused)
@@ -50,7 +54,7 @@ auto Runtime::coordinated_impulse(const ConsoleAddress &a, const OperatingComman
 	if (execute)
 		for (const auto &proposal : proposals)
 			if (!commit_controller(proposal))
-				throw std::runtime_error("Coordinated impulse admission changed during execution");
+				throw std::runtime_error("Coordinated request admission changed during execution");
 	return true;
 }
 
@@ -162,7 +166,7 @@ auto Runtime::consume_controller_commands(flecs::entity entity) -> void
 		{
 			auto &value = controller.commands[i];
 			const auto &command = controller.definition.commands[i];
-			if (command.action == OperatingAction::AbilityActivate ||
+			if (command.action == OperatingAction::AbilityActivate || command.action == OperatingAction::WeaponFire ||
 			    process_channel_bound(entity.get<StableId>().id,
 			                          static_cast<std::size_t>(&controller - controls.controllers.data()), i))
 				continue; // The bound ability consumes its request in the physical preparation phase.

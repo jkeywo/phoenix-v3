@@ -69,6 +69,15 @@ Json board(const Json &source)
 				{
 					for (const auto *field : {"name", "portrait", "duty", "destination"})
 						r[field] = text(row.at(field), 128);
+					if (row.contains("assignable_duties"))
+					{
+						const auto &choices = row.at("assignable_duties");
+						if (!choices.is_array() || choices.size() > 256)
+							throw std::runtime_error("Invalid assignment choices");
+						r["assignable_duties"] = Json::array();
+						for (const auto &choice : choices)
+							r["assignable_duties"].push_back(text(choice, 64));
+					}
 					if (row.contains("abilities"))
 					{
 						r["abilities"] = Json::array();

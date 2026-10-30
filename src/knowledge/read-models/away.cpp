@@ -40,6 +40,24 @@ Json board(const Json &rows)
 		v["revision"] = revision;
 		v["dispatch"] = r.at("dispatch").get<bool>();
 		v["automatic_dispatch"] = r.value("automatic_dispatch", false);
+		if (r.contains("launch_ready"))
+			v["launch_ready"] = r.at("launch_ready").get<bool>();
+		if (r.contains("launch_blocker"))
+			v["launch_blocker"] = text(r.at("launch_blocker"), 256);
+		for (const auto *field : {"portraits", "crew_names"})
+			if (r.contains(field))
+			{
+				if (!r.at(field).is_object() || r.at(field).size() > 256)
+					throw std::runtime_error("Invalid mission crew metadata");
+				v[field] = Json::object();
+				for (const auto &[key, value] : r.at(field).items())
+				{
+					if (!r.at("labels").contains(key))
+						throw std::runtime_error("Unpermitted mission crew metadata");
+					v[field][text(Json(key), 160)] = text(value, 256);
+				}
+			}
+
 		v["owner"] = text(r.value("owner", Json("")), 128);
 		v["dispatch_system"] = text(r.value("dispatch_system", Json("")), 128);
 		v["can_contribute"] = r.value("can_contribute", false);

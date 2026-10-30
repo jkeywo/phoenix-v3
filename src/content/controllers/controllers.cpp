@@ -43,8 +43,8 @@ std::string control_name(const Json &value, const char *field, const std::string
 	                path, std::string("invalid ") + field);
 	return name;
 }
-void control_layout_targets(const Catalog &catalog, Json node, std::set<std::string> &targets, int stars = 0,
-                            unsigned depth = 0)
+void control_layout_targets(const Catalog &catalog, Json node, std::map<std::string, std::string> &targets,
+                            int stars = 0, unsigned depth = 0)
 {
 	control_require(depth <= 24, "control widget layout", "reusable group nesting exceeds 24 levels");
 	if (stars && node.contains("when"))
@@ -69,7 +69,16 @@ void control_layout_targets(const Catalog &catalog, Json node, std::set<std::str
 	}
 	const auto component = node.value("component", std::string{});
 	if (component.starts_with("control/"))
-		targets.insert(component);
+		targets.emplace(component, "");
+	for (const auto &part : node.value("widget_parts", Json::array()))
+	{
+		control_require(part.is_string() && part.get<std::string>().starts_with("control/") && !component.empty() &&
+		                    !component.starts_with("control/"),
+		                "control widget layout", "widget_parts require a specialised component and control references");
+		const auto [at, inserted] = targets.emplace(part.get<std::string>(), "console." + component);
+		control_require(inserted || at->second == "console." + component, "control widget layout",
+		                "widget part is assigned to incompatible specialised components");
+	}
 	for (const auto &child : node.value("children", Json::array()))
 		control_layout_targets(catalog, child, targets, stars, depth + 1);
 }
@@ -117,7 +126,16 @@ void verify_widget_part_coverage(const Catalog &catalog, const ConsoleController
 		details |= binding.value("details", false);
 	}
 	for (const auto &channel : controller.human_channels.at(stars))
-		control_require(commands.contains(channel), path, "human command has no placed part: " + channel);
+	{
+		const auto &authored = catalog.control_widgets.at(controller.widget).at("commands");
+		const auto field = std::find_if(authored.begin(), authored.end(),
+		                                [&](const auto &value)
+		                                {
+			                                return value.at("id") == channel;
+		                                });
+		control_require(field != authored.end() && (!field->value("expose", true) || commands.contains(channel)), path,
+		                "human command has no placed part: " + channel);
+	}
 	for (const auto &operation : controller.human_operations.at(stars))
 		control_require(operations.contains(operation), path, "human operation has no placed part: " + operation);
 	for (const auto &[item, destination] : controller.data_placement.at(stars))
@@ -179,6 +197,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		if (kind == OperatingSystem::Weapon)
 		{
 			add(OperatingAction::WeaponTarget);
+			add(OperatingAction::WeaponFire);
 			add(OperatingAction::MagazineSelect);
 			add(OperatingAction::WeaponMode);
 		}
@@ -524,7 +543,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                "hull_priority requires repair_system");
 			command.coordinated_group = field.value("coordinated_group", std::string{});
 			control_require(command.coordinated_group.size() <= 64 &&
-			                    (command.coordinated_group.empty() || command.action == OperatingAction::Impulse),
+			                    (command.coordinated_group.empty() || (command.action == OperatingAction::Impulse ||
+			                                                           command.action == OperatingAction::WeaponFire)),
 			                where, "invalid coordinated flight command");
 			if (field.contains("choices"))
 			{
@@ -891,10 +911,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					declared.insert(index);
 			for (const int stars : {0, 1, 2, 3})
 			{
-				std::set<std::string> targets;
+				std::map<std::string, std::string> targets;
 				control_layout_targets(catalog, layout.at(variant), targets, stars);
 				std::map<std::size_t, std::set<std::string>> parts;
-				for (const auto &target : targets)
+				for (const auto &[target, renderer] : targets)
 				{
 					const auto last = target.rfind('/');
 					control_require(last > 8 && last + 1 < target.size(), path, "invalid widget placement " + target);
@@ -915,6 +935,17 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					control_require(controller != result.controllers.end() && !controller->widget.empty(), path,
 					                "layout names an unbound control widget " + target);
 					const auto widget = compile_control_widget(catalog, controller->widget);
+					if (!renderer.empty())
+						control_require(catalog.control_widgets.at(controller->widget)
+						                        .at("part_bindings")
+						                        .at(part)
+						                        .value("renderer", std::string{}) == renderer,
+						                path,
+						                "specialised component does not implement its declared widget part " + target);
+					else
+						control_require(
+						    !definition.value("strict_widgets", false), path,
+						    "specialised Courier presentation required; generic widget fallback is not allowed");
 					control_require(part == "complete" || part == "main" || widget.parts.contains(part), path,
 					                "layout names an unknown widget part " + target);
 					if (part != "complete" && part != "main")

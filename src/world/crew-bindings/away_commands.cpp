@@ -7,6 +7,43 @@ import :away_adapters;
 
 namespace phoenix::world_detail
 {
+auto Runtime::away_launch_blocker(std::size_t index) const -> std::string
+{
+	const auto &d = away_operations.definitions().at(index);
+	const auto &m = away_operations.mission(index);
+	const auto ship = away_ship(d);
+	if (!ship || !entities.contains(d.target))
+		return "Destination unavailable";
+	if ((m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || !m.outcome.empty())
+		return "Mission is not preparing";
+	if (d.supply &&
+	    (!supply_manifest(index) || m.supply_job || cargo_deliveries.size() >= 128 || material_requests.size() >= 4094))
+		return "Supply manifest or delivery capacity is unavailable";
+	for (const auto &slot : d.slots)
+		if (slot.required && !m.assignments.contains(slot.id))
+			return "Required mission slot is empty";
+	if (!away_staged(ship, m))
+		return "Waiting for the party and delivery method";
+	if (!m.transport.empty())
+	{
+		const auto blocker = boarding_insertion_blocker(index, m.transport);
+		if (!blocker.empty())
+			return blocker;
+	}
+	const auto craft = away_transport_entity(ship, m.transport);
+	if (craft && craft != ship && !craft_available(craft, d.id))
+		return "Delivery craft is unavailable";
+	if (craft && !away_blocker(index, false).empty())
+		return away_blocker(index, false);
+	for (const auto &slot : d.craft_slots)
+		if (slot.role == "escort" && slot.required && !m.escorts.contains(slot.id))
+			return "Required escort is missing";
+	for (const auto &[slot, id] : m.escorts)
+		if (!craft_available(id, d.id))
+			return "Escort is unavailable";
+	return {};
+}
+
 auto Runtime::withdraw_away_assignment(EntityId ship, AwayMission &m, const std::string &slot) -> void
 {
 	const auto asset = m.assignments.at(slot);
@@ -213,25 +250,9 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 		const auto supply = d.supply ? supply_manifest(index) : std::optional<CargoDelivery>{};
 		if (d.supply && (!supply || m.supply_job || cargo_deliveries.size() >= 128 || material_requests.size() >= 4094))
 			return false;
-		if (!away_dispatch(a, d.dispatch) || (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) ||
-		    !m.outcome.empty() || !away_staged(a.ship, m))
-			return false;
-		if (!m.transport.empty() && !boarding_insertion_blocker(index, m.transport).empty())
-			return false;
-		if (away_transport_entity(a.ship, m.transport) == a.ship && !away_blocker(index, false).empty())
+		if (!away_dispatch(a, d.dispatch) || !away_launch_blocker(index).empty())
 			return false;
 		const auto craft = away_transport_entity(a.ship, m.transport);
-		if (craft && craft != a.ship && (!craft_available(craft, d.id) || !away_blocker(index, false).empty()))
-			return false;
-		for (const auto &s : d.slots)
-			if (s.required && !m.assignments.contains(s.id))
-				return false;
-		for (const auto &slot : d.craft_slots)
-			if (slot.role == "escort" && slot.required && !m.escorts.contains(slot.id))
-				return false;
-		for (const auto &[slot, id] : m.escorts)
-			if (!craft_available(id, d.id))
-				return false;
 		if (execute)
 		{
 			m.phase = AwayPhase::Outbound;

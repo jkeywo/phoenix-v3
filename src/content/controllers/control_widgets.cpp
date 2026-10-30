@@ -146,6 +146,8 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	for (const auto &command : result.commands)
 	{
 		const auto name = widget_name(command.at("id"), id + ".commands");
+		widget_require(!command.contains("expose") || command.at("expose").is_boolean(), id,
+		               "command expose flag must be boolean");
 		widget_require(commands.insert(name).second, id, "duplicate command " + name);
 		widget_require(!command.contains("individual_stars"), id,
 		               "shared widget command responsibility belongs in levels, not individual_stars");
@@ -193,7 +195,8 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 		                                                        "alert",
 		                                                        "stance",
 		                                                        "objectives",
-		                                                        "coordinated_impulse"};
+		                                                        "coordinated_impulse",
+		                                                        "weapon_salvo"};
 		widget_require(supported_operations.contains(operation), id, "unsupported native operation " + operation);
 
 		widget_require(responsibilities.insert(operation).second && roles.is_array(), id,
@@ -302,7 +305,7 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 	{
 		widget_require(result.parts.contains(part) && binding.is_object(), id,
 		               "unknown or invalid part binding " + part);
-		if (binding.contains("renderer"))
+		if (binding.contains("renderer") && !binding.at("renderer").get<std::string>().starts_with("console."))
 		{
 			const auto renderer = widget_name(binding.at("renderer"), id + "." + part);
 			widget_require(renderer == "personnel" || renderer == "away" || renderer == "craft" ||
@@ -322,6 +325,38 @@ ControlWidgetDefinition compile_control_widget(const Catalog &catalog, const std
 			          result.operations.contains("medical") || result.operations.contains("team_selection"))) ||
 			        (renderer == "operations" && result.operations.contains("cargo_authorisation")),
 			    id, "native renderer needs its declared operation scope");
+		}
+		else if (binding.contains("renderer"))
+		{
+			static const std::set<std::string> components{"throttle",
+			                                              "heading",
+			                                              "radar",
+			                                              "manual-flight",
+			                                              "weapons",
+			                                              "missiles",
+			                                              "target-info",
+			                                              "flight-status",
+			                                              "lateral-left",
+			                                              "lateral-right",
+			                                              "power",
+			                                              "repair",
+			                                              "personnel",
+			                                              "away",
+			                                              "objectives",
+			                                              "shield-display",
+			                                              "ftl-controls",
+			                                              "viewscreen-controls",
+			                                              "alert-controls",
+			                                              "veil-controls",
+			                                              "navigation",
+			                                              "conversation-list",
+			                                              "conversation-header",
+			                                              "conversation-history",
+			                                              "conversation-incoming",
+			                                              "conversation-replies",
+			                                              "conversation-compose"};
+			widget_require(components.contains(binding.at("renderer").get<std::string>().substr(8)), id,
+			               "unknown specialised Console renderer");
 		}
 		for (const auto *kind : {"commands", "data", "operations", "ranges"})
 		{

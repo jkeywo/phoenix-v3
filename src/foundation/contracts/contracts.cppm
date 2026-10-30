@@ -67,7 +67,8 @@ enum class OperatingAction
 	DirectedOperatingMode,
 	DirectedTargetingMode,
 	DirectedTarget,
-	AbilityActivate
+	AbilityActivate,
+	WeaponFire
 };
 enum class OperatingSystem
 {
@@ -187,6 +188,8 @@ inline constexpr std::array operating_actions{
                         false, 255},
     OperatingActionSpec{OperatingAction::DirectedTarget, "directed_target", OperatingSystem::Weapon, false, 2000000000},
     OperatingActionSpec{OperatingAction::AbilityActivate, "ability_activate", OperatingSystem::Engine, true, 1, 0,
+                        CommandSemantics::Request},
+    OperatingActionSpec{OperatingAction::WeaponFire, "weapon_fire", OperatingSystem::Weapon, true, 1, 0,
                         CommandSemantics::Request}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {

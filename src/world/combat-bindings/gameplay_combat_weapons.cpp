@@ -150,6 +150,30 @@ auto Runtime::prepare_weapons(flecs::entity ship) -> void
 {
 	release_directed_operations(ship);
 	ConsoleContacts contacts_by_console;
+	std::map<std::string, bool> manual_requests;
+	if (ship.has<EntityControls>())
+		for (auto &controller : ship.get_mut<EntityControls>().controllers)
+			for (std::size_t i = 0; i < controller.commands.size(); ++i)
+				if (controller.definition.commands[i].action == OperatingAction::WeaponFire)
+				{
+					auto &state = controller.commands[i];
+					const bool manual = controller_command_human(controller, i) ||
+					                    controller_operation_human(controller, "weapon_salvo");
+					for (const auto index : controller.definition.commands[i].consumers)
+						if (manual)
+						{
+							const auto child = ship.get<EquipmentIndex>().values.at(index);
+							const auto &loaded = child.get<CombatMechanism>().get<WeaponState>();
+							manual_requests[child.get<Equipment>().id] =
+							    state.request_id && state.consumed < state.revision && state.value != 0 &&
+							    loaded.loaded_quantity > 0 && !loaded.unloading;
+						}
+					if (state.consumed < state.revision)
+					{
+						state.consumed = state.revision;
+						state.accepted = false;
+					}
+				}
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -205,6 +229,8 @@ auto Runtime::prepare_weapons(flecs::entity ship) -> void
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
 		{
 			const auto &d = m->definition;
+			if (manual_requests.contains(d.id) && !manual_requests.at(d.id))
+				continue;
 			if (m->get<WeaponState>().cooldown || !child.get<Equipment>().enabled ||
 			    effective_property(ship, d.id, PropertyKey::cycling, 1000) == 0 || structurally_disabled(ship, d.id) ||
 			    directed_operation(id, d.id, DirectedOperationKind::Scan) ||
@@ -293,6 +319,7 @@ auto Runtime::fire_weapons(flecs::entity ship) -> void
 			const auto origin = prepared.origin;
 			auto bearing = prepared.bearing;
 			const auto operation = directed_mode(id, d.id)->operation;
+			const auto before_shots = m->get<WeaponState>().shots;
 			execute_directed(
 			    ship, child, operation, m->get<WeaponState>().ready,
 			    [&]()
@@ -324,6 +351,16 @@ auto Runtime::fire_weapons(flecs::entity ship) -> void
 				    emit_audio(ship, {SceneAudioKind::Shot, "weapon:" + d.id, directed_mode(id, d.id)->firing_audio});
 				    return true;
 			    });
+			if (m->get<WeaponState>().shots > before_shots && ship.has<EntityControls>())
+				for (auto &controller : ship.get_mut<EntityControls>().controllers)
+					for (std::size_t i = 0; i < controller.commands.size(); ++i)
+						if (controller.definition.commands[i].action == OperatingAction::WeaponFire &&
+						    (controller_command_human(controller, i) ||
+						     controller_operation_human(controller, "weapon_salvo")))
+							for (const auto index : controller.definition.commands[i].consumers)
+								if (ship.get<EquipmentIndex>().values.at(index).get<Equipment>().id == d.id &&
+								    controller.commands[i].request_id)
+									controller.commands[i].accepted = true;
 		}
 	release_directed_operations(ship);
 }

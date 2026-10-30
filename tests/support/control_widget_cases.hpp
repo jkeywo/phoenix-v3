@@ -483,6 +483,49 @@ inline void control_widget_cases()
 		placed["control_widgets"][0]["part_bindings"] = {
 		    {"left", {{"commands", {"choice"}}, {"data", {"choice"}}, {"details", true}}},
 		    {"right", {{"commands", {"speed"}}, {"data", {"speed"}}}}};
+		{
+			auto native = placed;
+			auto &console = native["consoles"].back();
+			console["strict_widgets"] = true;
+			console["layout"].erase("compact");
+			console["layout"]["root"] = {{"id", "power"},
+			                             {"kind", "component"},
+			                             {"component", "power"},
+			                             {"widget_parts", {"control/propulsion/left", "control/propulsion/right"}}};
+			for (auto &[part, binding] : native["control_widgets"][0]["part_bindings"].items())
+				binding["renderer"] = "console.power";
+			(void)load(native);
+			auto invalid = native;
+			invalid["control_widgets"][0]["part_bindings"]["right"]["renderer"] = "console.weapons";
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "does not implement its declared widget part");
+			invalid = native;
+			invalid["consoles"].back()["layout"]["root"]["widget_parts"] = {"control/propulsion/left"};
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "human command has no placed part");
+			invalid = placed;
+			invalid["consoles"].back()["strict_widgets"] = true;
+			rejected(
+			    [&]
+			    {
+				    (void)load(invalid);
+			    },
+			    "generic");
+			// Intentionally omitted controls keep their authority; data coverage remains mandatory.
+			native["control_widgets"][0]["commands"][0]["expose"] = false;
+			native["control_widgets"][0]["part_bindings"]["right"]["commands"] = Json::array();
+			const auto hidden = compile_controllable_layout(load(native), "test.controllable");
+			require(hidden.controllers[0].commands[0].action == OperatingAction::Speed,
+			        "unexposed command retains its operating channel");
+		}
 		const auto bound = load(placed);
 		const auto program = compile_ui_layout(bound, bound.consoles.at("test.widget.console"));
 		require(resolve_ui_layout(program, {0, 0, 1200, 700}, 1).placements.size() == 2 &&

@@ -87,6 +87,10 @@ Json AwayRuntime::board(const ConsoleAddress &viewer, const AwayObservation &obs
 			                        {"choices", choices.choices}});
 		}
 		row["labels"] = access.labels;
+		row["portraits"] = access.portraits;
+		row["crew_names"] = access.crew_names;
+		row["launch_ready"] = access.launch_ready;
+		row["launch_blocker"] = access.launch_blocker;
 		out.push_back(row);
 	}
 	return out;

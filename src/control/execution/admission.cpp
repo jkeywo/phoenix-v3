@@ -42,11 +42,14 @@ state_tree::CommandAttempt attempt_controller_command(const ConsoleControllerRun
 	    !checks.arguments_valid(proposal.controller, proposal.channel, spec.action, proposal.value, proposal.arguments))
 		return refused("invalid_arguments");
 	if (!proposal.operation.empty() &&
-	    (proposal.operation != "coordinated_impulse" || spec.action != OperatingAction::Impulse ||
+	    ((proposal.operation == "coordinated_impulse" ? spec.action != OperatingAction::Impulse
+	      : proposal.operation == "weapon_salvo"      ? spec.action != OperatingAction::WeaponFire
+	                                                  : true) ||
 	     spec.coordinated_group.empty() || !controller.definition.operations.contains(proposal.operation)))
 		return refused("invalid_native_operation");
 	if (proposal.operation.empty() && !proposal.human && !spec.coordinated_group.empty() &&
-	    controller_operation_human(controller, "coordinated_impulse"))
+	    controller_operation_human(controller,
+	                               spec.action == OperatingAction::WeaponFire ? "weapon_salvo" : "coordinated_impulse"))
 		return refused("coordinated_request_owned_by_human");
 	const bool owner = proposal.operation.empty() ? controller_command_human(controller, proposal.channel)
 	                                              : controller_operation_human(controller, proposal.operation);
