@@ -348,7 +348,7 @@ AmmunitionDefinition compile_ammunition_resource(const Catalog &catalog, const s
 	if (!value.is_object())
 		throw std::runtime_error(path + ": expected object");
 	for (const auto &[key, field] : value.items())
-		if (key != "fire_ticks" && key != "load_ticks" && key != "projectile")
+		if (key != "fire_ticks" && key != "load_ticks" && key != "projectile" && key != "radar_coverage")
 			throw std::runtime_error(path + "." + key + ": unsupported ammunition field");
 	for (const auto *key : {"fire_ticks", "load_ticks"})
 	{
@@ -356,6 +356,12 @@ AmmunitionDefinition compile_ammunition_resource(const Catalog &catalog, const s
 		if (!amount.is_number_integer() || amount < 0 || amount > 1000000)
 			throw std::runtime_error(path + "." + key + ": invalid bounded integer");
 		(std::string(key) == "fire_ticks" ? result.interval : result.load_ticks) = amount.get<std::int64_t>();
+	}
+	if (value.contains("radar_coverage"))
+	{
+		if (!value.at("radar_coverage").is_boolean())
+			throw std::runtime_error(path + ".radar_coverage: expected boolean");
+		result.radar_coverage = value.at("radar_coverage").get<bool>();
 	}
 	if (value.contains("projectile"))
 		result.projectile = compile_projectile_profile(catalog, value.at("projectile"), path);
@@ -539,6 +545,14 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			if (mode == capability.modes.end())
 				fail("weapon requires at least one launch or beam mode");
 			auto &weapon = s.get<WeaponDefinition>();
+			weapon.radar_coverage = v.value("radar_coverage", std::string("legacy"));
+			if (weapon.radar_coverage != "legacy" && weapon.radar_coverage != "coverage" &&
+			    weapon.radar_coverage != "hidden")
+				fail("radar_coverage requires legacy, coverage or hidden");
+			if (v.contains("coverage_when_enabled") && !v.at("coverage_when_enabled").is_boolean())
+				fail("coverage_when_enabled requires boolean");
+			weapon.coverage_when_enabled = v.value("coverage_when_enabled", false);
+			weapon.coverage_label = v.value("coverage_label", fit.id);
 			weapon.family = mode->operation == DirectedOperationKind::Beam ? "beam" : "projectile";
 			const auto magazine = v.value("magazine", std::string{});
 			weapon.magazines = v.value("magazines", std::vector<std::string>{});

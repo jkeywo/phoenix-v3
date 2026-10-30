@@ -8,6 +8,7 @@ module;
 #include <string>
 module phoenix.graphics.radar;
 import phoenix.content.catalog;
+import phoenix.content.ui;
 
 import phoenix.application.preferences;
 namespace phoenix
@@ -183,15 +184,22 @@ void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Obser
 		return Vector2{centre.x + static_cast<float>((x - view.own.x) / range) * radius,
 		               centre.y - static_cast<float>((y - view.own.y) / range) * radius};
 	};
-	if (settings.value("fire_arcs", false))
+	const auto groups =
+	    radar_coverage_groups(view.gameplay.value("combat", Json::object()).value("arcs", Json::array()), settings);
+	if (!groups.empty())
 	{
 		int layer = 0;
-		for (const auto &arc : view.gameplay.value("combat", Json::object()).value("arcs", Json::array()))
+		for (const auto &arc : groups)
 		{
 			const bool turret = arc.at("kind") == "turret";
-			const auto centre_bearing = arc.at(turret ? "rest_mdeg" : "bearing_mdeg").get<float>() / 1000.f;
+			const bool coverage = arc.value("coverage", false);
+			const auto centre_bearing =
+			    arc.at(turret || arc.value("coverage", false) ? "rest_mdeg" : "bearing_mdeg").get<float>() / 1000.f;
 			const auto width = arc.at("arc_mdeg").get<float>() / 1000.f;
-			const float r = radius * (turret ? .92f : .76f) - static_cast<float>(layer++ % 5) * 3;
+			const int index = layer++;
+			const float spacing = std::min(12.f, radius * .35f / std::max(1.f, static_cast<float>(groups.size()) - 1));
+			const float r = coverage ? radius * .88f - index * spacing
+			                         : radius * (turret ? .92f : .76f) - static_cast<float>(index % 5) * 3;
 			const Color colour = arc.at("disabled").get<bool>() ? GRAY
 			                     : turret                       ? Color{140, 160, 180, 180}
 			                     : arc.at("active").get<bool>() ? GOLD
@@ -204,9 +212,13 @@ void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Obser
 			const float begin = centre_bearing - width / 2;
 			const int segments = std::max(2, static_cast<int>(width / 4));
 			for (int i = 0; i < segments; ++i)
-				if (!turret || i % 2 == 0)
+				if ((!turret && arc.value("family", "") != "defence") || i % 2 == 0)
 					DrawLineEx(point_at(begin + width * i / segments), point_at(begin + width * (i + 1) / segments),
-					           turret ? 1.f : 2.f, colour);
+					           turret                              ? 1.f
+					           : !coverage                         ? 2.f
+					           : arc.value("family", "") == "beam" ? 2.5f
+					                                               : 1.5f,
+					           colour);
 			if (width < 360)
 			{
 				DrawLineV(centre, point_at(begin), colour);
@@ -233,7 +245,7 @@ void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Obser
 		}
 	};
 	for (const auto &scanner : sensing.value("scanners", Json::array()))
-		if (scanner.at("arc_mdeg") != 360000)
+		if (settings.value("sensor_arcs", true) && scanner.value("radar_arc", true) && scanner.at("arc_mdeg") != 360000)
 		{
 			sector(point(scanner.at("x"), scanner.at("y")), scanner.at("bearing_mdeg").get<float>() / 1000,
 			       scanner.at("arc_mdeg").get<float>() / 1000,
@@ -314,6 +326,43 @@ void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Obser
 			const float ux = static_cast<float>(dx / distance), uy = static_cast<float>(-dy / distance);
 			DrawLineEx(p, {p.x - ux * 15 - uy * 7, p.y - uy * 15 + ux * 7}, 3, waypoint_colour);
 			DrawLineEx(p, {p.x - ux * 15 + uy * 7, p.y - uy * 15 - ux * 7}, 3, waypoint_colour);
+		}
+	}
+	// Draw the legend after all geometry so arcs, the sweep and contacts cannot strike through its text.
+	int legend_index = 0;
+	for (const auto &arc : groups)
+	{
+		const int index = legend_index++;
+		const auto width = arc.at("arc_mdeg").get<float>() / 1000.f;
+		const Color colour = arc.at("disabled").get<bool>() ? GRAY
+		                     : arc.at("active").get<bool>() ? GOLD
+		                                                    : Color{110, 215, 195, 210};
+		if (arc.value("coverage", false))
+		{
+			std::string label;
+			for (const auto &member : arc.at("members"))
+			{
+				if (!label.empty())
+					label += " / ";
+				label += localise(member.at("label").get<std::string>());
+			}
+			if (arc.at("members").size() > 1)
+				label += " (" + std::to_string(arc.at("members").size()) + ")";
+			label += " " + std::to_string(static_cast<int>(width)) + " " + localise("deg");
+			if (arc.at("disabled").get<bool>())
+				label += " " + localise("Disabled");
+			constexpr int legend_font = 14;
+			const Vector2 at{centre.x - radius * .5f, centre.y - radius * .7f + index * 20.f};
+			DrawRectangle(static_cast<int>(at.x - 4), static_cast<int>(at.y - 8),
+			              MeasureText(label.c_str(), legend_font) + 32, 19, Color{8, 23, 25, 235});
+			if (arc.value("family", "") == "defence")
+			{
+				DrawLineEx(at, {at.x + 8, at.y}, 1.5f, colour);
+				DrawLineEx({at.x + 12, at.y}, {at.x + 20, at.y}, 1.5f, colour);
+			}
+			else
+				DrawLineEx(at, {at.x + 20, at.y}, arc.value("family", "") == "beam" ? 2.5f : 1.5f, colour);
+			DrawText(label.c_str(), static_cast<int>(at.x + 24), static_cast<int>(at.y - 6), legend_font, colour);
 		}
 	}
 }

@@ -25,6 +25,7 @@ Json project_sensor_board(std::span<const SensorScannerProjection> scanners, con
 		             {"target", selected},
 		             {"bearing_mdeg", input.heading},
 		             {"arc_mdeg", d.arc},
+		             {"radar_arc", d.radar_arc},
 		             {"range_mm", input.range},
 		             {"x", input.origin.x},
 		             {"y", input.origin.y},

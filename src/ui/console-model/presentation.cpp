@@ -505,18 +505,28 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			        std::to_string(t.at("location").get<std::int64_t>() + 1) + "; " + localise("Destination") + " " +
 			        std::to_string(t.at("destination").get<std::int64_t>() + 1) + "; " + localise("Travel remaining") +
 			        " " + std::to_string(t.at("travel").get<std::int64_t>()));
-		if (fire_arcs_ && layout_.is_object() &&
-		    std::any_of(layout_.at("widgets").begin(), layout_.at("widgets").end(),
-		                [](const auto &w)
-		                {
-			                return w.value("fire_arcs", false);
-		                }))
-			for (const auto &arc : borrowed_member(combat, "arcs", true))
-				result.emplace_back("arc." + arc.at("id").get<std::string>(),
-				                    arc.at("id").get<std::string>() + ": " + localise("Fire arc") + " " +
-				                        std::to_string(arc.at("arc_mdeg").get<std::int64_t>() / 1000) + "; " +
-				                        localise("Bearing") + " " +
-				                        std::to_string(arc.at("bearing_mdeg").get<std::int64_t>() / 1000));
+		if (fire_arcs_ && layout_.is_object())
+			for (const auto &widget : layout_.at("widgets"))
+				if (widget.value("kind", "") == "radar")
+					for (const auto &arc : radar_coverage_groups(borrowed_member(combat, "arcs", true), widget))
+					{
+						std::string label;
+						for (const auto &member : arc.at("members"))
+						{
+							if (!label.empty())
+								label += ", ";
+							label += localise(member.at("label").get<std::string>());
+						}
+						if (arc.at("members").size() > 1)
+							label += " (" + std::to_string(arc.at("members").size()) + ")";
+						result.emplace_back(
+						    "arc." + widget.at("id").get<std::string>() + "." + arc.at("id").get<std::string>(),
+						    label + ": " + localise("Fire arc") + " " +
+						        std::to_string(arc.at("arc_mdeg").get<std::int64_t>() / 1000) + "; " +
+						        localise("Bearing") + " " +
+						        std::to_string(arc.at("bearing_mdeg").get<std::int64_t>() / 1000) + "; " +
+						        localise(arc.at("disabled").get<bool>() ? "Disabled" : "Operational"));
+					}
 	}
 	for (const auto &shield : borrowed_member(combat, "shields", true))
 		result.emplace_back("shield." + shield.value("component_id", shield.at("id").get<std::string>()),

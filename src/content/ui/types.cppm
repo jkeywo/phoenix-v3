@@ -18,6 +18,8 @@ export import phoenix.content.catalog;
 
 export namespace phoenix
 {
+Json radar_coverage_groups(const Json &arcs, const Json &settings);
+
 // Presentation-only definitions. Components refer to existing permitted widgets/panels.
 struct UiRect
 {

@@ -70,6 +70,7 @@ struct FaultDefinition
 };
 struct AmmunitionDefinition
 {
+	std::optional<bool> radar_coverage;
 	std::int64_t interval = 1, load_ticks = 0;
 	ProjectileDefinition projectile;
 };
@@ -115,6 +116,8 @@ struct ReserveDefinition
 };
 struct WeaponDefinition
 {
+	std::string radar_coverage = "legacy", coverage_label;
+	bool coverage_when_enabled = false;
 	AmmunitionDefinition ammunition;
 	std::string turret, muzzle_marker, family = "projectile";
 	std::int64_t ammo_use = 1, range = 0, beam_damage = 0, standby_energy = 0;

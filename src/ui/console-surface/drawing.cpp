@@ -293,6 +293,9 @@ void ConsoleSurface::State::draw(const ConsoleRegion &region)
 									settings["selection_source"] = w.value("selection_source", "sensors");
 									settings["selection_tokens"] = active_theme_.value("tokens", Json::object());
 									settings["fire_arcs"] = w.value("fire_arcs", false) && model_.fire_arcs_visible();
+									settings["sensor_arcs"] = w.value("sensor_arcs", true);
+									if (w.contains("weapon_arcs"))
+										settings["weapon_arcs"] = w.at("weapon_arcs");
 								}
 						settings["contact_arcs"] = model_.contact_arcs_visible();
 						bearing_colour = radar_selection_colour(app_->session->catalog(),

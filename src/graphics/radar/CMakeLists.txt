@@ -2,7 +2,13 @@ add_library(phoenix_graphics_radar STATIC icons.cpp radar_sweep.cpp plots.cpp)
 target_sources(phoenix_graphics_radar PUBLIC FILE_SET CXX_MODULES FILES radar.cppm)
 target_link_libraries(
 	phoenix_graphics_radar
-	PUBLIC phoenix_content_catalog phoenix_graphics_assets phoenix_graphics_geometry phoenix_application_preferences raylib
+	PUBLIC
+		phoenix_content_ui
+		phoenix_content_catalog
+		phoenix_graphics_assets
+		phoenix_graphics_geometry
+		phoenix_application_preferences
+		raylib
 )
 
 target_link_libraries(phoenix_graphics_radar PUBLIC phoenix_content_catalog)

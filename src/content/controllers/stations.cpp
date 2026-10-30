@@ -226,6 +226,11 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 					continue;
 				}
 				const auto kind = widget.at("kind").get<std::string>();
+				if (widget.contains("weapon_arcs"))
+					for (const auto &id : widget.at("weapon_arcs"))
+						if (!id.is_string() || !types.contains(id.get<std::string>()) ||
+						    types.at(id.get<std::string>()) != OperatingSystem::Weapon)
+							fail("weapon_arcs names an unfitted weapon");
 				if (kind == "throttle" || kind == "heading" || kind == "radar")
 				{
 					const auto type = kind == "throttle"  ? OperatingSystem::Engine

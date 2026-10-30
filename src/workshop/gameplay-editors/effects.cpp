@@ -386,6 +386,14 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        auto &ammo = resource["ammunition"];
 			        integer(ammo, "fire_ticks");
 			        integer(ammo, "load_ticks");
+			        if (ammo.contains("radar_coverage"))
+			        {
+				        boolean(ammo, "radar_coverage", true);
+				        if (button("Inherit weapon coverage"))
+					        ammo.erase("radar_coverage");
+			        }
+			        else if (button("Override radar coverage"))
+				        ammo["radar_coverage"] = true;
 			        if (ammo.contains("projectile"))
 				        projectile_fields(ammo["projectile"]);
 			        else if (button("Add ammunition projectile"))

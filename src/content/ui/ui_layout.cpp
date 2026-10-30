@@ -15,6 +15,42 @@ import phoenix.content.image_codec;
 
 namespace phoenix
 {
+Json radar_coverage_groups(const Json &arcs, const Json &settings)
+{
+	Json groups = Json::array();
+	if (!settings.value("fire_arcs", false))
+		return groups;
+	for (const auto &source : arcs)
+	{
+		if (settings.contains("weapon_arcs") &&
+		    std::find(settings.at("weapon_arcs").begin(), settings.at("weapon_arcs").end(), source.at("id")) ==
+		        settings.at("weapon_arcs").end())
+			continue;
+		auto arc = source;
+		const bool coverage = arc.value("coverage", false);
+		if (coverage)
+			arc["bearing_mdeg"] = arc.at("arc_mdeg") == 360000 ? Json(0) : arc.at("rest_mdeg");
+		auto group = std::find_if(groups.begin(), groups.end(),
+		                          [&](const auto &candidate)
+		                          {
+			                          return coverage && candidate.value("coverage", false) &&
+			                                 candidate.at("arc_mdeg") == arc.at("arc_mdeg") &&
+			                                 candidate.at("bearing_mdeg") == arc.at("bearing_mdeg") &&
+			                                 candidate.value("family", "") == arc.value("family", "") &&
+			                                 candidate.at("disabled") == arc.at("disabled") &&
+			                                 candidate.at("active") == arc.at("active");
+		                          });
+		const Json member{{"id", arc.at("id")}, {"label", arc.value("label", arc.at("id").get<std::string>())}};
+		if (group == groups.end())
+		{
+			arc["members"] = Json::array({member});
+			groups.push_back(std::move(arc));
+		}
+		else
+			(*group)["members"].push_back(member);
+	}
+	return groups;
+}
 namespace
 {
 void ui_require(bool valid, const std::string &path, const std::string &reason)

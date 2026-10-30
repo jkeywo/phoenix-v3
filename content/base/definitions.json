@@ -463,7 +463,7 @@
 				"top": {
 					"kind": "turret",
 					"compartment": "mid-port",
-					"arc_mdeg": 270000,
+					"arc_mdeg": 360000,
 					"traverse_mdeg_s": 80000,
 					"marker": "turret_top",
 					"visual": "base.courier-turret",
@@ -534,12 +534,14 @@
 					"directed": {
 						"modes": ["base.armed-courier.top-gun.launch"],
 						"targeting": ["base.targeting.designated"]
-					}
+					},
+					"radar_coverage": "coverage",
+					"coverage_label": "Top Gun"
 				},
 				"bottom": {
 					"kind": "turret",
 					"compartment": "mid-starboard",
-					"arc_mdeg": 300000,
+					"arc_mdeg": 360000,
 					"traverse_mdeg_s": 80000,
 					"marker": "turret_bottom",
 					"visual": "base.courier-turret",
@@ -610,96 +612,9 @@
 					"directed": {
 						"modes": ["base.armed-courier.top-gun.launch"],
 						"targeting": ["base.targeting.designated"]
-					}
-				},
-				"forward-mag": {
-					"kind": "magazine",
-					"compartment": "bow-port",
-					"observation_console": "tactical",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					],
-					"stock": {
-						"capacity_tag": "ammo",
-						"capacity": 4,
-						"filter": {
-							"resources": ["base.ammunition.generic"]
-						},
-						"single_resource": true,
-						"selection": "base.ammunition.generic",
-						"initial": {
-							"base.ammunition.generic": 4
-						}
 					},
-					"processor": {
-						"recipe": "base.recipe.generic.batch4.work100",
-						"mode": "batch",
-						"work_per_second": 20,
-						"energy_per_second": 0
-					},
-					"processes": {
-						"processor": {
-							"process": "base.process.processor"
-						}
-					}
-				},
-				"forward-gun": {
-					"kind": "weapon",
-					"compartment": "bow-port",
-					"arc_mdeg": 10000,
-					"magazine": "forward-mag",
-					"observation_console": "tactical",
-					"x_mm": 12000,
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Weapon feed damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Weapon feed destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					],
-					"muzzle_marker": "muzzle",
-					"directed": {
-						"modes": ["base.armed-courier.forward-gun.launch"],
-						"targeting": ["base.targeting.designated"]
-					}
+					"radar_coverage": "coverage",
+					"coverage_label": "Bottom Gun"
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -750,7 +665,9 @@
 					"directed": {
 						"modes": ["base.armed-courier.beam.beam"],
 						"targeting": ["base.targeting.designated"]
-					}
+					},
+					"radar_coverage": "coverage",
+					"coverage_label": "Beam Laser"
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -818,15 +735,15 @@
 				"havok-mag": {
 					"template": "base.equipment.combat-havok-mag"
 				},
-				"missile-launcher": {
-					"template": "base.equipment.combat-missile-launcher"
-				},
 				"pdc-mag": {
 					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
 					"template": "base.equipment.combat-pdc",
-					"turret": "pdc-turret"
+					"turret": "pdc-turret",
+					"radar_coverage": "coverage",
+					"coverage_label": "PDC",
+					"coverage_when_enabled": true
 				},
 				"comms-radio": {
 					"kind": "comms",
@@ -1056,6 +973,16 @@
 					"cooling_link": "impulse-cooling",
 					"compartment": "stern-port",
 					"observation_console": "support"
+				},
+				"torpedo-1": {
+					"template": "base.equipment.combat-missile-launcher",
+					"radar_coverage": "coverage",
+					"coverage_label": "Torpedo Tube 1"
+				},
+				"torpedo-2": {
+					"template": "base.equipment.combat-missile-launcher",
+					"radar_coverage": "coverage",
+					"coverage_label": "Torpedo Tube 2"
 				}
 			},
 			"stations": [
@@ -1076,8 +1003,6 @@
 								"bottom",
 								"bottom-mag",
 								"bottom-gun",
-								"forward-mag",
-								"forward-gun",
 								"team-1",
 								"team-2",
 								"reactor",
@@ -1088,7 +1013,8 @@
 								"shield-aft",
 								"homing-mag",
 								"havok-mag",
-								"missile-launcher",
+								"torpedo-1",
+								"torpedo-2",
 								"pdc-mag",
 								"pdc",
 								"dispatch",
@@ -1114,12 +1040,11 @@
 								"bottom",
 								"bottom-mag",
 								"bottom-gun",
-								"forward-mag",
-								"forward-gun",
 								"beam",
 								"homing-mag",
 								"havok-mag",
-								"missile-launcher",
+								"torpedo-1",
+								"torpedo-2",
 								"pdc-mag",
 								"pdc",
 								"focused-scanner",
@@ -1148,8 +1073,6 @@
 								"bottom",
 								"bottom-mag",
 								"bottom-gun",
-								"forward-mag",
-								"forward-gun",
 								"team-1",
 								"team-2",
 								"reactor",
@@ -1160,7 +1083,8 @@
 								"shield-aft",
 								"homing-mag",
 								"havok-mag",
-								"missile-launcher",
+								"torpedo-1",
+								"torpedo-2",
 								"pdc-mag",
 								"pdc",
 								"ftl.supply",
@@ -1329,32 +1253,6 @@
 						}
 					},
 					{
-						"id": "forward-mag",
-						"console": "tactical",
-						"widget": "base.widget.courier.tactical.forward-mag",
-						"equipment": {
-							"equipment": "forward-mag"
-						},
-						"star_levels": {
-							"1": "automated",
-							"2": "automated",
-							"3": "responsibility1"
-						}
-					},
-					{
-						"id": "forward-gun",
-						"console": "tactical",
-						"widget": "base.widget.courier.tactical.forward-gun",
-						"equipment": {
-							"equipment": "forward-gun"
-						},
-						"star_levels": {
-							"1": "responsibility1",
-							"2": "responsibility1",
-							"3": "responsibility1"
-						}
-					},
-					{
 						"id": "team-1",
 						"console": "support",
 						"widget": "base.widget.courier.support.team-1",
@@ -1481,20 +1379,6 @@
 						"star_levels": {
 							"1": "automated",
 							"2": "automated",
-							"3": "responsibility1"
-						}
-					},
-					{
-						"id": "missile-launcher",
-						"console": "tactical",
-						"widget": "base.widget.courier.tactical.missile-launcher",
-						"equipment": {
-							"equipment": "missile-launcher",
-							"equipment2": ["havok-mag", "homing-mag"]
-						},
-						"star_levels": {
-							"1": "responsibility1",
-							"2": "responsibility1",
 							"3": "responsibility1"
 						}
 					},
@@ -1706,19 +1590,6 @@
 						}
 					},
 					{
-						"id": "forward-gun.settings",
-						"console": "tactical",
-						"widget": "base.widget.courier.tactical.forward-gun.settings",
-						"equipment": {
-							"equipment": "forward-gun"
-						},
-						"star_levels": {
-							"1": "automated",
-							"2": "automated",
-							"3": "responsibility1"
-						}
-					},
-					{
 						"id": "beam.settings",
 						"console": "tactical",
 						"widget": "base.widget.courier.tactical.beam.settings",
@@ -1729,34 +1600,6 @@
 							"1": "automated",
 							"2": "automated",
 							"3": "responsibility1"
-						}
-					},
-					{
-						"id": "missile-launcher.settings",
-						"console": "tactical",
-						"widget": "base.widget.courier.tactical.missile-launcher.settings",
-						"equipment": {
-							"equipment": "missile-launcher",
-							"equipment2": ["havok-mag", "homing-mag"]
-						},
-						"star_levels": {
-							"1": "automated",
-							"2": "automated",
-							"3": "responsibility1"
-						}
-					},
-					{
-						"id": "missile-launcher.ammo",
-						"console": "tactical",
-						"widget": "base.widget.courier.tactical.missile-launcher.ammo",
-						"equipment": {
-							"equipment": "missile-launcher",
-							"equipment2": ["havok-mag", "homing-mag"]
-						},
-						"star_levels": {
-							"1": "assisted",
-							"2": "manual",
-							"3": "manual"
 						}
 					},
 					{
@@ -2037,6 +1880,90 @@
 							"1": "automated",
 							"2": "automated",
 							"3": "responsibility1"
+						}
+					},
+					{
+						"id": "torpedo-1",
+						"console": "tactical",
+						"widget": "base.widget.courier.tactical.torpedo-1",
+						"equipment": {
+							"equipment": "torpedo-1",
+							"equipment2": ["havok-mag", "homing-mag"]
+						},
+						"star_levels": {
+							"1": "responsibility1",
+							"2": "responsibility1",
+							"3": "responsibility1"
+						}
+					},
+					{
+						"id": "torpedo-2",
+						"console": "tactical",
+						"widget": "base.widget.courier.tactical.torpedo-2",
+						"equipment": {
+							"equipment": "torpedo-2",
+							"equipment2": ["havok-mag", "homing-mag"]
+						},
+						"star_levels": {
+							"1": "responsibility1",
+							"2": "responsibility1",
+							"3": "responsibility1"
+						}
+					},
+					{
+						"id": "torpedo-1.settings",
+						"console": "tactical",
+						"widget": "base.widget.courier.tactical.torpedo-1.settings",
+						"equipment": {
+							"equipment": "torpedo-1",
+							"equipment2": ["havok-mag", "homing-mag"]
+						},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "responsibility1"
+						}
+					},
+					{
+						"id": "torpedo-2.settings",
+						"console": "tactical",
+						"widget": "base.widget.courier.tactical.torpedo-2.settings",
+						"equipment": {
+							"equipment": "torpedo-2",
+							"equipment2": ["havok-mag", "homing-mag"]
+						},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "responsibility1"
+						}
+					},
+					{
+						"id": "torpedo-1.ammo",
+						"console": "tactical",
+						"widget": "base.widget.courier.tactical.torpedo-1.ammo",
+						"equipment": {
+							"equipment": "torpedo-1",
+							"equipment2": ["havok-mag", "homing-mag"]
+						},
+						"star_levels": {
+							"1": "assisted",
+							"2": "manual",
+							"3": "manual"
+						}
+					},
+					{
+						"id": "torpedo-2.ammo",
+						"console": "tactical",
+						"widget": "base.widget.courier.tactical.torpedo-2.ammo",
+						"equipment": {
+							"equipment": "torpedo-2",
+							"equipment2": ["havok-mag", "homing-mag"]
+						},
+						"star_levels": {
+							"1": "assisted",
+							"2": "manual",
+							"3": "manual"
 						}
 					}
 				],
@@ -2510,26 +2437,6 @@
 						}
 					},
 					{
-						"id": "forward-mag",
-						"label": "Forward Mag",
-						"department": "tactical",
-						"controller": "forward-mag",
-						"compartment": "bow-port",
-						"bindings": {
-							"forward-mag": ["reload"]
-						}
-					},
-					{
-						"id": "forward-gun",
-						"label": "Forward Gun",
-						"department": "tactical",
-						"controller": "forward-gun",
-						"compartment": "bow-port",
-						"bindings": {
-							"forward-gun": ["cycling"]
-						}
-					},
-					{
 						"id": "team-1",
 						"label": "Team 1",
 						"department": "engineering",
@@ -2621,16 +2528,6 @@
 						"compartment": "mid-port",
 						"bindings": {
 							"havok-mag": ["reload"]
-						}
-					},
-					{
-						"id": "missile-launcher",
-						"label": "Missile Launcher",
-						"department": "tactical",
-						"controller": "missile-launcher",
-						"compartment": "mid-port",
-						"bindings": {
-							"missile-launcher": ["cycling"]
 						}
 					},
 					{
@@ -2818,37 +2715,10 @@
 						"bindings": {}
 					},
 					{
-						"id": "forward-gun.settings",
-						"label": "forward-gun.settings",
-						"department": "tactical",
-						"controller": "forward-gun.settings",
-						"console": "tactical",
-						"compartment": "bow-port",
-						"bindings": {}
-					},
-					{
 						"id": "beam.settings",
 						"label": "beam.settings",
 						"department": "tactical",
 						"controller": "beam.settings",
-						"console": "tactical",
-						"compartment": "mid-port",
-						"bindings": {}
-					},
-					{
-						"id": "missile-launcher.settings",
-						"label": "missile-launcher.settings",
-						"department": "tactical",
-						"controller": "missile-launcher.settings",
-						"console": "tactical",
-						"compartment": "mid-port",
-						"bindings": {}
-					},
-					{
-						"id": "missile-launcher.ammo",
-						"label": "missile-launcher.ammo",
-						"department": "tactical",
-						"controller": "missile-launcher.ammo",
 						"console": "tactical",
 						"compartment": "mid-port",
 						"bindings": {}
@@ -3063,6 +2933,62 @@
 						"department": "engineering",
 						"controller": "impulse-cooling",
 						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "torpedo-1",
+						"label": "Torpedo Tube 1",
+						"department": "tactical",
+						"controller": "torpedo-1",
+						"compartment": "mid-port",
+						"bindings": {
+							"torpedo-1": ["cycling"]
+						}
+					},
+					{
+						"id": "torpedo-2",
+						"label": "Torpedo Tube 2",
+						"department": "tactical",
+						"controller": "torpedo-2",
+						"compartment": "mid-port",
+						"bindings": {
+							"torpedo-2": ["cycling"]
+						}
+					},
+					{
+						"id": "torpedo-1.settings",
+						"label": "torpedo-1.settings",
+						"department": "tactical",
+						"controller": "torpedo-1.settings",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "torpedo-2.settings",
+						"label": "torpedo-2.settings",
+						"department": "tactical",
+						"controller": "torpedo-2.settings",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "torpedo-1.ammo",
+						"label": "torpedo-1.ammo",
+						"department": "tactical",
+						"controller": "torpedo-1.ammo",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "torpedo-2.ammo",
+						"label": "torpedo-2.ammo",
+						"department": "tactical",
+						"controller": "torpedo-2.ammo",
+						"console": "tactical",
+						"compartment": "mid-port",
 						"bindings": {}
 					}
 				],
@@ -21710,8 +21636,6 @@
 											"bottom",
 											"bottom-mag",
 											"bottom-gun",
-											"forward-mag",
-											"forward-gun",
 											"team-1",
 											"team-2",
 											"reactor",
@@ -21722,7 +21646,8 @@
 											"shield-aft",
 											"homing-mag",
 											"havok-mag",
-											"missile-launcher",
+											"torpedo-1",
+											"torpedo-2",
 											"pdc-mag",
 											"pdc"
 										],
@@ -21742,12 +21667,11 @@
 											"bottom",
 											"bottom-mag",
 											"bottom-gun",
-											"forward-mag",
-											"forward-gun",
 											"beam",
 											"homing-mag",
 											"havok-mag",
-											"missile-launcher",
+											"torpedo-1",
+											"torpedo-2",
 											"pdc-mag",
 											"pdc",
 											"occupation"
@@ -21772,8 +21696,6 @@
 											"bottom",
 											"bottom-mag",
 											"bottom-gun",
-											"forward-mag",
-											"forward-gun",
 											"team-1",
 											"team-2",
 											"reactor",
@@ -21784,7 +21706,8 @@
 											"shield-aft",
 											"homing-mag",
 											"havok-mag",
-											"missile-launcher",
+											"torpedo-1",
+											"torpedo-2",
 											"pdc-mag",
 											"pdc",
 											"ftl.supply",
@@ -21930,32 +21853,6 @@
 									}
 								},
 								{
-									"id": "forward-mag",
-									"console": "tactical",
-									"widget": "base.widget.2dd0624849975aef",
-									"equipment": {
-										"equipment": "forward-mag"
-									},
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
-									"id": "forward-gun",
-									"console": "tactical",
-									"widget": "base.widget.bdec8f2f3d2f57a1",
-									"equipment": {
-										"equipment": "forward-gun"
-									},
-									"star_levels": {
-										"1": "responsibility1",
-										"2": "responsibility1",
-										"3": "responsibility1"
-									}
-								},
-								{
 									"id": "team-1",
 									"console": "support",
 									"widget": "base.widget.0bffe22667a60379",
@@ -22086,11 +21983,25 @@
 									}
 								},
 								{
-									"id": "missile-launcher",
+									"id": "torpedo-1",
 									"console": "tactical",
 									"widget": "base.widget.03d4f92fd4a2c769",
 									"equipment": {
-										"equipment": "missile-launcher",
+										"equipment": "torpedo-1",
+										"equipment2": ["havok-mag", "homing-mag"]
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
+								},
+								{
+									"id": "torpedo-2",
+									"console": "tactical",
+									"widget": "base.widget.03d4f92fd4a2c769",
+									"equipment": {
+										"equipment": "torpedo-2",
 										"equipment2": ["havok-mag", "homing-mag"]
 									},
 									"star_levels": {
@@ -22624,26 +22535,6 @@
 									}
 								},
 								{
-									"id": "forward-mag",
-									"label": "Forward Mag",
-									"department": "tactical",
-									"controller": "forward-mag",
-									"compartment": "bow-port",
-									"bindings": {
-										"forward-mag": ["reload"]
-									}
-								},
-								{
-									"id": "forward-gun",
-									"label": "Forward Gun",
-									"department": "tactical",
-									"controller": "forward-gun",
-									"compartment": "bow-port",
-									"bindings": {
-										"forward-gun": ["cycling"]
-									}
-								},
-								{
 									"id": "team-1",
 									"label": "Team 1",
 									"department": "engineering",
@@ -22738,13 +22629,23 @@
 									}
 								},
 								{
-									"id": "missile-launcher",
-									"label": "Missile Launcher",
+									"id": "torpedo-1",
+									"label": "Torpedo Tube 1",
 									"department": "tactical",
-									"controller": "missile-launcher",
+									"controller": "torpedo-1",
 									"compartment": "mid-port",
 									"bindings": {
-										"missile-launcher": ["cycling"]
+										"torpedo-1": ["cycling"]
+									}
+								},
+								{
+									"id": "torpedo-2",
+									"label": "Torpedo Tube 2",
+									"department": "tactical",
+									"controller": "torpedo-2",
+									"compartment": "mid-port",
+									"bindings": {
+										"torpedo-2": ["cycling"]
 									}
 								},
 								{
@@ -48648,24 +48549,6 @@
 									"stretch": 1
 								},
 								{
-									"id": "widget-forward-mag",
-									"kind": "component",
-									"component": "control/tactical/forward-mag/complete",
-									"label": "forward-mag",
-									"min_height": 160,
-									"height": 0,
-									"stretch": 1
-								},
-								{
-									"id": "widget-forward-gun",
-									"kind": "component",
-									"component": "control/tactical/forward-gun/complete",
-									"label": "forward-gun",
-									"min_height": 160,
-									"height": 0,
-									"stretch": 1
-								},
-								{
 									"id": "widget-beam",
 									"kind": "component",
 									"component": "control/tactical/beam/complete",
@@ -48693,10 +48576,19 @@
 									"stretch": 1
 								},
 								{
-									"id": "widget-missile-launcher",
+									"id": "widget-torpedo-1",
 									"kind": "component",
-									"component": "control/tactical/missile-launcher/complete",
-									"label": "missile-launcher",
+									"component": "control/tactical/torpedo-1/complete",
+									"label": "torpedo-1",
+									"min_height": 160,
+									"height": 0,
+									"stretch": 1
+								},
+								{
+									"id": "widget-torpedo-2",
+									"kind": "component",
+									"component": "control/tactical/torpedo-2/complete",
+									"label": "torpedo-2",
 									"min_height": 160,
 									"height": 0,
 									"stretch": 1
@@ -48942,24 +48834,6 @@
 									"stretch": 1
 								},
 								{
-									"id": "widget-forward-mag",
-									"kind": "component",
-									"component": "control/tactical/forward-mag/complete",
-									"label": "forward-mag",
-									"min_height": 160,
-									"height": 0,
-									"stretch": 1
-								},
-								{
-									"id": "widget-forward-gun",
-									"kind": "component",
-									"component": "control/tactical/forward-gun/complete",
-									"label": "forward-gun",
-									"min_height": 160,
-									"height": 0,
-									"stretch": 1
-								},
-								{
 									"id": "widget-beam",
 									"kind": "component",
 									"component": "control/tactical/beam/complete",
@@ -48987,10 +48861,19 @@
 									"stretch": 1
 								},
 								{
-									"id": "widget-missile-launcher",
+									"id": "widget-torpedo-1",
 									"kind": "component",
-									"component": "control/tactical/missile-launcher/complete",
-									"label": "missile-launcher",
+									"component": "control/tactical/torpedo-1/complete",
+									"label": "torpedo-1",
+									"min_height": 160,
+									"height": 0,
+									"stretch": 1
+								},
+								{
+									"id": "widget-torpedo-2",
+									"kind": "component",
+									"component": "control/tactical/torpedo-2/complete",
+									"label": "torpedo-2",
 									"min_height": 160,
 									"height": 0,
 									"stretch": 1
@@ -49089,17 +48972,11 @@
 							"station.granted-tactical.widget-bottom": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-bottom-mag": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-bottom-gun": ["flight", "docking", "weapons", "dispatch"],
-							"station.granted-tactical.widget-forward-mag": ["flight", "docking", "weapons", "dispatch"],
-							"station.granted-tactical.widget-forward-gun": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-beam": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-homing-mag": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-havok-mag": ["flight", "docking", "weapons", "dispatch"],
-							"station.granted-tactical.widget-missile-launcher": [
-								"flight",
-								"docking",
-								"weapons",
-								"dispatch"
-							],
+							"station.granted-tactical.widget-torpedo-1": ["flight", "docking", "weapons", "dispatch"],
+							"station.granted-tactical.widget-torpedo-2": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-pdc-mag": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-pdc": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-occupation": ["flight", "docking", "weapons", "dispatch"],
@@ -49155,17 +49032,11 @@
 							"station.granted-tactical.widget-bottom": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-bottom-mag": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-bottom-gun": ["flight", "docking", "weapons", "dispatch"],
-							"station.granted-tactical.widget-forward-mag": ["flight", "docking", "weapons", "dispatch"],
-							"station.granted-tactical.widget-forward-gun": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-beam": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-homing-mag": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-havok-mag": ["flight", "docking", "weapons", "dispatch"],
-							"station.granted-tactical.widget-missile-launcher": [
-								"flight",
-								"docking",
-								"weapons",
-								"dispatch"
-							],
+							"station.granted-tactical.widget-torpedo-1": ["flight", "docking", "weapons", "dispatch"],
+							"station.granted-tactical.widget-torpedo-2": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-pdc-mag": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-pdc": ["flight", "docking", "weapons", "dispatch"],
 							"station.granted-tactical.widget-occupation": ["flight", "docking", "weapons", "dispatch"],
@@ -49294,20 +49165,6 @@
 								"dispatch",
 								"personnel"
 							],
-							"station.granted-tactical.widget-forward-mag": [
-								"flight",
-								"docking",
-								"weapons",
-								"dispatch",
-								"personnel"
-							],
-							"station.granted-tactical.widget-forward-gun": [
-								"flight",
-								"docking",
-								"weapons",
-								"dispatch",
-								"personnel"
-							],
 							"station.granted-tactical.widget-beam": [
 								"flight",
 								"docking",
@@ -49329,7 +49186,14 @@
 								"dispatch",
 								"personnel"
 							],
-							"station.granted-tactical.widget-missile-launcher": [
+							"station.granted-tactical.widget-torpedo-1": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.granted-tactical.widget-torpedo-2": [
 								"flight",
 								"docking",
 								"weapons",
@@ -49499,24 +49363,6 @@
 									"stretch": 0
 								},
 								{
-									"id": "widget-forward-mag",
-									"kind": "component",
-									"component": "control/forward-mag/complete",
-									"label": "forward-mag",
-									"min_height": 160,
-									"height": 220,
-									"stretch": 0
-								},
-								{
-									"id": "widget-forward-gun",
-									"kind": "component",
-									"component": "control/forward-gun/complete",
-									"label": "forward-gun",
-									"min_height": 160,
-									"height": 220,
-									"stretch": 0
-								},
-								{
 									"id": "widget-beam",
 									"kind": "component",
 									"component": "control/beam/complete",
@@ -49544,10 +49390,19 @@
 									"stretch": 0
 								},
 								{
-									"id": "widget-missile-launcher",
+									"id": "widget-torpedo-1",
 									"kind": "component",
-									"component": "control/missile-launcher/complete",
-									"label": "missile-launcher",
+									"component": "control/torpedo-1/complete",
+									"label": "torpedo-1",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-torpedo-2",
+									"kind": "component",
+									"component": "control/torpedo-2/complete",
+									"label": "torpedo-2",
 									"min_height": 160,
 									"height": 220,
 									"stretch": 0
@@ -49759,24 +49614,6 @@
 									"stretch": 0
 								},
 								{
-									"id": "widget-forward-mag",
-									"kind": "component",
-									"component": "control/forward-mag/complete",
-									"label": "forward-mag",
-									"min_height": 160,
-									"height": 220,
-									"stretch": 0
-								},
-								{
-									"id": "widget-forward-gun",
-									"kind": "component",
-									"component": "control/forward-gun/complete",
-									"label": "forward-gun",
-									"min_height": 160,
-									"height": 220,
-									"stretch": 0
-								},
-								{
 									"id": "widget-beam",
 									"kind": "component",
 									"component": "control/beam/complete",
@@ -49804,10 +49641,19 @@
 									"stretch": 0
 								},
 								{
-									"id": "widget-missile-launcher",
+									"id": "widget-torpedo-1",
 									"kind": "component",
-									"component": "control/missile-launcher/complete",
-									"label": "missile-launcher",
+									"component": "control/torpedo-1/complete",
+									"label": "torpedo-1",
+									"min_height": 160,
+									"height": 220,
+									"stretch": 0
+								},
+								{
+									"id": "widget-torpedo-2",
+									"kind": "component",
+									"component": "control/torpedo-2/complete",
+									"label": "torpedo-2",
 									"min_height": 160,
 									"height": 220,
 									"stretch": 0
@@ -51579,7 +51425,9 @@
 					"width": 1000,
 					"height": 1000,
 					"fire_arcs": true,
-					"selection_source": "tactical"
+					"selection_source": "tactical",
+					"weapon_arcs": ["top-gun", "bottom-gun", "beam", "torpedo-1", "torpedo-2", "pdc"],
+					"sensor_arcs": false
 				},
 				{
 					"id": "throttle",
@@ -51649,8 +51497,6 @@
 														"control/tactical/bottom/presentation",
 														"control/tactical/bottom-mag/presentation",
 														"control/tactical/bottom-gun/presentation",
-														"control/tactical/forward-mag/presentation",
-														"control/tactical/forward-gun/presentation",
 														"control/tactical/beam/presentation",
 														"control/tactical/pdc-mag/presentation",
 														"control/tactical/pdc/presentation",
@@ -51659,7 +51505,6 @@
 														"control/tactical/scanner.ready/presentation",
 														"control/tactical/top-gun.settings/presentation",
 														"control/tactical/bottom-gun.settings/presentation",
-														"control/tactical/forward-gun.settings/presentation",
 														"control/tactical/beam.settings/presentation",
 														"control/tactical/pdc.settings/presentation"
 													],
@@ -51673,9 +51518,12 @@
 													"widget_parts": [
 														"control/tactical/homing-mag/presentation",
 														"control/tactical/havok-mag/presentation",
-														"control/tactical/missile-launcher/presentation",
-														"control/tactical/missile-launcher.settings/presentation",
-														"control/tactical/missile-launcher.ammo/presentation"
+														"control/tactical/torpedo-1/presentation",
+														"control/tactical/torpedo-2/presentation",
+														"control/tactical/torpedo-1.settings/presentation",
+														"control/tactical/torpedo-2.settings/presentation",
+														"control/tactical/torpedo-1.ammo/presentation",
+														"control/tactical/torpedo-2.ammo/presentation"
 													],
 													"min_height": 44,
 													"stretch": 0
@@ -51858,8 +51706,6 @@
 														"control/tactical/bottom/presentation",
 														"control/tactical/bottom-mag/presentation",
 														"control/tactical/bottom-gun/presentation",
-														"control/tactical/forward-mag/presentation",
-														"control/tactical/forward-gun/presentation",
 														"control/tactical/beam/presentation",
 														"control/tactical/pdc-mag/presentation",
 														"control/tactical/pdc/presentation",
@@ -51868,7 +51714,6 @@
 														"control/tactical/scanner.ready/presentation",
 														"control/tactical/top-gun.settings/presentation",
 														"control/tactical/bottom-gun.settings/presentation",
-														"control/tactical/forward-gun.settings/presentation",
 														"control/tactical/beam.settings/presentation",
 														"control/tactical/pdc.settings/presentation"
 													],
@@ -51882,9 +51727,12 @@
 													"widget_parts": [
 														"control/tactical/homing-mag/presentation",
 														"control/tactical/havok-mag/presentation",
-														"control/tactical/missile-launcher/presentation",
-														"control/tactical/missile-launcher.settings/presentation",
-														"control/tactical/missile-launcher.ammo/presentation"
+														"control/tactical/torpedo-1/presentation",
+														"control/tactical/torpedo-2/presentation",
+														"control/tactical/torpedo-1.settings/presentation",
+														"control/tactical/torpedo-2.settings/presentation",
+														"control/tactical/torpedo-1.ammo/presentation",
+														"control/tactical/torpedo-2.ammo/presentation"
 													],
 													"min_height": 44,
 													"stretch": 0
@@ -52234,7 +52082,9 @@
 					"width": 1000,
 					"height": 1000,
 					"fire_arcs": true,
-					"selection_source": "tactical"
+					"selection_source": "tactical",
+					"weapon_arcs": ["top-gun", "bottom-gun", "beam", "torpedo-1", "torpedo-2", "pdc"],
+					"sensor_arcs": true
 				}
 			],
 			"gameplay_panel": {
@@ -52260,8 +52110,6 @@
 								"control/bottom/presentation",
 								"control/bottom-mag/presentation",
 								"control/bottom-gun/presentation",
-								"control/forward-mag/presentation",
-								"control/forward-gun/presentation",
 								"control/beam/presentation",
 								"control/pdc-mag/presentation",
 								"control/pdc/presentation",
@@ -52270,7 +52118,6 @@
 								"control/scanner.ready/presentation",
 								"control/top-gun.settings/presentation",
 								"control/bottom-gun.settings/presentation",
-								"control/forward-gun.settings/presentation",
 								"control/beam.settings/presentation",
 								"control/pdc.settings/presentation"
 							]
@@ -52282,9 +52129,12 @@
 							"widget_parts": [
 								"control/homing-mag/presentation",
 								"control/havok-mag/presentation",
-								"control/missile-launcher/presentation",
-								"control/missile-launcher.settings/presentation",
-								"control/missile-launcher.ammo/presentation"
+								"control/torpedo-1/presentation",
+								"control/torpedo-2/presentation",
+								"control/torpedo-1.settings/presentation",
+								"control/torpedo-2.settings/presentation",
+								"control/torpedo-1.ammo/presentation",
+								"control/torpedo-2.ammo/presentation"
 							]
 						},
 						{
@@ -77526,7 +77376,8 @@
 						"fade_ticks": 10,
 						"size_mm": 10000
 					}
-				}
+				},
+				"radar_coverage": true
 			}
 		},
 		{
@@ -77570,7 +77421,8 @@
 						"fade_ticks": 10,
 						"size_mm": 10000
 					}
-				}
+				},
+				"radar_coverage": false
 			}
 		},
 		{
@@ -77778,7 +77630,8 @@
 						"fade_ticks": 10,
 						"size_mm": 10000
 					}
-				}
+				},
+				"radar_coverage": false
 			}
 		},
 		{
@@ -77822,7 +77675,8 @@
 						"fade_ticks": 10,
 						"size_mm": 10000
 					}
-				}
+				},
+				"radar_coverage": true
 			}
 		},
 		{
@@ -108476,6 +108330,764 @@
 				}
 			],
 			"label": "Impulse Cooling"
+		},
+		{
+			"id": "base.widget.courier.tactical.torpedo-1",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["enabled"],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "Torpedo Tube 1"
+		},
+		{
+			"id": "base.widget.courier.tactical.torpedo-2",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["enabled"],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "Torpedo Tube 2"
+		},
+		{
+			"id": "base.widget.courier.tactical.torpedo-1.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "target",
+					"action": "weapon_target",
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Target"
+				}
+			],
+			"data": {
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["target"],
+					"operations": [],
+					"data": [
+						"target",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "Torpedo Tube 1"
+		},
+		{
+			"id": "base.widget.courier.tactical.torpedo-2.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "target",
+					"action": "weapon_target",
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Target"
+				}
+			],
+			"data": {
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["target"],
+					"operations": [],
+					"data": [
+						"target",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "Torpedo Tube 2"
+		},
+		{
+			"id": "base.widget.courier.tactical.torpedo-1.ammo",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "magazine",
+					"action": "magazine_select",
+					"consumers": ["$equipment"],
+					"label_key": "Magazine"
+				},
+				{
+					"id": "fire",
+					"action": "weapon_fire",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"coordinated_group": "courier.missiles",
+					"label_key": "Fire"
+				}
+			],
+			"data": {
+				"magazine": {
+					"binding": "command.magazine",
+					"label": "Magazine",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.missile-launcher.ammo",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": ["weapon_salvo"]
+				},
+				{
+					"id": "manual",
+					"human": ["weapon_salvo", "magazine"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["magazine", "fire"],
+					"operations": ["weapon_salvo"],
+					"data": [
+						"magazine",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"operations": {
+				"weapon_salvo": ["$equipment"]
+			},
+			"label": "Torpedo Tube 1"
+		},
+		{
+			"id": "base.widget.courier.tactical.torpedo-2.ammo",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "magazine",
+					"action": "magazine_select",
+					"consumers": ["$equipment"],
+					"label_key": "Magazine"
+				},
+				{
+					"id": "fire",
+					"action": "weapon_fire",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"coordinated_group": "courier.missiles",
+					"label_key": "Fire"
+				}
+			],
+			"data": {
+				"magazine": {
+					"binding": "command.magazine",
+					"label": "Magazine",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.missile-launcher.ammo",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": ["weapon_salvo"]
+				},
+				{
+					"id": "manual",
+					"human": ["weapon_salvo", "magazine"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["magazine", "fire"],
+					"operations": ["weapon_salvo"],
+					"data": [
+						"magazine",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"operations": {
+				"weapon_salvo": ["$equipment"]
+			},
+			"label": "Torpedo Tube 2"
 		}
 	]
 }

@@ -798,6 +798,16 @@ void verify_prepared_catalog(const Catalog &catalog, const DirectedCatalog &dire
 				invalid(path + "." + widget_id, "selection_source requires tactical, sensors or waypoint on a radar");
 			if (widget.contains("fire_arcs") && (kind != "radar" || !widget.at("fire_arcs").is_boolean()))
 				invalid(path + "." + widget_id, "fire_arcs requires a radar boolean");
+			if (widget.contains("sensor_arcs") && (kind != "radar" || !widget.at("sensor_arcs").is_boolean()))
+				invalid(path + "." + widget_id, "sensor_arcs requires a radar boolean");
+			if (widget.contains("weapon_arcs"))
+			{
+				if (kind != "radar" || !widget.at("weapon_arcs").is_array())
+					invalid(path + "." + widget_id, "weapon_arcs requires a radar array");
+				for (const auto &id : widget.at("weapon_arcs"))
+					if (!id.is_string() || id.get<std::string>().empty())
+						invalid(path + "." + widget_id, "weapon_arcs requires nonempty equipment identifiers");
+			}
 			if (widget.contains("sweep"))
 			{
 				const auto &sweep = widget.at("sweep");

@@ -22,6 +22,7 @@ export namespace phoenix
 {
 struct SensorDefinition
 {
+	bool radar_arc = true;
 	std::int64_t long_range = 0;
 	std::int64_t arc = 360000, bearing = 0;
 	std::string turret;

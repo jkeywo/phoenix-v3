@@ -19,6 +19,7 @@ import phoenix.ui.preview;
 using namespace phoenix;
 using phoenix::test::require;
 #include "courier_refinement.hpp"
+#include "radar_coverage.hpp"
 
 int main(int argc, char **argv)
 {
@@ -27,7 +28,9 @@ int main(int argc, char **argv)
 	{
 		const bool courier = argc == 8 && std::string(argv[1]) == "--courier";
 		const bool refinement = argc == 8 && std::string(argv[1]) == "--refinement";
-		const bool inspect = argc == 8 && (std::string(argv[1]) == "--inspect" || courier || refinement);
+		const bool radar_coverage = argc == 8 && std::string(argv[1]) == "--radar-coverage";
+		const bool inspect =
+		    argc == 8 && (std::string(argv[1]) == "--inspect" || courier || refinement || radar_coverage);
 		require(argc == 2 || inspect, "usage: phoenix_control_widgets_smoke synthetic-pack.zip | --inspect pack map "
 		                              "slot ship console output-prefix");
 		Application app;
@@ -70,6 +73,12 @@ int main(int argc, char **argv)
 			require(app.session->observation().has_value(), "production Console preparation timed out");
 			require(app.console_surface_active && !app.screen_controls.empty(),
 			        "production Console has no rendered controls");
+			if (radar_coverage)
+			{
+				courier_radar_coverage_smoke(app, argv[7], frames);
+				close_window();
+				return 0;
+			}
 			if (refinement)
 			{
 				courier_refinement_smoke(app, argv[7], frames);

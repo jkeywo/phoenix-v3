@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 import phoenix.content.documents;
+import phoenix.content.ui;
 import phoenix.content.combat;
 import phoenix.content.controllers;
 import phoenix.content.distribution;
@@ -394,6 +395,157 @@ Json missile_fixture(bool defence = false)
 		        {{"target", "weapon_target"}, {"mode", "weapon_mode"}});
 	}
 	return s;
+}
+void radar_coverage_contracts()
+{
+	auto source = missile_fixture(true);
+	auto &ship = source["entities"][0];
+	ship["systems"]["mount"]["arc_mdeg"] = 360000;
+	ship["systems"]["gun"]["radar_coverage"] = "coverage";
+	ship["systems"]["gun"]["coverage_label"] = "Full traverse";
+	ship["systems"]["second"]["radar_coverage"] = "hidden";
+	ship["systems"]["pdc"]["radar_coverage"] = "coverage";
+	ship["systems"]["pdc"]["coverage_when_enabled"] = true;
+	ship["systems"]["radar"]["radar_arc"] = false;
+	add_fit(source, "wide-mag", ship["systems"]["missile-mag"], {});
+	ship["systems"]["launcher"]["magazines"] = {"missile-mag", "wide-mag"};
+	ship["systems"]["launcher"]["radar_coverage"] = "coverage";
+	ship["systems"]["launcher"]["arc_mdeg"] = 30000;
+	ship["systems"]["launcher"]["load_ticks"] = 4;
+	add_fit(source, "second-launcher", ship["systems"]["launcher"],
+	        {{"target", "weapon_target"}, {"magazine", "magazine_select"}});
+	for (auto &owner : ship["control_layout"]["controllers"])
+		if (owner.at("id") == "launcher")
+			owner["commands"].push_back(
+			    {{"id", "magazine"}, {"action", "magazine_select"}, {"consumers", {"launcher"}}});
+	materialise_fixture_resources(source);
+	const auto hidden = ship["systems"]["missile-mag"]["stock"]["selection"];
+	const auto visible = ship["systems"]["wide-mag"]["stock"]["selection"];
+	for (auto &resource : source["resources"])
+		if (resource.at("id") == hidden || resource.at("id") == visible)
+			resource["ammunition"]["radar_coverage"] = resource.at("id") == visible;
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	submit(world, 101, "pdc", "mode", 1);
+	world.tick();
+	const auto arcs = [&]()
+	{
+		return world.observe(101)->gameplay.at("combat").at("arcs");
+	};
+	const auto has = [&](const std::string &id)
+	{
+		const auto rows = arcs();
+		return std::any_of(rows.begin(), rows.end(),
+		                   [&](const auto &a)
+		                   {
+			                   return a.at("id") == id;
+		                   });
+	};
+	require(has("gun") && !has("mount") && !has("second") && !has("launcher") && !has("second-launcher"),
+	        "coverage replaces mount/aim duplicates and honours weapon/ammunition visibility");
+	for (const auto &arc : arcs())
+		if (arc.at("id") == "gun")
+			require(arc.at("arc_mdeg") == 360000 && arc.at("label") == "Full traverse",
+			        "weapon coverage describes full mount traverse, not narrow firing tolerance");
+	require(world.observe(102)->gameplay.at("combat").at("arcs").empty(), "coverage retains console feed boundaries");
+	require(!world.observe(101)->gameplay.at("sensors").at("scanners")[0].at("radar_arc").get<bool>(),
+	        "sensor presentation preference survives production compilation and projection");
+	submit(world, 101, "launcher", "magazine", 1);
+	world.tick();
+	require(has("launcher") && !has("second-launcher"),
+	        "selected ammunition changes coverage independently during loading");
+	submit(world, 101, "second-launcher", "magazine", 1);
+	world.tick();
+	const auto settings = Json{{"fire_arcs", true}, {"weapon_arcs", {"launcher", "second-launcher"}}};
+	const auto groups = radar_coverage_groups(arcs(), settings);
+	require(groups.size() == 1 && groups[0].at("members").size() == 2,
+	        "visual and semantic consumers share grouped equivalent coverage with identifiable members");
+	require(radar_coverage_groups(arcs(), {{"fire_arcs", false}}).empty(), "fire-arc toggle hides shared coverage");
+	require(has("pdc"), "enabled defensive weapon shows coverage");
+	submit(world, 101, "pdc", "enabled", 0);
+	world.tick();
+	require(!has("pdc"), "disabled defensive weapon hides coverage");
+	submit(world, 101, "pdc", "enabled", 1);
+	world.tick();
+	require(has("pdc"), "re-enabled defensive weapon restores coverage");
+	advance(world, 10);
+	require(state(world)["systems"]["launcher"]["loaded_magazine"] == 1 &&
+	            state(world)["systems"]["second-launcher"]["loaded_magazine"] == 1,
+	        "independent tubes load from shared magazine through ordinary stock commitments");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	advance(world, 5);
+	advance(resumed, 5);
+	require(world.save() == resumed.save(), "coverage presentation preserves physical continuation");
+	for (const auto heading : {0, 90000, 180000, 359000})
+	{
+		auto rotated = source;
+		rotated["maps"][0]["entities"][0]["heading_mdeg"] = heading;
+		const auto rotated_catalog = load(rotated);
+		World aft;
+		aft.load(rotated_catalog, "test.map");
+		claim(aft);
+		submit(aft, 101, "gun", "target", 2);
+		advance(aft, 60);
+		require(state(aft)["systems"]["gun"]["shots"].get<int>() > 0,
+		        "full-traverse turret physically engages across aft and wraparound bearings");
+	}
+	for (const auto field : {"sensor_arcs", "weapon_arcs"})
+	{
+		auto invalid = source;
+		invalid["entities"][0]["stations"][0]["consoles"][1]["feeds"] = {"radar"};
+		invalid["consoles"][0]["widgets"] = Json::array({{{"id", "radar"},
+		                                                  {"kind", "radar"},
+		                                                  {"binding", "radar.contacts"},
+		                                                  {"system", "radar"},
+		                                                  {"label", "Radar"},
+		                                                  {"x", 0},
+		                                                  {"y", 0},
+		                                                  {"width", 1000},
+		                                                  {"height", 1000},
+		                                                  {field, 7}}});
+		bool refused = false;
+		try
+		{
+			(void)load(invalid);
+		}
+		catch (const std::exception &error)
+		{
+			refused = std::string(error.what()).find(field) != std::string::npos;
+		}
+		require(refused, "invalid per-console radar filters report their authored field");
+	}
+	for (const auto field : {"radar_coverage", "coverage_when_enabled"})
+	{
+		auto invalid = source;
+		invalid["entities"][0]["systems"]["gun"][field] = 7;
+		bool refused = false;
+		try
+		{
+			(void)load(invalid);
+		}
+		catch (const std::exception &)
+		{
+			refused = true;
+		}
+		require(refused, "invalid weapon coverage authoring is refused");
+	}
+	auto invalid = source;
+	for (auto &resource : invalid["resources"])
+		if (resource.at("id") == visible)
+			resource["ammunition"]["radar_coverage"] = "yes";
+	bool refused = false;
+	try
+	{
+		(void)load(invalid);
+	}
+	catch (const std::exception &)
+	{
+		refused = true;
+	}
+	require(refused, "invalid ammunition coverage authoring is refused");
 }
 void salvo_contracts()
 {
@@ -1937,6 +2089,13 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && std::string(argv[1]) == "--radar-coverage")
+		{
+			radar_coverage_contracts();
+			std::cout << "Radar coverage contracts passed\n";
+			return 0;
+		}
+
 		if (argc > 1 && std::string(argv[1]) == "--native-damage-rules")
 		{
 			native_damage_rule_contracts();
@@ -2657,6 +2816,7 @@ int main(int argc, char **argv)
 		review_contracts();
 		ordnance_contracts();
 		salvo_contracts();
+		radar_coverage_contracts();
 		stock_binding_contracts();
 		property_rate_contracts();
 		effects_contracts();

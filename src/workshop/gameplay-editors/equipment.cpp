@@ -200,6 +200,9 @@ void GameplayEditors::State::system_details(Json &spec, const std::string &fallb
 	        });
 	if (kind == "weapon")
 	{
+		choice(spec, "radar_coverage", {"legacy", "coverage", "hidden"});
+		optional_string(spec, "coverage_label");
+		boolean(spec, "coverage_when_enabled");
 		optional_string(spec, "magazine");
 		strings(spec, "magazines");
 		optional_string(spec, "turret");
@@ -270,6 +273,7 @@ void GameplayEditors::State::system_details(Json &spec, const std::string &fallb
 		integer(spec, "turn_mdeg_s");
 	if (kind == "radar")
 	{
+		boolean(spec, "radar_arc", true);
 		integer(spec, "range_mm");
 		bool long_range = spec.contains("long_range_mm");
 		if (ImGui::Checkbox(label("Long-range detection").c_str(), &long_range))

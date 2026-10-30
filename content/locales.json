@@ -1907,7 +1907,20 @@
 			"Cancel impulse: active": "Cancel impulse: active",
 			"Desired": "Desired",
 			"Actual": "Actual",
-			"OK": "OK"
+			"OK": "OK",
+			"Torpedo Tube 1": "Torpedo Tube 1",
+			"Torpedo Tube 2": "Torpedo Tube 2",
+			"Beam Laser": "Beam Laser",
+			"deg": "deg",
+			"radar_coverage": "radar_coverage",
+			"coverage_label": "coverage_label",
+			"coverage_when_enabled": "coverage_when_enabled",
+			"radar_arc": "radar_arc",
+			"sensor_arcs": "sensor_arcs",
+			"weapon_arcs": "weapon_arcs",
+			"Inherit weapon coverage": "Inherit weapon coverage",
+			"Override radar coverage": "Override radar coverage",
+			"Show all weapon arcs": "Show all weapon arcs"
 		}
 	}
 }

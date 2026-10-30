@@ -305,7 +305,13 @@ void GameplayEditors::State::console_properties(WorkshopDocument &document, bool
 			ScopedId identity(widget.at("id").get<std::string>().c_str());
 			ImGui::TextUnformatted(widget.at("id").get_ref<const std::string &>().c_str());
 			if (widget.at("kind") == "radar")
+			{
 				boolean(widget, "fire_arcs");
+				boolean(widget, "sensor_arcs", true);
+				strings(widget, "weapon_arcs");
+				if (widget.contains("weapon_arcs") && button("Show all weapon arcs"))
+					widget.erase("weapon_arcs");
+			}
 			if (widget.at("kind") == "throttle" || widget.at("kind") == "heading")
 			{
 				bool controlled = widget.contains("controller");

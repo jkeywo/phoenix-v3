@@ -1392,7 +1392,7 @@ foreach(target phoenix_controller_runtime_tests)
 		PRIVATE phoenix_graphics_geometry phoenix_graphics_audio_policy phoenix_ui_engineering_widgets
 	)
 endforeach()
-target_link_libraries(phoenix_combat_tests PRIVATE phoenix_graphics_audio_policy)
+target_link_libraries(phoenix_combat_tests PRIVATE phoenix_graphics_audio_policy phoenix_content_ui)
 target_link_libraries(phoenix_away_tests PRIVATE phoenix_effects_contracts)
 foreach(target phoenix_conversation_tests phoenix_personnel_tests phoenix_security_tests)
 	target_link_libraries(${target} PRIVATE phoenix_knowledge_read_models)

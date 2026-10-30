@@ -326,8 +326,6 @@
 							"bottom": null,
 							"bottom-mag": null,
 							"bottom-gun": null,
-							"forward-mag": null,
-							"forward-gun": null,
 							"team-1": null,
 							"team-2": null,
 							"reactor": null,
@@ -338,7 +336,6 @@
 							"shield-aft": null,
 							"homing-mag": null,
 							"havok-mag": null,
-							"missile-launcher": null,
 							"pdc-mag": null,
 							"pdc": null,
 							"comms-radio": null,
@@ -356,7 +353,9 @@
 							"shields-distribution": null,
 							"impulse": null,
 							"impulse-supply": null,
-							"impulse-cooling": null
+							"impulse-cooling": null,
+							"torpedo-1": null,
+							"torpedo-2": null
 						},
 						"collision": {
 							"shape": "circle",
@@ -2245,8 +2244,6 @@
 							"bottom": null,
 							"bottom-mag": null,
 							"bottom-gun": null,
-							"forward-mag": null,
-							"forward-gun": null,
 							"team-1": null,
 							"team-2": null,
 							"reactor": null,
@@ -2257,7 +2254,6 @@
 							"shield-aft": null,
 							"homing-mag": null,
 							"havok-mag": null,
-							"missile-launcher": null,
 							"pdc-mag": null,
 							"pdc": null,
 							"comms-radio": null,
@@ -2275,7 +2271,9 @@
 							"shields-distribution": null,
 							"impulse": null,
 							"impulse-supply": null,
-							"impulse-cooling": null
+							"impulse-cooling": null,
+							"torpedo-1": null,
+							"torpedo-2": null
 						},
 						"collision": {
 							"shape": "circle",
@@ -4517,8 +4515,6 @@
 							"bottom": null,
 							"bottom-mag": null,
 							"bottom-gun": null,
-							"forward-mag": null,
-							"forward-gun": null,
 							"team-1": null,
 							"team-2": null,
 							"reactor": null,
@@ -4529,7 +4525,6 @@
 							"shield-aft": null,
 							"homing-mag": null,
 							"havok-mag": null,
-							"missile-launcher": null,
 							"pdc-mag": null,
 							"pdc": null,
 							"dispatch": null,
@@ -4546,7 +4541,9 @@
 							"shields-distribution": null,
 							"impulse": null,
 							"impulse-supply": null,
-							"impulse-cooling": null
+							"impulse-cooling": null,
+							"torpedo-1": null,
+							"torpedo-2": null
 						},
 						"collision": {
 							"shape": "circle",

@@ -541,6 +541,7 @@ phoenix_intended_module(
 )
 phoenix_intended_module(
 	phoenix_graphics_radar
+	phoenix_content_ui
 	phoenix_content_catalog
 	phoenix_graphics_assets
 	phoenix_graphics_geometry

@@ -259,18 +259,18 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 					markup += "<div class=\"courier-weapon\"><div class=\"weapon-heading\">";
 					markup += "<div class=\"weapon-switch\">";
 					const auto toggle = control(*source, prefix, "system_enabled", identity, system->enabled ? 0 : 1);
-					markup +=
-					    missile
-					        ? "<h3>" + esc(localise(engineering_name(identity))) + "</h3>"
-					        : button(toggle,
-					                 localise(w.value("point_defence", false) ? "PDC" : engineering_name(identity)) +
-					                     (toggle.empty() ? " " + localise("Auto") : ""),
-					                 system->enabled);
+					const auto weapon_label =
+					    localise(w.value("label", std::string{}).empty() ? engineering_name(identity)
+					                                                     : w.at("label").get<std::string>());
+					markup += missile && toggle.empty()
+					              ? "<h3>" + esc(weapon_label) + "</h3>"
+					              : button(toggle, weapon_label + (toggle.empty() ? " " + localise("Auto") : ""),
+					                       system->enabled);
 					markup += "</div>";
 					if (details)
 						markup += "<div class=\"weapon-details\">" +
 						          button("control-details/" + view.console + "/" + details->id,
-						                 localise("Details") + ": " + localise(engineering_name(identity)), {}, "i") +
+						                 localise("Details") + ": " + weapon_label, {}, "i") +
 						          "</div>";
 					markup += "</div>";
 					if (main_data(identity, "system.status"))

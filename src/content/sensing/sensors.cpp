@@ -53,6 +53,9 @@ std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, 
 				sensor_require(d.long_range > fit.maximum && d.long_range <= 1000000000,
 				               "long_range_mm must exceed range_mm and be within coordinate limits");
 			}
+			if (j.contains("radar_arc"))
+				sensor_require(j.at("radar_arc").is_boolean(), "radar_arc requires boolean");
+			d.radar_arc = j.value("radar_arc", true);
 			d.arc = j.value("arc_mdeg", 360000LL);
 			d.bearing = j.value("bearing_mdeg", 0LL);
 			d.turret = j.value("turret", std::string{});

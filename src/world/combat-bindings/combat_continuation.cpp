@@ -75,6 +75,52 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				                 return entry.second.turret == d.id;
 			                 }))
 			{
+				if (d.kind == OperatingSystem::Turret)
+				{
+					bool coverage_mount = false, legacy_mount = false;
+					for (const auto &system : s->definition.systems)
+						if (system.kind == OperatingSystem::Weapon && system.get<WeaponDefinition>().turret == d.id)
+						{
+							coverage_mount = true;
+							legacy_mount |= system.get<WeaponDefinition>().radar_coverage == "legacy";
+						}
+					if (coverage_mount && !legacy_mount)
+						continue;
+				}
+				bool coverage = false;
+				std::string label = d.id, family;
+				auto arc_width = d.arc, coverage_bearing = d.bearing;
+				bool disabled = structurally_disabled(ship, d.id) || !child.get<Equipment>().enabled;
+				if (d.kind == OperatingSystem::Weapon)
+				{
+					const auto &weapon = d.get<WeaponDefinition>();
+					if (weapon.radar_coverage == "hidden")
+						continue;
+					coverage = weapon.radar_coverage == "coverage";
+					label = weapon.coverage_label;
+					family = weapon.point_defence ? "defence" : weapon.family;
+					if (weapon.coverage_when_enabled &&
+					    (!child.get<Equipment>().enabled ||
+					     directed_targeting(address.ship, d.id) == DirectedTargetingKind::Off))
+						continue;
+					const auto selected = m->get<WeaponState>().selected_magazine;
+					if (coverage && selected < weapon.magazines.size())
+					{
+						const auto &magazine =
+						    instance(ship, weapon.magazines[selected])->entity.get<CombatMechanism>();
+						if (const auto visible = magazine_ammunition(ship, magazine).radar_coverage;
+						    visible && !*visible)
+							continue;
+					}
+					if (coverage && !weapon.turret.empty())
+					{
+						const auto mount = instance(ship, weapon.turret)->entity;
+						const auto &definition = mount.get<CombatMechanism>().definition;
+						arc_width = definition.arc;
+						coverage_bearing = definition.bearing;
+						disabled |= structurally_disabled(ship, weapon.turret) || !mount.get<Equipment>().enabled;
+					}
+				}
 				auto heading = ship.get<Pose>().heading +
 				               (d.kind == OperatingSystem::Turret ? m->get<TurretState>().heading : d.bearing);
 				if (d.kind == OperatingSystem::Weapon && !d.get<WeaponDefinition>().turret.empty())
@@ -86,11 +132,14 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 				    {{"id", d.id},
 				     {"kind", std::string(operating_system_name(d.kind))},
 				     {"bearing_mdeg", combat_angle(heading)},
-				     {"rest_mdeg", combat_angle(ship.get<Pose>().heading + d.bearing)},
-				     {"arc_mdeg", d.arc},
+				     {"rest_mdeg", combat_angle(ship.get<Pose>().heading + coverage_bearing)},
+				     {"arc_mdeg", arc_width},
+				     {"coverage", coverage},
+				     {"label", label},
+				     {"family", family},
 				     {"active", d.kind == OperatingSystem::Turret ? directed_mount_target(ship, child) != 0
 				                                                  : directed_target(address.ship, d.id) != 0},
-				     {"disabled", structurally_disabled(ship, d.id) || !child.get<Equipment>().enabled}});
+				     {"disabled", disabled}});
 			}
 		}
 	if (combat_duel && duel_ended())
@@ -164,6 +213,9 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			{
 				output["weapons"].push_back(
 				    {{"id", d.id},
+				     {"label", d.get<WeaponDefinition>().radar_coverage == "coverage"
+				                   ? d.get<WeaponDefinition>().coverage_label
+				                   : ""},
 				     {"magazines", d.get<WeaponDefinition>().magazines},
 				     {"selected", m->get<WeaponState>().selected_magazine},
 				     {"loaded", m->get<WeaponState>().loaded_magazine},
