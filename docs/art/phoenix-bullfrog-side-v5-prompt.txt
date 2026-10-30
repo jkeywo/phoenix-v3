@@ -1,0 +1,7 @@
+Phoenix Bullfrog side view v5
+Generated with the built-in image_gen tool on 30 October 2026.
+Input: phoenix-bullfrog-side-v4.png.
+Exploratory revision: missile points horizontally forward rather than upward.
+
+Make one precise local edit to this Bullfrog illustration: the partially protruding ivory torpedo/missile with red nose on the forward-left slope of the yellow hull currently points diagonally UP-LEFT. Rotate/reseat this missile and its launch-port hardware so the missile points EXACTLY HORIZONTALLY LEFT, parallel to the forward cannon barrel directly above it. Zero upward tilt. Its red nose and body centreline must be level. Keep its rear section partly inside an open dark recessed torpedo port at the same hull location, and the nose projecting forward-left out of it. Preserve missile size, ivory body, red nose, fins, and credible mechanical attachment; adjust only local port lip and immediately adjacent armour as necessary. Not launching, no exhaust or motion effects.
+Keep EVERYTHING ELSE unchanged: both gun turrets and forward cannon with their current positions and angles, yellow main hull and emblem, bridge, enormous staggered engines, outward-facing lower exhaust, landing/service appendages, composition, side camera, thick black comic inks, colours, paper texture and caption. Do not rotate the whole ship, replace the missile with a gun, add more weapons, or alter other components. One complete uncropped ship.
