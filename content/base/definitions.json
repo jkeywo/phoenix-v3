@@ -1027,6 +1027,35 @@
 					"group": "combat-power.shields",
 					"compartment": "mid-port",
 					"observation_console": "support"
+				},
+				"impulse": {
+					"template": "base.equipment.impulse",
+					"targets": [
+						{
+							"system": "drive",
+							"property": "max_speed_mm_s",
+							"multiplier_permille": 8000
+						},
+						{
+							"system": "drive",
+							"property": "acceleration_mm_s2",
+							"multiplier_permille": 5000
+						}
+					],
+					"compartment": "stern-port",
+					"observation_console": "helm"
+				},
+				"impulse-supply": {
+					"kind": "distribution",
+					"conduit": "impulse-feed",
+					"compartment": "stern-port",
+					"observation_console": "support"
+				},
+				"impulse-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "impulse-cooling",
+					"compartment": "stern-port",
+					"observation_console": "support"
 				}
 			},
 			"stations": [
@@ -1064,10 +1093,12 @@
 								"pdc",
 								"dispatch",
 								"beam-turret",
-								"pdc-turret"
+								"pdc-turret",
+								"impulse"
 							],
 							"shield_feed": true,
-							"knowledge_roles": ["base.crew", "base.helm"]
+							"knowledge_roles": ["base.crew", "base.helm"],
+							"knowledge_producers": ["base.machinery"]
 						},
 						{
 							"id": "tactical",
@@ -1141,7 +1172,10 @@
 								"beam-turret",
 								"pdc-turret",
 								"weapons-distribution",
-								"shields-distribution"
+								"shields-distribution",
+								"impulse",
+								"impulse-supply",
+								"impulse-cooling"
 							],
 							"shield_feed": true
 						}
@@ -1964,6 +1998,45 @@
 							"1": "manual",
 							"2": "manual",
 							"3": "manual"
+						}
+					},
+					{
+						"id": "impulse",
+						"console": "helm",
+						"widget": "base.widget.courier.helm.impulse",
+						"equipment": {
+							"equipment": "impulse"
+						},
+						"star_levels": {
+							"1": "manual",
+							"2": "manual",
+							"3": "manual"
+						}
+					},
+					{
+						"id": "impulse-supply",
+						"console": "support",
+						"widget": "base.widget.courier.support.impulse-supply",
+						"equipment": {
+							"equipment": "impulse-supply"
+						},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "responsibility1"
+						}
+					},
+					{
+						"id": "impulse-cooling",
+						"console": "support",
+						"widget": "base.widget.courier.support.impulse-cooling",
+						"equipment": {
+							"equipment": "impulse-cooling"
+						},
+						"star_levels": {
+							"1": "automated",
+							"2": "automated",
+							"3": "responsibility1"
 						}
 					}
 				],
@@ -2967,6 +3040,30 @@
 						"department": "passage",
 						"compartment": "stern-port",
 						"bindings": {}
+					},
+					{
+						"id": "impulse",
+						"label": "Impulse",
+						"department": "sailing",
+						"controller": "impulse",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "impulse-supply",
+						"label": "Impulse Supply",
+						"department": "engineering",
+						"controller": "impulse-supply",
+						"compartment": "stern-port",
+						"bindings": {}
+					},
+					{
+						"id": "impulse-cooling",
+						"label": "Impulse Cooling",
+						"department": "engineering",
+						"controller": "impulse-cooling",
+						"compartment": "stern-port",
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -3188,6 +3285,29 @@
 						"stop_heat": 5000,
 						"recover_heat": 1500,
 						"resource": "base.resource.energy"
+					},
+					{
+						"id": "impulse-cell",
+						"capacity": 100000,
+						"initial": 75000,
+						"charge_rate": 8000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "impulse",
+						"resource": "base.resource.energy"
 					}
 				],
 				"links": [
@@ -3196,6 +3316,12 @@
 						"from": "combat-power.main",
 						"to": "veil-cell",
 						"capacity_rate": 800
+					},
+					{
+						"id": "impulse-feed",
+						"from": "combat-power.main",
+						"to": "impulse-cell",
+						"capacity_rate": 8000
 					}
 				],
 				"coolant_sources": [
@@ -3206,6 +3332,14 @@
 						"coolant_per_heat_ppm": 100000,
 						"resource": "base.resource.coolant",
 						"capacity": 20000
+					},
+					{
+						"id": "impulse-coolant",
+						"capacity": 60000,
+						"initial": 60000,
+						"removal_rate": 3000,
+						"coolant_per_heat_ppm": 100000,
+						"resource": "base.resource.coolant"
 					}
 				],
 				"cooling_links": [
@@ -3215,6 +3349,21 @@
 						"store": "veil-cell",
 						"capacity_rate": 200,
 						"allocation_rate": 120
+					},
+					{
+						"id": "impulse-cooling",
+						"source": "impulse-coolant",
+						"store": "impulse-cell",
+						"capacity_rate": 3000,
+						"allocation_rate": 1500
+					}
+				],
+				"groups": [
+					{
+						"id": "impulse",
+						"budget_rate": 1500,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
 					}
 				]
 			},
@@ -21266,7 +21415,7 @@
 					"id": 1,
 					"definition": "base.courier",
 					"x_mm": 950000,
-					"y_mm": 900000,
+					"y_mm": 2500000,
 					"heading_mdeg": 180000,
 					"overrides": {
 						"name": "Morrow",
@@ -21538,7 +21687,10 @@
 							"veil-supply": null,
 							"veil-cooling": null,
 							"weapons-distribution": null,
-							"shields-distribution": null
+							"shields-distribution": null,
+							"impulse": null,
+							"impulse-supply": null,
+							"impulse-cooling": null
 						},
 						"stations": [
 							{
@@ -24130,13 +24282,13 @@
 					"shape": "circle",
 					"x_mm": 1800000,
 					"y_mm": 0,
-					"radius_mm": 900000
+					"radius_mm": 1400000
 				},
 				{
 					"id": "morrow-rendezvous",
 					"shape": "circle",
 					"x_mm": 950000,
-					"y_mm": 900000,
+					"y_mm": 2500000,
 					"radius_mm": 300000
 				},
 				{
@@ -24185,7 +24337,7 @@
 					"id": "morrow-field",
 					"shape": "annulus",
 					"x_mm": 950000,
-					"y_mm": 900000,
+					"y_mm": 2500000,
 					"radius_mm": 700000,
 					"inner_radius_mm": 450000,
 					"display": {
@@ -24200,7 +24352,7 @@
 					"id": "debris-west",
 					"shape": "rectangle",
 					"x_mm": 350000,
-					"y_mm": 900000,
+					"y_mm": 2500000,
 					"half_width_mm": 150000,
 					"half_height_mm": 600000,
 					"asteroids": {
@@ -24224,7 +24376,7 @@
 					"id": "debris-east",
 					"shape": "rectangle",
 					"x_mm": 1550000,
-					"y_mm": 900000,
+					"y_mm": 2500000,
 					"half_width_mm": 150000,
 					"half_height_mm": 600000,
 					"asteroids": {
@@ -24248,7 +24400,7 @@
 					"id": "debris-north",
 					"shape": "rectangle",
 					"x_mm": 950000,
-					"y_mm": 1500000,
+					"y_mm": 3100000,
 					"half_width_mm": 450000,
 					"half_height_mm": 150000,
 					"asteroids": {
@@ -24299,7 +24451,7 @@
 							{
 								"definition": "base.delivery-raider",
 								"x_mm": 950000,
-								"y_mm": 350000,
+								"y_mm": 1950000,
 								"heading_mdeg": 90000,
 								"formation_mdeg": 270000
 							}
@@ -24308,21 +24460,21 @@
 							{
 								"definition": "base.delivery-raider",
 								"x_mm": 950000,
-								"y_mm": 350000,
+								"y_mm": 1950000,
 								"heading_mdeg": 90000,
 								"formation_mdeg": 270000
 							},
 							{
 								"definition": "base.delivery-raider",
 								"x_mm": 650000,
-								"y_mm": 1050000,
+								"y_mm": 2650000,
 								"heading_mdeg": 0,
 								"formation_mdeg": 150000
 							},
 							{
 								"definition": "base.delivery-raider",
 								"x_mm": 1250000,
-								"y_mm": 1050000,
+								"y_mm": 2650000,
 								"heading_mdeg": 180000,
 								"formation_mdeg": 30000
 							}
@@ -28267,19 +28419,27 @@
 											"stretch": 0
 										},
 										{
-											"id": "widget-drive.boost",
+											"id": "widget-drive.engine",
 											"kind": "component",
-											"component": "control/drive.boost/complete",
-											"label": "drive.boost",
+											"component": "control/drive.engine/complete",
+											"label": "drive.engine",
 											"min_height": 160,
 											"height": 220,
 											"stretch": 0
 										},
 										{
-											"id": "widget-drive.engine",
+											"id": "flight-actions",
 											"kind": "component",
-											"component": "control/drive.engine/complete",
-											"label": "drive.engine",
+											"component": "flight-actions",
+											"height": 64,
+											"min_height": 60,
+											"stretch": 0
+										},
+										{
+											"id": "widget-drive.boost",
+											"kind": "component",
+											"component": "control/drive.boost/complete",
+											"label": "drive.boost",
 											"min_height": 160,
 											"height": 220,
 											"stretch": 0
@@ -28619,19 +28779,27 @@
 											"stretch": 0
 										},
 										{
-											"id": "widget-drive.boost",
+											"id": "widget-drive.engine",
 											"kind": "component",
-											"component": "control/drive.boost/complete",
-											"label": "drive.boost",
+											"component": "control/drive.engine/complete",
+											"label": "drive.engine",
 											"min_height": 160,
 											"height": 220,
 											"stretch": 0
 										},
 										{
-											"id": "widget-drive.engine",
+											"id": "flight-actions",
 											"kind": "component",
-											"component": "control/drive.engine/complete",
-											"label": "drive.engine",
+											"component": "flight-actions",
+											"height": 64,
+											"min_height": 60,
+											"stretch": 0
+										},
+										{
+											"id": "widget-drive.boost",
+											"kind": "component",
+											"component": "control/drive.boost/complete",
+											"label": "drive.boost",
 											"min_height": 160,
 											"height": 220,
 											"stretch": 0
@@ -29086,7 +29254,8 @@
 							"station.granted-navigator": null,
 							"station.granted-navigator.widget-ftl.drive": null,
 							"station.granted-navigator.widget-personnel": null,
-							"station.granted-navigator.widget-personnel-roster": null
+							"station.granted-navigator.widget-personnel-roster": null,
+							"station.watch.flight.flight-actions": ["flight", "docking", "navigation", "camera"]
 						}
 					},
 					"2": {
@@ -29251,7 +29420,8 @@
 							"station.granted-navigator": null,
 							"station.granted-navigator.widget-ftl.drive": null,
 							"station.granted-navigator.widget-personnel": null,
-							"station.granted-navigator.widget-personnel-roster": null
+							"station.granted-navigator.widget-personnel-roster": null,
+							"station.watch.flight.flight-actions": ["flight", "docking", "navigation", "camera"]
 						}
 					},
 					"3": {
@@ -29515,7 +29685,14 @@
 							"station.granted-navigator": null,
 							"station.granted-navigator.widget-ftl.drive": null,
 							"station.granted-navigator.widget-personnel": null,
-							"station.granted-navigator.widget-personnel-roster": null
+							"station.granted-navigator.widget-personnel-roster": null,
+							"station.watch.flight.flight-actions": [
+								"flight",
+								"docking",
+								"navigation",
+								"camera",
+								"personnel"
+							]
 						}
 					}
 				}
@@ -51450,52 +51627,62 @@
 								{
 									"id": "watch",
 									"kind": "column",
-									"width": 280,
-									"min_width": 220,
+									"width": 340,
+									"min_width": 320,
 									"stretch": 0,
-									"scroll": true,
+									"scroll": false,
 									"children": [
 										{
-											"id": "weapons",
-											"kind": "component",
-											"component": "weapons",
-											"widget_parts": [
-												"control/tactical/top/presentation",
-												"control/tactical/top-mag/presentation",
-												"control/tactical/top-gun/presentation",
-												"control/tactical/bottom/presentation",
-												"control/tactical/bottom-mag/presentation",
-												"control/tactical/bottom-gun/presentation",
-												"control/tactical/forward-mag/presentation",
-												"control/tactical/forward-gun/presentation",
-												"control/tactical/beam/presentation",
-												"control/tactical/pdc-mag/presentation",
-												"control/tactical/pdc/presentation",
-												"control/tactical/scanner/presentation",
-												"control/tactical/security-team/presentation",
-												"control/tactical/scanner.ready/presentation",
-												"control/tactical/top-gun.settings/presentation",
-												"control/tactical/bottom-gun.settings/presentation",
-												"control/tactical/forward-gun.settings/presentation",
-												"control/tactical/beam.settings/presentation",
-												"control/tactical/pdc.settings/presentation"
+											"id": "armament",
+											"kind": "column",
+											"scroll": true,
+											"stretch": 2,
+											"children": [
+												{
+													"id": "weapons",
+													"kind": "component",
+													"component": "weapons",
+													"widget_parts": [
+														"control/tactical/top/presentation",
+														"control/tactical/top-mag/presentation",
+														"control/tactical/top-gun/presentation",
+														"control/tactical/bottom/presentation",
+														"control/tactical/bottom-mag/presentation",
+														"control/tactical/bottom-gun/presentation",
+														"control/tactical/forward-mag/presentation",
+														"control/tactical/forward-gun/presentation",
+														"control/tactical/beam/presentation",
+														"control/tactical/pdc-mag/presentation",
+														"control/tactical/pdc/presentation",
+														"control/tactical/scanner/presentation",
+														"control/tactical/security-team/presentation",
+														"control/tactical/scanner.ready/presentation",
+														"control/tactical/top-gun.settings/presentation",
+														"control/tactical/bottom-gun.settings/presentation",
+														"control/tactical/forward-gun.settings/presentation",
+														"control/tactical/beam.settings/presentation",
+														"control/tactical/pdc.settings/presentation"
+													],
+													"min_height": 44,
+													"stretch": 0
+												},
+												{
+													"id": "missiles",
+													"kind": "component",
+													"component": "missiles",
+													"widget_parts": [
+														"control/tactical/homing-mag/presentation",
+														"control/tactical/havok-mag/presentation",
+														"control/tactical/missile-launcher/presentation",
+														"control/tactical/missile-launcher.settings/presentation",
+														"control/tactical/missile-launcher.ammo/presentation"
+													],
+													"min_height": 44,
+													"stretch": 0
+												}
 											],
-											"min_height": 44,
-											"stretch": 0
-										},
-										{
-											"id": "missiles",
-											"kind": "component",
-											"component": "missiles",
-											"widget_parts": [
-												"control/tactical/homing-mag/presentation",
-												"control/tactical/havok-mag/presentation",
-												"control/tactical/missile-launcher/presentation",
-												"control/tactical/missile-launcher.settings/presentation",
-												"control/tactical/missile-launcher.ammo/presentation"
-											],
-											"min_height": 44,
-											"stretch": 0
+											"height": 300,
+											"min_height": 200
 										},
 										{
 											"id": "target",
@@ -51505,8 +51692,18 @@
 												"control/bridge/presentation",
 												"control/tactical/bridge/presentation"
 											],
-											"min_height": 44,
-											"stretch": 0
+											"min_height": 80,
+											"stretch": 1,
+											"scroll": true
+										},
+										{
+											"id": "target-actions",
+											"kind": "component",
+											"component": "target-actions",
+											"min_height": 60,
+											"height": 60,
+											"stretch": 0,
+											"widget_parts": []
 										}
 									]
 								},
@@ -51514,7 +51711,7 @@
 									"id": "instruments",
 									"kind": "instruments",
 									"stretch": 3,
-									"min_width": 390,
+									"min_width": 500,
 									"children": [
 										{
 											"id": "radar",
@@ -51524,8 +51721,8 @@
 											"rect": {
 												"x": 0,
 												"y": 0,
-												"width": 800,
-												"height": 900
+												"width": 780,
+												"height": 1000
 											},
 											"aspect": 1,
 											"min_width": 250,
@@ -51535,27 +51732,18 @@
 											"id": "speed",
 											"kind": "component",
 											"component": "throttle",
-											"widget_parts": ["control/drive/presentation"],
+											"widget_parts": [
+												"control/drive/presentation",
+												"control/impulse/presentation"
+											],
 											"rect": {
-												"x": 810,
-												"y": 40,
-												"width": 185,
-												"height": 700
+												"x": 790,
+												"y": 0,
+												"width": 210,
+												"height": 1000
 											},
-											"min_width": 72,
+											"min_width": 120,
 											"min_height": 240
-										},
-										{
-											"id": "flight-status",
-											"kind": "component",
-											"component": "flight-status",
-											"widget_parts": [],
-											"rect": {
-												"x": 810,
-												"y": 750,
-												"width": 185,
-												"height": 230
-											}
 										},
 										{
 											"id": "manual",
@@ -51568,8 +51756,8 @@
 											"rect": {
 												"x": 0,
 												"y": 0,
-												"width": 800,
-												"height": 900
+												"width": 780,
+												"height": 1000
 											}
 										},
 										{
@@ -51580,7 +51768,7 @@
 											"rect": {
 												"x": 0,
 												"y": 870,
-												"width": 220,
+												"width": 200,
 												"height": 120
 											},
 											"when": {
@@ -51595,7 +51783,7 @@
 											"rect": {
 												"x": 580,
 												"y": 870,
-												"width": 220,
+												"width": 200,
 												"height": 120
 											},
 											"when": {
@@ -51651,49 +51839,59 @@
 									"width": 220,
 									"min_width": 220,
 									"stretch": 0,
-									"scroll": true,
+									"scroll": false,
 									"children": [
 										{
-											"id": "weapons",
-											"kind": "component",
-											"component": "weapons",
-											"widget_parts": [
-												"control/tactical/top/presentation",
-												"control/tactical/top-mag/presentation",
-												"control/tactical/top-gun/presentation",
-												"control/tactical/bottom/presentation",
-												"control/tactical/bottom-mag/presentation",
-												"control/tactical/bottom-gun/presentation",
-												"control/tactical/forward-mag/presentation",
-												"control/tactical/forward-gun/presentation",
-												"control/tactical/beam/presentation",
-												"control/tactical/pdc-mag/presentation",
-												"control/tactical/pdc/presentation",
-												"control/tactical/scanner/presentation",
-												"control/tactical/security-team/presentation",
-												"control/tactical/scanner.ready/presentation",
-												"control/tactical/top-gun.settings/presentation",
-												"control/tactical/bottom-gun.settings/presentation",
-												"control/tactical/forward-gun.settings/presentation",
-												"control/tactical/beam.settings/presentation",
-												"control/tactical/pdc.settings/presentation"
+											"id": "armament",
+											"kind": "column",
+											"scroll": true,
+											"stretch": 2,
+											"children": [
+												{
+													"id": "weapons",
+													"kind": "component",
+													"component": "weapons",
+													"widget_parts": [
+														"control/tactical/top/presentation",
+														"control/tactical/top-mag/presentation",
+														"control/tactical/top-gun/presentation",
+														"control/tactical/bottom/presentation",
+														"control/tactical/bottom-mag/presentation",
+														"control/tactical/bottom-gun/presentation",
+														"control/tactical/forward-mag/presentation",
+														"control/tactical/forward-gun/presentation",
+														"control/tactical/beam/presentation",
+														"control/tactical/pdc-mag/presentation",
+														"control/tactical/pdc/presentation",
+														"control/tactical/scanner/presentation",
+														"control/tactical/security-team/presentation",
+														"control/tactical/scanner.ready/presentation",
+														"control/tactical/top-gun.settings/presentation",
+														"control/tactical/bottom-gun.settings/presentation",
+														"control/tactical/forward-gun.settings/presentation",
+														"control/tactical/beam.settings/presentation",
+														"control/tactical/pdc.settings/presentation"
+													],
+													"min_height": 44,
+													"stretch": 0
+												},
+												{
+													"id": "missiles",
+													"kind": "component",
+													"component": "missiles",
+													"widget_parts": [
+														"control/tactical/homing-mag/presentation",
+														"control/tactical/havok-mag/presentation",
+														"control/tactical/missile-launcher/presentation",
+														"control/tactical/missile-launcher.settings/presentation",
+														"control/tactical/missile-launcher.ammo/presentation"
+													],
+													"min_height": 44,
+													"stretch": 0
+												}
 											],
-											"min_height": 44,
-											"stretch": 0
-										},
-										{
-											"id": "missiles",
-											"kind": "component",
-											"component": "missiles",
-											"widget_parts": [
-												"control/tactical/homing-mag/presentation",
-												"control/tactical/havok-mag/presentation",
-												"control/tactical/missile-launcher/presentation",
-												"control/tactical/missile-launcher.settings/presentation",
-												"control/tactical/missile-launcher.ammo/presentation"
-											],
-											"min_height": 44,
-											"stretch": 0
+											"height": 300,
+											"min_height": 200
 										},
 										{
 											"id": "target",
@@ -51703,8 +51901,18 @@
 												"control/bridge/presentation",
 												"control/tactical/bridge/presentation"
 											],
-											"min_height": 44,
-											"stretch": 0
+											"min_height": 80,
+											"stretch": 1,
+											"scroll": true
+										},
+										{
+											"id": "target-actions",
+											"kind": "component",
+											"component": "target-actions",
+											"min_height": 60,
+											"height": 60,
+											"stretch": 0,
+											"widget_parts": []
 										}
 									]
 								},
@@ -51722,8 +51930,8 @@
 											"rect": {
 												"x": 0,
 												"y": 0,
-												"width": 800,
-												"height": 680
+												"width": 700,
+												"height": 1000
 											},
 											"aspect": 1,
 											"min_width": 250,
@@ -51733,27 +51941,18 @@
 											"id": "speed",
 											"kind": "component",
 											"component": "throttle",
-											"widget_parts": ["control/drive/presentation"],
+											"widget_parts": [
+												"control/drive/presentation",
+												"control/impulse/presentation"
+											],
 											"rect": {
-												"x": 810,
-												"y": 100,
-												"width": 185,
-												"height": 550
+												"x": 710,
+												"y": 0,
+												"width": 290,
+												"height": 1000
 											},
-											"min_width": 72,
+											"min_width": 110,
 											"min_height": 240
-										},
-										{
-											"id": "flight-status",
-											"kind": "component",
-											"component": "flight-status",
-											"widget_parts": [],
-											"rect": {
-												"x": 0,
-												"y": 690,
-												"width": 1000,
-												"height": 180
-											}
 										},
 										{
 											"id": "manual",
@@ -51766,8 +51965,8 @@
 											"rect": {
 												"x": 0,
 												"y": 0,
-												"width": 800,
-												"height": 680
+												"width": 700,
+												"height": 1000
 											}
 										},
 										{
@@ -51778,7 +51977,7 @@
 											"rect": {
 												"x": 0,
 												"y": 870,
-												"width": 220,
+												"width": 200,
 												"height": 120
 											},
 											"when": {
@@ -51791,9 +51990,9 @@
 											"component": "lateral-right",
 											"widget_parts": ["control/drive.direct/starboard"],
 											"rect": {
-												"x": 580,
+												"x": 500,
 												"y": 870,
-												"width": 220,
+												"width": 200,
 												"height": 120
 											},
 											"when": {
@@ -51867,18 +52066,19 @@
 							"station": ["flight", "docking", "weapons", "dispatch"],
 							"station.main": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.watch": ["flight", "docking", "weapons", "dispatch"],
-							"station.main.watch.weapons": ["flight", "docking", "weapons", "dispatch"],
-							"station.main.watch.missiles": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.watch.target": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.radar": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.speed": ["flight", "docking", "weapons", "dispatch"],
-							"station.main.instruments.flight-status": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.manual": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.lateral-left": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.lateral-right": ["flight", "docking", "weapons", "dispatch"],
 							"station.away": ["flight", "docking", "weapons", "dispatch"],
-							"station.personnel": ["flight", "docking", "weapons", "dispatch"]
+							"station.personnel": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.armament.weapons": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.armament.missiles": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.armament": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.target-actions": ["flight", "docking", "weapons", "dispatch"]
 						}
 					},
 					"2": {
@@ -51911,18 +52111,19 @@
 							"station": ["flight", "docking", "weapons", "dispatch"],
 							"station.main": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.watch": ["flight", "docking", "weapons", "dispatch"],
-							"station.main.watch.weapons": ["flight", "docking", "weapons", "dispatch"],
-							"station.main.watch.missiles": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.watch.target": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.radar": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.speed": ["flight", "docking", "weapons", "dispatch"],
-							"station.main.instruments.flight-status": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.manual": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.lateral-left": ["flight", "docking", "weapons", "dispatch"],
 							"station.main.instruments.lateral-right": ["flight", "docking", "weapons", "dispatch"],
 							"station.away": ["flight", "docking", "weapons", "dispatch"],
-							"station.personnel": ["flight", "docking", "weapons", "dispatch"]
+							"station.personnel": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.armament.weapons": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.armament.missiles": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.armament": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.target-actions": ["flight", "docking", "weapons", "dispatch"]
 						}
 					},
 					"3": {
@@ -51960,19 +52161,10 @@
 							"station": ["flight", "docking", "weapons", "dispatch", "personnel"],
 							"station.main": ["flight", "docking", "weapons", "dispatch", "personnel"],
 							"station.main.watch": ["flight", "docking", "weapons", "dispatch", "personnel"],
-							"station.main.watch.weapons": ["flight", "docking", "weapons", "dispatch", "personnel"],
-							"station.main.watch.missiles": ["flight", "docking", "weapons", "dispatch", "personnel"],
 							"station.main.watch.target": ["flight", "docking", "weapons", "dispatch", "personnel"],
 							"station.main.instruments": ["flight", "docking", "weapons", "dispatch", "personnel"],
 							"station.main.instruments.radar": ["flight", "docking", "weapons", "dispatch", "personnel"],
 							"station.main.instruments.speed": ["flight", "docking", "weapons", "dispatch", "personnel"],
-							"station.main.instruments.flight-status": [
-								"flight",
-								"docking",
-								"weapons",
-								"dispatch",
-								"personnel"
-							],
 							"station.main.instruments.manual": [
 								"flight",
 								"docking",
@@ -51995,7 +52187,29 @@
 								"personnel"
 							],
 							"station.away": ["flight", "docking", "weapons", "dispatch", "personnel"],
-							"station.personnel": ["flight", "docking", "weapons", "dispatch", "personnel"]
+							"station.personnel": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.watch.armament.weapons": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.main.watch.armament.missiles": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.main.watch.armament": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.watch.target-actions": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							]
 						}
 					}
 				}
@@ -52238,7 +52452,9 @@
 								"control/repair-priority/presentation",
 								"control/veil-supply/presentation",
 								"control/veil-cooling/presentation",
-								"control/weapons-distribution/presentation"
+								"control/weapons-distribution/presentation",
+								"control/impulse-supply/presentation",
+								"control/impulse-cooling/presentation"
 							],
 							"label": "Power",
 							"scroll": true
@@ -52975,10 +53191,10 @@
 							"component": "ftl-controls",
 							"widget_parts": ["control/ftl.drive/presentation"],
 							"region": "bottom-right",
-							"width": 400,
-							"height": 240,
+							"width": 300,
+							"height": 140,
 							"min_width": 280,
-							"min_height": 200,
+							"min_height": 130,
 							"scroll": true
 						}
 					]
@@ -53023,8 +53239,10 @@
 									"component": "ftl-controls",
 									"widget_parts": ["control/ftl.drive/presentation"],
 									"min_width": 280,
-									"min_height": 200,
-									"scroll": true
+									"min_height": 130,
+									"scroll": true,
+									"height": 140,
+									"stretch": 0
 								}
 							]
 						}
@@ -103093,8 +103311,7 @@
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
-					"placement": "main",
-					"required": true
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -103220,8 +103437,7 @@
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
-					"placement": "main",
-					"required": true
+					"placement": "details"
 				}
 			},
 			"parts": ["presentation"],
@@ -108052,6 +108268,214 @@
 				}
 			},
 			"label": "Bridge"
+		},
+		{
+			"id": "base.widget.courier.helm.impulse",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["impulse"]
+				}
+			},
+			"commands": [
+				{
+					"id": "impulse",
+					"action": "impulse",
+					"semantics": "request",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Impulse"
+				}
+			],
+			"data": {
+				"impulse": {
+					"binding": "command.impulse",
+					"label": "Impulse",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["impulse"]
+				}
+			],
+			"label": "Impulse",
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.throttle",
+					"commands": ["impulse"],
+					"operations": [],
+					"data": [
+						"impulse",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			}
+		},
+		{
+			"id": "base.widget.courier.support.impulse-supply",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["distribution"]
+				}
+			},
+			"commands": [
+				{
+					"id": "isolate",
+					"action": "link_isolated",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Isolate supply"
+				}
+			],
+			"data": {
+				"isolate": {
+					"binding": "command.isolate",
+					"label": "Isolate supply",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["isolate"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["isolate"],
+					"operations": [],
+					"data": ["isolate", "equipment-status"],
+					"details": true
+				}
+			},
+			"label": "Impulse Supply"
+		},
+		{
+			"id": "base.widget.courier.support.impulse-cooling",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["coolant"]
+				}
+			},
+			"commands": [
+				{
+					"id": "allocation",
+					"action": "cooling_allocation",
+					"initial": 1500,
+					"consumers": ["$equipment"],
+					"label_key": "Cooling allocation"
+				}
+			],
+			"data": {
+				"allocation": {
+					"binding": "command.allocation",
+					"label": "Cooling allocation",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"operations": {
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["allocation"],
+					"operations": ["coordination"],
+					"data": ["allocation", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["allocation", "coordination"]
+				}
+			],
+			"label": "Impulse Cooling"
 		}
 	]
 }

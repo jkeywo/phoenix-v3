@@ -317,7 +317,8 @@ void ConsoleSurface::State::prepare_control_widgets(const ConsoleRegion &region)
 		{
 			const auto key = id("control-details/" + console + "/" + widget->id);
 			buttons.emplace_back(key, label + ": " + localise("Details"));
-			markup += "<button id=\"" + esc(key) + "\" class=\"task-button\">" + esc(localise("Details")) + "</button>";
+			markup += "<button id=\"" + esc(key) +
+			          "\" class=\"task-button details-button\"><span class=\"details-icon\">i</span></button>";
 		}
 		if (auto *panel = authored_component(target); panel && station_component_markup_[target] != markup)
 		{
@@ -422,6 +423,15 @@ void ConsoleSurface::State::prepare_system_popup(const ConsoleRegion &region, co
 			for (const auto &datum : widget->data)
 				markup +=
 				    readout("control/" + console + "/" + widget->id + "/" + datum.id, datum.label + ": " + datum.text);
+			if (control_detail_return_focus_.starts_with(id("throttle-details/")))
+				for (const auto &system : model_.observation()->systems)
+					if (system.kind == OperatingSystem::Engine || system.kind == OperatingSystem::Steering ||
+					    system.kind == OperatingSystem::Impulse)
+						markup += readout("flight/" + system.id,
+						                  localise(engineering_name(system.id)) + ": " +
+						                      localise(system.status.empty()
+						                                   ? (system.enabled ? "Operational" : "Unavailable")
+						                                   : system.status));
 			markup += add("systems-close", localise("Close"));
 		}
 		else
@@ -1207,9 +1217,10 @@ void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 {
 	condition_choices_.clear();
 	shield_sectors_.clear();
-	for (const char *name : {"weapons", "objectives", "viewscreen-controls", "alert-controls", "shield-display",
-	                         "ftl-controls", "compartment-health", "team-roster", "missiles", "flight-status",
-	                         "lateral-left", "lateral-right", "veil-controls", "target-info"})
+	for (const char *name :
+	     {"weapons", "objectives", "viewscreen-controls", "alert-controls", "shield-display", "ftl-controls",
+	      "compartment-health", "team-roster", "missiles", "flight-status", "lateral-left", "lateral-right",
+	      "veil-controls", "target-info", "target-actions", "flight-actions"})
 	{
 		if (!authored_component_visible(name))
 			continue;

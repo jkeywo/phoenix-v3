@@ -68,3 +68,31 @@ Verification receipts are under `build/nav-comms-*`:
 - The complete Comms journey covers hailing, incoming messages, replies, NPC joining, shared display, narrow layout and Navigation selection. The FTL journey covers preparation, cancellation, readiness, deliberate departure and the crew report.
 
 Synthetic fixtures remain independent of Courier content. These are native graphical and synthetic/browser-build receipts; physical screen readers/devices, six-display use and browser graphical acceptance remain separate.
+
+## Radar and flight refinement — 30 October 2026
+
+Courier Helm uses full-width weapon rows and a radar casing fitted to the available workspace height. Compact layouts retain the same controls. Weapon readouts use compact visible values with full semantic labels. Details controls align to the right: a 26 dp circle centres the “i” inside a transparent 44 dp touch target. The selected target's information scrolls independently above a persistent Follow / Match speed / Dock row. Unavailable actions remain disabled.
+
+Actual and desired speed share the throttle readout. Its Details popup includes propulsion, steering and impulse condition. Impulse and All stop share the row below the throttle; charging and active impulse can be cancelled using the same button. All stop also cancels impulse and zeros independently owned secondary engine speeds. Courier has a separate impulse fitting with an energy reserve, supply conduit, cooling and duty posts, using the existing paid flight mechanism and initial impulse tuning. Support owns its supply and cooling controls.
+
+Cruiser retains its widget-based Helm. Its main speed panel precedes a compact All stop / coordinated Impulse row in both responsive layouts. Existing individual and machinery controls remain available below it. Navigation's Courier FTL overlay is reduced to its preparation/departure controls and readiness/blocker readout.
+
+Illustrated radar casings no longer obscure long-range returns. Dense bearing bands label the selected contact, draw its selection above other returns, and retain every contact in the accessible selection list. Rendering and input use the same bearing positions.
+
+The explicit production journey is:
+
+```powershell
+build/native/Release/phoenix_control_widgets_smoke.exe --refinement build/native/base.zip base.rescue-under-threat courier base.courier helm build/courier-refinement-courier
+build/native/Release/phoenix_control_widgets_smoke.exe --refinement build/native/base.zip base.rescue-under-threat courier base.cruiser helm build/courier-refinement-cruiser
+```
+
+This manually invoked journey exercises bearing selection, Details, paid impulse charging/activation/cancellation, All stop, physical flight along the station corridor and a diversion toward Morrow. The existing `--courier` journey exercises all complexities, normal/compact/enlarged text and the Navigation FTL workflow. These runs are smoke evidence, not production tuning assertions.
+
+Verification receipts use the `build/courier-refinement-*` prefix:
+
+- The native application and browser client/server/Workshop build. Both production packs verify through the normal packager.
+- All five affected native integrations pass: paid flight, sensors, Controller runtime, FTL and content/packs (`final-native-tests.log`). The four corresponding gameplay WASM cases pass; fresh sensor, Controller and FTL continuations match native (`continuations.json`). Paid flight also checks interruption and resumed execution internally.
+- Both production route journeys pass (`courier.log`, `cruiser.log`). Each ship observes Morrow only as a bearing along the direct station corridor, then gains positional detection on diversion. The same runs exercise actual fitted impulse charging, activation, cancellation and All stop; Cruiser observes both impulse mechanisms.
+- The Courier Helm and dedicated Nav/Comms graphical journeys pass at all three complexities, including normal, 640-wide and 130% text captures (`helm.log`, `nav.log`). Inspected captures check the enlarged radar, weapon rows, independent target scrolling/actions, circular Details, compact throttle, impulse controls and the smaller Navigation FTL overlay. A bounded preparation wait handles the asynchronous Console rebuild after complexity changes.
+
+Changed-file formatting and whitespace checks pass. Native graphical journeys and semantic actions do not establish browser graphical, physical screen-reader, touch/gamepad or six-display acceptance.

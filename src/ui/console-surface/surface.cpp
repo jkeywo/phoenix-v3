@@ -449,6 +449,7 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 	dom_.property(box, "flex-direction", node.kind == "row" || node.kind == "wrap" ? "row" : "column");
 	dom_.property(box, "flex-wrap", node.kind == "wrap" ? "wrap" : "nowrap");
 	dom_.property(box, "overflow", node.scroll ? "auto" : "visible");
+	dom_.property(box, "clip", node.scroll ? "always" : "auto");
 	dom_.property(box, "gap", unit(node.gap));
 	dom_.property(
 	    box, "padding",
@@ -860,8 +861,28 @@ bool ConsoleSurface::State::all_stop(const std::string &key)
 			const auto binding = model_.widget_system(key);
 			if (model_.system_minimum(binding) > 0 || model_.system_maximum(binding) < 0)
 				return false;
+			if (model_.observation() &&
+			    std::any_of(model_.observation()->systems.begin(), model_.observation()->systems.end(),
+			                [](const auto &system)
+			                {
+				                return system.telemetry.contains("impulse_phase") &&
+				                       system.telemetry.at("impulse_phase") != 0;
+			                }) &&
+			    !model_.flight_button("impulse", 0, true))
+				return false;
 			if (!model_.set_speed_fraction(throttles_.zero(model_, key), binding))
 				return false;
+			// Detailed multi-drive Helms can own independent secondary speeds.
+			// Stop those through their ordinary channels as well as the main throttle.
+			const auto owners = model_.observation()->gameplay.value("controllers", Json::array());
+			for (const auto &owner : owners)
+				for (const auto &[channel, command] : owner.at("commands").items())
+					if (command.value("action", "") == "speed_mm_s" && command.value("human", false))
+					{
+						const auto sibling = "controller/" + owner.at("id").get<std::string>() + "/" + channel;
+						if (sibling != binding && !model_.command("speed_mm_s", 0, sibling))
+							return false;
+					}
 			std::erase_if(throttle_contacts_,
 			              [&](const auto &contact)
 			              {

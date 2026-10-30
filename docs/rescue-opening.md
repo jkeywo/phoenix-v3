@@ -2,7 +2,7 @@
 
 The same mission offers a Courier and Cruiser delivery fit. The briefing and opening station call describe the delivery assignment. Rescue objectives appear only after the distress conversation reaches the crew.
 
-The system contains a procedural star, a single-billboard planet and side-on orbital station, and an asteroid field with a clear southern working corridor. The station stays fixed relative to the planet. Ship fits, cargo, geometry, dialogue and timing are authored in the base pack, without changing the ordinary Courier, Cruiser or shuttle definitions used elsewhere.
+The system contains a procedural star, a single-billboard planet and side-on orbital station, and an asteroid field with a clear southern working corridor. Morrow and its encounter area sit north of the direct arrival-to-station route, outside effective positional and focused scanning range for both starting crews, while remaining detectable as long-range bearings. Reaching scanning range requires a diversion. The station stays fixed relative to the planet. Mission-specific cargo, geometry, dialogue and timing remain authored in the base pack.
 
 ## Playing the opening
 
@@ -35,6 +35,8 @@ Departure freezes both the rescue result and a separate delivery assessment. A s
 Scenario facts support the selected entity definition, active simulation tick, a named store/material quantity, and an objective's completion tick. An objective completion remains latched; report `assessments` evaluate separately from the primary rescue grade. Conversation `cancel_events` suppress both future starts and already queued, undelivered lines. These fields and scenario continuation use the ordinary save and content-identity checks. See [mission objectives](mission-objectives.md) for the generic contracts.
 
 The station approach region is authored at half the initial player-to-station distance. When editing arrival geometry, update that radius with the arrival and station positions. Asteroid generators leave a southern arrival lane and central working space; preserve Cruiser clearance when adjusting terrain.
+
+The 30 October placement moves Morrow, its rendezvous region, field/chart region, debris generators and pirate arrival positions together. The station approach radius is half the actual arrival distance. Existing saves retain their embedded authored geometry; start a new mission to use the revised placement. NPC variants that deliberately remove Courier propulsion/resources also explicitly remove its new impulse fitting.
 
 ## Verification
 

@@ -32,6 +32,7 @@ module;
 #include <nlohmann/json.hpp>
 module phoenix.ui.console_surface;
 import phoenix.content.assets;
+import phoenix.content.controllers;
 import phoenix.content.controllers.types;
 import phoenix.content.ui;
 
@@ -871,6 +872,12 @@ ConsoleSurface::State::prepare_console_chrome(Application &app, const ConsoleReg
 					widgets += "<button class=\"all-stop\" id=\"" + id("all-stop/" + key) + "\">" +
 					           Rml::StringUtilities::EncodeRml(localise("All stop")) + "</button>";
 					controls_.emplace_back(id("all-stop/" + key), "All stop");
+					widgets += "<button class=\"throttle-impulse\" id=\"" + id("throttle-impulse/" + key) + "\">" +
+					           Rml::StringUtilities::EncodeRml(localise("Impulse")) + "</button>";
+					widgets += "<button class=\"throttle-details details-button\" id=\"" +
+					           id("throttle-details/" + key) + "\"><span class=\"details-icon\">i</span></button>";
+					controls_.emplace_back(id("throttle-details/" + key), "Throttle details");
+					controls_.emplace_back(id("throttle-impulse/" + key), "Impulse");
 				}
 				if (kind == "heading")
 				{
@@ -1617,6 +1624,40 @@ void ConsoleSurface::State::sync_live_widgets(Application &app, const Json *layo
 				}
 			if (kind == "throttle")
 			{
+				bool available = false;
+				bool details_available = false;
+				int phase = 0;
+				if (model_.observation())
+				{
+					for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
+						available |=
+						    control.value("action", "") == "flight.impulse" || control.value("action", "") == "impulse";
+					for (const auto &system : model_.observation()->systems)
+						if (system.telemetry.contains("impulse_phase"))
+							phase = std::max(phase, static_cast<int>(system.telemetry.at("impulse_phase")));
+					for (const auto &widget : console_control_widgets(app_->session->catalog(), *model_.observation()))
+						for (const auto &datum : widget.data)
+							details_available |=
+							    (datum.equipment == model_.widget_system(key) ||
+							     model_.widget_system(key).starts_with("controller/" + widget.id + "/")) &&
+							    datum.destination == WidgetDataDestination::Details;
+				}
+				if (auto *details = document_->GetElementById(id("throttle-details/" + key)))
+					dom_.property(details, "display", details_available ? "block" : "none");
+				auto *housing = document_->GetElementById("widget/" + key);
+				housing->SetClass("impulse-equipped", available);
+				if (auto *impulse = document_->GetElementById(id("throttle-impulse/" + key)))
+				{
+					dom_.property(impulse, "display", available ? "block" : "none");
+					const auto label = localise(phase == 1   ? "Cancel impulse: charging"
+					                            : phase == 2 ? "Cancel impulse: active"
+					                                         : "Impulse");
+					const auto visible = localise(phase == 1 ? "Charging" : phase == 2 ? "Active" : "Impulse");
+					dom_.leaf_markup(impulse, Rml::StringUtilities::EncodeRml(visible));
+					impulse->SetClass("selected", phase != 0);
+					impulse->SetAttribute("aria-label", label);
+					impulse->SetAttribute("aria-pressed", phase ? "true" : "false");
+				}
 				const auto track = throttle_rect(key);
 				const auto &markers = hud_metadata_.at("helm-throttle-track").at("markers");
 				const float top = markers.at("travel_max")[1].get<float>() /
@@ -1703,7 +1744,17 @@ void ConsoleSurface::State::sync_live_widgets(Application &app, const Json *layo
 			        ? "Actual " + std::to_string(model_.observation() ? model_.observation()->own.heading / 1000 : 0) +
 			              " degrees"
 			        : "";
-			value = localise(value);
+			if (kind == "throttle" && model_.observation())
+			{
+				const auto &own = model_.observation()->own;
+				value = localise("Desired") + " " +
+				        std::string(TextFormat("%.1f", throttles_.request(model_, key) / 1000.0)) + " / " +
+				        localise("Actual") + " " +
+				        std::string(TextFormat("%.1f", std::hypot(double(own.vx), double(own.vy)) / 1000.0)) + " " +
+				        localise("m/s");
+			}
+			else
+				value = localise(value);
 			if (auto *readout = document_->GetElementById("value/" + key);
 			    readout && displayed_values_["value/" + key] != value)
 			{
@@ -1753,6 +1804,9 @@ void ConsoleSurface::State::publish_widget_semantics(Application &app, const Con
 {
 	for (const auto &[name, label] : controls_)
 	{
+		if ((name.starts_with(id("throttle-impulse/")) || name.starts_with(id("throttle-details/"))) &&
+		    (!dom_.element(name) || !dom_.element(name)->IsVisible(true)))
+			continue;
 		if (name.starts_with(id("all-stop/")) && model_.manual_active())
 			continue;
 		if (name == id("manual"))
@@ -1798,6 +1852,12 @@ void ConsoleSurface::State::publish_widget_semantics(Application &app, const Con
 			}
 			app.screen_controls.emplace_back(name, localise("On screen") + ": " + localise(active ? "On" : "Off"));
 		}
+		else if (name.starts_with(id("throttle-impulse/")))
+		{
+			const auto *button = dom_.element(name);
+			app.screen_controls.emplace_back(name, button->GetAttribute<Rml::String>("aria-label", localise(label)));
+			app.screen_toggles[name] = button->IsClassSet("selected");
+		}
 		else
 		{
 			const auto *choice = dom_.element(name);
@@ -1810,6 +1870,20 @@ void ConsoleSurface::State::publish_widget_semantics(Application &app, const Con
 			context_->Update();
 		place(app, region, name);
 	}
+	if (layout)
+		for (const auto &widget : layout->at("widgets"))
+			if (widget.at("kind") == "throttle")
+			{
+				const auto key = widget.at("id").get<std::string>();
+				if (auto *readout = dom_.element("value/" + key); readout && readout->IsVisible(true))
+				{
+					const auto name = id("flight-speed/" + key);
+					const auto at = readout->GetAbsoluteOffset(Rml::BoxArea::Border);
+					app.screen_readouts.emplace_back(name, displayed_values_["value/" + key]);
+					app.control_placements[name] = {region.x + at.x, region.y + at.y, readout->GetOffsetWidth(),
+					                                readout->GetOffsetHeight()};
+				}
+			}
 }
 
 void ConsoleSurface::State::publish_gameplay_semantics(Application &app, const ConsoleRegion &region,

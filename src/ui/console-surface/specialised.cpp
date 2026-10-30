@@ -54,37 +54,50 @@ namespace phoenix
 {
 bool ConsoleSurface::State::prepare_specialised_component(const std::string &component, const ConsoleRegion &region)
 {
-	if (settings_open_ || !model_.layout() || !model_.layout()->value("strict_widgets", false) ||
-	    !model_.observation() || !authored_component_visible(component))
+	if (settings_open_ || !model_.layout() ||
+	    (!model_.layout()->value("strict_widgets", false) && component != "flight-actions") || !model_.observation() ||
+	    !authored_component_visible(component))
 		return false;
 	if (component != "weapons" && component != "missiles" && component != "flight-status" &&
 	    component != "lateral-left" && component != "lateral-right" && component != "veil-controls" &&
-	    component != "repair" && component != "target-info")
+	    component != "repair" && component != "target-info" && component != "target-actions" &&
+	    component != "flight-actions")
 		return false;
 	const auto esc = [](const std::string &s)
 	{
 		return Rml::StringUtilities::EncodeRml(s);
 	};
 	std::vector<std::pair<std::string, std::string>> readouts, buttons;
+	std::map<std::string, std::string> compact_readouts;
 	std::string markup;
-	auto text = [&](const std::string &value)
+	auto text = [&](const std::string &value, const std::string &compact = std::string{})
 	{
 		const auto key = id("specialised/" + component + "/readout/" + std::to_string(readouts.size()));
 		readouts.emplace_back(key, value);
+		if (!compact.empty())
+			compact_readouts[key] = compact;
 		return "<p id=\"" + esc(key) + "\"></p>";
 	};
 	auto button = [&](const std::string &action, const std::string &label, std::optional<bool> selected = {},
-	                  const std::string &visible = {})
+	                  const std::string &visible = {}, bool enabled = true)
 	{
 		if (action.empty())
 			return "<span>" + esc(label) + "</span>";
 		const auto key = "task/specialised/" + component + "/" + std::to_string(buttons.size());
-		task_actions_[key] = action;
+		if (enabled)
+			task_actions_[key] = action;
+		else
+			task_actions_.erase(key);
 		if (selected)
 			app_->screen_toggles[id(key)] = *selected;
 		buttons.emplace_back(id(key), label);
-		return "<button id=\"" + esc(id(key)) + "\" class=\"" + (selected.value_or(false) ? "selected" : "") + "\">" +
-		       esc(visible.empty() ? label : visible) + "</button>";
+		return "<button id=\"" + esc(id(key)) + "\" class=\"" +
+		       (action.starts_with("control-details/") ? "details-button " : "") +
+		       (selected.value_or(false) ? "selected" : "") + "\"" +
+		       (enabled ? ">" : " disabled aria-disabled=\"true\">") +
+		       (action.starts_with("control-details/") ? "<span class=\"details-icon\">i</span>"
+		                                               : esc(visible.empty() ? label : visible)) +
+		       "</button>";
 	};
 	const auto &primary = *model_.observation();
 	const auto profile = primary.gameplay.value("profile", std::string{});
@@ -104,23 +117,56 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 			}
 		return std::string{};
 	};
-	if (component == "target-info")
+	if (component == "flight-actions")
+	{
+		std::string key;
+		for (const auto &widget : model_.layout()->at("widgets"))
+			if (widget.at("kind") == "throttle")
+			{
+				key = widget.at("id").get<std::string>();
+				break;
+			}
+		int phase = 0;
+		for (const auto &system : primary.systems)
+			if (system.kind == OperatingSystem::Impulse && system.telemetry.contains("impulse_phase"))
+				phase = std::max(phase, static_cast<int>(system.telemetry.at("impulse_phase")));
+		markup = "<div class=\"flight-actions\">";
+		for (const auto &[action, label, visible] : std::vector<std::tuple<std::string, std::string, std::string>>{
+		         {"flight-impulse/" + key,
+		          localise(phase == 1   ? "Cancel impulse: charging"
+		                   : phase == 2 ? "Cancel impulse: active"
+		                                : "Impulse"),
+		          localise(phase == 1   ? "Charging"
+		                   : phase == 2 ? "Active"
+		                                : "Impulse")},
+		         {"flight-stop/" + key, localise("All stop"), localise("All stop")}})
+		{
+			buttons.emplace_back(id(action), label);
+			markup += "<button id=\"" + esc(id(action)) + "\">" + esc(visible) + "</button>";
+		}
+		markup += "</div>";
+	}
+	else if (component == "target-info")
 	{
 		for (const auto &[key, value] : tactical_.target_readouts(model_, app_->session->catalog(), false))
 			markup += text(value);
+	}
+	else if (component == "target-actions")
+	{
+		markup = "<div class=\"target-actions\">";
 		const auto target = tactical_.console().empty() ? model_.sensor_contact() : tactical_.model().sensor_contact();
-		if (target && !model_.manual_active() &&
-		    std::any_of(primary.contacts.begin(), primary.contacts.end(),
-		                [&](const auto &contact)
-		                {
-			                return contact.id == target;
-		                }))
-		{
-			markup += button("contact-navigation/follow_contact", localise("Follow"));
-			markup += button("contact-navigation/match_speed", localise("Match speed"));
-		}
-		if (const auto dock = model_.target_docking_control(target))
-			markup += button(dock->id, dock->label);
+		const bool positional = target && !model_.manual_active() &&
+		                        std::any_of(primary.contacts.begin(), primary.contacts.end(),
+		                                    [&](const auto &contact)
+		                                    {
+			                                    return contact.id == target;
+		                                    });
+		markup += button("contact-navigation/follow_contact", localise("Follow"), {}, {}, positional);
+		markup += button("contact-navigation/match_speed", localise("Match speed"), {}, {}, positional);
+		const auto dock = model_.target_docking_control(target);
+		markup += button(dock ? dock->id : "unavailable-dock", dock ? dock->label : localise("Dock"), {}, {},
+		                 dock.has_value());
+		markup += "</div>";
 	}
 	else if (component == "flight-status")
 	{
@@ -214,10 +260,12 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 					markup += "<div class=\"weapon-switch\">";
 					const auto toggle = control(*source, prefix, "system_enabled", identity, system->enabled ? 0 : 1);
 					markup +=
-					    missile ? "<h3>" + esc(localise(engineering_name(identity))) + "</h3>"
-					            : button(toggle,
-					                     localise(w.value("point_defence", false) ? "PDC" : engineering_name(identity)),
-					                     system->enabled);
+					    missile
+					        ? "<h3>" + esc(localise(engineering_name(identity))) + "</h3>"
+					        : button(toggle,
+					                 localise(w.value("point_defence", false) ? "PDC" : engineering_name(identity)) +
+					                     (toggle.empty() ? " " + localise("Auto") : ""),
+					                 system->enabled);
 					markup += "</div>";
 					if (details)
 						markup += "<div class=\"weapon-details\">" +
@@ -225,11 +273,14 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 						                 localise("Details") + ": " + localise(engineering_name(identity)), {}, "i") +
 						          "</div>";
 					markup += "</div>";
-					if (toggle.empty() && !missile)
-						markup += text(localise("Automatic"));
 					if (main_data(identity, "system.status"))
-						markup += text(localise(system->status.empty() ? (system->enabled ? "Operational" : "Off")
-						                                               : system->status));
+					{
+						const auto status =
+						    system->status.empty() ? (system->enabled ? "Operational" : "Off") : system->status;
+						markup += text(localise(status), localise(status == "Operational" ? "OK"
+						                                          : status == "Off"       ? "Off"
+						                                                                  : "!"));
+					}
 					const auto mags = w.value("magazines", std::vector<std::string>{});
 					const auto selected = w.value("selected", std::size_t{});
 					if (!mags.empty() && selected < mags.size())
@@ -287,7 +338,8 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 									                 localise(engineering_name(mags[i])), selected == i);
 						}
 						else if (main_data(mags[selected], "system.ammo"))
-							markup += text(localise("Ammo") + ": " + std::to_string(ammo));
+							markup += text(localise("Ammo") + ": " + std::to_string(ammo),
+							               localise("Ammo") + " " + std::to_string(ammo));
 					}
 					if (missile)
 						for (const auto &owner : view.gameplay.value("controllers", Json::array()))
@@ -305,7 +357,8 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 						    system->telemetry.contains("energy_capacity") ? system->telemetry.at("energy_capacity") : 0;
 						markup += text(
 						    localise("Battery") + ": " +
-						    (capacity > 0 ? std::to_string(stored * 100 / capacity) + "%" : std::to_string(stored)));
+						        (capacity > 0 ? std::to_string(stored * 100 / capacity) + "%" : std::to_string(stored)),
+						    capacity > 0 ? std::to_string(stored * 100 / capacity) + "%" : std::to_string(stored));
 					}
 					if (stars >= 3)
 					{
@@ -504,7 +557,10 @@ bool ConsoleSurface::State::prepare_specialised_component(const std::string &com
 	for (const auto &[key, value] : readouts)
 	{
 		if (auto *field = document_->GetElementById(key))
-			dom_.leaf_markup(field, esc(value));
+		{
+			dom_.leaf_markup(field, esc(compact_readouts.contains(key) ? compact_readouts.at(key) : value));
+			field->SetAttribute("aria-label", value);
+		}
 		app_->screen_readouts.emplace_back(key, value);
 	}
 	context_->Update();

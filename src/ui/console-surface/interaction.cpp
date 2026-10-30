@@ -318,6 +318,28 @@ bool ConsoleSurface::State::action(const std::string &name)
 }
 std::optional<bool> ConsoleSurface::State::popup_action(const std::string &action)
 {
+	if (action.starts_with("flight-stop/"))
+		return all_stop(action.substr(12));
+	if (action.starts_with("throttle-impulse/") || action.starts_with("flight-impulse/"))
+		return !settings_open_ && !systems_open_ && model_.flight_button("impulse", -1, true);
+	if (action.starts_with("throttle-details/") && !settings_open_ && model_.observation() && app_->session)
+	{
+		const auto equipment = model_.widget_system(action.substr(17));
+		for (const auto &widget : console_control_widgets(app_->session->catalog(), *model_.observation()))
+			if (std::any_of(widget.data.begin(), widget.data.end(),
+			                [&](const auto &datum)
+			                {
+				                return (datum.equipment == equipment ||
+				                        equipment.starts_with("controller/" + widget.id + "/")) &&
+				                       datum.destination == WidgetDataDestination::Details;
+			                }))
+			{
+				const auto opened = popup_action("control-details/" + model_.observation()->console + "/" + widget.id);
+				control_detail_return_focus_ = id(action);
+				return opened;
+			}
+		return false;
+	}
 	if (action.starts_with("control-details/") && model_.observation() && app_->session)
 	{
 		const auto reference = action.substr(16);

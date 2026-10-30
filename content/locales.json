@@ -1900,7 +1900,14 @@
 			"Camera controls": "Camera controls",
 			"Target and waypoint": "Target and waypoint",
 			"Selected position": "Selected position",
-			"Select a contact or position on the map.": "Select a contact or position on the map."
+			"Select a contact or position on the map.": "Select a contact or position on the map.",
+			"Throttle details": "Throttle details",
+			"Desired speed": "Desired speed",
+			"Cancel impulse: charging": "Cancel impulse: charging",
+			"Cancel impulse: active": "Cancel impulse: active",
+			"Desired": "Desired",
+			"Actual": "Actual",
+			"OK": "OK"
 		}
 	}
 }

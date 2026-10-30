@@ -353,7 +353,10 @@
 							"beam-turret": null,
 							"pdc-turret": null,
 							"weapons-distribution": null,
-							"shields-distribution": null
+							"shields-distribution": null,
+							"impulse": null,
+							"impulse-supply": null,
+							"impulse-cooling": null
 						},
 						"collision": {
 							"shape": "circle",
@@ -2269,7 +2272,10 @@
 							"beam-turret": null,
 							"pdc-turret": null,
 							"weapons-distribution": null,
-							"shields-distribution": null
+							"shields-distribution": null,
+							"impulse": null,
+							"impulse-supply": null,
+							"impulse-cooling": null
 						},
 						"collision": {
 							"shape": "circle",
@@ -4537,7 +4543,10 @@
 							"beam-turret": null,
 							"pdc-turret": null,
 							"weapons-distribution": null,
-							"shields-distribution": null
+							"shields-distribution": null,
+							"impulse": null,
+							"impulse-supply": null,
+							"impulse-cooling": null
 						},
 						"collision": {
 							"shape": "circle",

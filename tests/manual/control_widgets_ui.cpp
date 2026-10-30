@@ -3,6 +3,7 @@
 #include <raylib.h>
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 #include <memory>
 #include <set>
 #include <string>
@@ -17,6 +18,7 @@ import phoenix.content.documents;
 import phoenix.ui.preview;
 using namespace phoenix;
 using phoenix::test::require;
+#include "courier_refinement.hpp"
 
 int main(int argc, char **argv)
 {
@@ -24,7 +26,8 @@ int main(int argc, char **argv)
 	try
 	{
 		const bool courier = argc == 8 && std::string(argv[1]) == "--courier";
-		const bool inspect = argc == 8 && (std::string(argv[1]) == "--inspect" || courier);
+		const bool refinement = argc == 8 && std::string(argv[1]) == "--refinement";
+		const bool inspect = argc == 8 && (std::string(argv[1]) == "--inspect" || courier || refinement);
 		require(argc == 2 || inspect, "usage: phoenix_control_widgets_smoke synthetic-pack.zip | --inspect pack map "
 		                              "slot ship console output-prefix");
 		Application app;
@@ -67,6 +70,12 @@ int main(int argc, char **argv)
 			require(app.session->observation().has_value(), "production Console preparation timed out");
 			require(app.console_surface_active && !app.screen_controls.empty(),
 			        "production Console has no rendered controls");
+			if (refinement)
+			{
+				courier_refinement_smoke(app, argv[7], frames);
+				close_window();
+				return 0;
+			}
 			if (courier)
 			{
 				const bool helm = std::string(argv[6]) == "helm";
@@ -82,12 +91,22 @@ int main(int argc, char **argv)
 						app.session->tick();
 					std::cout << "Ticks complete" << std::endl;
 					frames();
-					const auto pages = app.screen_controls;
 					std::vector<std::pair<std::string, std::string>> tabs;
-					for (const auto &row : pages)
-						if (row.first.find("station-page/") != std::string::npos ||
-						    row.first.find("console-page/") != std::string::npos)
-							tabs.push_back(row);
+					const auto expected_tabs = static_cast<std::size_t>(nav_comms ? 2 : (helm ? 4 : 5) + (stars == 3));
+					const auto preparing = GetTime();
+					do
+					{
+						tabs.clear();
+						for (const auto &row : app.screen_controls)
+							if (row.first.find("station-page/") != std::string::npos ||
+							    row.first.find("console-page/") != std::string::npos)
+								tabs.push_back(row);
+						if (tabs.size() == expected_tabs)
+							break;
+						frames();
+					} while (GetTime() - preparing < 30);
+					for (const auto &[key, label] : tabs)
+						std::cout << "Prepared tab " << key << ": " << label << std::endl;
 					require(tabs.size() == static_cast<std::size_t>(nav_comms ? 2 : (helm ? 4 : 5) + (stars == 3)),
 					        "Courier has exactly its agreed station pages");
 					const auto prefix = std::string(argv[7]) + "-" + std::to_string(stars);

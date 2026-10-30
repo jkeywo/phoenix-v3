@@ -65,6 +65,12 @@ p {display:block;word-break:break-word;font-size:.85em;margin:4px 0;}
 .heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;min-height:1.8em;height:auto;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
 .throttle-widget .readout {bottom:66dp;}
 .throttle-widget button.all-stop {position:absolute;left:8dp;right:8dp;bottom:8dp;width:auto;min-height:44dp;box-sizing:border-box;margin:0;}
+.throttle-widget button.throttle-details {left:auto;right:8dp;top:48dp;bottom:auto;z-index:3;}
+.throttle-widget button.throttle-impulse {display:none;left:8dp;right:auto;bottom:8dp;width:47%;min-height:44dp;box-sizing:border-box;margin:0;padding:4dp;font-size:.72em;}
+.throttle-widget.impulse-equipped button.all-stop {left:auto;right:8dp;width:44%;padding:4dp;font-size:.72em;}
+button.details-button,.authored .widget button.details-button,.authored button.details-button,.courier-console .weapon-details button.details-button {float:right;width:44dp;height:44dp;min-width:44dp;min-height:44dp;padding:9dp;margin:0;border:0dp transparent;background:transparent;box-sizing:border-box;text-align:center;decorator:none;}
+.details-icon {display:block;width:26dp;height:26dp;line-height:24dp;font-size:18dp;text-align:center;border:1dp #9c8b68;border-radius:13dp;box-sizing:border-box;background:#102027;pointer-events:none;}
+button.details-button:hover .details-icon,button.details-button:focus .details-icon {background:#455458;border:2dp #ffe4b0;line-height:22dp;}
 .throttle {position:absolute;background:transparent;border:0px;}
 .throttle slidertrack {background:transparent;}
 .throttle sliderbar {width:100%;background:transparent;}
@@ -313,20 +319,26 @@ progress fill {background:#83be90;}
 
 /* Authored specialised widgets: compact controls, never a generic command wall. */
 .courier-console .courier-weapons {display:block;}
-.courier-console .courier-weapon {display:inline-block;vertical-align:top;box-sizing:border-box;width:48%;padding:3dp;margin:2dp;border:1dp #45636b;}
+.courier-console .courier-weapon {position:relative;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;box-sizing:border-box;width:100%;padding:3dp 48dp 3dp 3dp;margin:2dp 0;border:1dp #45636b;}
 .courier-console .compact-weapons .courier-weapon {width:98%;}
-.courier-narrow .throttle-widget .readout {display:none;}
+.courier-console .throttle-widget .readout {height:44dp;bottom:62dp;left:4dp;right:4dp;font-size:.65em;line-height:1.1em;padding:2dp;box-sizing:border-box;}
+.courier-console .throttle-widget h2 {font-size:.8em;margin-right:44dp;}
 .courier-narrow .radar-widget button.on-screen {width:120dp;}
-.courier-console .weapon-heading {display:flex;flex-direction:row;align-items:flex-start;min-height:44dp;}
-.courier-console .weapon-details {flex:0 0 44dp;width:44dp;height:44dp;}
+.courier-console .weapon-heading {display:flex;flex-direction:row;align-items:center;min-height:44dp;min-width:0dp;flex:0 0 90dp;}
+.courier-console .weapon-details {position:absolute;right:2dp;top:3dp;width:44dp;height:44dp;}
 .courier-console .weapon-details button {width:44dp;height:44dp;box-sizing:border-box;}
 .courier-console .weapon-switch {flex:1 1 0dp;min-width:0dp;}
-.courier-console .weapon-switch button {width:100%;min-height:44dp;box-sizing:border-box;}
-.courier-console .weapon-switch > span {display:block;line-height:44dp;}
-.courier-console .courier-weapon p {margin:2dp 0;font-size:0.78em;}
+.courier-console .weapon-switch button {width:100%;min-width:0dp;min-height:44dp;box-sizing:border-box;word-break:break-word;}
+.courier-console .weapon-switch > span {display:block;font-size:.78em;line-height:1.25em;}
+.courier-console .courier-weapon p {margin:2dp 4dp;font-size:0.72em;flex:0 1 auto;}
 .courier-console .courier-weapon h3 {margin:2dp 0;font-size:0.9em;}
 .courier-console .courier-weapon button {min-height:44dp;margin:1dp;padding:3dp;font-size:0.78em;}
 .courier-console #missiles-panel .courier-weapon {width:98%;}
+.target-actions,.flight-actions {display:flex;flex-direction:row;align-items:center;}
+.target-actions button,.flight-actions button {flex:1 1 0dp;min-width:0dp;min-height:44dp;margin:0 2dp;padding:4dp;font-size:.75em;box-sizing:border-box;}
+.target-actions button:disabled {opacity:.45;}
+.courier-console #ftl-controls-panel .task-button {width:auto;flex:1 1 0dp;min-width:0dp;}
+.courier-console #ftl-controls-panel .task-choices p {flex:1 1 100%;margin:2dp;}
 .courier-console .radar-widget button.radar-systems {display:none;}
 .courier-console .radar-widget button.manual-toggle {top:2%;bottom:auto;left:1%;}
 .courier-console .radar-widget button.on-screen {top:2%;bottom:auto;right:1%;left:auto;}
