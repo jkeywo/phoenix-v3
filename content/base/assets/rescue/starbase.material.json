@@ -3,10 +3,10 @@
 	"frames": [
 		{
 			"name": "starbase",
-			"rect": [0, 0, 1774, 887],
-			"pivot": [887.0, 443.5],
+			"rect": [0, 0, 1536, 1024],
+			"pivot": [768.0, 744],
 			"azimuth": 0,
-			"depth_scale": 2.173913,
+			"depth_scale": 1.5625,
 			"depth_offset": 0,
 			"attachments": {}
 		}
