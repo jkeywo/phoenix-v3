@@ -407,7 +407,9 @@
 						"propulsion": {
 							"process": "base.process.propulsion"
 						}
-					}
+					},
+					"lateral_acceleration_mm_s2": 3500,
+					"lateral_speed_mm_s": 16500
 				},
 				"helm": {
 					"kind": "steering",
@@ -1033,7 +1035,7 @@
 					"consoles": [
 						{
 							"id": "helm",
-							"definition": "base.console.widgets.7e0a11c1ae0d11b1",
+							"definition": "base.console.courier.helm",
 							"systems": [],
 							"feeds": [
 								"drive",
@@ -1069,7 +1071,7 @@
 						},
 						{
 							"id": "tactical",
-							"definition": "base.console.widgets.9a69642f3262d4d2",
+							"definition": "base.console.courier.tactical",
 							"human_seeking": true,
 							"human_preferences": ["helm"],
 							"systems": [],
@@ -1103,7 +1105,7 @@
 					"consoles": [
 						{
 							"id": "support",
-							"definition": "base.console.widgets.4bf9e19133f824fe",
+							"definition": "base.console.courier.support",
 							"systems": [],
 							"feeds": [
 								"drive",
@@ -1145,14 +1147,14 @@
 						},
 						{
 							"id": "comms",
-							"definition": "base.console.widgets.3ea4261887d7827f",
+							"definition": "base.console.courier.comms",
 							"systems": [],
 							"feeds": ["comms-radio", "radar"],
 							"human_preferences": ["support"]
 						},
 						{
 							"id": "navigation",
-							"definition": "base.console.widgets.8dec2da474e8dd61",
+							"definition": "base.console.courier.navigation",
 							"systems": [],
 							"feeds": ["radar", "ftl.drive"],
 							"knowledge_roles": ["base.crew"],
@@ -1167,7 +1169,7 @@
 					{
 						"id": "drive",
 						"console": "helm",
-						"widget": "base.widget.68efd69368950280",
+						"widget": "base.widget.courier.helm.drive",
 						"equipment": {
 							"equipment": "drive"
 						},
@@ -1180,7 +1182,7 @@
 					{
 						"id": "helm",
 						"console": "helm",
-						"widget": "base.widget.2e818fdd5457fefc",
+						"widget": "base.widget.courier.helm.helm",
 						"equipment": {
 							"equipment": "helm"
 						},
@@ -1193,7 +1195,7 @@
 					{
 						"id": "radar",
 						"console": "support",
-						"widget": "base.widget.f4b5b4fcf0377dce",
+						"widget": "base.widget.courier.support.radar",
 						"equipment": {
 							"equipment": "radar"
 						},
@@ -1206,7 +1208,7 @@
 					{
 						"id": "top",
 						"console": "tactical",
-						"widget": "base.widget.01ea517edfecc846",
+						"widget": "base.widget.courier.tactical.top",
 						"equipment": {
 							"equipment": ["top", "beam-turret"]
 						},
@@ -1219,7 +1221,7 @@
 					{
 						"id": "top-mag",
 						"console": "tactical",
-						"widget": "base.widget.2435e28aeb2fe785",
+						"widget": "base.widget.courier.tactical.top-mag",
 						"equipment": {
 							"equipment": "top-mag"
 						},
@@ -1232,7 +1234,7 @@
 					{
 						"id": "top-gun",
 						"console": "tactical",
-						"widget": "base.widget.de451e0db0f90f93",
+						"widget": "base.widget.courier.tactical.top-gun",
 						"equipment": {
 							"equipment": "top-gun"
 						},
@@ -1245,7 +1247,7 @@
 					{
 						"id": "bottom",
 						"console": "tactical",
-						"widget": "base.widget.01ea517edfecc846",
+						"widget": "base.widget.courier.tactical.bottom",
 						"equipment": {
 							"equipment": ["bottom", "pdc-turret"]
 						},
@@ -1258,7 +1260,7 @@
 					{
 						"id": "bottom-mag",
 						"console": "tactical",
-						"widget": "base.widget.2435e28aeb2fe785",
+						"widget": "base.widget.courier.tactical.bottom-mag",
 						"equipment": {
 							"equipment": "bottom-mag"
 						},
@@ -1271,7 +1273,7 @@
 					{
 						"id": "bottom-gun",
 						"console": "tactical",
-						"widget": "base.widget.de451e0db0f90f93",
+						"widget": "base.widget.courier.tactical.bottom-gun",
 						"equipment": {
 							"equipment": "bottom-gun"
 						},
@@ -1284,7 +1286,7 @@
 					{
 						"id": "forward-mag",
 						"console": "tactical",
-						"widget": "base.widget.2435e28aeb2fe785",
+						"widget": "base.widget.courier.tactical.forward-mag",
 						"equipment": {
 							"equipment": "forward-mag"
 						},
@@ -1297,7 +1299,7 @@
 					{
 						"id": "forward-gun",
 						"console": "tactical",
-						"widget": "base.widget.de451e0db0f90f93",
+						"widget": "base.widget.courier.tactical.forward-gun",
 						"equipment": {
 							"equipment": "forward-gun"
 						},
@@ -1310,7 +1312,7 @@
 					{
 						"id": "team-1",
 						"console": "support",
-						"widget": "base.widget.08d52e36e4ff8864",
+						"widget": "base.widget.courier.support.team-1",
 						"equipment": {
 							"equipment": "team-1"
 						},
@@ -1323,7 +1325,7 @@
 					{
 						"id": "team-2",
 						"console": "support",
-						"widget": "base.widget.0e735ff61fa10f2e",
+						"widget": "base.widget.courier.support.team-2",
 						"equipment": {
 							"equipment": "team-2"
 						},
@@ -1336,7 +1338,7 @@
 					{
 						"id": "reactor",
 						"console": "support",
-						"widget": "base.widget.3cd5ffa990b06803",
+						"widget": "base.widget.courier.support.reactor",
 						"equipment": {
 							"equipment": "reactor"
 						},
@@ -1349,7 +1351,7 @@
 					{
 						"id": "weapon-cell",
 						"console": "support",
-						"widget": "base.widget.9ba152a0ca82cb78",
+						"widget": "base.widget.courier.support.weapon-cell",
 						"equipment": {
 							"equipment": "weapon-cell"
 						},
@@ -1362,7 +1364,7 @@
 					{
 						"id": "shield-cell",
 						"console": "support",
-						"widget": "base.widget.9ba152a0ca82cb78",
+						"widget": "base.widget.courier.support.shield-cell",
 						"equipment": {
 							"equipment": "shield-cell"
 						},
@@ -1375,7 +1377,7 @@
 					{
 						"id": "beam",
 						"console": "tactical",
-						"widget": "base.widget.6bf281ea953af6f2",
+						"widget": "base.widget.courier.tactical.beam",
 						"equipment": {
 							"equipment": "beam"
 						},
@@ -1388,7 +1390,7 @@
 					{
 						"id": "shield-fore",
 						"console": "support",
-						"widget": "base.widget.b4d9ecb82a2b9612",
+						"widget": "base.widget.courier.support.shield-fore",
 						"equipment": {
 							"equipment": "shield-fore"
 						},
@@ -1401,7 +1403,7 @@
 					{
 						"id": "shield-aft",
 						"console": "support",
-						"widget": "base.widget.b4d9ecb82a2b9612",
+						"widget": "base.widget.courier.support.shield-aft",
 						"equipment": {
 							"equipment": "shield-aft"
 						},
@@ -1414,7 +1416,7 @@
 					{
 						"id": "homing-mag",
 						"console": "tactical",
-						"widget": "base.widget.85ba084b1e3d325a",
+						"widget": "base.widget.courier.tactical.homing-mag",
 						"equipment": {
 							"equipment": "homing-mag"
 						},
@@ -1427,7 +1429,7 @@
 					{
 						"id": "havok-mag",
 						"console": "tactical",
-						"widget": "base.widget.85ba084b1e3d325a",
+						"widget": "base.widget.courier.tactical.havok-mag",
 						"equipment": {
 							"equipment": "havok-mag"
 						},
@@ -1440,7 +1442,7 @@
 					{
 						"id": "missile-launcher",
 						"console": "tactical",
-						"widget": "base.widget.f3da4c1d4fce97cd",
+						"widget": "base.widget.courier.tactical.missile-launcher",
 						"equipment": {
 							"equipment": "missile-launcher",
 							"equipment2": ["havok-mag", "homing-mag"]
@@ -1454,7 +1456,7 @@
 					{
 						"id": "pdc-mag",
 						"console": "tactical",
-						"widget": "base.widget.85ba084b1e3d325a",
+						"widget": "base.widget.courier.tactical.pdc-mag",
 						"equipment": {
 							"equipment": "pdc-mag"
 						},
@@ -1467,7 +1469,7 @@
 					{
 						"id": "pdc",
 						"console": "tactical",
-						"widget": "base.widget.96f7d3df1c9696ec",
+						"widget": "base.widget.courier.tactical.pdc",
 						"equipment": {
 							"equipment": "pdc",
 							"equipment2": "pdc-mag"
@@ -1481,7 +1483,7 @@
 					{
 						"id": "external-comms",
 						"console": "comms",
-						"widget": "base.widget.a537774ab9183594",
+						"widget": "base.widget.courier.comms.external-comms",
 						"equipment": {
 							"equipment": "comms-radio"
 						},
@@ -1494,7 +1496,7 @@
 					{
 						"id": "dispatch",
 						"console": "helm",
-						"widget": "base.widget.70bf61506326c20d",
+						"widget": "base.widget.courier.helm.dispatch",
 						"equipment": {
 							"equipment": "dispatch"
 						},
@@ -1507,7 +1509,7 @@
 					{
 						"id": "scanner",
 						"console": "tactical",
-						"widget": "base.widget.8943435136c0c56f",
+						"widget": "base.widget.courier.tactical.scanner",
 						"equipment": {
 							"equipment": "focused-scanner"
 						},
@@ -1520,7 +1522,7 @@
 					{
 						"id": "ftl.drive",
 						"console": "navigation",
-						"widget": "base.widget.7f4f0e6c139baef4",
+						"widget": "base.widget.courier.navigation.ftl.drive",
 						"equipment": {
 							"equipment": "ftl.drive"
 						},
@@ -1533,7 +1535,7 @@
 					{
 						"id": "ftl.supply",
 						"console": "support",
-						"widget": "base.widget.9d09a60fbe79f624",
+						"widget": "base.widget.courier.support.ftl.supply",
 						"equipment": {
 							"equipment": "ftl.supply"
 						},
@@ -1546,7 +1548,7 @@
 					{
 						"id": "ftl.cooling",
 						"console": "support",
-						"widget": "base.widget.9875712e6afc087f",
+						"widget": "base.widget.courier.support.ftl.cooling",
 						"equipment": {
 							"equipment": "ftl.cooling"
 						},
@@ -1559,7 +1561,7 @@
 					{
 						"id": "medical-team",
 						"console": "support",
-						"widget": "base.widget.6c68b7745cfd7f89",
+						"widget": "base.widget.courier.support.medical-team",
 						"equipment": {
 							"equipment": "medical-team"
 						},
@@ -1572,7 +1574,7 @@
 					{
 						"id": "security-team",
 						"console": "tactical",
-						"widget": "base.widget.4b752b521b829610",
+						"widget": "base.widget.courier.tactical.security-team",
 						"equipment": {
 							"equipment": "security-team"
 						},
@@ -1585,7 +1587,7 @@
 					{
 						"id": "navigation.orders",
 						"console": "navigation",
-						"widget": "base.widget.3d42805a101dadff",
+						"widget": "base.widget.courier.navigation.navigation.orders",
 						"equipment": {},
 						"star_levels": {
 							"1": "responsibility1",
@@ -1596,7 +1598,7 @@
 					{
 						"id": "drive.direct",
 						"console": "helm",
-						"widget": "base.widget.423cca0d9d38c6d9",
+						"widget": "base.widget.courier.helm.drive.direct",
 						"equipment": {
 							"equipment": "drive"
 						},
@@ -1609,7 +1611,7 @@
 					{
 						"id": "helm.direct",
 						"console": "helm",
-						"widget": "base.widget.bf9ae4039c245078",
+						"widget": "base.widget.courier.helm.helm.direct",
 						"equipment": {
 							"equipment": "helm"
 						},
@@ -1622,7 +1624,7 @@
 					{
 						"id": "scanner.ready",
 						"console": "tactical",
-						"widget": "base.widget.081dc4c7ee4969a3",
+						"widget": "base.widget.courier.tactical.scanner.ready",
 						"equipment": {
 							"equipment": ["focused-scanner", "sensor-turret"]
 						},
@@ -1635,7 +1637,7 @@
 					{
 						"id": "top-gun.settings",
 						"console": "tactical",
-						"widget": "base.widget.6dd5c8d08b43937a",
+						"widget": "base.widget.courier.tactical.top-gun.settings",
 						"equipment": {
 							"equipment": "top-gun"
 						},
@@ -1648,7 +1650,7 @@
 					{
 						"id": "bottom-gun.settings",
 						"console": "tactical",
-						"widget": "base.widget.6dd5c8d08b43937a",
+						"widget": "base.widget.courier.tactical.bottom-gun.settings",
 						"equipment": {
 							"equipment": "bottom-gun"
 						},
@@ -1661,7 +1663,7 @@
 					{
 						"id": "forward-gun.settings",
 						"console": "tactical",
-						"widget": "base.widget.6dd5c8d08b43937a",
+						"widget": "base.widget.courier.tactical.forward-gun.settings",
 						"equipment": {
 							"equipment": "forward-gun"
 						},
@@ -1674,7 +1676,7 @@
 					{
 						"id": "beam.settings",
 						"console": "tactical",
-						"widget": "base.widget.ad49f940962a4068",
+						"widget": "base.widget.courier.tactical.beam.settings",
 						"equipment": {
 							"equipment": "beam"
 						},
@@ -1687,7 +1689,7 @@
 					{
 						"id": "missile-launcher.settings",
 						"console": "tactical",
-						"widget": "base.widget.3991b055a53c3b91",
+						"widget": "base.widget.courier.tactical.missile-launcher.settings",
 						"equipment": {
 							"equipment": "missile-launcher",
 							"equipment2": ["havok-mag", "homing-mag"]
@@ -1701,21 +1703,21 @@
 					{
 						"id": "missile-launcher.ammo",
 						"console": "tactical",
-						"widget": "base.widget.5f6d1a62289fb69f",
+						"widget": "base.widget.courier.tactical.missile-launcher.ammo",
 						"equipment": {
 							"equipment": "missile-launcher",
 							"equipment2": ["havok-mag", "homing-mag"]
 						},
 						"star_levels": {
-							"1": "automated",
-							"2": "automated",
-							"3": "responsibility1"
+							"1": "assisted",
+							"2": "manual",
+							"3": "manual"
 						}
 					},
 					{
 						"id": "pdc.settings",
 						"console": "tactical",
-						"widget": "base.widget.fe0baf0b6b17abbe",
+						"widget": "base.widget.courier.tactical.pdc.settings",
 						"equipment": {
 							"equipment": "pdc",
 							"equipment2": "pdc-mag"
@@ -1729,7 +1731,7 @@
 					{
 						"id": "repair-priority",
 						"console": "support",
-						"widget": "base.widget.d1573bb3b4d52549",
+						"widget": "base.widget.courier.support.repair-priority",
 						"equipment": {},
 						"star_levels": {
 							"1": "responsibility1",
@@ -1740,7 +1742,7 @@
 					{
 						"id": "shield-priority",
 						"console": "support",
-						"widget": "base.widget.9283e9ffd0171c85",
+						"widget": "base.widget.courier.support.shield-priority",
 						"equipment": {},
 						"star_levels": {
 							"1": "automated",
@@ -1751,7 +1753,7 @@
 					{
 						"id": "shield-fore.distribution",
 						"console": "support",
-						"widget": "base.widget.edfa4d9ce3b79e90",
+						"widget": "base.widget.courier.support.shield-fore.distribution",
 						"equipment": {
 							"equipment": "shield-fore"
 						},
@@ -1764,7 +1766,7 @@
 					{
 						"id": "shield-aft.distribution",
 						"console": "support",
-						"widget": "base.widget.984a0ed4def3180f",
+						"widget": "base.widget.courier.support.shield-aft.distribution",
 						"equipment": {
 							"equipment": "shield-aft"
 						},
@@ -1777,7 +1779,7 @@
 					{
 						"id": "veil",
 						"console": "support",
-						"widget": "base.widget.9516b8073ae588c2",
+						"widget": "base.widget.courier.support.veil",
 						"equipment": {
 							"equipment": "veil"
 						},
@@ -1790,7 +1792,7 @@
 					{
 						"id": "veil-supply",
 						"console": "support",
-						"widget": "base.widget.a8e195e470c9bd54",
+						"widget": "base.widget.courier.support.veil-supply",
 						"equipment": {
 							"equipment": "veil-supply"
 						},
@@ -1803,7 +1805,7 @@
 					{
 						"id": "veil-cooling",
 						"console": "support",
-						"widget": "base.widget.2ccc4fccaafe5656",
+						"widget": "base.widget.courier.support.veil-cooling",
 						"equipment": {
 							"equipment": "veil-cooling"
 						},
@@ -1816,7 +1818,7 @@
 					{
 						"id": "weapons-distribution",
 						"console": "support",
-						"widget": "base.widget.057ea2135b0f529f",
+						"widget": "base.widget.courier.support.weapons-distribution",
 						"equipment": {
 							"equipment": "weapons-distribution"
 						},
@@ -1829,7 +1831,7 @@
 					{
 						"id": "shields-distribution",
 						"console": "support",
-						"widget": "base.widget.095d65be0f7b7a00",
+						"widget": "base.widget.courier.support.shields-distribution",
 						"equipment": {
 							"equipment": "shields-distribution"
 						},
@@ -1842,7 +1844,7 @@
 					{
 						"id": "personnel",
 						"console": "helm",
-						"widget": "base.widget.d407aa2177a908c4",
+						"widget": "base.widget.courier.helm.personnel",
 						"equipment": {},
 						"star_levels": {
 							"1": "assisted",
@@ -1853,7 +1855,7 @@
 					{
 						"id": "personnel",
 						"console": "tactical",
-						"widget": "base.widget.de1d8a7216df5c57",
+						"widget": "base.widget.courier.tactical.personnel",
 						"equipment": {
 							"assets": ["security-team"]
 						},
@@ -1866,7 +1868,7 @@
 					{
 						"id": "personnel",
 						"console": "support",
-						"widget": "base.widget.de1d8a7216df5c57",
+						"widget": "base.widget.courier.support.personnel",
 						"equipment": {
 							"assets": ["medical-team", "team-1", "team-2"]
 						},
@@ -1879,7 +1881,7 @@
 					{
 						"id": "personnel",
 						"console": "comms",
-						"widget": "base.widget.d407aa2177a908c4",
+						"widget": "base.widget.courier.comms.personnel",
 						"equipment": {},
 						"star_levels": {
 							"1": "assisted",
@@ -1890,7 +1892,7 @@
 					{
 						"id": "personnel",
 						"console": "navigation",
-						"widget": "base.widget.d407aa2177a908c4",
+						"widget": "base.widget.courier.navigation.personnel",
 						"equipment": {},
 						"star_levels": {
 							"1": "assisted",
@@ -1901,7 +1903,7 @@
 					{
 						"id": "bridge",
 						"console": "helm",
-						"widget": "base.widget.5bfc11aeebc9c257",
+						"widget": "base.widget.courier.helm.bridge",
 						"equipment": {},
 						"star_levels": {
 							"1": "manual",
@@ -1912,7 +1914,7 @@
 					{
 						"id": "bridge",
 						"console": "tactical",
-						"widget": "base.widget.5bfc11aeebc9c257",
+						"widget": "base.widget.courier.tactical.bridge",
 						"equipment": {},
 						"star_levels": {
 							"1": "manual",
@@ -1923,7 +1925,7 @@
 					{
 						"id": "bridge",
 						"console": "support",
-						"widget": "base.widget.f923fc3c2276ccf4",
+						"widget": "base.widget.courier.support.bridge",
 						"equipment": {},
 						"star_levels": {
 							"1": "manual",
@@ -1934,7 +1936,7 @@
 					{
 						"id": "bridge",
 						"console": "comms",
-						"widget": "base.widget.5bfc11aeebc9c257",
+						"widget": "base.widget.courier.comms.bridge",
 						"equipment": {},
 						"star_levels": {
 							"1": "manual",
@@ -1945,7 +1947,7 @@
 					{
 						"id": "bridge",
 						"console": "navigation",
-						"widget": "base.widget.5bfc11aeebc9c257",
+						"widget": "base.widget.courier.navigation.bridge",
 						"equipment": {},
 						"star_levels": {
 							"1": "manual",
@@ -51372,6 +51374,1834 @@
 						}
 					}
 				}
+			}
+		},
+		{
+			"id": "base.console.courier.helm",
+			"name": "Helm",
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"system": "radar",
+					"binding": "radar.contacts",
+					"label": "Radar",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000,
+					"fire_arcs": true,
+					"selection_source": "tactical"
+				},
+				{
+					"id": "throttle",
+					"kind": "throttle",
+					"controller": "drive",
+					"channel": "speed_mm_s",
+					"binding": "engine.desired_speed",
+					"label": "Throttle",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				},
+				{
+					"id": "heading",
+					"kind": "heading",
+					"controller": "helm",
+					"channel": "heading_mdeg",
+					"binding": "steering.desired_heading",
+					"label": "Heading",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				}
+			],
+			"gameplay_panel": {
+				"x": 0.05,
+				"y": 0.7,
+				"width": 0.7,
+				"height": 0.29
+			},
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"children": [
+						{
+							"id": "main",
+							"label": "Helm",
+							"kind": "row",
+							"gap": 8,
+							"children": [
+								{
+									"id": "watch",
+									"kind": "column",
+									"width": 280,
+									"min_width": 220,
+									"stretch": 0,
+									"scroll": true,
+									"children": [
+										{
+											"id": "weapons",
+											"kind": "component",
+											"component": "weapons",
+											"widget_parts": [
+												"control/tactical/top/presentation",
+												"control/tactical/top-mag/presentation",
+												"control/tactical/top-gun/presentation",
+												"control/tactical/bottom/presentation",
+												"control/tactical/bottom-mag/presentation",
+												"control/tactical/bottom-gun/presentation",
+												"control/tactical/forward-mag/presentation",
+												"control/tactical/forward-gun/presentation",
+												"control/tactical/beam/presentation",
+												"control/tactical/pdc-mag/presentation",
+												"control/tactical/pdc/presentation",
+												"control/tactical/scanner/presentation",
+												"control/tactical/security-team/presentation",
+												"control/tactical/scanner.ready/presentation",
+												"control/tactical/top-gun.settings/presentation",
+												"control/tactical/bottom-gun.settings/presentation",
+												"control/tactical/forward-gun.settings/presentation",
+												"control/tactical/beam.settings/presentation",
+												"control/tactical/pdc.settings/presentation"
+											],
+											"min_height": 44,
+											"stretch": 0
+										},
+										{
+											"id": "missiles",
+											"kind": "component",
+											"component": "missiles",
+											"widget_parts": [
+												"control/tactical/homing-mag/presentation",
+												"control/tactical/havok-mag/presentation",
+												"control/tactical/missile-launcher/presentation",
+												"control/tactical/missile-launcher.settings/presentation",
+												"control/tactical/missile-launcher.ammo/presentation"
+											],
+											"min_height": 44,
+											"stretch": 0
+										},
+										{
+											"id": "target",
+											"kind": "component",
+											"component": "target-info",
+											"widget_parts": [
+												"control/bridge/presentation",
+												"control/tactical/bridge/presentation"
+											],
+											"min_height": 44,
+											"stretch": 0
+										}
+									]
+								},
+								{
+									"id": "instruments",
+									"kind": "instruments",
+									"stretch": 3,
+									"min_width": 390,
+									"children": [
+										{
+											"id": "radar",
+											"kind": "component",
+											"component": "radar",
+											"widget_parts": ["control/helm/presentation"],
+											"rect": {
+												"x": 0,
+												"y": 0,
+												"width": 800,
+												"height": 900
+											},
+											"aspect": 1,
+											"min_width": 250,
+											"min_height": 250
+										},
+										{
+											"id": "speed",
+											"kind": "component",
+											"component": "throttle",
+											"widget_parts": ["control/drive/presentation"],
+											"rect": {
+												"x": 810,
+												"y": 40,
+												"width": 185,
+												"height": 700
+											},
+											"min_width": 72,
+											"min_height": 240
+										},
+										{
+											"id": "flight-status",
+											"kind": "component",
+											"component": "flight-status",
+											"widget_parts": [],
+											"rect": {
+												"x": 810,
+												"y": 750,
+												"width": 185,
+												"height": 230
+											}
+										},
+										{
+											"id": "manual",
+											"kind": "component",
+											"component": "manual-flight",
+											"widget_parts": [
+												"control/drive.direct/presentation",
+												"control/helm.direct/presentation"
+											],
+											"rect": {
+												"x": 0,
+												"y": 0,
+												"width": 800,
+												"height": 900
+											}
+										},
+										{
+											"id": "lateral-left",
+											"kind": "component",
+											"component": "lateral-left",
+											"widget_parts": ["control/drive.direct/port"],
+											"rect": {
+												"x": 0,
+												"y": 870,
+												"width": 220,
+												"height": 120
+											},
+											"when": {
+												"min_stars": 2
+											}
+										},
+										{
+											"id": "lateral-right",
+											"kind": "component",
+											"component": "lateral-right",
+											"widget_parts": ["control/drive.direct/starboard"],
+											"rect": {
+												"x": 580,
+												"y": 870,
+												"width": 220,
+												"height": 120
+											},
+											"when": {
+												"min_stars": 2
+											}
+										}
+									],
+									"scroll": true
+								}
+							],
+							"padding": 0
+						},
+						{
+							"id": "away",
+							"kind": "component",
+							"component": "away",
+							"widget_parts": [
+								"control/dispatch/presentation",
+								"control/personnel/mission",
+								"control/tactical/personnel/mission"
+							],
+							"label": "Away Missions"
+						},
+						{
+							"id": "personnel",
+							"kind": "component",
+							"component": "personnel",
+							"widget_parts": [
+								"control/personnel/presentation",
+								"control/tactical/personnel/presentation"
+							],
+							"label": "Personnel",
+							"when": {
+								"min_stars": 3
+							}
+						}
+					],
+					"min_width": 900
+				},
+				"compact": {
+					"id": "station",
+					"kind": "tabs",
+					"children": [
+						{
+							"id": "main",
+							"label": "Helm",
+							"kind": "row",
+							"gap": 4,
+							"children": [
+								{
+									"id": "watch",
+									"kind": "column",
+									"width": 220,
+									"min_width": 220,
+									"stretch": 0,
+									"scroll": true,
+									"children": [
+										{
+											"id": "weapons",
+											"kind": "component",
+											"component": "weapons",
+											"widget_parts": [
+												"control/tactical/top/presentation",
+												"control/tactical/top-mag/presentation",
+												"control/tactical/top-gun/presentation",
+												"control/tactical/bottom/presentation",
+												"control/tactical/bottom-mag/presentation",
+												"control/tactical/bottom-gun/presentation",
+												"control/tactical/forward-mag/presentation",
+												"control/tactical/forward-gun/presentation",
+												"control/tactical/beam/presentation",
+												"control/tactical/pdc-mag/presentation",
+												"control/tactical/pdc/presentation",
+												"control/tactical/scanner/presentation",
+												"control/tactical/security-team/presentation",
+												"control/tactical/scanner.ready/presentation",
+												"control/tactical/top-gun.settings/presentation",
+												"control/tactical/bottom-gun.settings/presentation",
+												"control/tactical/forward-gun.settings/presentation",
+												"control/tactical/beam.settings/presentation",
+												"control/tactical/pdc.settings/presentation"
+											],
+											"min_height": 44,
+											"stretch": 0
+										},
+										{
+											"id": "missiles",
+											"kind": "component",
+											"component": "missiles",
+											"widget_parts": [
+												"control/tactical/homing-mag/presentation",
+												"control/tactical/havok-mag/presentation",
+												"control/tactical/missile-launcher/presentation",
+												"control/tactical/missile-launcher.settings/presentation",
+												"control/tactical/missile-launcher.ammo/presentation"
+											],
+											"min_height": 44,
+											"stretch": 0
+										},
+										{
+											"id": "target",
+											"kind": "component",
+											"component": "target-info",
+											"widget_parts": [
+												"control/bridge/presentation",
+												"control/tactical/bridge/presentation"
+											],
+											"min_height": 44,
+											"stretch": 0
+										}
+									]
+								},
+								{
+									"id": "instruments",
+									"kind": "instruments",
+									"stretch": 3,
+									"min_width": 390,
+									"children": [
+										{
+											"id": "radar",
+											"kind": "component",
+											"component": "radar",
+											"widget_parts": ["control/helm/presentation"],
+											"rect": {
+												"x": 0,
+												"y": 0,
+												"width": 800,
+												"height": 680
+											},
+											"aspect": 1,
+											"min_width": 250,
+											"min_height": 250
+										},
+										{
+											"id": "speed",
+											"kind": "component",
+											"component": "throttle",
+											"widget_parts": ["control/drive/presentation"],
+											"rect": {
+												"x": 810,
+												"y": 100,
+												"width": 185,
+												"height": 550
+											},
+											"min_width": 72,
+											"min_height": 240
+										},
+										{
+											"id": "flight-status",
+											"kind": "component",
+											"component": "flight-status",
+											"widget_parts": [],
+											"rect": {
+												"x": 0,
+												"y": 690,
+												"width": 1000,
+												"height": 180
+											}
+										},
+										{
+											"id": "manual",
+											"kind": "component",
+											"component": "manual-flight",
+											"widget_parts": [
+												"control/drive.direct/presentation",
+												"control/helm.direct/presentation"
+											],
+											"rect": {
+												"x": 0,
+												"y": 0,
+												"width": 800,
+												"height": 680
+											}
+										},
+										{
+											"id": "lateral-left",
+											"kind": "component",
+											"component": "lateral-left",
+											"widget_parts": ["control/drive.direct/port"],
+											"rect": {
+												"x": 0,
+												"y": 870,
+												"width": 220,
+												"height": 120
+											},
+											"when": {
+												"min_stars": 2
+											}
+										},
+										{
+											"id": "lateral-right",
+											"kind": "component",
+											"component": "lateral-right",
+											"widget_parts": ["control/drive.direct/starboard"],
+											"rect": {
+												"x": 580,
+												"y": 870,
+												"width": 220,
+												"height": 120
+											},
+											"when": {
+												"min_stars": 2
+											}
+										}
+									],
+									"scroll": true
+								}
+							],
+							"padding": 0
+						},
+						{
+							"id": "away",
+							"kind": "component",
+							"component": "away",
+							"widget_parts": [
+								"control/dispatch/presentation",
+								"control/personnel/mission",
+								"control/tactical/personnel/mission"
+							],
+							"label": "Away Missions"
+						},
+						{
+							"id": "personnel",
+							"kind": "component",
+							"component": "personnel",
+							"widget_parts": [
+								"control/personnel/presentation",
+								"control/tactical/personnel/presentation"
+							],
+							"label": "Personnel",
+							"when": {
+								"min_stars": 3
+							}
+						}
+					],
+					"min_width": 44
+				}
+			},
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Fly the Courier, choose its combat target and offensive weapons, and lead docking and away missions.",
+						"automation": "AI manages weapon settings and ammunition, defensive point defence, scanner following, mission preparation and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Set the Courier's speed and heading or follow navigation orders and contacts using assisted flight."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select the shared combat target and enable or disable individual offensive weapons to decide what the ship attacks."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate an away mission, dock for insertion, and recall or cancel it while tracking the party's physical recovery."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "weapons", "dispatch"],
+							"station": ["flight", "docking", "weapons", "dispatch"],
+							"station.main": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.weapons": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.missiles": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.target": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.radar": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.speed": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.flight-status": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.manual": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.lateral-left": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.lateral-right": ["flight", "docking", "weapons", "dispatch"],
+							"station.away": ["flight", "docking", "weapons", "dispatch"],
+							"station.personnel": ["flight", "docking", "weapons", "dispatch"]
+						}
+					},
+					"2": {
+						"responsibilities": "Fly and fight the Courier, manage point defence, and coordinate docking and away missions.",
+						"automation": "AI manages weapon settings and ammunition, enabled point defence, scanner following, mission preparation and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Set assisted speed and heading or use direct thrust and steering to manoeuvre the Courier."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select the shared combat target, enable offensive weapons and switch point defence on or off."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Activate, dispatch, recall or cancel your department's missions and coordinate insertion and recovery with the crew."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "weapons", "dispatch"],
+							"station": ["flight", "docking", "weapons", "dispatch"],
+							"station.main": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.weapons": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.missiles": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.watch.target": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.radar": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.speed": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.flight-status": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.manual": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.lateral-left": ["flight", "docking", "weapons", "dispatch"],
+							"station.main.instruments.lateral-right": ["flight", "docking", "weapons", "dispatch"],
+							"station.away": ["flight", "docking", "weapons", "dispatch"],
+							"station.personnel": ["flight", "docking", "weapons", "dispatch"]
+						}
+					},
+					"3": {
+						"responsibilities": "Fly and fight the Courier with detailed weapon and officer control, and manage docking and away-mission assets.",
+						"automation": "AI keeps the scanner following the shared combat target and carries out ordinary machinery, team and flight-order execution.",
+						"systems": [
+							{
+								"id": "flight",
+								"label": "Flight",
+								"text": "Operate assisted or direct flight and adjust the Courier's fitted propulsion settings."
+							},
+							{
+								"id": "docking",
+								"label": "Docking",
+								"text": "Select a compatible contact to dock, cancel an approach or undock, allowing time for the physical manoeuvre."
+							},
+							{
+								"id": "weapons",
+								"label": "Weapons",
+								"text": "Select shared or individual weapon targets, ammunition and fitted weapon settings, including point-defence controls."
+							},
+							{
+								"id": "dispatch",
+								"label": "Away missions",
+								"text": "Prepare and dispatch missions with explicit asset assignments, then recall or cancel them while tracking personnel and craft recovery."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.watch": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.watch.weapons": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.watch.missiles": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.watch.target": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.instruments": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.instruments.radar": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.instruments.speed": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.main.instruments.flight-status": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.main.instruments.manual": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.main.instruments.lateral-left": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.main.instruments.lateral-right": [
+								"flight",
+								"docking",
+								"weapons",
+								"dispatch",
+								"personnel"
+							],
+							"station.away": ["flight", "docking", "weapons", "dispatch", "personnel"],
+							"station.personnel": ["flight", "docking", "weapons", "dispatch", "personnel"]
+						}
+					}
+				}
+			},
+			"strict_widgets": true,
+			"delivery_portrait": "phoenix-base:assets/comic/courier-albedo.png"
+		},
+		{
+			"id": "base.console.courier.tactical",
+			"name": "Tactical",
+			"human_seeking": true,
+			"human_preferences": ["helm"],
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"system": "radar",
+					"binding": "radar.contacts",
+					"label": "Radar",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000,
+					"fire_arcs": true,
+					"selection_source": "tactical"
+				}
+			],
+			"gameplay_panel": {
+				"x": 0,
+				"y": 0.5,
+				"width": 1,
+				"height": 0.5
+			},
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "tactical",
+					"kind": "column",
+					"children": [
+						{
+							"id": "weapons",
+							"kind": "component",
+							"component": "weapons",
+							"widget_parts": [
+								"control/top/presentation",
+								"control/top-mag/presentation",
+								"control/top-gun/presentation",
+								"control/bottom/presentation",
+								"control/bottom-mag/presentation",
+								"control/bottom-gun/presentation",
+								"control/forward-mag/presentation",
+								"control/forward-gun/presentation",
+								"control/beam/presentation",
+								"control/pdc-mag/presentation",
+								"control/pdc/presentation",
+								"control/scanner/presentation",
+								"control/security-team/presentation",
+								"control/scanner.ready/presentation",
+								"control/top-gun.settings/presentation",
+								"control/bottom-gun.settings/presentation",
+								"control/forward-gun.settings/presentation",
+								"control/beam.settings/presentation",
+								"control/pdc.settings/presentation"
+							]
+						},
+						{
+							"id": "missiles",
+							"kind": "component",
+							"component": "missiles",
+							"widget_parts": [
+								"control/homing-mag/presentation",
+								"control/havok-mag/presentation",
+								"control/missile-launcher/presentation",
+								"control/missile-launcher.settings/presentation",
+								"control/missile-launcher.ammo/presentation"
+							]
+						},
+						{
+							"id": "target",
+							"kind": "component",
+							"component": "target-info",
+							"widget_parts": ["control/bridge/presentation"]
+						},
+						{
+							"id": "personnel",
+							"kind": "component",
+							"component": "personnel",
+							"widget_parts": ["control/personnel/presentation"],
+							"when": {
+								"min_stars": 3
+							}
+						},
+						{
+							"id": "missions",
+							"kind": "component",
+							"component": "away",
+							"widget_parts": ["control/personnel/mission"]
+						}
+					]
+				}
+			},
+			"tab": false,
+			"strict_widgets": true,
+			"delivery_portrait": "phoenix-base:assets/comic/courier-albedo.png"
+		},
+		{
+			"id": "base.console.courier.support",
+			"name": "Support",
+			"widgets": [
+				{
+					"id": "camera-mode",
+					"kind": "camera_mode",
+					"binding": "ship.camera.mode",
+					"label": "Camera mode",
+					"x": 0,
+					"y": 100,
+					"width": 180,
+					"height": 160
+				},
+				{
+					"id": "camera-direction",
+					"kind": "camera_direction",
+					"binding": "ship.camera.direction",
+					"label": "Camera direction",
+					"x": 0,
+					"y": 280,
+					"width": 180,
+					"height": 400
+				}
+			],
+			"gameplay_panel": {
+				"x": 0,
+				"y": 0,
+				"width": 1,
+				"height": 1
+			},
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "station",
+					"kind": "tabs",
+					"children": [
+						{
+							"id": "overview",
+							"label": "Overview",
+							"kind": "row",
+							"children": [
+								{
+									"id": "mission",
+									"kind": "column",
+									"stretch": 1,
+									"children": [
+										{
+											"id": "objectives",
+											"kind": "component",
+											"component": "objectives",
+											"widget_parts": []
+										},
+										{
+											"id": "ftl",
+											"kind": "component",
+											"component": "ftl-controls",
+											"widget_parts": [],
+											"height": 140,
+											"stretch": 0
+										}
+									]
+								},
+								{
+									"id": "ship",
+									"kind": "column",
+									"stretch": 1,
+									"children": [
+										{
+											"id": "viewscreen",
+											"kind": "component",
+											"component": "viewscreen-controls",
+											"widget_parts": [],
+											"height": 140,
+											"stretch": 0
+										},
+										{
+											"id": "alert",
+											"kind": "component",
+											"component": "alert-controls",
+											"widget_parts": ["control/bridge/presentation"],
+											"height": 90,
+											"stretch": 0
+										},
+										{
+											"id": "shields",
+											"kind": "component",
+											"component": "shield-display",
+											"widget_parts": [
+												"control/shield-cell/presentation",
+												"control/shield-fore/presentation",
+												"control/shield-aft/presentation",
+												"control/shield-priority/presentation",
+												"control/shield-fore.distribution/presentation",
+												"control/shield-aft.distribution/presentation",
+												"control/shields-distribution/presentation"
+											],
+											"stretch": 1
+										},
+										{
+											"id": "veil",
+											"kind": "component",
+											"component": "veil-controls",
+											"widget_parts": ["control/veil/presentation"],
+											"min_height": 100
+										}
+									]
+								}
+							]
+						},
+						{
+							"id": "power",
+							"kind": "component",
+							"component": "power",
+							"widget_parts": [
+								"control/radar/presentation",
+								"control/reactor/presentation",
+								"control/weapon-cell/presentation",
+								"control/ftl.supply/presentation",
+								"control/ftl.cooling/presentation",
+								"control/repair-priority/presentation",
+								"control/veil-supply/presentation",
+								"control/veil-cooling/presentation",
+								"control/weapons-distribution/presentation"
+							],
+							"label": "Power",
+							"scroll": true
+						},
+						{
+							"id": "repair",
+							"kind": "component",
+							"component": "repair",
+							"widget_parts": [
+								"control/team-1/presentation",
+								"control/team-2/presentation",
+								"control/medical-team/presentation"
+							],
+							"label": "Repair",
+							"scroll": true
+						},
+						{
+							"id": "personnel",
+							"kind": "component",
+							"component": "personnel",
+							"widget_parts": ["control/personnel/presentation"],
+							"label": "Personnel",
+							"when": {
+								"min_stars": 3
+							}
+						}
+					]
+				}
+			},
+			"help": {
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Keep the Courier and its crew operational by deploying repair and Medical teams, handling conversations and planning deliberate FTL departure.",
+						"automation": "AI manages power and protection, Veil, local repair and Medical work, away contributions, radar and radio readiness, and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "objectives",
+								"label": "Objectives",
+								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Assign repair teams to compartments and choose local repair priorities while they travel and perform useful work there."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams to compartments so they can travel to patients and provide treatment there."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Monitor reactor output, reserves and distribution to understand the ship's power and cooling margins."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.mission": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.mission.objectives": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.mission.ftl": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.ship": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.ship.viewscreen": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.ship.alert": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.ship.shields": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.overview.ship.veil": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.power": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.repair": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							],
+							"station.personnel": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power"
+							]
+						}
+					},
+					"2": {
+						"responsibilities": "Keep the Courier operational through reactor output, shields, Veil, team deployment, communications and deliberate FTL departure.",
+						"automation": "AI manages batteries, shield redistribution, local repair and Medical work, away contributions, radar and radio readiness, and Duty Officer assignments.",
+						"systems": [
+							{
+								"id": "objectives",
+								"label": "Objectives",
+								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Deploy repair teams to compartments and prioritise local systems or hull restoration using the available controls."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams to compartments so they can travel to patients and provide treatment there."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Set reactor output and monitor reserves and distribution to sustain the ship's current workload."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Raise or lower individual shields and choose the protection priority to concentrate defence where the ship needs it."
+							},
+							{
+								"id": "veil",
+								"label": "Veil",
+								"text": "Enable or disable Veil to conceal the Courier within the limits of its resources and specialist availability."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.mission": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.mission.objectives": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.mission.ftl": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.ship": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.ship.viewscreen": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.ship.alert": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.ship.shields": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.overview.ship.veil": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.power": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.repair": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							],
+							"station.personnel": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil"
+							]
+						}
+					},
+					"3": {
+						"responsibilities": "Manage the Courier's power, protection, repairs, treatment and officers while handling communications, navigation and deliberate FTL departure.",
+						"automation": "AI carries out ordinary machinery and team execution and maintains radar and radio readiness, while FTL departure remains your decision.",
+						"systems": [
+							{
+								"id": "objectives",
+								"label": "Objectives",
+								"text": "Read published objectives and their destinations to coordinate the ship's current task with the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and docking or personnel blockers, then deliberately authorise departure."
+							},
+							{
+								"id": "repair",
+								"label": "Repair teams",
+								"text": "Direct individual repair teams and their system or hull priorities, using fault reports from teams physically present in the compartment."
+							},
+							{
+								"id": "medical",
+								"label": "Medical teams",
+								"text": "Assign Medical teams and choose clinical orders, patient priorities and recovery as permitted by the current workload."
+							},
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							},
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "alerts",
+								"label": "Alert condition",
+								"text": "Choose the shipwide alert condition to communicate the crew's operating posture."
+							},
+							{
+								"id": "power",
+								"label": "Power and cooling",
+								"text": "Set reactor output and operate fitted battery, distribution, reserve and cooling controls to support the ship's machinery."
+							},
+							{
+								"id": "shields",
+								"label": "Shields",
+								"text": "Operate individual shields, protection priorities, discharge and fitted shield settings to manage the ship's defence."
+							},
+							{
+								"id": "veil",
+								"label": "Veil",
+								"text": "Operate Veil and its machinery settings, with specialist assignments available through Personnel."
+							},
+							{
+								"id": "personnel",
+								"label": "Duty Officers",
+								"text": "Assign your department's Duty Officers to eligible machinery or authorised away contributions, accounting for travel and availability."
+							}
+						],
+						"tabs": {
+							"$console": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.mission": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.mission.objectives": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.mission.ftl": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.ship": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.ship.viewscreen": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.ship.alert": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.ship.shields": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.overview.ship.veil": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.power": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.repair": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							],
+							"station.personnel": [
+								"objectives",
+								"ftl",
+								"repair",
+								"medical",
+								"comms",
+								"navigation",
+								"alerts",
+								"power",
+								"shields",
+								"veil",
+								"personnel"
+							]
+						}
+					}
+				}
+			},
+			"strict_widgets": true,
+			"delivery_portrait": "phoenix-base:assets/comic/courier-albedo.png"
+		},
+		{
+			"id": "base.console.courier.comms",
+			"name": "Comms",
+			"description": "Hail nearby ships and known people, follow conversations and choose replies.",
+			"knowledge_roles": ["base.crew", "base.comms"],
+			"widgets": [
+				{
+					"id": "conversation",
+					"kind": "conversations",
+					"system": "comms-radio",
+					"binding": "ship.conversations",
+					"label": "Conversations",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				}
+			],
+			"human_seeking": true,
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "comms",
+					"kind": "row",
+					"children": [
+						{
+							"id": "list",
+							"kind": "component",
+							"component": "conversation-list",
+							"widget_parts": [],
+							"width": 280,
+							"stretch": 0
+						},
+						{
+							"id": "dialogue",
+							"kind": "column",
+							"children": [
+								{
+									"id": "header",
+									"kind": "component",
+									"component": "conversation-header",
+									"widget_parts": [
+										"control/external-comms/presentation",
+										"control/personnel/presentation",
+										"control/bridge/presentation"
+									]
+								},
+								{
+									"id": "history",
+									"kind": "component",
+									"component": "conversation-history",
+									"widget_parts": [],
+									"stretch": 2
+								},
+								{
+									"id": "incoming",
+									"kind": "component",
+									"component": "conversation-incoming",
+									"widget_parts": []
+								},
+								{
+									"id": "replies",
+									"kind": "component",
+									"component": "conversation-replies",
+									"widget_parts": []
+								},
+								{
+									"id": "compose",
+									"kind": "component",
+									"component": "conversation-compose",
+									"widget_parts": []
+								}
+							]
+						}
+					]
+				}
+			},
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, and report useful information to the crew.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"comms": ["comms"],
+							"comms.list": ["comms"],
+							"comms.dialogue": ["comms"],
+							"comms.dialogue.header": ["comms"],
+							"comms.dialogue.history": ["comms"],
+							"comms.dialogue.incoming": ["comms"],
+							"comms.dialogue.replies": ["comms"],
+							"comms.dialogue.compose": ["comms"]
+						}
+					},
+					"2": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, and report useful information to the crew.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"comms": ["comms"],
+							"comms.list": ["comms"],
+							"comms.dialogue": ["comms"],
+							"comms.dialogue.header": ["comms"],
+							"comms.dialogue.history": ["comms"],
+							"comms.dialogue.incoming": ["comms"],
+							"comms.dialogue.replies": ["comms"],
+							"comms.dialogue.compose": ["comms"]
+						}
+					},
+					"3": {
+						"responsibilities": "Handle hails, negotiations, requests and consequential away-party conversations, and report useful information to the crew.",
+						"automation": "AI maintains radio readiness and its reserve and assigns Signals Duty Officers.",
+						"systems": [
+							{
+								"id": "comms",
+								"label": "Communications",
+								"text": "Hail contacts, follow conversations and choose replies to negotiate, discover opportunities and resolve away-party dialogue."
+							}
+						],
+						"tabs": {
+							"$console": ["comms"],
+							"comms": ["comms"],
+							"comms.list": ["comms"],
+							"comms.dialogue": ["comms"],
+							"comms.dialogue.header": ["comms"],
+							"comms.dialogue.history": ["comms"],
+							"comms.dialogue.incoming": ["comms"],
+							"comms.dialogue.replies": ["comms"],
+							"comms.dialogue.compose": ["comms"]
+						}
+					}
+				}
+			},
+			"strict_widgets": true,
+			"tab": true,
+			"label": "Comms",
+			"delivery_portrait": "phoenix-base:assets/comic/courier-albedo.png"
+		},
+		{
+			"id": "base.console.courier.navigation",
+			"name": "Navigation",
+			"description": "Plot a waypoint, prepare FTL and deliberately authorise departure.",
+			"human_seeking": true,
+			"widgets": [
+				{
+					"id": "navigation",
+					"kind": "navigation",
+					"binding": "ship.navigation",
+					"label": "Navigation",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000,
+					"controller": "navigation.orders",
+					"channel": "waypoint"
+				}
+			],
+			"viewscreen": true,
+			"layout": {
+				"schema": 1,
+				"root": {
+					"id": "navigation",
+					"kind": "column",
+					"children": [
+						{
+							"id": "map",
+							"kind": "component",
+							"component": "navigation",
+							"widget_parts": [
+								"control/navigation.orders/presentation",
+								"control/personnel/presentation",
+								"control/bridge/presentation"
+							]
+						},
+						{
+							"id": "ftl",
+							"kind": "component",
+							"component": "ftl-controls",
+							"widget_parts": ["control/ftl.drive/presentation"],
+							"height": 140,
+							"stretch": 0
+						}
+					]
+				}
+			},
+			"hud_layout": "base.console.navigation.hud",
+			"tab": false,
+			"help": {
+				"default_level": 1,
+				"required_levels": [1, 2, 3],
+				"levels": {
+					"1": {
+						"responsibilities": "Plot a waypoint, prepare FTL and deliberately authorise departure.",
+						"automation": "AI performs accepted navigation orders through the ship's ordinary flight Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and personnel warnings, then deliberately authorise departure."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation", "ftl"],
+							"navigation": ["navigation", "ftl"],
+							"navigation.map": ["navigation", "ftl"],
+							"navigation.ftl": ["navigation", "ftl"]
+						}
+					},
+					"2": {
+						"responsibilities": "Plot a waypoint, prepare FTL and deliberately authorise departure.",
+						"automation": "AI performs accepted navigation orders through the ship's ordinary flight Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and personnel warnings, then deliberately authorise departure."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation", "ftl"],
+							"navigation": ["navigation", "ftl"],
+							"navigation.map": ["navigation", "ftl"],
+							"navigation.ftl": ["navigation", "ftl"]
+						}
+					},
+					"3": {
+						"responsibilities": "Plot a waypoint, prepare FTL and deliberately authorise departure.",
+						"automation": "AI performs accepted navigation orders through the ship's ordinary flight Controllers.",
+						"systems": [
+							{
+								"id": "navigation",
+								"label": "Navigation map",
+								"text": "Pan and zoom the map, inspect known contacts and objectives, and set a shared waypoint for the crew."
+							},
+							{
+								"id": "ftl",
+								"label": "FTL departure",
+								"text": "Prepare or cancel the FTL reserve, check readiness and personnel warnings, then deliberately authorise departure."
+							}
+						],
+						"tabs": {
+							"$console": ["navigation", "ftl"],
+							"navigation": ["navigation", "ftl"],
+							"navigation.map": ["navigation", "ftl"],
+							"navigation.ftl": ["navigation", "ftl"]
+						}
+					}
+				}
+			},
+			"strict_widgets": true,
+			"delivery_portrait": "phoenix-base:assets/comic/courier-albedo.png",
+			"compact": {
+				"widgets": [
+					{
+						"id": "navigation",
+						"kind": "navigation",
+						"binding": "ship.navigation",
+						"label": "Navigation",
+						"x": 0,
+						"y": 0,
+						"width": 1000,
+						"height": 1000,
+						"controller": "navigation.orders",
+						"channel": "waypoint"
+					}
+				]
 			}
 		}
 	],
@@ -101147,6 +102977,5050 @@
 					"human": []
 				}
 			]
+		},
+		{
+			"id": "base.widget.courier.helm.drive",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["engine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				},
+				{
+					"id": "speed_mm_s",
+					"action": "speed_mm_s",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Speed (mm/s)"
+				},
+				{
+					"id": "selected_contact",
+					"action": "selected_contact",
+					"initial": 0,
+					"arguments": [],
+					"consumers": ["$equipment"],
+					"label_key": "Selected contact"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"initial": 0,
+					"arguments": [0, 0],
+					"consumers": ["$equipment"],
+					"label_key": "Destination"
+				},
+				{
+					"id": "follow_contact",
+					"action": "follow_contact",
+					"initial": 0,
+					"arguments": [0, 40000, 12000],
+					"consumers": ["$equipment"],
+					"label_key": "Follow contact"
+				},
+				{
+					"id": "match_speed",
+					"action": "match_speed",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Match speed"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"speed_mm_s": {
+					"binding": "command.speed_mm_s",
+					"label": "Speed (mm/s)",
+					"placement": "details"
+				},
+				"selected_contact": {
+					"binding": "command.selected_contact",
+					"label": "Selected contact",
+					"placement": "details"
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
+				},
+				"follow_contact": {
+					"binding": "command.follow_contact",
+					"label": "Follow contact",
+					"placement": "details"
+				},
+				"match_speed": {
+					"binding": "command.match_speed",
+					"label": "Match speed",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.ai.race.engine",
+			"operations": {
+				"docking": [],
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.throttle",
+					"commands": ["speed_mm_s", "selected_contact", "destination", "follow_contact", "match_speed"],
+					"operations": ["docking", "coordination"],
+					"data": [
+						"system_enabled",
+						"speed_mm_s",
+						"selected_contact",
+						"destination",
+						"follow_contact",
+						"match_speed",
+						"equipment-status"
+					],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": [
+						"coordination",
+						"destination",
+						"docking",
+						"follow_contact",
+						"match_speed",
+						"selected_contact",
+						"speed_mm_s",
+						"system_enabled"
+					]
+				}
+			],
+			"label": "Drive"
+		},
+		{
+			"id": "base.widget.courier.helm.helm",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["steering"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				},
+				{
+					"id": "heading_mdeg",
+					"action": "heading_mdeg",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Heading (mdeg)"
+				},
+				{
+					"id": "selected_contact",
+					"action": "selected_contact",
+					"initial": 0,
+					"arguments": [],
+					"consumers": ["$equipment"],
+					"label_key": "Selected contact"
+				},
+				{
+					"id": "destination",
+					"action": "destination",
+					"initial": 0,
+					"arguments": [0, 0],
+					"consumers": ["$equipment"],
+					"label_key": "Destination"
+				},
+				{
+					"id": "follow_contact",
+					"action": "follow_contact",
+					"initial": 0,
+					"arguments": [0, 40000, 12000],
+					"consumers": ["$equipment"],
+					"label_key": "Follow contact"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"heading_mdeg": {
+					"binding": "command.heading_mdeg",
+					"label": "Heading (mdeg)",
+					"placement": "details"
+				},
+				"selected_contact": {
+					"binding": "command.selected_contact",
+					"label": "Selected contact",
+					"placement": "details"
+				},
+				"destination": {
+					"binding": "command.destination",
+					"label": "Destination",
+					"placement": "details"
+				},
+				"follow_contact": {
+					"binding": "command.follow_contact",
+					"label": "Follow contact",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.ai.race.steering",
+			"operations": {
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.radar",
+					"commands": ["heading_mdeg", "selected_contact", "destination", "follow_contact"],
+					"operations": ["coordination"],
+					"data": [
+						"system_enabled",
+						"heading_mdeg",
+						"selected_contact",
+						"destination",
+						"follow_contact",
+						"equipment-status"
+					],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": [
+						"coordination",
+						"destination",
+						"follow_contact",
+						"heading_mdeg",
+						"selected_contact",
+						"system_enabled"
+					]
+				}
+			],
+			"label": "Helm"
+		},
+		{
+			"id": "base.widget.courier.support.radar",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["radar"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-range": {
+					"binding": "system.equipment.effective_range",
+					"label": "Sensor range (mm)",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": [],
+					"operations": [],
+					"data": ["system_enabled", "equipment-status", "equipment-range"],
+					"details": true
+				}
+			},
+			"label": "Radar"
+		},
+		{
+			"id": "base.widget.courier.tactical.top",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": true,
+					"kinds": ["turret"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["system_enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": [],
+					"data": ["system_enabled", "equipment-status"],
+					"details": true
+				}
+			},
+			"label": "Top"
+		},
+		{
+			"id": "base.widget.courier.tactical.top-mag",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ammo": {
+					"binding": "system.equipment.ammo",
+					"label": "Ammo",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"operations": {
+				"logistics": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": ["logistics"],
+					"data": ["system_enabled", "equipment-status", "equipment-ammo"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["logistics", "system_enabled"]
+				}
+			],
+			"label": "Top Mag"
+		},
+		{
+			"id": "base.widget.courier.tactical.top-gun",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["system_enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": [],
+					"data": [
+						"system_enabled",
+						"equipment-status",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Top Gun"
+		},
+		{
+			"id": "base.widget.courier.tactical.bottom",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": true,
+					"kinds": ["turret"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["system_enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": [],
+					"data": ["system_enabled", "equipment-status"],
+					"details": true
+				}
+			},
+			"label": "Bottom"
+		},
+		{
+			"id": "base.widget.courier.tactical.bottom-mag",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ammo": {
+					"binding": "system.equipment.ammo",
+					"label": "Ammo",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"operations": {
+				"logistics": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": ["logistics"],
+					"data": ["system_enabled", "equipment-status", "equipment-ammo"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["logistics", "system_enabled"]
+				}
+			],
+			"label": "Bottom Mag"
+		},
+		{
+			"id": "base.widget.courier.tactical.bottom-gun",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["system_enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": [],
+					"data": [
+						"system_enabled",
+						"equipment-status",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Bottom Gun"
+		},
+		{
+			"id": "base.widget.courier.tactical.forward-mag",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ammo": {
+					"binding": "system.equipment.ammo",
+					"label": "Ammo",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"operations": {
+				"logistics": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": ["logistics"],
+					"data": ["system_enabled", "equipment-status", "equipment-ammo"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["logistics", "system_enabled"]
+				}
+			],
+			"label": "Forward Mag"
+		},
+		{
+			"id": "base.widget.courier.tactical.forward-gun",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.system-ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["system_enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["system_enabled"],
+					"operations": [],
+					"data": [
+						"system_enabled",
+						"equipment-status",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Forward Gun"
+		},
+		{
+			"id": "base.widget.courier.support.team-1",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["team"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				},
+				{
+					"id": "repair_compartment",
+					"action": "repair_compartment",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Repair compartment"
+				},
+				{
+					"id": "system",
+					"action": "repair_system",
+					"consumers": ["$equipment"],
+					"label_key": "System"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"repair_compartment": {
+					"binding": "command.repair_compartment",
+					"label": "Repair compartment",
+					"placement": "details"
+				},
+				"system": {
+					"binding": "command.system",
+					"label": "System",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.repair",
+			"operations": {
+				"team_work": ["$equipment"],
+				"team_assignment": ["$equipment"],
+				"team_selection": ["$equipment"],
+				"transport": ["$equipment"],
+				"logistics": [],
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.repair",
+					"commands": ["repair_compartment", "system"],
+					"operations": [
+						"team_work",
+						"team_assignment",
+						"team_selection",
+						"transport",
+						"logistics",
+						"coordination"
+					],
+					"data": ["system_enabled", "repair_compartment", "system", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["team_assignment", "team_selection"]
+				},
+				{
+					"id": "responsibility2",
+					"human": [
+						"coordination",
+						"logistics",
+						"repair_compartment",
+						"system",
+						"system_enabled",
+						"team_assignment",
+						"team_selection",
+						"team_work",
+						"transport"
+					]
+				}
+			],
+			"label": "Team 1"
+		},
+		{
+			"id": "base.widget.courier.support.team-2",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["team"]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				},
+				{
+					"id": "repair_compartment",
+					"action": "repair_compartment",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Repair compartment"
+				},
+				{
+					"id": "system",
+					"action": "repair_system",
+					"consumers": ["$equipment"],
+					"label_key": "System"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"repair_compartment": {
+					"binding": "command.repair_compartment",
+					"label": "Repair compartment",
+					"placement": "details"
+				},
+				"system": {
+					"binding": "command.system",
+					"label": "System",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.repair",
+			"operations": {
+				"team_work": ["$equipment"],
+				"team_assignment": ["$equipment"],
+				"team_selection": ["$equipment"],
+				"transport": ["$equipment"],
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.repair",
+					"commands": ["repair_compartment", "system"],
+					"operations": ["team_work", "team_assignment", "team_selection", "transport", "coordination"],
+					"data": ["system_enabled", "repair_compartment", "system", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["team_assignment", "team_selection"]
+				},
+				{
+					"id": "responsibility2",
+					"human": [
+						"coordination",
+						"repair_compartment",
+						"system",
+						"system_enabled",
+						"team_assignment",
+						"team_selection",
+						"team_work",
+						"transport"
+					]
+				}
+			],
+			"label": "Team 2"
+		},
+		{
+			"id": "base.widget.courier.support.reactor",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["generator"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				},
+				{
+					"id": "output",
+					"action": "generator_output",
+					"consumers": ["$equipment"],
+					"label_key": "Generator output"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"output": {
+					"binding": "command.output",
+					"label": "Generator output",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.reactor",
+			"operations": {
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["output"],
+					"operations": ["coordination"],
+					"data": [
+						"enabled",
+						"output",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["coordination", "enabled", "output"]
+				}
+			],
+			"label": "Reactor"
+		},
+		{
+			"id": "base.widget.courier.support.weapon-cell",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["storage"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": [],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Weapon Cell"
+		},
+		{
+			"id": "base.widget.courier.support.shield-cell",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["storage"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": [],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Shield Cell"
+		},
+		{
+			"id": "base.widget.courier.tactical.beam",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "main"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["enabled"],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Beam"
+		},
+		{
+			"id": "base.widget.courier.support.shield-fore",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["shield"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-strength": {
+					"binding": "shield.equipment.strength",
+					"label": "Shield strength",
+					"placement": "main"
+				},
+				"equipment-capacity": {
+					"binding": "shield.equipment.capacity",
+					"label": "Shield capacity",
+					"placement": "main"
+				},
+				"equipment-warmup": {
+					"binding": "shield.equipment.warmup",
+					"label": "Shield warmup",
+					"placement": "details"
+				},
+				"equipment-bearing_mdeg": {
+					"binding": "shield.equipment.bearing_mdeg",
+					"label": "Shield bearing (mdeg)",
+					"placement": "details"
+				},
+				"equipment-arc_mdeg": {
+					"binding": "shield.equipment.arc_mdeg",
+					"label": "Shield arc (mdeg)",
+					"placement": "details"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": [],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-strength",
+						"equipment-capacity",
+						"equipment-warmup",
+						"equipment-bearing_mdeg",
+						"equipment-arc_mdeg",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Shield Fore"
+		},
+		{
+			"id": "base.widget.courier.support.shield-aft",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["shield"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-strength": {
+					"binding": "shield.equipment.strength",
+					"label": "Shield strength",
+					"placement": "main"
+				},
+				"equipment-capacity": {
+					"binding": "shield.equipment.capacity",
+					"label": "Shield capacity",
+					"placement": "main"
+				},
+				"equipment-warmup": {
+					"binding": "shield.equipment.warmup",
+					"label": "Shield warmup",
+					"placement": "details"
+				},
+				"equipment-bearing_mdeg": {
+					"binding": "shield.equipment.bearing_mdeg",
+					"label": "Shield bearing (mdeg)",
+					"placement": "details"
+				},
+				"equipment-arc_mdeg": {
+					"binding": "shield.equipment.arc_mdeg",
+					"label": "Shield arc (mdeg)",
+					"placement": "details"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": [],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-strength",
+						"equipment-capacity",
+						"equipment-warmup",
+						"equipment-bearing_mdeg",
+						"equipment-arc_mdeg",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Shield Aft"
+		},
+		{
+			"id": "base.widget.courier.tactical.homing-mag",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ammo": {
+					"binding": "system.equipment.ammo",
+					"label": "Ammo",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"operations": {
+				"logistics": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": [],
+					"operations": ["logistics"],
+					"data": ["enabled", "equipment-status", "equipment-ammo"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "logistics"]
+				}
+			],
+			"label": "Homing Mag"
+		},
+		{
+			"id": "base.widget.courier.tactical.havok-mag",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ammo": {
+					"binding": "system.equipment.ammo",
+					"label": "Ammo",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"operations": {
+				"logistics": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": [],
+					"operations": ["logistics"],
+					"data": ["enabled", "equipment-status", "equipment-ammo"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "logistics"]
+				}
+			],
+			"label": "Havok Mag"
+		},
+		{
+			"id": "base.widget.courier.tactical.missile-launcher",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": [],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "Missile Launcher"
+		},
+		{
+			"id": "base.widget.courier.tactical.pdc-mag",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ammo": {
+					"binding": "system.equipment.ammo",
+					"label": "Ammo",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"operations": {
+				"logistics": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["enabled"],
+					"operations": ["logistics"],
+					"data": ["enabled", "equipment-status", "equipment-ammo"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "logistics"]
+				}
+			],
+			"label": "Pdc Mag"
+		},
+		{
+			"id": "base.widget.courier.tactical.pdc",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "main"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["enabled"],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "PDC"
+		},
+		{
+			"id": "base.widget.courier.comms.external-comms",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["comms"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"operations": {
+				"conversation": ["$equipment"]
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["conversation"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.conversation-header",
+					"commands": [],
+					"operations": ["conversation"],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "External Comms"
+		},
+		{
+			"id": "base.widget.courier.helm.dispatch",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["dispatch"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"operations": {
+				"mission": ["$equipment"],
+				"mission_send": ["$equipment"],
+				"mission_quantity": ["$equipment"],
+				"transport": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.away",
+					"commands": [],
+					"operations": ["mission", "mission_send", "mission_quantity", "transport"],
+					"data": ["enabled", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "mission", "mission_send"]
+				},
+				{
+					"id": "responsibility2",
+					"human": ["enabled", "mission", "mission_send"]
+				},
+				{
+					"id": "responsibility3",
+					"human": ["enabled", "mission", "mission_quantity", "mission_send", "transport"]
+				}
+			],
+			"label": "Dispatch"
+		},
+		{
+			"id": "base.widget.courier.tactical.scanner",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["radar"]
+				}
+			},
+			"commands": [
+				{
+					"id": "target",
+					"action": "sensor_target",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Combat target"
+				}
+			],
+			"data": {
+				"target": {
+					"binding": "command.target",
+					"label": "Combat target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-range": {
+					"binding": "system.equipment.effective_range",
+					"label": "Sensor range (mm)",
+					"placement": "main"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.cruiser.scan",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["target"],
+					"operations": [],
+					"data": [
+						"target",
+						"equipment-status",
+						"equipment-range",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Scanner"
+		},
+		{
+			"id": "base.widget.courier.navigation.ftl.drive",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["ftl"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "FTL battery",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "FTL battery",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-ready": {
+					"binding": "ftl.equipment.ready",
+					"label": "Ready to depart",
+					"placement": "main"
+				},
+				"equipment-energy": {
+					"binding": "ftl.equipment.energy",
+					"label": "FTL reserve",
+					"placement": "main"
+				},
+				"equipment-capacity": {
+					"binding": "ftl.equipment.capacity",
+					"label": "Reserve capacity",
+					"placement": "main"
+				},
+				"equipment-blocker": {
+					"binding": "ftl.equipment.blocker",
+					"label": "Departure blocker",
+					"placement": "main"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"operations": {
+				"departure": ["$equipment"]
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["departure", "enabled"]
+				}
+			],
+			"label": "Ftl",
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.ftl-controls",
+					"commands": [],
+					"operations": ["departure"],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-ready",
+						"equipment-energy",
+						"equipment-capacity",
+						"equipment-blocker",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			}
+		},
+		{
+			"id": "base.widget.courier.support.ftl.supply",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["distribution"]
+				}
+			},
+			"commands": [
+				{
+					"id": "isolated",
+					"action": "link_isolated",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "FTL power isolation"
+				}
+			],
+			"data": {
+				"isolated": {
+					"binding": "command.isolated",
+					"label": "FTL power isolation",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ftl.supply",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["isolated"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["isolated"],
+					"operations": [],
+					"data": ["isolated", "equipment-status"],
+					"details": true
+				}
+			},
+			"label": "Ftl"
+		},
+		{
+			"id": "base.widget.courier.support.ftl.cooling",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["coolant"]
+				}
+			},
+			"commands": [
+				{
+					"id": "allocation",
+					"action": "cooling_allocation",
+					"initial": 300,
+					"consumers": ["$equipment"],
+					"label_key": "FTL cooling"
+				}
+			],
+			"data": {
+				"allocation": {
+					"binding": "command.allocation",
+					"label": "FTL cooling",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ftl.cooling",
+			"operations": {
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["allocation"],
+					"operations": ["coordination"],
+					"data": ["allocation", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["allocation", "coordination"]
+				}
+			],
+			"label": "Ftl"
+		},
+		{
+			"id": "base.widget.courier.support.medical-team",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["team"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment",
+					"expose": false
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"operations": {
+				"medical": ["$equipment"],
+				"team_assignment": ["$equipment"],
+				"team_selection": ["$equipment"],
+				"transport": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.repair",
+					"commands": [],
+					"operations": ["medical", "team_assignment", "team_selection", "transport"],
+					"data": ["enabled", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["team_assignment", "team_selection"]
+				},
+				{
+					"id": "responsibility2",
+					"human": ["enabled", "medical", "team_assignment", "team_selection", "transport"]
+				}
+			],
+			"label": "Medical Team"
+		},
+		{
+			"id": "base.widget.courier.tactical.security-team",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["team"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"operations": {
+				"team_work": ["$equipment"],
+				"team_assignment": ["$equipment"],
+				"team_selection": ["$equipment"],
+				"transport": ["$equipment"]
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["enabled"],
+					"operations": ["team_work", "team_assignment", "team_selection", "transport"],
+					"data": ["enabled", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["team_selection"]
+				},
+				{
+					"id": "responsibility2",
+					"human": ["enabled", "team_assignment", "team_selection", "team_work", "transport"]
+				}
+			],
+			"label": "Security Team"
+		},
+		{
+			"id": "base.widget.courier.navigation.navigation.orders",
+			"schema": 1,
+			"equipment": {},
+			"commands": [
+				{
+					"id": "waypoint",
+					"action": "waypoint",
+					"initial": 0,
+					"arguments": [0, 0],
+					"consumers": [],
+					"label_key": "Waypoint"
+				}
+			],
+			"data": {
+				"waypoint": {
+					"binding": "command.waypoint",
+					"label": "Waypoint",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["waypoint"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.navigation",
+					"commands": ["waypoint"],
+					"operations": [],
+					"data": ["waypoint"],
+					"details": true
+				}
+			},
+			"label": "Navigation"
+		},
+		{
+			"id": "base.widget.courier.helm.drive.direct",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["engine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "assisted",
+					"action": "assisted",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Assisted flight"
+				},
+				{
+					"id": "longitudinal_thrust",
+					"action": "longitudinal_thrust",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Forward thrust"
+				},
+				{
+					"id": "lateral",
+					"action": "lateral_thrust",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Lateral thrust"
+				}
+			],
+			"data": {
+				"assisted": {
+					"binding": "command.assisted",
+					"label": "Assisted flight",
+					"placement": "details"
+				},
+				"longitudinal_thrust": {
+					"binding": "command.longitudinal_thrust",
+					"label": "Forward thrust",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation", "port", "starboard"],
+			"tree": "base.courier.assist.drive.direct",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["assisted", "longitudinal_thrust", "lateral"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.manual-flight",
+					"commands": ["assisted", "longitudinal_thrust"],
+					"operations": [],
+					"data": ["assisted", "longitudinal_thrust", "equipment-status"],
+					"details": true
+				},
+				"port": {
+					"renderer": "console.lateral-left",
+					"commands": ["lateral"],
+					"values": {
+						"lateral": [-1000, 0]
+					},
+					"operations": [],
+					"data": [],
+					"details": false
+				},
+				"starboard": {
+					"renderer": "console.lateral-right",
+					"commands": ["lateral"],
+					"values": {
+						"lateral": [0, 1000]
+					},
+					"operations": [],
+					"data": [],
+					"details": false
+				}
+			},
+			"label": "Drive"
+		},
+		{
+			"id": "base.widget.courier.helm.helm.direct",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["steering"]
+				}
+			},
+			"commands": [
+				{
+					"id": "assisted",
+					"action": "assisted",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Assisted flight"
+				},
+				{
+					"id": "manual_steering",
+					"action": "manual_steering",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Steering"
+				}
+			],
+			"data": {
+				"assisted": {
+					"binding": "command.assisted",
+					"label": "Assisted flight",
+					"placement": "details"
+				},
+				"manual_steering": {
+					"binding": "command.manual_steering",
+					"label": "Steering",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.helm.direct",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["assisted", "manual_steering"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.manual-flight",
+					"commands": ["assisted", "manual_steering"],
+					"operations": [],
+					"data": ["assisted", "manual_steering", "equipment-status"],
+					"details": true
+				}
+			},
+			"label": "Helm"
+		},
+		{
+			"id": "base.widget.courier.tactical.scanner.ready",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": true,
+					"kinds": ["radar", "turret"]
+				}
+			},
+			"commands": [
+				{
+					"id": "enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-range": {
+					"binding": "system.equipment.effective_range",
+					"label": "Sensor range (mm)",
+					"placement": "main"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.ready",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["enabled"],
+					"operations": [],
+					"data": [
+						"enabled",
+						"equipment-status",
+						"equipment-range",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Scanner"
+		},
+		{
+			"id": "base.widget.courier.tactical.top-gun.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "weapon_target",
+					"action": "weapon_target",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Weapon target"
+				}
+			],
+			"data": {
+				"weapon_target": {
+					"binding": "command.weapon_target",
+					"label": "Weapon target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["weapon_target"],
+					"operations": [],
+					"data": [
+						"weapon_target",
+						"equipment-status",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Top Gun"
+		},
+		{
+			"id": "base.widget.courier.tactical.bottom-gun.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "weapon_target",
+					"action": "weapon_target",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Weapon target"
+				}
+			],
+			"data": {
+				"weapon_target": {
+					"binding": "command.weapon_target",
+					"label": "Weapon target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["weapon_target"],
+					"operations": [],
+					"data": [
+						"weapon_target",
+						"equipment-status",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Bottom Gun"
+		},
+		{
+			"id": "base.widget.courier.tactical.forward-gun.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "weapon_target",
+					"action": "weapon_target",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Weapon target"
+				}
+			],
+			"data": {
+				"weapon_target": {
+					"binding": "command.weapon_target",
+					"label": "Weapon target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["weapon_target"],
+					"operations": [],
+					"data": [
+						"weapon_target",
+						"equipment-status",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Forward Gun"
+		},
+		{
+			"id": "base.widget.courier.tactical.beam.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
+			"commands": [
+				{
+					"id": "target",
+					"action": "weapon_target",
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Target"
+				}
+			],
+			"data": {
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "main"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["target"],
+					"operations": [],
+					"data": [
+						"target",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity"
+					],
+					"details": true
+				}
+			},
+			"label": "Beam"
+		},
+		{
+			"id": "base.widget.courier.tactical.missile-launcher.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "target",
+					"action": "weapon_target",
+					"consumers": ["$equipment"],
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
+					"label_key": "Target"
+				}
+			],
+			"data": {
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["target"],
+					"operations": [],
+					"data": [
+						"target",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "Missile Launcher"
+		},
+		{
+			"id": "base.widget.courier.tactical.missile-launcher.ammo",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": true,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "magazine",
+					"action": "magazine_select",
+					"consumers": ["$equipment"],
+					"label_key": "Magazine"
+				},
+				{
+					"id": "fire",
+					"action": "weapon_fire",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"coordinated_group": "courier.missiles",
+					"label_key": "Fire"
+				}
+			],
+			"data": {
+				"magazine": {
+					"binding": "command.magazine",
+					"label": "Magazine",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "main"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "main"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.missile-launcher.ammo",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": ["weapon_salvo"]
+				},
+				{
+					"id": "manual",
+					"human": ["weapon_salvo", "magazine"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.missiles",
+					"commands": ["magazine", "fire"],
+					"operations": ["weapon_salvo"],
+					"data": [
+						"magazine",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"operations": {
+				"weapon_salvo": ["$equipment"]
+			},
+			"label": "Missile Launcher"
+		},
+		{
+			"id": "base.widget.courier.tactical.pdc.settings",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				},
+				"equipment2": {
+					"multiple": false,
+					"kinds": ["magazine"]
+				}
+			},
+			"commands": [
+				{
+					"id": "target",
+					"action": "weapon_target",
+					"consumers": ["$equipment"],
+					"label_key": "Target"
+				},
+				{
+					"id": "mode",
+					"action": "weapon_mode",
+					"consumers": ["$equipment"],
+					"label_key": "Mode"
+				}
+			],
+			"data": {
+				"target": {
+					"binding": "command.target",
+					"label": "Target",
+					"placement": "details"
+				},
+				"mode": {
+					"binding": "command.mode",
+					"label": "Mode",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "main"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				},
+				"equipment-loaded_resource": {
+					"binding": "weapon.equipment.loaded_resource",
+					"label": "Loaded ammunition",
+					"placement": "details"
+				},
+				"equipment-loaded_quantity": {
+					"binding": "weapon.equipment.loaded_quantity",
+					"label": "Loaded quantity",
+					"placement": "details"
+				},
+				"equipment-ammunition": {
+					"binding": "system.equipment2.ammo",
+					"label": "Ammunition",
+					"placement": "main"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.pdc.settings",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["mode", "target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.weapons",
+					"commands": ["target", "mode"],
+					"operations": [],
+					"data": [
+						"target",
+						"mode",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock",
+						"equipment-loaded_resource",
+						"equipment-loaded_quantity",
+						"equipment-ammunition"
+					],
+					"details": true
+				}
+			},
+			"label": "PDC"
+		},
+		{
+			"id": "base.widget.courier.support.repair-priority",
+			"schema": 1,
+			"equipment": {},
+			"commands": [
+				{
+					"id": "system",
+					"action": "intent_integer",
+					"minimum": 0,
+					"maximum": 33,
+					"initial": 0,
+					"consumers": [],
+					"label_key": "Repair priority",
+					"choices": [
+						{
+							"value": 0,
+							"label_key": "Automatic repair priorities"
+						},
+						{
+							"value": 1,
+							"label_key": "beam"
+						},
+						{
+							"value": 2,
+							"label_key": "bottom"
+						},
+						{
+							"value": 3,
+							"label_key": "bottom-gun"
+						},
+						{
+							"value": 4,
+							"label_key": "bottom-mag"
+						},
+						{
+							"value": 5,
+							"label_key": "comms-radio"
+						},
+						{
+							"value": 6,
+							"label_key": "dispatch"
+						},
+						{
+							"value": 7,
+							"label_key": "drive"
+						},
+						{
+							"value": 8,
+							"label_key": "focused-scanner"
+						},
+						{
+							"value": 9,
+							"label_key": "forward-gun"
+						},
+						{
+							"value": 10,
+							"label_key": "forward-mag"
+						},
+						{
+							"value": 11,
+							"label_key": "ftl.cooling"
+						},
+						{
+							"value": 12,
+							"label_key": "ftl.drive"
+						},
+						{
+							"value": 13,
+							"label_key": "ftl.supply"
+						},
+						{
+							"value": 14,
+							"label_key": "havok-mag"
+						},
+						{
+							"value": 15,
+							"label_key": "helm"
+						},
+						{
+							"value": 16,
+							"label_key": "homing-mag"
+						},
+						{
+							"value": 17,
+							"label_key": "medical-team"
+						},
+						{
+							"value": 18,
+							"label_key": "missile-launcher"
+						},
+						{
+							"value": 19,
+							"label_key": "pdc"
+						},
+						{
+							"value": 20,
+							"label_key": "pdc-mag"
+						},
+						{
+							"value": 21,
+							"label_key": "radar"
+						},
+						{
+							"value": 22,
+							"label_key": "reactor"
+						},
+						{
+							"value": 23,
+							"label_key": "security-team"
+						},
+						{
+							"value": 24,
+							"label_key": "sensor-turret"
+						},
+						{
+							"value": 25,
+							"label_key": "shield-aft"
+						},
+						{
+							"value": 26,
+							"label_key": "shield-cell"
+						},
+						{
+							"value": 27,
+							"label_key": "shield-fore"
+						},
+						{
+							"value": 28,
+							"label_key": "team-1"
+						},
+						{
+							"value": 29,
+							"label_key": "team-2"
+						},
+						{
+							"value": 30,
+							"label_key": "top"
+						},
+						{
+							"value": 31,
+							"label_key": "top-gun"
+						},
+						{
+							"value": 32,
+							"label_key": "top-mag"
+						},
+						{
+							"value": 33,
+							"label_key": "weapon-cell"
+						}
+					]
+				}
+			],
+			"data": {
+				"system": {
+					"binding": "command.system",
+					"label": "Repair priority",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["system"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["system"],
+					"operations": [],
+					"data": ["system"],
+					"details": true
+				}
+			},
+			"label": "Repair Priority"
+		},
+		{
+			"id": "base.widget.courier.support.shield-priority",
+			"schema": 1,
+			"equipment": {},
+			"commands": [
+				{
+					"id": "priority",
+					"action": "intent_integer",
+					"initial": 0,
+					"minimum": 0,
+					"maximum": 2,
+					"choices": [
+						{
+							"value": 0,
+							"label_key": "Balanced"
+						},
+						{
+							"value": 1,
+							"label_key": "Fore priority"
+						},
+						{
+							"value": 2,
+							"label_key": "Aft priority"
+						}
+					],
+					"consumers": [],
+					"label_key": "Priority"
+				}
+			],
+			"data": {
+				"priority": {
+					"binding": "command.priority",
+					"label": "Priority",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["priority"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": ["priority"],
+					"operations": [],
+					"data": ["priority"],
+					"details": true
+				}
+			},
+			"label": "Shield Priority"
+		},
+		{
+			"id": "base.widget.courier.support.shield-fore.distribution",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["shield"]
+				}
+			},
+			"commands": [
+				{
+					"id": "discharge",
+					"action": "shield_discharge",
+					"consumers": ["$equipment"],
+					"label_key": "Discharge"
+				}
+			],
+			"data": {
+				"discharge": {
+					"binding": "command.discharge",
+					"label": "Discharge",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-strength": {
+					"binding": "shield.equipment.strength",
+					"label": "Shield strength",
+					"placement": "main"
+				},
+				"equipment-capacity": {
+					"binding": "shield.equipment.capacity",
+					"label": "Shield capacity",
+					"placement": "main"
+				},
+				"equipment-warmup": {
+					"binding": "shield.equipment.warmup",
+					"label": "Shield warmup",
+					"placement": "details"
+				},
+				"equipment-bearing_mdeg": {
+					"binding": "shield.equipment.bearing_mdeg",
+					"label": "Shield bearing (mdeg)",
+					"placement": "details"
+				},
+				"equipment-arc_mdeg": {
+					"binding": "shield.equipment.arc_mdeg",
+					"label": "Shield arc (mdeg)",
+					"placement": "details"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.shield-fore.distribution",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["discharge"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": ["discharge"],
+					"operations": [],
+					"data": [
+						"discharge",
+						"equipment-status",
+						"equipment-strength",
+						"equipment-capacity",
+						"equipment-warmup",
+						"equipment-bearing_mdeg",
+						"equipment-arc_mdeg",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Shield Fore"
+		},
+		{
+			"id": "base.widget.courier.support.shield-aft.distribution",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["shield"]
+				}
+			},
+			"commands": [
+				{
+					"id": "discharge",
+					"action": "shield_discharge",
+					"consumers": ["$equipment"],
+					"label_key": "Discharge"
+				}
+			],
+			"data": {
+				"discharge": {
+					"binding": "command.discharge",
+					"label": "Discharge",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-strength": {
+					"binding": "shield.equipment.strength",
+					"label": "Shield strength",
+					"placement": "main"
+				},
+				"equipment-capacity": {
+					"binding": "shield.equipment.capacity",
+					"label": "Shield capacity",
+					"placement": "main"
+				},
+				"equipment-warmup": {
+					"binding": "shield.equipment.warmup",
+					"label": "Shield warmup",
+					"placement": "details"
+				},
+				"equipment-bearing_mdeg": {
+					"binding": "shield.equipment.bearing_mdeg",
+					"label": "Shield bearing (mdeg)",
+					"placement": "details"
+				},
+				"equipment-arc_mdeg": {
+					"binding": "shield.equipment.arc_mdeg",
+					"label": "Shield arc (mdeg)",
+					"placement": "details"
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.shield-aft.distribution",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["discharge"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": ["discharge"],
+					"operations": [],
+					"data": [
+						"discharge",
+						"equipment-status",
+						"equipment-strength",
+						"equipment-capacity",
+						"equipment-warmup",
+						"equipment-bearing_mdeg",
+						"equipment-arc_mdeg",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Shield Aft"
+		},
+		{
+			"id": "base.widget.courier.support.veil",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["psychic"]
+				}
+			},
+			"commands": [
+				{
+					"id": "apparatus",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": ["$equipment"],
+					"label_key": "Equipment"
+				},
+				{
+					"id": "veil-enabled",
+					"action": "intent_boolean",
+					"initial": 0,
+					"consumers": [],
+					"label_key": "Veil-enabled"
+				},
+				{
+					"id": "veil-target",
+					"action": "intent_integer",
+					"initial": 0,
+					"minimum": 0,
+					"maximum": 0,
+					"consumers": [],
+					"label_key": "Veil-target"
+				}
+			],
+			"data": {
+				"apparatus": {
+					"binding": "command.apparatus",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"veil-enabled": {
+					"binding": "command.veil-enabled",
+					"label": "Veil-enabled",
+					"placement": "details"
+				},
+				"veil-target": {
+					"binding": "command.veil-target",
+					"label": "Veil-target",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.veil",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["veil-enabled"]
+				},
+				{
+					"id": "responsibility2",
+					"human": ["apparatus", "veil-enabled", "veil-target"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.veil-controls",
+					"commands": ["apparatus", "veil-enabled", "veil-target"],
+					"operations": [],
+					"data": [
+						"apparatus",
+						"veil-enabled",
+						"veil-target",
+						"equipment-status",
+						"equipment-stored_energy",
+						"equipment-energy_capacity",
+						"equipment-heat",
+						"equipment-heat_capacity",
+						"equipment-used_power",
+						"equipment-actual_cooling",
+						"equipment-coolant_stock"
+					],
+					"details": true
+				}
+			},
+			"label": "Veil"
+		},
+		{
+			"id": "base.widget.courier.support.veil-supply",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["distribution"]
+				}
+			},
+			"commands": [
+				{
+					"id": "isolate",
+					"action": "link_isolated",
+					"initial": 0,
+					"consumers": ["$equipment"],
+					"label_key": "Isolate supply"
+				}
+			],
+			"data": {
+				"isolate": {
+					"binding": "command.isolate",
+					"label": "Isolate supply",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.veil-supply",
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["isolate"]
+				}
+			],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["isolate"],
+					"operations": [],
+					"data": ["isolate", "equipment-status"],
+					"details": true
+				}
+			},
+			"label": "Veil Supply"
+		},
+		{
+			"id": "base.widget.courier.support.veil-cooling",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["coolant"]
+				}
+			},
+			"commands": [
+				{
+					"id": "allocation",
+					"action": "cooling_allocation",
+					"initial": 120,
+					"consumers": ["$equipment"],
+					"label_key": "Cooling allocation"
+				}
+			],
+			"data": {
+				"allocation": {
+					"binding": "command.allocation",
+					"label": "Cooling allocation",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"tree": "base.courier.assist.veil-cooling",
+			"operations": {
+				"coordination": []
+			},
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["allocation"],
+					"operations": ["coordination"],
+					"data": ["allocation", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["allocation", "coordination"]
+				}
+			],
+			"label": "Veil Cooling"
+		},
+		{
+			"id": "base.widget.courier.support.weapons-distribution",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["distribution"]
+				}
+			},
+			"commands": [
+				{
+					"id": "allocation",
+					"action": "group_allocation",
+					"initial": 1400,
+					"consumers": ["$equipment"],
+					"label_key": "Power allocation"
+				}
+			],
+			"data": {
+				"allocation": {
+					"binding": "command.allocation",
+					"label": "Power allocation",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.power",
+					"commands": ["allocation"],
+					"operations": [],
+					"data": ["allocation", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["allocation"]
+				}
+			],
+			"label": "Weapons Distribution"
+		},
+		{
+			"id": "base.widget.courier.support.shields-distribution",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["distribution"]
+				}
+			},
+			"commands": [
+				{
+					"id": "allocation",
+					"action": "group_allocation",
+					"initial": 1500,
+					"consumers": ["$equipment"],
+					"label_key": "Power allocation"
+				}
+			],
+			"data": {
+				"allocation": {
+					"binding": "command.allocation",
+					"label": "Power allocation",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.shield-display",
+					"commands": ["allocation"],
+					"operations": [],
+					"data": ["allocation", "equipment-status"],
+					"details": true
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["allocation"]
+				}
+			],
+			"label": "Shields Distribution"
+		},
+		{
+			"id": "base.widget.courier.helm.personnel",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"personnel": [],
+				"mission_staffing": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["mission_staffing", "personnel"]
+				}
+			],
+			"data": {},
+			"parts": ["presentation", "mission"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.personnel",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing"],
+					"data": [],
+					"details": false
+				},
+				"mission": {
+					"renderer": "console.away",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing"],
+					"data": [],
+					"details": false
+				}
+			},
+			"label": "Personnel"
+		},
+		{
+			"id": "base.widget.courier.tactical.personnel",
+			"schema": 1,
+			"equipment": {
+				"assets": {
+					"multiple": true
+				}
+			},
+			"commands": [],
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"contribution": ["$assets"]
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["contribution", "mission_staffing", "personnel"]
+				}
+			],
+			"data": {},
+			"parts": ["presentation", "mission"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.personnel",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing", "contribution"],
+					"data": [],
+					"details": false
+				},
+				"mission": {
+					"renderer": "console.away",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing", "contribution"],
+					"data": [],
+					"details": false
+				}
+			},
+			"label": "Personnel"
+		},
+		{
+			"id": "base.widget.courier.support.personnel",
+			"schema": 1,
+			"equipment": {
+				"assets": {
+					"multiple": true
+				}
+			},
+			"commands": [],
+			"operations": {
+				"personnel": [],
+				"mission_staffing": [],
+				"contribution": ["$assets"]
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["contribution", "mission_staffing", "personnel"]
+				}
+			],
+			"data": {},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.personnel",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing", "contribution"],
+					"data": [],
+					"details": false
+				}
+			},
+			"label": "Personnel"
+		},
+		{
+			"id": "base.widget.courier.comms.personnel",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"personnel": [],
+				"mission_staffing": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["mission_staffing", "personnel"]
+				}
+			],
+			"data": {},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.conversation-header",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing"],
+					"data": [],
+					"details": false
+				}
+			},
+			"label": "Personnel"
+		},
+		{
+			"id": "base.widget.courier.navigation.personnel",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"personnel": [],
+				"mission_staffing": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "assisted",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["mission_staffing", "personnel"]
+				}
+			],
+			"data": {},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.navigation",
+					"commands": [],
+					"operations": ["personnel", "mission_staffing"],
+					"data": [],
+					"details": false
+				}
+			},
+			"label": "Personnel"
+		},
+		{
+			"id": "base.widget.courier.helm.bridge",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"stance": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["stance"]
+				}
+			],
+			"data": {
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "hidden"
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.target-info",
+					"commands": [],
+					"operations": ["stance"],
+					"data": ["stance"],
+					"details": true
+				}
+			},
+			"label": "Bridge"
+		},
+		{
+			"id": "base.widget.courier.tactical.bridge",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"stance": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["stance"]
+				}
+			],
+			"data": {
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "hidden"
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.target-info",
+					"commands": [],
+					"operations": ["stance"],
+					"data": ["stance"],
+					"details": true
+				}
+			},
+			"label": "Bridge"
+		},
+		{
+			"id": "base.widget.courier.support.bridge",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"stance": [],
+				"alert": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["alert", "stance"]
+				}
+			],
+			"data": {
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "hidden"
+				},
+				"alert": {
+					"binding": "board:/alert/label",
+					"label": "Alert",
+					"placement": "hidden"
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.alert-controls",
+					"commands": [],
+					"operations": ["stance", "alert"],
+					"data": ["stance", "alert"],
+					"details": true
+				}
+			},
+			"label": "Bridge"
+		},
+		{
+			"id": "base.widget.courier.comms.bridge",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"stance": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["stance"]
+				}
+			],
+			"data": {
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "hidden"
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.conversation-header",
+					"commands": [],
+					"operations": ["stance"],
+					"data": ["stance"],
+					"details": true
+				}
+			},
+			"label": "Bridge"
+		},
+		{
+			"id": "base.widget.courier.navigation.bridge",
+			"schema": 1,
+			"equipment": {},
+			"commands": [],
+			"operations": {
+				"stance": []
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["stance"]
+				}
+			],
+			"data": {
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "hidden"
+				}
+			},
+			"parts": ["presentation"],
+			"part_bindings": {
+				"presentation": {
+					"renderer": "console.navigation",
+					"commands": [],
+					"operations": ["stance"],
+					"data": ["stance"],
+					"details": true
+				}
+			},
+			"label": "Bridge"
 		}
 	]
 }

@@ -343,7 +343,9 @@ void ConsoleSurface::State::prepare_console_tabs(const ConsoleRegion &region)
 		               const std::string &component)
 		{
 			station_pages_.push_back({tab.id, group, page,
-			                          (tab.id == snapshot->console ? "" : localise(tab.label) + ": ") +
+			                          (tab.id == snapshot->console || definition->value("strict_widgets", false)
+			                               ? ""
+			                               : localise(tab.label) + ": ") +
 			                              localise(label) + (tab.attention ? " — " + localise("Unread") : ""),
 			                          component, "console-page/" + tab.id + "/" + page});
 		};
@@ -426,6 +428,8 @@ void ConsoleSurface::State::build_authored_tree(const UiNode &root)
 void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode *parent, bool visible)
 {
 	auto *box = document_->GetElementById(layout_node_id(node));
+	const bool content_height = parent && parent->scroll && parent->kind == "column" && !node.component.empty() &&
+	                            model_.layout() && model_.layout()->value("strict_widgets", false);
 	const auto unit = [&](float value)
 	{
 		return std::to_string(value * text_scale_ / 100.f) + "dp";
@@ -469,9 +473,14 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 	else if (parent->kind != "instruments" && parent->kind != "cutout" && parent->kind != "overlay")
 	{
 		const bool row = parent->kind == "row" || parent->kind == "wrap";
+		const bool shrink_scroll_column = row && node.scroll && node.kind == "column" && model_.layout() &&
+		                                  model_.layout()->value("strict_widgets", false);
 		const auto basis = row ? std::max(node.minimum_width, node.preferred_width)
 		                       : std::max(node.minimum_height, node.preferred_height);
-		dom_.property(box, "flex", std::to_string(parent->kind == "wrap" ? 0.f : node.stretch) + " 0 " + unit(basis));
+		dom_.property(box, "flex",
+		              content_height ? "0 0 auto"
+		                             : std::to_string(parent->kind == "wrap" ? 0.f : node.stretch) +
+		                                   (shrink_scroll_column ? " 1 " : " 0 ") + unit(basis));
 		dom_.property(box, "width",
 		              parent->kind == "wrap"            ? unit(std::max(node.minimum_width, node.preferred_width))
 		              : !row && node.align == "stretch" ? "100%"
@@ -483,21 +492,21 @@ void ConsoleSurface::State::style_authored_tree(const UiNode &node, const UiNode
 		if (auto *component = authored_component(node.component))
 		{
 			dom_.property(component, "display", visible ? "block" : "none");
-			dom_.property(component, "flex", "1 1 0dp");
+			dom_.property(component, "flex", content_height ? "0 0 auto" : "1 1 0dp");
 			if (node.aspect <= 0)
 			{
 				dom_.property(component, "position", "relative");
 				dom_.property(component, "left", "0dp");
 				dom_.property(component, "top", "0dp");
 				dom_.property(component, "width", "100%");
-				dom_.property(component, "height", "100%");
+				dom_.property(component, "height", content_height ? "auto" : "100%");
 			}
 			dom_.property(component, "box-sizing", "border-box");
 			dom_.property(component, "max-width", "none");
 			dom_.property(component, "max-height", "none");
 			dom_.property(component, "min-width", "0dp");
 			dom_.property(component, "min-height", "0dp");
-			dom_.property(component, "overflow", "auto");
+			dom_.property(component, "overflow", content_height ? "visible" : "auto");
 			dom_.property(component, "pointer-events", node.component == "manual-flight" ? "none" : "auto");
 			for (const auto &[key, value] : node.style.items())
 				if (key == "background" || key == "text" || key == "font_family")

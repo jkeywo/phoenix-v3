@@ -528,6 +528,15 @@ inline void control_widget_cases()
 		}
 		const auto bound = load(placed);
 		const auto program = compile_ui_layout(bound, bound.consoles.at("test.widget.console"));
+		{
+			auto scrolling = program;
+			scrolling.compact.reset();
+			scrolling.root.kind = "instruments";
+			scrolling.root.scroll = true;
+			require(resolve_ui_layout(scrolling, {0, 0, 360, 700}, 1).root.kind == "instruments",
+			        "a scrolling instrument group keeps its authored structure on narrow screens");
+		}
+
 		require(resolve_ui_layout(program, {0, 0, 1200, 700}, 1).placements.size() == 2 &&
 		            resolve_ui_layout(program, {0, 0, 360, 700}, 1).placements[0].component ==
 		                "control/propulsion/complete",

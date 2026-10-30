@@ -1,7 +1,7 @@
 # Control widget rewrite
 
 This record describes the console/Controller rewrite agreed on 28 October 2026.
-Implementation is complete and verified on 29 October 2026. Shared widgets now provide the Console ownership, policy, presentation and Workshop authoring paths.
+The architecture migration was verified on 29 October 2026. Subsequent user review found that the migrated Console layouts did not preserve the intended GUI. Those earlier captures establish working technical paths, not presentation fidelity. The agreed [Courier restoration](courier-gui-restoration.md) corrects that hull; Cruiser restoration is deferred.
 
 ## Contract
 

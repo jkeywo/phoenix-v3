@@ -578,6 +578,14 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 			if (!c.at("minimum").is_number_integer() || !c.at("maximum").is_number_integer() ||
 			    c.at("action") != command.action || command.value < c.at("minimum") || command.value > c.at("maximum"))
 				return {};
+			if (command.action == "follow_contact" && command.system.empty() && !command.request_id &&
+			    operating_arguments_valid(OperatingAction::FollowContact, command.value, command.arguments) &&
+			    std::any_of(view.contacts.begin(), view.contacts.end(),
+			                [&](const auto &contact)
+			                {
+				                return contact.id == static_cast<EntityId>(command.arguments[0]);
+			                }))
+				projected |= s->contains("widget");
 			if (command.system.empty() && !command.request_id && command.arguments.empty() &&
 			    c.at("semantics") == "setting")
 			{

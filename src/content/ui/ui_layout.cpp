@@ -574,7 +574,8 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 	const auto [mw, mh] = minimum_size(layout.root, text_scale);
 	result.compact = available.width < mw || available.height < mh;
 	result.root = result.compact && layout.compact ? *layout.compact : layout.root;
-	if (result.compact && !layout.compact && !result.root.children.empty() && result.root.kind != "tabs")
+	if (result.compact && !layout.compact && !result.root.scroll && !result.root.children.empty() &&
+	    result.root.kind != "tabs")
 	{
 		result.root.kind = result.root.kind == "overlay" ? "column" : "tabs";
 		result.root.minimum_width = result.root.minimum_height = 44;
@@ -583,7 +584,8 @@ UiResolved resolve_ui_layout(const UiLayout &layout, UiRect available, float tex
 	std::function<void(UiNode &, bool, const std::string &)> visit;
 	visit = [&](UiNode &node, bool visible, const std::string &page)
 	{
-		if (result.compact && (node.kind == "instruments" || node.kind == "cutout" || node.kind == "overlay"))
+		if (result.compact && !node.scroll &&
+		    (node.kind == "instruments" || node.kind == "cutout" || node.kind == "overlay"))
 		{
 			node.kind = "column";
 			node.minimum_width = node.minimum_height = 44;

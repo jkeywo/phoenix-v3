@@ -144,44 +144,7 @@ Json OperationsWidgetContext::board(const std::string &name) const
 	}
 	return result;
 }
-struct OperationsWidgets::State
-{
-public:
-	WidgetPanel teams_panel(const OperationsWidgetContext &context);
-	std::string personnel_selected_, personnel_notice_;
-	std::vector<std::pair<std::string, std::string>> personnel_readouts_;
-	std::string personnel_markup(const OperationsWidgetContext &context);
-
-	bool personnel_action(const OperationsWidgetContext &context, const std::string &action);
-
-	std::string away_notice_;
-	std::vector<std::pair<std::string, std::string>> away_readouts_;
-
-	std::string away_markup(const OperationsWidgetContext &context);
-
-	bool away_action(const OperationsWidgetContext &context, const std::string &action);
-
-	std::string craft_notice_;
-	std::vector<std::pair<std::string, std::string>> craft_readouts_;
-	std::string craft_markup(const OperationsWidgetContext &context);
-
-	bool craft_action(const OperationsWidgetContext &context, const std::string &action);
-
-	std::string supply_notice_;
-	std::int64_t supply_quantity_ = 10;
-	std::vector<std::pair<std::string, std::string>> supply_readouts_;
-	std::string supply_line(const OperationsWidgetContext &context, const std::string &text);
-
-	std::string supply_button(const OperationsWidgetContext &context, const std::string &kind,
-	                          const std::string &action, const std::string &system, const std::string &text,
-	                          const std::string &label);
-
-	std::string logistics_markup(const OperationsWidgetContext &context);
-
-	std::string docking_markup(const OperationsWidgetContext &context);
-
-	bool supply_action(const OperationsWidgetContext &context, const std::string &action);
-};
+#include "state.hpp"
 } // namespace phoenix
 namespace phoenix
 {
@@ -218,6 +181,8 @@ WidgetPanel OperationsWidgets::State::teams_panel(const OperationsWidgetContext 
 }
 std::string OperationsWidgets::State::personnel_markup(const OperationsWidgetContext &context)
 {
+	if (context.model.layout() && context.model.layout()->value("strict_widgets", false))
+		return assignment_markup(context);
 	personnel_readouts_.clear();
 	const auto board = context.board("personnel");
 	const auto esc = [](const std::string &s)
@@ -357,6 +322,8 @@ bool OperationsWidgets::State::personnel_action(const OperationsWidgetContext &c
 
 std::string OperationsWidgets::State::away_markup(const OperationsWidgetContext &context)
 {
+	if (context.model.layout() && context.model.layout()->value("strict_widgets", false))
+		return mission_markup(context);
 	away_readouts_.clear();
 	auto esc = [](const std::string &s)
 	{
@@ -917,7 +884,8 @@ WidgetPanel OperationsWidgets::render(const std::string &component, OperationsWi
 bool OperationsWidgets::action(const OperationsWidgetContext &context, const std::string &action)
 {
 	auto &panel = state(context);
-	return panel.away_action(context, action) || panel.supply_action(context, action) ||
+	return panel.mission_action(context, action) || panel.assignment_action(context, action) ||
+	       panel.away_action(context, action) || panel.supply_action(context, action) ||
 	       panel.craft_action(context, action) || panel.personnel_action(context, action);
 }
 bool OperationsWidgets::away_attention(const ConsoleModel &model) const

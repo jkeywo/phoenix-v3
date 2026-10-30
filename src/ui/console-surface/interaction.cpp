@@ -210,6 +210,13 @@ bool ConsoleSurface::State::action(const std::string &name)
 		const bool accepted = !tactical_.console().empty() && tactical_.model().act(action.substr(7));
 		return accepted;
 	}
+	if (action.starts_with("contact-navigation/"))
+	{
+		if (settings_open_ || !authored_component_visible("readouts"))
+			return false;
+		const auto target = tactical_.console().empty() ? model_.sensor_contact() : tactical_.model().sensor_contact();
+		return model_.navigate_contact(action.substr(19), target);
+	}
 	if (action.starts_with("contact-dock/"))
 	{
 		if (settings_open_ || !authored_component_visible("readouts"))
@@ -392,7 +399,8 @@ std::optional<bool> ConsoleSurface::State::popup_action(const std::string &actio
 }
 std::optional<bool> ConsoleSurface::State::manual_flight_action(const std::string &action)
 {
-	if (action == "manual-mode")
+	if (action == "manual-mode" ||
+	    (action == "manual" && model_.layout() && model_.layout()->value("strict_widgets", false)))
 	{
 		if (settings_open_ || (route_ == 31 && app_->screen == Screen::settings))
 			return false;
@@ -724,7 +732,8 @@ void ConsoleSurface::State::ProcessEvent(Rml::Event &event)
 	{
 		const auto x = event.GetParameter<float>("mouse_x", 0), y = event.GetParameter<float>("mouse_y", 0);
 		for (auto *hit = context_->GetElementAtPoint({x, y}); hit; hit = hit->GetParentNode())
-			if (hit->GetAttribute<bool>("data-overlay-panel", false)) return;
+			if (hit->GetAttribute<bool>("data-overlay-panel", false))
+				return;
 		navigation_.wheel(x, y, event.GetParameter<float>("wheel_delta", 0));
 		return;
 	}
@@ -963,6 +972,9 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 	if (!(model_.layout() && model_.layout()->contains("layout")))
 		dom_.property(panel, "display", available ? "block" : "none");
 	const bool active = available && model_.manual_active();
+	const bool specialised = model_.layout() && model_.layout()->value("strict_widgets", false);
+	if (specialised)
+		dom_.property(panel, "display", active ? "block" : "none");
 	document_->SetClass("manual-flight", active);
 	if (!available)
 		return;
@@ -978,6 +990,8 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 	std::string markup = "<button class=\"flight-mode\" id=\"" + id("manual-mode") + "\">" +
 	                     Rml::StringUtilities::EncodeRml(localise(active ? "Manual flight" : "Assisted flight")) +
 	                     "</button>";
+	if (specialised)
+		markup.clear();
 	markup += "<p>" +
 	          Rml::StringUtilities::EncodeRml(
 	              localise("Q/E lateral thrust; Shift boost. Gamepad shoulders: lateral; west button: boost.")) +
@@ -997,6 +1011,7 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 	{
 		const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
 		dom_.forget_properties();
+		dom_.forget_elements();
 		panel->SetInnerRML(markup);
 		manual_markup_ = markup;
 		if (auto *previous = document_->GetElementById(focused))
@@ -1005,11 +1020,14 @@ void ConsoleSurface::State::prepare_manual(Application &app, const ConsoleRegion
 	context_->Update();
 	for (const auto &[name, label] : actions)
 	{
+		if (specialised && name == "manual-mode")
+			continue;
 		app.screen_controls.emplace_back(id(name), localise(label));
 		place(app, region, id(name));
 	}
 	app.screen_toggles[id("manual-mode")] = active;
-	document_->GetElementById(id("manual-mode"))->SetAttribute("aria-pressed", active ? "true" : "false");
+	if (auto *mode = document_->GetElementById(id("manual-mode")))
+		mode->SetAttribute("aria-pressed", active ? "true" : "false");
 	joystick_area_ = {};
 	if (active)
 	{

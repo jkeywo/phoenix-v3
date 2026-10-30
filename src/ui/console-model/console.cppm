@@ -32,6 +32,7 @@ struct ControlWidgetDatum
 {
 	std::string id, label, text;
 	WidgetDataDestination destination = WidgetDataDestination::Details;
+	std::string equipment, binding;
 };
 struct ControlWidgetView
 {
@@ -104,6 +105,7 @@ public:
 	bool on_screen(const std::string &widget, const std::vector<std::int64_t> &camera, bool update = false);
 	bool is_on_screen(const std::string &widget) const;
 	bool set_waypoint(std::int64_t x, std::int64_t y, bool active = true);
+	bool navigate_contact(const std::string &action, EntityId contact);
 	ShipCameraState camera() const;
 	Json objectives() const;
 	Json personnel() const;

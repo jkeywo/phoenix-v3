@@ -270,6 +270,7 @@ void ConsoleSurface::State::prepare_station_components(const ConsoleRegion &regi
 {
 	if (pregame || settings_open_)
 		return;
+	task_actions_.clear();
 	prepare_engineering_component("power", region, pregame);
 	prepare_engineering_component("repair", region, pregame);
 	prepare_task_panels(region);
@@ -507,6 +508,9 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	const Json *layout = model_.layout();
 	const bool command_console = layout && layout->value("command", false);
 	document_->SetClass("command-console", command_console);
+	document_->SetClass("courier-console", layout && layout->value("strict_widgets", false));
+	document_->SetClass("courier-narrow",
+	                    layout && layout->value("strict_widgets", false) && region.width < 900 * text_scale_ / 100.f);
 	document_->SetClass("narrow-command", command_console && region.width < 310.f);
 	document_->SetClass("embedded-console", route_ == 31);
 	const bool helm = layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
@@ -515,7 +519,9 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 		                                        return widget.at("kind") == "throttle";
 	                                        });
 
-	manual_toggle_ = !pregame && helm && layout && manual_preset(true) && manual_preset(false) &&
+	manual_toggle_ = !pregame && helm && layout &&
+	                 (layout->value("strict_widgets", false) ? model_.manual_available()
+	                                                         : (manual_preset(true) && manual_preset(false))) &&
 	                 std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
 	                             [](const auto &w)
 	                             {
@@ -556,7 +562,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	    helm ? model_.target_docking_control(tactical_.console().empty() ? model_.sensor_contact()
 	                                                                     : tactical_.model().sensor_contact())
 	         : std::optional<ConsoleDockAction>{};
-	reconcile_readout_markup(dock_control);
+	if (!layout || !layout->value("strict_widgets", false))
+		reconcile_readout_markup(dock_control);
 	message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages,
 	                    app.session ? &app.session->catalog() : nullptr, app.screen_readouts, id(""));
 	conversations_.refresh(model_, conversation_frame(app, region));
@@ -582,6 +589,8 @@ void ConsoleSurface::State::prepare_current(Application &app, const ConsoleRegio
 	{
 		const auto authored_started = GetTime();
 		prepare_authored_layout(layout, region);
+		if (layout && layout->value("strict_widgets", false) && !model_.manual_active())
+			dom_.property(document_->GetElementById("manual-flight"), "display", "none");
 		conversations_.fit(model_, conversation_frame(app, region));
 		finish_support_panels(region);
 		app.frame_metrics["console/" + std::to_string(route_) + "/authored-layout"] = GetTime() - authored_started;
@@ -1730,7 +1739,9 @@ void ConsoleSurface::State::publish_widget_semantics(Application &app, const Con
 			continue;
 		if (name == id("manual"))
 		{
-			const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
+			const bool manual = layout && layout->value("strict_widgets", false)
+			                        ? model_.manual_active()
+			                        : model_.observation()->gameplay.value("profile", "") != "automatic";
 			app.screen_toggles[name] = manual;
 			if (auto *toggle = dom_.element(name))
 			{

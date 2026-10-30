@@ -133,6 +133,8 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 				               : data.contains("member") ? " / " + localise(data.at("member").get<std::string>())
 				                                         : "");
 				datum.destination = destination;
+				datum.equipment = identity;
+				datum.binding = path;
 				const auto value = widget_datum(view, controller, path, identity);
 				if (value && ((value->is_primitive() && !value->is_null()) || value->is_array()))
 					datum.text = value->is_string() && value->get<std::string>().empty()
@@ -168,6 +170,13 @@ std::vector<ControlWidgetView> console_control_widgets(const Catalog &catalog, c
 		for (const auto &control : view.gameplay.value("controls", Json::array()))
 		{
 			const auto channel = control.value("widget_channel", control.value("channel", std::string{}));
+			const auto field = std::find_if(source.at("commands").begin(), source.at("commands").end(),
+			                                [&](const auto &value)
+			                                {
+				                                return value.at("id") == channel;
+			                                });
+			if (field != source.at("commands").end() && !field->value("expose", true))
+				continue;
 			if (control.value("widget_controller", control.value("controller", std::string{})) == widget.id &&
 			    !channel.empty() && controller.at("commands").contains(channel) &&
 			    controller.at("commands").at(channel).value("human", false))

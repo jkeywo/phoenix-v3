@@ -6,6 +6,7 @@ add_library(
 	layout.cpp
 	drawing.cpp
 	panels.cpp
+	specialised.cpp
 	help.cpp
 	probes.cpp
 )

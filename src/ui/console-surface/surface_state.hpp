@@ -297,6 +297,7 @@ struct ConsoleSurface::State final : public Rml::EventListener
 	std::vector<std::pair<ConsoleModel *, std::string>> task_sources();
 
 	void prepare_task_panels(const ConsoleRegion &region);
+	bool prepare_specialised_component(const std::string &, const ConsoleRegion &);
 
 	void draw_support_shields(float ox, float oy);
 

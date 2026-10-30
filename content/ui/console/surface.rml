@@ -302,4 +302,44 @@ progress fill {background:#83be90;}
 .station-page-open .local-settings-card {top:120dp;max-height:75%;}
 #station-loading {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#08131b;z-index:40;}
 #station-loading div {position:absolute;left:10%;top:35%;width:80%;padding:20dp;background:#102027;}
+
+/* Authored specialised widgets: compact controls, never a generic command wall. */
+.courier-console .courier-weapons {display:block;}
+.courier-console .courier-weapon {display:inline-block;vertical-align:top;box-sizing:border-box;width:48%;padding:3dp;margin:2dp;border:1dp #45636b;}
+.courier-console .compact-weapons .courier-weapon {width:98%;}
+.courier-narrow .throttle-widget .readout {display:none;}
+.courier-narrow .radar-widget button.on-screen {width:120dp;}
+.courier-console .weapon-heading {display:flex;flex-direction:row;align-items:flex-start;min-height:44dp;}
+.courier-console .weapon-details {flex:0 0 44dp;width:44dp;height:44dp;}
+.courier-console .weapon-details button {width:44dp;height:44dp;box-sizing:border-box;}
+.courier-console .weapon-switch {flex:1 1 0dp;min-width:0dp;}
+.courier-console .weapon-switch button {width:100%;min-height:44dp;box-sizing:border-box;}
+.courier-console .weapon-switch > span {display:block;line-height:44dp;}
+.courier-console .courier-weapon p {margin:2dp 0;font-size:0.78em;}
+.courier-console .courier-weapon h3 {margin:2dp 0;font-size:0.9em;}
+.courier-console .courier-weapon button {min-height:44dp;margin:1dp;padding:3dp;font-size:0.78em;}
+.courier-console #missiles-panel .courier-weapon {width:98%;}
+.courier-console .radar-widget button.radar-systems {display:none;}
+.courier-console .radar-widget button.manual-toggle {top:2%;bottom:auto;left:1%;}
+.courier-console .radar-widget button.on-screen {top:2%;bottom:auto;right:1%;left:auto;}
+.courier-console #manual-flight {background:#08171be0;}
+.courier-console.manual-flight .throttle-widget {visibility:visible;opacity:.65;}
+.courier-console .mission-list {display:inline-block;vertical-align:top;width:27%;box-sizing:border-box;padding:6dp;}
+.courier-console .mission-detail {display:inline-block;vertical-align:top;width:71%;box-sizing:border-box;padding:6dp;}
+.courier-console .mission-list button {display:block;width:98%;min-height:44dp;}
+.courier-console .assignment-tile {display:inline-block;vertical-align:top;box-sizing:border-box;padding:8dp;margin:4dp;border:1dp #45636b;min-width:120dp;}
+.courier-console .assignment-portrait {width:64dp;height:64dp;display:block;margin:4dp;}
+.courier-console .empty-portrait {text-align:center;line-height:64dp;border:1dp #45636b;}
+.courier-console .assignment-tile p {margin:3dp 0;}
+.courier-console .personnel-columns > div {display:inline-block;vertical-align:top;width:48%;box-sizing:border-box;padding:8dp;}
+.courier-console .personnel-columns .assignment-tile {display:block;}
+.courier-console .assignment-picker {clear:both;padding:12dp;border:2dp #9fc7b9;}
+.courier-console .courier-roster {display:inline-block;vertical-align:top;width:24%;box-sizing:border-box;padding:4dp;}
+.courier-console .courier-roster button {display:block;width:98%;min-height:44dp;}
+.courier-console .courier-map-area h3 {display:block;clear:both;}
+.courier-console .courier-map-area > p {display:block;}
+.courier-console .courier-map-area {display:inline-block;vertical-align:top;width:75%;box-sizing:border-box;padding:8dp;}
+.courier-console .courier-ship-map {display:block;position:relative;width:100%;height:320dp;clear:both;}
+.courier-console .courier-ship-map button {box-sizing:border-box;min-width:0;min-height:44dp;margin:0;padding:5dp;font-size:.85em;}
+
 </style></head><body><div id="authored-header"></div><div id="console-tabs"></div><div id="layout-tabs"></div><div id="authored-body"></div><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="help-control"></div><div id="help-shade"></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>

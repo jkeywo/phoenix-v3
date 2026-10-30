@@ -403,7 +403,7 @@ bool ConsoleModel::act(const std::string &id)
 			return false;
 		if (selected->value("momentary", false))
 			return held_controls_.contains(id) ? release_control(id) : hold_control(id);
-		if (!console_string(*selected, "controller").empty())
+		if (!console_string(*selected, "controller").empty() || selected->value("request_id", std::uint64_t{0}))
 			return submit(decode_operating_command(*selected));
 		if (console_string(*selected, "action") == "stance.set" ||
 		    console_string(*selected, "action") == "objective.priority")

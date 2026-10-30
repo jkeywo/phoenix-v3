@@ -23,7 +23,8 @@ int main(int argc, char **argv)
 	bool opened = false;
 	try
 	{
-		const bool inspect = argc == 8 && std::string(argv[1]) == "--inspect";
+		const bool courier = argc == 8 && std::string(argv[1]) == "--courier";
+		const bool inspect = argc == 8 && (std::string(argv[1]) == "--inspect" || courier);
 		require(argc == 2 || inspect, "usage: phoenix_control_widgets_smoke synthetic-pack.zip | --inspect pack map "
 		                              "slot ship console output-prefix");
 		Application app;
@@ -39,7 +40,7 @@ int main(int argc, char **argv)
 		opened = true;
 		const auto frames = [&]
 		{
-			for (int frame = 0; frame < 80; ++frame)
+			for (int frame = 0; frame < (courier ? 12 : 80); ++frame)
 			{
 				if (inspect && !app.session->observation())
 					app.session->tick();
@@ -66,6 +67,246 @@ int main(int argc, char **argv)
 			require(app.session->observation().has_value(), "production Console preparation timed out");
 			require(app.console_surface_active && !app.screen_controls.empty(),
 			        "production Console has no rendered controls");
+			if (courier)
+			{
+				const bool helm = std::string(argv[6]) == "helm";
+				for (int stars = 1; stars <= 3; ++stars)
+				{
+					std::cout << "Begin Courier star " << stars << std::endl;
+					SetWindowSize(1920, 1080);
+					require(app.session->command({app.session->observation()->own.id, "preset", stars - 1, {}}),
+					        "set Courier responsibility");
+					std::cout << "Preset admitted" << std::endl;
+					for (int tick = 0; tick < 60; ++tick)
+						app.session->tick();
+					std::cout << "Ticks complete" << std::endl;
+					frames();
+					const auto pages = app.screen_controls;
+					std::vector<std::pair<std::string, std::string>> tabs;
+					for (const auto &row : pages)
+						if (row.first.find("station-page/") != std::string::npos ||
+						    row.first.find("console-page/") != std::string::npos)
+							tabs.push_back(row);
+					require(tabs.size() == static_cast<std::size_t>((helm ? 2 : 4) + (stars == 3)),
+					        "Courier has exactly its agreed station pages");
+					const auto prefix = std::string(argv[7]) + "-" + std::to_string(stars);
+					for (std::size_t page = 0; page < tabs.size(); ++page)
+					{
+						require(app.screen_action(tabs[page].first), "open Courier page");
+						frames();
+						std::cout << "Courier " << stars << " " << tabs[page].second << '\n';
+						for (const auto &[action, label] : app.screen_controls)
+							std::cout << "Visible " << action << ": " << label << '\n';
+						for (const auto &[key, value] : app.screen_readouts)
+							std::cout << "Readout " << value << '\n';
+						TakeScreenshot((prefix + "-page-" + std::to_string(page) + ".png").c_str());
+						if (helm && page == 0)
+						{
+							require(std::any_of(app.screen_inputs.begin(), app.screen_inputs.end(),
+							                    [](const auto &field)
+							                    {
+								                    return field.id.find("speed/") != std::string::npos;
+							                    }),
+							        "Helm retains the throttle slider");
+							const auto observed = app.session->observation();
+							if (!observed->contacts.empty())
+							{
+								require(app.screen_action("console/1/radar-contact/" +
+								                          std::to_string(observed->contacts.front().id)),
+								        "select a Courier radar contact");
+								frames();
+								const auto choices = app.screen_controls;
+								for (const auto *label : {"Follow", "Match speed"})
+								{
+									const auto choice = std::find_if(choices.begin(), choices.end(),
+									                                 [&](const auto &row)
+									                                 {
+										                                 return row.second == label;
+									                                 });
+									require(choice != choices.end() && app.screen_action(choice->first),
+									        "selected-target navigation uses owned native channels");
+									app.session->tick();
+									frames();
+								}
+								TakeScreenshot((prefix + "-selected-target.png").c_str());
+							}
+							auto lateral = [&]
+							{
+								const auto controls = app.screen_controls;
+								const auto button = std::find_if(controls.begin(), controls.end(),
+								                                 [](const auto &row)
+								                                 {
+									                                 return row.second == "Left thrust";
+								                                 });
+								require(button != controls.end() && app.screen_action(button->first),
+								        "hold the lateral control");
+								app.session->tick();
+								frames();
+								bool held = false;
+								const auto held_view = app.session->observation();
+								for (const auto &owner : held_view->gameplay.at("controllers"))
+									for (const auto &[key, channel] : owner.at("commands").items())
+										held |=
+										    channel.at("action") == "lateral_thrust" && channel.at("value") == -1000;
+								require(held, "lateral button changes its actual admitted setting");
+								require(app.screen_action(button->first), "release the lateral control");
+								app.session->tick();
+								frames();
+							};
+							if (stars >= 2)
+								lateral();
+							if (stars >= 2)
+							{
+								std::string loaded_before;
+								for (const auto &[key, value] : app.screen_readouts)
+									if (value.starts_with("Loaded:"))
+										loaded_before = value;
+								const auto controls = app.screen_controls;
+								const auto type = std::find_if(controls.begin(), controls.end(),
+								                               [](const auto &row)
+								                               {
+									                               return row.second == "Homing mag";
+								                               });
+								require(type != controls.end() && app.screen_action(type->first),
+								        "choose a named missile type without an Auto option");
+								app.session->tick();
+								frames();
+								const auto observed = app.session->observation();
+								for (const auto &extra : observed->additional_consoles)
+									if (extra.console == "tactical")
+										for (const auto &weapon : extra.gameplay.at("combat").at("weapons"))
+											if (weapon.at("unloading") > 0 && !loaded_before.empty())
+												require(has_readout(loaded_before),
+												        "changing selected type still displays the missile physically "
+												        "loaded in the tube");
+								TakeScreenshot((prefix + "-ammo-transition.png").c_str());
+							}
+
+							const auto controls = app.screen_controls;
+							const auto fire = std::find_if(controls.begin(), controls.end(),
+							                               [](const auto &row)
+							                               {
+								                               return row.second == "Fire";
+							                               });
+							require(fire != controls.end() && app.screen_action(fire->first),
+							        "Courier Fire uses the full native request envelope");
+							app.session->tick();
+							frames();
+							if (stars >= 2)
+							{
+								require(app.screen_action("console/1/manual"),
+								        "Helm switches to manual flight at two and three stars");
+								app.session->tick();
+								frames();
+								TakeScreenshot((prefix + "-manual.png").c_str());
+								lateral();
+								require(app.screen_action("console/1/manual"), "Helm returns to assisted flight");
+								app.session->tick();
+								frames();
+							}
+						}
+						if (tabs[page].second == "Away Missions" &&
+						    !app.session->observation()->gameplay.at("away_missions").empty())
+						{
+							const auto mission = app.session->observation()->gameplay.at("away_missions")[0];
+							const auto controls = app.screen_controls;
+							const auto item = std::find_if(controls.begin(), controls.end(),
+							                               [&](const auto &row)
+							                               {
+								                               return row.second.starts_with(
+								                                   mission.at("title").template get<std::string>());
+							                               });
+							require(item != controls.end() && app.screen_action(item->first),
+							        "select a mission from the Courier list");
+							frames();
+							const auto choices = app.screen_controls;
+							const auto activate = std::find_if(choices.begin(), choices.end(),
+							                                   [](const auto &row)
+							                                   {
+								                                   return row.second == "Activate";
+							                                   });
+							if (activate != choices.end())
+								require(app.screen_action(activate->first),
+								        "activate mission preparation through ordinary admission");
+							for (int tick = 0; tick < 90; ++tick)
+								app.session->tick();
+							frames();
+							TakeScreenshot((prefix + "-mission.png").c_str());
+							require(!app.session->observation()
+							             ->gameplay.at("away_missions")[0]
+							             .at("phase")
+							             .template get<std::string>()
+							             .starts_with("outbound"),
+							        "occupied Courier does not automatically launch a prepared mission");
+						}
+						if (tabs[page].second == "Repair")
+						{
+							const auto controls = app.screen_controls;
+							const auto team =
+							    std::find_if(controls.begin(), controls.end(),
+							                 [](const auto &row)
+							                 {
+								                 return row.first.find("task/specialised/repair/") != std::string::npos;
+							                 });
+							require(team != controls.end() && app.screen_action(team->first),
+							        "Repair roster selects a team");
+							frames();
+							TakeScreenshot((prefix + "-team-map.png").c_str());
+							const auto map_controls = app.screen_controls;
+							const auto teams = app.session->observation()->gameplay.at("teams");
+							const auto room =
+							    std::find_if(map_controls.begin(), map_controls.end(),
+							                 [&](const auto &row)
+							                 {
+								                 const std::string prefix = "console/1/task/specialised/repair/";
+								                 return row.first.starts_with(prefix) &&
+								                        std::stoul(row.first.substr(prefix.size())) >= teams.size() &&
+								                        row.second.find("Team here") == std::string::npos;
+							                 });
+							require(room != map_controls.end() && app.screen_action(room->first),
+							        "compartment map submits an ordinary team assignment");
+							app.session->tick();
+							frames();
+							const auto travelling = app.session->observation()->gameplay.at("teams");
+							if (std::any_of(travelling.begin(), travelling.end(),
+							                [](const auto &team)
+							                {
+								                return team.at("travel") > 0;
+							                }))
+								require(has_readout("Travelling"),
+								        "travelling team view suppresses local compartment details");
+							TakeScreenshot((prefix + "-team-travel.png").c_str());
+						}
+					}
+					require(app.screen_action(tabs.front().first), "return to primary Courier view");
+					SetWindowSize(640, 720);
+					frames();
+					TakeScreenshot((prefix + "-compact.png").c_str());
+					SetWindowSize(1920, 1080);
+					frames();
+					require(app.screen_action("console/1/settings"), "open local text settings");
+					frames();
+					for (int step = 0; step < 3; ++step)
+					{
+						require(app.screen_action("console/1/local-settings.larger"), "increase Console text size");
+						frames();
+					}
+					require(app.screen_action("console/1/local-settings.close"), "close text settings");
+					frames();
+					TakeScreenshot((prefix + "-large-text.png").c_str());
+					require(app.screen_action("console/1/settings"), "restore local text settings");
+					frames();
+					for (int step = 0; step < 3; ++step)
+					{
+						require(app.screen_action("console/1/local-settings.smaller"), "restore Console text size");
+						frames();
+					}
+					require(app.screen_action("console/1/local-settings.close"), "return from local text settings");
+					frames();
+				}
+				close_window();
+				return 0;
+			}
 			for (const auto &[action, label] : app.screen_controls)
 				std::cout << "Visible " << action << ": " << label << '\n';
 			frames();

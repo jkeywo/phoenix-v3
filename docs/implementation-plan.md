@@ -347,7 +347,7 @@ browser graphical acceptance remain separate from these checks.
 
 # Control widget rewrite
 
-The [control widget rewrite](control-widget-rewrite.md) is complete. Maintained
+The [control widget architecture migration](control-widget-rewrite.md) is implemented. Maintained
 ships, runtime ownership, native workflows, Console presentation and Workshop
 use shared widgets, explicit equipment roles, responsibility levels and per-star
 data placement. The old Controller allocation schema and runtime conversion paths
@@ -359,6 +359,11 @@ Fresh Controller, simulation, Medical and craft continuations match across nativ
 and WASM. Explicit native graphical journeys cover synthetic widgets, Workshop
 previews, and real Courier/Cruiser Consoles, including compact layouts. Physical
 reader/device and browser graphical evidence remains separate.
+
+User review subsequently rejected the migrated GUI layouts. The earlier real-ship
+captures did not establish fidelity to the intended design. The [Courier GUI
+restoration](courier-gui-restoration.md) records the agreed correction and its own
+verification. Cruiser restoration remains deferred.
 
 ## Workshop performance, Courier instances and Navigation — 29 October 2026
 

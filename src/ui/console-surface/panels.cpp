@@ -954,6 +954,8 @@ void ConsoleSurface::State::refresh_support_panels(Application &app)
 void ConsoleSurface::State::prepare_engineering_component(const std::string &component, const ConsoleRegion &region,
                                                           bool pregame)
 {
+	if (component == "repair" && prepare_specialised_component(component, region))
+		return;
 	auto *board = authored_component(component);
 	if (settings_open_ || pregame || !model_.observation() || !authored_component_visible(component))
 		return;
@@ -1199,13 +1201,15 @@ std::vector<std::pair<ConsoleModel *, std::string>> ConsoleSurface::State::task_
 }
 void ConsoleSurface::State::prepare_task_panels(const ConsoleRegion &region)
 {
-	task_actions_.clear();
 	condition_choices_.clear();
 	shield_sectors_.clear();
 	for (const char *name : {"weapons", "objectives", "viewscreen-controls", "alert-controls", "shield-display",
-	                         "ftl-controls", "compartment-health", "team-roster"})
+	                         "ftl-controls", "compartment-health", "team-roster", "missiles", "flight-status",
+	                         "lateral-left", "lateral-right", "veil-controls", "target-info"})
 	{
 		if (!authored_component_visible(name))
+			continue;
+		if (prepare_specialised_component(name, region))
 			continue;
 		auto *panel = authored_component(name);
 		std::string markup;

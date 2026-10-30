@@ -170,6 +170,51 @@ bool ConsoleModel::set_waypoint(std::int64_t x, std::int64_t y, bool active)
 				}
 	return false;
 }
+bool ConsoleModel::navigate_contact(const std::string &action, EntityId contact)
+{
+	if (!observation_ || manual_active() || (action != "follow_contact" && action != "match_speed") ||
+	    std::none_of(observation_->contacts.begin(), observation_->contacts.end(),
+	                 [&](const auto &row)
+	                 {
+		                 return row.id == contact;
+	                 }))
+		return false;
+	std::vector<OperatingCommand> commands;
+	for (const auto &owner : observation_->gameplay.value("controllers", Json::array()))
+		if (owner.value("human", false))
+			for (const auto &[channel, field] : owner.at("commands").items())
+				if (field.value("human", false) &&
+				    (field.at("action") == action ||
+				     (action == "match_speed" && field.at("action") == "selected_contact")))
+				{
+					OperatingCommand command{
+					    observation_->own.id,
+					    field.at("action"),
+					    field.at("action") == "selected_contact" ? static_cast<std::int64_t>(contact) : 1,
+					    {},
+					    owner.at("id"),
+					    channel,
+					    owner.at("generation")};
+					command.arguments = field.value("arguments", std::vector<std::int64_t>{});
+					if (action == "follow_contact")
+					{
+						if (command.arguments.size() != 3)
+							return false;
+						command.arguments[0] = contact;
+					}
+					commands.push_back(std::move(command));
+				}
+	// Select before enabling match mode; ordinary admission still validates every owned channel.
+	std::stable_sort(commands.begin(), commands.end(),
+	                 [](const auto &a, const auto &b)
+	                 {
+		                 return a.action == "selected_contact" && b.action != "selected_contact";
+	                 });
+	bool accepted = !commands.empty();
+	for (auto &command : commands)
+		accepted = submit(std::move(command)) && accepted;
+	return accepted;
+}
 Json ConsoleModel::objectives() const
 {
 	std::map<std::uint64_t, Json> latest;

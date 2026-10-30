@@ -576,6 +576,16 @@ Accessibility is personal: readable type, scalable presentation, non-colour-only
 
 Native hosts/clients, multiple displays, custom consoles, lighting/smoke/show control and external input devices are optional adapters to the same supported state and command authority. Their absence or failure leaves the ordinary browser route usable. These are requirements for compatible behavior, not an inherited runtime or networking stack.
 
+The [Courier Console restoration](courier-gui-restoration.md) specifies that hull's
+presentation: Helm/Away Missions, with Personnel at three stars; Support's
+Overview/Power/Repair/Comms workspaces, with Personnel at three stars. Compact
+weapon tiles preserve automatic PDC ammunition and battery readouts. Missile
+Fire requests launch eligible loaded tubes once and never queue later shots.
+Away mission launch remains deliberate while the station is occupied. Repair
+and Medical use a selected-team compartment map with local details below it;
+travelling teams reveal no compartment detail through that view. Cruiser's
+presentation will be agreed separately.
+
 ### 14.4 Selected technical direction
 
 The selected stack is **C++ + Flecs + raylib**, with **RmlUi player consoles and custom GPU-rendered radars**, **Dear ImGui docking for Workshop/GM tools**, and **Emscripten/WebAssembly** for browser delivery. UI logic and layouts do not form a separate HTML/JavaScript application; a shared host shell and browser adapter provide platform services. RML/RCSS UI assets do not require Ultralight or another embedded browser.
