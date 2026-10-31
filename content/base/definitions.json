@@ -62098,12 +62098,19 @@
 				{
 					"id": "medical-ready",
 					"tree": "base.action.medical-ready"
+				},
+				{
+					"id": "medical-continue",
+					"tree": "base.action.medical-continue"
 				}
 			],
 			"objective_bindings": [
 				{
+					"id": "severe-assign",
 					"behavior": "medical",
+					"candidate_source": "medical",
 					"action": "medical-assignment",
+					"retry_ticks": 20,
 					"available": [
 						{
 							"left": {
@@ -62114,14 +62121,31 @@
 						},
 						{
 							"left": {
-								"observation": "medical.urgency"
+								"observation": "medical.condition"
 							},
-							"op": "gt",
-							"right": 0
+							"op": "eq",
+							"right": "severe"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
 						}
 					],
 					"target": {
 						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
 					},
 					"arguments": [
 						{
@@ -62135,16 +62159,22 @@
 						}
 					],
 					"factors": {
-						"urgency": {
-							"observation": "medical.urgency"
+						"urgency": 1000,
+						"progress": 1000,
+						"risk": {
+							"observation": "medical.retask_cost"
 						},
-						"progress": 1000
-					},
-					"retry_ticks": 20
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
 				},
 				{
-					"behavior": "home",
-					"action": "medical-assignment",
+					"id": "severe-continue",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
 					"available": [
 						{
 							"left": {
@@ -62155,14 +62185,92 @@
 						},
 						{
 							"left": {
-								"observation": "medical.urgency"
+								"observation": "medical.condition"
 							},
 							"op": "eq",
-							"right": 0
+							"right": "severe"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
 						}
 					],
 					"target": {
 						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "stabilised-assign",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-assignment",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "stabilised"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
 					},
 					"arguments": [
 						{
@@ -62176,12 +62284,326 @@
 						}
 					],
 					"factors": {
-						"urgency": {
-							"observation": "medical.urgency"
+						"urgency": 600,
+						"progress": 1000,
+						"risk": {
+							"observation": "medical.retask_cost"
 						},
-						"progress": 1
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "stabilised-continue",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "stabilised"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
 					},
-					"retry_ticks": 20
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 600,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "minor-assign",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-assignment",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "minor"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": 500,
+						"progress": 1000,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "minor-continue",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "minor"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 500,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "home-assign",
+					"behavior": "home",
+					"candidate_source": "medical",
+					"action": "medical-assignment",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "home"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "home"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "home-continue",
+					"behavior": "home",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "home"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "home"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
 				},
 				{
 					"behavior": "ready",
@@ -62203,7 +62625,7 @@
 				"default": {
 					"urgency": 1,
 					"progress": 1,
-					"risk": 1,
+					"risk": 1000,
 					"travel": 1,
 					"resources": 1,
 					"commitment": 100
@@ -68192,12 +68614,19 @@
 				{
 					"id": "medical-assignment",
 					"tree": "base.action.medical-assignment"
+				},
+				{
+					"id": "medical-continue",
+					"tree": "base.action.medical-continue"
 				}
 			],
 			"objective_bindings": [
 				{
+					"id": "severe-assign",
 					"behavior": "medical",
+					"candidate_source": "medical",
 					"action": "medical-assignment",
+					"retry_ticks": 20,
 					"available": [
 						{
 							"left": {
@@ -68208,14 +68637,31 @@
 						},
 						{
 							"left": {
-								"observation": "medical.urgency"
+								"observation": "medical.condition"
 							},
-							"op": "gt",
-							"right": 0
+							"op": "eq",
+							"right": "severe"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
 						}
 					],
 					"target": {
 						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
 					},
 					"arguments": [
 						{
@@ -68229,16 +68675,22 @@
 						}
 					],
 					"factors": {
-						"urgency": {
-							"observation": "medical.urgency"
+						"urgency": 1000,
+						"progress": 1000,
+						"risk": {
+							"observation": "medical.retask_cost"
 						},
-						"progress": 1000
-					},
-					"retry_ticks": 20
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
 				},
 				{
-					"behavior": "home",
-					"action": "medical-assignment",
+					"id": "severe-continue",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
 					"available": [
 						{
 							"left": {
@@ -68249,14 +68701,92 @@
 						},
 						{
 							"left": {
-								"observation": "medical.urgency"
+								"observation": "medical.condition"
 							},
 							"op": "eq",
-							"right": 0
+							"right": "severe"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
 						}
 					],
 					"target": {
 						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "stabilised-assign",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-assignment",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "stabilised"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
 					},
 					"arguments": [
 						{
@@ -68270,19 +68800,333 @@
 						}
 					],
 					"factors": {
-						"urgency": {
-							"observation": "medical.urgency"
+						"urgency": 600,
+						"progress": 1000,
+						"risk": {
+							"observation": "medical.retask_cost"
 						},
-						"progress": 1
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "stabilised-continue",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "stabilised"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
 					},
-					"retry_ticks": 20
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 600,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "minor-assign",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-assignment",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "minor"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": 500,
+						"progress": 1000,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "minor-continue",
+					"behavior": "medical",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "minor"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "medical"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 500,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "home-assign",
+					"behavior": "home",
+					"candidate_source": "medical",
+					"action": "medical-assignment",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "home"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "home"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
+				},
+				{
+					"id": "home-continue",
+					"behavior": "home",
+					"candidate_source": "medical",
+					"action": "medical-continue",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.condition"
+							},
+							"op": "eq",
+							"right": "home"
+						},
+						{
+							"left": {
+								"observation": "medical.continuing"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "home"
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"commitment": {
+						"observation": "medical.continuing"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.target"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 0,
+						"risk": {
+							"observation": "medical.retask_cost"
+						},
+						"travel": {
+							"observation": "medical.travel"
+						}
+					}
 				}
 			],
 			"objective_scoring": {
 				"default": {
 					"urgency": 1,
 					"progress": 1,
-					"risk": 1,
+					"risk": 1000,
 					"travel": 1,
 					"resources": 1,
 					"commitment": 100
@@ -69885,6 +70729,30 @@
 				}
 			],
 			"workflow_observations": true
+		}
+	,
+		{
+			"id": "base.action.medical-continue",
+			"context": "controller",
+			"controller_action": {
+				"label": "Continue accepted Medical work",
+				"inputs": [
+					{
+						"name": "medical_team",
+						"type": "text"
+					},
+					{
+						"name": "medical_target",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "continue",
+			"states": [
+				{
+					"id": "continue"
+				}
+			]
 		}
 	],
 	"equipment": [

@@ -517,6 +517,15 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 			                 {field("description"), directive.value("description_key", std::string{})},
 			                 {field("credited"), false},
 			                 {field("outcome"), std::string{}}};
+			for (const auto *key : {"operation", "compartment", "system", "mission"})
+			{
+				auto parameter = directive.value(key, std::string(key) == "operation" ? behavior : std::string{});
+				if (std::string(key) == "operation" && parameter.empty())
+					parameter = behavior;
+				knowledge_require(parameter.empty() || valid_identifier(parameter),
+				                  name + ": invalid standing directive parameter");
+				record.fields[field(key)] = parameter;
+			}
 			definition.standing_directives.push_back(std::move(record));
 		}
 		for (const auto &console : resolve_consoles(catalog, name))

@@ -85,6 +85,10 @@ auto Runtime::scenario_publications() -> void
 			const char *names[] = {"pending", "active", "completed", "failed", "cancelled"};
 			value.fields = {
 			    {schema.field(key, "behavior"), spec.behavior},
+			    {schema.field(key, "operation"), spec.operation},
+			    {schema.field(key, "compartment"), spec.compartment},
+			    {schema.field(key, "system"), spec.system},
+			    {schema.field(key, "mission"), spec.mission},
 			    {schema.field(key, "tier"), spec.tier},
 			    {schema.field(key, "scoring_policy"), spec.scoring_policy},
 			    {schema.field(key, "urgency"), spec.urgency},

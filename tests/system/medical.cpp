@@ -234,10 +234,55 @@ void medical_evidence_isolation()
 		if (tree["id"] == "test.medical.assignment")
 		{
 			tree["states"][0]["running"] = Json::array();
-			tree["objective_bindings"] = Json::parse(
-			    R"json([{"behavior":"medical","action":"medical-assignment","available":[{"left":{"observation":"medical.available"},"op":"eq","right":true},{"left":{"observation":"medical.urgency"},"op":"gt","right":0}],"target":{"observation":"medical.target"},"arguments":[{"observation":"medical.team"},{"observation":"medical.destination"},{"observation":"medical.revision"}],"factors":{"urgency":{"observation":"medical.urgency"},"progress":1000}},{"behavior":"home","action":"medical-assignment","available":[{"left":{"observation":"medical.available"},"op":"eq","right":true},{"left":{"observation":"medical.urgency"},"op":"eq","right":0}],"target":{"observation":"medical.target"},"arguments":[{"observation":"medical.team"},{"observation":"medical.destination"},{"observation":"medical.revision"}],"factors":{"urgency":{"observation":"medical.urgency"},"progress":1}}])json");
+			tree["objective_bindings"] = Json::array();
+			const auto observation = [](const char *name)
+			{
+				return Json{{"observation", name}};
+			};
+			for (const auto &[condition, urgency] : std::vector<std::pair<std::string, int>>{
+			         {"severe", 1000}, {"stabilised", 600}, {"minor", 500}, {"home", 0}})
+				for (const bool continuing : {false, true})
+				{
+					const auto behavior = condition == "home" ? "home" : "medical";
+					tree["objective_bindings"].push_back(
+					    {{"id", condition + (continuing ? "-continue" : "-assign")},
+					     {"behavior", behavior},
+					     {"candidate_source", "medical"},
+					     {"action", continuing ? "medical-continue" : "medical-assignment"},
+					     {"available",
+					      Json::array(
+					          {{{"left", observation("medical.available")}, {"op", "eq"}, {"right", true}},
+					           {{"left", observation("medical.condition")}, {"op", "eq"}, {"right", condition}},
+					           {{"left", observation("medical.continuing")}, {"op", "eq"}, {"right", continuing}},
+					           {{"left", observation("objective.record.operation")},
+					            {"op", "eq"},
+					            {"right", behavior}}})},
+					     {"target", observation("medical.target")},
+					     {"commitment", observation("medical.continuing")},
+					     {"arguments",
+					      continuing ? Json::array({observation("medical.team"), observation("medical.target")})
+					                 : Json::array({observation("medical.team"), observation("medical.destination"),
+					                                observation("medical.revision")})},
+					     {"factors",
+					      {{"urgency", urgency},
+					       {"progress", continuing ? 0
+					                    : urgency  ? 1000
+					                               : 1},
+					       {"risk", observation("medical.retask_cost")},
+					       {"travel", observation("medical.travel")}}}});
+				}
+			tree["action_bindings"].push_back({{"id", "medical-continue"}, {"tree", "test.medical.continue"}});
+			tree["objective_scoring"] = {{"default",
+			                              {{"urgency", 1},
+			                               {"progress", 1},
+			                               {"risk", 1000},
+			                               {"travel", 1},
+			                               {"resources", 1},
+			                               {"commitment", 100}}}};
 		}
 
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.medical.continue","context":"controller","controller_action":{"label":"Continue accepted Medical work","inputs":[{"name":"medical_team","type":"text"},{"name":"medical_target","type":"integer"}]},"initial":"continue","states":[{"id":"continue"}]})json"));
 	for (auto &officer : ship["personnel"]["officers"])
 	{
 		officer["condition"] = "healthy";
@@ -287,6 +332,54 @@ void medical_evidence_isolation()
 	const auto &team = saved_body(copy, 2)["combat"]["systems"]["medical"];
 	require(team.at("location") == 1 && team.at("travel") == 0,
 	        "Medical team returns home after known work is exhausted");
+
+	auto blocked = source;
+	auto &blocked_ship = blocked["entities"][0];
+	auto ward = blocked_ship["combat"]["decks"][0]["compartments"][0];
+	ward["id"] = "ward";
+	ward["x_mm"] = 4000;
+	blocked_ship["combat"]["decks"][0]["compartments"].push_back(ward);
+	blocked_ship["combat"]["connections"].push_back({{"from", "bridge"}, {"to", "ward"}, {"travel_ticks", 3}});
+	blocked_ship["combat"]["access_controller"] = "team";
+	blocked_ship["control_layout"]["manual_workloads"]["observer"]["logistics"] = 1;
+	blocked_ship["personnel"]["officers"][0]["department"] = "engineering";
+	blocked_ship["personnel"]["officers"][1]["condition"] = "severe";
+	blocked_ship["personnel"]["officers"][1]["compartment"] = "ward";
+	blocked_ship["standing_directives"].push_back({{"id", "isolated-ward"},
+	                                               {"behavior", "medical"},
+	                                               {"tier", "scripted_high"},
+	                                               {"scoring_policy", "default"},
+	                                               {"title_key", "Attend ward"},
+	                                               {"compartment", "ward"},
+	                                               {"system", "medical"}});
+	World reachable;
+	reachable.load(load(blocked), "test.map", {{"crew", "test.away"}});
+	claim(reachable);
+	const auto access = *reachable.observe(102);
+	OperatingCommand close{2, "logistics.route", access.gameplay.at("logistics").at("revision"), "bridge"};
+	close.console = "observer";
+	close.controller = "team";
+	close.text = "ward/close";
+	for (const auto &controller : access.gameplay.at("controllers"))
+		if (controller.at("id") == "team")
+			close.generation = controller.at("generation");
+	require(reachable.submit(102, close), "Close authored route through normal compartment-access admission");
+	ticks(reachable, 2);
+	bool blocked_reason = false, selected_reachable = false;
+	const auto diagnosed = *reachable.observe(102);
+	for (const auto &controller : diagnosed.gameplay.at("controllers"))
+		if (controller.at("id") == "medical")
+			for (const auto &candidate : controller.at("objective_candidates"))
+			{
+				blocked_reason |=
+				    candidate.at("reason") == "known_route_blocked" && candidate.at("tier") == "scripted_high";
+				selected_reachable |= candidate.at("selected").get<bool>() && candidate.at("target") == 1;
+			}
+	require(blocked_reason && selected_reachable,
+	        "Blocked higher-tier Medical assignment falls through to reachable reported work");
+	ticks(reachable, 60);
+	require(officer(reachable, 2, 0)["condition"] == "healthy" && officer(reachable, 2, 1)["condition"] == "severe",
+	        "Known inaccessible severe patient does not suppress useful treatment on an open route");
 }
 void assisted_team_destinations(bool widgets = false)
 {

@@ -730,6 +730,11 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		spec.behavior = binding.at("behavior");
 		spec.action = binding.at("action");
 		spec.id = binding.value("id", spec.behavior + "." + spec.action);
+		spec.candidate_source = binding.value("candidate_source", std::string("single"));
+		if (spec.candidate_source != "single" && spec.candidate_source != "medical")
+			throw std::runtime_error("Unsupported objective candidate source");
+		if (spec.candidate_source == "medical" && !tree.value("medical_observations", false))
+			throw std::runtime_error("Medical candidates require declared Medical observations");
 		const auto retry = binding.value("retry_ticks", Json(20));
 		if (!retry.is_number_integer() || retry < 2 || retry > 1000000)
 			throw std::runtime_error("Objective retry_ticks must be an integer from 2 to 1000000");
@@ -765,6 +770,8 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 			                                                                       : Json(0)));
 			offer.arguments.push_back(state_tree::Type::Integer);
 		}
+		inputs.push_back(binding.value("commitment", Json(false)));
+		offer.arguments.push_back(state_tree::Type::Boolean);
 		for (std::size_t i = 0; i < arguments.size(); ++i)
 		{
 			inputs.push_back(arguments[i]);

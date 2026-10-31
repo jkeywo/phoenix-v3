@@ -140,6 +140,7 @@ struct ScenarioObjectiveDefinition
 	std::string id, title_key, description_key;
 	std::string behavior = "observe", tier = "objective_other", scoring_policy = "default";
 	std::int64_t urgency = 0;
+	std::string operation, compartment, system, mission;
 	std::optional<ScenarioActor> behavior_target;
 	std::string competition;
 	bool condition = false, optional = false, has_destination = false;

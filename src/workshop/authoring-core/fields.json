@@ -4938,5 +4938,44 @@
 		"default": 20,
 		"minimum": 2,
 		"maximum": 1000000
+	},
+	"gameplay-editors.scenarios.operation": {
+		"key": "operation",
+		"label": "Requested operation",
+		"type": "string",
+		"default": "",
+		"optional": true,
+		"erase_value": ""
+	},
+	"gameplay-editors.scenarios.compartment": {
+		"key": "compartment",
+		"label": "Compartment",
+		"type": "string",
+		"default": "",
+		"optional": true,
+		"erase_value": ""
+	},
+	"gameplay-editors.scenarios.system": {
+		"key": "system",
+		"label": "Team or system",
+		"type": "string",
+		"default": "",
+		"optional": true,
+		"erase_value": ""
+	},
+	"gameplay-editors.scenarios.mission": {
+		"key": "mission",
+		"label": "Mission",
+		"type": "string",
+		"default": "",
+		"optional": true,
+		"erase_value": ""
+	},
+	"tree-editor.tree.objective_candidate_source": {
+		"key": "candidate_source",
+		"label": "Candidate source",
+		"type": "string",
+		"default": "single",
+		"choices": ["single", "medical"]
 	}
 }

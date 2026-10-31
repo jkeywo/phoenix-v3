@@ -41,7 +41,8 @@ Json board(const Json &source)
 		               {"priority", row.at("priority").get<bool>()}};
 		for (const auto *field : {"title", "description", "status"})
 			objective[field] = text(row.at(field), 1024);
-		for (const auto *field : {"behavior", "tier", "scoring_policy"})
+		for (const auto *field :
+		     {"behavior", "tier", "scoring_policy", "operation", "compartment", "system", "mission"})
 			if (row.contains(field))
 				objective[field] = text(row.at(field), 128);
 		if (row.contains("directive"))

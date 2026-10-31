@@ -504,7 +504,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	{
 		for (const auto *name : {"id", "target", "destination_x", "destination_y", "urgency", "age"})
 			add({std::string("objective.record.") + name, Type::Integer, 4, {}});
-		for (const auto *name : {"behavior", "tier"})
+		for (const auto *name : {"behavior", "tier", "operation", "compartment", "system", "mission"})
 			add({std::string("objective.record.") + name, Type::Text, 4, {}});
 	}
 	if (resolved.value("medical_observations", false))
@@ -515,6 +515,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"medical.available", Type::Boolean, 4, {}});
 		add({"medical.target", Type::Integer, 4, {}});
 		add({"medical.urgency", Type::Integer, 4, {}});
+		add({"medical.travel", Type::Integer, 4, {}});
+		add({"medical.retask_cost", Type::Integer, 4, {}});
+		add({"medical.continuing", Type::Boolean, 4, {}});
+		add({"medical.compartment", Type::Text, 4, {}});
+		add({"medical.reason", Type::Text, 4, {}});
+		add({"medical.condition", Type::Text, 4, {}});
 	}
 	if (resolved.value("workflow_observations", false))
 	{

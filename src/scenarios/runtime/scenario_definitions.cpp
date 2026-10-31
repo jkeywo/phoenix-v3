@@ -106,6 +106,14 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		d.tier = v.value("tier", std::string("objective_other"));
 		d.scoring_policy = v.value("scoring_policy", std::string("default"));
 		d.urgency = number(v, "urgency", 0, 0, 1000000);
+		d.operation = v.value("operation", d.behavior);
+		if (d.operation.empty())
+			d.operation = d.behavior;
+		d.compartment = v.value("compartment", std::string{});
+		d.system = v.value("system", std::string{});
+		d.mission = v.value("mission", std::string{});
+		for (const auto *parameter : {&d.operation, &d.compartment, &d.system, &d.mission})
+			require(parameter->empty() || valid_identifier(*parameter), "invalid objective behavior parameter");
 		require(contains_name({"reaction", "scripted_high", "objective_combat", "directive_combat", "scripted_low",
 		                       "objective_other", "directive_other"},
 		                      d.tier),

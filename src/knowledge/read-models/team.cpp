@@ -58,6 +58,9 @@ Json board(const Json &source)
 			t[key] = text(team.at(key), 64);
 		t["revision"] = number(team.at("revision"), 1, 9007199254740991LL);
 		t["location"] = number(team.at("location"), 0, 255);
+		for (const auto *key : {"available", "work_done", "departure_open"})
+			if (team.contains(key))
+				t[key] = team.at(key).get<bool>();
 		if (team.contains("local_complete"))
 			t["local_complete"] = team.at("local_complete").get<bool>();
 		if (team.contains("observed_tick"))
@@ -102,6 +105,16 @@ Json board(const Json &source)
 				o["targets"].push_back(number(target, 1, 256));
 			t["orders"].push_back(std::move(o));
 		}
+		if (team.contains("routes"))
+		{
+			if (!team.at("routes").is_array() || team.at("routes").size() > 256)
+				throw std::runtime_error("Invalid team route assessment");
+			t["routes"] = Json::array();
+			for (const auto &route : team.at("routes"))
+				t["routes"].push_back({{"compartment", number(route.at("compartment"), 0, 255)},
+				                       {"reachable", route.at("reachable").get<bool>()},
+				                       {"ticks", number(route.at("ticks"), 0, 1728000000)}});
+		}
 		if (team.contains("facilities"))
 		{
 			if (!team.at("facilities").is_array() || team.at("facilities").size() > 32)
@@ -125,6 +138,8 @@ Json board(const Json &source)
 			p["name"] = text(patient.at("name"), 64);
 			p["location"] = number(patient.at("location"), 0, 255);
 			p["stabilised"] = patient.at("stabilised").get<bool>();
+			if (patient.contains("escort"))
+				p["escort"] = text(patient.at("escort"), 128);
 			if (patient.contains("source"))
 				p["source"] = text(patient.at("source"), 64);
 			for (const auto *key : {"observed_tick", "revision"})

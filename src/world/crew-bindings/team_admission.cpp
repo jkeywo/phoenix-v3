@@ -720,6 +720,10 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		    {"compartments", pd.compartments},
 		    {"observed_tick", ecs.get<Clock>().tick},
 		    {"local_complete", !r.travel && !away_reserved(a.ship, "team:" + m->definition.id) && team_available(*m)},
+		    {"available",
+		     child.get<Equipment>().enabled && !structurally_disabled(ship, m->definition.id) && team_available(*m)},
+		    {"work_done", r.work_done},
+		    {"departure_open", r.travel == 0 || physical_edge_open(a.ship, r.location, r.edge_to)},
 		    {"destination", r.destination},
 		    {"orders", Json::array()}};
 		bool manual = false;
@@ -784,7 +788,7 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 		}
 		const auto known_patient = [&](const ClinicalPatient &patient)
 		{
-			return (!r.travel && patient.state.location == r.location) ||
+			return patient.state.escort == m->definition.id || (!r.travel && patient.state.location == r.location) ||
 			       (patient.team.empty() && std::any_of(pd.officers.begin(), pd.officers.end(),
 			                                            [&](const auto &officer)
 			                                            {
@@ -808,6 +812,21 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 				    }() : true)
 					order["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(order));
+		}
+		if (d.capabilities.contains("medical"))
+		{
+			row["routes"] = Json::array();
+			const auto from = r.travel ? r.edge_to : r.location;
+			for (std::size_t target = 0; target < pd.compartments.size(); ++target)
+			{
+				std::int64_t cost = 0;
+				const auto route = from == static_cast<std::int64_t>(target)
+				                       ? std::pair<std::int64_t, std::int64_t>{from, 0}
+				                       : repair_route(ship, from, target, &cost);
+				row["routes"].push_back({{"compartment", target},
+				                         {"reachable", route.first >= 0},
+				                         {"ticks", cost + std::max<std::int64_t>(0, r.travel)}});
+			}
 		}
 		if (d.capabilities.contains("medical"))
 		{
@@ -848,7 +867,10 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 					     {"location", p.state.location},
 					     {"stabilised", p.state.stabilised},
 					     {"facility", p.state.facility},
-					     {"source", !r.travel && p.state.location == r.location ? "team-local" : "department-roster"},
+					     {"escort", p.state.escort},
+					     {"source", p.state.escort == m->definition.id            ? "team-escort"
+					                : !r.travel && p.state.location == r.location ? "team-local"
+					                                                              : "department-roster"},
 					     {"observed_tick", ecs.get<Clock>().tick},
 					     {"revision", ship.get<PersonnelState>().revision}});
 		}

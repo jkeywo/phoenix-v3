@@ -62,6 +62,7 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 		const auto found = observed.gameplay.find(name);
 		return found == observed.gameplay.end() ? empty : *found;
 	};
+	std::set<std::string> known_patients;
 	for (const auto &team : rows("teams"))
 		if (owns_operation(team.value("work_operation", team.value("repair", false) ? "team_work" : "medical"),
 		                   team.at("id")))
@@ -70,12 +71,14 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 			facts[6] += activity == "treat" || activity == "stabilise" || work == "Repairing system" ||
 			            work == "Repairing hull";
 			facts[7] += activity == "blocked" || work == "blocked" || work == "no_parts" || work == "Unavailable";
-			facts[8] += team.value("patients", Json::array()).size();
+			for (const auto &patient : team.value("patients", Json::array()))
+				known_patients.insert(patient.at("id").get<std::string>());
 			facts[21] += team.value("completed", false);
 			if (team.value("repair", false) && team.value("travel", 0) == 0 && !team.value("reserved", false) &&
 			    work != "Unavailable")
 				repair_locations.insert(team.value("location", 0LL) + 1);
 		}
+	facts[8] = known_patients.size();
 	for (const auto &fault : combat.at("faults"))
 		facts[5] += repair_locations.contains(fault.value("compartment_index", 0LL));
 	for (const auto &compartment : combat.at("compartments"))
