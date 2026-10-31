@@ -69,8 +69,6 @@ struct NativeAwayPeers final : AwayPeers
 	explicit NativeAwayPeers(Runtime &owner);
 	~NativeAwayPeers() override;
 	ConversationId conversation(const AwayDefinition &definition) override;
-	void prepare_contributions(std::size_t index) override;
-	bool assisted_send(std::size_t index) override;
 	bool boarding_visible(EntityId origin, EntityId target) override;
 	void advance_supply(std::size_t index) override;
 	void advance_craft_transport(std::size_t index, EntityId craft) override;

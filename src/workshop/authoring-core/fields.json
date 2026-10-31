@@ -4976,12 +4976,18 @@
 		"label": "Candidate source",
 		"type": "string",
 		"default": "single",
-		"choices": ["single", "medical", "craft", "requests"]
+		"choices": ["single", "medical", "craft", "requests", "away"]
 	},
 	"tree-editor.tree.craft_dispatch_observations": {
 		"key": "craft_dispatch_observations",
 		"label": "Craft dispatch candidate observations",
 		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.away_preparation_observations": {
+		"key": "away_preparation_observations",
+		"type": "boolean",
+		"label": "Away preparation observations",
 		"default": false
 	},
 	"tree-editor.tree.request_observations": {

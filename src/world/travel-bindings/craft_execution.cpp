@@ -324,7 +324,9 @@ auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
 		               {"reserved", away_craft_reserved(id) || cargo_committed(id)},
 		               {"return_reserve_permille", definition(id).craft->return_reserve},
 		               {"ftl_preparing", ftl_preparing(s.home)},
-		               {"available", craft_available(id)},
+		               {"available", r.phase == CraftPhase::Docked && r.order == "idle" && r.condition > 0 &&
+		                                 s.pending_order.empty() && s.mission.empty() && !away_craft_reserved(id) &&
+		                                 !cargo_committed(id) && bay_working(s.home, s.bay) && !ftl_preparing(s.home)},
 		               {"report_tick", r.tick},
 		               {"energy", r.energy},
 		               {"capacity", r.capacity},

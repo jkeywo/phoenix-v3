@@ -156,9 +156,10 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 		    owns_operation("conversation", ""))
 			facts[26] += mission.at("phase") == "available";
 	facts[27] = values.at(controller.brain->own[ControllerOwnField::Blocked]).number != 0;
+	const auto base = controller.brain->coordination_base - facts.size() - 2;
 	for (std::size_t i = 0; i < facts.size(); ++i)
-		values.at(controller.brain->decision_base + 19 + i) = state_tree::Value::integer(facts[i]);
-	values.at(controller.brain->decision_base + 47) = state_tree::Value::string(observed.console);
-	values.at(controller.brain->decision_base + 48) = state_tree::Value::string(finding_text);
+		values.at(base + i) = state_tree::Value::integer(facts[i]);
+	values.at(base + facts.size()) = state_tree::Value::string(observed.console);
+	values.at(base + facts.size() + 1) = state_tree::Value::string(finding_text);
 }
 } // namespace phoenix

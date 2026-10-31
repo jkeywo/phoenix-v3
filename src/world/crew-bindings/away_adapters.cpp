@@ -227,16 +227,6 @@ ConversationId NativeAwayPeers::conversation(const AwayDefinition &definition)
 	return owner.away_conversation(definition);
 }
 
-void NativeAwayPeers::prepare_contributions(std::size_t index)
-{
-	owner.prepare_away_tick_contributions(index);
-}
-
-bool NativeAwayPeers::assisted_send(std::size_t index)
-{
-	return owner.prepare_away_assisted_send(index);
-}
-
 bool NativeAwayPeers::boarding_visible(EntityId origin, EntityId target)
 {
 	return owner.boarding_visible(origin, target);

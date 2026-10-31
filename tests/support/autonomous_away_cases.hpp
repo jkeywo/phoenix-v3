@@ -53,7 +53,7 @@ void autonomous_away_cases()
 			if (controller["id"] == "dispatch" || controller["id"] == "engine")
 			{
 				controller.erase("fallback");
-				controller["tree"] = controller["id"] == "dispatch" ? "test.offered-dispatch" : "test.offered-dock";
+				controller["tree"] = controller["id"] == "dispatch" ? "test.assisted-away" : "test.offered-dock";
 				if (controller["id"] == "engine")
 					controller["commands"].push_back(
 					    {{"id", "speed"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", {"engine"}}});
@@ -68,15 +68,6 @@ void autonomous_away_cases()
  {"id":"pulse","entry":[{"attempt":[{"tasks":[{"action":"write.pulse","arguments":[true]}]},{"tasks":[]}]}],
  "transitions":[{"target":"stop","conditions":[{"left":{"elapsed":true},"op":"ge","right":3}]}]},
  {"id":"stop","entry":[{"attempt":[{"tasks":[{"action":"write.pulse","arguments":[false]}]},{"tasks":[]}]}]}]})json"));
-		source["trees"].push_back(Json::parse(R"json({
- "id":"test.offered-dispatch","context":"controller","workflow_observations":true,"initial":"watch",
- "states":[{"id":"watch","transitions":[
- {"target":"open","conditions":[{"left":{"observation":"workflow.phase"},"op":"eq","right":"available"}]},
- {"target":"send","conditions":[{"left":{"observation":"workflow.phase"},"op":"eq","right":"open"},{"left":{"observation":"workflow.launch_ready"},"op":"eq","right":true}]},
- {"target":"recall","conditions":[{"left":{"observation":"workflow.phase"},"op":"eq","right":"deployed"},{"left":{"observation":"workflow.work_complete"},"op":"eq","right":true}]}]},
- {"id":"open","entry":[{"attempt":[{"tasks":[{"action":"away.open","arguments":[{"observation":"workflow.mission"},"",{"observation":"workflow.mission_revision"}]}]},{"tasks":[]}]}],"transitions":[{"target":"watch"}]},
- {"id":"send","entry":[{"attempt":[{"tasks":[{"action":"away.send","arguments":[{"observation":"workflow.mission"},"",{"observation":"workflow.mission_revision"}]}]},{"tasks":[]}]}],"transitions":[{"target":"watch"}]},
- {"id":"recall","entry":[{"attempt":[{"tasks":[{"action":"away.recall","arguments":[{"observation":"workflow.mission"},"",{"observation":"workflow.mission_revision"}]}]},{"tasks":[]}]}],"transitions":[{"target":"watch"}]}]})json"));
 		source["trees"].push_back(Json::parse(R"json({
  "id":"test.offered-dock","context":"controller","workflow_observations":true,"docking_commands":true,"initial":"dock",
  "states":[{"id":"dock","running":[{"attempt":[{"tasks":[{"action":"dock.assist","arguments":[{"observation":"workflow.port"},{"observation":"workflow.dock_target"},{"observation":"workflow.dock_revision"}]}]},{"tasks":[]}]}]}]})json"));

@@ -21,6 +21,137 @@ namespace phoenix
 namespace
 {
 using ObjectiveFacts = std::map<std::string, state_tree::Value>;
+std::vector<ObjectiveFacts> away_objective_facts(const ConsoleControllerRuntime &controller,
+                                                 const Observation &observed, KnowledgeTick tick)
+{
+	using state_tree::Value;
+	std::vector<ObjectiveFacts> result;
+	const auto rows = observed.gameplay.find("away_missions");
+	if (rows != observed.gameplay.end())
+		for (const auto &row : *rows)
+		{
+			const auto mission = row.at("id").get<std::string>(), phase = row.at("phase").get<std::string>();
+			const auto department = row.value("department", Json::object());
+			const auto dispatch = row.value("dispatch_system", std::string{});
+			const bool staging = phase == "open" || phase == "recovered";
+			const bool contributing = department.value("contributing", false);
+			bool requested = false;
+			for (const auto &request : controller.incoming_requests)
+				requested |= request.operation == OfficerOperation::Manifest && request.mission == mission &&
+				             request.target == row.at("target").get<std::int64_t>() && request.expires > tick &&
+				             request.status == OfficerStatus::Accepted;
+			const auto delegated = [&](const std::string &operation, const std::string &system)
+			{
+				return controller_operation_owns(controller, operation, system) &&
+				       !controller_operation_human(controller, operation);
+			};
+			const auto offer = [&](const std::string &operation, const std::string &system,
+			                       const std::string &selection, bool eligible, bool required = false,
+			                       const std::string &peer_console = {}, const std::string &peer_controller = {},
+			                       const std::string &request_status = "none", std::int64_t retry_age = 1000000)
+			{
+				ObjectiveFacts facts;
+				const auto text = [&](const char *key, const std::string &value)
+				{
+					facts[std::string("away_candidate.") + key] = Value::string(value);
+				};
+				const auto number = [&](const char *key, std::int64_t value)
+				{
+					facts[std::string("away_candidate.") + key] = Value::integer(value);
+				};
+				const auto flag = [&](const char *key, bool value)
+				{
+					facts[std::string("away_candidate.") + key] = Value::boolean(value);
+				};
+				text("mission", mission);
+				text("phase", phase);
+				text("operation", operation);
+				text("selection", selection);
+				text("system", system);
+				text("peer_console", peer_console);
+				text("peer_controller", peer_controller);
+				text("request_status", request_status);
+				text("reason", eligible ? "permitted_manifest_choice" : "manifest_work_unavailable");
+				number("target", row.at("target"));
+				number("revision", row.at("revision"));
+				number("amount", 1);
+				number("retry_age", retry_age);
+				number("travel", 0);
+				number("cost", 0);
+				flag("eligible", eligible);
+				flag("requested", requested);
+				flag("contributing", contributing);
+				flag("ready", department.value("ready", false));
+				flag("required", required);
+				flag("offered",
+				     row.value("ai_dispatch", false) || (staging && contributing && row.value("dispatch", false)));
+				result.push_back(std::move(facts));
+			};
+			offer("open", dispatch, "", phase == "available" && delegated("mission", dispatch));
+			offer("contribute", "", "1", staging && !contributing && delegated("contribution", {}));
+			offer("send", dispatch, "",
+			      phase == "open" && department.value("launch_ready", false) && delegated("mission_send", dispatch));
+			offer("recall", dispatch, "",
+			      phase == "deployed" && row.value("work_complete", false) && delegated("mission", dispatch));
+			for (const auto &peer : department.value("peers", Json::array()))
+			{
+				const auto peer_console = peer.at("console").get<std::string>();
+				const auto peer_controller = peer.at("controller").get<std::string>();
+				std::string status = "none";
+				std::int64_t retry_age = 1000000;
+				std::uint64_t completed_revision = 0;
+				// Peer routes are declared identities, resolved within the same ship.
+				// The continuation stores the delivery actor, not another Controller's state.
+				const KnowledgeId peer_id = peer.at("id");
+				for (const auto &request : controller.outgoing_requests)
+					if (request.operation == OfficerOperation::Manifest && request.peer == peer_id &&
+					    request.mission == mission)
+					{
+						status = officer_statuses.at(static_cast<std::size_t>(request.status));
+						completed_revision = request.evidence_revision;
+						retry_age = std::clamp<std::int64_t>(tick - request.reply_tick, 0, 1000000);
+					}
+				const bool waiting =
+				    status == "requested" || status == "accepted" ||
+				    (status == "completed" && completed_revision >= row.at("revision").get<std::uint64_t>());
+				offer("request", dispatch, "",
+				      !waiting && (phase == "available" || staging) &&
+				          (delegated("mission", dispatch) ||
+				           (staging && contributing && row.value("dispatch", false) &&
+				            controller_operation_owns(controller, "mission", dispatch))) &&
+				          delegated("coordination", {}),
+				      false, peer_console, peer_controller, status, retry_age);
+			}
+			if (!staging || !contributing)
+				continue;
+			for (const auto &slot : row.at("slots"))
+				if (slot.at("assigned").get<std::string>().empty())
+					for (const auto &choice : slot.at("choices"))
+					{
+						const auto asset = choice.get<std::string>();
+						const bool officer = asset.starts_with("officer:");
+						const auto system = officer ? std::string{} : asset.substr(5);
+						offer("assign", system, slot.at("id").get<std::string>() + "/" + asset,
+						      delegated(officer ? "mission_staffing" : "transport", system), slot.at("required"));
+					}
+			const auto transports = department.value("transport_systems", Json::object());
+			if (row.at("transport").get<std::string>().empty())
+				for (const auto &[selection, system] : transports.items())
+					offer("transport", system.get<std::string>(), selection, delegated("transport", system), true);
+			for (const auto &slot : row.at("craft_slots"))
+				if (slot.at("assigned").get<std::string>().empty())
+					for (const auto &choice : slot.at("choices"))
+					{
+						const auto asset = choice.get<std::string>();
+						// Bay ownership is carried by the frozen craft report.
+						for (const auto &craft : observed.gameplay.value("craft", Json::array()))
+							if ("craft:" + craft.at("id").get<std::string>() == asset)
+								offer("escort", craft.at("bay"), slot.at("id").get<std::string>() + "/" + asset,
+								      delegated("transport", craft.at("bay")), slot.at("required"));
+					}
+		}
+	return result;
+}
 std::vector<ObjectiveFacts> request_objective_facts(const ConsoleControllerRuntime &controller,
                                                     const Observation &observed, KnowledgeTick tick)
 {
@@ -223,6 +354,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 	                                         })
 	                                 ? request_objective_facts(controller, input.observation, input.tick)
 	                                 : std::vector<ObjectiveFacts>{};
+	const auto away_options = std::any_of(brain.objective_bindings.begin(), brain.objective_bindings.end(),
+	                                      [](const auto &binding)
+	                                      {
+		                                      return binding.candidate_source == "away";
+	                                      })
+	                              ? away_objective_facts(controller, input.observation, input.tick)
+	                              : std::vector<ObjectiveFacts>{};
 	for (auto record = input.board.shared.rbegin(); record != input.board.shared.rend(); ++record)
 	{
 		if (record->value.schema != schema || !seen.insert(record->value.subject).second)
@@ -235,11 +373,13 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				continue;
 			supported = true;
 			auto options = binding.candidate_source == "medical" ? medical_options : std::vector<std::vector<Value>>{};
-			if (binding.candidate_source == "craft" || binding.candidate_source == "requests")
+			if (binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
+			    binding.candidate_source == "away")
 				for (const auto &facts : binding.candidate_source == "craft"
 				                             ? craft_objective_facts(controller, input.observation, input.tick,
 				                                                     number(*record, "target"), source)
-				                             : request_options)
+				                         : binding.candidate_source == "requests" ? request_options
+				                                                                  : away_options)
 				{
 					std::vector<Value> values(source.begin(), source.end());
 					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
@@ -254,7 +394,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 			for (const auto &option : options)
 			{
 				auto values = std::vector<Value>(source.begin(), source.end());
-				if ((binding.candidate_source == "craft" || binding.candidate_source == "requests") && !option.empty())
+				if ((binding.candidate_source == "craft" || binding.candidate_source == "requests" ||
+				     binding.candidate_source == "away") &&
+				    !option.empty())
 					values = option;
 				const auto fact = [&](const char *name) -> const Value &
 				{
@@ -270,6 +412,14 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				     (behavior != "engage" && number(*record, "target") && number(*record, "target") != input.entity)))
 					continue;
 
+				if (binding.candidate_source == "away" &&
+				    ((!text(*record, "mission", "").empty() &&
+				      text(*record, "mission", "") != fact("away_candidate.mission").text) ||
+				     (!text(*record, "system", "").empty() &&
+				      text(*record, "system", "") != fact("away_candidate.system").text) ||
+				     !text(*record, "compartment", "").empty() ||
+				     (number(*record, "target") && number(*record, "target") != fact("away_candidate.target").number)))
+					continue;
 				if (binding.candidate_source == "requests" &&
 				    ((!text(*record, "mission", "").empty() &&
 				      text(*record, "mission", "") != fact("request.mission").text) ||
@@ -301,6 +451,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
+				if (binding.candidate_source == "away")
+					candidate.target = fact("away_candidate.target").number;
 				if (binding.candidate_source == "requests")
 					candidate.target = fact("request.id").number;
 				if (binding.candidate_source == "craft")
@@ -444,6 +596,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 						candidate.reason = values[*brain.medical_base + 10].text;
 					else if (binding.candidate_source == "craft" && !fact("bay.eligible").number)
 						candidate.reason = fact("bay.reason").text;
+					else if (binding.candidate_source == "away" && !fact("away_candidate.eligible").number)
+						candidate.reason = fact("away_candidate.reason").text;
 					else if (binding.candidate_source == "requests" && !fact("request.feasible").number)
 						candidate.reason = fact("request.reason").text;
 				}
@@ -471,6 +625,7 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				candidate.reason =
 				    binding.candidate_source == "medical" ? "objective_parameter_outside_known_medical_scope"
 				    : binding.candidate_source == "craft" ? "objective_parameter_outside_known_craft_scope"
+				    : binding.candidate_source == "away"  ? "objective_parameter_outside_known_manifest_scope"
 				                                          : "objective_parameter_outside_addressed_request_scope";
 				candidates.push_back(std::move(candidate));
 				choices.emplace_back();

@@ -250,6 +250,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 				facts[4] = request.target;
 			}
 		}
+	const bool repair_has_work = facts[4] != 0;
 	if (!facts[4])
 		for (const auto &team : combat.value("teams", Json::array()))
 			if (context.owned_systems.contains(team.at("id").get<std::string>()))
@@ -307,6 +308,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	for (std::size_t i = 0; i < facts.size(); ++i)
 		values.at(controller.brain->decision_base + i) = state_tree::Value::integer(facts[i]);
 	values.at(controller.brain->decision_base + facts.size()) = state_tree::Value::boolean(point_defence);
+	values.at(controller.brain->decision_base + facts.size() + 1) = state_tree::Value::boolean(repair_has_work);
 	if (controller.brain->report_observations)
 		controller_report_facts(controller, observed, context, values);
 }

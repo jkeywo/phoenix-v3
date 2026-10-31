@@ -188,6 +188,27 @@ Json board(const Json &rows)
 			    {"contributing", department.at("contributing").get<bool>()},
 			    {"observed_tick", projection::number(department.at("observed_tick"), 0, 9007199254740991LL)},
 			    {"revision", projection::number(department.at("revision"), 0, 9007199254740991LL)}};
+			if (department.contains("launch_ready"))
+				v["department"]["launch_ready"] = department.at("launch_ready").get<bool>();
+			if (department.contains("peers"))
+			{
+				if (!department.at("peers").is_array() || department.at("peers").size() > 256)
+					throw std::runtime_error("Invalid departmental message routes");
+				v["department"]["peers"] = Json::array();
+				for (const auto &peer : department.at("peers"))
+					v["department"]["peers"].push_back(
+					    {{"console", text(peer.at("console"), 128)},
+					     {"controller", text(peer.at("controller"), 128)},
+					     {"id", projection::number(peer.at("id"), 1, 9007199254740991LL)}});
+			}
+			if (department.contains("transport_systems"))
+			{
+				if (!department.at("transport_systems").is_object() || department.at("transport_systems").size() > 256)
+					throw std::runtime_error("Invalid transport ownership bindings");
+				v["department"]["transport_systems"] = Json::object();
+				for (const auto &[selection, system] : department.at("transport_systems").items())
+					v["department"]["transport_systems"][text(Json(selection), 128)] = text(system, 128);
+			}
 		}
 		out.push_back(v);
 	}

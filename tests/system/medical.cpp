@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/away_fixture.hpp"
+#include "../support/away_scored_fixture.hpp"
 #include "../support/combat_fixture.hpp"
 #include <algorithm>
 #include <iostream>
@@ -384,22 +385,29 @@ void medical_evidence_isolation()
 void assisted_team_destinations(bool widgets = false)
 {
 	auto source = medical_fixture();
+	append_scored_away_policy(source, "test.local-away");
 	auto &ship = source["entities"][0];
+	ship["standing_directives"] = Json::array({{{"id", "known-missions"},
+	                                            {"behavior", "away"},
+	                                            {"tier", "scripted_low"},
+	                                            {"title_key", "Prepare accepted mission"}}});
 	ship["personnel"]["officers"][1]["condition"] = "healthy";
 	ship["combat"]["decks"][0]["compartments"][0]["initial_hp"] = 30;
 	ship["combat"]["decks"][0]["compartments"][1]["initial_hp"] = 20;
 	auto &layout = ship["control_layout"];
 	layout["station_complexity"] = true;
 	layout["manual_workloads"] = {{"observer", {{"team_assignment", 1}, {"medical", 3}}}};
+	layout["manual_workloads"]["drive"]["coordination"] = 3;
 	layout["profiles"][0]["stars"] = 1;
 	layout["profiles"][0]["consoles"]["observer"] = {{"human", Json::array()}, {"ai", {"team", "medical"}}};
 	for (auto &controller : layout["controllers"])
-		if (controller["id"] == "team")
+		if (controller["id"] == "team" || controller["id"] == "medical" || controller["id"] == "dispatch")
 		{
 			controller.erase("fallback");
-			controller["tree"] = "test.local-repair";
-			controller["commands"].push_back(
-			    {{"id", "assignment"}, {"action", "repair_compartment"}, {"initial", 0}, {"consumers", {"team"}}});
+			controller["tree"] = "test.local-away";
+			if (controller["id"] == "team")
+				controller["commands"].push_back(
+				    {{"id", "assignment"}, {"action", "repair_compartment"}, {"initial", 0}, {"consumers", {"team"}}});
 		}
 	source["trees"].push_back(Json::parse(R"json({"id":"test.local-repair","context":"controller",
  "command_bindings":[{"channel":"assignment","action":"repair_compartment"}],"initial":"work",
@@ -411,7 +419,7 @@ void assisted_team_destinations(bool widgets = false)
 		{
 			const auto identity = instance.at("id").get<std::string>();
 			auto commands = instance.at("commands");
-			Json all = Json::array(), assisted = Json::array(), operations = Json::object();
+			Json all = Json::array(), assisted = Json::array(), operations = {{"coordination", Json::array()}};
 			const auto &old_human =
 			    layout["profiles"][0]["consoles"][instance.at("console").get<std::string>()]["human"];
 			const bool human = std::find(old_human.begin(), old_human.end(), identity) != old_human.end();
@@ -472,7 +480,8 @@ void assisted_team_destinations(bool widgets = false)
 		for (const auto *console : {"drive", "observer"})
 		{
 			const auto widget = "test.department." + std::string(console);
-			Json operations{{"personnel", Json::array()}, {"mission_staffing", Json::array()}};
+			Json operations{
+			    {"personnel", Json::array()}, {"mission_staffing", Json::array()}, {"coordination", Json::array()}};
 			Json equipment = Json::object(), bindings = Json::object();
 			if (std::string(console) == "observer")
 			{
@@ -486,6 +495,7 @@ void assisted_team_destinations(bool widgets = false)
 				detailed.push_back("contribution");
 			source["control_widgets"].push_back(
 			    {{"id", widget},
+			     {"tree", "test.local-away"},
 			     {"schema", 1},
 			     {"equipment", equipment},
 			     {"commands", Json::array()},
@@ -1148,8 +1158,8 @@ int main(int argc, char **argv)
 			        "Assisted Medical treats and recovers a severe casualty automatically");
 			require(fixture_native_submit(assisted, 101, away_order(assisted, "open")), "Open assisted away mission");
 			ticks(assisted, 1);
-			require(assisted.save().at("away_missions")[0].at("assignments").at("medical") == "team:medical",
-			        "AI-operated Medical supplies its department's away contribution automatically");
+			require(!assisted.save().at("away_missions")[0].at("assignments").contains("medical"),
+			        "A clinical-only policy does not invent an away assignment without a preparation policy");
 		}
 		{
 			auto source = medical_fixture();

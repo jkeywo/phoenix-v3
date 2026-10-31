@@ -13,6 +13,16 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 {
 	const auto &d = away_operations.definitions()[i];
 	const auto &m = away_operations.missions()[i];
+	const auto craft_reports = craft_board(a);
+	const auto reported_available = [&](EntityId id)
+	{
+		return std::any_of(craft_reports.begin(), craft_reports.end(),
+		                   [&](const auto &report)
+		                   {
+			                   return report.at("id").template get<std::string>() == std::to_string(id) &&
+			                          report.value("available", false);
+		                   });
+	};
 	AwayPermittedRow row;
 	row.dispatch = away_dispatch(a, d.dispatch);
 	row.blocker = away_blocker(i);
@@ -42,10 +52,10 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 			    m.escorts.contains(slot.id) ? "craft:" + std::to_string(m.escorts.at(slot.id)) : std::string{};
 			AwayPermittedSlot r;
 			r.owned = !assigned.empty() && away_asset_owned(a, assigned) && manual_workload(a, "transport");
-			if (row.can_contribute && manual_workload(a, "transport"))
+			if (row.can_contribute)
 				for (const auto &[id, e] : craft_rows())
 					if (e.get<CraftState>().home == a.ship && definition(id).craft->role == slot.craft_role &&
-					    away_asset_owned(a, "craft:" + std::to_string(id)) && craft_available(id, d.id))
+					    away_asset_owned(a, "craft:" + std::to_string(id)) && reported_available(id))
 						r.choices.push_back("craft:" + std::to_string(id));
 			row.craft_slots.push_back(r);
 		}
@@ -86,16 +96,12 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 	for (const auto &[key, t] : definition(a.ship).displacements)
 		if ((m.outcome.empty() || m.phase == AwayPhase::Deployed) && away_asset_owned(a, "transport:" + key))
 			row.transports.push_back(key);
-	for (const auto &[key, bay] : definition(a.ship).craft_bays)
-		if (bay.legacy_transport && away_asset_owned(a, "transport:" + key) &&
-		    canonical_away_transport(a.ship, key, d.id) != key)
-			row.transports.push_back(key);
 	if (m.outcome.empty() && d.allow_ship_transport && away_ship_transport_owned(a))
 		row.transports.push_back("ship");
 	for (const auto &[craft, e] : craft_rows())
 		if (e.get<CraftState>().home == a.ship &&
 		    (definition(craft).craft->role == "shuttle" || definition(craft).craft->role == "boarding_torpedo") &&
-		    away_asset_owned(a, "transport:craft:" + std::to_string(craft)) && craft_available(craft, d.id) &&
+		    away_asset_owned(a, "transport:craft:" + std::to_string(craft)) && reported_available(craft) &&
 		    std::all_of(d.craft_slots.begin(), d.craft_slots.end(),
 		                [&](const auto &slot)
 		                {
@@ -117,14 +123,12 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 				if (!duty.team.empty())
 				{
 					const auto asset = "team:" + duty.team;
-					if ((manual_workload(a, "team_selection", duty.team) ||
-					     manual_workload(a, "transport", duty.team)) &&
-					    enabled_system_owner(a.ship, duty.team) == a && away_asset_owned(a, asset) &&
+					if (enabled_system_owner(a.ship, duty.team) == a && away_asset_owned(a, asset) &&
 					    !away_reserved(a.ship, asset) && away_asset_healthy(a.ship, asset) &&
 					    away_slot_accepts(a.ship, s, asset))
 						r.choices.push_back(asset);
 				}
-			if (manual_workload(a, "mission_staffing"))
+			if (native_operation_controller(a, "mission_staffing"))
 				for (const auto &o : definition(a.ship).personnel.officers)
 				{
 					const auto asset = "officer:" + o.id;
@@ -135,8 +139,6 @@ auto Runtime::permitted_away_row(std::size_t i, const ConsoleAddress &a) const -
 		}
 		row.slots.push_back(r);
 	}
-	if (!manual_workload(a, "transport"))
-		row.transports.clear();
 	row.labels["ship"] = "Own ship — docking";
 	for (const auto &[craft, e] : craft_rows())
 		if (e.get<CraftState>().home == a.ship)
@@ -218,6 +220,27 @@ auto Runtime::away_board(const ConsoleAddress &a) const -> Json
 				                     {"contributing", authorised},
 				                     {"observed_tick", ecs.get<Clock>().tick},
 				                     {"revision", mission.revision}};
+				row["department"]["launch_ready"] = row.at("dispatch").get<bool>() && away_launch_blocker(i).empty();
+				row["department"]["peers"] = Json::array();
+				for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
+					if (controller.definition.console != a.console &&
+					    controller.definition.operations.contains("contribution") &&
+					    !controller.definition.operations.at("contribution").empty())
+						row["department"]["peers"].push_back(
+						    {{"console", controller.definition.console},
+						     {"controller", controller.definition.id},
+						     {"id", knowledge.controller_id(
+						                {a.ship, controller.definition.console, controller.definition.id})}});
+				row["department"]["transport_systems"] = Json::object();
+				for (const auto &choice : row.at("transports"))
+				{
+					const auto selection = choice.get<std::string>();
+					const auto physical = away_transport_entity(a.ship, selection);
+					row["department"]["transport_systems"][selection] =
+					    physical == a.ship ? row.at("dispatch_system").get<std::string>()
+					    : physical         ? entities.at(physical).get<CraftState>().bay
+					                       : selection;
+				}
 			}
 
 		for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)

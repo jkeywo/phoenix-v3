@@ -142,8 +142,6 @@ class AwayPeers
 public:
 	virtual ~AwayPeers();
 	virtual ConversationId conversation(const AwayDefinition &mission_definition) = 0;
-	virtual void prepare_contributions(std::size_t mission_index) = 0;
-	virtual bool assisted_send(std::size_t mission_index) = 0;
 	virtual bool boarding_visible(EntityId origin, EntityId target) = 0;
 	virtual void advance_supply(std::size_t mission_index) = 0;
 	virtual void advance_craft_transport(std::size_t mission_index, EntityId craft_id) = 0;

@@ -522,6 +522,16 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"medical.reason", Type::Text, 4, {}});
 		add({"medical.condition", Type::Text, 4, {}});
 	}
+	if (resolved.value("away_preparation_observations", false))
+	{
+		for (const auto *name : {"mission", "phase", "operation", "selection", "system", "peer_console",
+		                         "peer_controller", "request_status", "reason"})
+			add({std::string("away_candidate.") + name, Type::Text, 4, {}});
+		for (const auto *name : {"target", "revision", "amount", "retry_age", "travel", "cost"})
+			add({std::string("away_candidate.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"eligible", "requested", "contributing", "ready", "required", "offered"})
+			add({std::string("away_candidate.") + name, Type::Boolean, 4, {}});
+	}
 	if (resolved.value("request_observations", false))
 	{
 		for (const auto *name : {"operation", "status", "mission", "reason"})
@@ -861,6 +871,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                         "tactical.pursuit_heading", "tactical.pursuit_speed", "tactical.pursuit_altitude"})
 		add({name, Type::Integer, 4, {}});
 	add({"tactical.point_defence", Type::Boolean, 4, {}});
+	add({"repair.has_work", Type::Boolean, 4, {}});
 	for (const auto *name : {"hostiles",          "missiles",         "empty_weapons",
 	                         "thermal_stops",     "supply_limited",   "repair_needs",
 	                         "teams_working",     "teams_blocked",    "medical_patients",

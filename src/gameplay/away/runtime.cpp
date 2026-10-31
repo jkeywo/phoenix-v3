@@ -135,8 +135,6 @@ void AwayRuntime::advance(std::uint64_t tick, AwayExecution &execution)
 			}
 			else
 				++at;
-		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered)
-			peers.prepare_contributions(i);
 		if (m.phase == AwayPhase::Hidden)
 		{
 			if (d.boarding && peers.boarding_visible(ship, d.target))
@@ -169,13 +167,6 @@ void AwayRuntime::advance(std::uint64_t tick, AwayExecution &execution)
 		}
 		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered || m.phase == AwayPhase::Outbound)
 			stage(ship, m, execution);
-		// Activating an assisted docking mission authorises its first insertion. The normal
-		// send path still checks staging, capacity, capability and the physical dock.
-		if (m.phase == AwayPhase::Open && m.transport == "ship" && !d.supply && m.outcome.empty())
-		{
-			if (peers.assisted_send(i))
-				active.try_emplace(std::pair{ship, m.transport}, i);
-		}
 		const auto transport = advance_transport(i, ship, active, execution);
 		if (m.phase == AwayPhase::Deployed)
 		{

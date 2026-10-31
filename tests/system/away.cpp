@@ -1,5 +1,7 @@
 #include "../support/assertions.hpp"
 #include "../support/away_fixture.hpp"
+#include "../support/away_scored_fixture.hpp"
+#include <set>
 #include <iostream>
 import phoenix.content.controllers;
 import phoenix.content.scenarios;
@@ -63,6 +65,18 @@ Json assisted_docking_source()
 	hull["docking"] = Json::parse(
 	    R"({"ports":[{"id":"fore","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":5000,"heading_mdeg":0,"mating_ticks":3},{"id":"aft","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":-5000,"heading_mdeg":180000,"mating_ticks":3}]})");
 	auto &layout = hull["control_layout"];
+	append_scored_away_policy(source, "test.assisted-away");
+	hull["standing_directives"] = Json::array({{{"id", "known-missions"},
+	                                            {"behavior", "away"},
+	                                            {"tier", "scripted_low"},
+	                                            {"title_key", "Prepare accepted mission"}}});
+	for (auto &controller : layout["controllers"])
+		if (controller.at("id") == "dispatch" || controller.at("id") == "team")
+		{
+			controller.erase("fallback");
+			controller["tree"] = "test.assisted-away";
+		}
+	layout["manual_workloads"]["drive"]["coordination"] = 3;
 	layout["station_complexity"] = true;
 	layout["profiles"][0]["stars"] = 3;
 	auto low = layout["profiles"][0];
@@ -265,6 +279,37 @@ int main(int argc, char **argv)
 	try
 	{
 		manifest_coordination_cases();
+		{
+			const auto catalog = load(scored_away_fixture());
+			World autonomous;
+			autonomous.load(catalog, "test.map", {{"crew", "test.away"}});
+			require(autonomous.claim(101, 2, "drive") && autonomous.claim(102, 2, "observer"),
+			        "Observe scored departmental preparation");
+			std::set<std::string> actions;
+			bool deployed = false;
+			for (int tick = 0; tick < 150; ++tick)
+			{
+				autonomous.tick();
+				for (const auto claim : {101, 102})
+				{
+					const auto view = autonomous.observe(claim);
+					for (const auto &controller : view->gameplay.at("controllers"))
+						if (controller.at("action").at("status") == "succeeded")
+							actions.insert(controller.at("action").at("id").get<std::string>());
+				}
+				const auto missions = board(autonomous);
+				deployed |= !missions.empty() && missions[0].at("phase") == "deployed";
+			}
+			for (const auto *action : {"request", "accepted", "open", "contribute", "assign", "transport", "send"})
+				require(actions.contains(action),
+				        "Each preparation choice runs as an admitted scored Controller action");
+			require(deployed, "Scored departmental preparation leads to physical deployment");
+			World resumed;
+			resumed.restore(catalog, autonomous.save());
+			ticks(autonomous, 10);
+			ticks(resumed, 10);
+			require(autonomous.save() == resumed.save(), "Scored preparation preserves checkpoint continuation");
+		}
 		assisted_docking_mission();
 		autonomous_away_cases();
 		cloak_transport_cases();

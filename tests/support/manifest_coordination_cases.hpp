@@ -2,6 +2,7 @@
 Json manifest_protocol_fixture(const std::string &mode)
 {
 	auto source = away_fixture();
+	append_scored_away_policy(source, "test.manifest.preparation");
 	auto &ship = source["entities"][0];
 	ship["standing_directives"] = Json::parse(R"json([
         {"id":"prepare","behavior":"away","mission":"job","tier":"scripted_high","title_key":"Prepare mission"},
@@ -136,6 +137,17 @@ Json manifest_protocol_fixture(const std::string &mode)
 		     {"target", obs("request.id")},
 		     {"available", Json::array({condition("request.status", "accepted"), condition("request.done", true)})},
 		     {"arguments", Json::array({obs("request.id")})}});
+	receiver["away_preparation_observations"] = true;
+	for (const auto &tree : source["trees"])
+		if (tree.at("id") == "test.manifest.preparation")
+		{
+			for (const auto &binding : tree.at("action_bindings"))
+				if (binding.at("id") == "contribute" || binding.at("id") == "assign")
+					receiver["action_bindings"].push_back(binding);
+			for (const auto &binding : tree.at("objective_bindings"))
+				if (binding.at("id") == "contribute" || binding.at("id") == "assign")
+					receiver["objective_bindings"].push_back(binding);
+		}
 	source["trees"].push_back(receiver);
 	return source;
 }

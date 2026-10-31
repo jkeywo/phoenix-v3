@@ -1588,13 +1588,9 @@ struct Runtime
 	std::string boarding_insertion_blocker(std::size_t index, const std::string &transport) const;
 	std::string away_blocker(std::size_t index, bool power = true) const;
 	std::string away_launch_blocker(std::size_t index) const;
-	void prepare_away_officers(const ConsoleAddress &address, std::size_t index);
-	void prepare_away_contribution(const ConsoleAddress &a, std::size_t index);
 	void withdraw_away_assignment(EntityId ship, AwayMission &, const std::string &slot);
 	bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false,
 	                  bool assisted = false);
-	void prepare_away_tick_contributions(std::size_t i);
-	bool prepare_away_assisted_send(std::size_t i);
 
 	void stage_away(EntityId ship, AwayMission &m);
 	void advance_away();

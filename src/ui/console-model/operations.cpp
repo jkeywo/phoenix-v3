@@ -182,6 +182,16 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::asset_away_contro
 	std::vector<std::pair<std::string, std::string>> controls;
 	if (!asset.starts_with("officer:") && !asset.starts_with("team:"))
 		return controls;
+	if (!observation_)
+		return controls;
+	const bool officer = asset.starts_with("officer:");
+	bool manual = false;
+	for (const auto &controller : controller_rows(observation_->gameplay))
+		manual |= officer ? console_operation_human(controller, "mission_staffing")
+		                  : console_operation_human(controller, "team_selection", asset.substr(5)) ||
+		                        console_operation_human(controller, "transport", asset.substr(5));
+	if (!manual)
+		return controls;
 	for (const auto &mission : away_missions())
 	{
 		if ((mission.at("phase") != "open" && mission.at("phase") != "recovered") || mission.value("result", "") != "")

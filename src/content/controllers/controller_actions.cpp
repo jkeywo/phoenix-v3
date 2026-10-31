@@ -732,12 +732,14 @@ std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json
 		spec.id = binding.value("id", spec.behavior + "." + spec.action);
 		spec.candidate_source = binding.value("candidate_source", std::string("single"));
 		if (spec.candidate_source != "single" && spec.candidate_source != "medical" &&
-		    spec.candidate_source != "craft" && spec.candidate_source != "requests")
+		    spec.candidate_source != "craft" && spec.candidate_source != "requests" && spec.candidate_source != "away")
 			throw std::runtime_error("Unsupported objective candidate source");
 		if (spec.candidate_source == "medical" && !tree.value("medical_observations", false))
 			throw std::runtime_error("Medical candidates require declared Medical observations");
 		if (spec.candidate_source == "craft" && !tree.value("craft_dispatch_observations", false))
 			throw std::runtime_error("Craft candidates require declared dispatch observations");
+		if (spec.candidate_source == "away" && !tree.value("away_preparation_observations", false))
+			throw std::runtime_error("Away candidates require declared away preparation observations");
 		if (spec.candidate_source == "requests" && !tree.value("request_observations", false))
 			throw std::runtime_error("Request candidates require declared request observations");
 		const auto retry = binding.value("retry_ticks", Json(20));
