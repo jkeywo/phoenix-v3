@@ -1,0 +1,724 @@
+{
+	"visible_rgb_identical": true,
+	"resampling": false,
+	"repainting": false,
+	"reassembly_exact": true,
+	"alpha": "border-connected cream flood, registered turret polygons, label cutoff",
+	"depth_source": "registered armour/core volumes, engine cylinders and recessed nozzle bowls; no RGB or shadow input",
+	"normal_source": "gradient of continuous geometric camera Z before byte encoding",
+	"views": [
+		{
+			"name": "bow",
+			"source": "phoenix-knuckleduster-front-v1.png",
+			"sha256": "f919c19d62d5f2230cc908d92bb5be98702fba14d914dc6651b97dd13b586d2a",
+			"source_size": [1536, 1024],
+			"visible_bounds": [78, 15, 1457, 913],
+			"parts": {
+				"fore-dorsal": {
+					"pixels": 17101,
+					"source_bounds": [648, 196, 873, 277],
+					"source_to_frame": [-384, -83],
+					"pivot": [384, 192]
+				},
+				"mid-dorsal": {
+					"pixels": 12269,
+					"source_bounds": [659, 103, 868, 217],
+					"source_to_frame": [-384, -4],
+					"pivot": [384, 192]
+				},
+				"aft-dorsal": {
+					"pixels": 0,
+					"source_bounds": null
+				},
+				"fore-ventral": {
+					"pixels": 14487,
+					"source_bounds": [664, 815, 857, 913],
+					"source_to_frame": [-384, -623],
+					"pivot": [384, 192]
+				},
+				"aft-ventral": {
+					"pixels": 0,
+					"source_bounds": null
+				},
+				"hull": {
+					"pixels": 741605,
+					"source_bounds": [78, 15, 1457, 884]
+				}
+			},
+			"reassembly_exact": true
+		},
+		{
+			"name": "bow_port",
+			"source": "phoenix-knuckleduster-front-45-v1.png",
+			"sha256": "b2f93f95ac6e17dd21fd6f8b226b153b4e88e480a97b1724cf3e2c68ea1e9f10",
+			"source_size": [1536, 1024],
+			"visible_bounds": [30, 50, 1510, 923],
+			"parts": {
+				"fore-dorsal": {
+					"pixels": 13510,
+					"source_bounds": [212, 250, 451, 338],
+					"source_to_frame": [19, -138],
+					"pivot": [384, 192]
+				},
+				"mid-dorsal": {
+					"pixels": 20106,
+					"source_bounds": [467, 132, 731, 290],
+					"source_to_frame": [-253, -94],
+					"pivot": [384, 192]
+				},
+				"aft-dorsal": {
+					"pixels": 11679,
+					"source_bounds": [1233, 204, 1429, 303],
+					"source_to_frame": [-926, -118],
+					"pivot": [384, 192]
+				},
+				"fore-ventral": {
+					"pixels": 13819,
+					"source_bounds": [458, 833, 701, 923],
+					"source_to_frame": [-220, -653],
+					"pivot": [384, 192]
+				},
+				"aft-ventral": {
+					"pixels": 11643,
+					"source_bounds": [1188, 749, 1423, 840],
+					"source_to_frame": [-886, -577],
+					"pivot": [384, 192]
+				},
+				"hull": {
+					"pixels": 767541,
+					"source_bounds": [30, 50, 1510, 890]
+				}
+			},
+			"reassembly_exact": true
+		},
+		{
+			"name": "port",
+			"source": "phoenix-knuckleduster-side-v2.png",
+			"sha256": "ec89719a19ee34ae1ee4905818b0a9df0b2c408d8c9bcf43013c029234da18aa",
+			"source_size": [1536, 1024],
+			"visible_bounds": [17, 70, 1517, 907],
+			"parts": {
+				"fore-dorsal": {
+					"pixels": 11335,
+					"source_bounds": [135, 209, 370, 285],
+					"source_to_frame": [82, -89],
+					"pivot": [384, 192]
+				},
+				"mid-dorsal": {
+					"pixels": 17958,
+					"source_bounds": [396, 168, 688, 268],
+					"source_to_frame": [-184, -70],
+					"pivot": [384, 192]
+				},
+				"aft-dorsal": {
+					"pixels": 12413,
+					"source_bounds": [1234, 209, 1474, 296],
+					"source_to_frame": [-910, -101],
+					"pivot": [384, 192]
+				},
+				"fore-ventral": {
+					"pixels": 15571,
+					"source_bounds": [328, 809, 605, 907],
+					"source_to_frame": [-124, -624],
+					"pivot": [384, 192]
+				},
+				"aft-ventral": {
+					"pixels": 13772,
+					"source_bounds": [1141, 810, 1419, 905],
+					"source_to_frame": [-831, -622],
+					"pivot": [384, 192]
+				},
+				"hull": {
+					"pixels": 790482,
+					"source_bounds": [17, 70, 1517, 889]
+				}
+			},
+			"reassembly_exact": true
+		},
+		{
+			"name": "stern_port",
+			"source": "phoenix-knuckleduster-rear-45-v1.png",
+			"sha256": "044ec8c50f618db456280608338667e4ee8f6482d73c52ef33dd00c387af3391",
+			"source_size": [1536, 1024],
+			"visible_bounds": [57, 34, 1497, 924],
+			"parts": {
+				"fore-dorsal": {
+					"pixels": 10975,
+					"source_bounds": [180, 216, 382, 305],
+					"source_to_frame": [71, -113],
+					"pivot": [384, 192]
+				},
+				"mid-dorsal": {
+					"pixels": 16050,
+					"source_bounds": [363, 171, 596, 278],
+					"source_to_frame": [-130, -85],
+					"pivot": [384, 192]
+				},
+				"aft-dorsal": {
+					"pixels": 17799,
+					"source_bounds": [1080, 214, 1368, 316],
+					"source_to_frame": [-823, -161],
+					"pivot": [384, 192]
+				},
+				"fore-ventral": {
+					"pixels": 12229,
+					"source_bounds": [223, 730, 462, 827],
+					"source_to_frame": [25, -547],
+					"pivot": [384, 192]
+				},
+				"aft-ventral": {
+					"pixels": 17316,
+					"source_bounds": [920, 823, 1216, 924],
+					"source_to_frame": [-684, -642],
+					"pivot": [384, 192]
+				},
+				"hull": {
+					"pixels": 726672,
+					"source_bounds": [57, 34, 1497, 870]
+				}
+			},
+			"reassembly_exact": true
+		},
+		{
+			"name": "stern",
+			"source": "phoenix-knuckleduster-rear-v1.png",
+			"sha256": "83280c4358d5585aa1297466883f61722aa1e817718f972e9ddda9c552255590",
+			"source_size": [1536, 1024],
+			"visible_bounds": [97, 18, 1440, 916],
+			"parts": {
+				"fore-dorsal": {
+					"pixels": 0,
+					"source_bounds": null
+				},
+				"mid-dorsal": {
+					"pixels": 0,
+					"source_bounds": null
+				},
+				"aft-dorsal": {
+					"pixels": 16434,
+					"source_bounds": [665, 171, 834, 284],
+					"source_to_frame": [-372, -94],
+					"pivot": [384, 192]
+				},
+				"fore-ventral": {
+					"pixels": 0,
+					"source_bounds": null
+				},
+				"aft-ventral": {
+					"pixels": 16595,
+					"source_bounds": [667, 804, 839, 916],
+					"source_to_frame": [-373, -620],
+					"pivot": [384, 192]
+				},
+				"hull": {
+					"pixels": 792209,
+					"source_bounds": [97, 18, 1440, 915]
+				}
+			},
+			"reassembly_exact": true
+		}
+	],
+	"occluded_turret_fallbacks": [
+		{
+			"part": "fore-dorsal",
+			"view": "stern",
+			"donor": "stern_port",
+			"reason": "mount occluded in source; nearest painted bearing reused"
+		},
+		{
+			"part": "mid-dorsal",
+			"view": "stern",
+			"donor": "stern_port",
+			"reason": "mount occluded in source; nearest painted bearing reused"
+		},
+		{
+			"part": "aft-dorsal",
+			"view": "bow",
+			"donor": "bow_port",
+			"reason": "mount occluded in source; nearest painted bearing reused"
+		},
+		{
+			"part": "fore-ventral",
+			"view": "stern",
+			"donor": "stern_port",
+			"reason": "mount occluded in source; nearest painted bearing reused"
+		},
+		{
+			"part": "aft-ventral",
+			"view": "bow",
+			"donor": "bow_port",
+			"reason": "mount occluded in source; nearest painted bearing reused"
+		}
+	],
+	"geometry": [
+		{
+			"name": "bow",
+			"angle": 0,
+			"file": "phoenix-knuckleduster-front-v1.png",
+			"pivot": [768, 570],
+			"cutoff": 918,
+			"mounts": [
+				[768, 275],
+				[768, 196],
+				[768, 311],
+				[768, 815],
+				[768, 788]
+			],
+			"polys": [
+				[
+					[650, 274],
+					[653, 219],
+					[681, 198],
+					[849, 198],
+					[868, 221],
+					[870, 274]
+				],
+				[
+					[684, 194],
+					[686, 128],
+					[712, 104],
+					[822, 104],
+					[847, 128],
+					[850, 194]
+				],
+				null,
+				[
+					[666, 817],
+					[853, 817],
+					[855, 884],
+					[824, 912],
+					[695, 912],
+					[669, 886]
+				],
+				null
+			],
+			"muzzles": [[766, 226], [766, 139], null, [764, 868], null],
+			"hull": [100, 255, 1440, 825],
+			"nozzles": [
+				[400, 420],
+				[1130, 420],
+				[400, 700],
+				[1130, 700]
+			],
+			"engines": [],
+			"bores": [
+				[610, 556],
+				[923, 556],
+				[610, 585],
+				[923, 585]
+			],
+			"holes": []
+		},
+		{
+			"name": "bow_port",
+			"angle": 45,
+			"file": "phoenix-knuckleduster-front-45-v1.png",
+			"pivot": [810, 570],
+			"cutoff": 925,
+			"mounts": [
+				[365, 330],
+				[637, 286],
+				[1310, 310],
+				[604, 845],
+				[1270, 769]
+			],
+			"polys": [
+				[
+					[208, 279],
+					[273, 279],
+					[289, 253],
+					[366, 249],
+					[423, 260],
+					[448, 279],
+					[446, 311],
+					[423, 329],
+					[286, 335],
+					[264, 319],
+					[209, 312]
+				],
+				[
+					[464, 208],
+					[535, 208],
+					[554, 184],
+					[613, 171],
+					[669, 173],
+					[717, 187],
+					[733, 207],
+					[730, 249],
+					[704, 265],
+					[704, 282],
+					[560, 287],
+					[540, 268],
+					[465, 241]
+				],
+				[
+					[1235, 215],
+					[1290, 210],
+					[1350, 214],
+					[1369, 225],
+					[1424, 229],
+					[1424, 242],
+					[1373, 243],
+					[1420, 251],
+					[1420, 265],
+					[1368, 264],
+					[1366, 285],
+					[1343, 299],
+					[1280, 300],
+					[1241, 283]
+				],
+				[
+					[462, 872],
+					[528, 865],
+					[542, 844],
+					[612, 835],
+					[681, 847],
+					[698, 864],
+					[696, 894],
+					[671, 914],
+					[545, 915],
+					[526, 900],
+					[462, 900]
+				],
+				[
+					[1182, 763],
+					[1250, 751],
+					[1302, 758],
+					[1324, 770],
+					[1421, 771],
+					[1421, 784],
+					[1329, 786],
+					[1421, 793],
+					[1421, 809],
+					[1323, 806],
+					[1310, 823],
+					[1250, 829],
+					[1190, 812]
+				]
+			],
+			"muzzles": [
+				[222, 293],
+				[478, 223],
+				[1410, 242],
+				[479, 881],
+				[1408, 788]
+			],
+			"hull": [36, 300, 1505, 860],
+			"nozzles": [
+				[1480, 438],
+				[1370, 416],
+				[1490, 630],
+				[1390, 605]
+			],
+			"engines": [
+				[1325, 440, 178, 96],
+				[1325, 631, 178, 96]
+			],
+			"bores": [
+				[277, 418],
+				[245, 457],
+				[392, 711],
+				[367, 747]
+			],
+			"holes": []
+		},
+		{
+			"name": "port",
+			"angle": 90,
+			"file": "phoenix-knuckleduster-side-v2.png",
+			"pivot": [805, 560],
+			"cutoff": 916,
+			"mounts": [
+				[302, 281],
+				[568, 262],
+				[1294, 293],
+				[508, 816],
+				[1215, 814]
+			],
+			"polys": [
+				[
+					[133, 228],
+					[226, 228],
+					[240, 214],
+					[286, 209],
+					[334, 214],
+					[362, 228],
+					[371, 245],
+					[367, 268],
+					[348, 282],
+					[252, 282],
+					[236, 271],
+					[159, 267],
+					[159, 253],
+					[230, 253],
+					[232, 245],
+					[134, 244]
+				],
+				[
+					[396, 192],
+					[486, 192],
+					[504, 177],
+					[553, 169],
+					[614, 171],
+					[651, 181],
+					[675, 194],
+					[685, 218],
+					[680, 245],
+					[652, 263],
+					[524, 265],
+					[505, 251],
+					[420, 231],
+					[419, 216],
+					[499, 216],
+					[499, 208],
+					[397, 207]
+				],
+				[
+					[1236, 216],
+					[1290, 212],
+					[1344, 221],
+					[1362, 232],
+					[1474, 236],
+					[1474, 251],
+					[1367, 251],
+					[1457, 258],
+					[1457, 274],
+					[1361, 273],
+					[1341, 291],
+					[1268, 293],
+					[1240, 279]
+				],
+				[
+					[330, 830],
+					[432, 829],
+					[449, 815],
+					[500, 811],
+					[557, 819],
+					[589, 832],
+					[602, 851],
+					[598, 877],
+					[575, 896],
+					[474, 900],
+					[450, 883],
+					[333, 874],
+					[333, 855],
+					[434, 855],
+					[433, 847],
+					[330, 846]
+				],
+				[
+					[1140, 817],
+					[1200, 812],
+					[1261, 820],
+					[1286, 831],
+					[1403, 829],
+					[1403, 843],
+					[1297, 846],
+					[1418, 848],
+					[1418, 862],
+					[1289, 866],
+					[1270, 887],
+					[1189, 895],
+					[1150, 878]
+				]
+			],
+			"muzzles": [
+				[146, 240],
+				[408, 203],
+				[1461, 247],
+				[343, 846],
+				[1407, 849]
+			],
+			"hull": [18, 290, 1519, 837],
+			"nozzles": [
+				[1504, 458],
+				[1488, 458],
+				[1504, 678],
+				[1488, 678]
+			],
+			"engines": [
+				[1370, 455, 145, 101],
+				[1370, 672, 145, 99]
+			],
+			"bores": [
+				[155, 346],
+				[135, 388],
+				[261, 652],
+				[234, 695]
+			],
+			"holes": []
+		},
+		{
+			"name": "stern_port",
+			"angle": 135,
+			"file": "phoenix-knuckleduster-rear-45-v1.png",
+			"pivot": [764, 566],
+			"cutoff": 924,
+			"mounts": [
+				[313, 305],
+				[514, 277],
+				[1207, 353],
+				[359, 739],
+				[1068, 834]
+			],
+			"polys": [
+				[
+					[180, 239],
+					[239, 239],
+					[256, 222],
+					[301, 218],
+					[345, 224],
+					[371, 237],
+					[379, 259],
+					[374, 281],
+					[351, 300],
+					[266, 302],
+					[248, 287],
+					[180, 273]
+				],
+				[
+					[363, 190],
+					[440, 190],
+					[455, 175],
+					[492, 170],
+					[540, 175],
+					[570, 187],
+					[590, 203],
+					[593, 235],
+					[576, 255],
+					[544, 272],
+					[455, 275],
+					[436, 257],
+					[365, 221]
+				],
+				[
+					[1082, 230],
+					[1125, 216],
+					[1183, 215],
+					[1234, 227],
+					[1258, 239],
+					[1366, 246],
+					[1367, 261],
+					[1262, 260],
+					[1340, 271],
+					[1340, 285],
+					[1258, 283],
+					[1242, 307],
+					[1154, 313],
+					[1101, 294],
+					[1083, 272]
+				],
+				[
+					[222, 737],
+					[278, 740],
+					[298, 733],
+					[339, 733],
+					[384, 744],
+					[416, 758],
+					[456, 770],
+					[461, 788],
+					[447, 810],
+					[383, 825],
+					[322, 816],
+					[295, 795],
+					[225, 758]
+				],
+				[
+					[921, 832],
+					[975, 825],
+					[1034, 831],
+					[1061, 845],
+					[1212, 871],
+					[1212, 886],
+					[1071, 864],
+					[1197, 897],
+					[1197, 914],
+					[1055, 888],
+					[1038, 903],
+					[978, 905],
+					[933, 881]
+				]
+			],
+			"muzzles": [
+				[191, 248],
+				[375, 198],
+				[1354, 252],
+				[233, 746],
+				[1201, 878]
+			],
+			"hull": [60, 284, 1500, 833],
+			"nozzles": [
+				[1317, 492],
+				[1445, 482],
+				[1317, 710],
+				[1445, 700]
+			],
+			"engines": [
+				[1230, 491, 157, 129],
+				[1230, 708, 157, 129],
+				[1432, 484, 64, 98],
+				[1432, 701, 64, 98]
+			],
+			"bores": [
+				[146, 327],
+				[135, 360],
+				[175, 575],
+				[203, 601]
+			],
+			"holes": []
+		},
+		{
+			"name": "stern",
+			"angle": 180,
+			"file": "phoenix-knuckleduster-rear-v1.png",
+			"pivot": [768, 570],
+			"cutoff": 925,
+			"mounts": [
+				[768, 320],
+				[768, 300],
+				[756, 286],
+				[768, 783],
+				[757, 812]
+			],
+			"polys": [
+				null,
+				null,
+				[
+					[667, 281],
+					[669, 207],
+					[691, 180],
+					[730, 170],
+					[780, 172],
+					[816, 188],
+					[832, 212],
+					[831, 280]
+				],
+				null,
+				[
+					[669, 806],
+					[830, 806],
+					[836, 876],
+					[812, 907],
+					[699, 911],
+					[670, 885]
+				]
+			],
+			"muzzles": [null, null, [752, 207], null, [755, 847]],
+			"hull": [99, 278, 1440, 838],
+			"nozzles": [
+				[548, 449],
+				[1000, 449],
+				[548, 700],
+				[1000, 700]
+			],
+			"engines": [
+				[548, 449, 141, 141],
+				[1000, 449, 141, 141],
+				[548, 700, 141, 141],
+				[1000, 700, 141, 141]
+			],
+			"bores": [],
+			"holes": []
+		}
+	]
+}

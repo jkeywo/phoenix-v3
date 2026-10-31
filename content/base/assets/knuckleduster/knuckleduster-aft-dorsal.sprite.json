@@ -1,0 +1,156 @@
+{
+	"schema_version": 1,
+	"id": "knuckleduster-aft-dorsal",
+	"description": "Pixel-preserving extraction from approved Knuckleduster concept views",
+	"image_size": [2304, 768],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"files": {
+		"sprite": "knuckleduster-aft-dorsal.png",
+		"normal": "knuckleduster-aft-dorsal-normal.png",
+		"depth": "knuckleduster-aft-dorsal-depth.png"
+	},
+	"billboard_mode": "eight",
+	"pivot": null,
+	"markers": {},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"white": "near",
+		"quality": "registered_geometry_not_shading"
+	},
+	"normal_encoding": {
+		"space": "view",
+		"x": "right",
+		"y": "up",
+		"z": "toward_viewer",
+		"quality": "continuous_geometry_gradient"
+	},
+	"sprite_sheet": {
+		"kind": "directions",
+		"columns": 4,
+		"rows": 2,
+		"frames": [
+			{
+				"name": "stern",
+				"camera_azimuth_degrees": 0,
+				"rect": [768, 384, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": false,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [380, 113, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "stern_starboard",
+				"camera_azimuth_degrees": 45,
+				"rect": [0, 384, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": true,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [531, 91, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "starboard",
+				"camera_azimuth_degrees": 90,
+				"rect": [1536, 0, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": true,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [551, 146, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "bow_starboard",
+				"camera_azimuth_degrees": 135,
+				"rect": [768, 0, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": true,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [484, 124, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "bow",
+				"camera_azimuth_degrees": 180,
+				"rect": [0, 0, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": false,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [484, 124, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "bow_port",
+				"camera_azimuth_degrees": 225,
+				"rect": [768, 0, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": false,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [484, 124, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "port",
+				"camera_azimuth_degrees": 270,
+				"rect": [1536, 0, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": false,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [551, 146, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			},
+			{
+				"name": "stern_port",
+				"camera_azimuth_degrees": 315,
+				"rect": [0, 384, 768, 384],
+				"pivot": [384, 192],
+				"mirror_x": false,
+				"depth_scale": 3.4,
+				"depth_offset": -0.006666666666666643,
+				"markers": {
+					"muzzle": [531, 91, 1]
+				},
+				"attachment_depth_offsets": {
+					"muzzle": 0.006
+				}
+			}
+		]
+	}
+}

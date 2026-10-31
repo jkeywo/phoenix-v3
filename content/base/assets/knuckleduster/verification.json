@@ -1,0 +1,10 @@
+{
+	"retained_source_pixels": 4111570,
+	"visible_rgb_identical": true,
+	"exported_reassembly_exact": true,
+	"sets": 6,
+	"bearings_per_set": 8,
+	"map_dimensions_valid": true,
+	"marker_bounds_valid": true,
+	"depth_uses_geometry_not_luminance": true
+}
