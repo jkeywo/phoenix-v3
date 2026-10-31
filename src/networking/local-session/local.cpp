@@ -22,6 +22,9 @@ namespace phoenix
 {
 namespace
 {
+constexpr std::size_t saved_pack_chunk_size = 8 * 1024 * 1024;
+constexpr std::size_t saved_pack_chunk_limit =
+    (content_archive_limit + saved_pack_chunk_size - 1) / saved_pack_chunk_size;
 class LocalSession final : public HostAccess
 {
 	std::vector<Pack> packs_;
@@ -223,16 +226,16 @@ public:
 		container.manifest = {{"schema", 1}, {"id", "phoenix-session-save"}, {"format", "phoenix-runtime-save"}};
 		container.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
 		Json paths = Json::array();
-		constexpr std::size_t chunk_size = 8 * 1024 * 1024;
 		for (std::size_t i = 0; i < packs_.size(); ++i)
 		{
 			Json chunks = Json::array();
 			const auto &bytes = packs_[i].archive();
-			for (std::size_t offset = 0; offset < bytes.size(); offset += chunk_size)
+			for (std::size_t offset = 0; offset < bytes.size(); offset += saved_pack_chunk_size)
 			{
-				auto path = "packs/" + std::to_string(i) + "/" + std::to_string(offset / chunk_size) + ".bin";
+				auto path =
+				    "packs/" + std::to_string(i) + "/" + std::to_string(offset / saved_pack_chunk_size) + ".bin";
 				chunks.push_back(path);
-				auto end = std::min(bytes.size(), offset + chunk_size);
+				auto end = std::min(bytes.size(), offset + saved_pack_chunk_size);
 				container.files[path] = Bytes(bytes.begin() + offset, bytes.begin() + end);
 			}
 			paths.push_back(chunks);
@@ -265,13 +268,13 @@ public:
 		LocalSession candidate;
 		for (const auto &chunks : data.at("packs"))
 		{
-			if (!chunks.is_array() || chunks.empty() || chunks.size() > 8)
+			if (!chunks.is_array() || chunks.empty() || chunks.size() > saved_pack_chunk_limit)
 				throw std::runtime_error("Invalid saved pack chunk list");
 			Bytes bytes;
 			for (const auto &path : chunks)
 			{
 				const auto &chunk = container.files.at(path.get<std::string>());
-				if (chunk.size() > 8 * 1024 * 1024 || bytes.size() + chunk.size() > content_archive_limit)
+				if (chunk.size() > saved_pack_chunk_size || bytes.size() + chunk.size() > content_archive_limit)
 					throw std::runtime_error("Saved pack exceeds archive limits");
 				bytes.insert(bytes.end(), chunk.begin(), chunk.end());
 			}

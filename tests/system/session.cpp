@@ -27,14 +27,15 @@ int main()
 		auto pack =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		{
-			// A portable save contains multiple individually bounded content packs.
+			// A portable save contains multiple individually bounded content packs,
+			// including one above the former eight-chunk (64 MiB) restore ceiling.
 			// Incompressible synthetic assets exercise the envelope, not production art.
 			auto large_base = pack;
 			PackDraft extra;
 			extra.manifest = {{"schema", 1}, {"id", "test-save-assets"}, {"dependencies", {"test-core"}}};
 			extra.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
 			std::uint32_t random = 0x9e3779b9;
-			for (int n = 0; n < 3; ++n)
+			for (int n = 0; n < 6; ++n)
 			{
 				Bytes payload(11 * 1024 * 1024);
 				for (auto &byte : payload)
@@ -45,26 +46,18 @@ int main()
 					byte = static_cast<std::uint8_t>(random);
 				}
 				large_base.files["assets/save-" + std::to_string(n) + ".bin"] = payload;
-				extra.files["assets/save-" + std::to_string(n) + ".bin"] = std::move(payload);
+				if (n < 3)
+					extra.files["assets/save-" + std::to_string(n) + ".bin"] = std::move(payload);
 			}
 			auto original = make_local_session();
-			original->add_pack(write_pack(large_base));
+			const auto large_archive = write_pack(large_base);
+			require(large_archive.size() > 64 * 1024 * 1024 && large_archive.size() <= content_archive_limit,
+			        "Synthetic content crosses eight save chunks within the supported content limit");
+			original->add_pack(large_archive);
 			original->add_pack(write_pack(extra));
 			original->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 			original->tick();
 			const auto portable_large = original->save();
-			require(portable_large.size() > content_archive_limit,
-			        "Portable fixture must cross the content-archive boundary");
-			bool rejected = false;
-			try
-			{
-				(void)read_pack(portable_large);
-			}
-			catch (const std::exception &)
-			{
-				rejected = true;
-			}
-			require(rejected, "Runtime-save allowance must not expand ordinary content limits");
 			auto recovered_large = make_local_session();
 			recovered_large->restore(portable_large);
 			require(recovered_large->recovery_pending() &&

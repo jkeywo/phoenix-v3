@@ -30,6 +30,8 @@ Native hosts can put an unclaimed Console on a named additional monitor, or assi
 
 Everyone ready begins a five-second countdown. Unreadying, membership changes, disconnects, or ship/Console changes cancel it. Changed setup must be verified again before another countdown. At completion the server roster freezes, and the existing durable fleet activation barrier starts the game. Every server simulates the complete world and its authored AI deterministically. Each Console's selected complexity profile allocates Controllers between its available human operator and ordinary AI. Unclaimed, Away or disconnected Consoles use AI for every Controller; returning humans regain their selected profile.
 
+Prepared sessions and portable saves use the same bounded pack restoration path. Its chunk count follows the supported content archive limit, so valid packs above 64 MiB can launch after the countdown as well as restore from saves.
+
 Unclaimed slots marked `mandatory` use their first allowed ship as AI. Unclaimed optional slots remain empty. AI-only ships have no server identity, vote or fictitious participant. New ship servers cannot join after launch; returning fixed-roster members and ordinary late crew/GM admission retain their existing paths. The [HTML browser menu](browser-menu.md) gathers the same setup choices before loading its role WASM; both use the shared production lobby protocol and preserve direct running-server invitations.
 
 Native and browser ship hosts open the selected ship's Viewscreen; GM hosts open the inspector, and player/GM clients can also join separately. After launch, the Viewscreen contains only the world and Settings. Consoles and GM tools also open Settings instead of returning to a lobby. **Quit to Main Menu** ends the native session; starting/joining again is a new game flow. Closing Settings restores the same display.
@@ -51,6 +53,8 @@ The visible menu and Windows UI Automation share controls, text/range values, an
 ## Validation
 
 `system.native-menu-library` checks durable preferences, exact installed archives, transactional replacement and managed save recovery with synthetic content. Native/WASM fleet setup checks cover mandatory AI slots, omitted optional slots and continued deterministic AI. The signalling-service gate also runs the synthetic native lobby journey over real relay transports: automatic authenticated invitation admission, competing slot requests, automatic setup transfer, individual readiness, countdown cancellation, durable launch, GM/Console admission and portable fleet recovery.
+
+The 31 October 2026 pack-size correction passes the native local-session, fleet-setup and lobby-worker-console integrations. The session fixture restores and continues with an incompressible synthetic pack above 64 MiB. A temporary headless probe using the production Rescue mission and Courier also passed Ready, countdown and solo launch through the offline lobby. This is launch-path evidence, separate from graphical or live-network acceptance.
 
 Explicitly trigger the graphical journey with:
 
