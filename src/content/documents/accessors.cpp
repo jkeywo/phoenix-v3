@@ -48,11 +48,11 @@ const Json &WorkshopDocument::definitions() const
 }
 Json &WorkshopDocument::map()
 {
-	return definitions_["maps"][map_index_];
+	return definitions_.at("maps").at(map_index_);
 }
 const Json &WorkshopDocument::map() const
 {
-	return definitions_["maps"][map_index_];
+	return definitions_.at("maps").at(map_index_);
 }
 Json &WorkshopDocument::manifest()
 {

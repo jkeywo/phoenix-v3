@@ -20,6 +20,8 @@ The command explicitly selects authored roots and excludes `references/`, depend
 
 ## Game build
 
+The headless Workshop authoring CLI builds with `./scripts/build.ps1 -Target native -BuildTarget phoenix_workshop` (Windows output: `build/native/Release/phoenix_workshop.exe`). It is also part of the ordinary native/Linux build. See [CLI operations and source drafts](workshop-cli.md).
+
 First-party C++ uses named modules with `.cppm` interfaces. See [module ownership and conventions](modules.md). CMake 3.28 or newer is required; the pinned bootstrap version remains 3.31.6. The native and web build trees maintain separate compiler-generated module artifacts.
 
 Windows requires Python, Git and Visual Studio 2022 with the C++ desktop workload/Windows SDK. Run from the repository root in PowerShell:

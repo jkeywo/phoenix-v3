@@ -29,7 +29,7 @@ void GameplayEditors::State::actor(Json &parent, const char *key, const std::vec
 	heading(key);
 	const auto value = parent.contains(key) ? parent.at(key) : Json::object();
 	Json kind{{"Actor source", value.contains("slot") ? "slot" : value.contains("entity") ? "entity" : "handle"}};
-	if (choice(kind, "Actor source", {"slot", "entity", "handle"}))
+	if (edit_registered(kind, "gameplay-editors.scenarios.Actor source"))
 	{
 		const auto selected = kind.at("Actor source").get<std::string>();
 		parent[key] = selected == "entity" ? Json{{"entity", 1}} : Json{{selected, ""}};
@@ -39,9 +39,9 @@ void GameplayEditors::State::actor(Json &parent, const char *key, const std::vec
 		if (parent.at(key).contains("slot"))
 			choice(parent[key], "slot", slots);
 		else if (parent.at(key).contains("entity"))
-			integer(parent[key], "entity", 1);
+			edit_registered(parent[key], "gameplay-editors.scenarios.entity");
 		else
-			string(parent[key], "handle");
+			edit_registered(parent[key], "gameplay-editors.scenarios.handle");
 	}
 	else if (button("Bind actor"))
 		parent[key] = {{"slot", slots.empty() ? "" : slots.front()}};
@@ -55,32 +55,27 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		structure(map["ship_briefings"]);
 	else if (button("Add ship briefings"))
 		map["ship_briefings"] = Json::object();
-	records(map, "factions", {{"id", "faction"}, {"label", "Faction"}},
+	records(map, "factions", workshop_record("gameplay-editors.scenarios.factions"),
 	        [&](Json &f)
 	        {
-		        string(f, "id");
-		        string(f, "label");
+		        edit_registered(f, "gameplay-editors.scenarios.id");
+		        edit_registered(f, "gameplay-editors.scenarios.label");
 	        });
 	const auto faction_ids = map.contains("factions") ? ids(map.at("factions")) : std::vector<std::string>{};
-	records(map, "relationships", {{"a", ""}, {"b", ""}, {"relation", "neutral"}},
+	records(map, "relationships", workshop_record("gameplay-editors.scenarios.relationships"),
 	        [&](Json &r)
 	        {
 		        choice(r, "a", faction_ids);
 		        choice(r, "b", faction_ids);
-		        choice(r, "relation", {"friendly", "neutral", "hostile"});
+		        edit_registered(r, "gameplay-editors.scenarios.relation");
 	        });
-	records(map, "sensor_findings",
-	        {{"id", "finding"},
-	         {"text_key", "Sensor finding"},
-	         {"target_entity", 1},
-	         {"scan_ticks", 100},
-	         {"requires", {"findings"}}},
+	records(map, "sensor_findings", workshop_record("gameplay-editors.scenarios.sensor_findings"),
 	        [&](Json &f)
 	        {
-		        string(f, "id");
-		        string(f, "text_key");
-		        integer(f, "target_entity", 1);
-		        integer(f, "scan_ticks", 100);
+		        edit_registered(f, "gameplay-editors.scenarios.id");
+		        edit_registered(f, "gameplay-editors.scenarios.text_key");
+		        edit_registered(f, "gameplay-editors.scenarios.target_entity");
+		        edit_registered(f, "gameplay-editors.scenarios.scan_ticks");
 		        strings(f, "requires");
 		        optional_string(f, "requires_event");
 		        optional_string(f, "unless_event");
@@ -88,35 +83,20 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        optional_string(f, "tag");
 		        optional_string(f, "destination_station");
 	        });
-	records(map, "starting_stocks", {{"ship_slot", ""}, {"definition", ""}, {"stores", Json::object()}},
+	records(map, "starting_stocks", workshop_record("gameplay-editors.scenarios.starting_stocks"),
 	        [&](Json &setup)
 	        {
-		        string(setup, "ship_slot");
+		        edit_registered(setup, "gameplay-editors.scenarios.ship_slot");
 		        choice(setup, "definition", document.definition_choices(WorkshopDefinitionKind::Entity));
 		        structured_field(setup, "stores");
 	        });
-	records(map, "interdictions",
-	        {{"id", "encounter"},
-	         {"player_slot", ""},
-	         {"target_entity", 1},
-	         {"start_event", ""},
-	         {"tree", ""},
-	         {"dialogue", ""},
-	         {"threat_radius_mm", 600000},
-	         {"clearance_radius_mm", 750000},
-	         {"engagement_radius_mm", 2500000},
-	         {"formation_radius_mm", 800000},
-	         {"takeover_ticks", 2400},
-	         {"variants", Json::object()},
-	         {"pleas", Json::array()},
-	         {"occupation_teams", Json::array()},
-	         {"takeover_effects", {{"repair", false}, {"original_crew", "detain"}, {"capture_visitors", true}}}},
+	records(map, "interdictions", workshop_record("gameplay-editors.scenarios.interdictions"),
 	        [&](Json &m)
 	        {
-		        string(m, "id");
-		        string(m, "player_slot");
-		        integer(m, "target_entity", 1);
-		        string(m, "start_event");
+		        edit_registered(m, "gameplay-editors.scenarios.id");
+		        edit_registered(m, "gameplay-editors.scenarios.player_slot");
+		        edit_registered(m, "gameplay-editors.scenarios.target_entity");
+		        edit_registered(m, "gameplay-editors.scenarios.start_event");
 		        optional_string(m, "target_character");
 		        optional_string(m, "attacker_character");
 		        tree_editor.tree_binding(document, m, "tree", "scenario", false);
@@ -128,53 +108,44 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        if (!m.contains("takeover_effects"))
 			        m["takeover_effects"] = {{"repair", true}, {"original_crew", "kill"}, {"capture_visitors", true}};
 		        auto &effects = m["takeover_effects"];
-		        boolean(effects, "repair", true);
-		        choice(effects, "original_crew", {"kill", "detain"});
-		        boolean(effects, "capture_visitors", true);
+		        edit_registered(effects, "gameplay-editors.scenarios.repair");
+		        edit_registered(effects, "gameplay-editors.scenarios.original_crew");
+		        edit_registered(effects, "gameplay-editors.scenarios.capture_visitors");
 		        structured_field(m, "variants");
 		        structured_field(m, "pleas");
 	        });
-	records(map, "away_missions",
-	        {{"id", "mission"},
-	         {"title_key", "Away mission"},
-	         {"ship_slot", ""},
-	         {"target_entity", 1},
-	         {"conversation", ""},
-	         {"reveal_event", ""},
-	         {"tree", ""},
-	         {"slots", Json::array()}},
+	records(map, "away_missions", workshop_record("gameplay-editors.scenarios.away_missions"),
 	        [&](Json &m)
 	        {
-		        string(m, "id");
-		        string(m, "title_key");
-		        string(m, "ship_slot");
-		        integer(m, "target_entity", 1);
-		        string(m, "conversation");
-		        string(m, "reveal_event");
-		        boolean(m, "retain_craft", true);
+		        edit_registered(m, "gameplay-editors.scenarios.id");
+		        edit_registered(m, "gameplay-editors.scenarios.title_key");
+		        edit_registered(m, "gameplay-editors.scenarios.ship_slot");
+		        edit_registered(m, "gameplay-editors.scenarios.target_entity");
+		        edit_registered(m, "gameplay-editors.scenarios.conversation");
+		        edit_registered(m, "gameplay-editors.scenarios.reveal_event");
+		        edit_registered(m, "gameplay-editors.scenarios.retain_craft");
 		        tree_editor.tree_binding(document, m, "tree", "away", false);
-		        boolean(m, "allow_ship_transport", false);
+		        edit_registered(m, "gameplay-editors.scenarios.allow_ship_transport");
 		        strings(m, "docking_ports");
 		        optional_string(m, "ship_transport_reason");
-		        integer(m, "deployment_range_mm", 20000);
-		        integer(m, "deployment_ticks", 20);
-		        records(m, "slots", {{"id", "repair"}, {"kind", "team"}, {"required", true}},
+		        edit_registered(m, "gameplay-editors.scenarios.deployment_range_mm");
+		        edit_registered(m, "gameplay-editors.scenarios.deployment_ticks");
+		        records(m, "slots", workshop_record("gameplay-editors.scenarios.slots"),
 		                [&](Json &s)
 		                {
-			                string(s, "id");
-			                choice(s, "kind", {"team", "officer"});
+			                edit_registered(s, "gameplay-editors.scenarios.id");
+			                edit_registered(s, "gameplay-editors.scenarios.kind");
 			                optional_string(s, "trait");
 			                optional_string(s, "team_type");
 			                optional_string(s, "capability");
-			                boolean(s, "required", true);
-			                boolean(s, "assign_ai", false);
+			                edit_registered(s, "gameplay-editors.scenarios.required");
+			                edit_registered(s, "gameplay-editors.scenarios.assign_ai");
 		                });
 	        });
-	records(map, "conversations",
-	        {{"id", "conversation"}, {"tree", ""}, {"bindings", Json::object()}, {"members", Json::array()}},
+	records(map, "conversations", workshop_record("gameplay-editors.scenarios.conversations"),
 	        [&](Json &c)
 	        {
-		        string(c, "id");
+		        edit_registered(c, "gameplay-editors.scenarios.id");
 		        tree_editor.tree_binding(document, c, "tree", "conversation", false);
 		        optional_string(c, "title_key");
 		        optional_string(c, "start_event");
@@ -184,22 +155,22 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        structured_field(c, "bindings");
 	        });
 	records(
-	    map, "regions", {{"id", "region"}, {"shape", "circle"}, {"x_mm", 0}, {"y_mm", 0}, {"radius_mm", 10000}},
+	    map, "regions", workshop_record("gameplay-editors.scenarios.regions"),
 	    [&](Json &region)
 	    {
-		    string(region, "id");
-		    choice(region, "shape", {"circle", "rectangle", "annulus"});
-		    integer(region, "x_mm");
-		    integer(region, "y_mm");
+		    edit_registered(region, "gameplay-editors.scenarios.id");
+		    edit_registered(region, "gameplay-editors.scenarios.shape");
+		    edit_registered(region, "gameplay-editors.scenarios.x_mm");
+		    edit_registered(region, "gameplay-editors.scenarios.y_mm");
 		    if (region.value("shape", std::string("circle")) != "rectangle")
-			    integer(region, "radius_mm", 10000);
+			    edit_registered(region, "gameplay-editors.scenarios.radius_mm");
 		    else
 		    {
-			    integer(region, "half_width_mm", 10000);
-			    integer(region, "half_height_mm", 10000);
+			    edit_registered(region, "gameplay-editors.scenarios.half_width_mm");
+			    edit_registered(region, "gameplay-editors.scenarios.half_height_mm");
 		    }
 		    if (region.value("shape", std::string("circle")) == "annulus")
-			    integer(region, "inner_radius_mm", 5000);
+			    edit_registered(region, "gameplay-editors.scenarios.inner_radius_mm");
 		    bool display = region.contains("display");
 		    if (ImGui::Checkbox(label("Map marker").c_str(), &display))
 		    {
@@ -215,7 +186,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		    if (display)
 		    {
 			    auto &d = region["display"];
-			    string(d, "name");
+			    edit_registered(d, "gameplay-editors.scenarios.name");
 			    strings(d, "tags");
 			    for (const auto *key : {"navigation", "radar"})
 			    {
@@ -246,7 +217,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 				    if (ImGui::InputFloat(label(key).c_str(), &value))
 					    n[key] = value;
 			    }
-			    integer(n, "half_height_mm", 100000);
+			    edit_registered(n, "gameplay-editors.scenarios.half_height_mm.2");
 			    const auto c = n.value("colour", Json::array({.5, .3, .8}));
 			    float colour[3] = {c[0], c[1], c[2]};
 			    if (ImGui::ColorEdit3(label("Nebula colour").c_str(), colour))
@@ -287,8 +258,8 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 				            [&](Json &type)
 				            {
 					            choice(type, "definition", document.definition_choices(WorkshopDefinitionKind::Entity));
-					            string(type, "sprite_entry");
-					            integer(type, "weight", 1000);
+					            edit_registered(type, "gameplay-editors.scenarios.sprite_entry");
+					            edit_registered(type, "gameplay-editors.scenarios.weight");
 				            });
 		    }
 	    });
@@ -311,52 +282,46 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		else if (button("Configure main selectors"))
 			scenario["bindings"] = Json::object();
 	}
-	records(scenario, "situations",
-	        {{"id", "situation"},
-	         {"tree", ""},
-	         {"parameters", Json::object()},
-	         {"bindings", Json::object()},
-	         {"start", false}},
+	records(scenario, "situations", workshop_record("gameplay-editors.scenarios.situations"),
 	        [&](Json &situation)
 	        {
-		        string(situation, "id");
+		        edit_registered(situation, "gameplay-editors.scenarios.id");
 		        tree_editor.tree_binding(document, situation, "tree", "scenario", false);
 		        scalar_map(situation, "parameters");
 		        if (situation.contains("bindings"))
 			        scenario_selectors(situation["bindings"], scenario, map, slots);
 		        else if (button("Configure situation selectors"))
 			        situation["bindings"] = Json::object();
-		        boolean(situation, "start");
+		        edit_registered(situation, "gameplay-editors.scenarios.start");
 		        optional_string(situation, "instance_name");
 	        });
-	records(scenario, "spawn_points", {{"id", "point"}, {"x_mm", 0}, {"y_mm", 0}},
+	records(scenario, "spawn_points", workshop_record("gameplay-editors.scenarios.spawn_points"),
 	        [&](Json &point)
 	        {
-		        string(point, "id");
-		        integer(point, "x_mm");
-		        integer(point, "y_mm");
+		        edit_registered(point, "gameplay-editors.scenarios.id");
+		        edit_registered(point, "gameplay-editors.scenarios.x_mm");
+		        edit_registered(point, "gameplay-editors.scenarios.y_mm");
 	        });
-	records(scenario, "spawn_groups", {{"id", "group"}, {"entities", Json::array()}},
+	records(scenario, "spawn_groups", workshop_record("gameplay-editors.scenarios.spawn_groups"),
 	        [&](Json &group)
 	        {
-		        string(group, "id");
-		        records(group, "entities", {{"definition", ""}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}},
+		        edit_registered(group, "gameplay-editors.scenarios.id");
+		        records(group, "entities", workshop_record("gameplay-editors.scenarios.entities"),
 		                [&](Json &entity)
 		                {
 			                choice(entity, "definition", document.definition_choices(WorkshopDefinitionKind::Entity));
-			                integer(entity, "x_mm");
-			                integer(entity, "y_mm");
-			                integer(entity, "heading_mdeg");
+			                edit_registered(entity, "gameplay-editors.scenarios.x_mm");
+			                edit_registered(entity, "gameplay-editors.scenarios.y_mm");
+			                edit_registered(entity, "gameplay-editors.scenarios.heading_mdeg");
 		                });
 	        });
 	const auto regions = map.contains("regions") ? ids(map.at("regions")) : std::vector<std::string>{};
-	records(scenario, "objectives",
-	        {{"id", "objective"}, {"type", "reach_region"}, {"region", ""}, {"title_key", ""}, {"description_key", ""}},
+	records(scenario, "objectives", workshop_record("gameplay-editors.scenarios.objectives"),
 	        [&](Json &objective)
 	        {
-		        string(objective, "id");
-		        choice(objective, "type", {"reach_region", "condition"});
-		        boolean(objective, "optional");
+		        edit_registered(objective, "gameplay-editors.scenarios.id");
+		        edit_registered(objective, "gameplay-editors.scenarios.type");
+		        edit_registered(objective, "gameplay-editors.scenarios.optional");
 		        if (objective.value("type", "") == "condition")
 		        {
 			        if (!objective.contains("complete_when"))
@@ -370,9 +335,9 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        else
 			        choice(objective, "region", regions);
 		        actor(objective, "actor", slots);
-		        string(objective, "title_key");
-		        string(objective, "description_key");
-		        string(objective, "competition");
+		        edit_registered(objective, "gameplay-editors.scenarios.title_key");
+		        edit_registered(objective, "gameplay-editors.scenarios.description_key");
+		        edit_registered(objective, "gameplay-editors.scenarios.competition");
 		        if (!objective.contains("recipients"))
 		        {
 			        if (button("Bind objective recipients"))
@@ -385,13 +350,12 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 			        strings(objective["recipients"], "consoles");
 		        }
 	        });
-	records(scenario, "fact_bindings",
-	        {{"id", "fact"}, {"kind", "entity"}, {"subject", {{"entity", 1}}}, {"field", "lifecycle"}},
+	records(scenario, "fact_bindings", workshop_record("gameplay-editors.scenarios.fact_bindings"),
 	        [&](Json &f)
 	        {
 		        structure(f);
 	        });
-	records(scenario, "event_bindings", {{"kind", "entity.departed"}, {"event", "event"}},
+	records(scenario, "event_bindings", workshop_record("gameplay-editors.scenarios.event_bindings"),
 	        [&](Json &e)
 	        {
 		        structure(e);
@@ -410,12 +374,12 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	    {
 		    structure(r);
 	    });
-	records(scenario, "objective_sequences", {{"id", "sequence"}, {"objectives", Json::array()}, {"repeat", false}},
+	records(scenario, "objective_sequences", workshop_record("gameplay-editors.scenarios.objective_sequences"),
 	        [&](Json &sequence)
 	        {
-		        string(sequence, "id");
+		        edit_registered(sequence, "gameplay-editors.scenarios.id");
 		        strings(sequence, "objectives");
-		        boolean(sequence, "repeat");
+		        edit_registered(sequence, "gameplay-editors.scenarios.repeat");
 	        });
 	if (ScopedTree scope(label("Scenario limits").c_str()); scope)
 	{
@@ -426,12 +390,12 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		}
 		else
 		{
-			integer(scenario["limits"], "spawn_per_tick", 64);
-			integer(scenario["limits"], "spawned_population", 1024);
-			integer(scenario["limits"], "instances", 128);
-			integer(scenario["limits"], "actions", 65536);
-			integer(scenario["limits"], "objectives", 4096);
-			integer(scenario["limits"], "events", 16384);
+			edit_registered(scenario["limits"], "gameplay-editors.scenarios.spawn_per_tick");
+			edit_registered(scenario["limits"], "gameplay-editors.scenarios.spawned_population");
+			edit_registered(scenario["limits"], "gameplay-editors.scenarios.instances");
+			edit_registered(scenario["limits"], "gameplay-editors.scenarios.actions");
+			edit_registered(scenario["limits"], "gameplay-editors.scenarios.objectives");
+			edit_registered(scenario["limits"], "gameplay-editors.scenarios.events");
 		}
 	}
 	text("Objective definitions become active only when a scenario action adds them. Reach-region completion uses "
@@ -443,7 +407,7 @@ void GameplayEditors::State::scenario_selectors(Json &bindings, const Json &scen
 {
 	actor(bindings, "actor", slots);
 	optional_string(bindings, "knowledge_console");
-	string(bindings, "objective");
+	edit_registered(bindings, "gameplay-editors.scenarios.objective");
 	choice(bindings, "region", map.contains("regions") ? ids(map.at("regions")) : std::vector<std::string>{}, true);
 	std::vector<std::string> events;
 	if (scenario.contains("events"))

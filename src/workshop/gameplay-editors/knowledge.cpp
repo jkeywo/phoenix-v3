@@ -35,34 +35,27 @@ void GameplayEditors::State::knowledge(WorkshopDocument &document)
 	}
 	auto &contract = definitions["knowledge"];
 	const auto visible_contract = document.preview_knowledge();
-	integer(contract, "history_limit", 256);
+	edit_registered(contract, "gameplay-editors.knowledge.history_limit");
 	strings(contract, "roles");
 	std::vector<std::string> roles;
 	if (visible_contract.contains("roles"))
 		for (const auto &role : visible_contract.at("roles"))
 			roles.push_back(role.get<std::string>());
-	records(contract, "schemas",
-	        {{"id", "record"},
-	         {"producers", Json::array()},
-	         {"readers", Json::array()},
-	         {"ship_publishable", false},
-	         {"stale_after_ticks", 100},
-	         {"fields", Json::array()}},
+	records(contract, "schemas", workshop_record("gameplay-editors.knowledge.schemas"),
 	        [&](Json &schema)
 	        {
-		        string(schema, "id");
+		        edit_registered(schema, "gameplay-editors.knowledge.id");
 		        names(schema, "producers", roles);
 		        names(schema, "readers", roles);
-		        boolean(schema, "ship_publishable");
-		        integer(schema, "stale_after_ticks", 100);
-		        records(schema, "fields",
-		                {{"id", "field"}, {"type", "integer"}, {"required", true}, {"publishable", true}},
+		        edit_registered(schema, "gameplay-editors.knowledge.ship_publishable");
+		        edit_registered(schema, "gameplay-editors.knowledge.stale_after_ticks");
+		        records(schema, "fields", workshop_record("gameplay-editors.knowledge.fields"),
 		                [&](Json &field)
 		                {
-			                string(field, "id");
-			                choice(field, "type", {"integer", "boolean", "text"});
-			                boolean(field, "required", true);
-			                boolean(field, "publishable", true);
+			                edit_registered(field, "gameplay-editors.knowledge.id");
+			                edit_registered(field, "gameplay-editors.knowledge.type");
+			                edit_registered(field, "gameplay-editors.knowledge.required");
+			                edit_registered(field, "gameplay-editors.knowledge.publishable");
 		                });
 	        });
 	text("Shipwide publication is explicit. Private Console observations and private AI memory are not "
@@ -100,32 +93,24 @@ void GameplayEditors::State::knowledge_bindings(WorkshopDocument &document)
 			else
 				names(row, "fields", fields);
 		};
-		records(
-		    *ship, "feeds",
-		    {{"source_console", ""}, {"target_console", ""}, {"schema", ""}, {"subject", 0}, {"fields", Json::array()}},
-		    [&](Json &feed)
-		    {
-			    choice(feed, "source_console", consoles);
-			    choice(feed, "target_console", consoles);
-			    choice(feed, "schema", schemas);
-			    integer(feed, "subject");
-			    inspect_fields(feed);
-		    });
-		records(*ship, "publications",
-		        {{"id", "publication"},
-		         {"source_console", ""},
-		         {"schema", ""},
-		         {"subject", 0},
-		         {"fields", Json::array()},
-		         {"live", false}},
+		records(*ship, "feeds", workshop_record("gameplay-editors.knowledge.feeds"),
+		        [&](Json &feed)
+		        {
+			        choice(feed, "source_console", consoles);
+			        choice(feed, "target_console", consoles);
+			        choice(feed, "schema", schemas);
+			        edit_registered(feed, "gameplay-editors.knowledge.subject");
+			        inspect_fields(feed);
+		        });
+		records(*ship, "publications", workshop_record("gameplay-editors.knowledge.publications"),
 		        [&](Json &publication)
 		        {
-			        string(publication, "id");
+			        edit_registered(publication, "gameplay-editors.knowledge.id");
 			        choice(publication, "source_console", consoles);
 			        choice(publication, "schema", schemas);
-			        integer(publication, "subject");
+			        edit_registered(publication, "gameplay-editors.knowledge.subject");
 			        inspect_fields(publication);
-			        boolean(publication, "live");
+			        edit_registered(publication, "gameplay-editors.knowledge.live");
 		        });
 		text("Authored feeds refresh only their declared scope. Publication templates require explicit activation; "
 		     "defining one does not share it.");
@@ -145,14 +130,13 @@ void GameplayEditors::State::telemetry_records(Json &spec, WorkshopDocument &doc
 	std::vector<std::string> roles;
 	for (const auto &role : knowledge.at("roles"))
 		roles.push_back(role.get<std::string>());
-	records(spec, "records",
-	        {{"schema", ""}, {"producer", ""}, {"subject", 0}, {"kind", "fact"}, {"fields", Json::object()}},
+	records(spec, "records", workshop_record("gameplay-editors.knowledge.records"),
 	        [&](Json &record)
 	        {
 		        choice(record, "schema", ids(knowledge.at("schemas")));
 		        choice(record, "producer", roles);
-		        integer(record, "subject");
-		        choice(record, "kind", {"fact", "claim", "intent", "prediction"});
+		        edit_registered(record, "gameplay-editors.knowledge.subject");
+		        edit_registered(record, "gameplay-editors.knowledge.kind");
 		        std::vector<std::string> fields;
 		        for (const auto &schema : knowledge.at("schemas"))
 			        if (schema.at("id") == record.value("schema", std::string{}))
@@ -160,7 +144,7 @@ void GameplayEditors::State::telemetry_records(Json &spec, WorkshopDocument &doc
 		        if (record.contains("fields"))
 			        for (auto it = record["fields"].begin(); it != record["fields"].end(); ++it)
 			        {
-				        ScopedId field(it.key().c_str());
+				        ScopedId edit_registered(it.key().c_str());
 				        string(record["fields"], it.key().c_str());
 			        }
 		        static std::map<ImGuiID, std::string> selected_fields;
@@ -211,34 +195,23 @@ void GameplayEditors::State::messages(WorkshopDocument &document)
 		context = contexts.at(message_tree);
 	tree_editor.controller_palette(context, document);
 	text("Binding tree supplies authoring choices only. Every actual sender must satisfy the template's bindings.");
-	records(defs, "messages",
-	        {{"id", "message"},
-	         {"schema", ""},
-	         {"title_key", ""},
-	         {"body_key", ""},
-	         {"urgency", 0},
-	         {"destination", {{"kind", "ship"}, {"id", ""}}},
-	         {"delay_ticks", 1},
-	         {"expires_after_ticks", 0},
-	         {"request_key", ""},
-	         {"fields", Json::object()},
-	         {"parameters", Json::object()}},
+	records(defs, "messages", workshop_record("gameplay-editors.knowledge.messages"),
 	        [&](Json &message)
 	        {
-		        string(message, "id");
+		        edit_registered(message, "gameplay-editors.knowledge.id");
 		        choice(message, "schema", schemas);
-		        string(message, "title_key");
-		        string(message, "body_key");
-		        integer(message, "urgency");
-		        boolean(message, "automatic", true);
-		        boolean(message, "human_seeking", false);
-		        choice(message["destination"], "kind", {"controller", "console", "station", "ship"});
+		        edit_registered(message, "gameplay-editors.knowledge.title_key");
+		        edit_registered(message, "gameplay-editors.knowledge.body_key");
+		        edit_registered(message, "gameplay-editors.knowledge.urgency");
+		        edit_registered(message, "gameplay-editors.knowledge.automatic");
+		        edit_registered(message, "gameplay-editors.knowledge.human_seeking");
+		        edit_registered(message["destination"], "gameplay-editors.knowledge.kind.2");
 		        if (message["destination"].value("kind", std::string{}) == "controller")
-			        string(message["destination"], "console");
-		        string(message["destination"], "id");
-		        integer(message, "delay_ticks", 1);
-		        integer(message, "expires_after_ticks");
-		        string(message, "request_key");
+			        edit_registered(message["destination"], "gameplay-editors.knowledge.console");
+		        edit_registered(message["destination"], "gameplay-editors.knowledge.id");
+		        edit_registered(message, "gameplay-editors.knowledge.delay_ticks");
+		        edit_registered(message, "gameplay-editors.knowledge.expires_after_ticks");
+		        edit_registered(message, "gameplay-editors.knowledge.request_key");
 		        std::vector<std::string> fields;
 		        if (known.contains("schemas"))
 			        for (const auto &schema : known.at("schemas"))

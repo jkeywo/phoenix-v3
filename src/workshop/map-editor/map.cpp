@@ -141,7 +141,7 @@ void MapEditor::draw(WorkshopDocument &document, MapEditorSelection &selection, 
 	ImGui::Checkbox(tool_label("Touch select/move").c_str(), &state_->selecting_touch);
 	if (ImGui::CollapsingHeader(tool_label("Map settings and help").c_str()))
 	{
-		edit_field(tool_label("Map name").c_str(), document.map(), "name", std::string{});
+		edit_shared_field(tool_label("Map name").c_str(), document.map(), "map-editor.map.name");
 		{
 			auto &map = document.map();
 			Json skybox = map.value("presentation", Json::object()).value("skybox", Json(""));

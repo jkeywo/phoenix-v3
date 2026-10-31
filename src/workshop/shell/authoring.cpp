@@ -15,6 +15,36 @@ module phoenix.workshop.authoring;
 
 namespace phoenix
 {
+bool AuthoringControls::edit_registered(Json &value, const char *descriptor)
+{
+	const auto &spec = workshop_field(descriptor);
+	const auto key = spec.at("key").get<std::string>();
+	const auto title = spec.at("label").get<std::string>();
+	const auto type = spec.at("type").get<std::string>();
+	Json candidate = Json::object();
+	if (value.contains(key))
+		candidate[key] = value.at(key);
+	bool changed = false;
+	if (spec.contains("choices"))
+		changed = choice(candidate, key.c_str(), spec.at("choices").get<std::vector<std::string>>(),
+		                 spec.value("optional", false));
+	else if (type == "string")
+		changed = string(candidate, key.c_str(), title.c_str());
+	else if (type == "integer")
+		changed = integer(candidate, key.c_str(), spec.at("default").get<std::int64_t>());
+	else if (type == "boolean")
+		changed = boolean(candidate, key.c_str(), spec.at("default").get<bool>());
+	else if (type == "number")
+		changed = decimal(candidate, key.c_str(), spec.at("default").get<double>());
+	if (changed)
+	{
+		if (candidate.contains(key))
+			workshop_set_field(value, spec, candidate.at(key));
+		else
+			value.erase(key);
+	}
+	return changed;
+}
 std::string AuthoringControls::label(const char *text) const
 {
 	return translate(text, pseudo) + "###" + text;
@@ -317,9 +347,7 @@ void AuthoringControls::records(Json &parent, const char *key, Json prototype,
 	{
 		if (!parent.contains(key))
 			parent[key] = Json::array();
-		if (prototype.contains("id"))
-			prototype["id"] = fresh(parent.at(key), prototype.at("id").get<std::string>());
-		parent[key].push_back(prototype);
+		(void)workshop_append_record(parent[key], std::move(prototype), true);
 	}
 	if (parent.contains(key) && parent.at(key).is_array())
 		array_rows(parent[key],

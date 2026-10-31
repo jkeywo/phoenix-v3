@@ -1,0 +1,2567 @@
+{
+	"gameplay-editors.combat.chance_permille": {
+		"key": "chance_permille",
+		"label": "chance_permille",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.combat.damage": {
+		"key": "damage",
+		"label": "damage",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.combat.radius_mm": {
+		"key": "radius_mm",
+		"label": "radius_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.combat.shield_bypass_permille": {
+		"key": "shield_bypass_permille",
+		"label": "shield_bypass_permille",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.combat.growth_ticks": {
+		"key": "growth_ticks",
+		"label": "growth_ticks",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.combat.fade_ticks": {
+		"key": "fade_ticks",
+		"label": "fade_ticks",
+		"type": "integer",
+		"default": 10
+	},
+	"gameplay-editors.combat.size_mm": {
+		"key": "size_mm",
+		"label": "size_mm",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.combat.affects_missiles": {
+		"key": "affects_missiles",
+		"label": "affects_missiles",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.combat.visual": {
+		"key": "visual",
+		"label": "visual",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.combat.radius_mm.2": {
+		"key": "radius_mm",
+		"label": "radius_mm",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.combat.resistance_per_m": {
+		"key": "resistance_per_m",
+		"label": "resistance_per_m",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.combat.turn_mdeg_s": {
+		"key": "turn_mdeg_s",
+		"label": "turn_mdeg_s",
+		"type": "integer",
+		"default": 90000
+	},
+	"gameplay-editors.combat.seeker_range_mm": {
+		"key": "seeker_range_mm",
+		"label": "seeker_range_mm",
+		"type": "integer",
+		"default": 1000000
+	},
+	"gameplay-editors.combat.tracer": {
+		"key": "tracer",
+		"label": "tracer",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.combat.guidance": {
+		"key": "guidance",
+		"label": "guidance",
+		"type": "string",
+		"choices": ["none", "homing", "chaotic"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.combat.durability": {
+		"key": "durability",
+		"label": "durability",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.combat.half_height_mm": {
+		"key": "half_height_mm",
+		"label": "half_height_mm",
+		"type": "integer",
+		"default": 5000
+	},
+	"gameplay-editors.combat.repair_console": {
+		"key": "repair_console",
+		"label": "repair_console",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.combat.collision_scale": {
+		"key": "collision_scale",
+		"label": "collision_scale",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.combat.collision_threshold_mm_s": {
+		"key": "collision_threshold_mm_s",
+		"label": "collision_threshold_mm_s",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.combat.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.combat.weight": {
+		"key": "weight",
+		"label": "weight",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.combat.from": {
+		"key": "from",
+		"label": "from",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.combat.to": {
+		"key": "to",
+		"label": "to",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.combat.travel_ticks": {
+		"key": "travel_ticks",
+		"label": "travel_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.combat.sound": {
+		"key": "sound",
+		"label": "sound",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.combat.growth_ticks.2": {
+		"key": "growth_ticks",
+		"label": "growth_ticks",
+		"type": "integer",
+		"default": 10
+	},
+	"gameplay-editors.combat.fade_ticks.2": {
+		"key": "fade_ticks",
+		"label": "fade_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.combat.size_mm.2": {
+		"key": "size_mm",
+		"label": "size_mm",
+		"type": "integer",
+		"default": 100000
+	},
+	"gameplay-editors.consoles.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.consoles.placement": {
+		"key": "placement",
+		"label": "placement",
+		"type": "string",
+		"choices": ["inherit", "main", "details", "hidden"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.consoles.stars": {
+		"key": "stars",
+		"label": "stars",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.consoles.policy": {
+		"key": "policy",
+		"label": "policy",
+		"type": "string",
+		"choices": ["combat"],
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.consoles.initial": {
+		"key": "initial",
+		"label": "initial",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.consoles.value": {
+		"key": "value",
+		"label": "value",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.consoles.label_key": {
+		"key": "label_key",
+		"label": "label_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.consoles.human_seeking": {
+		"key": "human_seeking",
+		"label": "human_seeking",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.consoles.command": {
+		"key": "command",
+		"label": "command",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.consoles.hide_without_ai": {
+		"key": "hide_without_ai",
+		"label": "hide_without_ai",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.consoles.viewscreen": {
+		"key": "viewscreen",
+		"label": "viewscreen",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.consoles.label": {
+		"key": "label",
+		"label": "label",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.consoles.fire_arcs": {
+		"key": "fire_arcs",
+		"label": "fire_arcs",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.consoles.sensor_arcs": {
+		"key": "sensor_arcs",
+		"label": "sensor_arcs",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.effects.requested": {
+		"key": "requested",
+		"label": "requested",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.effects.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.target": {
+		"key": "target",
+		"label": "target",
+		"type": "string",
+		"choices": ["owner", "source", "instigator", "subject", "target", "attacker", "protected"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.eligibility": {
+		"key": "eligibility",
+		"label": "eligibility",
+		"type": "string",
+		"choices": ["duty", "lifetime"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.payer": {
+		"key": "payer",
+		"label": "payer",
+		"type": "string",
+		"choices": ["owner", "source", "instigator", "subject", "target", "attacker", "protected"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.store": {
+		"key": "store",
+		"label": "store",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.energy": {
+		"key": "energy",
+		"label": "energy",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.kind": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": [
+			"damage",
+			"apply",
+			"remove",
+			"add",
+			"consume",
+			"set",
+			"fill",
+			"transfer",
+			"property_set",
+			"property_add",
+			"property_subtract",
+			"property_rate",
+			"heat_add",
+			"heat_remove",
+			"structural_repair",
+			"fault_repair",
+			"treat",
+			"stabilise",
+			"recover"
+		],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.amount": {
+		"key": "amount",
+		"label": "amount",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.effects.fault": {
+		"key": "fault",
+		"label": "fault",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.damage": {
+		"key": "damage",
+		"label": "damage",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.effects.scope": {
+		"key": "scope",
+		"label": "scope",
+		"type": "string",
+		"choices": ["local", "owner"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.grant": {
+		"key": "grant",
+		"label": "grant",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.delta_permille": {
+		"key": "delta_permille",
+		"label": "delta_permille",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.saturate": {
+		"key": "saturate",
+		"label": "saturate",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.effects.amount.2": {
+		"key": "amount",
+		"label": "amount",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.from_store": {
+		"key": "from_store",
+		"label": "from_store",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.label": {
+		"key": "label",
+		"label": "label",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.policy_template": {
+		"key": "policy_template",
+		"label": "policy_template",
+		"type": "string",
+		"choices": ["combat"],
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.effects.repeat": {
+		"key": "repeat",
+		"label": "repeat",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.kind.2": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["quantity", "attribute", "flag", "enum"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.minimum": {
+		"key": "minimum",
+		"label": "minimum",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.display_scale": {
+		"key": "display_scale",
+		"label": "display_scale",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.effects.fire_ticks": {
+		"key": "fire_ticks",
+		"label": "fire_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.load_ticks": {
+		"key": "load_ticks",
+		"label": "load_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.radar_coverage": {
+		"key": "radar_coverage",
+		"label": "radar_coverage",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.effects.work": {
+		"key": "work",
+		"label": "work",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.effects.equipment": {
+		"key": "equipment",
+		"label": "equipment",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.effects.kind.3": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": [
+			"shield",
+			"modifier",
+			"operations",
+			"directed_mode",
+			"targeting_policy",
+			"payload",
+			"periodic",
+			"ability",
+			"psychic",
+			"ability_grant",
+			"process",
+			"process_grant",
+			"rule"
+		],
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.effects.trigger": {
+		"key": "trigger",
+		"label": "trigger",
+		"type": "string",
+		"choices": [
+			"activate",
+			"deactivate",
+			"tick",
+			"enter",
+			"exit",
+			"occupancy",
+			"maintain",
+			"pre_shield_damage",
+			"post_shield_damage",
+			"pre_compartment_damage",
+			"post_compartment_damage",
+			"pre_system_damage",
+			"post_system_damage",
+			"post_entity_damage",
+			"destroy",
+			"property_changed"
+		],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.phase": {
+		"key": "phase",
+		"label": "phase",
+		"type": "string",
+		"choices": ["instant", "periodic", "maintained"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.period_ticks": {
+		"key": "period_ticks",
+		"label": "period_ticks",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.effects.native": {
+		"key": "native",
+		"label": "native",
+		"type": "string",
+		"choices": [
+			"effects",
+			"generation",
+			"propulsion",
+			"cooling",
+			"processor",
+			"repair",
+			"medical",
+			"recovery",
+			"servicing_energy",
+			"servicing_ammunition",
+			"ftl"
+		],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.required_work": {
+		"key": "required_work",
+		"label": "required_work",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.effects.shortage": {
+		"key": "shortage",
+		"label": "shortage",
+		"type": "string",
+		"choices": ["proportional", "pause", "stop"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.scope.2": {
+		"key": "scope",
+		"label": "scope",
+		"type": "string",
+		"choices": ["source"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.duration_ticks": {
+		"key": "duration_ticks",
+		"label": "duration_ticks",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.effects.sustained": {
+		"key": "sustained",
+		"label": "sustained",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.effects.require_healthy": {
+		"key": "require_healthy",
+		"label": "require_healthy",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.effects.requirement_failure": {
+		"key": "requirement_failure",
+		"label": "requirement_failure",
+		"type": "string",
+		"choices": ["end_retain_intent"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.target.2": {
+		"key": "target",
+		"label": "target",
+		"type": "string",
+		"choices": ["self", "contact", "ally"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.recovery_on": {
+		"key": "recovery_on",
+		"label": "recovery_on",
+		"type": "string",
+		"choices": ["activation", "stop"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.interruption": {
+		"key": "interruption",
+		"label": "interruption",
+		"type": "string",
+		"choices": ["cancel", "pause"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.scope.3": {
+		"key": "scope",
+		"label": "scope",
+		"type": "string",
+		"choices": ["source", "apparatus"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.psychic_kind": {
+		"key": "psychic_kind",
+		"label": "psychic_kind",
+		"type": "string",
+		"choices": ["cloak", "scramble", "ward"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.strength_permille": {
+		"key": "strength_permille",
+		"label": "strength_permille",
+		"type": "integer",
+		"default": 700
+	},
+	"gameplay-editors.effects.policy": {
+		"key": "policy",
+		"label": "policy",
+		"type": "string",
+		"choices": ["designated", "intercept", "off"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.operation": {
+		"key": "operation",
+		"label": "operation",
+		"type": "string",
+		"choices": ["launch", "beam", "scan"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.resource_payloads": {
+		"key": "resource_payloads",
+		"label": "resource_payloads",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.effects.range_mm": {
+		"key": "range_mm",
+		"label": "range_mm",
+		"type": "integer",
+		"default": 1000000
+	},
+	"gameplay-editors.effects.ammo_use": {
+		"key": "ammo_use",
+		"label": "ammo_use",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.effects.fire_ticks.2": {
+		"key": "fire_ticks",
+		"label": "fire_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.effects.penetration": {
+		"key": "penetration",
+		"label": "penetration",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.effects.damage_per_m": {
+		"key": "damage_per_m",
+		"label": "damage_per_m",
+		"type": "integer",
+		"default": 1000000
+	},
+	"gameplay-editors.effects.duration_ticks.2": {
+		"key": "duration_ticks",
+		"label": "duration_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.priority": {
+		"key": "priority",
+		"label": "priority",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.effects.kind.4": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": [
+			"engine",
+			"steering",
+			"radar",
+			"generator",
+			"distribution",
+			"coolant",
+			"storage",
+			"lateral",
+			"boost",
+			"impulse",
+			"shield",
+			"magazine",
+			"weapon",
+			"turret",
+			"team"
+		],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.kind.5": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": [
+			"engine",
+			"steering",
+			"radar",
+			"generator",
+			"distribution",
+			"coolant",
+			"storage",
+			"lateral",
+			"boost",
+			"impulse"
+		],
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.effects.kind.6": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["power", "coolant", "information"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.direction": {
+		"key": "direction",
+		"label": "direction",
+		"type": "string",
+		"choices": ["input", "output"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.effects.target.3": {
+		"key": "target",
+		"label": "target",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.energy_per_second": {
+		"key": "energy_per_second",
+		"label": "energy_per_second",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.discrete_energy": {
+		"key": "discrete_energy",
+		"label": "discrete_energy",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.powerless_start": {
+		"key": "powerless_start",
+		"label": "powerless_start",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.field": {
+		"key": "field",
+		"label": "field",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.above": {
+		"key": "above",
+		"label": "above",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.message": {
+		"key": "message",
+		"label": "message",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.debounce_ticks": {
+		"key": "debounce_ticks",
+		"label": "debounce_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.recovery_ticks": {
+		"key": "recovery_ticks",
+		"label": "recovery_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.minimum_gap_ticks": {
+		"key": "minimum_gap_ticks",
+		"label": "minimum_gap_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.enabled": {
+		"key": "enabled",
+		"label": "enabled",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.charge_per_second": {
+		"key": "charge_per_second",
+		"label": "charge_per_second",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.equipment.charging_loss_per_second": {
+		"key": "charging_loss_per_second",
+		"label": "charging_loss_per_second",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.ready_loss_per_second": {
+		"key": "ready_loss_per_second",
+		"label": "ready_loss_per_second",
+		"type": "integer",
+		"default": 50
+	},
+	"gameplay-editors.equipment.off_discharge_per_second": {
+		"key": "off_discharge_per_second",
+		"label": "off_discharge_per_second",
+		"type": "integer",
+		"default": 80
+	},
+	"gameplay-editors.equipment.range_mm": {
+		"key": "range_mm",
+		"label": "range_mm",
+		"type": "integer",
+		"default": 100000
+	},
+	"gameplay-editors.equipment.capacity": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 8
+	},
+	"gameplay-editors.equipment.transfer_ticks": {
+		"key": "transfer_ticks",
+		"label": "transfer_ticks",
+		"type": "integer",
+		"default": 40
+	},
+	"gameplay-editors.equipment.mode": {
+		"key": "mode",
+		"label": "mode",
+		"type": "string",
+		"choices": ["displacement", "shuttle", "boarding_torpedo"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.craft": {
+		"key": "craft",
+		"label": "craft",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.count": {
+		"key": "count",
+		"label": "count",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.equipment.arrival_distance_mm": {
+		"key": "arrival_distance_mm",
+		"label": "arrival_distance_mm",
+		"type": "integer",
+		"default": 5000
+	},
+	"gameplay-editors.equipment.arrival_speed_mm_s": {
+		"key": "arrival_speed_mm_s",
+		"label": "arrival_speed_mm_s",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.equipment.cruise_speed_mm_s": {
+		"key": "cruise_speed_mm_s",
+		"label": "cruise_speed_mm_s",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.equipment.range_mm.2": {
+		"key": "range_mm",
+		"label": "range_mm",
+		"type": "integer",
+		"default": 500000
+	},
+	"gameplay-editors.equipment.arc_mdeg": {
+		"key": "arc_mdeg",
+		"label": "arc_mdeg",
+		"type": "integer",
+		"default": 90000
+	},
+	"gameplay-editors.equipment.slots": {
+		"key": "slots",
+		"label": "slots",
+		"type": "integer",
+		"default": 4
+	},
+	"gameplay-editors.equipment.transfer_ticks.2": {
+		"key": "transfer_ticks",
+		"label": "transfer_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.docking_range_mm": {
+		"key": "docking_range_mm",
+		"label": "docking_range_mm",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.equipment.docking_speed_mm_s": {
+		"key": "docking_speed_mm_s",
+		"label": "docking_speed_mm_s",
+		"type": "integer",
+		"default": 5000
+	},
+	"gameplay-editors.equipment.flight_spacing_mm": {
+		"key": "flight_spacing_mm",
+		"label": "flight_spacing_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.charge_per_second.2": {
+		"key": "charge_per_second",
+		"label": "charge_per_second",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.source": {
+		"key": "source",
+		"label": "source",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.destination": {
+		"key": "destination",
+		"label": "destination",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.rounds_per_second": {
+		"key": "rounds_per_second",
+		"label": "rounds_per_second",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.equipment.range_mm.3": {
+		"key": "range_mm",
+		"label": "range_mm",
+		"type": "integer",
+		"default": 1000000
+	},
+	"gameplay-editors.equipment.arc_mdeg.2": {
+		"key": "arc_mdeg",
+		"label": "arc_mdeg",
+		"type": "integer",
+		"default": 360000
+	},
+	"gameplay-editors.equipment.bearing_mdeg": {
+		"key": "bearing_mdeg",
+		"label": "bearing_mdeg",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.x_mm": {
+		"key": "x_mm",
+		"label": "x_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.y_mm": {
+		"key": "y_mm",
+		"label": "y_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.symptom": {
+		"key": "symptom",
+		"label": "symptom",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.diagnosis": {
+		"key": "diagnosis",
+		"label": "diagnosis",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.effect": {
+		"key": "effect",
+		"label": "effect",
+		"type": "string",
+		"choices": ["output", "disabled", "feed"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.chance_permille": {
+		"key": "chance_permille",
+		"label": "chance_permille",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.equipment.damage_threshold": {
+		"key": "damage_threshold",
+		"label": "damage_threshold",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.equipment.severity": {
+		"key": "severity",
+		"label": "severity",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.equipment.effectiveness_permille": {
+		"key": "effectiveness_permille",
+		"label": "effectiveness_permille",
+		"type": "integer",
+		"default": 500
+	},
+	"gameplay-editors.equipment.repair_work": {
+		"key": "repair_work",
+		"label": "repair_work",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.equipment.destroyed": {
+		"key": "destroyed",
+		"label": "destroyed",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.radar_coverage": {
+		"key": "radar_coverage",
+		"label": "radar_coverage",
+		"type": "string",
+		"choices": ["legacy", "coverage", "hidden"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.coverage_when_enabled": {
+		"key": "coverage_when_enabled",
+		"label": "coverage_when_enabled",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.shield_effect": {
+		"key": "shield_effect",
+		"label": "shield_effect",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.traverse_mdeg_s": {
+		"key": "traverse_mdeg_s",
+		"label": "traverse_mdeg_s",
+		"type": "integer",
+		"default": 45000
+	},
+	"gameplay-editors.equipment.marker": {
+		"key": "marker",
+		"label": "marker",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.visual": {
+		"key": "visual",
+		"label": "visual",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.scale_permille": {
+		"key": "scale_permille",
+		"label": "scale_permille",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.equipment.flip_y": {
+		"key": "flip_y",
+		"label": "flip_y",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.hp_per_second": {
+		"key": "hp_per_second",
+		"label": "hp_per_second",
+		"type": "integer",
+		"default": 10
+	},
+	"gameplay-editors.equipment.stack_penalty_permille": {
+		"key": "stack_penalty_permille",
+		"label": "stack_penalty_permille",
+		"type": "integer",
+		"default": 500
+	},
+	"gameplay-editors.equipment.treatment_ticks": {
+		"key": "treatment_ticks",
+		"label": "treatment_ticks",
+		"type": "integer",
+		"default": 400
+	},
+	"gameplay-editors.equipment.stabilise_ticks": {
+		"key": "stabilise_ticks",
+		"label": "stabilise_ticks",
+		"type": "integer",
+		"default": 200
+	},
+	"gameplay-editors.equipment.injured_effectiveness_permille": {
+		"key": "injured_effectiveness_permille",
+		"label": "injured_effectiveness_permille",
+		"type": "integer",
+		"default": 500
+	},
+	"gameplay-editors.equipment.label": {
+		"key": "label",
+		"label": "label",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.icon": {
+		"key": "icon",
+		"label": "icon",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.target": {
+		"key": "target",
+		"label": "target",
+		"type": "string",
+		"choices": ["compartments", "damage", "patients"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.max_speed_mm_s": {
+		"key": "max_speed_mm_s",
+		"label": "max_speed_mm_s",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.acceleration_mm_s2": {
+		"key": "acceleration_mm_s2",
+		"label": "acceleration_mm_s2",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.turn_mdeg_s": {
+		"key": "turn_mdeg_s",
+		"label": "turn_mdeg_s",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.radar_arc": {
+		"key": "radar_arc",
+		"label": "radar_arc",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.equipment.range_mm.4": {
+		"key": "range_mm",
+		"label": "range_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.long_range_mm": {
+		"key": "long_range_mm",
+		"label": "long_range_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.reverse_speed_mm_s": {
+		"key": "reverse_speed_mm_s",
+		"label": "reverse_speed_mm_s",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.match_stale_ticks": {
+		"key": "match_stale_ticks",
+		"label": "match_stale_ticks",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.equipment.lateral_speed_mm_s": {
+		"key": "lateral_speed_mm_s",
+		"label": "lateral_speed_mm_s",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.lateral_acceleration_mm_s2": {
+		"key": "lateral_acceleration_mm_s2",
+		"label": "lateral_acceleration_mm_s2",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.assist_lateral": {
+		"key": "assist_lateral",
+		"label": "assist_lateral",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.lateral_direction": {
+		"key": "lateral_direction",
+		"label": "lateral_direction",
+		"type": "string",
+		"choices": ["both", "port", "starboard"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.power_rate": {
+		"key": "power_rate",
+		"label": "power_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.heat_rate": {
+		"key": "heat_rate",
+		"label": "heat_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.acceleration_multiplier_permille": {
+		"key": "acceleration_multiplier_permille",
+		"label": "acceleration_multiplier_permille",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.equipment.speed_multiplier_permille": {
+		"key": "speed_multiplier_permille",
+		"label": "speed_multiplier_permille",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.equipment.charge_ticks": {
+		"key": "charge_ticks",
+		"label": "charge_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.steering_permille": {
+		"key": "steering_permille",
+		"label": "steering_permille",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.charge_power_rate": {
+		"key": "charge_power_rate",
+		"label": "charge_power_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.charge_energy": {
+		"key": "charge_energy",
+		"label": "charge_energy",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.minimum_reserve": {
+		"key": "minimum_reserve",
+		"label": "minimum_reserve",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.controller": {
+		"key": "controller",
+		"label": "controller",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.units_per_second": {
+		"key": "units_per_second",
+		"label": "units_per_second",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.concurrency": {
+		"key": "concurrency",
+		"label": "concurrency",
+		"type": "integer",
+		"default": 4
+	},
+	"gameplay-editors.equipment.batch_size": {
+		"key": "batch_size",
+		"label": "batch_size",
+		"type": "integer",
+		"default": 10
+	},
+	"gameplay-editors.equipment.compartment": {
+		"key": "compartment",
+		"label": "compartment",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.main": {
+		"key": "main",
+		"label": "main",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.system": {
+		"key": "system",
+		"label": "system",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.store": {
+		"key": "store",
+		"label": "store",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.compatibility": {
+		"key": "compatibility",
+		"label": "compatibility",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.z_mm": {
+		"key": "z_mm",
+		"label": "z_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.heading_mdeg": {
+		"key": "heading_mdeg",
+		"label": "heading_mdeg",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.capture_range_mm": {
+		"key": "capture_range_mm",
+		"label": "capture_range_mm",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.equipment.capture_speed_mm_s": {
+		"key": "capture_speed_mm_s",
+		"label": "capture_speed_mm_s",
+		"type": "integer",
+		"default": 500
+	},
+	"gameplay-editors.equipment.alignment_mdeg": {
+		"key": "alignment_mdeg",
+		"label": "alignment_mdeg",
+		"type": "integer",
+		"default": 5000
+	},
+	"gameplay-editors.equipment.mating_ticks": {
+		"key": "mating_ticks",
+		"label": "mating_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.separation_ticks": {
+		"key": "separation_ticks",
+		"label": "separation_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.auto_accept_allies": {
+		"key": "auto_accept_allies",
+		"label": "auto_accept_allies",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.supply": {
+		"key": "supply",
+		"label": "supply",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.emergency_release": {
+		"key": "emergency_release",
+		"label": "emergency_release",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.emergency_damage": {
+		"key": "emergency_damage",
+		"label": "emergency_damage",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.source.2": {
+		"key": "source",
+		"label": "source",
+		"type": "string",
+		"choices": ["officer", "duty", "equipment"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.owner": {
+		"key": "owner",
+		"label": "owner",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.source.3": {
+		"key": "source",
+		"label": "source",
+		"type": "string",
+		"choices": ["entity", "equipment", "officer", "compartment"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.process": {
+		"key": "process",
+		"label": "process",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.title_key": {
+		"key": "title_key",
+		"label": "title_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.entry": {
+		"key": "entry",
+		"label": "entry",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.retain_craft": {
+		"key": "retain_craft",
+		"label": "retain_craft",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.equipment.kind": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["team", "officer"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.required": {
+		"key": "required",
+		"label": "required",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.equipment.success_permille": {
+		"key": "success_permille",
+		"label": "success_permille",
+		"type": "integer",
+		"default": 700
+	},
+	"gameplay-editors.equipment.team_bonus_permille": {
+		"key": "team_bonus_permille",
+		"label": "team_bonus_permille",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.equipment.defender_penalty_permille": {
+		"key": "defender_penalty_permille",
+		"label": "defender_penalty_permille",
+		"type": "integer",
+		"default": 150
+	},
+	"gameplay-editors.equipment.injury_permille": {
+		"key": "injury_permille",
+		"label": "injury_permille",
+		"type": "integer",
+		"default": 250
+	},
+	"gameplay-editors.equipment.loss_permille": {
+		"key": "loss_permille",
+		"label": "loss_permille",
+		"type": "integer",
+		"default": 50
+	},
+	"gameplay-editors.equipment.medical_reduction_permille": {
+		"key": "medical_reduction_permille",
+		"label": "medical_reduction_permille",
+		"type": "integer",
+		"default": 150
+	},
+	"gameplay-editors.equipment.officer_injury_permille": {
+		"key": "officer_injury_permille",
+		"label": "officer_injury_permille",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.officer_loss_permille": {
+		"key": "officer_loss_permille",
+		"label": "officer_loss_permille",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.equipment.assessment_ticks": {
+		"key": "assessment_ticks",
+		"label": "assessment_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.equipment.role": {
+		"key": "role",
+		"label": "role",
+		"type": "string",
+		"choices": ["shuttle", "interceptor", "bomber", "boarding_torpedo"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.vertical_speed_mm_s": {
+		"key": "vertical_speed_mm_s",
+		"label": "vertical_speed_mm_s",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.equipment.vertical_acceleration_mm_s2": {
+		"key": "vertical_acceleration_mm_s2",
+		"label": "vertical_acceleration_mm_s2",
+		"type": "integer",
+		"default": 5000
+	},
+	"gameplay-editors.equipment.cruise_altitude_mm": {
+		"key": "cruise_altitude_mm",
+		"label": "cruise_altitude_mm",
+		"type": "integer",
+		"default": 15000
+	},
+	"gameplay-editors.equipment.engagement_range_mm": {
+		"key": "engagement_range_mm",
+		"label": "engagement_range_mm",
+		"type": "integer",
+		"default": 200000
+	},
+	"gameplay-editors.equipment.return_reserve_permille": {
+		"key": "return_reserve_permille",
+		"label": "return_reserve_permille",
+		"type": "integer",
+		"default": 200
+	},
+	"gameplay-editors.equipment.capacity.2": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 64
+	},
+	"gameplay-editors.equipment.name_key": {
+		"key": "name_key",
+		"label": "name_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.public": {
+		"key": "public",
+		"label": "public",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.equipment.colour": {
+		"key": "colour",
+		"label": "colour",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.glow": {
+		"key": "glow",
+		"label": "glow",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.kind.2": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": [
+			"engine",
+			"steering",
+			"radar",
+			"generator",
+			"distribution",
+			"coolant",
+			"storage",
+			"lateral",
+			"boost",
+			"impulse",
+			"weapon",
+			"turret",
+			"magazine",
+			"team",
+			"repair_team",
+			"shield",
+			"comms",
+			"displacement",
+			"transport",
+			"dispatch",
+			"ftl",
+			"psychic"
+		],
+		"default": "",
+		"optional": true
+	},
+	"gameplay-editors.equipment.shield_feed": {
+		"key": "shield_feed",
+		"label": "shield_feed",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.equipment.kind.3": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["power", "coolant", "information"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.direction": {
+		"key": "direction",
+		"label": "direction",
+		"type": "string",
+		"choices": ["input", "output"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.equipment.target.2": {
+		"key": "target",
+		"label": "target",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.knowledge.history_limit": {
+		"key": "history_limit",
+		"label": "history_limit",
+		"type": "integer",
+		"default": 256
+	},
+	"gameplay-editors.knowledge.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.knowledge.ship_publishable": {
+		"key": "ship_publishable",
+		"label": "ship_publishable",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.knowledge.stale_after_ticks": {
+		"key": "stale_after_ticks",
+		"label": "stale_after_ticks",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.knowledge.type": {
+		"key": "type",
+		"label": "type",
+		"type": "string",
+		"choices": ["integer", "boolean", "text"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.knowledge.required": {
+		"key": "required",
+		"label": "required",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.knowledge.publishable": {
+		"key": "publishable",
+		"label": "publishable",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.knowledge.subject": {
+		"key": "subject",
+		"label": "subject",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.knowledge.live": {
+		"key": "live",
+		"label": "live",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.knowledge.kind": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["fact", "claim", "intent", "prediction"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.knowledge.title_key": {
+		"key": "title_key",
+		"label": "title_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.knowledge.body_key": {
+		"key": "body_key",
+		"label": "body_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.knowledge.urgency": {
+		"key": "urgency",
+		"label": "urgency",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.knowledge.automatic": {
+		"key": "automatic",
+		"label": "automatic",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.knowledge.human_seeking": {
+		"key": "human_seeking",
+		"label": "human_seeking",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.knowledge.kind.2": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["controller", "console", "station", "ship"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.knowledge.console": {
+		"key": "console",
+		"label": "console",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.knowledge.delay_ticks": {
+		"key": "delay_ticks",
+		"label": "delay_ticks",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.knowledge.expires_after_ticks": {
+		"key": "expires_after_ticks",
+		"label": "expires_after_ticks",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.knowledge.request_key": {
+		"key": "request_key",
+		"label": "request_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.significant_damage": {
+		"key": "significant_damage",
+		"label": "significant_damage",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.operations.heavy_below_permille": {
+		"key": "heavy_below_permille",
+		"label": "heavy_below_permille",
+		"type": "integer",
+		"default": 300
+	},
+	"gameplay-editors.operations.lethal": {
+		"key": "lethal",
+		"label": "lethal",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.operations.lethal_damage": {
+		"key": "lethal_damage",
+		"label": "lethal_damage",
+		"type": "integer",
+		"default": 80
+	},
+	"gameplay-editors.operations.stun_permille": {
+		"key": "stun_permille",
+		"label": "stun_permille",
+		"type": "integer",
+		"default": 150
+	},
+	"gameplay-editors.operations.minor_permille": {
+		"key": "minor_permille",
+		"label": "minor_permille",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.operations.severe_permille": {
+		"key": "severe_permille",
+		"label": "severe_permille",
+		"type": "integer",
+		"default": 30
+	},
+	"gameplay-editors.operations.killed_permille": {
+		"key": "killed_permille",
+		"label": "killed_permille",
+		"type": "integer",
+		"default": 10
+	},
+	"gameplay-editors.operations.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.compartment": {
+		"key": "compartment",
+		"label": "compartment",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.capacity": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.operations.recovery_ticks": {
+		"key": "recovery_ticks",
+		"label": "recovery_ticks",
+		"type": "integer",
+		"default": 1200
+	},
+	"gameplay-editors.operations.label": {
+		"key": "label",
+		"label": "label",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.station": {
+		"key": "station",
+		"label": "station",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.from": {
+		"key": "from",
+		"label": "from",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.to": {
+		"key": "to",
+		"label": "to",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.ticks": {
+		"key": "ticks",
+		"label": "ticks",
+		"type": "integer",
+		"default": 40
+	},
+	"gameplay-editors.operations.name": {
+		"key": "name",
+		"label": "name",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.operations.condition": {
+		"key": "condition",
+		"label": "condition",
+		"type": "string",
+		"choices": ["healthy", "minor", "severe"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.resources.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.resources.budget_rate": {
+		"key": "budget_rate",
+		"label": "budget_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.resources.restore_margin_rate": {
+		"key": "restore_margin_rate",
+		"label": "restore_margin_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.resources.restore_ticks": {
+		"key": "restore_ticks",
+		"label": "restore_ticks",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.resources.resource": {
+		"key": "resource",
+		"label": "resource",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.resources.overdrive_permille": {
+		"key": "overdrive_permille",
+		"label": "overdrive_permille",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.resources.overdrive_heat_permille": {
+		"key": "overdrive_heat_permille",
+		"label": "overdrive_heat_permille",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.resources.enabled": {
+		"key": "enabled",
+		"label": "enabled",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.resources.allows_override": {
+		"key": "allows_override",
+		"label": "allows_override",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.resources.capacity_rate": {
+		"key": "capacity_rate",
+		"label": "capacity_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.resources.isolated": {
+		"key": "isolated",
+		"label": "isolated",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.resources.capacity": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.resources.allocation_rate": {
+		"key": "allocation_rate",
+		"label": "allocation_rate",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.resources.capacity_tag": {
+		"key": "capacity_tag",
+		"label": "capacity_tag",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.resources.capacity.2": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.resources.single_resource": {
+		"key": "single_resource",
+		"label": "single_resource",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.resources.require_all": {
+		"key": "require_all",
+		"label": "require_all",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.resources.mode": {
+		"key": "mode",
+		"label": "mode",
+		"type": "string",
+		"choices": ["batch", "continuous"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.resources.work_per_second": {
+		"key": "work_per_second",
+		"label": "work_per_second",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.resources.energy_per_second": {
+		"key": "energy_per_second",
+		"label": "energy_per_second",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.scenarios.Actor source": {
+		"key": "Actor source",
+		"label": "Actor source",
+		"type": "string",
+		"choices": ["slot", "entity", "handle"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.scenarios.entity": {
+		"key": "entity",
+		"label": "entity",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.scenarios.handle": {
+		"key": "handle",
+		"label": "handle",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.id": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.label": {
+		"key": "label",
+		"label": "label",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.relation": {
+		"key": "relation",
+		"label": "relation",
+		"type": "string",
+		"choices": ["friendly", "neutral", "hostile"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.scenarios.text_key": {
+		"key": "text_key",
+		"label": "text_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.target_entity": {
+		"key": "target_entity",
+		"label": "target_entity",
+		"type": "integer",
+		"default": 1
+	},
+	"gameplay-editors.scenarios.scan_ticks": {
+		"key": "scan_ticks",
+		"label": "scan_ticks",
+		"type": "integer",
+		"default": 100
+	},
+	"gameplay-editors.scenarios.ship_slot": {
+		"key": "ship_slot",
+		"label": "ship_slot",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.player_slot": {
+		"key": "player_slot",
+		"label": "player_slot",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.start_event": {
+		"key": "start_event",
+		"label": "start_event",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.repair": {
+		"key": "repair",
+		"label": "repair",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.scenarios.original_crew": {
+		"key": "original_crew",
+		"label": "original_crew",
+		"type": "string",
+		"choices": ["kill", "detain"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.scenarios.capture_visitors": {
+		"key": "capture_visitors",
+		"label": "capture_visitors",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.scenarios.title_key": {
+		"key": "title_key",
+		"label": "title_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.conversation": {
+		"key": "conversation",
+		"label": "conversation",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.reveal_event": {
+		"key": "reveal_event",
+		"label": "reveal_event",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.retain_craft": {
+		"key": "retain_craft",
+		"label": "retain_craft",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.scenarios.allow_ship_transport": {
+		"key": "allow_ship_transport",
+		"label": "allow_ship_transport",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.scenarios.deployment_range_mm": {
+		"key": "deployment_range_mm",
+		"label": "deployment_range_mm",
+		"type": "integer",
+		"default": 20000
+	},
+	"gameplay-editors.scenarios.deployment_ticks": {
+		"key": "deployment_ticks",
+		"label": "deployment_ticks",
+		"type": "integer",
+		"default": 20
+	},
+	"gameplay-editors.scenarios.kind": {
+		"key": "kind",
+		"label": "kind",
+		"type": "string",
+		"choices": ["team", "officer"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.scenarios.required": {
+		"key": "required",
+		"label": "required",
+		"type": "boolean",
+		"default": true
+	},
+	"gameplay-editors.scenarios.assign_ai": {
+		"key": "assign_ai",
+		"label": "assign_ai",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.scenarios.shape": {
+		"key": "shape",
+		"label": "shape",
+		"type": "string",
+		"choices": ["circle", "rectangle", "annulus"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.scenarios.x_mm": {
+		"key": "x_mm",
+		"label": "x_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.scenarios.y_mm": {
+		"key": "y_mm",
+		"label": "y_mm",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.scenarios.radius_mm": {
+		"key": "radius_mm",
+		"label": "radius_mm",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.scenarios.half_width_mm": {
+		"key": "half_width_mm",
+		"label": "half_width_mm",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.scenarios.half_height_mm": {
+		"key": "half_height_mm",
+		"label": "half_height_mm",
+		"type": "integer",
+		"default": 10000
+	},
+	"gameplay-editors.scenarios.inner_radius_mm": {
+		"key": "inner_radius_mm",
+		"label": "inner_radius_mm",
+		"type": "integer",
+		"default": 5000
+	},
+	"gameplay-editors.scenarios.name": {
+		"key": "name",
+		"label": "name",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.half_height_mm.2": {
+		"key": "half_height_mm",
+		"label": "half_height_mm",
+		"type": "integer",
+		"default": 100000
+	},
+	"gameplay-editors.scenarios.sprite_entry": {
+		"key": "sprite_entry",
+		"label": "sprite_entry",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.weight": {
+		"key": "weight",
+		"label": "weight",
+		"type": "integer",
+		"default": 1000
+	},
+	"gameplay-editors.scenarios.start": {
+		"key": "start",
+		"label": "start",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.scenarios.heading_mdeg": {
+		"key": "heading_mdeg",
+		"label": "heading_mdeg",
+		"type": "integer",
+		"default": 0
+	},
+	"gameplay-editors.scenarios.type": {
+		"key": "type",
+		"label": "type",
+		"type": "string",
+		"choices": ["reach_region", "condition"],
+		"default": "",
+		"optional": false
+	},
+	"gameplay-editors.scenarios.optional": {
+		"key": "optional",
+		"label": "optional",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.scenarios.description_key": {
+		"key": "description_key",
+		"label": "description_key",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.competition": {
+		"key": "competition",
+		"label": "competition",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.scenarios.repeat": {
+		"key": "repeat",
+		"label": "repeat",
+		"type": "boolean",
+		"default": false
+	},
+	"gameplay-editors.scenarios.spawn_per_tick": {
+		"key": "spawn_per_tick",
+		"label": "spawn_per_tick",
+		"type": "integer",
+		"default": 64
+	},
+	"gameplay-editors.scenarios.spawned_population": {
+		"key": "spawned_population",
+		"label": "spawned_population",
+		"type": "integer",
+		"default": 1024
+	},
+	"gameplay-editors.scenarios.instances": {
+		"key": "instances",
+		"label": "instances",
+		"type": "integer",
+		"default": 128
+	},
+	"gameplay-editors.scenarios.actions": {
+		"key": "actions",
+		"label": "actions",
+		"type": "integer",
+		"default": 65536
+	},
+	"gameplay-editors.scenarios.objectives": {
+		"key": "objectives",
+		"label": "objectives",
+		"type": "integer",
+		"default": 4096
+	},
+	"gameplay-editors.scenarios.events": {
+		"key": "events",
+		"label": "events",
+		"type": "integer",
+		"default": 16384
+	},
+	"gameplay-editors.scenarios.objective": {
+		"key": "objective",
+		"label": "objective",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.ship_graph.Item type": {
+		"key": "Item type",
+		"label": "Item type",
+		"type": "string",
+		"choices": ["System", "Station", "Console seat", "Controller widget", "Compartment", "Assembly", "Power store"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.type": {
+		"key": "type",
+		"label": "type",
+		"type": "string",
+		"choices": ["entity", "system", "console", "objective", "region", "message"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.id": {
+		"key": "id",
+		"label": "id",
+		"type": "integer",
+		"default": 1
+	},
+	"tree-editor.tree.action": {
+		"key": "action",
+		"label": "action",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.once": {
+		"key": "once",
+		"label": "once",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.op": {
+		"key": "op",
+		"label": "op",
+		"type": "string",
+		"choices": ["eq", "ne", "lt", "le", "gt", "ge"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.intent": {
+		"key": "intent",
+		"label": "intent",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.id.2": {
+		"key": "id",
+		"label": "id",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.reason": {
+		"key": "reason",
+		"label": "reason",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.op.2": {
+		"key": "op",
+		"label": "op",
+		"type": "string",
+		"choices": ["eq", "ne", "lt", "le", "gt", "ge", "present"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.context": {
+		"key": "context",
+		"label": "context",
+		"type": "string",
+		"choices": ["controller", "scenario", "conversation", "away", "team"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.boarding": {
+		"key": "boarding",
+		"label": "boarding",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.interdiction": {
+		"key": "interdiction",
+		"label": "interdiction",
+		"type": "boolean",
+		"default": false
+	},
+	"tree-editor.tree.type.2": {
+		"key": "type",
+		"label": "type",
+		"type": "string",
+		"choices": ["integer", "boolean", "text", "entity", "system", "console", "objective", "region", "message"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.name": {
+		"key": "name",
+		"label": "name",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.scope": {
+		"key": "scope",
+		"label": "scope",
+		"type": "string",
+		"choices": ["console", "ship"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.subject": {
+		"key": "subject",
+		"label": "subject",
+		"type": "integer",
+		"default": 1
+	},
+	"tree-editor.tree.description": {
+		"key": "description",
+		"label": "description",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.deviation": {
+		"key": "deviation",
+		"label": "deviation",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.label": {
+		"key": "label",
+		"label": "label",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.unit": {
+		"key": "unit",
+		"label": "unit",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.type.3": {
+		"key": "type",
+		"label": "type",
+		"type": "string",
+		"choices": ["integer", "boolean", "text"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.channel": {
+		"key": "channel",
+		"label": "channel",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.type.4": {
+		"key": "type",
+		"label": "type",
+		"type": "string",
+		"choices": ["integer", "boolean"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.semantics": {
+		"key": "semantics",
+		"label": "semantics",
+		"type": "string",
+		"choices": ["setting", "request"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.action.2": {
+		"key": "action",
+		"label": "action",
+		"type": "string",
+		"choices": ["", "destination", "follow_contact", "ability_activate"],
+		"default": "",
+		"optional": false
+	},
+	"tree-editor.tree.system": {
+		"key": "system",
+		"label": "system",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.field": {
+		"key": "field",
+		"label": "field",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.controller": {
+		"key": "controller",
+		"label": "controller",
+		"type": "string",
+		"default": ""
+	},
+	"tree-editor.tree.endpoint": {
+		"key": "endpoint",
+		"label": "endpoint",
+		"type": "string",
+		"default": ""
+	},
+	"gameplay-editors.equipment.music_gain": {
+		"key": "music_gain",
+		"label": "music_gain",
+		"type": "number",
+		"default": 1.0
+	},
+	"layout-editor.layout.scroll": {
+		"key": "scroll",
+		"label": "Scrollable contents",
+		"type": "boolean",
+		"default": false
+	},
+	"map-editor.map.name": {
+		"key": "name",
+		"label": "Map name",
+		"type": "string",
+		"default": ""
+	},
+	"workflow.consoles.human_seeking": {
+		"key": "human_seeking",
+		"label": "Human seeking",
+		"type": "boolean",
+		"default": false
+	},
+	"workflow.consoles.enabled": {
+		"key": "enabled",
+		"label": "Sweep enabled",
+		"type": "boolean",
+		"default": true
+	}
+}

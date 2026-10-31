@@ -13,6 +13,7 @@ module;
 
 export module phoenix.workshop.authoring;
 export import phoenix.workshop.shell;
+export import phoenix.workshop.authoring_core;
 
 export namespace phoenix
 {
@@ -82,6 +83,7 @@ struct ScopedChild
 // Shared typed field controls; document and editor selection remain with callers.
 struct AuthoringControls
 {
+	bool edit_registered(Json &value, const char *descriptor);
 	bool controller_probe = false;
 	mutable std::string probe_action;
 	bool pseudo = false;

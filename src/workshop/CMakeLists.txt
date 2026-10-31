@@ -1,4 +1,5 @@
 # Shared tool controls/backend are below every authoring and inspection surface.
+add_subdirectory(authoring-core)
 add_subdirectory(shell)
 target_sources(phoenix_workshop_shell PRIVATE ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp)
 add_subdirectory(preview)

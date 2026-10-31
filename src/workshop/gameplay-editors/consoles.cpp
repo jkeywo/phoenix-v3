@@ -56,15 +56,10 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 	{
 		text("Each instance binds a shared widget to equipment. Stars select responsibility levels; data placement is "
 		     "independent.");
-		records(layout, "controllers",
-		        {{"id", "widget"},
-		         {"console", ""},
-		         {"widget", ""},
-		         {"equipment", Json::object()},
-		         {"star_levels", {{"1", "automated"}, {"2", "automated"}, {"3", "automated"}}}},
+		records(layout, "controllers", workshop_record("gameplay-editors.consoles.controllers"),
 		        [&](Json &instance)
 		        {
-			        string(instance, "id");
+			        edit_registered(instance, "gameplay-editors.consoles.id");
 			        choice(instance, "console", consoles);
 			        choice(instance, "widget", document.definition_choices(WorkshopDefinitionKind::ControlWidget));
 			        if (instance.value("widget", std::string{}).empty())
@@ -101,7 +96,7 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 					                                        .value(item, std::string("inherit"))}};
 					        ScopedId data_scope(item.c_str());
 					        heading(specification.value("label", item).c_str());
-					        if (choice(selected, "placement", {"inherit", "main", "details", "hidden"}))
+					        if (edit_registered(selected, "gameplay-editors.consoles.placement"))
 					        {
 						        if (selected.at("placement") == "inherit")
 						        {
@@ -115,113 +110,112 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 				        }
 			        }
 		        });
-		records(layout, "profiles", {{"id", "profile"}, {"stars", 1}},
+		records(layout, "profiles", workshop_record("gameplay-editors.consoles.profiles"),
 		        [&](Json &profile)
 		        {
-			        string(profile, "id");
-			        integer(profile, "stars", 1);
+			        edit_registered(profile, "gameplay-editors.consoles.id");
+			        edit_registered(profile, "gameplay-editors.consoles.stars");
 		        });
 		choice(layout, "default_profile", ids(layout.at("profiles")));
 		return;
 	}
 	text("Controllers own command sections. Profiles choose human or AI operation; absent humans use AI. Remove "
 	     "legacy policy/preset bindings before verifying an explicit layout.");
-	records(
-	    layout, "controllers",
-	    {{"id", "controller"}, {"console", ""}, {"fallback", "hold"}, {"commands", Json::array()}},
-	    [&](Json &controller)
-	    {
-		    string(controller, "id");
-		    choice(controller, "console", consoles);
-		    if (choice(controller, "policy", {"combat"}, true) && !controller.value("policy", std::string{}).empty())
-		    {
-			    controller.erase("tree");
-			    controller["fallback"] = "hold";
-		    }
-		    if (tree_editor.tree_binding(document, controller, "tree", "controller", true))
-		    {
-			    if (controller.contains("tree") &&
-			        (controller.at("tree").is_object() || !controller.at("tree").get<std::string>().empty()))
-				    controller.erase("fallback");
-			    else
-			    {
-				    controller.erase("tree");
-				    controller["fallback"] = "hold";
-			    }
-		    }
-		    records(controller, "commands",
-		            {{"id", "command"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", Json::array()}},
-		            [&](Json &command)
-		            {
-			            string(command, "id");
-			            std::vector<std::string> actions;
-			            for (const auto &action : operating_actions)
-				            actions.emplace_back(action.name);
-			            choice(command, "action", actions);
-			            integer(command, "initial");
-			            if (const auto *contract = operating_action(command.value("action", std::string{})))
-			            {
-				            const auto arguments = operating_arguments(contract->action);
-				            if (!arguments.empty())
-				            {
-					            if (!command.contains("arguments") || command["arguments"].size() != arguments.size())
-					            {
-						            command["arguments"] = Json::array();
-						            for (const auto &field : arguments)
-							            command["arguments"].push_back(std::max<std::int64_t>(0, field.minimum));
-					            }
-					            for (std::size_t i = 0; i < arguments.size(); ++i)
-					            {
-						            Json edit{{"value", command["arguments"][i]}};
-						            ScopedId scope(std::string(arguments[i].name).c_str());
-						            text(std::string(arguments[i].name).c_str());
-						            integer(edit, "value");
-						            command["arguments"][i] = edit["value"];
-					            }
-				            }
-				            else
-					            command.erase("arguments");
-			            }
-			            for (const auto *key : {"minimum", "maximum"})
-			            {
-				            ScopedId scope(key);
-				            if (command.contains(key))
-				            {
-					            integer(command, key);
-					            if (button("Use fitted limit"))
-						            command.erase(key);
-				            }
-				            else if (button(key))
-					            command[key] = 0;
-			            }
-			            string(command, "label_key");
-			            const auto action = command.value("action", std::string{});
-			            if (action == "intent_integer" || action == "intent_boolean" || action == "waypoint")
-			            {
-				            if (!command.contains("choices"))
-				            {
-					            if (button("Add labelled choices"))
-						            command["choices"] = Json::array();
-				            }
-				            else
-				            {
-					            records(command, "choices", {{"value", 0}, {"label_key", "Choice"}},
-					                    [&](Json &choice)
-					                    {
-						                    integer(choice, "value");
-						                    string(choice, "label_key");
-					                    });
-					            if (button("Use continuous values"))
-						            command.erase("choices");
-				            }
-			            }
-			            names(command, "consumers", systems);
-		            });
-	    });
-	records(layout, "profiles", {{"id", "profile"}, {"consoles", Json::object()}},
+	records(layout, "controllers", workshop_record("gameplay-editors.consoles.controllers.2"),
+	        [&](Json &controller)
+	        {
+		        edit_registered(controller, "gameplay-editors.consoles.id");
+		        choice(controller, "console", consoles);
+		        if (edit_registered(controller, "gameplay-editors.consoles.policy") &&
+		            !controller.value("policy", std::string{}).empty())
+		        {
+			        controller.erase("tree");
+			        controller["fallback"] = "hold";
+		        }
+		        if (tree_editor.tree_binding(document, controller, "tree", "controller", true))
+		        {
+			        if (controller.contains("tree") &&
+			            (controller.at("tree").is_object() || !controller.at("tree").get<std::string>().empty()))
+				        controller.erase("fallback");
+			        else
+			        {
+				        controller.erase("tree");
+				        controller["fallback"] = "hold";
+			        }
+		        }
+		        records(controller, "commands", workshop_record("gameplay-editors.consoles.commands"),
+		                [&](Json &command)
+		                {
+			                edit_registered(command, "gameplay-editors.consoles.id");
+			                std::vector<std::string> actions;
+			                for (const auto &action : operating_actions)
+				                actions.emplace_back(action.name);
+			                choice(command, "action", actions);
+			                edit_registered(command, "gameplay-editors.consoles.initial");
+			                if (const auto *contract = operating_action(command.value("action", std::string{})))
+			                {
+				                const auto arguments = operating_arguments(contract->action);
+				                if (!arguments.empty())
+				                {
+					                if (!command.contains("arguments") ||
+					                    command["arguments"].size() != arguments.size())
+					                {
+						                command["arguments"] = Json::array();
+						                for (const auto &field : arguments)
+							                command["arguments"].push_back(std::max<std::int64_t>(0, field.minimum));
+					                }
+					                for (std::size_t i = 0; i < arguments.size(); ++i)
+					                {
+						                Json edit{{"value", command["arguments"][i]}};
+						                ScopedId scope(std::string(arguments[i].name).c_str());
+						                text(std::string(arguments[i].name).c_str());
+						                edit_registered(edit, "gameplay-editors.consoles.value");
+						                command["arguments"][i] = edit["value"];
+					                }
+				                }
+				                else
+					                command.erase("arguments");
+			                }
+			                for (const auto *key : {"minimum", "maximum"})
+			                {
+				                ScopedId scope(key);
+				                if (command.contains(key))
+				                {
+					                integer(command, key);
+					                if (button("Use fitted limit"))
+						                command.erase(key);
+				                }
+				                else if (button(key))
+					                command[key] = 0;
+			                }
+			                edit_registered(command, "gameplay-editors.consoles.label_key");
+			                const auto action = command.value("action", std::string{});
+			                if (action == "intent_integer" || action == "intent_boolean" || action == "waypoint")
+			                {
+				                if (!command.contains("choices"))
+				                {
+					                if (button("Add labelled choices"))
+						                command["choices"] = Json::array();
+				                }
+				                else
+				                {
+					                records(command, "choices", workshop_record("gameplay-editors.consoles.choices"),
+					                        [&](Json &choice)
+					                        {
+						                        edit_registered(choice, "gameplay-editors.consoles.value");
+						                        edit_registered(choice, "gameplay-editors.consoles.label_key");
+					                        });
+					                if (button("Use continuous values"))
+						                command.erase("choices");
+				                }
+			                }
+			                names(command, "consumers", systems);
+		                });
+	        });
+	records(layout, "profiles", workshop_record("gameplay-editors.consoles.profiles.2"),
 	        [&](Json &profile)
 	        {
-		        string(profile, "id");
+		        edit_registered(profile, "gameplay-editors.consoles.id");
 		        for (const auto &console : consoles)
 		        {
 			        ScopedId scope(console.c_str());
@@ -246,16 +240,16 @@ void GameplayEditors::State::console_properties(WorkshopDocument &document, bool
 	tree_editor.presentation(pseudo, test_client.probing());
 	tree_editor.runtime_feedback(test_client.feedback(), test_client.inspected_controller());
 	controller_probe = test_client.probing();
-	boolean(console, "human_seeking", false);
-	boolean(console, "command", false);
-	boolean(console, "hide_without_ai", false);
-	boolean(console, "viewscreen", false);
+	edit_registered(console, "gameplay-editors.consoles.human_seeking");
+	edit_registered(console, "gameplay-editors.consoles.command");
+	edit_registered(console, "gameplay-editors.consoles.hide_without_ai");
+	edit_registered(console, "gameplay-editors.consoles.viewscreen");
 	optional_string(console, "default_stance");
-	records(console, "stances", {{"id", "stance"}, {"label", "Stance"}},
+	records(console, "stances", workshop_record("gameplay-editors.consoles.stances"),
 	        [&](Json &stance)
 	        {
-		        string(stance, "id");
-		        string(stance, "label");
+		        edit_registered(stance, "gameplay-editors.consoles.id");
+		        edit_registered(stance, "gameplay-editors.consoles.label");
 		        optional_string(stance, "description");
 	        });
 	if (console.value("viewscreen", false))
@@ -307,8 +301,8 @@ void GameplayEditors::State::console_properties(WorkshopDocument &document, bool
 			ImGui::TextUnformatted(widget.at("id").get_ref<const std::string &>().c_str());
 			if (widget.at("kind") == "radar")
 			{
-				boolean(widget, "fire_arcs");
-				boolean(widget, "sensor_arcs", true);
+				edit_registered(widget, "gameplay-editors.consoles.fire_arcs");
+				edit_registered(widget, "gameplay-editors.consoles.sensor_arcs");
 				strings(widget, "weapon_arcs");
 				if (widget.contains("weapon_arcs") && button("Show all weapon arcs"))
 					widget.erase("weapon_arcs");

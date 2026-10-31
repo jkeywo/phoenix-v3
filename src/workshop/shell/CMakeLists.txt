@@ -2,7 +2,7 @@ add_library(phoenix_workshop_shell STATIC workshop.cpp preferences.cpp fields.cp
 target_sources(phoenix_workshop_shell PUBLIC FILE_SET CXX_MODULES FILES shell.cppm authoring.cppm)
 target_link_libraries(
 	phoenix_workshop_shell
-	PUBLIC phoenix_application_preferences phoenix_imgui raylib
+	PUBLIC phoenix_application_preferences phoenix_imgui raylib phoenix_workshop_authoring_core
 	PRIVATE phoenix_files phoenix_graphics_assets
 )
 

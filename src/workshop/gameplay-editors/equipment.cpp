@@ -76,21 +76,21 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 		optional_string(spec, key);
 	if (kind != "weapon")
 	{
-		integer(spec, "energy_per_second");
-		integer(spec, "discrete_energy");
+		edit_registered(spec, "gameplay-editors.equipment.energy_per_second");
+		edit_registered(spec, "gameplay-editors.equipment.discrete_energy");
 	}
-	boolean(spec, "powerless_start");
-	records(spec, "reporters", {{"id", "reporter"}, {"field", "heat"}, {"above", 0}, {"message", ""}},
+	edit_registered(spec, "gameplay-editors.equipment.powerless_start");
+	records(spec, "reporters", workshop_record("gameplay-editors.equipment.reporters"),
 	        [&](Json &report)
 	        {
-		        string(report, "id");
-		        string(report, "field");
-		        integer(report, "above");
-		        string(report, "message");
+		        edit_registered(report, "gameplay-editors.equipment.id");
+		        edit_registered(report, "gameplay-editors.equipment.field");
+		        edit_registered(report, "gameplay-editors.equipment.above");
+		        edit_registered(report, "gameplay-editors.equipment.message");
 		        optional_string(report, "recovery_message");
-		        integer(report, "debounce_ticks");
-		        integer(report, "recovery_ticks");
-		        integer(report, "minimum_gap_ticks");
+		        edit_registered(report, "gameplay-editors.equipment.debounce_ticks");
+		        edit_registered(report, "gameplay-editors.equipment.recovery_ticks");
+		        edit_registered(report, "gameplay-editors.equipment.minimum_gap_ticks");
 		        text("Physical reporters emit measured facts under both human and AI operation.");
 	        });
 	if (kind == "weapon" || kind == "radar")
@@ -114,35 +114,35 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	}
 	if (kind == "ftl")
 	{
-		boolean(spec, "enabled");
-		integer(spec, "charge_per_second", 100);
-		integer(spec, "charging_loss_per_second", 20);
-		integer(spec, "ready_loss_per_second", 50);
-		integer(spec, "off_discharge_per_second", 80);
+		edit_registered(spec, "gameplay-editors.equipment.enabled");
+		edit_registered(spec, "gameplay-editors.equipment.charge_per_second");
+		edit_registered(spec, "gameplay-editors.equipment.charging_loss_per_second");
+		edit_registered(spec, "gameplay-editors.equipment.ready_loss_per_second");
+		edit_registered(spec, "gameplay-editors.equipment.off_discharge_per_second");
 		text("FTL uses a dedicated empty reserve. Charge and loss rates compete for actual reactor flow.");
 	}
 	if (kind == "displacement" || kind == "transport")
 	{
-		integer(spec, "range_mm", 100000);
-		integer(spec, "capacity", 8);
-		integer(spec, "transfer_ticks", 40);
-		choice(spec, "mode", {"displacement", "shuttle", "boarding_torpedo"});
+		edit_registered(spec, "gameplay-editors.equipment.range_mm");
+		edit_registered(spec, "gameplay-editors.equipment.capacity");
+		edit_registered(spec, "gameplay-editors.equipment.transfer_ticks");
+		edit_registered(spec, "gameplay-editors.equipment.mode");
 		if (spec.value("mode", std::string{"displacement"}) != "displacement")
 		{
-			string(spec, "craft");
-			integer(spec, "count", 1);
-			integer(spec, "arrival_distance_mm", 5000);
-			integer(spec, "arrival_speed_mm_s", 1000);
-			integer(spec, "cruise_speed_mm_s", 10000);
+			edit_registered(spec, "gameplay-editors.equipment.craft");
+			edit_registered(spec, "gameplay-editors.equipment.count");
+			edit_registered(spec, "gameplay-editors.equipment.arrival_distance_mm");
+			edit_registered(spec, "gameplay-editors.equipment.arrival_speed_mm_s");
+			edit_registered(spec, "gameplay-editors.equipment.cruise_speed_mm_s");
 		}
 	}
 	if (kind == "psychic")
 	{
-		integer(spec, "range_mm", 500000);
-		integer(spec, "arc_mdeg", 90000);
+		edit_registered(spec, "gameplay-editors.equipment.range_mm.2");
+		edit_registered(spec, "gameplay-editors.equipment.arc_mdeg");
 		optional_string(spec, "planning_controller");
 		strings(spec, "supported_abilities");
-		records(spec, "seats", {{"duty", ""}, {"console", ""}, {"controller", ""}, {"enabled", ""}, {"target", ""}},
+		records(spec, "seats", workshop_record("gameplay-editors.equipment.seats"),
 		        [&](Json &s)
 		        {
 			        for (const auto *k : {"duty", "console", "controller", "enabled", "target"})
@@ -152,57 +152,52 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	}
 	if (kind == "shuttle_bay")
 	{
-		integer(spec, "slots", 4);
-		integer(spec, "transfer_ticks", 20);
-		integer(spec, "docking_range_mm", 10000);
-		integer(spec, "docking_speed_mm_s", 5000);
-		integer(spec, "flight_spacing_mm", 0);
-		integer(spec, "charge_per_second", 0);
+		edit_registered(spec, "gameplay-editors.equipment.slots");
+		edit_registered(spec, "gameplay-editors.equipment.transfer_ticks.2");
+		edit_registered(spec, "gameplay-editors.equipment.docking_range_mm");
+		edit_registered(spec, "gameplay-editors.equipment.docking_speed_mm_s");
+		edit_registered(spec, "gameplay-editors.equipment.flight_spacing_mm");
+		edit_registered(spec, "gameplay-editors.equipment.charge_per_second.2");
 		strings(spec, "initial");
-		records(spec, "ammunition", {{"source", ""}, {"destination", ""}, {"rounds_per_second", 1}},
+		records(spec, "ammunition", workshop_record("gameplay-editors.equipment.ammunition"),
 		        [&](Json &v)
 		        {
-			        string(v, "source");
-			        string(v, "destination");
-			        integer(v, "rounds_per_second", 1);
+			        edit_registered(v, "gameplay-editors.equipment.source");
+			        edit_registered(v, "gameplay-editors.equipment.destination");
+			        edit_registered(v, "gameplay-editors.equipment.rounds_per_second");
 		        });
 	}
 
 	if (kind == "comms")
-		integer(spec, "range_mm", 1000000);
+		edit_registered(spec, "gameplay-editors.equipment.range_mm.3");
 	optional_string(spec, "compartment");
 	strings(spec, "abilities");
 	if (kind == "weapon" || kind == "turret" || kind == "shield")
 	{
-		integer(spec, "arc_mdeg", 360000);
-		integer(spec, "bearing_mdeg");
-		integer(spec, "x_mm");
-		integer(spec, "y_mm");
+		edit_registered(spec, "gameplay-editors.equipment.arc_mdeg.2");
+		edit_registered(spec, "gameplay-editors.equipment.bearing_mdeg");
+		edit_registered(spec, "gameplay-editors.equipment.x_mm");
+		edit_registered(spec, "gameplay-editors.equipment.y_mm");
 	}
-	records(spec, "faults",
-	        {{"id", "fault"},
-	         {"symptom", "Erratic equipment response"},
-	         {"diagnosis", "Damaged mechanism requires repair"},
-	         {"chance_permille", 100},
-	         {"repair_work", 100}},
+	records(spec, "faults", workshop_record("gameplay-editors.equipment.faults"),
 	        [&](Json &f)
 	        {
-		        string(f, "id");
-		        string(f, "symptom");
-		        string(f, "diagnosis");
-		        choice(f, "effect", {"output", "disabled", "feed"});
-		        integer(f, "chance_permille", 100);
-		        integer(f, "damage_threshold", 1);
-		        integer(f, "severity", 1);
-		        integer(f, "effectiveness_permille", 500);
-		        integer(f, "repair_work", 100);
-		        boolean(f, "destroyed");
+		        edit_registered(f, "gameplay-editors.equipment.id");
+		        edit_registered(f, "gameplay-editors.equipment.symptom");
+		        edit_registered(f, "gameplay-editors.equipment.diagnosis");
+		        edit_registered(f, "gameplay-editors.equipment.effect");
+		        edit_registered(f, "gameplay-editors.equipment.chance_permille");
+		        edit_registered(f, "gameplay-editors.equipment.damage_threshold");
+		        edit_registered(f, "gameplay-editors.equipment.severity");
+		        edit_registered(f, "gameplay-editors.equipment.effectiveness_permille");
+		        edit_registered(f, "gameplay-editors.equipment.repair_work");
+		        edit_registered(f, "gameplay-editors.equipment.destroyed");
 	        });
 	if (kind == "weapon")
 	{
-		choice(spec, "radar_coverage", {"legacy", "coverage", "hidden"});
+		edit_registered(spec, "gameplay-editors.equipment.radar_coverage");
 		optional_string(spec, "coverage_label");
-		boolean(spec, "coverage_when_enabled");
+		edit_registered(spec, "gameplay-editors.equipment.coverage_when_enabled");
 		optional_string(spec, "magazine");
 		strings(spec, "magazines");
 		optional_string(spec, "turret");
@@ -212,15 +207,15 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	}
 	if (kind == "shield")
 	{
-		string(spec, "shield_effect");
+		edit_registered(spec, "gameplay-editors.equipment.shield_effect");
 	}
 	if (kind == "turret")
 	{
-		integer(spec, "traverse_mdeg_s", 45000);
-		string(spec, "marker");
-		string(spec, "visual");
-		integer(spec, "scale_permille", 1000);
-		boolean(spec, "flip_y");
+		edit_registered(spec, "gameplay-editors.equipment.traverse_mdeg_s");
+		edit_registered(spec, "gameplay-editors.equipment.marker");
+		edit_registered(spec, "gameplay-editors.equipment.visual");
+		edit_registered(spec, "gameplay-editors.equipment.scale_permille");
+		edit_registered(spec, "gameplay-editors.equipment.flip_y");
 	}
 	if (kind == "magazine")
 	{
@@ -242,21 +237,20 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	}
 	if (kind == "repair_team" || kind == "team")
 	{
-		integer(spec, "hp_per_second", 10);
-		integer(spec, "stack_penalty_permille", 500);
+		edit_registered(spec, "gameplay-editors.equipment.hp_per_second");
+		edit_registered(spec, "gameplay-editors.equipment.stack_penalty_permille");
 		optional_string(spec, "type");
 		strings(spec, "capabilities");
-		integer(spec, "treatment_ticks", 400);
-		integer(spec, "stabilise_ticks", 200);
-		integer(spec, "injured_effectiveness_permille", 500);
-		records(spec, "orders",
-		        {{"id", "order"}, {"label", "Team order"}, {"icon", "team"}, {"target", "compartments"}, {"tree", ""}},
+		edit_registered(spec, "gameplay-editors.equipment.treatment_ticks");
+		edit_registered(spec, "gameplay-editors.equipment.stabilise_ticks");
+		edit_registered(spec, "gameplay-editors.equipment.injured_effectiveness_permille");
+		records(spec, "orders", workshop_record("gameplay-editors.equipment.orders"),
 		        [&](Json &o)
 		        {
-			        string(o, "id");
-			        string(o, "label");
-			        string(o, "icon");
-			        choice(o, "target", {"compartments", "damage", "patients"});
+			        edit_registered(o, "gameplay-editors.equipment.id");
+			        edit_registered(o, "gameplay-editors.equipment.label");
+			        edit_registered(o, "gameplay-editors.equipment.icon");
+			        edit_registered(o, "gameplay-editors.equipment.target");
 			        optional_string(o, "capability");
 			        strings(o, "patient_states");
 			        tree_editor.tree_binding(document, o, "tree", "team", false);
@@ -265,16 +259,16 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 
 	if (kind == "engine" || ((kind == "boost" || kind == "impulse") && !spec.contains("targets")))
 	{
-		integer(spec, "max_speed_mm_s");
-		integer(spec, "acceleration_mm_s2");
+		edit_registered(spec, "gameplay-editors.equipment.max_speed_mm_s");
+		edit_registered(spec, "gameplay-editors.equipment.acceleration_mm_s2");
 		integer(spec, "deceleration_mm_s2", spec.value("acceleration_mm_s2", std::int64_t{0}));
 	}
 	if (kind == "engine" || kind == "steering")
-		integer(spec, "turn_mdeg_s");
+		edit_registered(spec, "gameplay-editors.equipment.turn_mdeg_s");
 	if (kind == "radar")
 	{
-		boolean(spec, "radar_arc", true);
-		integer(spec, "range_mm");
+		edit_registered(spec, "gameplay-editors.equipment.radar_arc");
+		edit_registered(spec, "gameplay-editors.equipment.range_mm.4");
 		bool long_range = spec.contains("long_range_mm");
 		if (ImGui::Checkbox(label("Long-range detection").c_str(), &long_range))
 		{
@@ -284,43 +278,43 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 				spec.erase("long_range_mm");
 		}
 		if (long_range)
-			integer(spec, "long_range_mm");
-		integer(spec, "arc_mdeg", 360000);
-		integer(spec, "bearing_mdeg");
+			edit_registered(spec, "gameplay-editors.equipment.long_range_mm");
+		edit_registered(spec, "gameplay-editors.equipment.arc_mdeg.2");
+		edit_registered(spec, "gameplay-editors.equipment.bearing_mdeg");
 		optional_string(spec, "turret");
 		text("Focused acquisition capabilities are authored on the directed scan mode.");
 		strings(spec, "shows");
 	}
 	if (kind == "engine")
 	{
-		integer(spec, "reverse_speed_mm_s");
-		integer(spec, "match_stale_ticks", 100);
+		edit_registered(spec, "gameplay-editors.equipment.reverse_speed_mm_s");
+		edit_registered(spec, "gameplay-editors.equipment.match_stale_ticks");
 	}
 	if (kind == "engine" || kind == "lateral")
 	{
-		integer(spec, "lateral_speed_mm_s");
-		integer(spec, "lateral_acceleration_mm_s2");
-		boolean(spec, "assist_lateral");
-		choice(spec, "lateral_direction", {"both", "port", "starboard"});
+		edit_registered(spec, "gameplay-editors.equipment.lateral_speed_mm_s");
+		edit_registered(spec, "gameplay-editors.equipment.lateral_acceleration_mm_s2");
+		edit_registered(spec, "gameplay-editors.equipment.assist_lateral");
+		edit_registered(spec, "gameplay-editors.equipment.lateral_direction");
 	}
 	if (kind == "engine" || kind == "steering" || kind == "lateral")
 	{
-		integer(spec, "power_rate");
-		integer(spec, "heat_rate");
+		edit_registered(spec, "gameplay-editors.equipment.power_rate");
+		edit_registered(spec, "gameplay-editors.equipment.heat_rate");
 	}
 	auto mode = [&](Json &definition, bool impulse)
 	{
-		integer(definition, "acceleration_multiplier_permille", 1000);
-		integer(definition, "speed_multiplier_permille", 1000);
-		integer(definition, "power_rate");
-		integer(definition, "heat_rate");
+		edit_registered(definition, "gameplay-editors.equipment.acceleration_multiplier_permille");
+		edit_registered(definition, "gameplay-editors.equipment.speed_multiplier_permille");
+		edit_registered(definition, "gameplay-editors.equipment.power_rate");
+		edit_registered(definition, "gameplay-editors.equipment.heat_rate");
 		if (impulse)
 		{
-			integer(definition, "charge_ticks", 20);
-			integer(definition, "steering_permille");
-			integer(definition, "charge_power_rate");
-			integer(definition, "charge_energy");
-			integer(definition, "minimum_reserve");
+			edit_registered(definition, "gameplay-editors.equipment.charge_ticks");
+			edit_registered(definition, "gameplay-editors.equipment.steering_permille");
+			edit_registered(definition, "gameplay-editors.equipment.charge_power_rate");
+			edit_registered(definition, "gameplay-editors.equipment.charge_energy");
+			edit_registered(definition, "gameplay-editors.equipment.minimum_reserve");
 		}
 	};
 	if (kind == "boost" || kind == "impulse")
@@ -329,14 +323,14 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 			mode(spec, kind == "impulse");
 		else
 		{
-			integer(spec, "power_rate");
-			integer(spec, "heat_rate");
+			edit_registered(spec, "gameplay-editors.equipment.power_rate");
+			edit_registered(spec, "gameplay-editors.equipment.heat_rate");
 			if (kind == "impulse")
 			{
-				integer(spec, "charge_ticks", 20);
-				integer(spec, "charge_energy");
-				integer(spec, "minimum_reserve");
-				integer(spec, "steering_permille");
+				edit_registered(spec, "gameplay-editors.equipment.charge_ticks");
+				edit_registered(spec, "gameplay-editors.equipment.charge_energy");
+				edit_registered(spec, "gameplay-editors.equipment.minimum_reserve");
+				edit_registered(spec, "gameplay-editors.equipment.steering_permille");
 			}
 		}
 		if (ScopedTree section(label("Modifier targets").c_str()); section)
@@ -398,30 +392,26 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			if (ship.contains("logistics"))
 			{
 				auto &l = ship["logistics"];
-				string(l, "controller");
-				integer(l, "units_per_second", 20);
-				integer(l, "concurrency", 4);
-				integer(l, "batch_size", 10);
-				records(l, "stores",
-				        {{"id", "hold"},
-				         {"compartment", ""},
-				         {"stock", {{"capacity_tag", "cargo"}, {"capacity", 100}}},
-				         {"targets", Json::object()}},
+				edit_registered(l, "gameplay-editors.equipment.controller");
+				edit_registered(l, "gameplay-editors.equipment.units_per_second");
+				edit_registered(l, "gameplay-editors.equipment.concurrency");
+				edit_registered(l, "gameplay-editors.equipment.batch_size");
+				records(l, "stores", workshop_record("gameplay-editors.equipment.stores"),
 				        [&](Json &m)
 				        {
-					        string(m, "id");
-					        string(m, "compartment");
+					        edit_registered(m, "gameplay-editors.equipment.id");
+					        edit_registered(m, "gameplay-editors.equipment.compartment");
 					        optional_string(m, "controller");
 					        optional_string(m, "system");
 					        stock_fields(m["stock"]);
-					        boolean(m, "main", false);
+					        edit_registered(m, "gameplay-editors.equipment.main");
 					        structured_field(m, "targets");
 				        });
-				records(l, "consumers", {{"system", ""}, {"store", ""}, {"costs", Json::object()}},
+				records(l, "consumers", workshop_record("gameplay-editors.equipment.consumers"),
 				        [&](Json &m)
 				        {
-					        string(m, "system");
-					        string(m, "store");
+					        edit_registered(m, "gameplay-editors.equipment.system");
+					        edit_registered(m, "gameplay-editors.equipment.store");
 					        structured_field(m, "costs");
 				        });
 			}
@@ -434,28 +424,27 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			if (!ship.contains("docking") && button("Configure docking ports"))
 				ship["docking"] = {{"ports", Json::array()}};
 			if (ship.contains("docking"))
-				records(ship["docking"], "ports",
-				        {{"id", "port"}, {"controller", ""}, {"compartment", ""}, {"compatibility", "standard"}},
+				records(ship["docking"], "ports", workshop_record("gameplay-editors.equipment.ports"),
 				        [&](Json &m)
 				        {
-					        string(m, "id");
-					        string(m, "controller");
-					        string(m, "compartment");
-					        string(m, "compatibility");
-					        integer(m, "x_mm", 0);
-					        integer(m, "y_mm", 0);
-					        integer(m, "z_mm", 0);
-					        integer(m, "heading_mdeg", 0);
-					        integer(m, "capture_range_mm", 1000);
-					        integer(m, "capture_speed_mm_s", 500);
-					        integer(m, "alignment_mdeg", 5000);
-					        integer(m, "mating_ticks", 20);
-					        integer(m, "separation_ticks", 20);
-					        integer(m, "units_per_second", 20);
-					        boolean(m, "auto_accept_allies", false);
-					        boolean(m, "supply", false);
-					        boolean(m, "emergency_release", false);
-					        integer(m, "emergency_damage", 0);
+					        edit_registered(m, "gameplay-editors.equipment.id");
+					        edit_registered(m, "gameplay-editors.equipment.controller");
+					        edit_registered(m, "gameplay-editors.equipment.compartment");
+					        edit_registered(m, "gameplay-editors.equipment.compatibility");
+					        edit_registered(m, "gameplay-editors.equipment.x_mm");
+					        edit_registered(m, "gameplay-editors.equipment.y_mm");
+					        edit_registered(m, "gameplay-editors.equipment.z_mm");
+					        edit_registered(m, "gameplay-editors.equipment.heading_mdeg");
+					        edit_registered(m, "gameplay-editors.equipment.capture_range_mm");
+					        edit_registered(m, "gameplay-editors.equipment.capture_speed_mm_s");
+					        edit_registered(m, "gameplay-editors.equipment.alignment_mdeg");
+					        edit_registered(m, "gameplay-editors.equipment.mating_ticks");
+					        edit_registered(m, "gameplay-editors.equipment.separation_ticks");
+					        edit_registered(m, "gameplay-editors.equipment.units_per_second");
+					        edit_registered(m, "gameplay-editors.equipment.auto_accept_allies");
+					        edit_registered(m, "gameplay-editors.equipment.supply");
+					        edit_registered(m, "gameplay-editors.equipment.emergency_release");
+					        edit_registered(m, "gameplay-editors.equipment.emergency_damage");
 				        });
 		}
 	}
@@ -473,8 +462,8 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				ScopedTree endpoint(id.c_str());
 				if (!endpoint)
 					continue;
-				choice(binding, "source", {"officer", "duty", "equipment"});
-				string(binding, "owner");
+				edit_registered(binding, "gameplay-editors.equipment.source.2");
+				edit_registered(binding, "gameplay-editors.equipment.owner");
 				choice(binding, "ability", document.definition_choices(WorkshopDefinitionKind::Effect));
 				for (const auto *key : {"console", "controller", "enabled"})
 					string(binding, key);
@@ -503,9 +492,9 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			            {
 				            ScopedId identity(id.c_str());
 				            ImGui::TextUnformatted(id.c_str());
-				            choice(binding, "source", {"entity", "equipment", "officer", "compartment"});
-				            string(binding, "owner");
-				            string(binding, "process");
+				            edit_registered(binding, "gameplay-editors.equipment.source.3");
+				            edit_registered(binding, "gameplay-editors.equipment.owner");
+				            edit_registered(binding, "gameplay-editors.equipment.process");
 				            for (const auto *field : {"controller", "enabled"})
 					            string(binding, field);
 				            return button("Remove process endpoint");
@@ -519,51 +508,42 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 	{
 		ScopedTree panel("Boarding missions");
 		if (panel)
-			records(ship, "boarding_missions",
-			        {{"id", "boarding"},
-			         {"title_key", "Board target"},
-			         {"entry", ""},
-			         {"tree", ""},
-			         {"dialogue", ""},
-			         {"slots", Json::array()},
-			         {"encounters", Json::array()},
-			         {"objectives", Json::object()}},
+			records(ship, "boarding_missions", workshop_record("gameplay-editors.equipment.boarding_missions"),
 			        [&](Json &m)
 			        {
-				        string(m, "id");
-				        string(m, "title_key");
-				        string(m, "entry");
+				        edit_registered(m, "gameplay-editors.equipment.id");
+				        edit_registered(m, "gameplay-editors.equipment.title_key");
+				        edit_registered(m, "gameplay-editors.equipment.entry");
 				        tree_editor.tree_binding(document, m, "tree", "away", false);
 				        tree_editor.tree_binding(document, m, "dialogue", "conversation", false);
-				        boolean(m, "retain_craft", true);
+				        edit_registered(m, "gameplay-editors.equipment.retain_craft");
 				        strings(m, "docking_ports");
-				        records(m, "slots",
-				                {{"id", "security"}, {"kind", "team"}, {"capability", "security"}, {"required", true}},
+				        records(m, "slots", workshop_record("gameplay-editors.equipment.slots"),
 				                [&](Json &slot)
 				                {
-					                string(slot, "id");
-					                choice(slot, "kind", {"team", "officer"});
+					                edit_registered(slot, "gameplay-editors.equipment.id");
+					                edit_registered(slot, "gameplay-editors.equipment.kind");
 					                optional_string(slot, "capability");
 					                optional_string(slot, "team_type");
 					                optional_string(slot, "trait");
-					                boolean(slot, "required", true);
+					                edit_registered(slot, "gameplay-editors.equipment.required");
 				                });
-				        records(m, "encounters", {{"id", "guards"}, {"compartment", ""}, {"defenders", Json::array()}},
+				        records(m, "encounters", workshop_record("gameplay-editors.equipment.encounters"),
 				                [&](Json &e)
 				                {
-					                string(e, "id");
-					                string(e, "compartment");
+					                edit_registered(e, "gameplay-editors.equipment.id");
+					                edit_registered(e, "gameplay-editors.equipment.compartment");
 					                strings(e, "defenders");
 					                optional_string(e, "report");
-					                integer(e, "success_permille", 700);
-					                integer(e, "team_bonus_permille", 100);
-					                integer(e, "defender_penalty_permille", 150);
-					                integer(e, "injury_permille", 250);
-					                integer(e, "loss_permille", 50);
-					                integer(e, "medical_reduction_permille", 150);
-					                integer(e, "officer_injury_permille", 0);
-					                integer(e, "officer_loss_permille", 0);
-					                integer(e, "assessment_ticks", 20);
+					                edit_registered(e, "gameplay-editors.equipment.success_permille");
+					                edit_registered(e, "gameplay-editors.equipment.team_bonus_permille");
+					                edit_registered(e, "gameplay-editors.equipment.defender_penalty_permille");
+					                edit_registered(e, "gameplay-editors.equipment.injury_permille");
+					                edit_registered(e, "gameplay-editors.equipment.loss_permille");
+					                edit_registered(e, "gameplay-editors.equipment.medical_reduction_permille");
+					                edit_registered(e, "gameplay-editors.equipment.officer_injury_permille");
+					                edit_registered(e, "gameplay-editors.equipment.officer_loss_permille");
+					                edit_registered(e, "gameplay-editors.equipment.assessment_ticks");
 					                structured_field(e, "defences");
 				                });
 				        structured_field(m, "objectives");
@@ -578,12 +558,12 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			if (ship.contains("craft"))
 			{
 				auto &c = ship["craft"];
-				choice(c, "role", {"shuttle", "interceptor", "bomber", "boarding_torpedo"});
-				integer(c, "vertical_speed_mm_s", 10000);
-				integer(c, "vertical_acceleration_mm_s2", 5000);
-				integer(c, "cruise_altitude_mm", 15000);
-				integer(c, "engagement_range_mm", 200000);
-				integer(c, "return_reserve_permille", 200);
+				edit_registered(c, "gameplay-editors.equipment.role");
+				edit_registered(c, "gameplay-editors.equipment.vertical_speed_mm_s");
+				edit_registered(c, "gameplay-editors.equipment.vertical_acceleration_mm_s2");
+				edit_registered(c, "gameplay-editors.equipment.cruise_altitude_mm");
+				edit_registered(c, "gameplay-editors.equipment.engagement_range_mm");
+				edit_registered(c, "gameplay-editors.equipment.return_reserve_permille");
 			}
 			if (!ship.contains("transport") && button("Configure transport capabilities"))
 				ship["transport"] = {
@@ -591,7 +571,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			if (ship.contains("transport"))
 			{
 				auto &t = ship["transport"];
-				integer(t, "capacity", 64);
+				edit_registered(t, "gameplay-editors.equipment.capacity.2");
 				optional_string(t, "compartment");
 				strings(t, "capabilities");
 				for (const auto &tag : t.value("capabilities", Json::array()))
@@ -612,14 +592,13 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			if (ship.contains("comms"))
 			{
 				tree_editor.tree_binding(document, ship["comms"], "default_conversation", "conversation", true);
-				records(ship["comms"], "characters",
-				        {{"id", "character"}, {"name_key", "New character"}, {"public", true}},
+				records(ship["comms"], "characters", workshop_record("gameplay-editors.equipment.characters"),
 				        [&](Json &p)
 				        {
-					        string(p, "id");
-					        string(p, "name_key");
+					        edit_registered(p, "gameplay-editors.equipment.id");
+					        edit_registered(p, "gameplay-editors.equipment.name_key");
 					        optional_string(p, "portrait");
-					        boolean(p, "public", true);
+					        edit_registered(p, "gameplay-editors.equipment.public");
 					        tree_editor.tree_binding(document, p, "default_conversation", "conversation", true);
 				        });
 			}
@@ -637,18 +616,18 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				optional_string(bridge, "alert_console");
 				optional_string(bridge, "sidebar_default");
 				optional_string(bridge, "initial");
-				records(bridge, "conditions",
-				        {{"id", "condition"}, {"label", "Condition"}, {"colour", "#e73535"}, {"glow", false}},
+				records(bridge, "conditions", workshop_record("gameplay-editors.equipment.conditions"),
 				        [&](Json &condition)
 				        {
-					        string(condition, "id");
-					        string(condition, "label");
+					        edit_registered(condition, "gameplay-editors.equipment.id");
+					        edit_registered(condition, "gameplay-editors.equipment.label");
 					        optional_string(condition, "description");
-					        string(condition, "colour");
-					        boolean(condition, "glow", false);
+					        edit_registered(condition, "gameplay-editors.equipment.colour");
+					        edit_registered(condition, "gameplay-editors.equipment.glow");
 					        optional_string(condition, "siren");
 					        optional_string(condition, "music");
-					        edit_field(label("music_gain").c_str(), condition, "music_gain", 1.0);
+					        edit_shared_field(label("music_gain").c_str(), condition,
+					                          "gameplay-editors.equipment.music_gain");
 				        });
 			}
 		}
@@ -687,11 +666,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			heading("Selected System");
 			ImGui::TextUnformatted(selected_system.c_str());
 			choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
-			choice(spec, "kind", {"engine",    "steering", "radar",       "generator", "distribution", "coolant",
-			                      "storage",   "lateral",  "boost",       "impulse",   "weapon",       "turret",
-			                      "magazine",  "team",     "repair_team", "shield",    "comms",        "displacement",
-			                      "transport", "dispatch", "ftl",         "psychic"},
-			       true);
+			edit_registered(spec, "gameplay-editors.equipment.kind.2");
 			auto kind = equipment_kind(document, spec);
 			if (kind.empty())
 				kind = selected_system;
@@ -726,19 +701,18 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 		if (button("Override inherited Stations"))
 			ship["stations"] = composition.at("stations");
 	}
-	records(ship, "stations", {{"id", "station"}, {"consoles", Json::array()}},
+	records(ship, "stations", workshop_record("gameplay-editors.equipment.stations"),
 	        [&](Json &station)
 	        {
-		        string(station, "id");
-		        records(station, "consoles",
-		                {{"id", "console"}, {"definition", ""}, {"systems", Json::array()}, {"feeds", Json::array()}},
+		        edit_registered(station, "gameplay-editors.equipment.id");
+		        records(station, "consoles", workshop_record("gameplay-editors.equipment.consoles"),
 		                [&](Json &console)
 		                {
-			                string(console, "id");
+			                edit_registered(console, "gameplay-editors.equipment.id");
 			                choice(console, "definition", document.definition_choices(WorkshopDefinitionKind::Console));
 			                names(console, "systems", systems);
 			                names(console, "feeds", systems);
-			                boolean(console, "shield_feed");
+			                edit_registered(console, "gameplay-editors.equipment.shield_feed");
 			                const auto stations = ids(ship.at("stations"));
 			                std::vector<std::string> defaults{station.at("id").get<std::string>()};
 			                for (const auto &id : stations)
@@ -757,11 +731,10 @@ void GameplayEditors::State::placements(WorkshopDocument &document)
 		names(*ship, "message_templates", document.definition_choices(WorkshopDefinitionKind::Message));
 		structured_field(*ship, "parameters");
 		services(*ship);
-		records(*ship, "assemblies",
-		        {{"id", "placement"}, {"assembly", ""}, {"bindings", Json::object()}, {"overrides", Json::object()}},
+		records(*ship, "assemblies", workshop_record("gameplay-editors.equipment.assemblies"),
 		        [&](Json &placement)
 		        {
-			        string(placement, "id");
+			        edit_registered(placement, "gameplay-editors.equipment.id");
 			        choice(placement, "assembly", document.definition_choices(WorkshopDefinitionKind::Assembly));
 			        scalar_map(placement, "bindings");
 			        structured_field(placement, "overrides");
@@ -789,9 +762,9 @@ void GameplayEditors::State::services(Json &parent)
 		            [&](const std::string &name, Json &row)
 		            {
 			            ImGui::TextUnformatted(name.c_str());
-			            choice(row, "kind", {"power", "coolant", "information"});
-			            choice(row, "direction", {"input", "output"});
-			            string(row, "target");
+			            edit_registered(row, "gameplay-editors.equipment.kind.3");
+			            edit_registered(row, "gameplay-editors.equipment.direction");
+			            edit_registered(row, "gameplay-editors.equipment.target.2");
 			            return button("Remove endpoint");
 		            });
 }

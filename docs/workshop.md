@@ -1,5 +1,7 @@
 # Workshop foundation
 
+The [Workshop CLI](workshop-cli.md) exposes content authoring to scripts and LLMs through the shared document backend. Native File > Source draft directory and cross-platform source draft ZIP actions save unfinished work without weakening verified pack exports.
+
 See [visual authoring](workshop-visual-authoring.md) for the combined Map & Scenario
 workspace, map selection and bulk instance edits, Ship setup graph, hierarchical
 state-tree canvas and Console palette-to-canvas editing.

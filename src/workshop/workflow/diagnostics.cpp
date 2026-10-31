@@ -367,7 +367,7 @@ bool WorkshopWorkspace::State::probe_workshop_controllers(unsigned stage)
 		                    .at(0);
 		channel["initial"] = 3000;
 		document.end_frame(true);
-		history.checkpoint(document);
+		authoring.commit(document);
 		document.verify();
 		const auto bytes = document.export_pack();
 		document.load_pack(bytes);

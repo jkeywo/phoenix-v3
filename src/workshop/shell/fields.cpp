@@ -9,9 +9,31 @@ module;
 #include <utility>
 
 module phoenix.workshop.shell;
+import phoenix.workshop.authoring_core;
 
 namespace phoenix
 {
+bool edit_shared_field(const char *label, Json &object, const char *descriptor)
+{
+	const auto &spec = workshop_field(descriptor);
+	const auto key = spec.at("key").get<std::string>();
+	const auto type = spec.at("type").get<std::string>();
+	Json candidate = Json::object();
+	if (object.contains(key))
+		candidate[key] = object.at(key);
+	bool changed = false;
+	if (type == "string")
+		changed = edit_field(label, candidate, key.c_str(), spec.at("default").get<std::string>());
+	else if (type == "integer")
+		changed = edit_field(label, candidate, key.c_str(), spec.at("default").get<std::int64_t>());
+	else if (type == "boolean")
+		changed = edit_field(label, candidate, key.c_str(), spec.at("default").get<bool>());
+	else if (type == "number")
+		changed = edit_field(label, candidate, key.c_str(), spec.at("default").get<double>());
+	if (changed)
+		workshop_set_field(object, spec, candidate.at(key));
+	return changed;
+}
 void tool_real_field(const char *label, Json &object, const char *key, float fallback, float minimum, float maximum)
 {
 	float n = object.value(key, fallback);

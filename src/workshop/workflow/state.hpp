@@ -16,8 +16,10 @@ struct WorkshopWorkspace::State
 	std::map<std::string, SaveLocation> map_locations;
 	std::string saving_map;
 	bool saving = false;
+	// Mutable presentation buffer; published content/history belongs to authoring.
 	WorkshopDocument document;
-	WorkshopHistory history;
+	WorkshopAuthoring authoring;
+	std::uint64_t published_revision = 0;
 	std::uint64_t labels_revision = 0;
 	std::vector<std::string> entity_labels, console_labels;
 	std::uint64_t instance_template_revision = 0;
@@ -27,6 +29,8 @@ struct WorkshopWorkspace::State
 	int console = -1;
 	ToolMessage status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
+	std::string source_directory;
+	bool source_dialog = false, opening_source = false, saving_source = false;
 	std::string mod_tree_identity;
 	std::map<std::string, Json> mod_manifests;
 	std::map<std::string, std::string> mod_hashes;

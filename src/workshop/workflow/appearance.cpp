@@ -264,6 +264,8 @@ void WorkshopWorkspace::State::bulk_instance_properties()
 }
 Json *WorkshopWorkspace::State::selected_instance()
 {
+	if (!selection.instance || document.definitions().at("maps").empty())
+		return nullptr;
 	for (auto &instance : document.map()["entities"])
 		if (instance["id"] == selection.instance)
 			return &instance;
@@ -478,7 +480,7 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 			attempt(
 			    [&]
 			    {
-				    entity = document.verify().entities.at(entity.at("id").get<std::string>());
+				    (void)workshop_apply(document, "flatten", {{"kind", "entities"}, {"id", entity.at("id")}});
 			    });
 		return;
 	}

@@ -6,6 +6,7 @@ module;
 
 export module phoenix.workshop.workflow;
 export import phoenix.content.documents;
+export import phoenix.workshop.authoring_core;
 export import phoenix.menu;
 export import phoenix.session.api;
 export import phoenix.workshop.shell;

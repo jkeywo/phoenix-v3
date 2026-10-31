@@ -89,6 +89,7 @@ bool edit_field(const char *label, Json &object, const char *key, std::string fa
 bool edit_field(const char *label, Json &object, const char *key, std::int64_t fallback);
 bool edit_field(const char *label, Json &object, const char *key, bool fallback);
 bool edit_field(const char *label, Json &object, const char *key, double fallback);
+bool edit_shared_field(const char *label, Json &object, const char *descriptor);
 void array_rows(Json &rows, const std::function<bool(Json &, std::size_t)> &inspect);
 void object_rows(Json &rows, const std::function<bool(const std::string &, Json &)> &inspect);
 void append_row(Json &parent, const char *key, Json value);

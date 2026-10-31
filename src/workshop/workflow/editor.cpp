@@ -39,7 +39,7 @@ namespace phoenix
 #include "state.hpp"
 void WorkshopWorkspace::State::reset_save_locations()
 {
-	history.reset(document);
+	authoring.reset(document);
 	selection.kind = "Entity";
 	saves.reset();
 	saving = false;
@@ -213,7 +213,7 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 		saving = false;
 		if (saved->status == ImportStatus::Success)
 		{
-			if (saving_library)
+			if (saving_library || saving_source)
 				status = ToolMessage("Saved {file}", {{"file", saved->filename}});
 			else
 			{
@@ -233,6 +233,7 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 		else
 			status = saved->error;
 		saving_library = false;
+		saving_source = false;
 	}
 	if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
 		attempt(
@@ -256,7 +257,11 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 			    {
 				    if (imported->purpose == FilePurpose::WorkshopPack)
 				    {
-					    document.load_pack(imported->bytes);
+					    if (opening_source)
+						    document.load_draft(read_pack(imported->bytes).draft());
+					    else
+						    document.load_pack(imported->bytes);
+					    opening_source = false;
 					    reset_save_locations();
 					    pack_location = {imported->filename, imported->destination};
 					    clear_textures();
@@ -344,8 +349,14 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 		};
 		const auto entity_id = identity("entities", selection.definition);
 		const auto console_target = identity("consoles", console);
-		if (redo ? history.redo(document) : history.undo(document))
+		attempt(
+		    [&]
+		    {
+			    authoring.commit(document);
+		    });
+		if (redo ? authoring.redo() : authoring.undo())
 		{
+			document = authoring.document();
 			auto resolve = [&](const char *kind, const std::string &id)
 			{
 				const auto &rows = document.definitions()[kind];
@@ -382,6 +393,28 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 		}
 		if (ImGui::BeginMenu(tool_label("File").c_str(), !saving))
 		{
+			if (ImGui::MenuItem(tool_label("Open source draft ZIP...").c_str()))
+				attempt(
+				    [&]
+				    {
+					    opening_source = true;
+					    request_file(imports, FilePurpose::WorkshopPack);
+				    });
+			if (ImGui::MenuItem(tool_label("Save source draft ZIP...").c_str()))
+				attempt(
+				    [&]
+				    {
+					    authoring.commit(document);
+					    const auto bytes = write_pack(authoring.document().source_draft(), PackEncoding::Zip);
+					    request_save(saves, FilePurpose::WorkshopPackSave,
+					                 document.manifest().at("id").get<std::string>() + ".source.zip", bytes, {}, true);
+					    saving = true;
+					    saving_source = true;
+				    });
+#ifndef __EMSCRIPTEN__
+			if (ImGui::MenuItem(tool_label("Source draft directory...").c_str()))
+				source_dialog = true;
+#endif
 			if (ImGui::MenuItem(tool_label("New pack").c_str()))
 			{
 				imports.reset();
@@ -399,12 +432,13 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 				selection.definition = -1;
 				console = -1;
 				pack_name = "workshop";
-				history.reset(document);
+				authoring.reset(document);
 			}
 			if (ImGui::MenuItem(tool_label("Open pack...").c_str()))
 				attempt(
 				    [&]
 				    {
+					    opening_source = false;
 					    request_file(imports, FilePurpose::WorkshopPack);
 				    });
 			if (ImGui::MenuItem(tool_label("Open base game pack").c_str()))
@@ -447,7 +481,9 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 									        document.manifest().at("id").get<std::string>() +
 									        (scenario ? "-" + document.map().at("id").get<std::string>() : "") +
 									        (encoding == PackEncoding::Zip ? ".zip" : ".dat");
-									    package_files = document.export_companions(name, encoding, scenario);
+									    authoring.commit(document);
+									    package_files =
+									        authoring.document().export_companions(name, encoding, scenario);
 #ifdef __EMSCRIPTEN__
 									    request_save(packages, FilePurpose::WorkshopPackSave, name + ".bundle.zip",
 									                 distribution_zip(package_files), {}, true);
@@ -497,10 +533,14 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 
 		if (ImGui::BeginMenu(tool_label("Edit").c_str()))
 		{
-			history.checkpoint(document);
-			if (ImGui::MenuItem(tool_label("Undo").c_str(), "Ctrl+Z", false, history.can_undo()))
+			attempt(
+			    [&]
+			    {
+				    authoring.commit(document);
+			    });
+			if (ImGui::MenuItem(tool_label("Undo").c_str(), "Ctrl+Z", false, authoring.can_undo()))
 				restore_history(false);
-			if (ImGui::MenuItem(tool_label("Redo").c_str(), "Ctrl+Y", false, history.can_redo()))
+			if (ImGui::MenuItem(tool_label("Redo").c_str(), "Ctrl+Y", false, authoring.can_redo()))
 				restore_history(true);
 			ImGui::EndMenu();
 		}
@@ -542,7 +582,8 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 	}
 	if (tool_window(tool_label("Entities").c_str()))
 	{
-		const auto &instances = document.map()["entities"];
+		const Json no_instances = Json::array();
+		const auto &instances = document.definitions().at("maps").empty() ? no_instances : document.map()["entities"];
 		ImGuiListClipper entity_clipper;
 		entity_clipper.Begin(static_cast<int>(instances.size()));
 		while (entity_clipper.Step())
@@ -708,11 +749,26 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 	ImGui::End();
 	const double profile_lists_end = GetTime();
 	const auto &map_frame = environment.frame;
-	map_editor.draw(document, selection, status, saving, map_frame,
-	                [&]
-	                {
-		                save_pack(environment, false);
-	                });
+	if (document.definitions().at("maps").empty())
+	{
+		if (tool_window(tool_label("Map & Scenario").c_str()))
+		{
+			ImGui::TextWrapped("%s", localise("This source draft has no maps.").c_str());
+			if (tool_button(tool_label("Add map").c_str()))
+				attempt(
+				    [&]
+				    {
+					    add_map();
+				    });
+		}
+		ImGui::End();
+	}
+	else
+		map_editor.draw(document, selection, status, saving, map_frame,
+		                [&]
+		                {
+			                save_pack(environment, false);
+		                });
 	const double profile_map_end = GetTime();
 	gameplay.areas(document, environment.preferences.pseudo, status, selection.kind);
 	if (profile_path && profile_frame == 6 && profile_view == "equipment")
@@ -812,6 +868,46 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 	}
 	ImGui::End();
 
+#ifndef __EMSCRIPTEN__
+	if (source_dialog)
+	{
+		ImGui::OpenPopup(tool_label("Source draft directory").c_str());
+		source_dialog = false;
+	}
+	if (ImGui::BeginPopupModal(tool_label("Source draft directory").c_str(), nullptr,
+	                           ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::InputText(tool_label("Directory").c_str(), &source_directory);
+		if (tool_button(tool_label("Open source directory").c_str()))
+			attempt(
+			    [&]
+			    {
+				    auto candidate = document;
+				    candidate.load_draft(workshop_read_source(source_directory));
+				    document = std::move(candidate);
+				    reset_save_locations();
+				    clear_textures();
+				    selection.clear_selection();
+				    selection.definition = -1;
+				    console = -1;
+				    status = "Source draft opened.";
+				    ImGui::CloseCurrentPopup();
+			    });
+		if (tool_button(tool_label("Save source directory").c_str()))
+			attempt(
+			    [&]
+			    {
+				    authoring.commit(document);
+				    workshop_save_source(authoring.document(), source_directory);
+				    status = "Source draft saved.";
+				    ImGui::CloseCurrentPopup();
+			    });
+		if (tool_button(tool_label("Cancel").c_str()))
+			ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+#endif
+
 	const double profile_inspector_end = GetTime();
 	if (selection.kind == "Console")
 		layout_editor.draw(document, console, environment.preferences.pseudo, imports, status);
@@ -828,8 +924,14 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 	    (ImGui::GetActiveID() == window->GetID("#SCROLLY") || ImGui::GetActiveID() == window->GetID("#SCROLLX")))
 		may_edit = false;
 	document.end_frame(may_edit);
-	if (!map_editor.editing() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
-		history.checkpoint(document);
+	if (!map_editor.editing() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
+	    document.revision() != published_revision)
+		attempt(
+		    [&]
+		    {
+			    authoring.commit(document);
+			    published_revision = document.revision();
+		    });
 
 	if (profile_path)
 	{

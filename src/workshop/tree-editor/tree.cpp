@@ -127,8 +127,8 @@ void TreeEditor::State::binding(Json &parent, const char *key, const Json &defin
 	{
 		if (parent.contains(key))
 		{
-			choice(parent[key], "type", {"entity", "system", "console", "objective", "region", "message"});
-			integer(parent[key], "id", 1);
+			edit_registered(parent[key], "tree-editor.tree.type");
+			edit_registered(parent[key], "tree-editor.tree.id");
 		}
 	}
 	else if (mode != "elapsed")
@@ -237,11 +237,11 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 					choice(task, "action", actions);
 				else
 				{
-					string(task, "action");
+					edit_registered(task, "tree-editor.tree.action");
 					text("Action palette awaits the production context vocabulary. Verification rejects "
 					     "unsupported names.");
 				}
-				boolean(task, "once", false);
+				edit_registered(task, "tree-editor.tree.once");
 				const auto signature =
 				    action_signature(authoring_context(definition), task.at("action").get<std::string>());
 				if (signature.contains("arguments"))
@@ -288,14 +288,14 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 					if (memory.value("type", std::string{}) == "boolean")
 						outcomes.push_back(memory.at("name").get<std::string>());
 				choice(task, "result", outcomes, true);
-				records(task, "attempt", {{"conditions", Json::array()}, {"tasks", Json::array()}},
+				records(task, "attempt", workshop_record("tree-editor.tree.attempt"),
 				        [&](Json &branch)
 				        {
-					        records(branch, "conditions", {{"left", 0}, {"op", "eq"}, {"right", 0}},
+					        records(branch, "conditions", workshop_record("tree-editor.tree.conditions"),
 					                [&](Json &condition)
 					                {
 						                binding(condition, "left", definition);
-						                choice(condition, "op", {"eq", "ne", "lt", "le", "gt", "ge"});
+						                edit_registered(condition, "tree-editor.tree.op");
 						                binding(condition, "right", definition);
 					                });
 					        tasks(branch, "tasks", definition, document);
@@ -322,7 +322,7 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 				if (!intents.empty())
 					choice(task, "intent", intents);
 				else
-					string(task, "intent");
+					edit_registered(task, "tree-editor.tree.intent");
 				binding(task, "value", definition);
 			}
 			else
@@ -492,7 +492,7 @@ void TreeEditor::State::state_inspector(Json &state, Json &definition, WorkshopD
 	else
 	{
 		const auto old = state.value("id", std::string{});
-		if (string(state, "id") && owner)
+		if (edit_registered(state, "tree-editor.tree.id.2") && owner)
 		{
 			const auto name = state.at("id").get<std::string>();
 			if (name.empty() || std::any_of(owner->at("states").begin(), owner->at("states").end(),
@@ -505,18 +505,14 @@ void TreeEditor::State::state_inspector(Json &state, Json &definition, WorkshopD
 			{
 				if (selected_state_id == old)
 					selected_state_id = name;
-				if (owner->value("initial", std::string{}) == old)
-					(*owner)["initial"] = name;
-				for (auto &row : (*owner)["states"])
-				{
-					for (const auto *key : {"parent", "initial"})
-						if (row.value(key, std::string{}) == old)
-							row[key] = name;
-					if (row.contains("transitions"))
-						for (auto &edge : row["transitions"])
-							if (edge.at("target") == old)
-								edge["target"] = name;
-				}
+				state["id"] = old;
+				auto renamed = *owner;
+				workshop_tree_rename(renamed, old, name);
+				// Preserve the active state's address while updating repaired rows.
+				if (renamed.contains("initial"))
+					(*owner)["initial"] = renamed.at("initial");
+				for (std::size_t i = 0; i < (*owner)["states"].size(); ++i)
+					(*owner)["states"][i] = renamed.at("states")[i];
 			}
 		}
 	}
@@ -541,17 +537,16 @@ void TreeEditor::State::state_inspector(Json &state, Json &definition, WorkshopD
 	choice(state, "initial", states, true);
 	for (const char *phase : {"entry", "running", "exit"})
 		tasks(state, phase, definition, document);
-	records(state, "transitions", {{"target", ""}, {"reason", ""}, {"conditions", Json::array()}},
+	records(state, "transitions", workshop_record("tree-editor.tree.transitions"),
 	        [&](Json &edge)
 	        {
 		        choice(edge, "target", states);
-		        string(edge, "reason");
-		        records(edge, "conditions", {{"left", 0}, {"op", "eq"}, {"right", 0}},
+		        edit_registered(edge, "tree-editor.tree.reason");
+		        records(edge, "conditions", workshop_record("tree-editor.tree.conditions"),
 		                [&](Json &condition)
 		                {
 			                binding(condition, "left", definition);
-			                if (choice(condition, "op", {"eq", "ne", "lt", "le", "gt", "ge", "present"}) &&
-			                    condition.at("op") == "present")
+			                if (edit_registered(condition, "tree-editor.tree.op.2") && condition.at("op") == "present")
 				                condition.erase("right");
 			                if (condition.value("op", std::string("eq")) != "present")
 				                binding(condition, "right", definition);
@@ -748,7 +743,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 		{
 			if (local_path.empty())
 			{
-				string(definition, "id");
+				edit_registered(definition, "tree-editor.tree.id.2");
 				tree = definition.at("id");
 			}
 			else
@@ -783,17 +778,17 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 				ImGui::TextUnformatted(definition.at("extends").get<std::string>().c_str());
 			}
 			Json context{{"context", resolved.at("context")}};
-			if (choice(context, "context", {"controller", "scenario", "conversation", "away", "team"}))
+			if (edit_registered(context, "tree-editor.tree.context"))
 				definition["context"] = context.at("context");
 			if (context.at("context") == "away")
 			{
-				boolean(definition, "boarding", false);
+				edit_registered(definition, "tree-editor.tree.boarding");
 				strings(definition, "flags");
 				strings(definition, "team_capabilities");
 				strings(definition, "events");
 			}
 			if (context.at("context") == "scenario")
-				boolean(definition, "interdiction", false);
+				edit_registered(definition, "tree-editor.tree.interdiction");
 			strings(definition, "transport_capabilities");
 			if (context.at("context") == "conversation")
 			{
@@ -826,9 +821,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 					if (local)
 					{
 						auto &parameter = definition["parameters"][it.key()];
-						choice(parameter, "type",
-						       {"integer", "boolean", "text", "entity", "system", "console", "objective", "region",
-						        "message"});
+						edit_registered(parameter, "tree-editor.tree.type.2");
 						binding(parameter, "default", resolved, {"integer", "boolean", "text", "reference"});
 					}
 					else
@@ -866,13 +859,11 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			}
 			if (resolved.value("context", std::string{}) == "system")
 				text("Legacy System tree: migrate bindings and actions to a Console Controller before use.");
-			records(definition, "memory", {{"name", "memory"}, {"type", "integer"}, {"initial", 0}},
+			records(definition, "memory", workshop_record("tree-editor.tree.memory"),
 			        [&](Json &memory)
 			        {
-				        string(memory, "name");
-				        choice(memory, "type",
-				               {"integer", "boolean", "text", "entity", "system", "console", "objective", "region",
-				                "message"});
+				        edit_registered(memory, "tree-editor.tree.name");
+				        edit_registered(memory, "tree-editor.tree.type.2");
 				        binding(memory, "initial", resolved, {"integer", "boolean", "text", "reference", "parameter"});
 			        });
 
@@ -927,7 +918,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 					definition["overrides"].push_back({{"state", resolved.at("states")[selected_state].at("id")}});
 				}
 			}
-			records(definition, "overrides", {{"state", ""}},
+			records(definition, "overrides", workshop_record("tree-editor.tree.overrides"),
 			        [&](Json &patch)
 			        {
 				        state_inspector(patch, resolved, document, true);
@@ -939,12 +930,11 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 void TreeEditor::State::record_bindings(Json &tree, WorkshopDocument &document, const Json &resolved)
 {
 	const auto knowledge = document.preview_knowledge();
-	records(tree, "record_bindings",
-	        {{"name", "record"}, {"scope", "console"}, {"schema", ""}, {"field", ""}, {"subject", "self"}},
+	records(tree, "record_bindings", workshop_record("tree-editor.tree.record_bindings"),
 	        [&](Json &binding)
 	        {
-		        string(binding, "name");
-		        choice(binding, "scope", {"console", "ship"});
+		        edit_registered(binding, "tree-editor.tree.name");
+		        edit_registered(binding, "tree-editor.tree.scope");
 		        choice(binding, "schema", ids(knowledge.at("schemas")));
 		        std::vector<std::string> fields;
 		        for (const auto &schema : knowledge.at("schemas"))
@@ -967,7 +957,7 @@ void TreeEditor::State::record_bindings(Json &tree, WorkshopDocument &document, 
 			        binding["subject"] = kind == "entity" ? Json(1) : Json(kind);
 		        }
 		        if (binding.contains("subject") && binding.at("subject").is_number_integer())
-			        integer(binding, "subject", 1);
+			        edit_registered(binding, "tree-editor.tree.subject");
 		        text("Record type and read permissions come from the selected schema field. Ship records require "
 		             "explicit publication.");
 	        });
@@ -998,10 +988,10 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 	};
 
 	if (editable("action_bindings"))
-		records(tree, "action_bindings", {{"id", "action"}, {"tree", ""}},
+		records(tree, "action_bindings", workshop_record("tree-editor.tree.action_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "id");
+			        edit_registered(binding, "tree-editor.tree.id.2");
 			        choice(binding, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
 			        for (const auto *key : {"channels", "observations"})
 			        {
@@ -1013,16 +1003,12 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		        });
 	optional_string(tree, "decision_context");
 	if (editable("decision_candidates"))
-		records(tree, "decision_candidates",
-		        {{"id", "candidate"},
-		         {"description", "Describe this officer decision"},
-		         {"available", Json::array()},
-		         {"tasks", Json::array()}},
+		records(tree, "decision_candidates", workshop_record("tree-editor.tree.decision_candidates"),
 		        [&](Json &candidate)
 		        {
-			        string(candidate, "id");
-			        string(candidate, "description");
-			        string(candidate, "deviation");
+			        edit_registered(candidate, "tree-editor.tree.id.2");
+			        edit_registered(candidate, "tree-editor.tree.description");
+			        edit_registered(candidate, "tree-editor.tree.deviation");
 			        heading("Availability from permitted observations");
 			        structure(candidate["available"], true);
 			        heading("Prepared action and coordination tasks");
@@ -1033,15 +1019,15 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		auto &action = tree["controller_action"];
 		if (action.is_null())
 			action = {{"label", "Controller action"}};
-		string(action, "label");
-		string(action, "description");
-		records(action, "inputs", {{"name", "target"}, {"type", "integer"}},
+		edit_registered(action, "tree-editor.tree.label");
+		edit_registered(action, "tree-editor.tree.description");
+		records(action, "inputs", workshop_record("tree-editor.tree.inputs"),
 		        [&](Json &input)
 		        {
-			        string(input, "name");
-			        string(input, "description");
-			        string(input, "unit");
-			        choice(input, "type", {"integer", "boolean", "text"});
+			        edit_registered(input, "tree-editor.tree.name");
+			        edit_registered(input, "tree-editor.tree.description");
+			        edit_registered(input, "tree-editor.tree.unit");
+			        edit_registered(input, "tree-editor.tree.type.3");
 		        });
 		if (!action.contains("available"))
 			action["available"] = Json::array();
@@ -1049,60 +1035,60 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		structure(action["available"], true);
 	}
 	if (editable("command_bindings"))
-		records(tree, "command_bindings", {{"channel", "command"}, {"type", "integer"}, {"semantics", "setting"}},
+		records(tree, "command_bindings", workshop_record("tree-editor.tree.command_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "channel");
-			        choice(binding, "type", {"integer", "boolean"});
-			        choice(binding, "semantics", {"setting", "request"});
-			        choice(binding, "action", {"", "destination", "follow_contact", "ability_activate"});
+			        edit_registered(binding, "tree-editor.tree.channel");
+			        edit_registered(binding, "tree-editor.tree.type.4");
+			        edit_registered(binding, "tree-editor.tree.semantics");
+			        edit_registered(binding, "tree-editor.tree.action.2");
 			        if (binding.value("action", std::string{}).empty())
 				        binding.erase("action");
 		        });
 	if (editable("ftl_system"))
 		optional_string(tree, "ftl_system");
 	if (editable("system_bindings"))
-		records(tree, "system_bindings", {{"name", "observed"}, {"system", ""}, {"field", "enabled"}},
+		records(tree, "system_bindings", workshop_record("tree-editor.tree.system_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "name");
-			        string(binding, "system");
-			        string(binding, "field");
+			        edit_registered(binding, "tree-editor.tree.name");
+			        edit_registered(binding, "tree-editor.tree.system");
+			        edit_registered(binding, "tree-editor.tree.field");
 		        });
 	if (editable("command_reads"))
-		records(tree, "command_reads", {{"name", "accepted"}, {"controller", ""}, {"channel", ""}, {"type", "integer"}},
+		records(tree, "command_reads", workshop_record("tree-editor.tree.command_reads"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "name");
-			        string(binding, "controller");
-			        string(binding, "channel");
-			        choice(binding, "type", {"integer", "boolean"});
+			        edit_registered(binding, "tree-editor.tree.name");
+			        edit_registered(binding, "tree-editor.tree.controller");
+			        edit_registered(binding, "tree-editor.tree.channel");
+			        edit_registered(binding, "tree-editor.tree.type.4");
 		        });
 	if (editable("ability_bindings"))
 		strings(tree, "ability_bindings");
 	if (editable("process_bindings"))
 		strings(tree, "process_bindings");
 	if (editable("process_property_bindings"))
-		records(tree, "process_property_bindings", {{"endpoint", ""}, {"property", ""}},
+		records(tree, "process_property_bindings", workshop_record("tree-editor.tree.process_property_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "endpoint");
+			        edit_registered(binding, "tree-editor.tree.endpoint");
 			        choice(binding, "property", document.definition_choices(WorkshopDefinitionKind::Property));
 		        });
 	if (editable("ability_property_bindings"))
-		records(tree, "ability_property_bindings", {{"endpoint", ""}, {"property", ""}},
+		records(tree, "ability_property_bindings", workshop_record("tree-editor.tree.ability_property_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "endpoint");
+			        edit_registered(binding, "tree-editor.tree.endpoint");
 			        choice(binding, "property", document.definition_choices(WorkshopDefinitionKind::Property));
 		        });
 	if (editable("contact_bindings"))
-		records(tree, "contact_bindings", {{"name", "contact"}, {"controller", ""}, {"channel", ""}},
+		records(tree, "contact_bindings", workshop_record("tree-editor.tree.contact_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "name");
-			        string(binding, "controller");
-			        string(binding, "channel");
+			        edit_registered(binding, "tree-editor.tree.name");
+			        edit_registered(binding, "tree-editor.tree.controller");
+			        edit_registered(binding, "tree-editor.tree.channel");
 		        });
 	if (editable("publication_templates"))
 		strings(tree, "publication_templates");
@@ -1110,10 +1096,10 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 		names(tree, "message_templates", document.definition_choices(WorkshopDefinitionKind::Message));
 	const auto knowledge = document.preview_knowledge();
 	if (editable("message_bindings"))
-		records(tree, "message_bindings", {{"name", "payload"}, {"schema", ""}, {"field", ""}},
+		records(tree, "message_bindings", workshop_record("tree-editor.tree.message_bindings"),
 		        [&](Json &binding)
 		        {
-			        string(binding, "name");
+			        edit_registered(binding, "tree-editor.tree.name");
 			        choice(binding, "schema", ids(knowledge.at("schemas")));
 			        std::vector<std::string> fields;
 			        for (const auto &schema : knowledge.at("schemas"))
@@ -1129,25 +1115,7 @@ void TreeEditor::State::controller_palette(const Json &tree, WorkshopDocument &d
 	    {"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
 	try
 	{
-		const auto registry = document.preview_controller_registry(tree);
-		const auto type_name = [](state_tree::Type type)
-		{
-			static const char *names[] = {"missing", "boolean", "integer",   "text",   "entity",
-			                              "system",  "console", "objective", "region", "message"};
-			return names[static_cast<unsigned>(type)];
-		};
-		for (const auto &field : registry.observations)
-			vocabulary["controller"]["observations"].push_back({{"id", field.name}, {"type", type_name(field.type)}});
-		for (const auto &field : registry.intents)
-			vocabulary["controller"]["intents"].push_back({{"id", field.name}, {"type", type_name(field.type)}});
-		for (const auto &action : registry.actions)
-		{
-			Json arguments = Json::array();
-			for (std::size_t i = 0; i < action.arguments.size(); ++i)
-				arguments.push_back({{"name", std::to_string(i + 1)}, {"type", type_name(action.arguments[i])}});
-			vocabulary["controller"]["actions"].push_back(
-			    {{"id", action.name}, {"name", action.name}, {"arguments", arguments}});
-		}
+		vocabulary["controller"] = workshop_tree_vocabulary(document, tree);
 	}
 	catch (const std::exception &error)
 	{

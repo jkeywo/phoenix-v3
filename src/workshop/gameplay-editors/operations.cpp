@@ -42,64 +42,58 @@ void GameplayEditors::State::personnel(Json &ship, WorkshopDocument &document)
 		if (policy)
 		{
 			auto &c = p["casualties"];
-			integer(c, "significant_damage", 20);
-			integer(c, "heavy_below_permille", 300);
-			boolean(c, "lethal", false);
-			integer(c, "lethal_damage", 80);
-			integer(c, "stun_permille", 150);
-			integer(c, "minor_permille", 100);
-			integer(c, "severe_permille", 30);
-			integer(c, "killed_permille", 10);
+			edit_registered(c, "gameplay-editors.operations.significant_damage");
+			edit_registered(c, "gameplay-editors.operations.heavy_below_permille");
+			edit_registered(c, "gameplay-editors.operations.lethal");
+			edit_registered(c, "gameplay-editors.operations.lethal_damage");
+			edit_registered(c, "gameplay-editors.operations.stun_permille");
+			edit_registered(c, "gameplay-editors.operations.minor_permille");
+			edit_registered(c, "gameplay-editors.operations.severe_permille");
+			edit_registered(c, "gameplay-editors.operations.killed_permille");
 		}
 	}
-	records(p, "facilities", {{"id", "sickbay"}, {"compartment", ""}, {"capacity", 1}, {"recovery_ticks", 1200}},
+	records(p, "facilities", workshop_record("gameplay-editors.operations.facilities"),
 	        [&](Json &f)
 	        {
-		        string(f, "id");
-		        string(f, "compartment");
-		        integer(f, "capacity", 1);
-		        integer(f, "recovery_ticks", 1200);
+		        edit_registered(f, "gameplay-editors.operations.id");
+		        edit_registered(f, "gameplay-editors.operations.compartment");
+		        edit_registered(f, "gameplay-editors.operations.capacity");
+		        edit_registered(f, "gameplay-editors.operations.recovery_ticks");
 	        });
-	records(p, "departments", {{"id", "department"}, {"label", "Department"}, {"station", ""}},
+	records(p, "departments", workshop_record("gameplay-editors.operations.departments"),
 	        [&](Json &d)
 	        {
-		        string(d, "id");
-		        string(d, "label");
-		        string(d, "station");
+		        edit_registered(d, "gameplay-editors.operations.id");
+		        edit_registered(d, "gameplay-editors.operations.label");
+		        edit_registered(d, "gameplay-editors.operations.station");
 	        });
 	strings(p, "compartments");
-	records(p, "connections", {{"from", ""}, {"to", ""}, {"ticks", 40}},
+	records(p, "connections", workshop_record("gameplay-editors.operations.connections"),
 	        [&](Json &c)
 	        {
-		        string(c, "from");
-		        string(c, "to");
-		        integer(c, "ticks", 40);
+		        edit_registered(c, "gameplay-editors.operations.from");
+		        edit_registered(c, "gameplay-editors.operations.to");
+		        edit_registered(c, "gameplay-editors.operations.ticks");
 	        });
-	records(p, "traits", {{"id", "trait"}, {"label", "Expertise"}, {"rules", Json::array()}},
+	records(p, "traits", workshop_record("gameplay-editors.operations.traits"),
 	        [&](Json &t)
 	        {
-		        string(t, "id");
-		        string(t, "label");
+		        edit_registered(t, "gameplay-editors.operations.id");
+		        edit_registered(t, "gameplay-editors.operations.label");
 		        rule_bindings_fields(t, document);
 	        });
-	records(p, "duties",
-	        {{"id", "duty"},
-	         {"label", "Duty"},
-	         {"department", ""},
-	         {"controller", ""},
-	         {"compartment", ""},
-	         {"bindings", Json::object()}},
+	records(p, "duties", workshop_record("gameplay-editors.operations.duties"),
 	        [&](Json &d)
 	        {
-		        string(d, "id");
-		        string(d, "label");
+		        edit_registered(d, "gameplay-editors.operations.id");
+		        edit_registered(d, "gameplay-editors.operations.label");
 		        choice(d, "department", ids(p["departments"]));
 		        optional_string(d, "controller");
 		        optional_string(d, "console");
 		        optional_string(d, "team");
 		        optional_string(d, "choir");
 		        choice(d, "required_trait", ids(p["traits"]), true);
-		        string(d, "compartment");
+		        edit_registered(d, "gameplay-editors.operations.compartment");
 		        auto &effects = d["bindings"];
 		        if (effects.is_null())
 			        effects = Json::object();
@@ -128,25 +122,20 @@ void GameplayEditors::State::personnel(Json &ship, WorkshopDocument &document)
 		        if (button("Add target binding"))
 			        effects[fresh(effects, "system")] = Json::array();
 	        });
-	records(p, "officers",
-	        {{"id", "officer"},
-	         {"name", "New officer"},
-	         {"department", ""},
-	         {"compartment", ""},
-	         {"traits", Json::array()}},
+	records(p, "officers", workshop_record("gameplay-editors.operations.officers"),
 	        [&](Json &o)
 	        {
-		        string(o, "id");
-		        string(o, "name");
+		        edit_registered(o, "gameplay-editors.operations.id");
+		        edit_registered(o, "gameplay-editors.operations.name");
 		        optional_string(o, "portrait");
 		        strings(o, "abilities");
 		        rule_bindings_fields(o, document, true);
 		        owner_properties_fields(o, document);
 		        choice(o, "department", ids(p["departments"]));
 		        choice(o, "duty", ids(p["duties"]), true);
-		        string(o, "compartment");
+		        edit_registered(o, "gameplay-editors.operations.compartment");
 		        strings(o, "traits");
-		        choice(o, "condition", {"healthy", "minor", "severe"});
+		        edit_registered(o, "gameplay-editors.operations.condition");
 	        });
 }
 } // namespace phoenix

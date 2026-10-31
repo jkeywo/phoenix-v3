@@ -19,6 +19,7 @@ module;
 
 module phoenix.workshop.layout;
 import phoenix.content.documents;
+import phoenix.workshop.authoring_core;
 import phoenix.content.packs;
 import phoenix.content.ui;
 import phoenix.ui.preview;
@@ -53,14 +54,7 @@ struct LayoutEditor::State
 
 Json *layout_find_node(Json &node, const std::string &identity, const std::string &prefix = {})
 {
-	const auto id = prefix + node.value("id", std::string{});
-	if (identity == id)
-		return &node;
-	if (node.contains("children"))
-		for (auto &child : node["children"])
-			if (auto *found = layout_find_node(child, identity, id + "."))
-				return found;
-	return nullptr;
+	return workshop_layout_node(node, identity, prefix);
 }
 Json *layout_find_parent(Json &node, const std::string &identity, const std::string &prefix = {})
 {
@@ -117,21 +111,7 @@ template <class State> void layout_hierarchy(State &layout_workspace, Json &node
 }
 bool layout_remove_node(Json &node, const std::string &identity, const std::string &prefix = {})
 {
-	const auto id = prefix + node.value("id", std::string{});
-	if (!node.contains("children"))
-		return false;
-	auto &children = node["children"];
-	for (std::size_t i = 0; i < children.size(); ++i)
-	{
-		if (id + "." + children[i].value("id", std::string{}) == identity)
-		{
-			children.erase(children.begin() + i);
-			return true;
-		}
-		if (layout_remove_node(children[i], identity, id + "."))
-			return true;
-	}
-	return false;
+	return workshop_layout_remove(node, identity, prefix);
 }
 LayoutEditor::LayoutEditor() : state_(std::make_unique<State>())
 {
@@ -263,93 +243,12 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		{
 			try
 			{
-				auto candidate = root;
-				const auto from = layout_workspace.drag_source, to = layout_workspace.drag_target;
-				int insertion = layout_workspace.drop_index;
-				if (!from.empty() && insertion >= 0 && from.substr(0, from.find_last_of('.')) == to)
-					if (const auto *parent = layout_find_node(candidate, to); parent && parent->contains("children"))
-						for (std::size_t i = 0; i < parent->at("children").size(); ++i)
-							if (to + "." + parent->at("children")[i].value("id", std::string{}) == from &&
-							    static_cast<int>(i) < insertion)
-								--insertion;
-				Json added;
-				if (!from.empty())
-				{
-					if (from == to || to.starts_with(from + "."))
-						throw std::runtime_error("A container cannot be moved inside itself");
-					if (auto *node = layout_find_node(candidate, from))
-						added = *node;
-					if (!layout_remove_node(candidate, from))
-						throw std::runtime_error("Cannot move the layout root");
-				}
-				else
-				{
-					std::string id;
-					do
-					{
-						id = "panel" + std::to_string(layout_workspace.serial++);
-					} while (layout_find_node(candidate, to + "." + id));
-					added = {{"id", id}, {"label", "Panel"}};
-					if (!layout_workspace.drag_component.empty())
-					{
-						added["kind"] = "component";
-						added["component"] = layout_workspace.drag_component;
-					}
-					else if (!layout_workspace.drag_group.empty())
-						added["group"] = layout_workspace.drag_group;
-					else
-					{
-						added["kind"] = layout_workspace.drag_kind;
-						added["children"] = Json::array();
-					}
-				}
-				auto *target = layout_find_node(candidate, to);
-				if (target && target->contains("children") && !added.is_null())
-				{
-					if (target->value("kind", "") == "overlay")
-					{
-						std::set<std::string> used;
-						for (const auto &child : target->at("children"))
-							used.insert(child.value("region", std::string{}));
-						std::string region;
-						for (const auto *r : {"background", "top-left", "top-right", "bottom-left", "bottom-right"})
-							if (!used.contains(r))
-							{
-								region = r;
-								break;
-							}
-						if (region.empty())
-							throw std::runtime_error("All overlay regions are occupied");
-						added["region"] = region;
-					}
-					else
-						added.erase("region");
-					if (target->value("kind", "") == "instruments" && !added.contains("rect"))
-						added["rect"] = {{"x", static_cast<int>(layout_workspace.drop_x)},
-						                 {"y", static_cast<int>(layout_workspace.drop_y)},
-						                 {"width", 300},
-						                 {"height", 300}};
-					auto &children = (*target)["children"];
-					auto index = insertion < 0 ? children.size()
-					                           : std::min(children.size(), static_cast<std::size_t>(insertion));
-					if (!layout_workspace.drag_kind.empty() && !children.empty())
-					{
-						index = std::min(index, children.size() - 1);
-						auto wrapped = children[index];
-						wrapped.erase("region");
-						if (layout_workspace.drag_kind == "overlay")
-							wrapped["region"] = "background";
-						if (layout_workspace.drag_kind == "cutout")
-							wrapped["region"] = "centre";
-						added["children"].push_back(wrapped);
-						children.erase(children.begin() + index);
-					}
-					children.insert(children.begin() + index, added);
-					Json checked = {{"schema", 1}, {"root", candidate}};
-					(void)compile_ui_tree(*catalog, checked);
-					root = std::move(candidate);
-					layout_workspace.selected = to + "." + added.at("id").get<std::string>();
-				}
+				Json drop{
+				    {"source", layout_workspace.drag_source},         {"destination", layout_workspace.drag_target},
+				    {"index", layout_workspace.drop_index},           {"component", layout_workspace.drag_component},
+				    {"group", layout_workspace.drag_group},           {"kind", layout_workspace.drag_kind},
+				    {"x", static_cast<int>(layout_workspace.drop_x)}, {"y", static_cast<int>(layout_workspace.drop_y)}};
+				layout_workspace.selected = workshop_layout_drop(root, drop, *catalog).get<std::string>();
 			}
 			catch (const std::exception &error)
 			{
@@ -660,7 +559,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					ImGui::EndCombo();
 				}
 				tool_real_field("Corner inset", *selected, "inset", 0, 0, 512);
-				edit_field(tool_label("Scrollable contents").c_str(), *selected, "scroll", false);
+				edit_shared_field(tool_label("Scrollable contents").c_str(), *selected, "layout-editor.layout.scroll");
 				if (selected->value("kind", "") == "cutout")
 					for (const auto &[key, fallback] :
 					     {std::pair{"x", .5f}, std::pair{"y", .5f}, std::pair{"radius", .35f}})

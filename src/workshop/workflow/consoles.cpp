@@ -53,8 +53,7 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 				                     return value.at("id") == id;
 			                     }) ||
 			         document.libraries().consoles.contains(id));
-			consoles.push_back({{"id", id}, {"widgets", Json::array()}});
-			consoles.back()["layout"] = convert_console_layout(consoles.back());
+			(void)workshop_apply(document, "create", {{"kind", "consoles"}, {"id", id}});
 			layout_editor.focus();
 			console = static_cast<int>(consoles.size() - 1);
 			selection.kind = "Console";
@@ -95,7 +94,7 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 			    status = "Console renamed; ship and Station references updated.";
 		    });
 	string_field("Display name", selected, "name");
-	edit_field("Human seeking", selected, "human_seeking", false);
+	edit_shared_field("Human seeking", selected, "workflow.consoles.human_seeking");
 	auto &widgets = consoles[console]["widgets"];
 	for (auto [kind, binding] : widget_bindings())
 	{
@@ -145,7 +144,7 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 				           if (widget.contains("sweep"))
 				           {
 					           auto &s = widget["sweep"];
-					           edit_field("Sweep enabled", s, "enabled", true);
+					           edit_shared_field("Sweep enabled", s, "workflow.consoles.enabled");
 					           tool_real_field("Sweep duration (seconds)", s, "duration_seconds", 3, .1f, 30);
 					           tool_real_field("Sweep speed (degrees/second)", s, "speed_degrees_s", 60, 1, 720);
 					           const auto tint = s.value("colour", Json::array({.1, .9, .65, .85}));

@@ -752,6 +752,12 @@ phoenix_intended_module(
 
 # Workshop document editing and disposable test client remain separate from host execution.
 phoenix_intended_module(
+	phoenix_workshop_authoring_core
+	phoenix_content_documents
+	phoenix_content_ui
+	phoenix_content_assets
+)
+phoenix_intended_module(
 	phoenix_workshop_shell
 	phoenix_application_preferences
 	phoenix_imgui
@@ -761,6 +767,7 @@ phoenix_intended_module(
 	phoenix_content_catalog
 	phoenix_content_image_codec
 	phoenix_content_ui
+	phoenix_workshop_authoring_core
 )
 phoenix_intended_module(phoenix_workshop_test_client phoenix_workshop_shell phoenix_imgui phoenix_content_documents)
 phoenix_intended_module(phoenix_workshop_tree phoenix_workshop_shell phoenix_imgui phoenix_content_documents)

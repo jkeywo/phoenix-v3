@@ -28,30 +28,30 @@ void GameplayEditors::State::destruction_fields(Json &d)
 	strings(d, "payloads");
 	optional_string(d, "visual");
 	optional_string(d, "sound");
-	integer(d, "chance_permille", 1000);
-	integer(d, "damage");
-	integer(d, "radius_mm");
-	integer(d, "shield_bypass_permille");
-	integer(d, "growth_ticks", 1);
-	integer(d, "fade_ticks", 10);
-	integer(d, "size_mm", 10000);
-	boolean(d, "affects_missiles", true);
+	edit_registered(d, "gameplay-editors.combat.chance_permille");
+	edit_registered(d, "gameplay-editors.combat.damage");
+	edit_registered(d, "gameplay-editors.combat.radius_mm");
+	edit_registered(d, "gameplay-editors.combat.shield_bypass_permille");
+	edit_registered(d, "gameplay-editors.combat.growth_ticks");
+	edit_registered(d, "gameplay-editors.combat.fade_ticks");
+	edit_registered(d, "gameplay-editors.combat.size_mm");
+	edit_registered(d, "gameplay-editors.combat.affects_missiles");
 }
 
 void GameplayEditors::State::projectile_fields(Json &p)
 {
 	strings(p, "payloads");
-	string(p, "visual");
+	edit_registered(p, "gameplay-editors.combat.visual");
 	for (const auto *key :
 	     {"speed_mm_s", "lifetime_ticks", "penetration", "damage", "damage_per_m", "spread_mdeg",
 	      "shield_bypass_permille", "durability", "arc_height_mm", "chaos_mdeg", "blast_radius_mm", "fuse_radius_mm"})
 		integer(p, key);
-	integer(p, "radius_mm", 100);
-	integer(p, "resistance_per_m", 1);
-	integer(p, "turn_mdeg_s", 90000);
-	integer(p, "seeker_range_mm", 1000000);
-	boolean(p, "tracer");
-	choice(p, "guidance", {"none", "homing", "chaotic"});
+	edit_registered(p, "gameplay-editors.combat.radius_mm.2");
+	edit_registered(p, "gameplay-editors.combat.resistance_per_m");
+	edit_registered(p, "gameplay-editors.combat.turn_mdeg_s");
+	edit_registered(p, "gameplay-editors.combat.seeker_range_mm");
+	edit_registered(p, "gameplay-editors.combat.tracer");
+	edit_registered(p, "gameplay-editors.combat.guidance");
 	optional_string(p, "trail");
 	if (p.contains("destruction"))
 	{
@@ -69,10 +69,10 @@ void GameplayEditors::State::combat(WorkshopDocument &document)
 	auto *ship = select_entity(document);
 	if (!ship)
 		return;
-	integer(*ship, "durability");
+	edit_registered(*ship, "gameplay-editors.combat.durability");
 	rule_bindings_fields(*ship, document);
 	owner_properties_fields(*ship, document);
-	integer(*ship, "half_height_mm", 5000);
+	edit_registered(*ship, "gameplay-editors.combat.half_height_mm");
 	if (ship->contains("destruction"))
 	{
 		ScopedId scope("entity-destruction");
@@ -90,28 +90,20 @@ void GameplayEditors::State::combat(WorkshopDocument &document)
 		return;
 	}
 	auto &c = (*ship)["combat"];
-	string(c, "repair_console");
+	edit_registered(c, "gameplay-editors.combat.repair_console");
 	optional_string(c, "access_controller");
-	integer(c, "collision_scale", 1);
-	integer(c, "collision_threshold_mm_s", 1000);
+	edit_registered(c, "gameplay-editors.combat.collision_scale");
+	edit_registered(c, "gameplay-editors.combat.collision_threshold_mm_s");
 	records(
-	    c, "decks", {{"id", "deck"}, {"weight", 1}, {"compartments", Json::array()}},
+	    c, "decks", workshop_record("gameplay-editors.combat.decks"),
 	    [&](Json &deck)
 	    {
-		    string(deck, "id");
-		    integer(deck, "weight", 1);
-		    records(deck, "compartments",
-		            {{"id", "room"},
-		             {"x_mm", 0},
-		             {"y_mm", 0},
-		             {"half_width_mm", 1000},
-		             {"half_length_mm", 1000},
-		             {"hp", 100},
-		             {"resistance_per_m", 10},
-		             {"recovery_hp", 20}},
+		    edit_registered(deck, "gameplay-editors.combat.id");
+		    edit_registered(deck, "gameplay-editors.combat.weight");
+		    records(deck, "compartments", workshop_record("gameplay-editors.combat.compartments"),
 		            [&](Json &room)
 		            {
-			            string(room, "id");
+			            edit_registered(room, "gameplay-editors.combat.id");
 			            owner_properties_fields(room, document);
 			            for (const auto *key : {"x_mm", "y_mm", "half_width_mm", "half_length_mm", "hp",
 			                                    "resistance_per_m", "recovery_hp"})
@@ -139,22 +131,22 @@ void GameplayEditors::State::combat(WorkshopDocument &document)
 		    }
 		    ImGui::Dummy({size, size});
 	    });
-	records(c, "connections", {{"from", ""}, {"to", ""}, {"travel_ticks", 20}},
+	records(c, "connections", workshop_record("gameplay-editors.combat.connections"),
 	        [&](Json &edge)
 	        {
-		        string(edge, "from");
-		        string(edge, "to");
-		        integer(edge, "travel_ticks", 20);
+		        edit_registered(edge, "gameplay-editors.combat.from");
+		        edit_registered(edge, "gameplay-editors.combat.to");
+		        edit_registered(edge, "gameplay-editors.combat.travel_ticks");
 	        });
 	if (!c.contains("destruction"))
 		c["destruction"] = Json::object();
-	integer(c, "half_height_mm", 5000);
+	edit_registered(c, "gameplay-editors.combat.half_height_mm");
 	auto &d = c["destruction"];
 	destruction_fields(d);
-	string(d, "visual");
-	string(d, "sound");
-	integer(d, "growth_ticks", 10);
-	integer(d, "fade_ticks", 20);
-	integer(d, "size_mm", 100000);
+	edit_registered(d, "gameplay-editors.combat.visual");
+	edit_registered(d, "gameplay-editors.combat.sound");
+	edit_registered(d, "gameplay-editors.combat.growth_ticks.2");
+	edit_registered(d, "gameplay-editors.combat.fade_ticks.2");
+	edit_registered(d, "gameplay-editors.combat.size_mm.2");
 }
 } // namespace phoenix

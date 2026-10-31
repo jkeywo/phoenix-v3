@@ -55,9 +55,7 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 		if (ImGui::CollapsingHeader(label("Add ship item").c_str()))
 		{
 			Json kind{{"Item type", graph_new_kind}};
-			if (choice(kind, "Item type",
-			           {"System", "Station", "Console seat", "Controller widget", "Compartment", "Assembly",
-			            "Power store"}))
+			if (edit_registered(kind, "gameplay-editors.ship_graph.Item type"))
 				graph_new_kind = kind.at("Item type");
 			ImGui::InputText(label("Item identity").c_str(), &graph_new_id);
 			if (graph_new_kind == "Assembly" || graph_new_kind == "Controller widget" ||
@@ -72,87 +70,11 @@ void GameplayEditors::State::ship_graph(WorkshopDocument &document, std::string 
 			}
 			if (button("Add item") && !graph_new_id.empty())
 			{
-				if (graph_new_id.find_first_of("/~") != std::string::npos)
-					throw std::runtime_error("Item identities cannot contain / or ~");
-				auto changed = *authored;
-				std::string path;
-				auto append = [&](const std::string &at, Json value)
-				{
-					auto &rows = changed[Json::json_pointer(at)];
-					if (rows.is_null())
-						rows = Json::array();
-					for (const auto &row : rows)
-						if (row.value("id", std::string{}) == graph_new_id)
-							throw std::runtime_error("Item identity already exists");
-					value["id"] = graph_new_id;
-					rows.push_back(value);
-					path = at + "/" + std::to_string(rows.size() - 1);
-				};
-				if (graph_new_kind == "System")
-				{
-					if (changed.value("systems", Json::object()).contains(graph_new_id))
-						throw std::runtime_error("System identity already exists");
-					changed["systems"][graph_new_id] = {
-					    {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}};
-					path = "/systems/" + graph_new_id;
-				}
-				else if (graph_new_kind == "Station")
-					append("/stations", {{"consoles", Json::array()}});
-				else if (graph_new_kind == "Console seat")
-				{
-					if (!changed.contains("stations") || changed["stations"].empty())
-						throw std::runtime_error("Add a Station first");
-					std::string station = "/stations/0";
-					if (graph_node.starts_with("/stations/"))
-					{
-						const auto end = graph_node.find('/', 10);
-						station = graph_node.substr(0, end);
-					}
-					append(station + "/consoles",
-					       {{"definition", graph_new_template}, {"systems", Json::array()}, {"feeds", Json::array()}});
-				}
-				else if (graph_new_kind == "Assembly")
-					append("/assemblies", {{"assembly", graph_new_template}});
-				else if (graph_new_kind == "Compartment")
-				{
-					if (!changed.contains("combat"))
-						changed["combat"] = {
-						    {"decks", Json::array()}, {"connections", Json::array()}, {"destruction", Json::object()}};
-					if (changed["combat"]["decks"].empty())
-						changed["combat"]["decks"].push_back(
-						    {{"id", "deck"}, {"weight", 1}, {"compartments", Json::array()}});
-					append("/combat/decks/0/compartments", {{"x_mm", 0},
-					                                        {"y_mm", 0},
-					                                        {"half_width_mm", 1000},
-					                                        {"half_length_mm", 1000},
-					                                        {"hp", 100},
-					                                        {"resistance_per_m", 10},
-					                                        {"recovery_hp", 20}});
-				}
-				else if (graph_new_kind == "Power store")
-					append("/resources/stores", {{"resource", "energy"},
-					                             {"capacity", 1000},
-					                             {"initial", 1000},
-					                             {"charge_rate", 100},
-					                             {"discharge_rate", 100},
-					                             {"stop_heat", 1000},
-					                             {"recover_heat", 500}});
-				else
-				{
-					if (!changed.contains("control_layout"))
-						changed["control_layout"] = {{"schema", 2},
-						                             {"controllers", Json::array()},
-						                             {"profiles", Json::array({{{"id", "default"}, {"stars", 1}}})},
-						                             {"default_profile", "default"}};
-					if (changed["control_layout"].value("schema", 1) != 2)
-						throw std::runtime_error("Use the Controller form for legacy control layouts");
-					append("/control_layout/controllers",
-					       {{"console", ""},
-					        {"widget", graph_new_template},
-					        {"equipment", Json::object()},
-					        {"star_levels", {{"1", "automated"}, {"2", "automated"}, {"3", "automated"}}}});
-				}
-				*authored = std::move(changed);
+				const auto path = workshop_ship_add(*authored, {{"id", graph_new_id},
+				                                                {"kind", graph_new_kind},
+				                                                {"definition", graph_new_template},
+				                                                {"selection", graph_node}})
+				                      .get<std::string>();
 				graph_node = path;
 				graph_target = WorkshopTarget::capture(*authored, path);
 				selection = "Ship graph";

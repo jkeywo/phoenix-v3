@@ -58,6 +58,11 @@ public:
 	WorkshopDocument();
 	void reset();
 	void load_pack(std::span<const std::uint8_t> archive);
+	// Source drafts preserve authored inheritance/local trees and may be unfinished.
+	void load_draft(PackDraft);
+	void validate_draft() const;
+	PackDraft source_draft() const;
+	void import_asset(const std::string &path, Bytes bytes);
 	void load_dependency(std::span<const std::uint8_t> archive);
 	void rename_pack(const std::string &id);
 	Bytes export_pack(PackEncoding encoding = PackEncoding::Zip, bool scenario_only = false) const;

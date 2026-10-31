@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Workshop CLI](docs/workshop-cli.md) provides headless content authoring, JSON-lines sessions, shared GUI field descriptions and transactional draft editing.
+
 [Autonomous ship operations](docs/autonomous-operations.md) connects generic combat readiness, impulse travel, assisted docking and offered away jobs through permitted blackboards and normal command admission.
 
 [Courier weapon coverage](docs/radar-coverage.md) corrects the two full-traverse gun turrets and two torpedo tubes, with authored, labelled radar coverage.

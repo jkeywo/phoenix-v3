@@ -20,6 +20,7 @@ import phoenix.content.controllers;
 import phoenix.content.distribution;
 import phoenix.content.equipment;
 import phoenix.content.knowledge;
+import phoenix.content.image_codec;
 import phoenix.content.packs;
 import phoenix.content.scenarios;
 import phoenix.content.verification;
@@ -28,6 +29,22 @@ namespace phoenix
 {
 namespace
 {
+std::vector<Pack> retained_dependencies(const Json &manifest, const std::vector<Pack> &libraries)
+{
+	auto dependencies = pack_dependencies(manifest);
+	std::set<std::string> needed;
+	for (const auto &dependency : dependencies)
+		needed.insert(dependency);
+	for (auto it = libraries.rbegin(); it != libraries.rend(); ++it)
+		if (needed.contains(it->manifest().at("id").get<std::string>()))
+			for (const auto &dependency : pack_dependencies(it->manifest()))
+				needed.insert(dependency);
+	std::vector<Pack> retained;
+	for (const auto &library : libraries)
+		if (needed.contains(library.manifest().at("id").get<std::string>()))
+			retained.push_back(library);
+	return retained;
+}
 using DefinitionTable = std::map<std::string, Json>;
 struct DraftTable
 {
@@ -429,6 +446,83 @@ void WorkshopDocument::new_map(const std::string &id)
 	definitions_["maps"].push_back({{"id", id}, {"entities", Json::array()}, {"ship_slots", Json::array()}});
 	map_index_ = definitions_["maps"].size() - 1;
 }
+void WorkshopDocument::load_draft(PackDraft draft)
+{
+	verify_pack_draft(draft);
+	auto source = parse_json(draft.files.at("definitions.json"), "definitions.json");
+	if (!source.is_object() || !source.contains("schema") || !source.at("schema").is_number_integer())
+		throw std::runtime_error("definitions.json: expected an object with integer schema");
+	for (const auto *kind : {"entities", "maps", "consoles", "trees", "equipment", "assemblies", "messages", "effects",
+	                         "resources", "properties", "recipes", "layouts", "ui_groups", "themes", "control_widgets"})
+	{
+		if (!source.contains(kind))
+			continue;
+		if (!source.at(kind).is_array())
+			throw std::runtime_error(std::string(kind) + ": expected array");
+		std::set<std::string> ids;
+		for (const auto &row : source.at(kind))
+			if (!row.is_object() || !row.contains("id") || !row.at("id").is_string() ||
+			    row.at("id").get<std::string>().empty() || !ids.insert(row.at("id").get<std::string>()).second)
+				throw std::runtime_error(std::string(kind) + ": expected records with unique nonempty string IDs");
+	}
+	for (const auto *kind : {"entities", "maps", "consoles", "trees"})
+		if (!source.contains(kind))
+			source[kind] = Json::array();
+	auto retained = retained_dependencies(draft.manifest, libraries_);
+	auto library = retained.empty() ? Catalog{} : resolve_packs(retained);
+	pack_ = std::move(draft);
+	libraries_ = std::move(retained);
+	library_catalog_ = std::move(library);
+	definitions_ = std::move(source);
+	map_index_ = 0;
+	ui_preview_.reset();
+	++resource_revision_;
+}
+void WorkshopDocument::validate_draft() const
+{
+	// Assets enter through bounded import/load paths; edits need only check metadata
+	// and source structure, without copying or re-decoding every image each frame.
+	verify_pack_draft(PackDraft{pack_.manifest, {{"definitions.json", {}}}});
+	if (!definitions_.is_object() || !definitions_.contains("schema") || !definitions_.at("schema").is_number_integer())
+		throw std::runtime_error("definitions: expected object with integer schema");
+	for (const auto *kind : {"entities", "maps", "consoles", "trees", "equipment", "assemblies", "messages", "effects",
+	                         "resources", "properties", "recipes", "layouts", "ui_groups", "themes", "control_widgets"})
+	{
+		if (!definitions_.contains(kind))
+			continue;
+		const auto &rows = definitions_.at(kind);
+		if (!rows.is_array())
+			throw std::runtime_error(std::string(kind) + ": expected array");
+		std::set<std::string> ids;
+		for (const auto &row : rows)
+			if (!row.is_object() || !row.contains("id") || !row.at("id").is_string() ||
+			    row.at("id").get<std::string>().empty() || !ids.insert(row.at("id").get<std::string>()).second)
+				throw std::runtime_error(std::string(kind) + ": expected unique nonempty string IDs");
+	}
+}
+PackDraft WorkshopDocument::source_draft() const
+{
+	auto result = pack_;
+	for (auto &[path, bytes] : result.files)
+		if (compiled_image(bytes))
+			bytes = source_asset_image(bytes);
+	result.files["manifest.json"] = json_bytes(result.manifest);
+	result.files["definitions.json"] = json_bytes(definitions_);
+	return result;
+}
+void WorkshopDocument::import_asset(const std::string &path, Bytes bytes)
+{
+	if (path == "manifest.json" || path == "definitions.json" || path == "launcher.json")
+		throw std::runtime_error("Use document operations to edit metadata and definitions");
+	auto candidate = source_draft();
+	if (candidate.files.contains(path))
+		throw std::runtime_error("Asset already exists: " + path);
+	candidate.files[path] = std::move(bytes);
+	verify_pack_draft(candidate);
+	pack_.files[path] = std::move(candidate.files.at(path));
+	ui_preview_.reset();
+	++resource_revision_;
+}
 void WorkshopDocument::select_map(std::size_t index)
 {
 	if (index >= definitions_["maps"].size())
@@ -441,18 +535,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	auto loaded = read_pack(archive);
 	// A standalone pack opens independently of the current draft's dependencies.
 	// A mod retains the explicitly loaded dependency closure it declares.
-	auto dependencies = pack_dependencies(loaded.manifest());
-	std::set<std::string> needed;
-	for (const auto &dependency : dependencies)
-		needed.insert(dependency);
-	for (auto it = libraries_.rbegin(); it != libraries_.rend(); ++it)
-		if (needed.contains(it->manifest().at("id").get<std::string>()))
-			for (const auto &dependency : pack_dependencies(it->manifest()))
-				needed.insert(dependency);
-	std::vector<Pack> retained;
-	for (const auto &library : libraries_)
-		if (needed.contains(library.manifest().at("id").get<std::string>()))
-			retained.push_back(library);
+	auto retained = retained_dependencies(loaded.manifest(), libraries_);
 	auto order = retained;
 	order.push_back(loaded);
 	auto resolved = resolve_packs(order);

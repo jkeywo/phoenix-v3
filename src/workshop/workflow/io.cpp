@@ -38,8 +38,9 @@ void WorkshopWorkspace::State::save_pack(WorkshopEnvironment &environment, bool 
 {
 	if (saving)
 		return;
-	const auto bytes =
-	    document.export_pack(pack_location.filename.ends_with(".dat") ? PackEncoding::Dat : PackEncoding::Zip);
+	authoring.commit(document);
+	const auto bytes = authoring.document().export_pack(pack_location.filename.ends_with(".dat") ? PackEncoding::Dat
+	                                                                                             : PackEncoding::Zip);
 	if (!save_as && !library_pack.empty())
 	{
 		if (!environment.library || environment.active)
@@ -99,7 +100,8 @@ void WorkshopWorkspace::State::save_map(bool save_as)
 		return;
 	const auto id = document.map().at("id").get<std::string>();
 	const auto &location = map_locations[id];
-	const auto bytes = document.save_map();
+	authoring.commit(document);
+	const auto bytes = authoring.document().save_map();
 	request_save(saves, FilePurpose::WorkshopMapSave, location.filename.empty() ? id + ".json" : location.filename,
 	             bytes, location.destination, save_as);
 	saving_map = id;
