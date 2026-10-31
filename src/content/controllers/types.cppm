@@ -28,6 +28,18 @@ struct ControllerCandidateSpec
 	std::string id, description, deviation;
 	state_tree::Program program;
 };
+struct ControllerObjectiveBinding
+{
+	std::string id, behavior, action;
+	state_tree::Program program;
+};
+struct ControllerObjectiveChoice
+{
+	KnowledgeId objective = 0;
+	std::uint64_t target = 0;
+	std::string action, invocation, commitment;
+	std::vector<state_tree::Value> arguments;
+};
 struct ControllerActionSpec
 {
 	std::string id, label, tree;

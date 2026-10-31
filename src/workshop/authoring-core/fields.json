@@ -4816,5 +4816,119 @@
 				}
 			}
 		}
+	},
+	"gameplay-editors.scenarios.behavior": {
+		"key": "behavior",
+		"label": "Behavior",
+		"type": "string",
+		"default": "",
+		"choices": [
+			"observe",
+			"navigate",
+			"deliver",
+			"engage",
+			"withdraw",
+			"board",
+			"formation",
+			"depart",
+			"repair",
+			"medical",
+			"ready",
+			"home",
+			"scan",
+			"craft",
+			"away"
+		],
+		"optional": true,
+		"erase_value": ""
+	},
+	"gameplay-editors.scenarios.tier": {
+		"key": "tier",
+		"label": "Priority tier",
+		"type": "string",
+		"default": "objective_other",
+		"choices": [
+			"reaction",
+			"scripted_high",
+			"objective_combat",
+			"directive_combat",
+			"scripted_low",
+			"objective_other",
+			"directive_other"
+		]
+	},
+	"gameplay-editors.scenarios.scoring_policy": {
+		"key": "scoring_policy",
+		"label": "Scoring policy",
+		"type": "string",
+		"default": "default"
+	},
+	"gameplay-editors.scenarios.urgency": {
+		"key": "urgency",
+		"label": "Urgency",
+		"type": "integer",
+		"default": 0,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.objective_behavior": {
+		"key": "behavior",
+		"label": "Objective behavior",
+		"type": "string",
+		"default": "ready"
+	},
+	"tree-editor.tree.objective_weight.urgency": {
+		"key": "urgency",
+		"label": "urgency",
+		"type": "integer",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.objective_weight.progress": {
+		"key": "progress",
+		"label": "progress",
+		"type": "integer",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.objective_weight.risk": {
+		"key": "risk",
+		"label": "risk",
+		"type": "integer",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.objective_weight.travel": {
+		"key": "travel",
+		"label": "travel",
+		"type": "integer",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.objective_weight.resources": {
+		"key": "resources",
+		"label": "resources",
+		"type": "integer",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.objective_weight.commitment": {
+		"key": "commitment",
+		"label": "commitment",
+		"type": "integer",
+		"default": 100,
+		"minimum": 0,
+		"maximum": 1000000
+	},
+	"tree-editor.tree.medical_observations": {
+		"key": "medical_observations",
+		"label": "Medical assignment observations",
+		"type": "boolean",
+		"default": false
 	}
 }

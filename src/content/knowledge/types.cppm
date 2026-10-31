@@ -35,6 +35,7 @@ struct GameplayKnowledgeSharingDefinition
 };
 struct GameplayKnowledgeShipDefinition
 {
+	std::vector<KnowledgeRecordInput> standing_directives;
 	std::vector<GameplayKnowledgeConsoleDefinition> consoles;
 	std::map<std::string, std::string> owners;
 	std::map<std::string, std::string> controllers;

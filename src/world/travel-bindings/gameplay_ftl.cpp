@@ -317,7 +317,7 @@ auto Runtime::commit_departures() -> void
 				            {"left_behind", ftl_left_behind(a.ship)}};
 				std::map<std::uint64_t, Json> objectives;
 				for (const auto &r : knowledge.public_board(a.ship).value("shared", Json::array()))
-					if (r.value("schema", "") == "phoenix.objective")
+					if (r.value("schema", "") == "phoenix.objective" && !r.at("fields").value("directive", false))
 						objectives[r.at("fields").at("id").get<std::uint64_t>()] = r.at("fields");
 				for (const auto &[id, o] : objectives)
 					report["objectives"].push_back(

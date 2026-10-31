@@ -331,7 +331,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		auto &roles = result.knowledge["roles"];
 		if (roles.is_null())
 			roles = Json::array();
-		for (const auto *role : {"phoenix.crew", "phoenix.scenario"})
+		for (const auto *role : {"phoenix.crew", "phoenix.scenario", "phoenix.standing"})
 			if (std::find(roles.begin(), roles.end(), Json(role)) == roles.end())
 				roles.push_back(role);
 		auto &schemas = result.knowledge["schemas"];
@@ -352,12 +352,13 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		                             {{"id", "revision"}, {"type", "integer"}, {"publishable", true}}})}});
 		schemas.push_back(
 		    {{"id", "phoenix.objective"},
-		     {"producers", {"phoenix.scenario"}},
+		     {"producers", {"phoenix.scenario", "phoenix.standing"}},
 		     {"readers", {"phoenix.crew"}},
 		     {"ship_publishable", true},
 		     {"fields",
 		      Json::array(
 		          {{{"id", "id"}, {"type", "integer"}, {"publishable", true}},
+		           {{"id", "directive"}, {"type", "boolean"}, {"publishable", true}, {"required", false}},
 		           {{"id", "behavior"}, {"type", "text"}, {"publishable", true}, {"required", false}},
 		           {{"id", "tier"}, {"type", "text"}, {"publishable", true}, {"required", false}},
 		           {{"id", "scoring_policy"}, {"type", "text"}, {"publishable", true}, {"required", false}},
@@ -1186,6 +1187,7 @@ void prepare_catalog(Catalog &catalog, SharedPropertyCatalog compiled)
 				{
 					auto bindings = compile_controller_bindings(tree, catalog, properties);
 					(void)compile_controller_actions(tree, catalog, bindings.registry);
+					(void)compile_controller_objectives(tree, catalog, bindings.registry);
 					(void)compile_controller_candidates(tree, catalog, bindings.registry);
 					catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
 					catalog.controller_bindings.emplace(id, std::move(bindings));

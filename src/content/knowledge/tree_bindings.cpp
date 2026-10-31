@@ -500,12 +500,21 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.value("complexity_observation", false))
 		add({"console.stars", Type::Integer, 4, {}});
+	if (resolved.contains("objective_bindings"))
+	{
+		for (const auto *name : {"id", "target", "destination_x", "destination_y", "urgency", "age"})
+			add({std::string("objective.record.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"behavior", "tier"})
+			add({std::string("objective.record.") + name, Type::Text, 4, {}});
+	}
 	if (resolved.value("medical_observations", false))
 	{
 		for (const auto *name : {"team", "destination"})
 			add({std::string("medical.") + name, Type::Text, 4, {}});
 		add({"medical.revision", Type::Integer, 4, {}});
 		add({"medical.available", Type::Boolean, 4, {}});
+		add({"medical.target", Type::Integer, 4, {}});
+		add({"medical.urgency", Type::Integer, 4, {}});
 	}
 	if (resolved.value("workflow_observations", false))
 	{

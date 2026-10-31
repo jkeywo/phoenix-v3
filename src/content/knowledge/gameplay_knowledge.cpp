@@ -469,6 +469,56 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 		if (!entity.contains("systems"))
 			continue;
 		GameplayKnowledgeShipDefinition definition;
+		const auto directives = entity.value("standing_directives", Json::array());
+		knowledge_require(directives.is_array() && directives.size() <= 32,
+		                  name + ": expected bounded standing directives");
+		std::set<std::uint64_t> directive_ids;
+		for (const auto &directive : directives)
+		{
+			const auto id = directive.at("id").get<std::string>();
+			const auto behavior = directive.at("behavior").get<std::string>();
+			const auto tier = directive.value("tier", std::string("directive_other"));
+			const auto policy = directive.value("scoring_policy", std::string("default"));
+			const auto urgency = directive.value("urgency", std::int64_t{0});
+			knowledge_require(valid_identifier(id) && valid_identifier(policy) && urgency >= 0 && urgency <= 1000000,
+			                  name + ": invalid standing directive identity, policy or urgency");
+			const std::set<std::string> behaviors{"engage",    "withdraw", "ready", "repair", "medical",
+			                                      "home",      "craft",    "away",  "scan",   "navigate",
+			                                      "formation", "depart",   "board"};
+			const std::set<std::string> tiers{"reaction",     "scripted_high",   "objective_combat", "directive_combat",
+			                                  "scripted_low", "objective_other", "directive_other"};
+			knowledge_require(behaviors.contains(behavior) && tiers.contains(tier),
+			                  name + ": unsupported standing directive behavior/tier");
+			std::uint32_t hash = 2166136261U;
+			for (const unsigned char byte : id)
+			{
+				hash ^= byte;
+				hash *= 16777619U;
+			}
+			const std::uint64_t subject = 4503599627370496ULL + hash;
+			knowledge_require(directive_ids.insert(subject).second,
+			                  name + ": duplicate/colliding standing directive identity");
+			KnowledgeRecordInput record;
+			record.schema = compiled.knowledge.schema("phoenix.objective");
+			record.producer = compiled.knowledge.role("phoenix.standing");
+			record.subject = subject;
+			const auto field = [&](const char *key)
+			{
+				return compiled.knowledge.field(record.schema, key);
+			};
+			record.fields = {{field("id"), static_cast<std::int64_t>(subject)},
+			                 {field("directive"), true},
+			                 {field("behavior"), behavior},
+			                 {field("tier"), tier},
+			                 {field("scoring_policy"), policy},
+			                 {field("urgency"), urgency},
+			                 {field("status"), std::string("active")},
+			                 {field("title"), directive.value("title_key", id)},
+			                 {field("description"), directive.value("description_key", std::string{})},
+			                 {field("credited"), false},
+			                 {field("outcome"), std::string{}}};
+			definition.standing_directives.push_back(std::move(record));
+		}
 		for (const auto &console : resolve_consoles(catalog, name))
 		{
 			const Json *config = &entity;
@@ -495,6 +545,11 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog, 
 				producer_defaults = knowledge_roles(compiled.knowledge, catalog.consoles.at(console.definition),
 				                                    "knowledge_producers", producer_defaults);
 			target.producers = knowledge_roles(compiled.knowledge, *config, "knowledge_producers", producer_defaults);
+			for (const auto *role : {"phoenix.scenario", "phoenix.standing"})
+				if (std::find(compiled.knowledge.roles.begin(), compiled.knowledge.roles.end(), role) !=
+				    compiled.knowledge.roles.end())
+					knowledge_require(!knowledge_has(target.producers, compiled.knowledge.role(role)),
+					                  name + ": Console cannot acquire a reserved objective producer role");
 			if (std::find(compiled.knowledge.roles.begin(), compiled.knowledge.roles.end(), "phoenix.officer") !=
 			    compiled.knowledge.roles.end())
 				target.producers.push_back(compiled.knowledge.role("phoenix.officer"));

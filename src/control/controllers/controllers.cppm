@@ -50,6 +50,7 @@ struct ControllerBrain
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	bool report_observations = false;
 	std::map<std::string, std::array<std::int64_t, 6>> objective_scoring;
+	std::vector<ControllerObjectiveBinding> objective_bindings;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;
 	ControllerDestinations<ControllerResultField> result;
@@ -129,6 +130,8 @@ struct ConsoleControllerRuntime
 	std::uint64_t retry_count = 0, last_decision_tick = 0;
 	Json decision_history = Json::array();
 	KnowledgeId selected_objective = 0;
+	std::string objective_commitment;
+	std::optional<ControllerObjectiveChoice> objective_choice; // Frozen, recomputed before each policy tick.
 	Json objective_diagnostics = Json::array();
 	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;

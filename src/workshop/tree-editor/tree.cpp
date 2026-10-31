@@ -907,6 +907,34 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 				        structure(binding[key], true);
 			        }
 		        });
+	edit_registered(tree, "tree-editor.tree.medical_observations");
+	if (editable("objective_bindings"))
+		records(tree, "objective_bindings", workshop_record("tree-editor.tree.objective_bindings"),
+		        [&](Json &binding)
+		        {
+			        edit_registered(binding, "tree-editor.tree.id.2");
+			        edit_registered(binding, "tree-editor.tree.objective_behavior");
+			        choice(binding, "action", ids(resolved.value("action_bindings", Json::array())));
+			        for (const auto *key : {"available", "target", "arguments", "factors"})
+				        if (binding.contains(key))
+				        {
+					        heading(key);
+					        structure(binding[key], true);
+				        }
+		        });
+	if (editable("objective_scoring"))
+	{
+		if (!tree.contains("objective_scoring") && button("Add objective scoring policy"))
+			tree["objective_scoring"] = {{"default", Json::object()}};
+		if (tree.contains("objective_scoring"))
+			for (auto &[name, policy] : tree["objective_scoring"].items())
+			{
+				ScopedId policy_scope(name.c_str());
+				heading(name.c_str());
+				for (const auto *factor : {"urgency", "progress", "risk", "travel", "resources", "commitment"})
+					edit_registered(policy, (std::string("tree-editor.tree.objective_weight.") + factor).c_str());
+			}
+	}
 	optional_string(tree, "decision_context");
 	if (editable("decision_candidates"))
 		records(tree, "decision_candidates", workshop_record("tree-editor.tree.decision_candidates"),

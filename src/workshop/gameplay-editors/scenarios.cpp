@@ -264,6 +264,11 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	        {
 		        edit_registered(objective, "gameplay-editors.scenarios.id");
 		        edit_registered(objective, "gameplay-editors.scenarios.type");
+		        edit_registered(objective, "gameplay-editors.scenarios.behavior");
+		        edit_registered(objective, "gameplay-editors.scenarios.tier");
+		        edit_registered(objective, "gameplay-editors.scenarios.scoring_policy");
+		        edit_registered(objective, "gameplay-editors.scenarios.urgency");
+		        actor(objective, "behavior_target", slots);
 		        edit_registered(objective, "gameplay-editors.scenarios.optional");
 		        if (objective.value("type", "") == "condition")
 		        {

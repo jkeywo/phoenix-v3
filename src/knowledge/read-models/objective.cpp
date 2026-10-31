@@ -44,6 +44,8 @@ Json board(const Json &source)
 		for (const auto *field : {"behavior", "tier", "scoring_policy"})
 			if (row.contains(field))
 				objective[field] = text(row.at(field), 128);
+		if (row.contains("directive"))
+			objective["directive"] = row.at("directive").get<bool>();
 		if (row.contains("urgency"))
 			objective["urgency"] = number(row.at("urgency"), 0, 1000000);
 		if (row.contains("target"))

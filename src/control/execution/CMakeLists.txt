@@ -10,6 +10,7 @@ add_library(
 	observations.cpp
 	admission.cpp
 	objectives.cpp
+	objective_choices.cpp
 )
 target_sources(phoenix_control_execution PUBLIC FILE_SET CXX_MODULES FILES execution.cppm objectives.cppm)
 target_link_libraries(

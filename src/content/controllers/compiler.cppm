@@ -46,6 +46,8 @@ std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &,
                                                                    const state_tree::Registry &);
 std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const Catalog &,
                                                              const state_tree::Registry &);
+std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json &, const Catalog &,
+                                                                      const state_tree::Registry &);
 void expand_combat_policies(Catalog &);
 void expand_officer_policies(Catalog &);
 void expand_control_widget_policies(Catalog &);

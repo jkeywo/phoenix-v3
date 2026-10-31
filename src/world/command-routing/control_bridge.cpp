@@ -89,7 +89,7 @@ auto Runtime::objectives_board(EntityId ship) const -> Json
 		for (const auto *name :
 		     {"id", "title", "description", "status", "destination_x", "destination_y", "delivery_target",
 		      "delivery_port", "delivery_source", "delivery_store", "delivery_material", "delivery_quantity",
-		      "behavior", "tier", "scoring_policy", "urgency", "target"})
+		      "behavior", "tier", "scoring_policy", "urgency", "target", "directive"})
 		{
 			const auto value = record.value.fields.find(schema.field(record.value.schema, name));
 			if (value != record.value.fields.end())

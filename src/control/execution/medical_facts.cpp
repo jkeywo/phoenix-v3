@@ -20,6 +20,8 @@ void append_controller_medical_facts(const ConsoleControllerRuntime &controller,
 	values.at(base + 1) = Value::string("");
 	values.at(base + 2) = Value::integer(0);
 	values.at(base + 3) = Value::boolean(false);
+	values.at(base + 4) = Value::integer(0);
+	values.at(base + 5) = Value::integer(0);
 	struct Assignment
 	{
 		std::string team, destination;
@@ -85,6 +87,8 @@ void append_controller_medical_facts(const ConsoleControllerRuntime &controller,
 		values.at(base + 1) = Value::string(assignment.destination);
 		values.at(base + 2) = Value::integer(assignment.revision);
 		values.at(base + 3) = Value::boolean(true);
+		values.at(base + 4) = Value::integer(candidates[*selected].target);
+		values.at(base + 5) = Value::integer(candidates[*selected].factors.urgency);
 	}
 }
 } // namespace phoenix

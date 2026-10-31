@@ -169,6 +169,12 @@ void GameplayKnowledge::install_ship(EntityId ship, GameplayKnowledgeShipBinding
 	}
 	ships_.emplace(ship, std::move(binding));
 	if (create_feeds)
+		for (auto directive : definition.standing_directives)
+		{
+			directive.provenance = {ship, tick, 1, 0, EvidenceKind::Fact};
+			runtime_.write_ship(ship, std::move(directive), tick);
+		}
+	if (create_feeds)
 		for (const auto &feed : definition.feeds)
 			activate_feed({ship, feed.source}, {ship, feed.target}, feed.schema,
 			              feed.subject == 0 ? ship : feed.subject, feed.fields, tick);

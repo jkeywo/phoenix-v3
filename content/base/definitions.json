@@ -2642,6 +2642,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{
@@ -11917,7 +11961,51 @@
 					}
 				]
 			},
-			"processes": { "recovery-infirmary": { "process": "base.process.recovery", "native_id": "infirmary" } }
+			"processes": { "recovery-infirmary": { "process": "base.process.recovery", "native_id": "infirmary" } },
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
+			]
 		},
 		{
 			"id": "base.combat-projectile",
@@ -13647,6 +13735,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{
@@ -14088,7 +14220,51 @@
 					"radius_mm": 50000
 				}
 			},
-			"message_templates": []
+			"message_templates": [],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
+			]
 		},
 		{
 			"id": "base.cruiser-turret",
@@ -14559,6 +14735,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{
@@ -14941,6 +15161,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{
@@ -15319,6 +15583,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{ "id": "base.cruiser-test-raider", "extends": "base.pirate-raider", "faction": "raiders" },
@@ -15593,6 +15901,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{
@@ -16559,6 +16911,50 @@
 				"base.message.report.repairs.report.forward",
 				"base.message.report.repairs.clear.forward",
 				"base.message.report.findings.report.forward"
+			],
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
 			]
 		},
 		{
@@ -18214,7 +18610,51 @@
 						}
 					}
 				]
-			}
+			},
+			"standing_directives": [
+				{
+					"id": "engage",
+					"behavior": "engage",
+					"tier": "directive_combat",
+					"scoring_policy": "default",
+					"title_key": "Combat"
+				},
+				{
+					"id": "withdraw",
+					"behavior": "withdraw",
+					"tier": "reaction",
+					"scoring_policy": "default",
+					"title_key": "Withdraw"
+				},
+				{
+					"id": "ready",
+					"behavior": "ready",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Readiness"
+				},
+				{
+					"id": "repair",
+					"behavior": "repair",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Repair"
+				},
+				{
+					"id": "medical",
+					"behavior": "medical",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Medical"
+				},
+				{
+					"id": "home",
+					"behavior": "home",
+					"tier": "directive_other",
+					"scoring_policy": "default",
+					"title_key": "Return home"
+				}
+			]
 		},
 		{
 			"id": "base.knuckleduster-fore-dorsal",
@@ -61549,50 +61989,7 @@
 			"states": [
 				{
 					"id": "operate",
-					"running": [
-						{
-							"attempt": [
-								{
-									"conditions": [
-										{
-											"left": {
-												"observation": "medical.available"
-											},
-											"op": "eq",
-											"right": true
-										}
-									],
-									"tasks": [
-										{
-											"action": "select.medical-assignment",
-											"arguments": [
-												"medical-assignment",
-												{
-													"observation": "medical.team"
-												},
-												{
-													"observation": "medical.destination"
-												},
-												{
-													"observation": "medical.revision"
-												}
-											]
-										}
-									]
-								},
-								{
-									"tasks": [
-										{
-											"action": "select.medical-ready",
-											"arguments": [
-												"maintain-readiness"
-											]
-										}
-									]
-								}
-							]
-						}
-					],
+					"running": [],
 					"parent": "officer-reports"
 				},
 				{
@@ -61702,7 +62099,113 @@
 					"id": "medical-ready",
 					"tree": "base.action.medical-ready"
 				}
-			]
+			],
+			"objective_bindings": [
+				{
+					"behavior": "medical",
+					"action": "medical-assignment",
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.urgency"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": {
+							"observation": "medical.urgency"
+						},
+						"progress": 1000
+					}
+				},
+				{
+					"behavior": "home",
+					"action": "medical-assignment",
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.urgency"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": {
+							"observation": "medical.urgency"
+						},
+						"progress": 1
+					}
+				},
+				{
+					"behavior": "ready",
+					"action": "medical-ready",
+					"available": [
+						{
+							"left": {
+								"observation": "command.enabled"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": []
+				}
+			],
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 100
+				}
+			}
 		},
 		{
 			"id": "base.courier.assist.missile-launcher.ammo",
@@ -67651,9 +68154,6 @@
 						},
 						{
 							"call": "base.report.radio"
-						},
-						{
-							"call": "base.policy.medical-assignment"
 						}
 					],
 					"parent": "officer-reports"
@@ -67690,7 +68190,99 @@
 					"id": "medical-assignment",
 					"tree": "base.action.medical-assignment"
 				}
-			]
+			],
+			"objective_bindings": [
+				{
+					"behavior": "medical",
+					"action": "medical-assignment",
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.urgency"
+							},
+							"op": "gt",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": {
+							"observation": "medical.urgency"
+						},
+						"progress": 1000
+					}
+				},
+				{
+					"behavior": "home",
+					"action": "medical-assignment",
+					"available": [
+						{
+							"left": {
+								"observation": "medical.available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "medical.urgency"
+							},
+							"op": "eq",
+							"right": 0
+						}
+					],
+					"target": {
+						"observation": "medical.target"
+					},
+					"arguments": [
+						{
+							"observation": "medical.team"
+						},
+						{
+							"observation": "medical.destination"
+						},
+						{
+							"observation": "medical.revision"
+						}
+					],
+					"factors": {
+						"urgency": {
+							"observation": "medical.urgency"
+						},
+						"progress": 1
+					}
+				}
+			],
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 100
+				}
+			}
 		},
 		{
 			"id": "base.report.team-complete",

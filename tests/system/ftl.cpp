@@ -204,6 +204,8 @@ void displacement_departure()
 void race_departure()
 {
 	auto source = ftl_fixture();
+	source["entities"][0]["standing_directives"] =
+	    Json::array({{{"id", "restore"}, {"behavior", "ready"}, {"title_key", "Standing readiness"}}});
 	auto &map = source["maps"][0];
 	map["regions"] =
 	    Json::array({{{"id", "finish"}, {"shape", "circle"}, {"x_mm", 100000}, {"y_mm", 0}, {"radius_mm", 1000}}});
@@ -244,7 +246,7 @@ void race_departure()
 	w.tick();
 	const auto report = w.observe(101)->gameplay.at("mission_report");
 	require(report.at("objectives").size() == 1 && report.at("objectives").at(0).at("status") == "active",
-	        "departure reports unfinished race without defeat");
+	        "departure reports the unfinished race without grading standing directives");
 	World restored;
 	restored.restore(catalog, w.save());
 	OperatingCommand speed{2, "speed_mm_s", 17000, {}, "propulsion", "speed"};

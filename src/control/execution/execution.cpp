@@ -216,6 +216,18 @@ void step_controller_policy(ConsoleControllerRuntime &controller, std::span<cons
 		for (const auto &output : result.outputs)
 			ports.output(output, observations, nullptr);
 	}
+	if (!brain.objective_bindings.empty())
+	{
+		if (controller.objective_choice)
+		{
+			const auto &choice = *controller.objective_choice;
+			if (select_controller_action(controller, choice.action, choice.invocation, choice.arguments, observations,
+			                             controller.generation, ports))
+				controller.objective_commitment = choice.commitment;
+		}
+		else if (controller.action.invocation.starts_with("objective/"))
+			cancel_controller_action(controller, "no_feasible_objective", observations, ports);
+	}
 	run_controller_action(controller, observations, ports);
 }
 

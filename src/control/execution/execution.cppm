@@ -54,6 +54,9 @@ struct ControllerObservationSources
 	std::function<bool(const KnowledgeRecord &, KnowledgeTick)> stale;
 	std::function<std::string(KnowledgeId)> request_key_name;
 };
+std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &,
+                                                                        const ControllerObservationSources &,
+                                                                        std::span<const state_tree::Value>, Json &);
 const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &,
                                                        const ConsoleControllerRuntime &, Json *diagnostics = nullptr,
                                                        bool scan = false);

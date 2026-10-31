@@ -231,8 +231,18 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	{
 		auto &selection = entities.at(id).get_mut<EntityControls>().controllers.at(
 		    static_cast<std::size_t>(&controller - entities.at(id).get<EntityControls>().controllers.data()));
-		const auto *objective = controller_navigation_objective(bindings, controller, &selection.objective_diagnostics);
-		selection.selected_objective = objective ? objective->value.subject : 0;
+		if (!brain.objective_bindings.empty())
+		{
+			selection.objective_choice =
+			    evaluate_controller_objectives(controller, bindings, values, selection.objective_diagnostics);
+			selection.selected_objective = selection.objective_choice ? selection.objective_choice->objective : 0;
+		}
+		else
+		{
+			const auto *objective =
+			    controller_navigation_objective(bindings, controller, &selection.objective_diagnostics);
+			selection.selected_objective = objective ? objective->value.subject : 0;
+		}
 	}
 	return values;
 }

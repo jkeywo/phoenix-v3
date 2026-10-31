@@ -49,8 +49,132 @@ Json objective_priority_fixture()
 			objective["urgency"] = 10;
 	return source;
 }
+void objective_binding_cases()
+{
+	const auto fixture = []
+	{
+		auto source = objective_priority_fixture();
+		for (auto &tree : source["trees"])
+			if (tree["id"] == "test.priority-reader")
+				tree = Json::parse(R"json({"id":"test.priority-reader","context":"controller",
+ "command_bindings":[{"channel":"speed"}],
+ "action_bindings":[{"id":"advance","tree":"test.objective-executor"}],
+ "objective_bindings":[{"behavior":"navigate","action":"advance",
+   "arguments":[{"observation":"objective.record.destination_x"}]}],
+ "initial":"observe","states":[{"id":"observe"}]})json");
+		source["trees"].push_back(Json::parse(R"json({"id":"test.objective-executor","context":"controller",
+ "controller_action":{"label":"Advance disclosed objective","inputs":[{"name":"objective_speed","type":"integer"}]},
+ "command_bindings":[{"channel":"speed"}],"initial":"advance",
+ "states":[{"id":"advance","running":[{"action":"write.speed","arguments":[{"observation":"input.objective_speed"}]}]}]})json"));
+		return source;
+	};
+	for (const auto violation : {"duplicate", "selector", "producer"})
+	{
+		auto malformed = fixture();
+		std::string expected;
+		if (std::string(violation) == "producer")
+		{
+			malformed["entities"][0]["stations"][0]["consoles"][0]["knowledge_producers"] = {"phoenix.standing"};
+			expected = "reserved objective producer";
+		}
+		else
+			for (auto &tree : malformed["trees"])
+				if (tree["id"] == "test.priority-reader")
+				{
+					if (std::string(violation) == "duplicate")
+					{
+						tree["objective_bindings"].push_back(tree["objective_bindings"][0]);
+						expected = "duplicate objective";
+					}
+					else
+					{
+						tree["states"][0]["running"] = Json::parse(
+						    R"json([{"attempt":[{"tasks":[{"action":"select.advance","arguments":["bypass",1000]}]}]}])json");
+						expected = "Objective policies";
+					}
+				}
+		bool refused = false;
+		try
+		{
+			(void)load(malformed);
+		}
+		catch (const std::exception &error)
+		{
+			refused = std::string(error.what()).find(expected) != std::string::npos;
+		}
+		require(refused,
+		        "Production verification refuses duplicate candidates, nested selectors and reserved producer grants");
+	}
+	for (const auto mode : {"tier", "reaction", "infeasible", "tie"})
+	{
+		auto source = fixture();
+		for (auto &objective : source["maps"][0]["scenario"]["objectives"])
+		{
+			objective["urgency"] = std::string(mode) == "tie" ? 0 : objective.value("urgency", 0);
+			objective["tier"] = objective["id"] == "first" ? (std::string(mode) == "reaction" ? "reaction"
+			                                                  : std::string(mode) == "tie"    ? "objective_other"
+			                                                                                  : "scripted_high")
+			                                               : "objective_other";
+			if (std::string(mode) == "infeasible" && objective["id"] == "first")
+				objective["scoring_policy"] = "unavailable";
+		}
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		require(world.prepare_console_profile({1, "drive"}, "automatic") && world.claim(301, 1, "drive") &&
+		            world.claim(302, 1, "observer"),
+		        "prepare scored binding fixture");
+		for (int i = 0; i < 6; ++i)
+			world.tick();
+		const auto speed = [&]
+		{
+			return controller(world, 301, "starboard_drive")["commands"]["speed"]["value"].get<std::int64_t>();
+		};
+		require(speed() == (std::string(mode) == "infeasible" ? 2000 : 1000),
+		        "Compiled bindings choose feasible tiers before utility and use stable identity ties");
+		const auto board = world.observe(302)->gameplay.at("objective_board");
+		const auto mark = [&](std::int64_t objective)
+		{
+			OperatingCommand command{1, "objective.mark", objective};
+			command.controller = "bridge";
+			command.generation = controller(world, 302, "bridge").at("generation");
+			command.arguments = {world.observe(302)->gameplay.at("objective_board").at("revision").get<std::int64_t>()};
+			require(world.submit(302, command), "mark an objective for shared action arbitration");
+			world.tick();
+			world.tick();
+		};
+		mark(board.at("objectives")[1].at("id"));
+		require(speed() == (std::string(mode) == "reaction" ? 1000 : 2000),
+		        "Reaction precedes Captain marks while marks preempt remaining feasible actions");
+		mark(board.at("objectives")[0].at("id"));
+		require(speed() == (std::string(mode) == "infeasible" || std::string(mode) == "tie" ? 2000 : 1000),
+		        "Multiple marks retain tier order, same-tier commitment and infeasible fallthrough");
+		const auto diagnostics = controller(world, 301, "starboard_drive").at("objective_candidates");
+		require(diagnostics.size() == 2 && std::count_if(diagnostics.begin(), diagnostics.end(),
+		                                                 [](const auto &candidate)
+		                                                 {
+			                                                 return candidate.at("selected").template get<bool>();
+		                                                 }) == 1,
+		        "Objective diagnostics contain only shipwide candidates and explain one selection");
+		if (std::string(mode) == "infeasible")
+			require(std::any_of(diagnostics.begin(), diagnostics.end(),
+			                    [](const auto &candidate)
+			                    {
+				                    return candidate.at("reason") == "unsupported_scoring_policy" &&
+				                           !candidate.at("feasible").template get<bool>();
+			                    }),
+			        "Unsupported scoring policy is explicitly infeasible without ending its objective");
+		World resumed;
+		resumed.restore(catalog, world.save());
+		world.tick();
+		resumed.tick();
+		require(world.save() == resumed.save(),
+		        "Selected action, commitment identity and continuation survive checkpoints");
+	}
+}
 void objective_priority_cases()
 {
+	objective_binding_cases();
 	auto source = objective_priority_fixture();
 	const auto catalog = load(source);
 	World world;

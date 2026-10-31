@@ -228,6 +228,16 @@ void medical_evidence_isolation()
 {
 	auto source = medical_fixture();
 	auto &ship = source["entities"][0];
+	ship["standing_directives"] = Json::parse(
+	    R"json([{"id":"medical","behavior":"medical","tier":"directive_other","scoring_policy":"default","title_key":"Medical"},{"id":"home","behavior":"home","tier":"directive_other","scoring_policy":"default","title_key":"Return home"}])json");
+	for (auto &tree : source["trees"])
+		if (tree["id"] == "test.medical.assignment")
+		{
+			tree["states"][0]["running"] = Json::array();
+			tree["objective_bindings"] = Json::parse(
+			    R"json([{"behavior":"medical","action":"medical-assignment","available":[{"left":{"observation":"medical.available"},"op":"eq","right":true},{"left":{"observation":"medical.urgency"},"op":"gt","right":0}],"target":{"observation":"medical.target"},"arguments":[{"observation":"medical.team"},{"observation":"medical.destination"},{"observation":"medical.revision"}],"factors":{"urgency":{"observation":"medical.urgency"},"progress":1000}},{"behavior":"home","action":"medical-assignment","available":[{"left":{"observation":"medical.available"},"op":"eq","right":true},{"left":{"observation":"medical.urgency"},"op":"eq","right":0}],"target":{"observation":"medical.target"},"arguments":[{"observation":"medical.team"},{"observation":"medical.destination"},{"observation":"medical.revision"}],"factors":{"urgency":{"observation":"medical.urgency"},"progress":1}}])json");
+		}
+
 	for (auto &officer : ship["personnel"]["officers"])
 	{
 		officer["condition"] = "healthy";

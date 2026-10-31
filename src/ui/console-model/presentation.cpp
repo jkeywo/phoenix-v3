@@ -313,6 +313,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		for (const auto &objective : board.at("objectives"))
 		{
 			std::string text = objective.value("priority", false) ? localise("Priority objective") + ": " : "";
+			if (objective.value("directive", false))
+				text += localise("Standing directive") + ": ";
 			text += localise(objective.at("title")) + " — " + console_objective_status(objective.at("status"));
 			if (!objective.value("description", std::string{}).empty())
 				text += ". " + localise(objective.at("description"));

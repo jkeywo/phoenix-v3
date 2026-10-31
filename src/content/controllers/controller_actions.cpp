@@ -280,6 +280,10 @@ void expand_officer_policies(Catalog &catalog)
 			    controller.contains("tree")
 			        ? resolve_tree_definition(catalog.trees.at(controller.at("tree").get<std::string>()), catalog)
 			        : Json{{"context", "controller"}, {"initial", "idle"}, {"states", Json::array({{{"id", "idle"}}})}};
+			// Scored policies declare support actions explicitly; a legacy wrapper
+			// must not inject a second, unscored selector around their arbitration.
+			if (policy.contains("objective_bindings"))
+				continue;
 			// Only shared-action policies can delegate execution. Legacy direct-write packs retain their policy.
 			if (controller.contains("tree") && !policy.contains("action_bindings"))
 				continue;
@@ -704,6 +708,112 @@ std::vector<ControllerActionSpec> compile_controller_actions(const Json &source,
 		};
 		check(policy);
 		(void)compile_controller_candidates(tree, catalog, registry);
+	}
+	return result;
+}
+std::vector<ControllerObjectiveBinding> compile_controller_objectives(const Json &source, const Catalog &catalog,
+                                                                      const state_tree::Registry &registry)
+{
+	const auto tree = resolve_tree_definition(source, catalog);
+	const auto bindings = tree.value("objective_bindings", Json::array());
+	if (!bindings.is_array() || bindings.size() > 64)
+		throw std::runtime_error("Expected bounded objective behavior bindings");
+	std::vector<ControllerObjectiveBinding> result;
+	std::set<std::string> identities;
+	const auto observation = [](const char *name)
+	{
+		return Json{{"observation", name}};
+	};
+	for (const auto &binding : bindings)
+	{
+		ControllerObjectiveBinding spec;
+		spec.behavior = binding.at("behavior");
+		spec.action = binding.at("action");
+		spec.id = binding.value("id", spec.behavior + "." + spec.action);
+		if (!valid_identifier(spec.behavior) || !valid_identifier(spec.action) || !valid_identifier(spec.id) ||
+		    !identities.insert(spec.id).second)
+			throw std::runtime_error("Invalid or duplicate objective behavior/action binding");
+		const auto action = std::find_if(registry.actions.begin(), registry.actions.end(),
+		                                 [&](const auto &candidate)
+		                                 {
+			                                 return candidate.name == "select." + spec.action;
+		                                 });
+		if (action == registry.actions.end())
+			throw std::runtime_error("Objective behavior requires a declared shared action");
+		const auto arguments = binding.value("arguments", Json::array());
+		if (!arguments.is_array() || arguments.size() + 1 != action->arguments.size())
+			throw std::runtime_error("Objective behavior arguments differ from its shared action");
+		auto evaluator = registry;
+		state_tree::ActionSpec offer{"objective.offer", 4, {}, false};
+		Json inputs = Json::array({binding.value("target", observation("objective.record.target"))});
+		offer.arguments.push_back(state_tree::Type::Integer);
+		const auto factors = binding.value("factors", Json::object());
+		if (!factors.is_object())
+			throw std::runtime_error("Invalid objective scoring factors");
+		for (const auto &[name, expression] : factors.items())
+			if (name != "urgency" && name != "progress" && name != "risk" && name != "travel" && name != "resources")
+				throw std::runtime_error("Unknown objective scoring factor: " + name);
+		for (const auto *name : {"urgency", "progress", "risk", "travel", "resources"})
+		{
+			inputs.push_back(factors.value(name, std::string(name) == "urgency"
+			                                         ? observation("objective.record.urgency")
+			                                     : std::string(name) == "progress" ? Json(1000)
+			                                                                       : Json(0)));
+			offer.arguments.push_back(state_tree::Type::Integer);
+		}
+		for (std::size_t i = 0; i < arguments.size(); ++i)
+		{
+			inputs.push_back(arguments[i]);
+			offer.arguments.push_back(action->arguments[i + 1]);
+		}
+		evaluator.actions.push_back(std::move(offer));
+		const Json definition{
+		    {"context", "controller"},
+		    {"initial", "offer"},
+		    {"states",
+		     Json::array({{{"id", "offer"},
+		                   {"running",
+		                    Json::array({{{"attempt",
+		                                   Json::array({{{"conditions", binding.value("available", Json::array())},
+		                                                 {"tasks", Json::array({{{"action", "objective.offer"},
+		                                                                         {"arguments", inputs}}})}}})}}})}}})}};
+		spec.program = state_tree::compile(definition, evaluator);
+		result.push_back(std::move(spec));
+	}
+	if (!result.empty())
+	{
+		const auto policy = state_tree::compile(tree, registry, catalog.trees);
+		std::function<void(const state_tree::Program &)> check;
+		check = [&](const state_tree::Program &program)
+		{
+			std::function<void(const std::vector<state_tree::Task> &)> tasks;
+			tasks = [&](const auto &items)
+			{
+				for (const auto &task : items)
+				{
+					if (task.kind == state_tree::TaskKind::Action)
+					{
+						const auto &name = program.registry.actions.at(task.target).name;
+						if (name.starts_with("select.") || name.starts_with("replace.") || name.starts_with("write.") ||
+						    name == "action.succeed" || name == "action.fail" || name == "action.cancel")
+							throw std::runtime_error(
+							    tree.value("id", std::string("Controller tree")) +
+							    ": Objective policies select actions through their scored bindings only");
+					}
+					for (const auto &branch : task.branches)
+						tasks(branch);
+				}
+			};
+			for (const auto &state : program.states)
+			{
+				tasks(state.entry);
+				tasks(state.running);
+				tasks(state.exit);
+			}
+			for (const auto &reference : program.references)
+				check(reference);
+		};
+		check(policy);
 	}
 	return result;
 }
