@@ -37,7 +37,7 @@ OperatingCommand order(const World &w, const std::string &action, const std::str
 }
 #include "../support/away_priority_cases.hpp"
 #include "../support/away_medical_cases.hpp"
-void assisted_docking_mission()
+Json assisted_docking_source()
 {
 	auto source = away_fixture();
 	auto &hull = source["entities"][0];
@@ -80,6 +80,13 @@ void assisted_docking_mission()
 	target["control_layout"]["default_profile"] = "direct";
 	source["entities"].push_back(target);
 	source["maps"][0]["entities"][0]["definition"] = "test.receiving-ship";
+	return source;
+}
+
+#include "../support/autonomous_away_cases.hpp"
+void assisted_docking_mission()
+{
+	auto source = assisted_docking_source();
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -256,6 +263,7 @@ int main(int argc, char **argv)
 	try
 	{
 		assisted_docking_mission();
+		autonomous_away_cases();
 		away_effect_actions();
 		away_priority_cases();
 		away_medical_cases();

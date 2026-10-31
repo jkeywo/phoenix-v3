@@ -242,6 +242,7 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 		                                            return knowledge.request_key_name(key);
 	                                            }};
 	append_controller_observations(controller, bindings, values);
+	append_controller_workflow_facts(controller, bindings, values);
 	controller_decision_facts(controller, observation, values);
 	controller_coordination_facts(controller, observation, values);
 	return values;

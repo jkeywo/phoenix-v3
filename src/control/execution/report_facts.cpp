@@ -145,7 +145,8 @@ void controller_report_facts(const ConsoleControllerRuntime &controller, const O
 	if (const auto docking = observed.gameplay.find("docking");
 	    docking != observed.gameplay.end() && docking->contains("ports"))
 		for (const auto &port : docking->at("ports"))
-			if (owns_operation("docking", port.at("id")))
+			if (controller.definition.operations.contains("docking") &&
+			    port.at("controller") == controller.definition.id)
 				facts[24] += port.at("phase") == "docked";
 	for (const auto &mission : rows("away_missions"))
 		if (owns_operation("mission", mission.value("dispatch_system", std::string{})) ||

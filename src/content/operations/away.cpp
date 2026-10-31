@@ -168,6 +168,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.reveal_event = j.at("reveal_event");
 		d.tree = j.at("tree");
 		d.allow_ship_transport = j.value("allow_ship_transport", false);
+		d.ai_dispatch = j.value("ai_dispatch", false);
 		d.docking_ports = j.value("docking_ports", std::vector<std::string>{});
 		require(!d.allow_ship_transport || !d.docking_ports.empty(), "ship transport requires explicit docking_ports");
 		d.ship_transport_reason = j.value("ship_transport_reason", std::string{});

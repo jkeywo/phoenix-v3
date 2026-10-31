@@ -224,6 +224,7 @@ std::map<std::string, SystemObservationSchema> compile_system_observations(std::
 		    (kind == OperatingSystem::Engine || kind == OperatingSystem::Steering || kind == OperatingSystem::Lateral ||
 		     kind == OperatingSystem::Boost || kind == OperatingSystem::Impulse))
 			add({"desired_speed",
+			     "deceleration",
 			     "desired_heading",
 			     "minimum_speed",
 			     "assisted",
@@ -267,7 +268,7 @@ std::map<std::string, SystemObservationSchema> compile_system_observations(std::
 			     "passive_cooling", "actual_cooling", "depletion_ticks", "thermal_stop_ticks", "full_ticks",
 			     "thermal_recovery_ticks"});
 		if (binding.generator != no_resource)
-			add({"generator_output", "actual_output", "demand_output"});
+			add({"generator_output", "actual_output", "demand_output", "maximum_rate"});
 		if (binding.group != no_resource)
 			add({"group_allocation", "flow_cut"});
 		if (binding.conduit != no_resource)

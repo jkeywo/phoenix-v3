@@ -25,6 +25,13 @@ Json board(const Json &source)
 	Json out{{"revision", projection::number(source.at("revision"), 1, 9007199254740991LL)},
 	         {"ports", Json::array()},
 	         {"targets", Json::array()}};
+	if (source.contains("guidance"))
+	{
+		const auto &guidance = source.at("guidance");
+		out["guidance"] = {{"x", projection::number(guidance.at("x"), -1000000000, 1000000000)},
+		                   {"y", projection::number(guidance.at("y"), -1000000000, 1000000000)},
+		                   {"navigate", guidance.at("navigate").get<bool>()}};
+	}
 	if (!source.at("ports").is_array() || source.at("ports").size() > 16 || !source.at("targets").is_array() ||
 	    source.at("targets").size() > 128)
 		throw std::runtime_error("Invalid docking projection rows");
@@ -39,6 +46,12 @@ Json board(const Json &source)
 			v[k] = r.at(k).get<bool>();
 		out["ports"].push_back(v);
 	}
+	if (out.contains("guidance") && std::none_of(out["ports"].begin(), out["ports"].end(),
+	                                             [](const auto &port)
+	                                             {
+		                                             return port.at("phase") == "approach";
+	                                             }))
+		throw std::runtime_error("Docking guidance requires an owned approach");
 	for (const auto &r : source.at("targets"))
 	{
 		Json row{{"entity", projection::number(r.at("entity"), 1, 9007199254740991LL)},

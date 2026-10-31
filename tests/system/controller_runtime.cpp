@@ -359,6 +359,37 @@ int main(int argc, char **argv)
 			shared.tick();
 			require(controller(shared, 101, "gun")["commands"]["target"]["value"] == 0,
 			        "Returning weapon to AI removes independent target override");
+
+			// An explicit AI target policy owns its channel; a scanner's accepted
+			// target remains a blackboard input, not a competing physical writer.
+			for (auto &c : source["entities"][0]["control_layout"]["controllers"])
+				if (c["id"] == "gun")
+				{
+					c.erase("fallback");
+					c["tree"] = "test.independent-target";
+				}
+			source["trees"].push_back(Json::parse(R"json({"id":"test.independent-target","context":"controller",
+ "command_bindings":[{"channel":"target"}],"initial":"guard","states":[{"id":"guard","running":[
+ {"attempt":[{"tasks":[{"action":"write.target","arguments":[3]}]},{"tasks":[]}]}]}]})json"));
+			World independent;
+			const auto independent_catalog = load(source);
+			independent.load(independent_catalog, "test.map");
+			require(independent.prepare_console_profile({1, "drive"}, "assisted") && independent.claim(101, 1, "drive"),
+			        "prepare independent AI weapon alongside human scanner");
+			OperatingCommand scan{1, {}, 2, {}};
+			scan.controller = "radar";
+			scan.channel = "target";
+			scan.generation = controller(independent, 101, "radar").at("generation");
+			require(independent.submit(101, scan), "scanner uses an independent permitted contact");
+			independent.tick();
+			require(controller(independent, 101, "gun")["commands"]["target"]["value"] == 3,
+			        "explicit AI target policy is not overwritten by shared scanner following");
+			World independent_restored;
+			independent_restored.restore(independent_catalog, independent.save());
+			independent.tick();
+			independent_restored.tick();
+			require(independent.save() == independent_restored.save(),
+			        "independent AI targeting survives continuation");
 		}
 		{
 			auto source = controller_fixture();

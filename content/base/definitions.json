@@ -17966,6 +17966,7 @@
 						{ "id": "security-team", "kind": "team", "required": false, "capability": "security" }
 					],
 					"allow_ship_transport": true,
+					"ai_dispatch": true,
 					"docking_ports": ["fore"]
 				}
 			],
@@ -51379,18 +51380,74 @@
 					],
 					"transitions": [
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "waypoint",
 							"conditions": [
-								{ "left": { "observation": "waypoint.active.available" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.active" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.reached" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
 							]
 						},
 						{
 							"target": "objective",
 							"conditions": [
-								{ "left": { "observation": "objective.status.available" }, "op": "eq", "right": true },
-								{ "left": { "observation": "objective.status" }, "op": "eq", "right": "active" }
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "active"
+								}
 							]
 						}
 					],
@@ -51404,32 +51461,98 @@
 							"arguments": [
 								"base.action.2cfba4c387d2",
 								true,
-								{ "observation": "objective.x" },
-								{ "observation": "objective.y" },
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
 								9000
 							]
 						}
 					],
 					"transitions": [
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "avoid",
 							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": true },
-								{ "left": { "observation": "navigation.lateral_safe" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
 							]
 						},
 						{
 							"target": "waypoint",
 							"conditions": [
-								{ "left": { "observation": "waypoint.active.available" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.active" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.reached" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
 							]
 						},
 						{
 							"target": "waiting",
 							"conditions": [
-								{ "left": { "observation": "objective.status" }, "op": "ne", "right": "active" }
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "ne",
+									"right": "active"
+								}
 							]
 						}
 					],
@@ -51443,27 +51566,85 @@
 							"arguments": [
 								"base.action.2cfba4c387d2",
 								true,
-								{ "observation": "waypoint.x" },
-								{ "observation": "waypoint.y" },
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								},
 								9000
 							]
 						}
 					],
 					"transitions": [
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "avoid",
 							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": true },
-								{ "left": { "observation": "navigation.lateral_safe" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
 							]
 						},
 						{
 							"target": "waiting",
-							"conditions": [{ "left": { "observation": "waypoint.active" }, "op": "eq", "right": false }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
 						},
 						{
 							"target": "waiting",
-							"conditions": [{ "left": { "observation": "waypoint.reached" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					],
 					"parent": "officer-reports"
@@ -51478,9 +51659,41 @@
 					],
 					"transitions": [
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "clear",
 							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": false
+								}
 							]
 						}
 					],
@@ -51496,15 +51709,61 @@
 					],
 					"transitions": [
 						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
 							"target": "avoid",
 							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": true },
-								{ "left": { "observation": "navigation.lateral_safe" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
 							]
 						},
 						{
 							"target": "waiting",
-							"conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 40 }]
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
 						}
 					],
 					"parent": "officer-reports"
@@ -51512,284 +51771,161 @@
 				{
 					"id": "officer-reports",
 					"initial": "waiting",
-					"running": [{ "call": "base.report.navigation-blocked" }, { "call": "base.report.docked" }]
-				}
-			],
-			"command_bindings": [
-				{ "channel": "destination", "type": "boolean", "action": "destination" },
-				{ "channel": "speed_mm_s" }
-			],
-			"record_bindings": [
-				{
-					"name": "objective.status",
-					"scope": "ship",
-					"schema": "phoenix.objective",
-					"field": "status",
-					"subject": "priority_or_latest",
-					"type": "text"
-				},
-				{
-					"name": "objective.x",
-					"scope": "ship",
-					"schema": "phoenix.objective",
-					"field": "destination_x",
-					"subject": "priority_or_latest",
-					"type": "integer"
-				},
-				{
-					"name": "objective.y",
-					"scope": "ship",
-					"schema": "phoenix.objective",
-					"field": "destination_y",
-					"subject": "priority_or_latest",
-					"type": "integer"
-				},
-				{
-					"name": "waypoint.active",
-					"scope": "ship",
-					"schema": "phoenix.waypoint",
-					"field": "active",
-					"subject": "latest",
-					"type": "boolean"
-				},
-				{
-					"name": "waypoint.reached",
-					"scope": "ship",
-					"schema": "phoenix.waypoint",
-					"field": "reached",
-					"subject": "latest",
-					"type": "boolean"
-				},
-				{
-					"name": "waypoint.x",
-					"scope": "ship",
-					"schema": "phoenix.waypoint",
-					"field": "x",
-					"subject": "latest",
-					"type": "integer"
-				},
-				{
-					"name": "waypoint.y",
-					"scope": "ship",
-					"schema": "phoenix.waypoint",
-					"field": "y",
-					"subject": "latest",
-					"type": "integer"
-				}
-			],
-			"action_bindings": [{ "id": "act_2cfba4c387d2", "tree": "base.action.destination-speed-mm-s" }],
-			"decision_candidates": [
-				{
-					"id": "option-1",
-					"description": "Travel to destination: waiting mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised waiting.",
-					"tasks": [
-						{
-							"action": "select.act_2cfba4c387d2",
-							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
-						}
-					]
-				},
-				{
-					"id": "option-2",
-					"description": "Travel to destination: objective mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised objective.",
-					"tasks": [
-						{
-							"action": "select.act_2cfba4c387d2",
-							"arguments": [
-								"base.action.2cfba4c387d2",
-								true,
-								{ "observation": "objective.x" },
-								{ "observation": "objective.y" },
-								9000
-							]
-						}
-					]
-				},
-				{
-					"id": "option-3",
-					"description": "Travel to destination: waypoint mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised waypoint.",
-					"tasks": [
-						{
-							"action": "select.act_2cfba4c387d2",
-							"arguments": [
-								"base.action.2cfba4c387d2",
-								true,
-								{ "observation": "waypoint.x" },
-								{ "observation": "waypoint.y" },
-								9000
-							]
-						}
-					]
-				},
-				{
-					"id": "option-4",
-					"description": "Travel to destination: clear mode. Use the prepared inputs shown for this action.",
-					"deviation": "Officer prioritised clear.",
-					"tasks": [
-						{
-							"action": "select.act_2cfba4c387d2",
-							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 2000]
-						}
-					]
-				}
-			],
-			"report_observations": true,
-			"message_templates": [
-				"base.message.action.destination-speed-mm-s.arrived",
-				"base.message.report.docked.report",
-				"base.message.report.navigation-blocked.clear",
-				"base.message.report.navigation-blocked.report"
-			]
-		},
-		{
-			"id": "base.ai.race.steering",
-			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion.",
-			"context": "controller",
-			"initial": "waiting",
-			"states": [
-				{
-					"id": "waiting",
-					"running": [
-						{ "action": "select.act_203a684bc78b", "arguments": ["base.action.203a684bc78b", false, 0, 0] }
-					],
-					"transitions": [
-						{
-							"target": "waypoint",
-							"conditions": [
-								{ "left": { "observation": "waypoint.active.available" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.active" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.reached" }, "op": "eq", "right": false }
-							]
-						},
-						{
-							"target": "objective",
-							"conditions": [
-								{ "left": { "observation": "objective.status.available" }, "op": "eq", "right": true },
-								{ "left": { "observation": "objective.status" }, "op": "eq", "right": "active" }
-							]
-						}
-					]
-				},
-				{
-					"id": "objective",
 					"running": [
 						{
-							"action": "select.act_203a684bc78b",
-							"arguments": [
-								"base.action.203a684bc78b",
-								true,
-								{ "observation": "objective.x" },
-								{ "observation": "objective.y" }
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "avoid",
-							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": true },
-								{ "left": { "observation": "navigation.lateral_safe" }, "op": "eq", "right": false }
-							]
+							"call": "base.report.navigation-blocked"
 						},
 						{
-							"target": "waypoint",
-							"conditions": [
-								{ "left": { "observation": "waypoint.active.available" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.active" }, "op": "eq", "right": true },
-								{ "left": { "observation": "waypoint.reached" }, "op": "eq", "right": false }
-							]
-						},
-						{
-							"target": "waiting",
-							"conditions": [
-								{ "left": { "observation": "objective.status" }, "op": "ne", "right": "active" }
-							]
+							"call": "base.report.docked"
 						}
 					]
 				},
 				{
-					"id": "waypoint",
-					"running": [
-						{
-							"action": "select.act_203a684bc78b",
-							"arguments": [
-								"base.action.203a684bc78b",
-								true,
-								{ "observation": "waypoint.x" },
-								{ "observation": "waypoint.y" }
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "avoid",
-							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": true },
-								{ "left": { "observation": "navigation.lateral_safe" }, "op": "eq", "right": false }
-							]
-						},
-						{
-							"target": "waiting",
-							"conditions": [{ "left": { "observation": "waypoint.active" }, "op": "eq", "right": false }]
-						},
-						{
-							"target": "waiting",
-							"conditions": [{ "left": { "observation": "waypoint.reached" }, "op": "eq", "right": true }]
-						}
-					]
-				},
-				{
-					"id": "avoid",
-					"running": [
-						{
-							"action": "select.act_f478207abf60",
-							"arguments": [
-								"base.action.f478207abf60",
-								false,
-								0,
-								0,
-								{ "observation": "navigation.left_heading" }
-							]
-						}
-					],
-					"transitions": [
-						{
-							"target": "clear",
-							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": false }
-							]
-						}
-					]
-				},
-				{
-					"id": "clear",
+					"id": "mission-handoff",
 					"entry": [
 						{
-							"action": "select.act_f478207abf60",
-							"arguments": ["base.action.f478207abf60", false, 0, 0, { "observation": "own.heading" }]
+							"action": "action.cancel",
+							"arguments": ["native_docking_handover"]
 						}
 					],
 					"transitions": [
 						{
-							"target": "avoid",
+							"target": "mission-docking",
 							"conditions": [
-								{ "left": { "observation": "navigation.blocked" }, "op": "eq", "right": true },
-								{ "left": { "observation": "navigation.lateral_safe" }, "op": "eq", "right": false }
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 4
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "mission-docking",
+					"transitions": [
+						{
+							"target": "mission-request",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "free"
+								},
+								{
+									"left": {
+										"observation": "workflow.dock_target"
+									},
+									"op": "ne",
+									"right": ""
+								}
 							]
 						},
 						{
+							"target": "mission-release",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "eq",
+									"right": ""
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "mission-release",
+					"transitions": [
+						{
 							"target": "waiting",
-							"conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 40 }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "free"
+								}
+							]
+						}
+					],
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "dock.undock",
+											"arguments": [
+												{
+													"observation": "workflow.port"
+												},
+												"",
+												{
+													"observation": "workflow.dock_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "mission-request",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "dock.assist",
+											"arguments": [
+												{
+													"observation": "workflow.port"
+												},
+												{
+													"observation": "workflow.dock_target"
+												},
+												{
+													"observation": "workflow.dock_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-docking"
 						}
 					]
 				}
 			],
 			"command_bindings": [
-				{ "channel": "destination", "type": "boolean", "action": "destination" },
-				{ "channel": "heading_mdeg" }
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				},
+				{
+					"channel": "speed_mm_s"
+				}
 			],
 			"record_bindings": [
 				{
@@ -51850,8 +51986,635 @@
 				}
 			],
 			"action_bindings": [
-				{ "id": "act_203a684bc78b", "tree": "base.action.destination" },
-				{ "id": "act_f478207abf60", "tree": "base.action.destination-heading-mdeg" }
+				{
+					"id": "act_2cfba4c387d2",
+					"tree": "base.action.destination-speed-mm-s"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Travel to destination: waiting mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised waiting.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Travel to destination: objective mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised objective.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								9000
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Travel to destination: waypoint mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised waypoint.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								},
+								9000
+							]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Travel to destination: clear mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised clear.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 2000]
+						}
+					]
+				}
+			],
+			"report_observations": true,
+			"message_templates": [
+				"base.message.action.destination-speed-mm-s.arrived",
+				"base.message.report.docked.report",
+				"base.message.report.navigation-blocked.clear",
+				"base.message.report.navigation-blocked.report"
+			],
+			"workflow_observations": true,
+			"docking_commands": true
+		},
+		{
+			"id": "base.ai.race.steering",
+			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion.",
+			"context": "controller",
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting",
+					"running": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": ["base.action.203a684bc78b", false, 0, 0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waypoint",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "objective",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "active"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "objective",
+					"running": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": [
+								"base.action.203a684bc78b",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waypoint",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "ne",
+									"right": "active"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "waypoint",
+					"running": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": [
+								"base.action.203a684bc78b",
+								true,
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "avoid",
+					"running": [
+						{
+							"action": "select.act_f478207abf60",
+							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
+								{
+									"observation": "navigation.left_heading"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "clear",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "clear",
+					"entry": [
+						{
+							"action": "select.act_f478207abf60",
+							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
+								{
+									"observation": "own.heading"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "ne",
+									"right": ""
+								},
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "ne",
+									"right": "available"
+								},
+								{
+									"left": {
+										"observation": "workflow.ship_transport"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "mission-handoff",
+					"entry": [
+						{
+							"action": "action.cancel",
+							"arguments": ["native_docking_handover"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "mission-docking",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 4
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "mission-docking",
+					"transitions": [
+						{
+							"target": "mission-release",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.mission"
+									},
+									"op": "eq",
+									"right": ""
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "mission-release",
+					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "free"
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				},
+				{
+					"channel": "heading_mdeg"
+				}
+			],
+			"record_bindings": [
+				{
+					"name": "objective.status",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "status",
+					"subject": "priority_or_latest",
+					"type": "text"
+				},
+				{
+					"name": "objective.x",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "destination_x",
+					"subject": "priority_or_latest",
+					"type": "integer"
+				},
+				{
+					"name": "objective.y",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "destination_y",
+					"subject": "priority_or_latest",
+					"type": "integer"
+				},
+				{
+					"name": "waypoint.active",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "active",
+					"subject": "latest",
+					"type": "boolean"
+				},
+				{
+					"name": "waypoint.reached",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "reached",
+					"subject": "latest",
+					"type": "boolean"
+				},
+				{
+					"name": "waypoint.x",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "x",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "waypoint.y",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "y",
+					"subject": "latest",
+					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_203a684bc78b",
+					"tree": "base.action.destination"
+				},
+				{
+					"id": "act_f478207abf60",
+					"tree": "base.action.destination-heading-mdeg"
+				}
 			],
 			"decision_candidates": [
 				{
@@ -51859,7 +52622,10 @@
 					"description": "Wait for a destination while keeping steering assistance enabled.",
 					"deviation": "Officer prioritised waiting.",
 					"tasks": [
-						{ "action": "select.act_203a684bc78b", "arguments": ["base.action.203a684bc78b", false, 0, 0] }
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": ["base.action.203a684bc78b", false, 0, 0]
+						}
 					]
 				},
 				{
@@ -51872,8 +52638,12 @@
 							"arguments": [
 								"base.action.203a684bc78b",
 								true,
-								{ "observation": "objective.x" },
-								{ "observation": "objective.y" }
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								}
 							]
 						}
 					]
@@ -51888,8 +52658,12 @@
 							"arguments": [
 								"base.action.203a684bc78b",
 								true,
-								{ "observation": "waypoint.x" },
-								{ "observation": "waypoint.y" }
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								}
 							]
 						}
 					]
@@ -51906,7 +52680,9 @@
 								false,
 								0,
 								0,
-								{ "observation": "navigation.left_heading" }
+								{
+									"observation": "navigation.left_heading"
+								}
 							]
 						}
 					]
@@ -51918,11 +52694,21 @@
 					"tasks": [
 						{
 							"action": "select.act_f478207abf60",
-							"arguments": ["base.action.f478207abf60", false, 0, 0, { "observation": "own.heading" }]
+							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
+								{
+									"observation": "own.heading"
+								}
+							]
 						}
 					]
 				}
-			]
+			],
+			"workflow_observations": true,
+			"docking_commands": true
 		},
 		{
 			"id": "base.scenario.race-a",
@@ -55708,23 +56494,75 @@
 			"id": "base.courier.assist.reactor",
 			"context": "controller",
 			"command_bindings": [
-				{ "channel": "enabled", "action": "system_enabled", "type": "boolean" },
-				{ "channel": "output", "action": "generator_output" }
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "output",
+					"action": "generator_output"
+				}
 			],
 			"initial": "officer-reports",
 			"states": [
 				{
 					"id": "operate",
 					"running": [
-						{ "action": "write.enabled", "arguments": [true] },
-						{ "action": "write.output", "arguments": [1600] }
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.output",
+							"arguments": [1600]
+						}
 					],
-					"parent": "officer-reports"
+					"parent": "officer-reports",
+					"transitions": [
+						{
+							"target": "combat",
+							"conditions": [
+								{
+									"left": {
+										"observation": "alert.severity"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
 				},
 				{
 					"id": "officer-reports",
 					"initial": "operate",
-					"running": [{ "call": "base.report.thermal" }, { "call": "base.report.supply" }]
+					"running": [
+						{
+							"call": "base.report.thermal"
+						},
+						{
+							"call": "base.report.supply"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "officer-reports",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.output",
+							"arguments": [
+								{
+									"observation": "reactor.maximum"
+								}
+							]
+						}
+					]
 				}
 			],
 			"report_observations": true,
@@ -55737,6 +56575,13 @@
 				"base.message.report.thermal.clear.forward",
 				"base.message.report.thermal.report",
 				"base.message.report.thermal.report.forward"
+			],
+			"system_bindings": [
+				{
+					"name": "reactor.maximum",
+					"system": "reactor",
+					"field": "maximum_rate"
+				}
 			]
 		},
 		{
@@ -61547,6 +62392,504 @@
 					"id": "settle",
 					"entry": [{ "memory": "last", "value": { "observation": "report.navigation_blocked" } }],
 					"transitions": [{ "target": "watch", "conditions": [] }]
+				}
+			]
+		},
+		{
+			"id": "base.policy.offered-away",
+			"context": "controller",
+			"extends": "base.policy.native-reports",
+			"workflow_observations": true,
+			"states": [
+				{
+					"id": "operate",
+					"parent": "officer-reports",
+					"initial": "watch"
+				},
+				{
+					"id": "watch",
+					"parent": "operate",
+					"transitions": [
+						{
+							"target": "open",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "eq",
+									"right": "available"
+								}
+							]
+						},
+						{
+							"target": "send",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "eq",
+									"right": "open"
+								},
+								{
+									"left": {
+										"observation": "workflow.launch_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "recall",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.phase"
+									},
+									"op": "eq",
+									"right": "deployed"
+								},
+								{
+									"left": {
+										"observation": "workflow.work_complete"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "open",
+					"parent": "operate",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.open",
+											"arguments": [
+												{
+													"observation": "workflow.mission"
+												},
+												"",
+												{
+													"observation": "workflow.mission_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "watch"
+						}
+					]
+				},
+				{
+					"id": "send",
+					"parent": "operate",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.send",
+											"arguments": [
+												{
+													"observation": "workflow.mission"
+												},
+												"",
+												{
+													"observation": "workflow.mission_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "watch"
+						}
+					]
+				},
+				{
+					"id": "recall",
+					"parent": "operate",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "away.recall",
+											"arguments": [
+												{
+													"observation": "workflow.mission"
+												},
+												"",
+												{
+													"observation": "workflow.mission_revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "watch"
+						}
+					]
+				},
+				{
+					"id": "officer-reports",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.report.team-complete"
+						},
+						{
+							"call": "base.report.opportunity"
+						},
+						{
+							"call": "base.report.craft-recovered"
+						},
+						{
+							"call": "base.report.findings"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.threat-alert",
+			"context": "controller",
+			"workflow_observations": true,
+			"initial": "watch",
+			"states": [
+				{
+					"id": "watch",
+					"transitions": [
+						{
+							"target": "combat",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "workflow.alert_maximum"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "alert.severity"
+									},
+									"op": "lt",
+									"right": {
+										"observation": "workflow.alert_maximum"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "alert.set",
+											"arguments": [
+												"",
+												{
+													"observation": "workflow.alert_maximum"
+												},
+												0
+											]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "watch"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.impulse-travel",
+			"context": "controller",
+			"workflow_observations": true,
+			"command_bindings": [
+				{
+					"channel": "impulse",
+					"action": "impulse",
+					"type": "boolean"
+				}
+			],
+			"initial": "coast",
+			"states": [
+				{
+					"id": "coast",
+					"transitions": [
+						{
+							"target": "engage",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.travelling"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "workflow.aligned"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.travel_distance"
+									},
+									"op": "gt",
+									"right": 1000000
+								},
+								{
+									"left": {
+										"observation": "workflow.travel_distance"
+									},
+									"op": "gt",
+									"right": {
+										"observation": "workflow.stopping_distance"
+									}
+								},
+								{
+									"left": {
+										"observation": "impulse.ready"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "engage",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "write.impulse",
+											"arguments": [true]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "cruise"
+						}
+					]
+				},
+				{
+					"id": "cruise",
+					"transitions": [
+						{
+							"target": "release",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.travelling"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "release",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.aligned"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "release",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "release",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.travel_distance"
+									},
+									"op": "le",
+									"right": {
+										"observation": "workflow.stopping_distance"
+									}
+								}
+							]
+						},
+						{
+							"target": "coast",
+							"conditions": [
+								{
+									"left": {
+										"observation": "impulse.phase"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "release",
+					"entry": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "write.impulse",
+											"arguments": [false]
+										}
+									]
+								},
+								{
+									"tasks": []
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "coast"
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "impulse.ready",
+					"system": "equipment",
+					"field": "impulse_ready"
+				},
+				{
+					"name": "impulse.phase",
+					"system": "equipment",
+					"field": "impulse_phase"
+				}
+			]
+		},
+		{
+			"id": "base.policy.hostile-weapon-target",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"initial": "guard",
+			"states": [
+				{
+					"id": "guard",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					]
 				}
 			]
 		}
@@ -71599,16 +72942,34 @@
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "stance": [], "alert": [] },
+			"operations": {
+				"stance": [],
+				"alert": []
+			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "manual", "human": ["alert", "stance"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["alert", "stance"]
+				}
 			],
 			"data": {
-				"stance": { "binding": "board:/stance/label", "label": "Stance", "placement": "main" },
-				"alert": { "binding": "board:/alert/label", "label": "Alert", "placement": "main" }
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "main"
+				},
+				"alert": {
+					"binding": "board:/alert/label",
+					"label": "Alert",
+					"placement": "main"
+				}
 			},
-			"parts": ["main"]
+			"parts": ["main"],
+			"tree": "base.policy.threat-alert"
 		},
 		{
 			"id": "base.widget.f67cc11251210d9b",
@@ -73171,7 +74532,12 @@
 		{
 			"id": "base.widget.2e8253886c202afb",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["impulse"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["impulse"]
+				}
+			},
 			"commands": [
 				{
 					"id": "impulse",
@@ -73184,7 +74550,11 @@
 				}
 			],
 			"data": {
-				"impulse": { "binding": "command.impulse", "label": "Impulse", "placement": "details" },
+				"impulse": {
+					"binding": "command.impulse",
+					"label": "Impulse",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -73201,7 +74571,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -73225,11 +74599,37 @@
 			},
 			"parts": ["main"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "coordinated", "human": ["coordinated_impulse"] },
-				{ "id": "responsibility1", "human": ["impulse", "coordinated_impulse"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "coordinated",
+					"human": ["coordinated_impulse"]
+				},
+				{
+					"id": "responsibility1",
+					"human": ["impulse", "coordinated_impulse"]
+				}
 			],
-			"operations": { "coordinated_impulse": ["$equipment"] }
+			"operations": {
+				"coordinated_impulse": ["$equipment"]
+			},
+			"policy": {
+				"extends": "base.policy.impulse-travel",
+				"system_bindings": [
+					{
+						"name": "impulse.ready",
+						"system": "$equipment",
+						"field": "impulse_ready"
+					},
+					{
+						"name": "impulse.phase",
+						"system": "$equipment",
+						"field": "impulse_phase"
+					}
+				]
+			}
 		},
 		{
 			"id": "base.widget.32da4b37f29cc75d",
@@ -75924,7 +77324,12 @@
 		{
 			"id": "base.widget.358eb13d3fea0fc4",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["dispatch"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["dispatch"]
+				}
+			},
 			"commands": [
 				{
 					"id": "system_enabled",
@@ -75935,7 +77340,11 @@
 				}
 			],
 			"data": {
-				"system_enabled": { "binding": "command.system_enabled", "label": "Equipment", "placement": "details" },
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -75952,14 +77361,20 @@
 				"cargo_authorisation": []
 			},
 			"part_bindings": {
-				"operations": { "renderer": "operations", "operations": ["cargo_authorisation"] },
+				"operations": {
+					"renderer": "operations",
+					"operations": ["cargo_authorisation"]
+				},
 				"away": {
 					"renderer": "away",
 					"operations": ["mission", "mission_send", "mission_quantity", "transport"]
 				}
 			},
 			"levels": [
-				{ "id": "automated", "human": [] },
+				{
+					"id": "automated",
+					"human": []
+				},
 				{
 					"id": "responsibility1",
 					"human": ["cargo_authorisation", "mission", "mission_send", "system_enabled"]
@@ -75976,7 +77391,7 @@
 					]
 				}
 			],
-			"tree": "base.policy.native-reports"
+			"tree": "base.policy.offered-away"
 		},
 		{
 			"id": "base.widget.2435e28aeb2fe785",
@@ -76476,7 +77891,12 @@
 		{
 			"id": "base.widget.34d63a7acbb2e4c9",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["dispatch"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["dispatch"]
+				}
+			},
 			"commands": [
 				{
 					"id": "enabled",
@@ -76487,7 +77907,11 @@
 				}
 			],
 			"data": {
-				"enabled": { "binding": "command.enabled", "label": "Equipment", "placement": "details" },
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -76509,14 +77933,20 @@
 				}
 			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["enabled", "mission", "mission_send"] },
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "mission", "mission_send"]
+				},
 				{
 					"id": "responsibility2",
 					"human": ["enabled", "mission", "mission_quantity", "mission_send", "transport"]
 				}
 			],
-			"tree": "base.policy.native-reports"
+			"tree": "base.policy.offered-away"
 		},
 		{
 			"id": "base.widget.639402d0297e805c",
@@ -77701,14 +79131,22 @@
 		{
 			"id": "base.widget.a04a5d0313260d92",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["weapon"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
 			"commands": [
 				{
 					"id": "weapon_target",
 					"action": "weapon_target",
 					"initial": 0,
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "combat-target", "channel": "target" },
+					"shared_target": {
+						"controller": "combat-target",
+						"channel": "target"
+					},
 					"label_key": "Weapon target"
 				}
 			],
@@ -77734,7 +79172,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -77768,9 +79210,16 @@
 			},
 			"parts": ["main"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["weapon_target"] }
-			]
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
+			],
+			"tree": "base.policy.hostile-weapon-target"
 		},
 		{
 			"id": "base.widget.9e32a15c8ef8cbdf",
@@ -78687,17 +80136,41 @@
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "stance": [], "alert": [], "objectives": [] },
+			"operations": {
+				"stance": [],
+				"alert": [],
+				"objectives": []
+			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "manual", "human": ["alert", "objectives", "stance"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["alert", "objectives", "stance"]
+				}
 			],
 			"data": {
-				"stance": { "binding": "board:/stance/label", "label": "Stance", "placement": "main" },
-				"alert": { "binding": "board:/alert/label", "label": "Alert", "placement": "main" }
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "main"
+				},
+				"alert": {
+					"binding": "board:/alert/label",
+					"label": "Alert",
+					"placement": "main"
+				}
 			},
 			"parts": ["main", "objectives"],
-			"part_bindings": { "objectives": { "renderer": "objectives", "operations": ["objectives"] } }
+			"part_bindings": {
+				"objectives": {
+					"renderer": "objectives",
+					"operations": ["objectives"]
+				}
+			},
+			"tree": "base.policy.threat-alert"
 		},
 		{
 			"id": "base.widget.7d6bd85c94045c6c",
@@ -81310,7 +82783,12 @@
 		{
 			"id": "base.widget.70bf61506326c20d",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["dispatch"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["dispatch"]
+				}
+			},
 			"commands": [
 				{
 					"id": "enabled",
@@ -81321,7 +82799,11 @@
 				}
 			],
 			"data": {
-				"enabled": { "binding": "command.enabled", "label": "Equipment", "placement": "details" },
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -81343,15 +82825,24 @@
 				}
 			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["enabled", "mission"] },
-				{ "id": "responsibility2", "human": ["enabled", "mission", "mission_send"] },
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "mission"]
+				},
+				{
+					"id": "responsibility2",
+					"human": ["enabled", "mission", "mission_send"]
+				},
 				{
 					"id": "responsibility3",
 					"human": ["enabled", "mission", "mission_quantity", "mission_send", "transport"]
 				}
 			],
-			"tree": "base.policy.native-reports"
+			"tree": "base.policy.offered-away"
 		},
 		{
 			"id": "base.widget.8943435136c0c56f",
@@ -81639,14 +83130,22 @@
 		{
 			"id": "base.widget.6dd5c8d08b43937a",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["weapon"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
 			"commands": [
 				{
 					"id": "weapon_target",
 					"action": "weapon_target",
 					"initial": 0,
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "scanner", "channel": "target" },
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
 					"label_key": "Weapon target"
 				}
 			],
@@ -81675,9 +83174,16 @@
 			},
 			"parts": ["main"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["weapon_target"] }
-			]
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
+			],
+			"tree": "base.policy.hostile-weapon-target"
 		},
 		{
 			"id": "base.widget.ad49f940962a4068",
@@ -86313,7 +87819,12 @@
 		{
 			"id": "base.widget.courier.helm.dispatch",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["dispatch"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["dispatch"]
+				}
+			},
 			"commands": [
 				{
 					"id": "enabled",
@@ -86325,7 +87836,11 @@
 				}
 			],
 			"data": {
-				"enabled": { "binding": "command.enabled", "label": "Equipment", "placement": "details" },
+				"enabled": {
+					"binding": "command.enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -86350,16 +87865,25 @@
 				}
 			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["enabled", "mission", "mission_send"] },
-				{ "id": "responsibility2", "human": ["enabled", "mission", "mission_send"] },
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["enabled", "mission", "mission_send"]
+				},
+				{
+					"id": "responsibility2",
+					"human": ["enabled", "mission", "mission_send"]
+				},
 				{
 					"id": "responsibility3",
 					"human": ["enabled", "mission", "mission_quantity", "mission_send", "transport"]
 				}
 			],
 			"label": "Dispatch",
-			"tree": "base.policy.native-reports"
+			"tree": "base.policy.offered-away"
 		},
 		{
 			"id": "base.widget.courier.tactical.scanner",
@@ -86976,14 +88500,22 @@
 		{
 			"id": "base.widget.courier.tactical.top-gun.settings",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["weapon"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
 			"commands": [
 				{
 					"id": "weapon_target",
 					"action": "weapon_target",
 					"initial": 0,
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "scanner", "channel": "target" },
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
 					"label_key": "Weapon target"
 				}
 			],
@@ -87012,8 +88544,14 @@
 			},
 			"parts": ["presentation"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["weapon_target"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -87029,19 +88567,28 @@
 					"details": true
 				}
 			},
-			"label": "Top Gun"
+			"label": "Top Gun",
+			"tree": "base.policy.hostile-weapon-target"
 		},
 		{
 			"id": "base.widget.courier.tactical.bottom-gun.settings",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["weapon"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
 			"commands": [
 				{
 					"id": "weapon_target",
 					"action": "weapon_target",
 					"initial": 0,
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "scanner", "channel": "target" },
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
 					"label_key": "Weapon target"
 				}
 			],
@@ -87070,8 +88617,14 @@
 			},
 			"parts": ["presentation"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["weapon_target"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -87087,19 +88640,28 @@
 					"details": true
 				}
 			},
-			"label": "Bottom Gun"
+			"label": "Bottom Gun",
+			"tree": "base.policy.hostile-weapon-target"
 		},
 		{
 			"id": "base.widget.courier.tactical.forward-gun.settings",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["weapon"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["weapon"]
+				}
+			},
 			"commands": [
 				{
 					"id": "weapon_target",
 					"action": "weapon_target",
 					"initial": 0,
 					"consumers": ["$equipment"],
-					"shared_target": { "controller": "scanner", "channel": "target" },
+					"shared_target": {
+						"controller": "scanner",
+						"channel": "target"
+					},
 					"label_key": "Weapon target"
 				}
 			],
@@ -87128,8 +88690,14 @@
 			},
 			"parts": ["presentation"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["weapon_target"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": ["weapon_target"]
+				}
 			],
 			"part_bindings": {
 				"presentation": {
@@ -87145,7 +88713,8 @@
 					"details": true
 				}
 			},
-			"label": "Forward Gun"
+			"label": "Forward Gun",
+			"tree": "base.policy.hostile-weapon-target"
 		},
 		{
 			"id": "base.widget.courier.tactical.beam.settings",
@@ -88309,14 +89878,31 @@
 			"schema": 1,
 			"equipment": {},
 			"commands": [],
-			"operations": { "stance": [], "alert": [] },
+			"operations": {
+				"stance": [],
+				"alert": []
+			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "manual", "human": ["alert", "stance"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["alert", "stance"]
+				}
 			],
 			"data": {
-				"stance": { "binding": "board:/stance/label", "label": "Stance", "placement": "hidden" },
-				"alert": { "binding": "board:/alert/label", "label": "Alert", "placement": "hidden" }
+				"stance": {
+					"binding": "board:/stance/label",
+					"label": "Stance",
+					"placement": "hidden"
+				},
+				"alert": {
+					"binding": "board:/alert/label",
+					"label": "Alert",
+					"placement": "hidden"
+				}
 			},
 			"parts": ["presentation"],
 			"part_bindings": {
@@ -88328,7 +89914,8 @@
 					"details": true
 				}
 			},
-			"label": "Bridge"
+			"label": "Bridge",
+			"tree": "base.policy.threat-alert"
 		},
 		{
 			"id": "base.widget.courier.comms.bridge",
@@ -88379,7 +89966,12 @@
 		{
 			"id": "base.widget.courier.helm.impulse",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["impulse"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": ["impulse"]
+				}
+			},
 			"commands": [
 				{
 					"id": "impulse",
@@ -88391,7 +89983,11 @@
 				}
 			],
 			"data": {
-				"impulse": { "binding": "command.impulse", "label": "Impulse", "placement": "details" },
+				"impulse": {
+					"binding": "command.impulse",
+					"label": "Impulse",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -88408,7 +90004,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -88432,8 +90032,14 @@
 			},
 			"parts": ["presentation"],
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "manual", "human": ["impulse"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "manual",
+					"human": ["impulse"]
+				}
 			],
 			"label": "Impulse",
 			"part_bindings": {
@@ -88454,6 +90060,21 @@
 					],
 					"details": true
 				}
+			},
+			"policy": {
+				"extends": "base.policy.impulse-travel",
+				"system_bindings": [
+					{
+						"name": "impulse.ready",
+						"system": "$equipment",
+						"field": "impulse_ready"
+					},
+					{
+						"name": "impulse.phase",
+						"system": "$equipment",
+						"field": "impulse_phase"
+					}
+				]
 			}
 		},
 		{

@@ -102,6 +102,8 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "boost",
 	                                             "impulse",
 	                                             "impulse_phase",
+	                                             "deceleration",
+	                                             "maximum_rate",
 	                                             "impulse_progress",
 	                                             "impulse_charge_spent",
 	                                             "impulse_charge_total",

@@ -180,6 +180,7 @@ auto Runtime::telemetry(EntityId id, std::size_t index) const -> std::map<std::s
 			values["requested"] =
 			    system.flight->definition.kind == FlightKind::Steering ? f.desired_heading : f.desired_speed;
 			values["desired_speed"] = f.desired_speed;
+			values["deceleration"] = system.flight->definition.deceleration;
 			values["desired_heading"] = f.desired_heading;
 			values["enabled"] = f.enabled;
 			values["minimum_speed"] = -system.flight->definition.reverse_speed;
@@ -263,6 +264,7 @@ auto Runtime::telemetry(EntityId id, std::size_t index) const -> std::map<std::s
 				const auto &v = p.network.generators()[binding.generator];
 				values["requested"] = v.commanded_rate;
 				values["generator_output"] = v.commanded_rate;
+				values["maximum_rate"] = p.definition.network.generators[binding.generator].maximum_rate;
 				values["actual_output"] = v.actual_rate;
 				const auto &generator = p.definition.network.generators[binding.generator];
 				const auto &load = p.network.telemetry()[generator.store];

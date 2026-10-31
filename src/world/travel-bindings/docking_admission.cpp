@@ -407,6 +407,10 @@ auto Runtime::apply_docking_controller(flecs::entity e) -> void
 	const auto c = *connection;
 	const auto id = e.get<StableId>().id;
 	auto &controllers = e.get_mut<EntityControls>().controllers;
+	// AI can admit a new connection during Controller evaluation, after this
+	// tick's guidance capture. Its first physical approach begins next tick.
+	if (!e.has<CraftGuidance>())
+		return;
 	for (std::size_t index = 0; index < controllers.size(); ++index)
 	{
 		auto &ctrl = controllers[index];
@@ -620,6 +624,16 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 	}
 	if (out["ports"].empty())
 		return out;
+	if (const auto *connection = e.try_get<DockConnection>();
+	    connection && connection->assisted && connection->phase == "approach" &&
+	    std::any_of(out["ports"].begin(), out["ports"].end(),
+	                [&](const auto &port)
+	                {
+		                return port.at("id") == definition(a.ship).docking.at(connection->port).id;
+	                }))
+		if (const auto *guidance = e.try_get<CraftGuidance>())
+			out["guidance"] = {
+			    {"x", guidance->destination.x}, {"y", guidance->destination.y}, {"navigate", guidance->navigate}};
 	for (const auto &[id, other] : docking_rows())
 		if (id != a.ship && !craft_dormant(other) && dock_known(a, id))
 			for (std::size_t i = 0; i < definition(id).docking.size(); ++i)
@@ -641,8 +655,7 @@ auto Runtime::docking_board(const ConsoleAddress &a) const -> Json
 						                [&](const auto &controller)
 						                {
 							                return controller.definition.console == a.console &&
-							                       controller.definition.id == local.controller &&
-							                       controller_operation_human(controller, "docking");
+							                       controller.definition.id == local.controller;
 						                }))
 						{
 							// One usable local port per remote port keeps the contextual choice and report bounded.

@@ -5,6 +5,7 @@ add_library(
 	persistence.cpp
 	decisions.cpp
 	report_facts.cpp
+	workflow_facts.cpp
 	observations.cpp
 	admission.cpp
 )

@@ -478,6 +478,18 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.value("complexity_observation", false))
 		add({"console.stars", Type::Integer, 4, {}});
+	if (resolved.value("workflow_observations", false))
+	{
+		for (const auto *name : {"mission", "phase", "port", "dock_target", "dock_phase"})
+			add({std::string("workflow.") + name, Type::Text, 4, {}});
+		for (const auto *name :
+		     {"mission_revision", "dock_revision", "alert_maximum", "travel_distance", "stopping_distance"})
+			add({std::string("workflow.") + name, Type::Integer, 4, {}});
+		for (const auto *name : {"work_complete", "launch_ready", "aligned", "travelling"})
+			add({std::string("workflow.") + name, Type::Boolean, 4, {}});
+		add({"workflow.target_distance", Type::Integer, 4, {}});
+		add({"workflow.ship_transport", Type::Boolean, 4, {}});
+	}
 	if (resolved.value("logistics_commands", false))
 		add({"logistics.revision", Type::Integer, 4, {}});
 	if (resolved.value("docking_commands", false))

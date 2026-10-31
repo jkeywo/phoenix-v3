@@ -55,6 +55,8 @@ struct ControllerObservationSources
 };
 void append_controller_observations(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                     std::vector<state_tree::Value> &);
+void append_controller_workflow_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                                      std::vector<state_tree::Value> &);
 void append_controller_execution_facts(EntityId, const ConsoleControllerRuntime &, const EntityControls &,
                                        const Observation &, std::span<const AbilityControlDefinition>,
                                        std::span<const ProcessControlDefinition>, std::vector<state_tree::Value> &);

@@ -307,7 +307,7 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 	                [&](const auto &controller)
 	                {
 		                return controller.definition.console == address.console && controller.brain &&
-		                       controller.brain->report_observations;
+		                       (controller.brain->report_observations || controller.brain->workflow_base);
 	                }))
 	{
 		// Reuse the same scope-checked producers as the human projection.
@@ -319,6 +319,8 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 		result.gameplay["psychic"] = psychic_board(address);
 		result.gameplay["logistics"] = logistics_board(address);
 		result.gameplay["sensors"] = sensor_projection(address, sensor_evidence(address));
+		result.gameplay["alert_maximum"] =
+		    std::max<std::int64_t>(0, definition(address.ship).bridge.conditions.size()) - 1;
 	}
 	return result;
 }

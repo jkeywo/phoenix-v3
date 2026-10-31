@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Autonomous ship operations](docs/autonomous-operations.md) connects generic combat readiness, impulse travel, assisted docking and offered away jobs through permitted blackboards and normal command admission.
+
 [Courier weapon coverage](docs/radar-coverage.md) corrects the two full-traverse gun turrets and two torpedo tubes, with authored, labelled radar coverage.
 
 [Modularisation implementation plan](docs/modularisation-plan.md) records the delivered family/module hierarchy, dependency rules and migration chunks. The [reading guide](docs/modules.md), [line counts](docs/module-sizes.md) and [verification evidence](docs/modularisation-evidence.md) describe the resulting code and checks.

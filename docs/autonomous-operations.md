@@ -1,0 +1,52 @@
+# Autonomous ship operations
+
+Ship Controller trees implement reusable operating policies. Scenarios retain the
+objectives, job offers, away work, dialogue decisions and consequences. The ship
+policies do not refer to mission, character, event or target IDs.
+
+An away definition can opt in with `ai_dispatch: true`. Once the scenario reveals
+that job, AI-owned Dispatch may open it, prepare its ordinary departmental
+contributions, send the staged party when physical admission permits, and recall
+it after its away tree reports completion. Jobs without this flag retain explicit
+activation. Hidden jobs and recovered jobs are not automatically restarted.
+
+For own-ship transport, Helm uses the offered target and its authored docking
+ports. It ends ordinary navigation actions before submitting assisted docking,
+retains the connection during deployed work, and requests normal separation after
+recovery. Admission still checks operator ownership, current revisions, port
+compatibility, observation, staging and physical transfer conditions. A scenario
+offer cannot override human-owned operations.
+
+`workflow_observations: true` exposes a bounded selection of the Console's
+permitted manifest and docking rows, plus same-Console accepted navigation and
+observed motion. It includes mission identity, phase and revision; docking port,
+destination, phase and revision; launch and work-completion facts; target range;
+travel distance, alignment and stopping distance. These facts neither dispatch
+work nor read another Controller's private continuation. Remote away projections
+retain the offer, work-completion and permitted-port facts.
+
+Coordination is implicit through these blackboard observations and accepted
+same-Console command sections, or explicit through the existing addressed officer
+messages. There are no direct calls between AI policies. Assisted docking publishes
+its planned approach point to the owning Console; impulse control reads that plan
+without reading the docking Controller's private memory.
+
+AI bridge control raises the fitted alert to its highest authored condition when
+it observes a hostile target. The Courier reactor policy uses its observed fitted
+maximum output at high alert. Target selection and actual weapon execution remain
+separate; readiness does not manufacture ammunition, energy or a firing solution.
+An AI policy that explicitly owns a weapon-target channel chooses a permitted
+hostile independently of the scanner. Shared scanner following remains the
+fallback when that channel has no AI target policy, and human target overrides
+retain their ordinary authority.
+
+Long-distance navigation can request impulse when aligned, clear of an observed
+obstruction, beyond the cruise threshold and physically ready. It releases impulse
+when navigation ends, alignment is lost, an obstruction appears or remaining
+distance reaches the observed stopping distance plus an approach margin. Charging,
+reserve, heat, cooling, actual acceleration and braking remain ordinary machinery.
+
+Synthetic away integration covers opt-in offers, human ownership, physical docking,
+team deployment, completion, recovery and saved continuation. Named rescue runs
+are manual smoke evidence; they do not establish shipped balance or device
+acceptance.

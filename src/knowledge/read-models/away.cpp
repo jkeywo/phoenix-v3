@@ -40,6 +40,14 @@ Json board(const Json &rows)
 		v["revision"] = revision;
 		v["dispatch"] = r.at("dispatch").get<bool>();
 		v["automatic_dispatch"] = r.value("automatic_dispatch", false);
+		v["ai_dispatch"] = r.value("ai_dispatch", false);
+		v["work_complete"] = r.value("work_complete", false);
+		v["docking_ports"] = Json::array();
+		const auto docking_ports = r.value("docking_ports", Json::array());
+		if (!docking_ports.is_array() || docking_ports.size() > 32)
+			throw std::runtime_error("Invalid mission docking ports");
+		for (const auto &port : docking_ports)
+			v["docking_ports"].push_back(text(port, 64));
 		if (r.contains("launch_ready"))
 			v["launch_ready"] = r.at("launch_ready").get<bool>();
 		if (r.contains("launch_blocker"))

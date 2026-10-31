@@ -13,7 +13,10 @@ void Runtime::consume_controller_proposals()
 		{
 			const auto &ctrl =
 			    entities.at(proposal.address.entity).get<EntityControls>().controllers.at(proposal.controller);
-			if (commit_controller(proposal))
+			// Delegated impulse follows the permitted docking guidance. Human
+			// flight input still explicitly cancels an assisted approach.
+			if (commit_controller(proposal) &&
+			    (proposal.human || ctrl.definition.commands.at(proposal.channel).action != OperatingAction::Impulse))
 				cancel_docking_assist(
 				    proposal.address.entity, proposal.address.controller,
 				    std::string(operating_action(ctrl.definition.commands.at(proposal.channel).action).name),

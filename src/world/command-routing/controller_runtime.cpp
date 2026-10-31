@@ -135,7 +135,16 @@ auto Runtime::consume_controller_commands(flecs::entity entity) -> void
 		{
 			const auto &spec = controller.definition.commands[i];
 			auto &state = controller.commands[i];
-			if (spec.shared_target_controller.empty() ||
+			const bool policy_target = spec.action == OperatingAction::WeaponTarget &&
+			                           !controller_command_human(controller, i) && controller.brain &&
+			                           std::any_of(controller.brain->commands.begin(), controller.brain->commands.end(),
+			                                       [&](const auto &binding)
+			                                       {
+				                                       return binding.channel_index == i;
+			                                       });
+			if (policy_target)
+				state.target_override = false;
+			if (spec.shared_target_controller.empty() || policy_target ||
 			    (!controller_command_human(controller, i) &&
 			     encounter_owns_controller(entity.get<StableId>().id, controller.definition)))
 				continue;
