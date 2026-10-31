@@ -61,11 +61,7 @@ void GameplayEditors::State::network_editor(Json &network, const std::vector<std
 		        edit_registered(row, "gameplay-editors.resources.resource");
 		        choice(row, "group",
 		               network.contains("groups") ? ids(network.at("groups")) : std::vector<std::string>{}, true);
-		        for (const char *key : {"capacity", "initial", "charge_rate", "discharge_rate", "loss_empty_ppm",
-		                                "loss_full_ppm", "initial_heat", "passive_cooling", "stop_heat", "recover_heat",
-		                                "charge_heat_ppm", "operation_heat_ppm", "depletion_heat_ppm", "stress_rate",
-		                                "override_stress_rate", "stress_limit"})
-			        integer(row, key);
+		        edit_shared_group(row, "gameplay-editors.resources.group.capacity");
 		        edit_registered(row, "gameplay-editors.resources.overdrive_permille");
 		        edit_registered(row, "gameplay-editors.resources.overdrive_heat_permille");
 		        edit_registered(row, "gameplay-editors.resources.enabled");
@@ -78,8 +74,7 @@ void GameplayEditors::State::network_editor(Json &network, const std::vector<std
 	        {
 		        edit_registered(row, "gameplay-editors.resources.id");
 		        choice(row, "store", stores);
-		        for (const char *key : {"maximum_rate", "response_rate", "initial_output", "heat_ppm"})
-			        integer(row, key);
+		        edit_shared_group(row, "gameplay-editors.resources.group.maximum_rate");
 		        edit_registered(row, "gameplay-editors.resources.enabled");
 	        });
 	records(network, "links", workshop_record("gameplay-editors.resources.links"),
@@ -98,8 +93,7 @@ void GameplayEditors::State::network_editor(Json &network, const std::vector<std
 		        edit_registered(row, "gameplay-editors.resources.resource");
 		        edit_registered(row, "gameplay-editors.resources.capacity");
 		        choice(row, "power_store", stores, true);
-		        for (const char *key : {"initial", "removal_rate", "coolant_per_heat_ppm"})
-			        integer(row, key);
+		        edit_shared_group(row, "gameplay-editors.resources.group.initial");
 	        });
 	auto sources =
 	    network.contains("coolant_sources") ? ids(network.at("coolant_sources")) : std::vector<std::string>{};

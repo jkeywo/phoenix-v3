@@ -18,33 +18,9 @@ namespace phoenix
 bool AuthoringControls::edit_registered(Json &value, const char *descriptor)
 {
 	const auto &spec = workshop_field(descriptor);
-	const auto key = spec.at("key").get<std::string>();
-	const auto title = spec.at("label").get<std::string>();
-	const auto type = spec.at("type").get<std::string>();
-	Json candidate = Json::object();
-	if (value.contains(key))
-		candidate[key] = value.at(key);
-	bool changed = false;
-	if (spec.contains("choices"))
-		changed = choice(candidate, key.c_str(), spec.at("choices").get<std::vector<std::string>>(),
-		                 spec.value("optional", false));
-	else if (type == "string")
-		changed = string(candidate, key.c_str(), title.c_str());
-	else if (type == "integer")
-		changed = integer(candidate, key.c_str(), spec.at("default").get<std::int64_t>());
-	else if (type == "boolean")
-		changed = boolean(candidate, key.c_str(), spec.at("default").get<bool>());
-	else if (type == "number")
-		changed = decimal(candidate, key.c_str(), spec.at("default").get<double>());
-	if (changed)
-	{
-		if (candidate.contains(key))
-			workshop_set_field(value, spec, candidate.at(key));
-		else
-			value.erase(key);
-	}
-	return changed;
+	return edit_shared_field(label(spec.at("label").get<std::string>().c_str()).c_str(), value, descriptor);
 }
+
 std::string AuthoringControls::label(const char *text) const
 {
 	return translate(text, pseudo) + "###" + text;
@@ -88,18 +64,18 @@ void AuthoringControls::audio_fields(Json &owner, const char *key, bool shield)
 	if (!panel)
 		return;
 	if (!owner.contains(key) && button("Add audio recording"))
-		owner[key] = {{"asset", ""}, {"gain", shield ? .06 : 1.0}};
+		(void)workshop_custom_action(owner, "audio.add", {{"field", key}, {"shield", shield}});
 	if (!owner.contains(key))
 		return;
 	auto &clip = owner[key];
 	string(clip, "asset");
-	edit_field(label("gain").c_str(), clip, "gain", 1.0);
+	edit_registered(clip, "audio.gain");
 	if (shield)
 	{
-		edit_field(label("peak_gain").c_str(), clip, "peak_gain", .8);
-		edit_field(label("decay_per_second").c_str(), clip, "decay_per_second", 1.5);
-		integer(clip, "damage_threshold", 1);
-		integer(clip, "damage_full_spike", 30);
+		edit_registered(clip, "audio.peak_gain");
+		edit_registered(clip, "audio.decay_per_second");
+		edit_registered(clip, "audio.damage_threshold");
+		edit_registered(clip, "audio.damage_full_spike");
 	}
 	if (button("Remove audio recording"))
 		owner.erase(key);
@@ -140,45 +116,23 @@ void AuthoringControls::gameplay_panel(Json &owner)
 		if (owner.contains("gameplay_panel"))
 		{
 			auto &panel = owner["gameplay_panel"];
-			decimal(panel, "x", 0.0);
-			decimal(panel, "y", 0.0);
-			decimal(panel, "width", 1.0);
-			decimal(panel, "height", 1.0);
+			edit_registered(panel, "gameplay.panel.x");
+			edit_registered(panel, "gameplay.panel.y");
+			edit_registered(panel, "gameplay.panel.width");
+			edit_registered(panel, "gameplay.panel.height");
 			text("Coordinates are relative to the Console, from zero to one. The positive rectangle must fit "
 			     "inside it.");
 			if (button("Use default gameplay panel layout"))
 				owner.erase("gameplay_panel");
 		}
 		else if (button("Set gameplay panel layout"))
-			owner["gameplay_panel"] = {{"x", 0.0}, {"y", 0.0}, {"width", 1.0}, {"height", 1.0}};
+			(void)workshop_custom_action(owner, "gameplay.panel");
 	}
 }
 
 bool AuthoringControls::choice(Json &value, const char *key, const std::vector<std::string> &options, bool optional)
 {
-	if (value.contains(key) && value.at(key).is_object())
-	{
-		text("Local tree: edit in State trees");
-		return false;
-	}
-	const auto current = value.value(key, std::string{});
-	bool changed = false;
-	if (ScopedCombo scope(label(key).c_str(), current.empty() ? translate("None", pseudo).c_str() : current.c_str());
-	    scope)
-	{
-		if (optional && ImGui::Selectable(label("None").c_str(), current.empty()))
-		{
-			value.erase(key);
-			changed = true;
-		}
-		for (const auto &option : options)
-			if (ImGui::Selectable(option.c_str(), option == current))
-			{
-				value[key] = option;
-				changed = true;
-			}
-	}
-	return changed;
+	return edit_shared_choice(label(key).c_str(), value, key, options, optional);
 }
 
 std::string AuthoringControls::identity(const Json &row) const
@@ -227,18 +181,7 @@ void AuthoringControls::names(Json &value, const char *key, const std::vector<st
 	text(key);
 	for (const auto &option : options)
 	{
-		bool checked = value.contains(key) &&
-		               std::find(value.at(key).begin(), value.at(key).end(), Json(option)) != value.at(key).end();
-		if (ImGui::Checkbox(option.c_str(), &checked))
-		{
-			if (!value.contains(key))
-				value[key] = Json::array();
-			auto &array = value[key];
-			if (checked)
-				array.push_back(option);
-			else
-				array.erase(std::find(array.begin(), array.end(), Json(option)));
-		}
+		edit_shared_member(option.c_str(), value, key, option);
 	}
 }
 
@@ -291,7 +234,7 @@ void AuthoringControls::ranked_names(Json &value, const char *key, const std::ve
 	if (remove >= 0)
 		rows.erase(rows.begin() + remove);
 	else if (move >= 0)
-		std::swap(rows[move], rows[move + direction]);
+		(void)workshop_custom_action(rows, "array.move", {{"from", move}, {"to", move + direction}});
 	if (ScopedCombo add(label("Add preference").c_str(), label("Choose station").c_str()); add)
 		for (const auto &option : options)
 			if (std::find(rows.begin(), rows.end(), Json(option)) == rows.end() && ImGui::Selectable(option.c_str()))
@@ -361,10 +304,10 @@ void AuthoringControls::records(Json &parent, const char *key, Json prototype,
 			           {
 				           inspect(row);
 				           if (button("Move earlier") && i > 0)
-					           std::swap(parent[key][i], parent[key][i - 1]);
+					           (void)workshop_custom_action(parent[key], "array.move", {{"from", i}, {"to", i - 1}});
 				           ImGui::SameLine();
 				           if (button("Move later") && i + 1 < parent.at(key).size())
-					           std::swap(parent[key][i], parent[key][i + 1]);
+					           (void)workshop_custom_action(parent[key], "array.move", {{"from", i}, {"to", i + 1}});
 				           return button("Remove record");
 			           }
 			           return false;
@@ -394,20 +337,25 @@ void AuthoringControls::scalar_map(Json &parent, const char *key)
 			            return button("Remove");
 		            });
 	static std::map<std::string, std::string> pending_names;
-	static std::map<std::string, int> pending_types;
+	static std::map<std::string, std::string> pending_types;
 	const auto scope = std::to_string(ImGui::GetID(key));
 	ImGui::InputText(label("New field name").c_str(), &pending_names[scope]);
 	tool_prepare_action("Add field");
-	ImGui::Combo(label("New field type").c_str(), &pending_types[scope], "Integer\0Boolean\0Text\0");
+	Json type_choice{{"Value type", pending_types[scope].empty() ? "integer" : pending_types[scope]}};
+	if (edit_registered(type_choice, "scalar.type"))
+		pending_types[scope] = type_choice.at("Value type");
 	tool_action_line("Add field");
 	if (button("Add field") && !pending_names[scope].empty())
 	{
 		if (!parent.contains(key))
 			parent[key] = Json::object();
 		if (!parent[key].contains(pending_names[scope]))
-			parent[key][pending_names[scope]] = pending_types[scope] == 0   ? Json(0)
-			                                    : pending_types[scope] == 1 ? Json(false)
-			                                                                : Json("");
+		{
+			Json value;
+			(void)workshop_custom_action(value, "value.type", {{"type", type_choice.at("Value type")}});
+			parent[key][pending_names[scope]] = value;
+		}
+
 		pending_names[scope].clear();
 	}
 }
@@ -451,17 +399,13 @@ void AuthoringControls::structure(Json &value, bool writable, unsigned depth)
 			if (value.is_object())
 				ImGui::InputText(label("Property name").c_str(), &names[identity]);
 			Json selector{{"Value type", types[identity].empty() ? "integer" : types[identity]}};
-			if (choice(selector, "Value type", {"integer", "boolean", "text", "object", "array", "null"}))
+			if (edit_registered(selector, "structure.type"))
 				types[identity] = selector.at("Value type").get<std::string>();
 			if (button("Add value") && (!value.is_object() || !names[identity].empty()))
 			{
 				const auto type = selector.at("Value type").get<std::string>();
-				Json added = type == "boolean"  ? Json(false)
-				             : type == "text"   ? Json("")
-				             : type == "object" ? Json::object()
-				             : type == "array"  ? Json::array()
-				             : type == "null"   ? Json()
-				                                : Json(0);
+				Json added;
+				(void)workshop_custom_action(added, "value.type", {{"type", type}});
 				if (value.is_array())
 					value.push_back(added);
 				else if (!value.contains(names[identity]))
@@ -471,28 +415,10 @@ void AuthoringControls::structure(Json &value, bool writable, unsigned depth)
 	}
 	else if (writable)
 	{
-		if (value.is_string())
-		{
-			auto field = value.get<std::string>();
-			if (ImGui::InputText(label("Value").c_str(), &field))
-				value = field;
-		}
-		else if (value.is_boolean())
-		{
-			auto field = value.get<bool>();
-			if (ImGui::Checkbox(label("Value").c_str(), &field))
-				value = field;
-		}
-		else if (value.is_number_integer())
-		{
-			auto field = value.get<std::int64_t>();
-			if (ImGui::InputScalar(label("Value").c_str(), ImGuiDataType_S64, &field))
-				value = field;
-		}
+		if (value.is_string() || value.is_boolean() || value.is_number())
+			edit_registered(value, "structure.value");
 		else
-		{
 			ImGui::TextUnformatted(value.dump().c_str());
-		}
 	}
 	else
 		ImGui::TextWrapped("%s",

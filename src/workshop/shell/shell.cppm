@@ -90,6 +90,11 @@ bool edit_field(const char *label, Json &object, const char *key, std::int64_t f
 bool edit_field(const char *label, Json &object, const char *key, bool fallback);
 bool edit_field(const char *label, Json &object, const char *key, double fallback);
 bool edit_shared_field(const char *label, Json &object, const char *descriptor);
+bool edit_shared_control(const char *label, Json &object, const char *descriptor, const Json &context);
+bool edit_shared_choice(const char *, Json &, const char *, const std::vector<std::string> &, bool optional);
+bool edit_shared_member(const char *, Json &, const char *field, const Json &item);
+void edit_shared_group(Json &object, const char *group);
+void edit_shared_group(Json &object, const char *group, const Json &context);
 void array_rows(Json &rows, const std::function<bool(Json &, std::size_t)> &inspect);
 void object_rows(Json &rows, const std::function<bool(const std::string &, Json &)> &inspect);
 void append_row(Json &parent, const char *key, Json value);
@@ -151,8 +156,7 @@ struct ToolPreferences
 	bool pseudo = false;
 };
 bool draw_tool_preferences(ToolPreferences &);
-void tool_real_field(const char *, Json &, const char *, float fallback, float minimum, float maximum);
-void tool_colour_field(const char *, Json &, const char *, const Json &fallback, bool alpha);
+
 void apply_tool_theme(const Catalog &, std::uint64_t revision = 0);
 bool tool_button(const char *label, const ImVec2 &size = ImVec2(0, 0));
 bool tool_small_button(const char *label);

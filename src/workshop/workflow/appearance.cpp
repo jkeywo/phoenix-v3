@@ -70,45 +70,14 @@ void WorkshopWorkspace::State::bulk_instance_properties()
 			    document.translate_instances(selection.instances, dx, dy);
 			    dx = dy = 0;
 		    });
-	std::vector<Json> effective;
-	for (const auto &instance : document.map()["entities"])
-		if (selection.instances.contains(instance.at("id").get<std::uint64_t>()))
-		{
-			auto value = document.preview_definition(WorkshopDefinitionKind::Entity, instance.at("definition"));
-			value.merge_patch(instance.value("overrides", Json::object()));
-			value["heading_mdeg"] = instance.at("heading_mdeg");
-			if (!value.contains("faction"))
-				value["faction"] = "";
-			value["sprite_entry"] = value.value("render", Json::object()).value("sprite_entry", std::string{});
-			for (const auto *key : {"faction", "sprite_entry"})
-				if (instance.contains(key))
-					value[key] = instance.at(key);
-			effective.push_back(std::move(value));
-		}
-	if (effective.empty())
+	Json descriptions;
+	attempt(
+	    [&]
+	    {
+		    descriptions = workshop_instance_fields(document, selection.instances);
+	    });
+	if (descriptions.is_null())
 		return;
-	std::set<std::string> sprite_choices;
-	bool first_sprite = true;
-	for (const auto &entity : effective)
-	{
-		std::set<std::string> choices;
-		const auto render = entity.value("render", Json::object());
-		if (render.contains("sprite"))
-		{
-			choices.insert("");
-			for (const auto &entry : render.at("sprite").value("entries", Json::array()))
-				choices.insert(entry.at("name").get<std::string>());
-		}
-		if (first_sprite)
-			sprite_choices = choices;
-		else
-			std::erase_if(sprite_choices,
-			              [&](const auto &choice)
-			              {
-				              return !choices.contains(choice);
-			              });
-		first_sprite = false;
-	}
 	std::string signature = document.map().at("id").get<std::string>() + ":";
 	for (const auto id : selection.instances)
 		signature += std::to_string(id) + ",";
@@ -118,127 +87,84 @@ void WorkshopWorkspace::State::bulk_instance_properties()
 		bulk_selection = signature;
 		bulk_revision = document.revision();
 	}
-	std::function<void(const std::vector<Json> &, const std::string &, bool)> fields;
-	fields = [&](const std::vector<Json> &values, const std::string &path, bool direct)
+	std::function<void(const Json &)> fields;
+	fields = [&](const Json &rows)
 	{
-		const auto &first = values.front();
-		if (first.is_object())
+		for (const auto &field : rows)
 		{
-			for (const auto *discriminator : {"kind", "mode", "shape"})
-				if (first.contains(discriminator) && std::any_of(values.begin(), values.end(),
-				                                                 [&](const auto &row)
-				                                                 {
-					                                                 return !row.contains(discriminator) ||
-					                                                        row.at(discriminator) !=
-					                                                            first.at(discriminator);
-				                                                 }))
-					return;
-			for (const auto &[key, value] : first.items())
+			const auto path = field.at("path").get<std::string>();
+			if (field.contains("children"))
 			{
-				if (key == "id" || key == "extends" || key == "kind" || key == "mode" || key == "shape" ||
-				    key.starts_with("_") || (key == "sprite_entry" && sprite_choices.empty()))
-					continue;
-				std::vector<Json> common;
-				for (const auto &row : values)
-					if (row.is_object() && row.contains(key) &&
-					    (row.at(key).type() == value.type() ||
-					     (row.at(key).is_number_integer() && value.is_number_integer())))
-						common.push_back(row.at(key));
-				if (common.size() != values.size())
-					continue;
-				auto escaped = key;
-				for (std::size_t i = 0; i < escaped.size(); ++i)
-					if (escaped[i] == '~' || escaped[i] == '/')
-					{
-						const auto c = escaped[i];
-						escaped.replace(i, 1, c == '~' ? "~0" : "~1");
-						++i;
-					}
-				const auto child = path + "/" + escaped;
-				if (value.is_object())
+				if (ImGui::TreeNode(path.c_str(), "%s", field.at("label").get_ref<const std::string &>().c_str()))
 				{
-					if (ImGui::TreeNode(child.c_str(), "%s", key.c_str()))
-					{
-						fields(common, child, false);
-						ImGui::TreePop();
-					}
+					fields(field.at("children"));
+					ImGui::TreePop();
 				}
-				else if (!value.is_array())
-					fields(common, child,
-					       path.empty() && (key == "heading_mdeg" || key == "faction" || key == "sprite_entry"));
+				continue;
 			}
-			return;
-		}
-		const bool mixed = std::any_of(values.begin(), values.end(),
-		                               [&](const Json &v)
-		                               {
-			                               return v != first;
-		                               });
-		if (!bulk_values.contains(path))
-			bulk_values[path] = first;
-		auto &value = bulk_values.at(path);
-		ImGui::PushID(path.c_str());
-		if (mixed)
-			ImGui::TextUnformatted(localise("Mixed").c_str());
-		const auto title = path.substr(path.find_last_of('/') + 1);
-		bool changed = false;
-		const auto field_label = tool_label(title);
-		if (title == "sprite_entry")
-		{
-			if (ImGui::BeginCombo(field_label.c_str(),
-			                      mixed ? localise("Mixed").c_str() : value.get_ref<const std::string &>().c_str()))
+			const auto first = field.at("value");
+			const bool mixed = field.at("mixed");
+			if (!bulk_values.contains(path))
+				bulk_values[path] = first;
+			auto &value = bulk_values.at(path);
+			ImGui::PushID(path.c_str());
+			if (mixed)
+				ImGui::TextUnformatted(localise("Mixed").c_str());
+			const auto title = field.at("label").get<std::string>();
+			bool changed = false;
+			const auto field_label = tool_label(title);
+			if (title == "sprite_entry")
 			{
-				for (const auto &entry : sprite_choices)
-					if (ImGui::Selectable(entry.empty() ? tool_label("Default").c_str() : entry.c_str(),
-					                      value == entry))
-					{
-						value = entry;
-						changed = true;
-					}
-				ImGui::EndCombo();
+				if (ImGui::BeginCombo(field_label.c_str(),
+				                      mixed ? localise("Mixed").c_str() : value.get_ref<const std::string &>().c_str()))
+				{
+					for (const auto &entry : field.at("choices").get<std::vector<std::string>>())
+						if (ImGui::Selectable(entry.empty() ? tool_label("Default").c_str() : entry.c_str(),
+						                      value == entry))
+						{
+							value = entry;
+							changed = true;
+						}
+					ImGui::EndCombo();
+				}
 			}
+			else if (value.is_string())
+			{
+				auto v = value.get<std::string>();
+				changed = edit_value(field_label.c_str(), v);
+				value = v;
+			}
+			else if (value.is_boolean())
+			{
+				auto v = value.get<bool>();
+				changed = edit_value(field_label.c_str(), v);
+				value = v;
+			}
+			else if (value.is_number_integer() && title != "scale")
+			{
+				auto v = value.get<std::int64_t>();
+				changed = edit_value(field_label.c_str(), v);
+				value = v;
+			}
+			else if (value.is_number())
+			{
+				auto v = value.get<double>();
+				changed = edit_value(field_label.c_str(), v);
+				value = v;
+			}
+			if ((changed && (value.is_boolean() || title == "sprite_entry")) || ImGui::IsItemDeactivatedAfterEdit())
+				attempt(
+				    [&]
+				    {
+					    workshop_instance_field(document, selection.instances, path, value);
+				    });
+			ImGui::PopID();
 		}
-		else if (value.is_string())
-		{
-			auto v = value.get<std::string>();
-			changed = edit_value(field_label.c_str(), v);
-			value = v;
-		}
-		else if (value.is_boolean())
-		{
-			auto v = value.get<bool>();
-			changed = edit_value(field_label.c_str(), v);
-			value = v;
-		}
-		else if (value.is_number_integer() && title != "scale")
-		{
-			auto v = value.get<std::int64_t>();
-			changed = edit_value(field_label.c_str(), v);
-			value = v;
-		}
-		else if (value.is_number())
-		{
-			auto v = value.get<double>();
-			changed = edit_value(field_label.c_str(), v);
-			value = v;
-		}
-		if ((changed && (value.is_boolean() || title == "sprite_entry")) || ImGui::IsItemDeactivatedAfterEdit())
-			attempt(
-			    [&]
-			    {
-				    Json patch = Json::object(), direct_fields = Json::object();
-				    if (direct)
-					    direct_fields[title] = value;
-				    else
-					    patch[Json::json_pointer(path)] = value;
-				    document.edit_instances(selection.instances, direct_fields, patch);
-			    });
-		ImGui::PopID();
 	};
 	attempt(
 	    [&]
 	    {
-		    fields(effective, "", false);
+		    fields(descriptions);
 	    });
 	std::set<std::string> overridden;
 	for (const auto &instance : document.map()["entities"])
@@ -279,14 +205,11 @@ void WorkshopWorkspace::State::radar_icon_picker(Json &material)
 	assets.pick(document, "Radar icon PNG", current);
 	if (current != material.value("radar_sprite", Json("")))
 	{
-		material["radar_sprite"] = current;
-		material.erase("radar_icon");
+		(void)workshop_custom_action(material, "radar.icon", {{"value", current}});
 	}
 	if (tool_button(tool_label("Clear radar icon").c_str()))
-	{
-		material.erase("radar_sprite");
-		material.erase("radar_icon");
-	}
+		(void)workshop_custom_action(material, "radar.icon", {{"value", nullptr}});
+
 	if (current.is_string() && !current.get<std::string>().empty())
 	{
 		const auto texture = assets.texture(document, current.get<std::string>());
@@ -303,21 +226,14 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 	for (const char *key : {"normal", "depth"})
 	{
 		ImGui::PushID(key);
-		bool enabled = sprite.contains(key) && !sprite.at(key).is_null();
-		if (ImGui::Checkbox(tool_label(key).c_str(), &enabled))
-		{
-			if (enabled)
-				sprite[key] = "";
-			else
-				sprite.erase(key);
-		}
+		edit_shared_field(tool_label(key).c_str(), sprite, (std::string("material.") + key).c_str());
+		const bool enabled = sprite.contains(key);
+
 		if (enabled)
 			assets.pick(document, key, sprite[key]);
 		ImGui::PopID();
 	}
-	bool emissive = sprite.value("emissive", false);
-	if (ImGui::Checkbox(tool_label("Emissive artwork").c_str(), &emissive))
-		sprite["emissive"] = emissive;
+	edit_shared_field(tool_label("Emissive artwork").c_str(), sprite, "material.emissive");
 	if (sprite.contains("entries"))
 	{
 		for (auto &entry : sprite["entries"])
@@ -337,9 +253,7 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 		}
 		if (tool_button(tool_label("Duplicate sprite entry").c_str()) && !sprite["entries"].empty())
 		{
-			auto entry = sprite["entries"].back();
-			entry["name"] = "entry-" + std::to_string(sprite["entries"].size() + 1);
-			sprite["entries"].push_back(std::move(entry));
+			(void)workshop_custom_action(sprite, "sprite.entry.duplicate");
 		}
 		return;
 	}
@@ -347,8 +261,7 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 		return;
 	if (tool_button(tool_label("Use named sprite entries").c_str()))
 	{
-		sprite["entries"] = Json::array({{{"name", "default"}, {"frames", sprite.at("frames")}}});
-		sprite.erase("frames");
+		(void)workshop_custom_action(sprite, "sprite.entries");
 		return;
 	}
 	for (std::size_t i = 0; i < sprite["frames"].size(); ++i)
@@ -358,22 +271,12 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 		if (ImGui::TreeNode(frame.at("name").get_ref<const std::string &>().c_str()))
 		{
 			string_field("Frame name", frame, "name");
-			bool mirror_x = frame.value("mirror_x", false);
-			if (ImGui::Checkbox(tool_label("Mirror horizontally").c_str(), &mirror_x))
-				frame["mirror_x"] = mirror_x;
-			int rect[4];
-			for (int k = 0; k < 4; k++)
-				rect[k] = frame["rect"][k];
-			if (ImGui::InputInt4(tool_label("Atlas rectangle").c_str(), rect))
-				frame["rect"] = {rect[0], rect[1], rect[2], rect[3]};
-			float pivot[2] = {frame["pivot"][0], frame["pivot"][1]};
-			if (ImGui::InputFloat2(tool_label("Frame pivot").c_str(), pivot))
-				frame["pivot"] = {pivot[0], pivot[1]};
-			const auto axis = frame.value("forward", Json::array({0, -1}));
-			float forward[2] = {axis[0], axis[1]};
-			if (ImGui::InputFloat2(tool_label("Projected forward axis").c_str(), forward))
-				frame["forward"] = {forward[0], forward[1]};
-			tool_real_field("Camera azimuth", frame, "azimuth", static_cast<float>(i) * 45, 0, 359.999f);
+			edit_shared_field(tool_label("Mirror horizontally").c_str(), frame, "frame.mirror");
+			edit_shared_field(tool_label("Atlas rectangle").c_str(), frame, "frame.rect");
+			edit_shared_field(tool_label("Frame pivot").c_str(), frame, "frame.pivot");
+			edit_shared_field(tool_label("Projected forward axis").c_str(), frame, "frame.forward");
+			edit_shared_control(tool_label("Camera azimuth").c_str(), frame, "frame.azimuth", {{"frame", i}});
+
 			edit_shared_field(tool_label("Depth span / height").c_str(), frame, "workflow.appearance.depth_scale");
 			edit_shared_field(tool_label("Depth centre / height").c_str(), frame, "workflow.appearance.depth_offset");
 			if (!frame.contains("attachments"))
@@ -384,8 +287,10 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 				ImGui::PushID(it.key().c_str());
 				auto &a = it.value();
 				ImGui::TextUnformatted(it.key().c_str());
-				tool_real_field("Marker X", a, "x", 0, 0, static_cast<float>(std::max(0, rect[2])));
-				tool_real_field("Marker Y", a, "y", 0, 0, static_cast<float>(std::max(0, rect[3])));
+				edit_shared_control(tool_label("Marker X").c_str(), frame, "frame.marker.x",
+				                    {{"attachment", it.key()}});
+				edit_shared_control(tool_label("Marker Y").c_str(), frame, "frame.marker.y",
+				                    {{"attachment", it.key()}});
 				integer_field("Signed layer", a, "layer");
 				edit_shared_field(tool_label("Nozzle depth offset").c_str(), a,
 				                  "workflow.appearance.depth_offset.bounded");
@@ -397,11 +302,7 @@ void WorkshopWorkspace::State::material_properties(Json &sprite, bool with_radar
 				frame["attachments"].erase(remove);
 			if (tool_button(tool_label("Add engine attachment").c_str()))
 			{
-				int n = 1;
-				while (frame["attachments"].contains("engine_" + std::to_string(n)))
-					n++;
-				frame["attachments"]["engine_" + std::to_string(n)] = {
-				    {"x", pivot[0]}, {"y", pivot[1]}, {"layer", 0}, {"depth_offset", 0}};
+				(void)workshop_custom_action(frame, "sprite.attachment.add");
 			}
 			ImGui::TreePop();
 		}
@@ -430,23 +331,13 @@ void WorkshopWorkspace::State::sprite_import(Json &render)
 		}
 	ImGui::Checkbox(tool_label("Import as engine effect").c_str(), &import_engines);
 	auto &sidecar = pending_sidecar;
-	const auto sheet = sidecar.value("sprite_sheet", Json());
-	const bool inferred_eight = sheet.is_object() && sheet.contains("frames") && sheet.at("frames").size() == 8;
-	bool eight = sidecar.value("billboard_mode", std::string(inferred_eight ? "eight" : "camera")) == "eight";
-	if (ImGui::Checkbox(tool_label("Imported eight-direction billboard").c_str(), &eight))
-		sidecar["billboard_mode"] = eight ? "eight" : "camera";
+	edit_shared_field(tool_label("Imported eight-direction billboard").c_str(), sidecar, "sidecar.billboard");
 	edit_shared_field(tool_label("Imported render scale").c_str(), sidecar, "workflow.appearance.render_scale");
 	if (tool_button(tool_label("Apply sprite material").c_str()))
 		attempt(
 		    [&]
 		    {
-			    auto catalog = document.libraries();
-			    const auto prefix = document.manifest().at("id").get<std::string>() + ":";
-			    for (const auto &[path, bytes] : document.pack().files)
-				    if (path.starts_with("assets/"))
-					    catalog.assets[prefix + path] = bytes;
-			    apply_sprite_sidecar(render, pending_sidecar, sidecar_images, catalog, import_engines);
-			    document.definitions()["schema"] = 3;
+			    workshop_sprite_apply(document, render, pending_sidecar, Json(sidecar_images), import_engines);
 			    pending_sidecar = nullptr;
 			    clear_textures();
 			    status = "Sprite sidecar imported. Calibrate depth in the live preview.";
@@ -490,42 +381,24 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 	draw_reference_grid_properties(render);
 	if (render.contains("model") || render.contains("star"))
 	{
-		bool procedural = render.contains("star");
-		if (ImGui::Checkbox(tool_label("Procedural star").c_str(), &procedural))
-		{
-			if (procedural)
-			{
-				render.erase("model");
-				render["star"] = workshop_seed("workflow.appearance.star");
-			}
-			else
-			{
-				render.erase("star");
-				render["model"] = workshop_seed("workflow.appearance.model");
-			}
-		}
+		edit_shared_field(tool_label("Procedural star").c_str(), render, "render.procedural");
 		radar_icon_picker(render);
 		edit_shared_field(tool_label("Render scale").c_str(), render, "workflow.appearance.scale");
-		auto vector_edit = [&](const char *label, Json &object, const char *key, std::array<float, 3> fallback)
-		{
-			auto value = object.value(key, fallback);
-			if (ImGui::InputFloat3(tool_label(label).c_str(), value.data()))
-				object[key] = value;
-		};
+
 		if (render.contains("model"))
 		{
 			string_field("Model asset", render["model"], "asset");
 			if (tool_button(tool_label("Import GLB model...").c_str()))
 				request_file(imports, FilePurpose::WorkshopModel);
-			vector_edit("Model offset", render["model"], "offset", {});
-			vector_edit("Model rotation (degrees)", render["model"], "rotation", {});
-			vector_edit("Model scale", render["model"], "scale", {1, 1, 1});
+			edit_shared_field(tool_label("Model offset").c_str(), render["model"], "model.offset");
+			edit_shared_field(tool_label("Model rotation (degrees)").c_str(), render["model"], "model.rotation");
+			edit_shared_field(tool_label("Model scale").c_str(), render["model"], "model.scale");
 		}
 		else
 		{
 			auto &star = render["star"];
 			for (const char *key : {"surface_colour", "hot_colour", "cell_colour", "halo_colour"})
-				vector_edit(key, star, key, {1, .7f, .2f});
+				edit_shared_field(tool_label(key).c_str(), star, (std::string("star.") + key).c_str());
 			edit_shared_field(tool_label("Animation speed").c_str(), star, "workflow.appearance.animation_speed");
 			edit_shared_field(tool_label("Corona radius multiplier").c_str(), star,
 			                  "workflow.appearance.halo_radius_multiplier");
@@ -537,8 +410,8 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 		{
 			ImGui::PushID(name.c_str());
 			ImGui::TextUnformatted(name.c_str());
-			vector_edit("Attachment position", a, "position", {});
-			vector_edit("Attachment direction", a, "direction", {0, 0, 1});
+			edit_shared_field(tool_label("Attachment position").c_str(), a, "attachment.position");
+			edit_shared_field(tool_label("Attachment direction").c_str(), a, "attachment.direction");
 			if (tool_button(tool_label("Remove attachment").c_str()))
 				remove = name;
 			ImGui::PopID();
@@ -547,8 +420,7 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 			render["attachments"].erase(remove);
 		if (tool_button(tool_label("Add engine attachment").c_str()))
 		{
-			const auto key = "engine_" + std::to_string(render["attachments"].size() + 1);
-			render["attachments"][key] = {{"position", {0, 0, 0}}, {"direction", {0, 0, 1}}};
+			(void)workshop_custom_action(render, "model.attachment.add");
 		}
 	}
 	else
@@ -558,17 +430,10 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 		if (!render.contains("sprite"))
 		{
 			radar_icon_picker(render);
-			if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
-			{
-				render["mode"] = eight ? "eight" : "camera";
-				std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
-				render["images"] = workshop_seed("workflow.appearance.images");
-				for (int i = 0; i < (eight ? 8 : 1); ++i)
-					render["images"].push_back(image);
-			}
-			double scale = render.value("scale", 1.0);
-			if (ImGui::InputDouble(tool_label("Render scale").c_str(), &scale))
-				render["scale"] = scale;
+			edit_shared_field(tool_label("Eight-direction billboard").c_str(), render, "render.billboard");
+			eight = render.at("mode") == "eight";
+			edit_shared_field(tool_label("Render scale").c_str(), render, "render.scale");
+
 			for (std::size_t i = 0; i < render["images"].size(); ++i)
 			{
 				ImGui::PushID(static_cast<int>(i));
@@ -598,25 +463,9 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 	{
 		auto &collision = entity["collision"];
 		bool box = collision["shape"] == "box";
-		int shape = box ? 1 : 0;
-		const auto shapes = localise("Circle") + '\0' + localise("Oriented box") + '\0';
-		if (ImGui::Combo(tool_label("Collision type").c_str(), &shape, shapes.c_str()))
-		{
-			box = shape == 1;
-			collision["shape"] = box ? "box" : "circle";
-			if (box)
-			{
-				collision["half_width_mm"] = 2000;
-				collision["half_length_mm"] = 4000;
-				collision.erase("radius_mm");
-			}
-			else
-			{
-				collision["radius_mm"] = 2000;
-				collision.erase("half_width_mm");
-				collision.erase("half_length_mm");
-			}
-		}
+		edit_shared_field(tool_label("Collision type").c_str(), collision, "collision.shape");
+		box = collision.at("shape") == "box";
+
 		if (box)
 		{
 			integer_field("Half width (mm)", collision, "half_width_mm");
@@ -626,21 +475,10 @@ void WorkshopWorkspace::State::entity_properties(Json &entity)
 			integer_field("Radius (mm)", collision, "radius_mm");
 		integer_field("Mass (grams; 0 = static)", collision, "mass_grams");
 	}
-	std::string console = entity.value("console", std::string{});
 	ImGui::TextWrapped(
 	    "%s", localise("AI behaviour belongs to Console Controllers. Edit their trees and complexity profiles below.")
 	              .c_str());
-	if (ImGui::BeginCombo(tool_label("Console").c_str(), console.empty() ? "None" : console.c_str()))
-	{
-		if (ImGui::Selectable(tool_label("None").c_str(), console.empty()))
-			entity.erase("console");
-		for (const auto &value : document.definitions()["consoles"])
-		{
-			auto id = value.at("id").get<std::string>();
-			if (ImGui::Selectable(id.c_str(), id == console))
-				entity["console"] = id;
-		}
-		ImGui::EndCombo();
-	}
+	edit_shared_choice(tool_label("Console").c_str(), entity, "console",
+	                   document.definition_choices(WorkshopDefinitionKind::Console), true);
 }
 } // namespace phoenix

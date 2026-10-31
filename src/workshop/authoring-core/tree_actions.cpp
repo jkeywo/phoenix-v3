@@ -10,6 +10,12 @@ import phoenix.content.ui;
 
 namespace phoenix
 {
+Json workshop_preview_tree(const WorkshopDocument &document, Json source)
+{
+	if (!source.contains("context") && !source.contains("extends"))
+		source["context"] = "controller";
+	return document.preview_tree(source);
+}
 Json workshop_tree_state(const std::string &id)
 {
 	return {{"id", id},

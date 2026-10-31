@@ -66,23 +66,15 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 				        return;
 			        const auto widget = document.preview_definition(WorkshopDefinitionKind::ControlWidget,
 			                                                        instance.at("widget").get<std::string>());
-			        auto &equipment = instance["equipment"];
-			        if (!equipment.is_object())
-				        equipment = Json::object();
+			        (void)workshop_custom_action(instance, "controller.roles", {{"definition", widget}});
+			        auto &equipment = instance.at("equipment");
 			        const auto roles = widget.value("equipment", Json::object());
 			        for (const auto &[role, specification] : roles.items())
 				        if (specification.value("multiple", false))
 					        names(equipment, role.c_str(), systems);
 				        else
 					        choice(equipment, role.c_str(), systems);
-			        for (auto it = equipment.begin(); it != equipment.end();)
-				        if (!roles.contains(it.key()))
-					        it = equipment.erase(it);
-				        else
-					        ++it;
-			        auto &levels = instance["star_levels"];
-			        if (!levels.is_object())
-				        levels = Json::object();
+			        auto &levels = instance.at("star_levels");
 			        for (const auto *star : {"1", "2", "3"})
 			        {
 				        ScopedId scope(star);
@@ -91,22 +83,10 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 				        const auto data = widget.value("data", Json::object());
 				        for (const auto &[item, specification] : data.items())
 				        {
-					        Json selected{{"placement", instance.value("data_placement", Json::object())
-					                                        .value(star, Json::object())
-					                                        .value(item, std::string("inherit"))}};
 					        ScopedId data_scope(item.c_str());
 					        heading(specification.value("label", item).c_str());
-					        if (edit_registered(selected, "gameplay-editors.consoles.placement"))
-					        {
-						        if (selected.at("placement") == "inherit")
-						        {
-							        if (instance.contains("data_placement") &&
-							            instance["data_placement"].contains(star))
-								        instance["data_placement"][star].erase(item);
-						        }
-						        else
-							        instance["data_placement"][star][item] = selected.at("placement");
-					        }
+					        edit_shared_control(label("placement").c_str(), instance, "controller.data.placement",
+					                            {{"star", star}, {"item", item}});
 				        }
 			        }
 		        });
@@ -126,67 +106,47 @@ void GameplayEditors::State::control_layout(WorkshopDocument &document)
 	        {
 		        edit_registered(controller, "gameplay-editors.consoles.id");
 		        choice(controller, "console", consoles);
-		        if (edit_registered(controller, "gameplay-editors.consoles.policy") &&
-		            !controller.value("policy", std::string{}).empty())
-		        {
-			        controller.erase("tree");
-			        controller["fallback"] = "hold";
-		        }
+		        edit_registered(controller, "gameplay-editors.consoles.policy");
 		        if (tree_editor.tree_binding(document, controller, "tree", "controller", true))
-		        {
-			        if (controller.contains("tree") &&
-			            (controller.at("tree").is_object() || !controller.at("tree").get<std::string>().empty()))
-				        controller.erase("fallback");
-			        else
-			        {
-				        controller.erase("tree");
-				        controller["fallback"] = "hold";
-			        }
-		        }
+			        (void)workshop_custom_action(controller, "controller.tree");
+
 		        records(controller, "commands", workshop_record("gameplay-editors.consoles.commands"),
 		                [&](Json &command)
 		                {
 			                edit_registered(command, "gameplay-editors.consoles.id");
-			                std::vector<std::string> actions;
-			                for (const auto &action : operating_actions)
-				                actions.emplace_back(action.name);
-			                choice(command, "action", actions);
+			                edit_shared_field(label("action").c_str(), command, "controller.command.action");
 			                edit_registered(command, "gameplay-editors.consoles.initial");
 			                if (const auto *contract = operating_action(command.value("action", std::string{})))
 			                {
 				                const auto arguments = operating_arguments(contract->action);
 				                if (!arguments.empty())
 				                {
-					                if (!command.contains("arguments") ||
-					                    command["arguments"].size() != arguments.size())
-					                {
-						                command["arguments"] = workshop_seed("gameplay-editors.consoles.arguments");
-						                for (const auto &field : arguments)
-							                command["arguments"].push_back(std::max<std::int64_t>(0, field.minimum));
-					                }
+					                (void)workshop_custom_action(command, "controller.arguments");
+
 					                for (std::size_t i = 0; i < arguments.size(); ++i)
 					                {
-						                Json edit{{"value", command["arguments"][i]}};
 						                ScopedId scope(std::string(arguments[i].name).c_str());
-						                text(std::string(arguments[i].name).c_str());
-						                edit_registered(edit, "gameplay-editors.consoles.value");
-						                command["arguments"][i] = edit["value"];
+						                edit_shared_control(label(std::string(arguments[i].name).c_str()).c_str(),
+						                                    command, "controller.command.argument", {{"index", i}});
 					                }
 				                }
 				                else
-					                command.erase("arguments");
+					                (void)workshop_custom_action(command, "controller.arguments");
 			                }
 			                for (const auto *key : {"minimum", "maximum"})
 			                {
 				                ScopedId scope(key);
 				                if (command.contains(key))
 				                {
-					                integer(command, key);
+					                edit_shared_field(label(key).c_str(), command,
+					                                  (std::string("controller.command.") + key).c_str());
 					                if (button("Use fitted limit"))
 						                command.erase(key);
 				                }
 				                else if (button(key))
-					                command[key] = 0;
+					                (void)workshop_custom_action(
+					                    command, "control.default",
+					                    {{"control", std::string("controller.command.") + key}});
 			                }
 			                edit_registered(command, "gameplay-editors.consoles.label_key");
 			                const auto action = command.value("action", std::string{});
@@ -255,7 +215,7 @@ void GameplayEditors::State::console_properties(WorkshopDocument &document, bool
 	if (console.value("viewscreen", false))
 	{
 		if (!console.contains("compact"))
-			console["compact"] = {{"widgets", console.value("widgets", Json::array())}};
+			(void)workshop_custom_action(console, "console.compact");
 		ScopedTree compact("Compact Viewscreen HUD");
 		if (compact)
 			structure(console["compact"], true);
@@ -309,23 +269,7 @@ void GameplayEditors::State::console_properties(WorkshopDocument &document, bool
 			}
 			if (widget.at("kind") == "throttle" || widget.at("kind") == "heading")
 			{
-				bool controlled = widget.contains("controller");
-				if (ImGui::Checkbox(label("Use Controller command").c_str(), &controlled))
-				{
-					if (controlled)
-					{
-						widget.erase("system");
-						widget["controller"] = "";
-						widget["channel"] = "";
-					}
-					else
-					{
-						widget.erase("controller");
-						widget.erase("channel");
-						widget["binding"] =
-						    widget.at("kind") == "throttle" ? "engine.desired_speed" : "steering.desired_heading";
-					}
-				}
+				edit_shared_field(label("Use Controller command").c_str(), widget, "widget.controller");
 			}
 			if (widget.contains("controller"))
 			{

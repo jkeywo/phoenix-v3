@@ -83,6 +83,21 @@ void source_and_packages(const std::filesystem::path &root)
 	const auto entity = d.definitions().at("entities")[0].at("id").get<std::string>();
 	WorkshopAuthoring session;
 	session.reset(d);
+	auto bulk_session = session;
+	const auto common = run(bulk_session, "instance.fields", {{"ids", {1}}});
+	require(!common.empty(), "bulk inspector describes fields through production instance resolution");
+	run(bulk_session, "instance.field", {{"ids", {1}}, {"path", "/render/scale"}, {"value", 2.5}});
+	require(bulk_session.document().map().at("entities")[0].at("overrides").at("render").at("scale") == 2.5,
+	        "bulk inspector shares authored patch placement and numeric scale types");
+	require(
+	    !bulk_session
+	         .request({{"operation", "instance.field"}, {"arguments", {{"ids", {1}}, {"path", "/id"}, {"value", 7}}}})
+	         .at("ok")
+	         .get<bool>(),
+	    "bulk inspector refuses fields excluded by the shared schema");
+	const auto palette = run(session, "layout.palette", {{"target", t("consoles", "test.console")}});
+	require(palette.at("targets").size() > 0, "layout palette is discoverable without rendering");
+
 	auto graph_session = session;
 	const auto graph = run(graph_session, "ship.inspect", {{"entity", "test.variant"}});
 	bool found_engine = false;
@@ -403,6 +418,132 @@ void semantic_parity(const std::filesystem::path &root)
 	require(!session.request({{"operation", "list"}, {"arguments", {{"typo", true}}}}).at("ok").get<bool>(),
 	        "registry rejects unknown arguments");
 }
+void shared_controls()
+{
+	WorkshopAuthoring session;
+	run(session, "create", {{"kind", "entities"}, {"id", "test.controls"}});
+	auto gui = session.document();
+	auto &gui_render = gui.definitions()["entities"][0]["render"];
+	(void)workshop_set_control(gui_render, "render.billboard", true);
+	run(session, "control.set",
+	    {{"target", t("entities", "test.controls", "/render")}, {"control", "render.billboard"}, {"value", true}});
+	require(gui.definitions() == session.document().definitions(),
+	        "GUI control helper and CLI share coupled billboard changes");
+	require(run(session, "get", {{"target", t("entities", "test.controls", "/render")}}).at("images").size() == 8,
+	        "billboard control changes image cardinality");
+	run(session, "control.set",
+	    {{"target", t("entities", "test.controls", "/collision")}, {"control", "collision.shape"}, {"value", "box"}});
+	require(!run(session, "get", {{"target", t("entities", "test.controls", "/collision")}}).contains("radius_mm"),
+	        "shape control removes incompatible source fields");
+	Json frame{{"rect", {0, 0, 120, 80}}, {"pivot", {60, 40}}, {"attachments", {{"engine", {{"x", 0}, {"y", 0}}}}}};
+	run(session, "set", {{"target", t("entities", "test.controls")}, {"field", "test_frame"}, {"value", frame}});
+	const auto target = t("entities", "test.controls", "/test_frame");
+	const auto described =
+	    run(session, "controls",
+	        {{"target", target}, {"control", "frame.marker.x"}, {"context", {{"attachment", "engine"}}}});
+	require(described.at("maximum") == 120 && described.at("path") == "/attachments/engine/x",
+	        "dynamic bounds and paths are backend-derived");
+	auto *attachment = &frame["attachments"]["engine"];
+	(void)workshop_set_control(frame, "frame.marker.x", 999, {{"attachment", "engine"}});
+	require(&frame["attachments"]["engine"] == attachment, "backend publication preserves GUI child references");
+	run(session, "control.set",
+	    {{"target", target}, {"control", "frame.marker.x"}, {"value", 999}, {"context", {{"attachment", "engine"}}}});
+	require(run(session, "get", {{"target", target}}) == frame,
+	        "CLI vector/marker controls use the same dynamic limits");
+	const auto before = session.document().definitions();
+	auto refused =
+	    session.request({{"operation", "control.set"},
+	                     {"arguments", {{"target", target}, {"control", "frame.pivot"}, {"value", {1, 2, 3}}}}});
+	require(!refused.at("ok").get<bool>() && session.document().definitions() == before,
+	        "wrong-width vector control refuses atomically");
+	Json invalid_context{{"target", target},
+	                     {"control", "frame.marker.x"},
+	                     {"context", Json{{"attachment", "engine"}, {"maximum", 10000}}}};
+	refused = session.request({{"operation", "controls"}, {"arguments", invalid_context}});
+	require(!refused.at("ok").get<bool>(), "callers cannot substitute arbitrary dynamic control bounds");
+	run(session, "authoring.apply", {{"target", target}, {"action", "sprite.attachment.add"}});
+	require(run(session, "get", {{"target", target}}).at("attachments").at("engine_1").at("x") == 60,
+	        "attachment action uses authored pivot");
+	run(session, "set", {{"target", t("entities", "test.controls")}, {"field", "dust"}, {"value", {{"opacity", .25}}}});
+	const auto dust = t("entities", "test.controls", "/dust");
+	const auto opacity = run(session, "controls",
+	                         {{"target", dust}, {"control", "dust.opacity"}, {"context", {{"platform", "native"}}}});
+	require(opacity.at("value") == .25 && !run(session, "get", {{"target", dust}}).contains("native"),
+	        "platform control discovery inherits shared data without authoring overrides");
+	run(session, "control.set",
+	    {{"target", dust}, {"control", "dust.opacity"}, {"value", 2.0}, {"context", {{"platform", "native"}}}});
+	require(run(session, "get", {{"target", dust}}).at("native").at("opacity") == 1.0,
+	        "platform control applies shared constraints");
+	run(session, "set", {{"target", dust}, {"field", "textures"}, {"value", {"one", "two", "three"}}});
+	run(session, "control.set",
+	    {{"target", dust},
+	     {"control", "dust.texture"},
+	     {"value", "changed"},
+	     {"context", {{"platform", "native"}, {"index", 1}}}});
+	require(run(session, "get", {{"target", dust}}).at("native").at("textures") ==
+	            Json::array({"one", "changed", "three"}),
+	        "platform texture edits preserve inherited companion layers");
+	run(session, "set",
+	    {{"target", t("entities", "test.controls")},
+	     {"field", "operation"},
+	     {"value", {{"kind", "fill"}, {"store", "old"}, {"target", "protected"}}}});
+	run(session, "set",
+	    {{"target", t("entities", "test.controls", "/operation")},
+	     {"field", "kind"},
+	     {"value", "remove"},
+	     {"descriptor", "gameplay-editors.effects.kind"}});
+	const auto operation = run(session, "get", {{"target", t("entities", "test.controls", "/operation")}});
+	require(operation.at("target") == "protected" && !operation.contains("store"),
+	        "ordinary descriptor setters cannot bypass shared change handlers");
+	run(session, "set",
+	    {{"target", t("entities", "test.controls")},
+	     {"field", "panel"},
+	     {"value", {{"rect", {{"x", 100}, {"y", 100}, {"width", 400}, {"height", 300}}}}}});
+	run(session, "authoring.apply",
+	    {{"target", t("entities", "test.controls", "/panel")},
+	     {"action", "layout.rect.gesture"},
+	     {"arguments",
+	      {{"rect", {{"x", 100}, {"y", 100}, {"width", 400}, {"height", 300}}},
+	       {"dx", 17},
+	       {"dy", 999},
+	       {"resize", false},
+	       {"snap", true}}}});
+	const auto rect = run(session, "get", {{"target", t("entities", "test.controls", "/panel/rect")}});
+	require(rect.at("x") == 120 && rect.at("y") == 700, "instrument gesture shares snapping and containment rules");
+	const auto cost =
+	    run(session, "record.defaults", {{"prototype", "effect.cost"}, {"context", {{"quantity", "per_second"}}}});
+	require(cost.contains("per_second") && !cost.contains("amount"),
+	        "dynamic record factories expose the GUI quantity default");
+	const auto report =
+	    run(session, "record.defaults", {{"prototype", "scenario.report"}, {"context", {{"slots", {"test.slot"}}}}});
+	require(report.at("ship").at("slot") == "test.slot",
+	        "scenario report factory derives its actor from explicit synthetic context");
+	run(session, "set",
+	    {{"target", t("entities", "test.controls")}, {"field", "property_values"}, {"value", Json::object()}});
+	run(session, "control.set",
+	    {{"target", t("entities", "test.controls", "/property_values")},
+	     {"control", "property.value"},
+	     {"value", true},
+	     {"context", {{"field", "flag"}, {"definition", {{"kind", "flag"}}}}}});
+	require(run(session, "get", {{"target", t("entities", "test.controls", "/property_values")}}).at("flag") == true,
+	        "typed property control is usable without GUI constructors");
+	run(session, "control.set",
+	    {{"target", t("entities", "test.controls", "/property_values")},
+	     {"control", "binding.source"},
+	     {"value", "reference"},
+	     {"context", {{"field", "binding"}}}});
+	require(run(session, "get", {{"target", t("entities", "test.controls", "/property_values/binding")}}).at("type") ==
+	            "entity",
+	        "tree binding control owns source encoding");
+	require(workshop_colour_text(workshop_colour_channels("#204080")) == "#204080ff",
+	        "theme colour conversion is shared with CLI tooling");
+	std::set<std::string> actions;
+	for (const auto &row : run(session, "authoring.actions"))
+	{
+		require(actions.insert(row.at("id").get<std::string>()).second, "registered action identities are unique");
+		require(row.at("arguments").contains("properties"), "action schemas are generated alongside handlers");
+	}
+}
 void identity_targets()
 {
 	WorkshopAuthoring session;
@@ -439,6 +580,7 @@ int main()
 		transactions();
 		identity_targets();
 		semantic_parity(root);
+		shared_controls();
 		source_and_packages(root);
 		std::filesystem::remove_all(root);
 		std::cout << "Workshop authoring transactions, discovery, identities, drafts and packages passed\n";

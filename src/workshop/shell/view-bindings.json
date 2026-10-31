@@ -1,0 +1,186 @@
+{
+	"gameplay-editors/effects.cpp": {
+		"&system_id": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&service_id": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"gameplay-editors/equipment.cpp": {
+		"&new_system": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&names[identity]": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"gameplay-editors/ship_graph.cpp": {
+		"&graph_new_id": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&graph_zoom": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&show": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"layout-editor/layout.cpp": {
+		"&layout_workspace.hud": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.preview.header": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.asset_name": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.compact": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.component": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.interact": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.snap": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.preview.width": {
+			"widgets": ["SliderInt"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.preview.height": {
+			"widgets": ["SliderInt"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.preview.text_scale": {
+			"widgets": ["SliderInt"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.preview.sample_state": {
+			"widgets": ["Combo"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&layout_workspace.preview.sample_stars": {
+			"widgets": ["SliderInt"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"map-editor/map.cpp": {
+		"&state_->selecting_touch": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"preview/material.cpp": {
+		"&preview.preview_whole_map": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_bearing": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_elevation": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_distance": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_thrust": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_speed": {
+			"widgets": ["DragFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_heading": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_x": {
+			"widgets": ["InputFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview.preview_y": {
+			"widgets": ["InputFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"tree-editor/tree.cpp": {
+		"&names[scope]": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&zoom": {
+			"widgets": ["SliderFloat"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&parameter_name": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"workflow/appearance.cpp": {
+		"&dx": {
+			"widgets": ["InputScalar"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&dy": {
+			"widgets": ["InputScalar"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&import_engines": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&template_id": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"workflow/consoles.cpp": {
+		"&console_id": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&preview_resolution": {
+			"widgets": ["Combo"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	},
+	"workflow/editor.cpp": {
+		"&member": {
+			"widgets": ["Checkbox"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&pack_name": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		},
+		"&source_directory": {
+			"widgets": ["InputText"],
+			"purpose": "Transient presentation state or pending argument for an explicit shared authoring action."
+		}
+	}
+}

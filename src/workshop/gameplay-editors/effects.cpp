@@ -27,34 +27,7 @@ namespace phoenix
 #include "state.hpp"
 void GameplayEditors::State::property_value_field(Json &owner, const char *field, const Json &definition)
 {
-	const auto kind = definition.value("kind", std::string("quantity"));
-	if (owner.contains(field) && (kind == "flag"   ? !owner.at(field).is_boolean()
-	                              : kind == "enum" ? !owner.at(field).is_string()
-	                                               : !owner.at(field).is_number_integer()))
-	{
-		text("The value type does not match the selected property kind.");
-		if (button("Reset to selected property kind"))
-			owner[field] = kind == "flag" ? Json(false) : kind == "enum" ? Json("") : Json(0);
-		return;
-	}
-	if (kind == "flag")
-		boolean(owner, field,
-		        definition.contains("default") && definition.at("default").is_boolean()
-		            ? definition.at("default").get<bool>()
-		            : false);
-	else if (kind == "enum")
-	{
-		std::vector<std::string> choices;
-		if (definition.contains("choices") && definition.at("choices").is_object())
-			for (const auto &[id, unused] : definition.at("choices").items())
-				choices.push_back(id);
-		choice(owner, field, choices);
-	}
-	else
-		integer(owner, field,
-		        definition.contains("default") && definition.at("default").is_number_integer()
-		            ? definition.at("default").get<std::int64_t>()
-		            : 0);
+	edit_shared_control(label(field).c_str(), owner, "property.value", {{"field", field}, {"definition", definition}});
 }
 
 Json GameplayEditors::State::property_template(WorkshopDocument &document, const std::string &id)
@@ -88,9 +61,7 @@ void GameplayEditors::State::owner_processes_fields(Json &owner, WorkshopDocumen
 		            });
 	if (button("Declare process"))
 	{
-		if (!owner.contains("processes"))
-			owner["processes"] = workshop_seed("gameplay-editors.effects.processes");
-		owner["processes"][fresh(owner["processes"], "process")] = {{"process", ""}, {"requested", true}};
+		(void)workshop_custom_action(owner, "process.declare");
 	}
 }
 
@@ -112,13 +83,13 @@ void GameplayEditors::State::owner_properties_fields(Json &owner, WorkshopDocume
 			            {
 				            text("Uses the property template default.");
 				            if (button("Set initial value"))
-					            value = definition.value("default", Json(0));
+					            (void)workshop_custom_action(value, "property.initial", {{"definition", definition}});
 			            }
 			            else
 			            {
 				            property_value_field(owner["properties"], id.c_str(), definition);
 				            if (button("Use property default"))
-					            value = Json::object();
+					            (void)workshop_custom_action(value, "property.default");
 			            }
 			            return button("Remove property declaration");
 		            });
@@ -132,7 +103,7 @@ void GameplayEditors::State::owner_properties_fields(Json &owner, WorkshopDocume
 		if (!owner.contains("properties"))
 			owner["properties"] = workshop_seed("gameplay-editors.effects.properties");
 		if (!owner["properties"].contains(id))
-			owner["properties"][id] = Json::object();
+			(void)workshop_custom_action(owner["properties"], "field.ensure", {{"field", id}, {"type", "object"}});
 	}
 }
 
@@ -174,7 +145,7 @@ void GameplayEditors::State::rule_expression_field(Json &source, const char *key
 void GameplayEditors::State::effect_costs_fields(Json &group, const char *key, const char *quantity,
                                                  WorkshopDocument &document)
 {
-	records(group, key, {{"payer", "target"}, {"store", ""}, {"resource", ""}, {quantity, 0}},
+	records(group, key, workshop_record_value("effect.cost", {{"quantity", quantity}}),
 	        [&](Json &cost)
 	        {
 		        edit_registered(cost, "gameplay-editors.effects.payer");
@@ -183,8 +154,7 @@ void GameplayEditors::State::effect_costs_fields(Json &group, const char *key, c
 		        if (!cost.value("property", std::string{}).empty())
 		        {
 			        choice(cost, "property", document.definition_choices(WorkshopDefinitionKind::Property));
-			        cost.erase("store");
-			        cost.erase("resource");
+			        (void)workshop_custom_action(cost, "effect.cost");
 		        }
 		        else
 		        {
@@ -203,14 +173,9 @@ void GameplayEditors::State::effect_operations_fields(Json &group, WorkshopDocum
 	records(group, "operations", workshop_record("gameplay-editors.effects.operations"),
 	        [&](Json &operation)
 	        {
-		        const auto old = operation.value("kind", std::string("fill"));
 		        edit_registered(operation, "gameplay-editors.effects.kind");
 		        const auto kind = operation.value("kind", std::string("fill"));
-		        if (kind != old)
-		        {
-			        const auto target = operation.value("target", std::string("protected"));
-			        operation = {{"kind", kind}, {"target", target}};
-		        }
+
 		        edit_registered(operation, "gameplay-editors.effects.target");
 		        if (kind == "structural_repair" || kind == "fault_repair" || kind == "treat" || kind == "stabilise" ||
 		            kind == "recover")
@@ -248,10 +213,7 @@ void GameplayEditors::State::effect_operations_fields(Json &group, WorkshopDocum
 				        edit_registered(operation, "gameplay-editors.effects.scope");
 			        if (kind == "remove" && operation.value("scope", std::string("local")) == "owner")
 			        {
-				        operation["target"] = "owner";
-				        for (const auto *field :
-				             {"grant", "effect", "equipment", "officer", "all_sources", "role", "delta_permille"})
-					        operation.erase(field);
+
 				        return;
 			        }
 			        edit_registered(operation, "gameplay-editors.effects.grant");
@@ -269,7 +231,8 @@ void GameplayEditors::State::effect_operations_fields(Json &group, WorkshopDocum
 						        operation.erase("delta_permille");
 				        }
 				        else if (button("Override modifier deltas"))
-					        operation["delta_permille"] = 0;
+					        (void)workshop_custom_action(operation, "control.default",
+					                                     {{"control", "gameplay-editors.effects.delta_permille"}});
 			        }
 		        }
 		        else if (kind.starts_with("property_"))
@@ -311,8 +274,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        structured_field(widget, "ai");
 		        text("Choose a tree or an inline policy. Inline policies can bind equipment roles in their System "
 		             "observations. Repeat runs a member policy for each attached member under one Controller.");
-		        if (edit_registered(widget, "gameplay-editors.effects.repeat") && widget.at("repeat") == "")
-			        widget.erase("repeat");
+		        edit_registered(widget, "gameplay-editors.effects.repeat");
 		        structured_field(widget, widget.contains("repeat") ? "member_policy" : "policy");
 		        text("Equipment roles use $role in command consumers. Instances bind fitted equipment; they cannot "
 		             "replace the shared policy.");
@@ -350,7 +312,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        {
 			        optional_string(property, "unit");
 			        edit_registered(property, "gameplay-editors.effects.minimum");
-			        integer(property, "maximum", resource_limit);
+			        edit_registered(property, "property.maximum");
 			        edit_registered(property, "gameplay-editors.effects.display_scale");
 		        }
 		        if (kind == "enum")
@@ -380,7 +342,8 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 					        ammo.erase("radar_coverage");
 			        }
 			        else if (button("Override radar coverage"))
-				        ammo["radar_coverage"] = true;
+				        (void)workshop_custom_action(ammo, "control.default",
+				                                     {{"control", "gameplay-editors.effects.radar_coverage"}});
 			        if (ammo.contains("projectile"))
 				        projectile_fields(ammo["projectile"]);
 			        else if (button("Add ammunition projectile"))
@@ -444,12 +407,12 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        choice(effect, "effect", document.definition_choices(WorkshopDefinitionKind::Effect), true);
 			        if (effect.value("phase", std::string("instant")) == "periodic")
 				        edit_registered(effect, "gameplay-editors.effects.period_ticks");
-			        rule_expression_field(effect, "when", true);
-			        rule_expression_field(effect, "damage_permille", {{"value", 1000}, {"unit", "permille"}});
-			        rule_expression_field(effect, "energy", {{"value", 0}, {"unit", "energy"}});
-			        rule_expression_field(effect, "values", Json::object());
-			        rule_expression_field(effect, "costs", Json::array());
-			        rule_expression_field(effect, "funding", {{"shortage", "pause"}, {"costs", Json::array()}});
+			        rule_expression_field(effect, "when", workshop_seed("expression.1"));
+			        rule_expression_field(effect, "damage_permille", workshop_seed("expression.2"));
+			        rule_expression_field(effect, "energy", workshop_seed("expression.3"));
+			        rule_expression_field(effect, "values", workshop_seed("expression.4"));
+			        rule_expression_field(effect, "costs", workshop_seed("expression.5"));
+			        rule_expression_field(effect, "funding", workshop_seed("expression.6"));
 			        return;
 		        }
 		        if (kind == "process")
@@ -465,14 +428,15 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 						        effect.erase("required_work");
 				        }
 				        else if (button("Add finite work requirement"))
-					        effect["required_work"] = 1;
+					        (void)workshop_custom_action(effect, "control.default",
+					                                     {{"control", "gameplay-editors.effects.required_work"}});
 			        }
 			        edit_registered(effect, "gameplay-editors.effects.requested");
 			        optional_string(effect, "family");
 			        edit_registered(effect, "gameplay-editors.effects.shortage");
-			        rule_expression_field(effect, "requirements", true);
+			        rule_expression_field(effect, "requirements", workshop_seed("expression.7"));
 			        for (const auto *field : {"rate", "upkeep_scale", "work_scale"})
-				        rule_expression_field(effect, field, {{"value", 1000}, {"unit", "permille"}});
+				        rule_expression_field(effect, field, workshop_seed("expression.8"));
 			        names(effect, "observations", document.definition_choices(WorkshopDefinitionKind::Property));
 			        effect_costs_fields(effect, "entry_costs", "amount", document);
 			        effect_costs_fields(effect, "upkeep_costs", "per_second", document);
@@ -480,7 +444,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        for (const auto *field : {"start_effect", "pause_effect", "resume_effect", "stop_effect",
 			                                  "work_effect", "completion_effect"})
 				        choice(effect, field, document.definition_choices(WorkshopDefinitionKind::Effect), true);
-			        rule_expression_field(effect, "work_values", Json::object());
+			        rule_expression_field(effect, "work_values", workshop_seed("expression.9"));
 			        records(effect, "exclusions", workshop_record("gameplay-editors.effects.exclusions"),
 			                [&](Json &exclusion)
 			                {
@@ -503,18 +467,15 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        edit_registered(effect, "gameplay-editors.effects.sustained");
 			        edit_registered(effect, "gameplay-editors.effects.require_healthy");
 			        optional_string(effect, "family");
-			        rule_expression_field(effect, "requirements", true);
+			        rule_expression_field(effect, "requirements", workshop_seed("expression.10"));
 			        edit_registered(effect, "gameplay-editors.effects.requirement_failure");
 			        names(effect, "observations", document.definition_choices(WorkshopDefinitionKind::Property));
-			        rule_expression_field(effect, "costs", Json::array());
+			        rule_expression_field(effect, "costs", workshop_seed("expression.11"));
 			        edit_registered(effect, "gameplay-editors.effects.target.2");
 			        edit_registered(effect, "gameplay-editors.effects.recovery_on");
 			        edit_registered(effect, "gameplay-editors.effects.interruption");
 			        edit_registered(effect, "gameplay-editors.effects.shortage");
-			        for (const auto *field :
-			             {"preparation_ticks", "recovery_ticks", "energy_per_second", "preparation_energy_per_second",
-			              "apparatus_recovery_ticks", "interruption_recovery_ticks"})
-				        integer(effect, field);
+			        edit_shared_group(effect, "gameplay-editors.effects.group.preparation_ticks");
 			        optional_string(effect, "apparatus_recovery_key");
 			        for (const auto *field : {"start_effect", "activation_effect", "psychic_effect"})
 				        choice(effect, field, document.definition_choices(WorkshopDefinitionKind::Effect), true);
@@ -534,10 +495,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        if (effect.value("psychic_kind", std::string{}) == "scramble")
 			        {
 				        optional_string(effect, "apparent_class");
-				        for (const auto *field :
-				             {"ghost_count", "offset_mm", "spacing_mm", "speed_mm_s", "acceleration_mm_s2",
-				              "turn_mdeg_s", "radius_mm", "scan_ticks", "fade_ticks"})
-					        integer(effect, field, effect.value(field, 1LL));
+				        edit_shared_group(effect, "effect.spoof");
 			        }
 			        return;
 		        }
@@ -567,9 +525,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 			        edit_registered(effect, "gameplay-editors.effects.fire_ticks.2");
 			        edit_registered(effect, "gameplay-editors.effects.penetration");
 			        edit_registered(effect, "gameplay-editors.effects.damage_per_m");
-			        for (const auto *field : {"energy_per_second", "discrete_energy", "auto_energy_per_second",
-			                                  "damage_per_second", "load_ticks", "shield_bypass_permille"})
-				        integer(effect, field);
+			        edit_shared_group(effect, "gameplay-editors.effects.group.energy_per_second");
 			        if (effect.value("operation", std::string{}) == "scan")
 				        scalar_map(effect, "capabilities");
 			        if (effect.contains("projectile"))
@@ -595,27 +551,16 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        }
 		        if (kind == "operations")
 		        {
-			        effect.erase("contributions");
-			        effect.erase("duration_ticks");
+			        (void)workshop_custom_action(effect, "effect.operations");
 			        effect_operations_fields(effect, document);
 			        return;
 		        }
-		        effect.erase("operations");
-		        effect.erase("payer");
-		        effect.erase("energy");
+		        (void)workshop_custom_action(effect, "effect.contributions");
 		        const bool modifier = kind == "modifier";
 		        edit_registered(effect, "gameplay-editors.effects.duration_ticks.2");
 		        if (button("Add contribution"))
 		        {
-			        auto &contributions = effect["contributions"];
-			        if (!contributions.is_object())
-				        contributions = Json::object();
-			        std::string name = "arc";
-			        unsigned index = 1;
-			        while (contributions.contains(name))
-				        name = "arc" + std::to_string(index++);
-			        contributions[name] =
-			            modifier ? Json{{"property", "recharge"}, {"delta_permille", 100}} : Json{{"capacity", 100}};
+			        (void)workshop_custom_action(effect, "effect.contribution.add", {{"modifier", modifier}});
 		        }
 		        std::string remove;
 		        if (effect.contains("contributions") && effect.at("contributions").is_object())
@@ -640,25 +585,20 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 					        const auto type = definition.value("kind", std::string{});
 					        if (type == "flag" || type == "enum")
 					        {
-						        arc.erase("delta_permille");
+						        (void)workshop_custom_action(arc, "property.modifier", {{"definition", definition}});
 						        edit_registered(arc, "gameplay-editors.effects.priority");
 						        property_value_field(arc, "value", definition);
 					        }
 					        else
 					        {
-						        arc.erase("priority");
-						        arc.erase("value");
+						        (void)workshop_custom_action(arc, "property.modifier", {{"definition", definition}});
 						        edit_registered(arc, "gameplay-editors.effects.delta_permille");
 					        }
 					        if (button("Remove contribution"))
 						        remove = name;
 					        continue;
 				        }
-				        for (const char *key :
-				             {"capacity", "initial", "bearing_mdeg", "arc_mdeg", "layer", "sustain_energy_per_second",
-				              "energy_per_strength", "recharge_per_second", "off_recharge_per_second", "warmup_ticks",
-				              "discharge_per_second", "discharge_efficiency_permille"})
-					        integer(arc, key);
+				        edit_shared_group(arc, "gameplay-editors.effects.group.capacity");
 				        audio_fields(arc, "audio", true);
 				        scalar_map(arc, "modifiers");
 				        rule_bindings_fields(arc, document);
@@ -695,7 +635,7 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        tool_action_line("Add internal System");
 		        if (button("Add internal System") && !system_id.empty())
 		        {
-			        assembly["systems"][system_id] = {{"template", ""}};
+			        (void)workshop_custom_action(assembly, "assembly.system.add", {{"name", system_id}});
 			        system_id.clear();
 		        }
 		        if (assembly.contains("systems"))
@@ -718,7 +658,8 @@ void GameplayEditors::State::templates(WorkshopDocument &document)
 		        tool_action_line("Add service");
 		        if (button("Add service") && !service_id.empty())
 		        {
-			        assembly["services"][service_id] = {{"kind", "power"}, {"direction", "input"}};
+			        (void)workshop_custom_action(assembly, "service.add",
+			                                     {{"name", service_id}, {"direction", "input"}});
 			        service_id.clear();
 		        }
 		        if (assembly.contains("services"))

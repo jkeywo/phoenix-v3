@@ -70,40 +70,16 @@ void draw_reference_grid_properties(Json &render)
 {
 	if (!ImGui::CollapsingHeader(tool_label("Reference grid").c_str()))
 		return;
-	bool authored = render.contains("reference_grid");
-	if (ImGui::Checkbox(tool_label("Author reference grid").c_str(), &authored))
-	{
-		if (authored)
-			render["reference_grid"] = reference_grid_defaults();
-		else
-			render.erase("reference_grid");
-	}
+	edit_shared_field(tool_label("Author reference grid").c_str(), render, "grid.enabled");
+	const bool authored = render.contains("reference_grid");
+
 	if (!authored)
 		return;
 	auto &j = render["reference_grid"];
-	const auto defaults = reference_grid_defaults();
-	for (const auto &[key, label] :
-	     std::vector<std::pair<const char *, const char *>>{{"minor_spacing", "Minor spacing (m)"},
-	                                                        {"major_spacing", "Major spacing (m)"},
-	                                                        {"patch_radius", "Patch radius (m)"},
-	                                                        {"fade_band", "Fade band (m)"},
-	                                                        {"fade_exponent", "Fade exponent"},
-	                                                        {"plane_y", "Plane height (m)"},
-	                                                        {"minor_line_width_px", "Minor width (pixels)"},
-	                                                        {"major_line_width_px", "Major width (pixels)"},
-	                                                        {"opacity", "Grid opacity"}})
-		tool_real_field(label, j, key, defaults.at(key), std::string(key) == "plane_y" ? -1000000.f : 0.f,
-		                std::string(key) == "opacity" ? 1.f : 1000000.f);
-	tool_colour_field("Minor grid colour", j, "minor_colour", defaults.at("minor_colour"), true);
-	tool_colour_field("Major grid colour", j, "major_colour", defaults.at("major_colour"), true);
-	bool first_person = j.contains("first_person_plane_y");
-	if (ImGui::Checkbox(tool_label("First-person plane height override").c_str(), &first_person))
-	{
-		if (first_person)
-			j["first_person_plane_y"] = -10;
-		else
-			j.erase("first_person_plane_y");
-	}
+	edit_shared_group(j, "grid");
+	edit_shared_field(tool_label("First-person plane height override").c_str(), j, "grid.first_person");
+	const bool first_person = j.contains("first_person_plane_y");
+
 	if (first_person)
 		edit_shared_field(tool_label("First-person plane height (m)").c_str(), j,
 		                  "preview.material.first_person_plane_y");
@@ -125,56 +101,23 @@ void MaterialPreview::State::dust_properties(WorkshopDocument &document, Json &m
 				dust_profile = i;
 		ImGui::EndCombo();
 	}
-	Json *selected = &shared;
-	auto defaults = dust_defaults();
-	if (dust_profile)
-	{
-		for (auto it = shared.begin(); it != shared.end(); ++it)
-			if (it.key() != "native" && it.key() != "web")
-				defaults[it.key()] = it.value();
-		const char *key = dust_profile == 1 ? "native" : "web";
-		if (!shared.contains(key))
-			shared[key] = Json::object();
-		selected = &shared[key];
-		if (tool_button(tool_label("Reset platform overrides").c_str()))
-			*selected = Json::object();
-	}
-	auto &j = *selected;
-	bool enabled = j.value("enabled", defaults.at("enabled").get<bool>());
-	if (ImGui::Checkbox(tool_label("Enable motes").c_str(), &enabled))
-		j["enabled"] = enabled;
-	int count = j.value("count", defaults.at("count").get<int>());
-	if (ImGui::InputInt(tool_label("Mote count").c_str(), &count))
-		j["count"] = std::clamp(count, 0, 10000);
-	for (const auto &[key, label] :
-	     std::vector<std::pair<const char *, const char *>>{{"half_width", "Field half-width (m)"},
-	                                                        {"depth", "Field depth (m)"},
-	                                                        {"width", "Mote width (m)"},
-	                                                        {"streak_per_speed", "Streak stretch per m/s"},
-	                                                        {"opacity", "Mote opacity"},
-	                                                        {"centre_fade_inner", "Centre fade inner radius"},
-	                                                        {"centre_fade_outer", "Centre fade outer radius"},
-	                                                        {"edge_fade", "Screen edge fade"}})
-		tool_real_field(label, j, key, defaults.at(key), 0,
-		                (std::string(key) == "opacity" || std::string(key) == "edge_fade") ? 1.f : 1000000.f);
-	tool_colour_field("Mote tint", j, "tint", defaults.at("tint"), false);
-	auto brightness = j.value("brightness", defaults.at("brightness"));
-	float values[3] = {brightness[0], brightness[1], brightness[2]};
-	if (ImGui::DragFloat3(tool_label("Layer brightness").c_str(), values, .01f, 0, 16))
-		j["brightness"] = {values[0], values[1], values[2]};
+	const std::string platform = dust_profile == 1 ? "native" : dust_profile == 2 ? "web" : "";
+	if (dust_profile && tool_button(tool_label("Reset platform overrides").c_str()))
+		(void)workshop_custom_action(shared, "dust.reset", {{"platform", platform}});
+	edit_shared_group(shared, "dust", {{"platform", platform}});
+
 	for (int i = 0; i < 3; ++i)
 	{
 		ImGui::PushID(i);
-		auto textures = j.value("textures", defaults.at("textures"));
-		auto texture = textures[i];
+		const Json context{{"platform", platform}, {"index", i}};
+		const auto original = workshop_control("dust.texture", shared, context).at("value");
+		auto texture = original;
 		assets.pick(document, "Mote texture", texture);
 		if (tool_button(tool_label("Use bundled texture").c_str()))
 			texture = "";
-		if (texture != textures[i])
-		{
-			textures[i] = texture;
-			j["textures"] = textures;
-		}
+		if (texture != original)
+			(void)workshop_set_control(shared, "dust.texture", texture, context);
+
 		ImGui::PopID();
 	}
 }
@@ -204,29 +147,15 @@ void MaterialPreview::draw(WorkshopDocument &document, int definition_index, Too
 	preview.dust_properties(document, map);
 	if (ImGui::CollapsingHeader(tool_label("Scene lighting").c_str()))
 	{
-		float direction[3] = {-.6f, .6f, -.5f};
-		if (light.contains("sun_direction"))
-			for (int i = 0; i < 3; i++)
-				direction[i] = light["sun_direction"][i];
-		if (ImGui::SliderFloat3(tool_label("Sun direction").c_str(), direction, -1, 1))
-		{
-			light["sun_direction"] = {direction[0], direction[1], direction[2]};
-			document.definitions()["schema"] = 3;
-		}
-		float color[3] = {1, .89f, .7f};
-		if (light.contains("sun_color"))
-			for (int i = 0; i < 3; i++)
-				color[i] = light["sun_color"][i];
-		if (ImGui::ColorEdit3(tool_label("Sun colour").c_str(), color))
-			light["sun_color"] = {color[0], color[1], color[2]};
+		edit_shared_field(tool_label("Sun direction").c_str(), light, "lighting.direction");
+		edit_shared_field(tool_label("Sun colour").c_str(), light, "lighting.colour");
+
 		edit_shared_field(tool_label("Sun intensity").c_str(), light, "preview.material.sun_intensity");
 		edit_shared_field(tool_label("Ambient fill").c_str(), light, "preview.material.ambient");
 		edit_shared_field(tool_label("Hatch spacing").c_str(), light, "preview.material.hatch_spacing");
 		edit_shared_field(tool_label("Hatch thickness").c_str(), light, "preview.material.hatch_thickness");
 		edit_shared_field(tool_label("Ink strength").c_str(), light, "preview.material.ink_strength");
-		bool shadows = light.value("shadows", true);
-		if (ImGui::Checkbox(tool_label("Cast sun shadows").c_str(), &shadows))
-			light["shadows"] = shadows;
+		edit_shared_field(tool_label("Cast sun shadows").c_str(), light, "lighting.shadows");
 		edit_shared_field(tool_label("Shadow bias").c_str(), light, "preview.material.shadow_bias");
 		edit_shared_field(tool_label("Shadow softness").c_str(), light, "preview.material.shadow_softness");
 	}

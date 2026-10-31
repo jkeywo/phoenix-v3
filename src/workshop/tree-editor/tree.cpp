@@ -43,13 +43,9 @@ struct TreeEditor::State : AuthoringControls
 	std::vector<std::string> vocabulary_ids(const std::string &context, const char *kind) const;
 	std::string authoring_context(const Json &definition) const;
 	Json action_signature(const std::string &context, const std::string &name) const;
-	void binding(Json &parent, const char *key, const Json &definition,
-	             const std::vector<std::string> &allowed = {"integer", "boolean", "text", "reference", "parameter",
-	                                                        "observation", "intent", "memory", "elapsed"});
+	void binding(Json &parent, const char *key, const Json &definition, const std::vector<std::string> &allowed = {});
 	void binding_map(Json &parent, const char *key, const Json &definition,
-	                 const std::vector<std::string> &suggested = {},
-	                 const std::vector<std::string> &allowed = {"integer", "boolean", "text", "reference", "parameter",
-	                                                            "observation", "intent", "memory", "elapsed"});
+	                 const std::vector<std::string> &suggested = {}, const std::vector<std::string> &allowed = {});
 	void tasks(Json &state, const char *phase, Json &definition, WorkshopDocument &document);
 	void tree_graph(const Json &definition, std::string &selection);
 	void state_inspector(Json &state, Json &definition, WorkshopDocument &document, bool patch = false,
@@ -87,37 +83,10 @@ void TreeEditor::State::binding(Json &parent, const char *key, const Json &defin
 {
 	ScopedId id_scope_11(key);
 	text(key);
-	const auto current = parent.contains(key) ? parent.at(key) : Json(0);
-	std::string mode = "integer";
-	if (current.is_boolean())
-		mode = "boolean";
-	else if (current.is_string())
-		mode = "text";
-	else if (current.is_object())
-	{
-		for (const char *source : {"argument", "parameter", "observation", "intent", "memory", "elapsed"})
-			if (current.contains(source))
-				mode = source;
-		if (current.contains("type"))
-			mode = "reference";
-	}
-	Json selector{{"source", mode}};
-	if (choice(selector, "source", allowed))
-	{
-		mode = selector.at("source").get<std::string>();
-		if (mode == "integer")
-			parent[key] = 0;
-		else if (mode == "boolean")
-			parent[key] = false;
-		else if (mode == "text")
-			parent[key] = "";
-		else if (mode == "reference")
-			parent[key] = {{"type", "entity"}, {"id", 1}};
-		else if (mode == "elapsed")
-			parent[key] = {{"elapsed", true}};
-		else
-			parent[key] = {{mode, ""}};
-	}
+	const Json control_context{{"field", key}, {"allowed", allowed}};
+	edit_shared_control(label("source").c_str(), parent, "binding.source", control_context);
+	const auto mode = workshop_control("binding.source", parent, control_context).at("value").get<std::string>();
+
 	if (mode == "integer")
 		integer(parent, key);
 	else if (mode == "boolean")
@@ -190,10 +159,7 @@ void TreeEditor::State::binding_map(Json &parent, const char *key, const Json &d
 	}
 	if (button("Add binding") && !names[scope].empty())
 	{
-		if (!parent.contains(key))
-			parent[key] = Json::object();
-		if (!parent[key].contains(names[scope]))
-			parent[key][names[scope]] = 0;
+		(void)workshop_custom_action(parent, "tree.binding.add", {{"field", key}, {"name", names[scope]}});
 		names[scope].clear();
 	}
 }
@@ -210,7 +176,7 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 		if (button(kind))
 		{
 			if (!state.contains(phase))
-				state[phase] = Json::array();
+				(void)workshop_custom_action(state, "field.ensure", {{"field", phase}, {"type", "array"}});
 			state[phase].push_back(workshop_tree_task(kind));
 		}
 
@@ -315,10 +281,10 @@ void TreeEditor::State::tasks(Json &state, const char *phase, Json &definition, 
 				text("Legacy timed output retained. Edit its existing controller inspector or convert the tree "
 				     "explicitly.");
 			if (button("Earlier") && i > 0)
-				std::swap(state[phase][i], state[phase][i - 1]);
+				(void)workshop_custom_action(state[phase], "array.move", {{"from", i}, {"to", i - 1}});
 			ImGui::SameLine();
 			if (button("Later") && i + 1 < state.at(phase).size())
-				std::swap(state[phase][i], state[phase][i + 1]);
+				(void)workshop_custom_action(state[phase], "array.move", {{"from", i}, {"to", i + 1}});
 			ImGui::SameLine();
 			if (button("Remove task"))
 				remove = static_cast<int>(i);
@@ -683,10 +649,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 		return;
 	if (!inspector)
 	{
-		auto source = *target;
-		if (!source.contains("context") && !source.contains("extends"))
-			source["context"] = "controller";
-		auto resolved = document.preview_tree(source);
+		auto resolved = workshop_preview_tree(document, *target);
 		resolve_selected_state(resolved);
 		tree_graph(resolved, selection);
 		if (!reparent_source.empty() && target->contains("states") && dependency.is_null())
@@ -745,10 +708,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 					return;
 				}
 			}
-			auto preview_source = definition;
-			if (!preview_source.contains("context") && !preview_source.contains("extends"))
-				preview_source["context"] = "controller";
-			Json resolved = document.preview_tree(preview_source);
+			Json resolved = workshop_preview_tree(document, definition);
 			resolve_selected_state(resolved);
 
 			choice(definition, "extends", document.definition_choices(WorkshopDefinitionKind::Tree), true);
@@ -780,7 +740,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 				structured_field(definition, "lines");
 				structured_field(definition, "prompts");
 			}
-			integer(definition, "budget", resolved.value("budget", 4096));
+			edit_shared_control(label("budget").c_str(), definition, "tree.budget", {{"resolved", resolved}});
 			Json initial{{"initial", resolved.value("initial", std::string{})}};
 			if (choice(initial, "initial", ids(resolved.at("states"))))
 				definition["initial"] = initial.at("initial");
@@ -815,10 +775,7 @@ void TreeEditor::State::trees(WorkshopDocument &document, bool inspector, std::s
 			tool_action_line("Add parameter");
 			if (button("Add parameter") && !parameter_name.empty())
 			{
-				if (!definition.contains("parameters"))
-					definition["parameters"] = workshop_seed("tree-editor.tree.parameters");
-				if (!definition["parameters"].contains(parameter_name))
-					definition["parameters"][parameter_name] = {{"type", "integer"}, {"default", 0}};
+				(void)workshop_custom_action(definition, "tree.parameter.add", {{"name", parameter_name}});
 				parameter_name.clear();
 			}
 			binding_map(definition, "arguments", resolved,
@@ -902,21 +859,9 @@ void TreeEditor::State::record_bindings(Json &tree, WorkshopDocument &document, 
 			        if (schema.at("id") == binding.value("schema", std::string{}))
 				        fields = ids(schema.at("fields"));
 		        choice(binding, "field", fields);
-		        const auto subject = binding.contains("subject")             ? binding.at("subject")
-		                             : binding.contains("subject_parameter") ? binding.at("subject_parameter")
-		                                                                     : Json("self");
-		        Json selected{{"Record subject", subject.is_string() ? subject.get<std::string>() : "entity"}};
-		        const auto subjects = resolved.value("context", std::string("system")) == "scenario"
-		                                  ? std::vector<std::string>{"self", "entity"}
-		                              : resolved.value("context", std::string("system")) == "controller"
-		                                  ? std::vector<std::string>{"self", "latest", "entity"}
-		                                  : std::vector<std::string>{"self", "selected_contact", "entity"};
-		        if (choice(selected, "Record subject", subjects))
-		        {
-			        const auto kind = selected.at("Record subject").get<std::string>();
-			        binding.erase("subject_parameter");
-			        binding["subject"] = kind == "entity" ? Json(1) : Json(kind);
-		        }
+		        edit_shared_control(label("Record subject").c_str(), binding, "record.subject",
+		                            {{"tree_context", resolved.value("context", std::string("system"))}});
+
 		        if (binding.contains("subject") && binding.at("subject").is_number_integer())
 			        edit_registered(binding, "tree-editor.tree.subject");
 		        text("Record type and read permissions come from the selected schema field. Ship records require "
@@ -957,7 +902,7 @@ void TreeEditor::State::controller_bindings(Json &tree, WorkshopDocument &docume
 			        for (const auto *key : {"channels", "observations"})
 			        {
 				        if (!binding.contains(key))
-					        binding[key] = Json::object();
+					        (void)workshop_custom_action(binding, "field.ensure", {{"field", key}, {"type", "object"}});
 				        heading(key);
 				        structure(binding[key], true);
 			        }

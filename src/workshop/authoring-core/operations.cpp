@@ -222,7 +222,8 @@ const std::vector<Operation> &operations()
 		     },
 		     "query"},
 		    {"set", "Set a field on an authored object. A descriptor supplies shared GUI type/choice checks.",
-		     params({{"target", "object"}, {"field", "string"}, {"value", "any"}}, {{"descriptor", "string"}}),
+		     params({{"target", "object"}, {"field", "string"}, {"value", "any"}},
+		            {{"descriptor", "string"}, {"context", "object"}}),
 		     [](WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     auto &object = target(d, a.at("target"));
@@ -234,7 +235,8 @@ const std::vector<Operation> &operations()
 				     const auto &spec = workshop_field(a.at("descriptor"));
 				     if (spec.at("key") != field)
 					     throw std::runtime_error("Descriptor does not describe this field");
-				     workshop_set_field(object, spec, a.at("value"));
+				     return workshop_set_control(object, a.at("descriptor"), a.at("value"),
+				                                 a.value("context", Json::object()));
 			     }
 			     else
 				     object[field] = a.at("value");
@@ -263,14 +265,17 @@ const std::vector<Operation> &operations()
 			     return v;
 		     }},
 		    {"append", "Append explicit data or a shared GUI record prototype, preserving authored order.",
-		     params({{"target", "object"}}, {{"value", "any"}, {"prototype", "string"}}),
+		     params({{"target", "object"}}, {{"value", "any"}, {"prototype", "string"}, {"context", "object"}}),
 		     [](WorkshopDocument &d, const Json &a) -> Json
 		     {
 			     auto &v = target(d, a.at("target"));
 			     if (!v.is_array())
 				     throw std::runtime_error("append target: expected array");
 			     return workshop_append_record(
-			         v, a.contains("value") ? a.at("value") : workshop_record(a.at("prototype")), !a.contains("value"));
+			         v,
+			         a.contains("value") ? a.at("value")
+			                             : workshop_record_value(a.at("prototype"), a.value("context", Json::object())),
+			         !a.contains("value"));
 		     }},
 		    {"create", "Create a definition using explicit authored data; entity defaults match Add entity.",
 		     params({{"kind", "string"}},
@@ -509,15 +514,8 @@ const std::vector<Operation> &operations()
 		            {{"engine_effect", "boolean"}}),
 		     [](WorkshopDocument &d, const Json &a) -> Json
 		     {
-			     auto catalog = d.libraries();
-			     const auto prefix = d.manifest().at("id").get<std::string>() + ":";
-			     for (const auto &[path, bytes] : d.pack().files)
-				     if (path.starts_with("assets/"))
-					     catalog.assets[prefix + path] = bytes;
-			     apply_sprite_sidecar(target(d, a.at("target")), a.at("sidecar"),
-			                          a.at("images").get<std::map<std::string, std::string>>(), catalog,
-			                          a.value("engine_effect", false));
-			     d.definitions()["schema"] = 3;
+			     workshop_sprite_apply(d, target(d, a.at("target")), a.at("sidecar"), a.at("images"),
+			                           a.value("engine_effect", false));
 			     return true;
 		     }},
 
@@ -723,6 +721,89 @@ const std::vector<Operation> &operations()
 		      params({{"entity", "string"}, {"node", "string"}, {"field", "string"}}, {{"destination", "string"}}));
 		graph("ship.remove", "remove", "Remove a local ship item only if the production candidate remains coherent.",
 		      params({{"entity", "string"}, {"node", "string"}}));
+
+		result.push_back(
+		    {"controls",
+		     "Describe registered authoring controls, including resolved values/defaults/ranges for the current target "
+		     "and context.",
+		     params({}, {{"target", "object"}, {"control", "string"}, {"group", "string"}, {"context", "object"}}),
+		     [](WorkshopDocument &d, const Json &a) -> Json
+		     {
+			     if (!a.contains("control") && !a.contains("group"))
+				     return workshop_fields();
+			     const auto &owner = target(d, a.at("target"));
+			     const auto context = a.value("context", Json::object());
+			     if (a.contains("control"))
+				     return workshop_control(a.at("control"), owner, context);
+			     Json result = Json::array();
+			     for (const auto &[id, spec] : workshop_fields().items())
+				     if (spec.value("group", Json()) == a.at("group"))
+					     result.push_back(workshop_control(id, owner, context));
+			     return result;
+		     },
+		     "query"});
+		result.push_back(
+		    {"control.set", "Apply a registered control's constraints and coupled authoring changes.",
+		     params({{"target", "object"}, {"control", "string"}, {"value", "any"}}, {{"context", "object"}}),
+		     [](WorkshopDocument &d, const Json &a)
+		     {
+			     return workshop_set_control(target(d, a.at("target")), a.at("control"), a.at("value"),
+			                                 a.value("context", Json::object()));
+		     }});
+		result.push_back({"authoring.actions", "Describe custom authoring transformations shared by the GUI and CLI.",
+		                  params({}),
+		                  [](WorkshopDocument &, const Json &)
+		                  {
+			                  return workshop_custom_actions();
+		                  },
+		                  "query"});
+		result.push_back({"authoring.apply", "Apply a custom authoring transformation from the shared registry.",
+		                  params({{"target", "object"}, {"action", "string"}}, {{"arguments", "object"}}),
+		                  [](WorkshopDocument &d, const Json &a)
+		                  {
+			                  return workshop_custom_action(target(d, a.at("target")), a.at("action"),
+			                                                a.value("arguments", Json::object()));
+		                  }});
+		result.push_back({"asset.choices",
+		                  "List imported image assets using the same compatibility filters as the GUI picker.",
+		                  params({}, {{"skybox", "boolean"}}),
+		                  [](WorkshopDocument &d, const Json &a)
+		                  {
+			                  return workshop_asset_choices(d, a.value("skybox", false));
+		                  },
+		                  "query"});
+		result.push_back({"layout.palette", "Describe the GUI component palette and valid ship/Console contexts.",
+		                  params({{"target", "object"}}, {{"header", "boolean"}, {"context", "string"}}),
+		                  [](WorkshopDocument &d, const Json &a)
+		                  {
+			                  return workshop_layout_palette(d, target(d, a.at("target")), a.value("header", false),
+			                                                 a.value("context", std::string{}));
+		                  },
+		                  "query"});
+		result.push_back(
+		    {"instance.fields",
+		     "Describe common bulk-editable fields, mixed values and sprite choices for the selected instances.",
+		     params({{"ids", "identities"}}),
+		     [](WorkshopDocument &d, const Json &a)
+		     {
+			     return workshop_instance_fields(d, a.at("ids").get<std::set<std::uint64_t>>());
+		     },
+		     "query"});
+		result.push_back({"instance.field", "Edit a field from the shared bulk inspector description.",
+		                  params({{"ids", "identities"}, {"path", "string"}, {"value", "any"}}),
+		                  [](WorkshopDocument &d, const Json &a) -> Json
+		                  {
+			                  workshop_instance_field(d, a.at("ids").get<std::set<std::uint64_t>>(), a.at("path"),
+			                                          a.at("value"));
+			                  return true;
+		                  }});
+		result.push_back({"record.defaults", "Resolve a shared record factory with its declared context.",
+		                  params({{"prototype", "string"}}, {{"context", "object"}}),
+		                  [](WorkshopDocument &, const Json &a)
+		                  {
+			                  return workshop_record_value(a.at("prototype"), a.value("context", Json::object()));
+		                  },
+		                  "query"});
 		return result;
 	}();
 

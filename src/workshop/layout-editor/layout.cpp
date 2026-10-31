@@ -274,53 +274,22 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		{
 			ImGui::BeginDisabled(read_only);
 			ImGui::InputText(tool_label("Component target").c_str(), &layout_workspace.component);
-			std::vector<std::string> targets;
-			for (const auto &component : console_ui_components())
-				if (layout_workspace.preview.header ==
-				    (component.id == "settings" || component.id == "console-name" || component.id == "tabs"))
-					targets.push_back(component.id);
-			if (!layout_workspace.preview.header)
-				for (const auto &widget : console.at("widgets"))
-					targets.push_back(widget.at("id"));
-			if (!layout_workspace.preview.header)
+			auto palette = workshop_layout_palette(document, console, layout_workspace.preview.header,
+			                                       layout_workspace.widget_context);
+			layout_workspace.widget_context = palette.at("context");
+			if (!layout_workspace.preview.header &&
+			    ImGui::BeginCombo(tool_label("Widget ship and console context").c_str(),
+			                      layout_workspace.widget_context.c_str()))
 			{
-				const auto catalog = document.preview_ui();
-				std::map<std::string, std::string> contexts;
-				for (const auto &[ship_id, ship] : catalog->entities)
-					if (!ship.contains("_instance_template"))
-						for (const auto &station : ship.value("stations", Json::array()))
-							for (const auto &seat : station.at("consoles"))
-								if (seat.value("definition", std::string{}) == console.at("id").get<std::string>())
-									contexts[ship_id + "/" + seat.at("id").get<std::string>()] = ship_id;
-				if (!contexts.contains(layout_workspace.widget_context))
-					layout_workspace.widget_context = contexts.empty() ? std::string{} : contexts.begin()->first;
-				if (ImGui::BeginCombo(tool_label("Widget ship and console context").c_str(),
-				                      layout_workspace.widget_context.c_str()))
-				{
-					for (const auto &[context, ship] : contexts)
-						if (ImGui::Selectable(context.c_str(), context == layout_workspace.widget_context))
-							layout_workspace.widget_context = context;
-					ImGui::EndCombo();
-				}
-				if (contexts.contains(layout_workspace.widget_context))
-				{
-					const auto &ship = catalog->entities.at(contexts.at(layout_workspace.widget_context));
-					const auto seat =
-					    layout_workspace.widget_context.substr(layout_workspace.widget_context.find('/') + 1);
-					for (const auto &instance :
-					     ship.value("control_layout", Json::object()).value("controllers", Json::array()))
-						if (instance.value("console", std::string{}) == seat && instance.contains("widget"))
-						{
-							const auto prefix = "control/" + instance.at("id").get<std::string>() + "/";
-							targets.push_back(prefix + "complete");
-							const auto definition =
-							    catalog->control_widgets.find(instance.at("widget").get<std::string>());
-							if (definition != catalog->control_widgets.end())
-								for (const auto &part : definition->second.value("parts", Json::array({"main"})))
-									targets.push_back(prefix + part.get<std::string>());
-						}
-				}
+				for (const auto &[context, ship] : palette.at("contexts").items())
+					if (ImGui::Selectable(context.c_str(), context == layout_workspace.widget_context))
+						layout_workspace.widget_context = context;
+				ImGui::EndCombo();
 			}
+			palette = workshop_layout_palette(document, console, layout_workspace.preview.header,
+			                                  layout_workspace.widget_context);
+			const auto targets = palette.at("targets").get<std::vector<std::string>>();
+
 			if (ImGui::BeginCombo(tool_label("Available components").c_str(), layout_workspace.component.c_str()))
 			{
 				for (const auto &target : targets)
@@ -408,9 +377,7 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 		ImGui::End();
 		if (tool_window(tool_label("Layout properties").c_str()))
 		{
-			bool show_tab = console.value("tab", true);
-			if (ImGui::Checkbox(tool_label("Show as station tab").c_str(), &show_tab))
-				console["tab"] = show_tab;
+			edit_shared_field(tool_label("Show as station tab").c_str(), console, "console.tab");
 			ImGui::BeginDisabled(read_only);
 			selected = layout_find_node(root, layout_workspace.selected);
 			if (selected)
@@ -502,14 +469,10 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					if (selected->value("component", "") == component.id && !component.feature.empty())
 						ImGui::TextWrapped("Requires available %s capability on this station.",
 						                   component.feature.c_str());
-				bool styled = selected->contains("style");
-				if (ImGui::Checkbox(tool_label("Override component appearance").c_str(), &styled))
-				{
-					if (styled)
-						(*selected)["style"] = workshop_seed("layout-editor.layout.style");
-					else
-						selected->erase("style");
-				}
+				edit_shared_field(tool_label("Override component appearance").c_str(), *selected,
+				                  "layout.style.enabled");
+				const bool styled = selected->contains("style");
+
 				if (styled)
 				{
 					layout_string_field("Component text colour", (*selected)["style"], "text");
@@ -565,54 +528,9 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 			for (auto &theme : document.definitions()["themes"])
 				if (theme.at("id") == console.value("theme", std::string{}))
 				{
-					for (auto &token : theme["tokens"].items())
-					{
-						if (token.value().is_number())
-						{
-							float n = token.value();
-							if (ImGui::DragFloat(tool_label(token.key()).c_str(), &n, .5f, 0, 128))
-								token.value() = n;
-						}
-						else
-						{
-							auto value = token.value().get<std::string>();
-							if (!value.empty() && value.front() == '#')
-							{
-								std::uint32_t packed = 0;
-								const auto parsed =
-								    std::from_chars(value.data() + 1, value.data() + value.size(), packed, 16);
-								if ((value.size() == 7 || value.size() == 9) && parsed.ec == std::errc{} &&
-								    parsed.ptr == value.data() + value.size())
-								{
-									if (value.size() == 7)
-										packed = (packed << 8) | 0xff;
-									const auto colour = GetColor(packed);
-									float rgba[] = {colour.r / 255.f, colour.g / 255.f, colour.b / 255.f,
-									                colour.a / 255.f};
-									if (ImGui::ColorEdit4(tool_label(token.key() + " colour").c_str(), rgba))
-									{
-										static constexpr char hex[] = "0123456789abcdef";
-										std::string next = "#";
-										for (float channel : rgba)
-										{
-											const int n =
-											    std::clamp(static_cast<int>(std::round(channel * 255)), 0, 255);
-											next += hex[n / 16];
-											next += hex[n % 16];
-										}
-										value = next;
-										token.value() = value;
-									}
-								}
-								else
-									ImGui::TextWrapped(
-									    "%s", localise("Colour must be #RRGGBB or #RRGGBBAA using hexadecimal digits.")
-									              .c_str());
-							}
-							if (ImGui::InputText(tool_label(token.key()).c_str(), &value))
-								token.value() = value;
-						}
-					}
+					for (const auto &[name, token] : theme.at("tokens").items())
+						edit_shared_control(tool_label(name).c_str(), theme, "theme.token", {{"token", name}});
+
 					if (tool_button(tool_label("Use theme for pack and menus").c_str()))
 						(void)apply(theme, "theme.pack", Json::object());
 					if (ImGui::BeginCombo(tool_label("Artwork slot").c_str(), layout_workspace.asset_id.c_str()))
@@ -625,33 +543,20 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 					for (const auto &slot : ui_theme_artwork_slots())
 						if (slot == layout_workspace.asset_id && theme.at("assets").contains(slot))
 						{
-							float scale = theme.value("asset_scale", Json::object()).value(slot, 1.f);
-							if (ImGui::DragFloat(tool_label(slot + " artwork scale").c_str(), &scale, .005f, .001f,
-							                     8.f))
-								theme["asset_scale"][slot] = scale;
-							bool sliced = theme.contains("slices") && theme.at("slices").contains(slot);
-							if (ImGui::Checkbox(tool_label(std::string("Nine-slice ") + slot).c_str(), &sliced))
-							{
-								if (sliced)
-									theme["slices"][slot] = {0, 0, 0, 0};
-								else
-									theme["slices"].erase(slot);
-							}
-							if (sliced)
-								for (int edge = 0; edge < 4; ++edge)
-								{
-									int v = theme["slices"][slot][edge];
-									if (ImGui::DragInt(
-									        tool_label(std::string(slot) + " inset " + std::to_string(edge)).c_str(),
-									        &v, 1, 0, 16384))
-										theme["slices"][slot][edge] = v;
-								}
+							edit_shared_control(tool_label(slot + " artwork scale").c_str(), theme, "theme.scale",
+							                    {{"slot", slot}});
+							edit_shared_control(tool_label(std::string("Nine-slice ") + slot).c_str(), theme,
+							                    "theme.sliced", {{"slot", slot}});
+							if (theme.contains("slices") && theme.at("slices").contains(slot))
+								edit_shared_control(tool_label(slot + " insets").c_str(), theme, "theme.insets",
+								                    {{"slot", slot}});
 						}
 					if (ImGui::BeginCombo(tool_label("Artwork asset").c_str(), "Choose imported asset"))
 					{
 						for (const auto &[id, bytes] : catalog->assets)
 							if (ImGui::Selectable(id.c_str()) && !layout_workspace.asset_id.empty())
-								theme["assets"][layout_workspace.asset_id] = id;
+								(void)workshop_set_control(theme, "theme.asset", id,
+								                           {{"slot", layout_workspace.asset_id}});
 						ImGui::EndCombo();
 					}
 				}
@@ -877,31 +782,17 @@ void LayoutEditor::draw(WorkshopDocument &document, int console_index, bool pseu
 						    resolved.containers.contains(parent_id))
 						{
 							const auto bounds = resolved.containers.at(parent_id);
-							auto rect = layout_workspace.drag_rect;
-							const auto step = layout_workspace.snap ? 10.f : 1.f;
 							const auto dx =
 							    (mouse.x - layout_workspace.drag_start_x) / scale * 1000 / std::max(1.f, bounds.width);
 							const auto dy =
 							    (mouse.y - layout_workspace.drag_start_y) / scale * 1000 / std::max(1.f, bounds.height);
-							if (ImGui::GetIO().KeyShift || layout_workspace.resizing)
-							{
-								rect["width"] = std::clamp(
-								    static_cast<int>(std::round((rect.at("width").get<float>() + dx) / step) * step), 1,
-								    1000 - rect.at("x").get<int>());
-								rect["height"] = std::clamp(
-								    static_cast<int>(std::round((rect.at("height").get<float>() + dy) / step) * step),
-								    1, 1000 - rect.at("y").get<int>());
-							}
-							else
-							{
-								rect["x"] = std::clamp(
-								    static_cast<int>(std::round((rect.at("x").get<float>() + dx) / step) * step), 0,
-								    1000 - rect.at("width").get<int>());
-								rect["y"] = std::clamp(
-								    static_cast<int>(std::round((rect.at("y").get<float>() + dy) / step) * step), 0,
-								    1000 - rect.at("height").get<int>());
-							}
-							(*moving)["rect"] = rect;
+							(void)workshop_custom_action(
+							    *moving, "layout.rect.gesture",
+							    {{"rect", layout_workspace.drag_rect},
+							     {"dx", dx},
+							     {"dy", dy},
+							     {"resize", ImGui::GetIO().KeyShift || layout_workspace.resizing},
+							     {"snap", layout_workspace.snap}});
 						}
 					}
 				}

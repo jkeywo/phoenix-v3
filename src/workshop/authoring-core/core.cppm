@@ -4,6 +4,7 @@ module;
 #include <map>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -17,13 +18,31 @@ const Json &workshop_fields();
 const Json &workshop_field(const std::string &id);
 const Json &workshop_records();
 const Json &workshop_record(const std::string &id);
+Json workshop_record_value(const std::string &, const Json &context);
 Json workshop_append_record(Json &rows, Json value, bool generate_identity);
 void workshop_set_field(Json &object, const Json &field, const Json &value);
+Json workshop_colour_channels(const std::string &);
+std::string workshop_colour_text(const Json &);
+Json workshop_control(const std::string &, const Json &);
+Json workshop_control(const std::string &, const Json &, const Json &context);
+Json workshop_set_control(Json &, const std::string &, const Json &);
+Json workshop_set_control(Json &, const std::string &, const Json &, const Json &context);
+Json workshop_custom_actions();
+Json workshop_custom_action(Json &, const std::string &);
+Json workshop_custom_action(Json &, const std::string &, const Json &arguments);
+void workshop_sprite_apply(WorkshopDocument &, Json &, const Json &sidecar, const Json &images, bool engine_effect);
+Json workshop_asset_choices(const WorkshopDocument &, bool skybox);
+Json workshop_layout_palette(WorkshopDocument &, const Json &, bool header, const std::string &context);
+Json workshop_instance_fields(WorkshopDocument &, const std::set<std::uint64_t> &);
+void workshop_instance_field(WorkshopDocument &, const std::set<std::uint64_t> &, const std::string &path,
+                             const Json &value);
 Json workshop_operations();
 Json workshop_definition_kinds();
 Json workshop_operation(const std::string &id);
 void workshop_validate_arguments(const std::string &operation, const Json &arguments);
 Json workshop_definition_default(const std::string &kind, const std::string &context = "controller");
+Json workshop_prepare_vocabulary(const Json &);
+Json workshop_preview_tree(const WorkshopDocument &, Json source);
 Json workshop_tree_state(const std::string &id);
 Json workshop_tree_localize(WorkshopDocument &, const Json &binding, const std::string &context, bool copy);
 Json workshop_tree_promote(WorkshopDocument &, Json &binding, const std::string &id, bool policy);
@@ -79,4 +98,10 @@ void workshop_export(const WorkshopDocument &, const std::string &path, bool sce
 Bytes workshop_source_archive(const WorkshopDocument &);
 void workshop_export_map(const WorkshopDocument &, const std::string &path);
 void workshop_export_source(const WorkshopDocument &, const std::string &path);
+} // namespace phoenix
+
+namespace phoenix
+{
+void workshop_publish(Json &, const Json &);
+void workshop_controller_arguments(Json &);
 } // namespace phoenix

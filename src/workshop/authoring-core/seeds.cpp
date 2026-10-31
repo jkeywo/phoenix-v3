@@ -7,6 +7,17 @@ namespace phoenix
 const Json &workshop_seeds()
 {
 	static const Json seeds = {
+	    {"expression.1", {{"field", "expression"}, {"value", true}}},
+	    {"expression.2", {{"field", "expression"}, {"value", {{"value", 1000}, {"unit", "permille"}}}}},
+	    {"expression.3", {{"field", "expression"}, {"value", {{"value", 0}, {"unit", "energy"}}}}},
+	    {"expression.4", {{"field", "expression"}, {"value", Json::object()}}},
+	    {"expression.5", {{"field", "expression"}, {"value", Json::array()}}},
+	    {"expression.6", {{"field", "expression"}, {"value", {{"shortage", "pause"}, {"costs", Json::array()}}}}},
+	    {"expression.7", {{"field", "expression"}, {"value", true}}},
+	    {"expression.8", {{"field", "expression"}, {"value", {{"value", 1000}, {"unit", "permille"}}}}},
+	    {"expression.9", {{"field", "expression"}, {"value", Json::object()}}},
+	    {"expression.10", {{"field", "expression"}, {"value", true}}},
+	    {"expression.11", {{"field", "expression"}, {"value", Json::array()}}},
 	    {"gameplay-editors.combat.destruction",
 	     {{"field", "destruction"}, {"value", {{"chance_permille", 1000}, {"affects_missiles", false}}}}},
 	    {"gameplay-editors.combat.destruction.2", {{"field", "destruction"}, {"value", Json::object()}}},

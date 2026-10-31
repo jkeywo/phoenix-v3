@@ -3,6 +3,9 @@ add_library(
 	STATIC
 	core.cpp
 	operations.cpp
+	custom_actions.cpp
+	inspection.cpp
+	controls.cpp
 	fields.cpp
 	structure.cpp
 	records.cpp

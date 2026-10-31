@@ -830,6 +830,7 @@ phoenix_intended_module(
 	phoenix_imgui
 	phoenix_content_documents
 	phoenix_content_image_codec
+	phoenix_workshop_authoring_core
 )
 phoenix_intended_module(
 	phoenix_workshop_material_preview

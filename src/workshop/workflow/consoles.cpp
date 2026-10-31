@@ -112,14 +112,7 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 			           string_field("Semantic label", widget, "label");
 			           if (widget.at("kind") == "radar")
 			           {
-				           const auto source = widget.value("selection_source", "sensors");
-				           if (ImGui::BeginCombo(tool_label("Selection source").c_str(), source.c_str()))
-				           {
-					           for (const char *role : {"tactical", "sensors", "waypoint"})
-						           if (ImGui::Selectable(role, source == role))
-							           widget["selection_source"] = role;
-					           ImGui::EndCombo();
-				           }
+				           edit_shared_field(tool_label("Selection source").c_str(), widget, "widget.selection_source");
 				           if (!widget.contains("sweep") && tool_button(tool_label("Customize radar sweep").c_str()))
 					           widget["sweep"] = workshop_seed("workflow.consoles.sweep");
 				           if (widget.contains("sweep"))
@@ -130,10 +123,7 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 					                             "workflow.consoles.duration_seconds");
 					           edit_shared_field(tool_label("Sweep speed (degrees/second)").c_str(), s,
 					                             "workflow.consoles.speed_degrees_s");
-					           const auto tint = s.value("colour", Json::array({.1, .9, .65, .85}));
-					           float colour[4] = {tint[0], tint[1], tint[2], tint[3]};
-					           if (ImGui::ColorEdit4(tool_label("Sweep colour").c_str(), colour))
-						           s["colour"] = {colour[0], colour[1], colour[2], colour[3]};
+					           edit_shared_field(tool_label("Sweep colour").c_str(), s, "widget.sweep.colour");
 				           }
 			           }
 			           ImGui::TextWrapped(
@@ -141,12 +131,9 @@ void WorkshopWorkspace::State::console_editor(WorkshopEnvironment &environment, 
 			                                 {{"binding", widget.value("binding", std::string("Controller command"))}})
 			                         .c_str());
 			           for (const char *key : {"x", "y", "width", "height"})
-			           {
-				           int value = widget[key];
-				           if (ImGui::SliderInt(tool_label(key).c_str(), &value,
-				                                (std::string(key) == "x" || std::string(key) == "y") ? 0 : 1, 1000))
-					           widget[key] = value;
-			           }
+				           edit_shared_field(tool_label(key).c_str(), widget,
+				                             (std::string("widget.rect.") + key).c_str());
+
 			           const bool remove = tool_button(tool_label("Delete widget").c_str());
 			           ImGui::TreePop();
 			           return remove;
@@ -213,24 +200,13 @@ void WorkshopWorkspace::State::slots_editor()
 		           if (ImGui::TreeNode(slot["id"].get_ref<const std::string &>().c_str()))
 		           {
 			           string_field("Name", slot, "id");
-			           bool mandatory = slot.value("mandatory", false);
-			           if (ImGui::Checkbox(tool_label("Mandatory ship slot").c_str(), &mandatory))
-				           slot["mandatory"] = mandatory;
+			           edit_shared_field(tool_label("Mandatory ship slot").c_str(), slot, "slot.mandatory");
 			           transform_fields(slot);
 			           string_field("Faction (empty is unaffiliated)", slot, "faction");
 			           ImGui::TextUnformatted(localise("Allowed ships:").c_str());
 			           for (const auto &id : document.definition_choices(WorkshopDefinitionKind::Entity))
 			           {
-				           auto &allowed = slot["allowed_ships"];
-				           auto found = std::find(allowed.begin(), allowed.end(), Json(id));
-				           bool selected = found != allowed.end();
-				           if (ImGui::Checkbox(id.c_str(), &selected))
-				           {
-					           if (selected)
-						           allowed.push_back(id);
-					           else
-						           allowed.erase(found);
-				           }
+				           edit_shared_member(id.c_str(), slot, "allowed_ships", id);
 			           }
 			           const bool remove = tool_button(tool_label("Remove slot").c_str());
 			           ImGui::TreePop();

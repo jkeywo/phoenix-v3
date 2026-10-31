@@ -59,4 +59,14 @@ with tempfile.TemporaryDirectory(prefix="phoenix-cli-") as temporary:
     assert invoke("get", "--source", source_zip, "--args", json.dumps({"target": target}))[0]["result"]["name"] == "Mercury 雪"
     assert invoke("describe", "--args", json.dumps({"operation": "ship.inspect"}))[0]["result"]["execution"] == "query"
 
+    controls = invoke("controls")[0]["result"]
+    assert controls["frame.marker.x"]["context"]["required"] == ["attachment"]
+    assert invoke("authoring.actions")[0]["result"]
+    updated = root / "controlled"
+    invoke("control.set", "--input", source, "--output", updated, "--args", json.dumps({
+        "target": {**target, "path": "/render"}, "control": "render.billboard", "value": True,
+    }))
+    assert len(invoke("get", "--input", updated, "--args", json.dumps({"target": {**target, "path": "/render"}}))[0]["result"]["images"]) == 8
+    assert invoke("record.defaults", "--args", json.dumps({"prototype": "effect.cost", "context": {"quantity": "amount"}}))[0]["result"]["amount"] == 0
+
 print("Workshop CLI one-shot/session parity, UTF-8 paths, recovery and failure persistence passed")

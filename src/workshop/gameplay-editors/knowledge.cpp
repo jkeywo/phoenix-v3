@@ -155,9 +155,7 @@ void GameplayEditors::State::telemetry_records(Json &spec, WorkshopDocument &doc
 			        selected_fields[identity] = selected.at("Schema field").get<std::string>();
 		        if (button("Bind telemetry field") && !selected_fields[identity].empty())
 		        {
-			        if (!record.contains("fields"))
-				        record["fields"] = workshop_seed("gameplay-editors.knowledge.fields");
-			        record["fields"][selected_fields[identity]] = "requested";
+			        (void)workshop_custom_action(record, "telemetry.field", {{"name", selected_fields[identity]}});
 		        }
 		        text("Telemetry source names are verified by the production knowledge compiler. They refer to "
 		             "permitted World telemetry, not arbitrary JSON paths.");

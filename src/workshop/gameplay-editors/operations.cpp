@@ -112,14 +112,9 @@ void GameplayEditors::State::personnel(Json &ship, WorkshopDocument &document)
 			        else
 				        ++it;
 		        }
-		        if (!old_target.empty() && !new_target.empty() && !effects.contains(new_target) &&
-		            effects.contains(old_target))
-		        {
-			        effects[new_target] = effects.at(old_target);
-			        effects.erase(old_target);
-		        }
+		        (void)workshop_custom_action(effects, "object.rename", {{"from", old_target}, {"to", new_target}});
 		        if (button("Add target binding"))
-			        effects[fresh(effects, "system")] = Json::array();
+			        (void)workshop_custom_action(effects, "object.add", {{"prefix", "system"}, {"type", "array"}});
 	        });
 	records(p, "officers", workshop_record("gameplay-editors.operations.officers"),
 	        [&](Json &o)

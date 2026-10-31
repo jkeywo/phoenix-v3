@@ -32,6 +32,27 @@ Json workshop_append_record(Json &rows, Json value, bool generate_identity)
 const Json &workshop_records()
 {
 	static const Json records = {
+	    {"effect.cost",
+	     {{"key", "costs"},
+	      {"provider", "cost"},
+	      {"context", {{"quantity", {{"type", "string"}, {"choices", {"amount", "per_second"}}}}}},
+	      {"value", {{"payer", "target"}, {"store", ""}, {"resource", ""}}}}},
+	    {"scenario.report",
+	     {{"key", "reports"},
+	      {"provider", "report"},
+	      {"context", {{"slots", {{"type", "array"}}}}},
+	      {"value",
+	       {{"id", "report"},
+	        {"ship", {{"slot", ""}}},
+	        {"title_key", "Mission report"},
+	        {"objectives", Json::array()},
+	        {"facts", Json::array()},
+	        {"rules", Json::array()},
+	        {"fallback",
+	         {{"result", "unfinished"},
+	          {"title_key", "Unfinished"},
+	          {"explanation_key", "Work remains unfinished."}}}}}}},
+
 	    {"gameplay-editors.equipment.modifiers",
 	     {{"key", "modifiers"},
 	      {"value", {{"system", ""}, {"property", "max_speed_mm_s"}, {"multiplier_permille", 1000}}}}},
@@ -410,5 +431,28 @@ const Json &workshop_records()
 const Json &workshop_record(const std::string &id)
 {
 	return workshop_records().at(id).at("value");
+}
+Json workshop_record_value(const std::string &id, const Json &context)
+{
+	const auto &spec = workshop_records().at(id);
+	auto value = spec.at("value");
+	const auto provider = spec.value("provider", std::string{});
+	if (provider == "cost")
+	{
+		const auto quantity = context.at("quantity").get<std::string>();
+		if (quantity != "amount" && quantity != "per_second")
+			throw std::runtime_error("Unsupported cost quantity");
+		value[quantity] = 0;
+	}
+	else if (provider == "report")
+	{
+		const auto slots = context.at("slots");
+		if (!slots.is_array())
+			throw std::runtime_error("Expected ship slot array");
+		value["ship"]["slot"] = slots.empty() ? Json("") : slots[0];
+	}
+	else if (!context.empty())
+		throw std::runtime_error("Prototype does not accept context");
+	return value;
 }
 } // namespace phoenix

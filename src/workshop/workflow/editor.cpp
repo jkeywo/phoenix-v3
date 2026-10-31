@@ -829,7 +829,7 @@ void WorkshopWorkspace::State::render_editor(WorkshopEnvironment &environment)
 									    fields.text("Local merge patch (objects merge; arrays replace; null removes)");
 									    fields.structure(patch[key]);
 									    if (fields.button("Remove inherited field"))
-										    patch[key] = nullptr;
+										    (void)workshop_custom_action(patch[key], "value.type", {{"type", "null"}});
 									    if (fields.button("Revert to inherited"))
 										    patch.erase(key);
 								    }

@@ -17,7 +17,7 @@ target_link_libraries(
 target_link_libraries(
 	phoenix_workshop_asset_preview
 	PUBLIC phoenix_content_documents
-	PRIVATE phoenix_content_image_codec
+	PRIVATE phoenix_content_image_codec phoenix_workshop_authoring_core
 )
 
 target_link_libraries(

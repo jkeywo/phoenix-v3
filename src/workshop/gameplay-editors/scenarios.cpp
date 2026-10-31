@@ -28,13 +28,7 @@ void GameplayEditors::State::actor(Json &parent, const char *key, const std::vec
 {
 	ScopedId id_scope_22(key);
 	heading(key);
-	const auto value = parent.contains(key) ? parent.at(key) : Json::object();
-	Json kind{{"Actor source", value.contains("slot") ? "slot" : value.contains("entity") ? "entity" : "handle"}};
-	if (edit_registered(kind, "gameplay-editors.scenarios.Actor source"))
-	{
-		const auto selected = kind.at("Actor source").get<std::string>();
-		parent[key] = selected == "entity" ? Json{{"entity", 1}} : Json{{selected, ""}};
-	}
+	edit_shared_control(label("Actor source").c_str(), parent, "actor.source", {{"field", key}});
 	if (parent.contains(key))
 	{
 		if (parent.at(key).contains("slot"))
@@ -45,7 +39,7 @@ void GameplayEditors::State::actor(Json &parent, const char *key, const std::vec
 			edit_registered(parent[key], "gameplay-editors.scenarios.handle");
 	}
 	else if (button("Bind actor"))
-		parent[key] = {{"slot", slots.empty() ? "" : slots.front()}};
+		(void)workshop_custom_action(parent, "actor.bind", {{"field", key}, {"slots", slots}});
 }
 
 void GameplayEditors::State::scenario(WorkshopDocument &document)
@@ -102,9 +96,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        optional_string(m, "attacker_character");
 		        tree_editor.tree_binding(document, m, "tree", "scenario", false);
 		        tree_editor.tree_binding(document, m, "dialogue", "conversation", false);
-		        for (auto key : {"threat_radius_mm", "clearance_radius_mm", "engagement_radius_mm",
-		                         "formation_radius_mm", "takeover_ticks", "combat_standoff_mm", "cruise_speed_mm_s"})
-			        integer(m, key, 1);
+		        edit_shared_group(m, "scenario.engagement");
 		        strings(m, "occupation_teams");
 		        if (!m.contains("takeover_effects"))
 			        m["takeover_effects"] = workshop_seed("gameplay-editors.scenarios.takeover_effects");
@@ -171,86 +163,38 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        }
 		        if (region.value("shape", std::string("circle")) == "annulus")
 			        edit_registered(region, "gameplay-editors.scenarios.inner_radius_mm");
-		        bool display = region.contains("display");
-		        if (ImGui::Checkbox(label("Map marker").c_str(), &display))
-		        {
-			        if (display)
-				        region["display"] = {{"name", region.value("id", "Region")},
-				                             {"navigation", true},
-				                             {"radar", true},
-				                             {"colour", {.5, .7, .9}},
-				                             {"tags", {"contact"}}};
-			        else
-				        region.erase("display");
-		        }
+		        edit_shared_field(label("Map marker").c_str(), region, "region.display");
+		        const bool display = region.contains("display");
+
 		        if (display)
 		        {
 			        auto &d = region["display"];
 			        edit_registered(d, "gameplay-editors.scenarios.name");
 			        strings(d, "tags");
-			        for (const auto *key : {"navigation", "radar"})
-			        {
-				        bool visible = d.value(key, false);
-				        if (ImGui::Checkbox(label(key).c_str(), &visible))
-					        d[key] = visible;
-			        }
-			        auto c = d.value("colour", Json::array({.5, .7, .9}));
-			        float rgb[]{c[0], c[1], c[2]};
-			        if (ImGui::ColorEdit3(label("Map marker colour").c_str(), rgb))
-				        d["colour"] = {rgb[0], rgb[1], rgb[2]};
+			        edit_shared_field(label("navigation").c_str(), d, "region.display.navigation");
+			        edit_shared_field(label("radar").c_str(), d, "region.display.radar");
+			        edit_shared_field(label("Map marker colour").c_str(), d, "region.display.colour");
 		        }
-		        bool fog = region.contains("nebula");
-		        if (ImGui::Checkbox(label("Nebula").c_str(), &fog))
-		        {
-			        if (fog)
-				        region["nebula"] = workshop_seed("gameplay-editors.scenarios.nebula");
-			        else
-				        region.erase("nebula");
-		        }
+		        edit_shared_field(label("Nebula").c_str(), region, "region.nebula");
+		        const bool fog = region.contains("nebula");
+
 		        if (fog)
 		        {
 			        auto &n = region["nebula"];
-			        for (const char *key : {"density", "sensor_factor"})
-			        {
-				        float value = n.value(key, 1.f);
-				        if (ImGui::InputFloat(label(key).c_str(), &value))
-					        n[key] = value;
-			        }
+			        edit_shared_field(label("density").c_str(), n, "region.nebula.density");
+			        edit_shared_field(label("sensor_factor").c_str(), n, "region.nebula.sensor_factor");
 			        edit_registered(n, "gameplay-editors.scenarios.half_height_mm.2");
-			        const auto c = n.value("colour", Json::array({.5, .3, .8}));
-			        float colour[3] = {c[0], c[1], c[2]};
-			        if (ImGui::ColorEdit3(label("Nebula colour").c_str(), colour))
-				        n["colour"] = {colour[0], colour[1], colour[2]};
+			        edit_shared_field(label("Nebula colour").c_str(), n, "region.nebula.colour");
 		        }
-		        bool asteroids = region.contains("asteroids");
-		        if (ImGui::Checkbox(label("Asteroid field").c_str(), &asteroids))
-		        {
-			        if (asteroids)
-				        region["asteroids"] = workshop_seed("gameplay-editors.scenarios.asteroids");
-			        else
-				        region.erase("asteroids");
-		        }
+		        edit_shared_field(label("Asteroid field").c_str(), region, "region.asteroids");
+		        const bool asteroids = region.contains("asteroids");
+
 		        if (asteroids)
 		        {
 			        auto &a = region["asteroids"];
-			        for (const auto &[key, fallback] :
-			             std::vector<std::pair<const char *, std::int64_t>>{{"seed", 1},
-			                                                                {"spacing_mm", 25000},
-			                                                                {"weight", 1000},
-			                                                                {"jitter_mm", 8000},
-			                                                                {"clustering_permille", 500},
-			                                                                {"noise_cells", 8},
-			                                                                {"decorative_height_mm", 20000},
-			                                                                {"decorative_fill_permille", 250},
-			                                                                {"spin_min_mdeg_s", 1000},
-			                                                                {"spin_max_mdeg_s", 10000},
-			                                                                {"visual_distance_mm", 250000},
-			                                                                {"unload_margin_mm", 50000}})
-				        integer(a, key, fallback);
-			        float density = a.value("density", .0004f);
-			        if (ImGui::InputFloat(label("Density (rocks per square metre)").c_str(), &density, .0001f, .001f,
-			                              "%.6f"))
-				        a["density"] = density;
+			        edit_shared_group(a, "asteroids");
+			        edit_shared_field(label("Density (rocks per square metre)").c_str(), a, "region.asteroids.density");
+
 			        for (const char *key : {"types", "decorative_types"})
 				        records(a, key, workshop_record("gameplay-editors.scenarios.field_types"),
 				                [&](Json &type)
@@ -340,8 +284,7 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 		        if (!objective.contains("recipients"))
 		        {
 			        if (button("Bind objective recipients"))
-				        objective["recipients"] = {{"ship", {{"slot", slots.empty() ? "" : slots.front()}}},
-				                                   {"consoles", Json::array()}};
+				        (void)workshop_custom_action(objective, "objective.recipients", {{"slots", slots}});
 		        }
 		        else
 		        {
@@ -359,20 +302,11 @@ void GameplayEditors::State::scenario(WorkshopDocument &document)
 	        {
 		        structure(e);
 	        });
-	records(
-	    scenario, "reports",
-	    {{"id", "report"},
-	     {"ship", {{"slot", slots.empty() ? "" : slots.front()}}},
-	     {"title_key", "Mission report"},
-	     {"objectives", Json::array()},
-	     {"facts", Json::array()},
-	     {"rules", Json::array()},
-	     {"fallback",
-	      {{"result", "unfinished"}, {"title_key", "Unfinished"}, {"explanation_key", "Work remains unfinished."}}}},
-	    [&](Json &r)
-	    {
-		    structure(r);
-	    });
+	records(scenario, "reports", workshop_record_value("scenario.report", {{"slots", slots}}),
+	        [&](Json &r)
+	        {
+		        structure(r);
+	        });
 	records(scenario, "objective_sequences", workshop_record("gameplay-editors.scenarios.objective_sequences"),
 	        [&](Json &sequence)
 	        {

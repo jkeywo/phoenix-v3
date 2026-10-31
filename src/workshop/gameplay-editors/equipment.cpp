@@ -146,8 +146,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 		records(spec, "seats", workshop_record("gameplay-editors.equipment.seats"),
 		        [&](Json &s)
 		        {
-			        for (const auto *k : {"duty", "console", "controller", "enabled", "target"})
-				        string(s, k);
+			        edit_shared_group(s, "gameplay-editors.equipment.group.duty");
 			        optional_string(s, "ability");
 		        });
 	}
@@ -262,7 +261,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	{
 		edit_registered(spec, "gameplay-editors.equipment.max_speed_mm_s");
 		edit_registered(spec, "gameplay-editors.equipment.acceleration_mm_s2");
-		integer(spec, "deceleration_mm_s2", spec.value("acceleration_mm_s2", std::int64_t{0}));
+		edit_shared_field(label("deceleration_mm_s2").c_str(), spec, "equipment.deceleration");
 	}
 	if (kind == "engine" || kind == "steering")
 		edit_registered(spec, "gameplay-editors.equipment.turn_mdeg_s");
@@ -270,14 +269,9 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 	{
 		edit_registered(spec, "gameplay-editors.equipment.radar_arc");
 		edit_registered(spec, "gameplay-editors.equipment.range_mm.4");
-		bool long_range = spec.contains("long_range_mm");
-		if (ImGui::Checkbox(label("Long-range detection").c_str(), &long_range))
-		{
-			if (long_range)
-				spec["long_range_mm"] = spec.value("range_mm", 100000LL) * 3;
-			else
-				spec.erase("long_range_mm");
-		}
+		edit_shared_field(label("Long-range detection").c_str(), spec, "radar.long_range");
+		const bool long_range = spec.contains("long_range_mm");
+
 		if (long_range)
 			edit_registered(spec, "gameplay-editors.equipment.long_range_mm");
 		edit_registered(spec, "gameplay-editors.equipment.arc_mdeg.2");
@@ -359,7 +353,7 @@ void GameplayEditors::State::system_details(WorkshopDocument &document, Json &sp
 						spec.erase(name);
 				}
 				else if (button("Add mode"))
-					spec[name] = Json::object();
+					(void)workshop_custom_action(spec, "field.ensure", {{"field", name}, {"type", "object"}});
 			}
 		}
 }
@@ -465,8 +459,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				edit_registered(binding, "gameplay-editors.equipment.source.2");
 				edit_registered(binding, "gameplay-editors.equipment.owner");
 				choice(binding, "ability", document.definition_choices(WorkshopDefinitionKind::Effect));
-				for (const auto *key : {"console", "controller", "enabled"})
-					string(binding, key);
+				edit_shared_group(binding, "gameplay-editors.equipment.group.console");
 				for (const auto *key : {"target", "apparatus", "planner"})
 					optional_string(binding, key);
 				if (button("Remove ability endpoint"))
@@ -475,8 +468,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 			if (!remove.empty())
 				controls.erase(remove);
 			if (button("Add ability endpoint"))
-				controls[fresh(controls, "ability")] = {{"source", "equipment"}, {"owner", ""},      {"ability", ""},
-				                                        {"console", ""},         {"controller", ""}, {"enabled", ""}};
+				(void)workshop_custom_action(controls, "ability.endpoint");
 		}
 	}
 
@@ -495,13 +487,11 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 				            edit_registered(binding, "gameplay-editors.equipment.source.3");
 				            edit_registered(binding, "gameplay-editors.equipment.owner");
 				            edit_registered(binding, "gameplay-editors.equipment.process");
-				            for (const auto *field : {"controller", "enabled"})
-					            string(binding, field);
+				            edit_shared_group(binding, "gameplay-editors.equipment.group.controller");
 				            return button("Remove process endpoint");
 			            });
 			if (button("Add process endpoint"))
-				controls[fresh(controls, "process")] = {
-				    {"source", "equipment"}, {"owner", ""}, {"process", ""}, {"controller", ""}, {"enabled", ""}};
+				(void)workshop_custom_action(controls, "process.endpoint");
 		}
 	}
 
@@ -645,10 +635,7 @@ void GameplayEditors::State::fitted(WorkshopDocument &document)
 	tool_action_line("Add System");
 	if (button("Add System") && !new_system.empty())
 	{
-		if (!ship.contains("systems"))
-			ship["systems"] = workshop_seed("gameplay-editors.equipment.systems");
-		if (!ship["systems"].contains(new_system))
-			ship["systems"][new_system] = {{"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}};
+		(void)workshop_custom_action(ship, "system.add", {{"name", new_system}});
 		selected_system = new_system;
 		new_system.clear();
 	}
@@ -751,10 +738,7 @@ void GameplayEditors::State::services(Json &parent)
 	tool_action_line("Add endpoint");
 	if (button("Add endpoint") && !names[identity].empty())
 	{
-		if (!parent.contains("services"))
-			parent["services"] = workshop_seed("gameplay-editors.equipment.services");
-		if (!parent["services"].contains(names[identity]))
-			parent["services"][names[identity]] = {{"kind", "power"}, {"direction", "output"}, {"target", ""}};
+		(void)workshop_custom_action(parent, "service.add", {{"name", names[identity]}, {"direction", "output"}});
 	}
 	if (parent.contains("services"))
 		object_rows(parent["services"],

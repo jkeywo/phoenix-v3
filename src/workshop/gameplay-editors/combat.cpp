@@ -43,10 +43,7 @@ void GameplayEditors::State::projectile_fields(Json &p)
 {
 	strings(p, "payloads");
 	edit_registered(p, "gameplay-editors.combat.visual");
-	for (const auto *key :
-	     {"speed_mm_s", "lifetime_ticks", "penetration", "damage", "damage_per_m", "spread_mdeg",
-	      "shield_bypass_permille", "durability", "arc_height_mm", "chaos_mdeg", "blast_radius_mm", "fuse_radius_mm"})
-		integer(p, key);
+	edit_shared_group(p, "gameplay-editors.combat.group.speed_mm_s");
 	edit_registered(p, "gameplay-editors.combat.radius_mm.2");
 	edit_registered(p, "gameplay-editors.combat.resistance_per_m");
 	edit_registered(p, "gameplay-editors.combat.turn_mdeg_s");
@@ -105,9 +102,7 @@ void GameplayEditors::State::combat(WorkshopDocument &document)
 		            {
 			            edit_registered(room, "gameplay-editors.combat.id");
 			            owner_properties_fields(room, document);
-			            for (const auto *key : {"x_mm", "y_mm", "half_width_mm", "half_length_mm", "hp",
-			                                    "resistance_per_m", "recovery_hp"})
-				            integer(room, key);
+			            edit_shared_group(room, "gameplay-editors.combat.group.x_mm");
 		            });
 		    const auto origin = ImGui::GetCursorScreenPos();
 		    const float size = 280;

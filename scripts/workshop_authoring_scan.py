@@ -45,7 +45,7 @@ def tokens(source):
                 else:
                     end += 1
         else:
-            match = re.match(r'(?:[A-Za-z_]\w*|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[A-Za-z]*|::|->|.)', source[at:])
+            match = re.match(r'(?:[A-Za-z_]\w*|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[A-Za-z]*|::|->|==|!=|<=|>=|&&|\|\||\+=|-=|\*=|/=|.)', source[at:])
             end = at + len(match[0])
         result.append(Token(source[at:end], at, end))
         at = end
@@ -101,11 +101,18 @@ def static_value(expression):
 
 
 def fixed_initializers(source):
+    for key, start, end in fixed_assignments(source):
+        expression = source[start:end].strip()
+        if key.startswith('"') and (expression.startswith('{') or expression.startswith('Json::')):
+            yield key, start, end
+
+
+def fixed_assignments(source):
     items = tokens(source)
     for at, token in enumerate(items):
         if token.text != "=" or at < 3 or items[at - 1].text != "]":
             continue
-        if items[at - 3].text != "[" or not items[at - 2].text.startswith('"'):
+        if items[at - 3].text != "[":
             continue
         start = at + 1
         if items[start].text == "{":
@@ -115,9 +122,32 @@ def fixed_initializers(source):
                 continue
             end = matching(items, start + 3)
         else:
-            continue
+            end = start
+            while end < len(items) and items[end].text != ";":
+                end += 1
+            end -= 1
         if end + 1 >= len(items) or items[end + 1].text != ";":
             continue
         expression = source[items[start].start:items[end].end]
         if static_value(expression):
             yield items[at - 2].text, items[start].start, items[end].end
+
+
+def raw_authoring_widgets(source, allowed):
+    """Reject raw data widgets except audited presentation/command-argument bindings."""
+    items = tokens(source)
+    names, qualified = set(), set()
+    for at in range(len(items) - 3):
+        if items[at].text == "ImGui" and items[at + 1].text == "::" and items[at + 3].text == "(" and re.match(r"^(?:Input|Drag|Slider|ColorEdit|ColorPicker|Checkbox|Combo|RadioButton)", items[at + 2].text):
+            names.add(items[at + 2].text)
+            qualified.add(items[at + 2].start)
+    errors = []
+    for name, spans, start, end in calls(source, names):
+        if start not in qualified:
+            continue
+        args = [source[slice(*span)].strip() for span in spans]
+        pointer_at = 2 if name.startswith(("InputScalar", "DragScalar", "SliderScalar")) else 1
+        binding = "".join(token.text for token in tokens(args[pointer_at])) if len(args) > pointer_at else ""
+        if name not in allowed.get(binding, {}).get("widgets", []):
+            errors.append(f"{name}({binding}): authored controls require a shared descriptor or action")
+    return errors

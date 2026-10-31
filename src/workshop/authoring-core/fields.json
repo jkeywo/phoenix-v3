@@ -201,7 +201,8 @@
 		"type": "string",
 		"choices": ["combat"],
 		"default": "",
-		"optional": true
+		"optional": true,
+		"change": "controller-policy"
 	},
 	"gameplay-editors.consoles.initial": {
 		"key": "initial",
@@ -337,7 +338,8 @@
 			"recover"
 		],
 		"default": "",
-		"optional": false
+		"optional": false,
+		"change": "effect-kind"
 	},
 	"gameplay-editors.effects.amount": {
 		"key": "amount",
@@ -363,7 +365,8 @@
 		"type": "string",
 		"choices": ["local", "owner"],
 		"default": "",
-		"optional": false
+		"optional": false,
+		"change": "effect-scope"
 	},
 	"gameplay-editors.effects.grant": {
 		"key": "grant",
@@ -413,7 +416,8 @@
 		"key": "repeat",
 		"label": "repeat",
 		"type": "string",
-		"default": ""
+		"default": "",
+		"erase_value": ""
 	},
 	"gameplay-editors.effects.kind.2": {
 		"key": "kind",
@@ -2960,5 +2964,1850 @@
 		"step": 1,
 		"minimum": 12,
 		"maximum": 128
+	},
+	"material.normal": {
+		"key": "normal",
+		"label": "normal",
+		"type": "boolean",
+		"default": false,
+		"change": "optional-asset"
+	},
+	"material.depth": {
+		"key": "depth",
+		"label": "depth",
+		"type": "boolean",
+		"default": false,
+		"change": "optional-asset"
+	},
+	"material.emissive": {
+		"key": "emissive",
+		"label": "emissive",
+		"type": "boolean",
+		"default": false
+	},
+	"frame.mirror": {
+		"key": "mirror_x",
+		"label": "mirror_x",
+		"type": "boolean",
+		"default": false
+	},
+	"frame.rect": {
+		"key": "rect",
+		"label": "rect",
+		"type": "array",
+		"default": [0, 0, 0, 0],
+		"widget": "vector",
+		"length": 4,
+		"items": "integer"
+	},
+	"frame.pivot": {
+		"key": "pivot",
+		"label": "pivot",
+		"type": "array",
+		"default": [0, 0],
+		"widget": "vector",
+		"length": 2,
+		"items": "number"
+	},
+	"frame.forward": {
+		"key": "forward",
+		"label": "forward",
+		"type": "array",
+		"default": [0, -1],
+		"widget": "vector",
+		"length": 2,
+		"items": "number"
+	},
+	"frame.azimuth": {
+		"key": "azimuth",
+		"label": "azimuth",
+		"type": "number",
+		"default": 0,
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 359.999,
+		"provider": "frame-index",
+		"context": {
+			"required": [],
+			"properties": {
+				"frame": {
+					"type": "integer"
+				}
+			}
+		}
+	},
+	"frame.marker.x": {
+		"key": "x",
+		"label": "x",
+		"type": "number",
+		"default": 0,
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 0,
+		"provider": "frame-marker",
+		"context": {
+			"required": ["attachment"],
+			"properties": {
+				"attachment": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"frame.marker.y": {
+		"key": "y",
+		"label": "y",
+		"type": "number",
+		"default": 0,
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 0,
+		"provider": "frame-marker",
+		"context": {
+			"required": ["attachment"],
+			"properties": {
+				"attachment": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"model.offset": {
+		"key": "offset",
+		"label": "offset",
+		"type": "array",
+		"default": [0, 0, 0],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"model.rotation": {
+		"key": "rotation",
+		"label": "rotation",
+		"type": "array",
+		"default": [0, 0, 0],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"model.scale": {
+		"key": "scale",
+		"label": "scale",
+		"type": "array",
+		"default": [1, 1, 1],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"star.surface_colour": {
+		"key": "surface_colour",
+		"label": "surface_colour",
+		"type": "array",
+		"default": [1, 0.7, 0.2],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"star.hot_colour": {
+		"key": "hot_colour",
+		"label": "hot_colour",
+		"type": "array",
+		"default": [1, 0.7, 0.2],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"star.cell_colour": {
+		"key": "cell_colour",
+		"label": "cell_colour",
+		"type": "array",
+		"default": [1, 0.7, 0.2],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"star.halo_colour": {
+		"key": "halo_colour",
+		"label": "halo_colour",
+		"type": "array",
+		"default": [1, 0.7, 0.2],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"attachment.position": {
+		"key": "position",
+		"label": "position",
+		"type": "array",
+		"default": [0, 0, 0],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"attachment.direction": {
+		"key": "direction",
+		"label": "direction",
+		"type": "array",
+		"default": [0, 0, 1],
+		"widget": "vector",
+		"length": 3,
+		"items": "number"
+	},
+	"render.procedural": {
+		"key": "star",
+		"label": "star",
+		"type": "boolean",
+		"default": false,
+		"change": "procedural"
+	},
+	"render.billboard": {
+		"key": "mode",
+		"label": "mode",
+		"type": "boolean",
+		"default": false,
+		"change": "billboard"
+	},
+	"render.scale": {
+		"key": "scale",
+		"label": "scale",
+		"type": "number",
+		"default": 1
+	},
+	"sidecar.billboard": {
+		"key": "billboard_mode",
+		"label": "billboard_mode",
+		"type": "boolean",
+		"default": false,
+		"change": "sidecar-billboard"
+	},
+	"collision.shape": {
+		"key": "shape",
+		"label": "shape",
+		"type": "string",
+		"default": "circle",
+		"choices": ["circle", "box"],
+		"change": "collision"
+	},
+	"grid.enabled": {
+		"key": "reference_grid",
+		"label": "reference_grid",
+		"type": "boolean",
+		"default": false,
+		"change": "grid"
+	},
+	"grid.first_person": {
+		"key": "first_person_plane_y",
+		"label": "first_person_plane_y",
+		"type": "boolean",
+		"default": false,
+		"change": "grid-plane"
+	},
+	"grid.minor_spacing": {
+		"key": "minor_spacing",
+		"label": "minor_spacing",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.major_spacing": {
+		"key": "major_spacing",
+		"label": "major_spacing",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.patch_radius": {
+		"key": "patch_radius",
+		"label": "patch_radius",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.fade_band": {
+		"key": "fade_band",
+		"label": "fade_band",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.fade_exponent": {
+		"key": "fade_exponent",
+		"label": "fade_exponent",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.plane_y": {
+		"key": "plane_y",
+		"label": "plane_y",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": -1000000,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.minor_line_width_px": {
+		"key": "minor_line_width_px",
+		"label": "minor_line_width_px",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.major_line_width_px": {
+		"key": "major_line_width_px",
+		"label": "major_line_width_px",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "grid"
+	},
+	"grid.opacity": {
+		"key": "opacity",
+		"label": "opacity",
+		"type": "number",
+		"default": 0,
+		"provider": "grid-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1,
+		"group": "grid"
+	},
+	"grid.minor_colour": {
+		"key": "minor_colour",
+		"label": "minor_colour",
+		"type": "array",
+		"default": [1, 1, 1, 1],
+		"widget": "colour",
+		"length": 4,
+		"items": "number",
+		"provider": "grid-default",
+		"group": "grid",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"grid.major_colour": {
+		"key": "major_colour",
+		"label": "major_colour",
+		"type": "array",
+		"default": [1, 1, 1, 1],
+		"widget": "colour",
+		"length": 4,
+		"items": "number",
+		"provider": "grid-default",
+		"group": "grid",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"dust.half_width": {
+		"key": "half_width",
+		"label": "half_width",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.depth": {
+		"key": "depth",
+		"label": "depth",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.width": {
+		"key": "width",
+		"label": "width",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.streak_per_speed": {
+		"key": "streak_per_speed",
+		"label": "streak_per_speed",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.opacity": {
+		"key": "opacity",
+		"label": "opacity",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.centre_fade_inner": {
+		"key": "centre_fade_inner",
+		"label": "centre_fade_inner",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.centre_fade_outer": {
+		"key": "centre_fade_outer",
+		"label": "centre_fade_outer",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1000000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.edge_fade": {
+		"key": "edge_fade",
+		"label": "edge_fade",
+		"type": "number",
+		"default": 0,
+		"provider": "dust-default",
+		"widget": "drag",
+		"minimum": 0,
+		"maximum": 1,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.enabled": {
+		"key": "enabled",
+		"label": "enabled",
+		"type": "boolean",
+		"default": true,
+		"provider": "dust-default",
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.count": {
+		"key": "count",
+		"label": "count",
+		"type": "integer",
+		"default": 0,
+		"provider": "dust-default",
+		"minimum": 0,
+		"maximum": 10000,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.tint": {
+		"key": "tint",
+		"label": "tint",
+		"type": "array",
+		"default": [1, 1, 1],
+		"widget": "colour",
+		"length": 3,
+		"items": "number",
+		"provider": "dust-default",
+		"group": "dust",
+		"minimum": 0,
+		"maximum": 1,
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"dust.brightness": {
+		"key": "brightness",
+		"label": "brightness",
+		"type": "array",
+		"default": [1, 1, 1],
+		"widget": "drag-vector",
+		"length": 3,
+		"items": "number",
+		"provider": "dust-default",
+		"minimum": 0,
+		"maximum": 16,
+		"group": "dust",
+		"context": {
+			"required": [],
+			"properties": {
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"lighting.direction": {
+		"key": "sun_direction",
+		"label": "sun_direction",
+		"type": "array",
+		"default": [-0.6, 0.6, -0.5],
+		"widget": "slider-vector",
+		"length": 3,
+		"items": "number",
+		"minimum": -1,
+		"maximum": 1
+	},
+	"lighting.colour": {
+		"key": "sun_color",
+		"label": "sun_color",
+		"type": "array",
+		"default": [1, 0.89, 0.7],
+		"widget": "colour",
+		"length": 3,
+		"items": "number",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"lighting.shadows": {
+		"key": "shadows",
+		"label": "shadows",
+		"type": "boolean",
+		"default": true
+	},
+	"region.display.navigation": {
+		"key": "navigation",
+		"label": "navigation",
+		"type": "boolean",
+		"default": false
+	},
+	"region.display.radar": {
+		"key": "radar",
+		"label": "radar",
+		"type": "boolean",
+		"default": false
+	},
+	"region.display.colour": {
+		"key": "colour",
+		"label": "colour",
+		"type": "array",
+		"default": [0.5, 0.7, 0.9],
+		"widget": "colour",
+		"length": 3,
+		"items": "number",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"region.nebula.colour": {
+		"key": "colour",
+		"label": "colour",
+		"type": "array",
+		"default": [0.5, 0.3, 0.8],
+		"widget": "colour",
+		"length": 3,
+		"items": "number",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"region.nebula.density": {
+		"key": "density",
+		"label": "density",
+		"type": "number",
+		"default": 1
+	},
+	"region.nebula.sensor_factor": {
+		"key": "sensor_factor",
+		"label": "sensor_factor",
+		"type": "number",
+		"default": 1
+	},
+	"region.asteroids.density": {
+		"key": "density",
+		"label": "density",
+		"type": "number",
+		"default": 0.0004,
+		"step": 0.0001,
+		"fast_step": 0.001,
+		"format": "%.6f"
+	},
+	"region.display": {
+		"key": "display",
+		"label": "display",
+		"type": "boolean",
+		"default": false,
+		"change": "region-display"
+	},
+	"region.nebula": {
+		"key": "nebula",
+		"label": "nebula",
+		"type": "boolean",
+		"default": false,
+		"change": "region-nebula"
+	},
+	"region.asteroids": {
+		"key": "asteroids",
+		"label": "asteroids",
+		"type": "boolean",
+		"default": false,
+		"change": "region-asteroids"
+	},
+	"radar.long_range": {
+		"key": "long_range_mm",
+		"label": "long_range_mm",
+		"type": "boolean",
+		"default": false,
+		"change": "long-range"
+	},
+	"widget.controller": {
+		"key": "controller",
+		"label": "controller",
+		"type": "boolean",
+		"default": false,
+		"change": "widget-controller"
+	},
+	"widget.selection_source": {
+		"key": "selection_source",
+		"label": "selection_source",
+		"type": "string",
+		"default": "sensors",
+		"choices": ["tactical", "sensors", "waypoint"]
+	},
+	"widget.sweep.colour": {
+		"key": "colour",
+		"label": "colour",
+		"type": "array",
+		"default": [0.1, 0.9, 0.65, 0.85],
+		"widget": "colour",
+		"length": 4,
+		"items": "number",
+		"minimum": 0,
+		"maximum": 1
+	},
+	"widget.rect.x": {
+		"key": "x",
+		"label": "x",
+		"type": "integer",
+		"default": 0,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1000
+	},
+	"widget.rect.y": {
+		"key": "y",
+		"label": "y",
+		"type": "integer",
+		"default": 0,
+		"widget": "slider",
+		"minimum": 0,
+		"maximum": 1000
+	},
+	"widget.rect.width": {
+		"key": "width",
+		"label": "width",
+		"type": "integer",
+		"default": 500,
+		"widget": "slider",
+		"minimum": 1,
+		"maximum": 1000
+	},
+	"widget.rect.height": {
+		"key": "height",
+		"label": "height",
+		"type": "integer",
+		"default": 500,
+		"widget": "slider",
+		"minimum": 1,
+		"maximum": 1000
+	},
+	"slot.mandatory": {
+		"key": "mandatory",
+		"label": "mandatory",
+		"type": "boolean",
+		"default": false
+	},
+	"console.tab": {
+		"key": "tab",
+		"label": "tab",
+		"type": "boolean",
+		"default": true
+	},
+	"theme.token": {
+		"key": "token",
+		"label": "token",
+		"type": "string",
+		"default": "",
+		"provider": "theme-token",
+		"widget": "theme-token",
+		"context": {
+			"required": ["token"],
+			"properties": {
+				"token": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"theme.scale": {
+		"key": "asset_scale",
+		"label": "asset_scale",
+		"type": "number",
+		"default": 1,
+		"provider": "theme-slot",
+		"widget": "drag",
+		"minimum": 0.001,
+		"maximum": 8,
+		"step": 0.005,
+		"context": {
+			"required": ["slot"],
+			"properties": {
+				"slot": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"theme.sliced": {
+		"key": "slices",
+		"label": "slices",
+		"type": "boolean",
+		"default": false,
+		"change": "theme-slice",
+		"provider": "theme-slot",
+		"context": {
+			"required": ["slot"],
+			"properties": {
+				"slot": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"theme.insets": {
+		"key": "slices",
+		"label": "slices",
+		"type": "array",
+		"default": [0, 0, 0, 0],
+		"provider": "theme-slot",
+		"widget": "drag-vector",
+		"items": "integer",
+		"length": 4,
+		"minimum": 0,
+		"maximum": 16384,
+		"step": 1,
+		"context": {
+			"required": ["slot"],
+			"properties": {
+				"slot": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"theme.asset": {
+		"key": "assets",
+		"label": "assets",
+		"type": "string",
+		"default": "",
+		"provider": "theme-slot",
+		"context": {
+			"required": ["slot"],
+			"properties": {
+				"slot": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"region.asteroids.seed": {
+		"key": "seed",
+		"label": "seed",
+		"type": "integer",
+		"default": 1,
+		"group": "asteroids"
+	},
+	"region.asteroids.spacing_mm": {
+		"key": "spacing_mm",
+		"label": "spacing_mm",
+		"type": "integer",
+		"default": 25000,
+		"group": "asteroids"
+	},
+	"region.asteroids.weight": {
+		"key": "weight",
+		"label": "weight",
+		"type": "integer",
+		"default": 1000,
+		"group": "asteroids"
+	},
+	"region.asteroids.jitter_mm": {
+		"key": "jitter_mm",
+		"label": "jitter_mm",
+		"type": "integer",
+		"default": 8000,
+		"group": "asteroids"
+	},
+	"region.asteroids.clustering_permille": {
+		"key": "clustering_permille",
+		"label": "clustering_permille",
+		"type": "integer",
+		"default": 500,
+		"group": "asteroids"
+	},
+	"region.asteroids.noise_cells": {
+		"key": "noise_cells",
+		"label": "noise_cells",
+		"type": "integer",
+		"default": 8,
+		"group": "asteroids"
+	},
+	"region.asteroids.decorative_height_mm": {
+		"key": "decorative_height_mm",
+		"label": "decorative_height_mm",
+		"type": "integer",
+		"default": 20000,
+		"group": "asteroids"
+	},
+	"region.asteroids.decorative_fill_permille": {
+		"key": "decorative_fill_permille",
+		"label": "decorative_fill_permille",
+		"type": "integer",
+		"default": 250,
+		"group": "asteroids"
+	},
+	"region.asteroids.spin_min_mdeg_s": {
+		"key": "spin_min_mdeg_s",
+		"label": "spin_min_mdeg_s",
+		"type": "integer",
+		"default": 1000,
+		"group": "asteroids"
+	},
+	"region.asteroids.spin_max_mdeg_s": {
+		"key": "spin_max_mdeg_s",
+		"label": "spin_max_mdeg_s",
+		"type": "integer",
+		"default": 10000,
+		"group": "asteroids"
+	},
+	"region.asteroids.visual_distance_mm": {
+		"key": "visual_distance_mm",
+		"label": "visual_distance_mm",
+		"type": "integer",
+		"default": 250000,
+		"group": "asteroids"
+	},
+	"region.asteroids.unload_margin_mm": {
+		"key": "unload_margin_mm",
+		"label": "unload_margin_mm",
+		"type": "integer",
+		"default": 50000,
+		"group": "asteroids"
+	},
+	"layout.style.enabled": {
+		"key": "style",
+		"label": "Override component appearance",
+		"type": "boolean",
+		"default": false,
+		"change": "seed",
+		"seed": "layout-editor.layout.style"
+	},
+	"property.value": {
+		"key": "value",
+		"label": "Property value",
+		"type": "integer",
+		"default": 0,
+		"provider": "property",
+		"context": {
+			"required": ["field", "definition"],
+			"properties": {
+				"field": {
+					"type": "string"
+				},
+				"definition": {
+					"type": "object"
+				}
+			}
+		}
+	},
+	"binding.source": {
+		"key": "source",
+		"label": "Source",
+		"type": "string",
+		"default": "integer",
+		"provider": "binding",
+		"change": "binding-source",
+		"context": {
+			"required": ["field"],
+			"properties": {
+				"field": {
+					"type": "string"
+				},
+				"allowed": {
+					"type": "array"
+				}
+			}
+		}
+	},
+	"audio.gain": {
+		"key": "gain",
+		"label": "gain",
+		"type": "number",
+		"default": 1.0
+	},
+	"audio.peak_gain": {
+		"key": "peak_gain",
+		"label": "peak_gain",
+		"type": "number",
+		"default": 0.8
+	},
+	"audio.decay_per_second": {
+		"key": "decay_per_second",
+		"label": "decay_per_second",
+		"type": "number",
+		"default": 1.5
+	},
+	"audio.damage_threshold": {
+		"key": "damage_threshold",
+		"label": "damage_threshold",
+		"type": "integer",
+		"default": 1
+	},
+	"audio.damage_full_spike": {
+		"key": "damage_full_spike",
+		"label": "damage_full_spike",
+		"type": "integer",
+		"default": 30
+	},
+	"gameplay.panel.x": {
+		"key": "x",
+		"label": "x",
+		"type": "number",
+		"default": 0.0
+	},
+	"gameplay.panel.y": {
+		"key": "y",
+		"label": "y",
+		"type": "number",
+		"default": 0.0
+	},
+	"gameplay.panel.width": {
+		"key": "width",
+		"label": "width",
+		"type": "number",
+		"default": 1.0
+	},
+	"gameplay.panel.height": {
+		"key": "height",
+		"label": "height",
+		"type": "number",
+		"default": 1.0
+	},
+	"structure.type": {
+		"key": "Value type",
+		"label": "Value type",
+		"type": "string",
+		"default": "integer",
+		"choices": ["integer", "boolean", "text", "object", "array", "null"]
+	},
+	"scalar.type": {
+		"key": "Value type",
+		"label": "Value type",
+		"type": "string",
+		"default": "integer",
+		"choices": ["integer", "boolean", "text"]
+	},
+	"controller.command.action": {
+		"key": "action",
+		"label": "action",
+		"type": "string",
+		"default": "",
+		"provider": "operating-actions",
+		"change": "operating-action"
+	},
+	"controller.command.argument": {
+		"key": "argument",
+		"label": "argument",
+		"type": "integer",
+		"default": 0,
+		"provider": "operating-argument",
+		"context": {
+			"required": ["index"],
+			"properties": {
+				"index": {
+					"type": "integer"
+				}
+			}
+		}
+	},
+	"record.subject": {
+		"key": "subject",
+		"label": "Record subject",
+		"type": "string",
+		"default": "self",
+		"provider": "record-subject",
+		"change": "record-subject",
+		"context": {
+			"required": [],
+			"properties": {
+				"tree_context": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"actor.source": {
+		"key": "source",
+		"label": "Actor source",
+		"type": "string",
+		"default": "handle",
+		"choices": ["slot", "entity", "handle"],
+		"provider": "actor",
+		"change": "actor",
+		"context": {
+			"required": ["field"],
+			"properties": {
+				"field": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"structure.value": {
+		"key": "value",
+		"label": "Value",
+		"type": "integer",
+		"default": 0,
+		"provider": "root"
+	},
+	"controller.command.minimum": {
+		"key": "minimum",
+		"label": "minimum",
+		"type": "integer",
+		"default": 0
+	},
+	"controller.command.maximum": {
+		"key": "maximum",
+		"label": "maximum",
+		"type": "integer",
+		"default": 0
+	},
+	"equipment.deceleration": {
+		"key": "deceleration_mm_s2",
+		"label": "deceleration_mm_s2",
+		"type": "integer",
+		"default": 0,
+		"default_from": "acceleration_mm_s2"
+	},
+	"controller.data.placement": {
+		"key": "placement",
+		"label": "placement",
+		"type": "string",
+		"choices": ["inherit", "main", "details", "hidden"],
+		"default": "inherit",
+		"optional": false,
+		"provider": "data-placement",
+		"erase_value": "inherit",
+		"context": {
+			"required": ["star", "item"],
+			"properties": {
+				"star": {
+					"type": "string"
+				},
+				"item": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"gameplay-editors.combat.group.speed_mm_s.speed_mm_s": {
+		"key": "speed_mm_s",
+		"label": "speed_mm_s",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.lifetime_ticks": {
+		"key": "lifetime_ticks",
+		"label": "lifetime_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.penetration": {
+		"key": "penetration",
+		"label": "penetration",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.damage": {
+		"key": "damage",
+		"label": "damage",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.damage_per_m": {
+		"key": "damage_per_m",
+		"label": "damage_per_m",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.spread_mdeg": {
+		"key": "spread_mdeg",
+		"label": "spread_mdeg",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.shield_bypass_permille": {
+		"key": "shield_bypass_permille",
+		"label": "shield_bypass_permille",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.durability": {
+		"key": "durability",
+		"label": "durability",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.arc_height_mm": {
+		"key": "arc_height_mm",
+		"label": "arc_height_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.chaos_mdeg": {
+		"key": "chaos_mdeg",
+		"label": "chaos_mdeg",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.blast_radius_mm": {
+		"key": "blast_radius_mm",
+		"label": "blast_radius_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.speed_mm_s.fuse_radius_mm": {
+		"key": "fuse_radius_mm",
+		"label": "fuse_radius_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.speed_mm_s"
+	},
+	"gameplay-editors.combat.group.x_mm.x_mm": {
+		"key": "x_mm",
+		"label": "x_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.combat.group.x_mm.y_mm": {
+		"key": "y_mm",
+		"label": "y_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.combat.group.x_mm.half_width_mm": {
+		"key": "half_width_mm",
+		"label": "half_width_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.combat.group.x_mm.half_length_mm": {
+		"key": "half_length_mm",
+		"label": "half_length_mm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.combat.group.x_mm.hp": {
+		"key": "hp",
+		"label": "hp",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.combat.group.x_mm.resistance_per_m": {
+		"key": "resistance_per_m",
+		"label": "resistance_per_m",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.combat.group.x_mm.recovery_hp": {
+		"key": "recovery_hp",
+		"label": "recovery_hp",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.combat.group.x_mm"
+	},
+	"gameplay-editors.effects.group.preparation_ticks.preparation_ticks": {
+		"key": "preparation_ticks",
+		"label": "preparation_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.preparation_ticks"
+	},
+	"gameplay-editors.effects.group.preparation_ticks.recovery_ticks": {
+		"key": "recovery_ticks",
+		"label": "recovery_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.preparation_ticks"
+	},
+	"gameplay-editors.effects.group.preparation_ticks.energy_per_second": {
+		"key": "energy_per_second",
+		"label": "energy_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.preparation_ticks"
+	},
+	"gameplay-editors.effects.group.preparation_ticks.preparation_energy_per_second": {
+		"key": "preparation_energy_per_second",
+		"label": "preparation_energy_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.preparation_ticks"
+	},
+	"gameplay-editors.effects.group.preparation_ticks.apparatus_recovery_ticks": {
+		"key": "apparatus_recovery_ticks",
+		"label": "apparatus_recovery_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.preparation_ticks"
+	},
+	"gameplay-editors.effects.group.preparation_ticks.interruption_recovery_ticks": {
+		"key": "interruption_recovery_ticks",
+		"label": "interruption_recovery_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.preparation_ticks"
+	},
+	"gameplay-editors.effects.group.energy_per_second.energy_per_second": {
+		"key": "energy_per_second",
+		"label": "energy_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.energy_per_second"
+	},
+	"gameplay-editors.effects.group.energy_per_second.discrete_energy": {
+		"key": "discrete_energy",
+		"label": "discrete_energy",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.energy_per_second"
+	},
+	"gameplay-editors.effects.group.energy_per_second.auto_energy_per_second": {
+		"key": "auto_energy_per_second",
+		"label": "auto_energy_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.energy_per_second"
+	},
+	"gameplay-editors.effects.group.energy_per_second.damage_per_second": {
+		"key": "damage_per_second",
+		"label": "damage_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.energy_per_second"
+	},
+	"gameplay-editors.effects.group.energy_per_second.load_ticks": {
+		"key": "load_ticks",
+		"label": "load_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.energy_per_second"
+	},
+	"gameplay-editors.effects.group.energy_per_second.shield_bypass_permille": {
+		"key": "shield_bypass_permille",
+		"label": "shield_bypass_permille",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.energy_per_second"
+	},
+	"gameplay-editors.effects.group.capacity.capacity": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.initial": {
+		"key": "initial",
+		"label": "initial",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.bearing_mdeg": {
+		"key": "bearing_mdeg",
+		"label": "bearing_mdeg",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.arc_mdeg": {
+		"key": "arc_mdeg",
+		"label": "arc_mdeg",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.layer": {
+		"key": "layer",
+		"label": "layer",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.sustain_energy_per_second": {
+		"key": "sustain_energy_per_second",
+		"label": "sustain_energy_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.energy_per_strength": {
+		"key": "energy_per_strength",
+		"label": "energy_per_strength",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.recharge_per_second": {
+		"key": "recharge_per_second",
+		"label": "recharge_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.off_recharge_per_second": {
+		"key": "off_recharge_per_second",
+		"label": "off_recharge_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.warmup_ticks": {
+		"key": "warmup_ticks",
+		"label": "warmup_ticks",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.discharge_per_second": {
+		"key": "discharge_per_second",
+		"label": "discharge_per_second",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.effects.group.capacity.discharge_efficiency_permille": {
+		"key": "discharge_efficiency_permille",
+		"label": "discharge_efficiency_permille",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.effects.group.capacity"
+	},
+	"gameplay-editors.equipment.group.duty.duty": {
+		"key": "duty",
+		"label": "duty",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.duty"
+	},
+	"gameplay-editors.equipment.group.duty.console": {
+		"key": "console",
+		"label": "console",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.duty"
+	},
+	"gameplay-editors.equipment.group.duty.controller": {
+		"key": "controller",
+		"label": "controller",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.duty"
+	},
+	"gameplay-editors.equipment.group.duty.enabled": {
+		"key": "enabled",
+		"label": "enabled",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.duty"
+	},
+	"gameplay-editors.equipment.group.duty.target": {
+		"key": "target",
+		"label": "target",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.duty"
+	},
+	"gameplay-editors.equipment.group.console.console": {
+		"key": "console",
+		"label": "console",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.console"
+	},
+	"gameplay-editors.equipment.group.console.controller": {
+		"key": "controller",
+		"label": "controller",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.console"
+	},
+	"gameplay-editors.equipment.group.console.enabled": {
+		"key": "enabled",
+		"label": "enabled",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.console"
+	},
+	"gameplay-editors.equipment.group.controller.controller": {
+		"key": "controller",
+		"label": "controller",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.controller"
+	},
+	"gameplay-editors.equipment.group.controller.enabled": {
+		"key": "enabled",
+		"label": "enabled",
+		"type": "string",
+		"default": "",
+		"group": "gameplay-editors.equipment.group.controller"
+	},
+	"gameplay-editors.resources.group.capacity.capacity": {
+		"key": "capacity",
+		"label": "capacity",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.initial": {
+		"key": "initial",
+		"label": "initial",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.charge_rate": {
+		"key": "charge_rate",
+		"label": "charge_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.discharge_rate": {
+		"key": "discharge_rate",
+		"label": "discharge_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.loss_empty_ppm": {
+		"key": "loss_empty_ppm",
+		"label": "loss_empty_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.loss_full_ppm": {
+		"key": "loss_full_ppm",
+		"label": "loss_full_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.initial_heat": {
+		"key": "initial_heat",
+		"label": "initial_heat",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.passive_cooling": {
+		"key": "passive_cooling",
+		"label": "passive_cooling",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.stop_heat": {
+		"key": "stop_heat",
+		"label": "stop_heat",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.recover_heat": {
+		"key": "recover_heat",
+		"label": "recover_heat",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.charge_heat_ppm": {
+		"key": "charge_heat_ppm",
+		"label": "charge_heat_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.operation_heat_ppm": {
+		"key": "operation_heat_ppm",
+		"label": "operation_heat_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.depletion_heat_ppm": {
+		"key": "depletion_heat_ppm",
+		"label": "depletion_heat_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.stress_rate": {
+		"key": "stress_rate",
+		"label": "stress_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.override_stress_rate": {
+		"key": "override_stress_rate",
+		"label": "override_stress_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.capacity.stress_limit": {
+		"key": "stress_limit",
+		"label": "stress_limit",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.capacity"
+	},
+	"gameplay-editors.resources.group.maximum_rate.maximum_rate": {
+		"key": "maximum_rate",
+		"label": "maximum_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.maximum_rate"
+	},
+	"gameplay-editors.resources.group.maximum_rate.response_rate": {
+		"key": "response_rate",
+		"label": "response_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.maximum_rate"
+	},
+	"gameplay-editors.resources.group.maximum_rate.initial_output": {
+		"key": "initial_output",
+		"label": "initial_output",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.maximum_rate"
+	},
+	"gameplay-editors.resources.group.maximum_rate.heat_ppm": {
+		"key": "heat_ppm",
+		"label": "heat_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.maximum_rate"
+	},
+	"gameplay-editors.resources.group.initial.initial": {
+		"key": "initial",
+		"label": "initial",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.initial"
+	},
+	"gameplay-editors.resources.group.initial.removal_rate": {
+		"key": "removal_rate",
+		"label": "removal_rate",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.initial"
+	},
+	"gameplay-editors.resources.group.initial.coolant_per_heat_ppm": {
+		"key": "coolant_per_heat_ppm",
+		"label": "coolant_per_heat_ppm",
+		"type": "integer",
+		"default": 0,
+		"group": "gameplay-editors.resources.group.initial"
+	},
+	"property.maximum": {
+		"key": "maximum",
+		"label": "maximum",
+		"type": "integer",
+		"default": 0,
+		"provider": "resource-limit"
+	},
+	"tree.budget": {
+		"key": "budget",
+		"label": "budget",
+		"type": "integer",
+		"default": 4096,
+		"provider": "inherited-default",
+		"context": {
+			"required": ["resolved"],
+			"properties": {
+				"resolved": {
+					"type": "object"
+				}
+			}
+		}
+	},
+	"effect.spoof.ghost_count": {
+		"key": "ghost_count",
+		"label": "ghost_count",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.offset_mm": {
+		"key": "offset_mm",
+		"label": "offset_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.spacing_mm": {
+		"key": "spacing_mm",
+		"label": "spacing_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.speed_mm_s": {
+		"key": "speed_mm_s",
+		"label": "speed_mm_s",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.acceleration_mm_s2": {
+		"key": "acceleration_mm_s2",
+		"label": "acceleration_mm_s2",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.turn_mdeg_s": {
+		"key": "turn_mdeg_s",
+		"label": "turn_mdeg_s",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.radius_mm": {
+		"key": "radius_mm",
+		"label": "radius_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.scan_ticks": {
+		"key": "scan_ticks",
+		"label": "scan_ticks",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"effect.spoof.fade_ticks": {
+		"key": "fade_ticks",
+		"label": "fade_ticks",
+		"type": "integer",
+		"default": 1,
+		"group": "effect.spoof"
+	},
+	"scenario.engagement.threat_radius_mm": {
+		"key": "threat_radius_mm",
+		"label": "threat_radius_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"scenario.engagement.clearance_radius_mm": {
+		"key": "clearance_radius_mm",
+		"label": "clearance_radius_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"scenario.engagement.engagement_radius_mm": {
+		"key": "engagement_radius_mm",
+		"label": "engagement_radius_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"scenario.engagement.formation_radius_mm": {
+		"key": "formation_radius_mm",
+		"label": "formation_radius_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"scenario.engagement.takeover_ticks": {
+		"key": "takeover_ticks",
+		"label": "takeover_ticks",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"scenario.engagement.combat_standoff_mm": {
+		"key": "combat_standoff_mm",
+		"label": "combat_standoff_mm",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"scenario.engagement.cruise_speed_mm_s": {
+		"key": "cruise_speed_mm_s",
+		"label": "cruise_speed_mm_s",
+		"type": "integer",
+		"default": 1,
+		"group": "scenario.engagement"
+	},
+	"dust.texture": {
+		"key": "textures",
+		"label": "Mote texture",
+		"type": "string",
+		"default": "",
+		"provider": "dust-texture",
+		"context": {
+			"required": ["index"],
+			"properties": {
+				"index": {
+					"type": "integer"
+				},
+				"platform": {
+					"type": "string"
+				}
+			}
+		}
 	}
 }
