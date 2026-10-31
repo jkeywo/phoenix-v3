@@ -54,10 +54,12 @@ void assign(World &w, const std::string &transport)
 }
 #include "../support/escort_cases.hpp"
 #include "../support/finite_servicing_cases.hpp"
+#include "../support/bay_dispatch_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		autonomous_bay_cases();
 		finite_servicing_cases();
 		escort_cases();
 		Json trace = Json::array();
@@ -597,6 +599,19 @@ int main(int argc, char **argv)
 						require(craft.at("state").at("order") == "escort" &&
 						            craft.at("state").at("rendezvous").at("x") != 5000000,
 						        "escort retains accepted work and last reported anchor during observation loss");
+				require(unlinked.observe(101).has_value() || unlinked.claim(101, home, "drive"),
+				        "Claim disconnected craft's carrier");
+				require(unlinked.submit(101, command(unlinked, "craft", "escort", interceptor, std::to_string(home))),
+				        "Queue revised guidance while the craft link is unavailable");
+				ticks(unlinked, 1);
+				require(unlinked.submit(101, command(unlinked, "craft", "recall", interceptor)),
+				        "Withdraw pending guidance through ordinary recall admission");
+				ticks(unlinked, 1);
+				const auto withdrawn = unlinked.save();
+				for (const auto &craft : withdrawn.at("craft").at("entities"))
+					if (craft.at("id") == std::stoull(interceptor))
+						require(craft.at("state").at("pending_order") == "return",
+						        "Pending return replaces the superseded undelivered guidance");
 			}
 			require(flight.submit(101, command(flight, "craft", "recall", interceptor)), "combat recall");
 			ticks(flight, 1);

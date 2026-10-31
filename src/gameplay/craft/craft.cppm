@@ -26,6 +26,7 @@ struct CraftReport
 {
 	CraftPhase phase = CraftPhase::Docked;
 	std::string order = "idle";
+	bool armed = false;
 	EntityId target = 0;
 	std::uint64_t tick = 0;
 	std::int64_t energy = 0, capacity = 0, ammunition = 0, condition = 0, maximum_condition = 0;

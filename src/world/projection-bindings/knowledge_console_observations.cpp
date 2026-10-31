@@ -201,7 +201,10 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 			     capacity > 0 && energy * 1000 <= capacity * definition(address.ship).craft->return_reserve},
 			    {"armed", armed},
 			    {"anchor_x", anchor.x},
-			    {"anchor_y", anchor.y}};
+			    {"anchor_y", anchor.y},
+			    {"engagement_range", definition(address.ship).craft->engagement_range},
+			    {"pursuit_altitude_offset",
+			     definition(address.ship).craft->cruise_altitude + craft_flight_band(address.ship)}};
 			if (const auto *g = entity.try_get<CraftGuidance>())
 				row["guidance"] = {{"x", g->destination.x}, {"y", g->destination.y}, {"altitude", g->altitude},
 				                   {"speed", g->speed},     {"target", g->target},   {"navigate", g->navigate},
@@ -402,7 +405,7 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 	if (owner == entities.end() || !owner->second.has<EntityControls>())
 		return result;
 	const auto &controllers = owner->second.get<EntityControls>().controllers;
-	if (native_operation_controller(address, "medical") ||
+	if (native_operation_controller(address, "medical") || native_operation_controller(address, "craft") ||
 	    std::any_of(controllers.begin(), controllers.end(),
 	                [&](const auto &controller)
 	                {

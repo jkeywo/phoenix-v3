@@ -62,31 +62,28 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
                                         std::vector<state_tree::Value> &values) const -> void
 {
 	ControllerDecisionContext context;
-	context.tick = ecs.get<Clock>().tick;
-	const auto entity = entities.at(observed.own.id);
+	context.tick = observed.observed_tick;
 	const auto &data = definition(observed.own.id);
 	if (const auto craft = observed.gameplay.find("craft_self");
 	    craft != observed.gameplay.end() && (craft->at("order") == "defend" || craft->at("order") == "escort"))
 	{
 		context.escort = true;
 		context.escort_anchor = {craft->at("anchor_x"), craft->at("anchor_y")};
-		context.engagement_range = data.craft->engagement_range;
+		context.engagement_range = craft->value("engagement_range", 0LL);
 	}
-	if (data.craft)
-		context.altitude_offset = data.craft->cruise_altitude + craft_flight_band(observed.own.id);
+	if (const auto craft = observed.gameplay.find("craft_self"); craft != observed.gameplay.end())
+		context.altitude_offset = craft->value("pursuit_altitude_offset", 0LL);
 	if (data.combat)
 		for (const auto &[system, compartment] : data.combat->equipment_compartments)
 			context.repair_system_indices.emplace(system,
 			                                      static_cast<std::int64_t>(context.repair_system_indices.size()) + 1);
 	for (const auto &command : controller.definition.commands)
 		for (const auto consumer : command.consumers)
-		{
-			const auto child = entity.get<EquipmentIndex>().values.at(consumer);
-			context.owned_systems.insert(child.get<Equipment>().id);
-			if (command.action == OperatingAction::Speed)
-				if (const auto *flight = child.try_get<FlightRuntime>())
-					context.deceleration = std::max(context.deceleration, flight->definition.deceleration);
-		}
+			context.owned_systems.insert(data.fitted->values.at(consumer).id);
+	for (const auto &system : observed.systems)
+		if (context.owned_systems.contains(system.id) && system.telemetry.contains("deceleration"))
+			context.deceleration = std::max(context.deceleration, system.telemetry.at("deceleration"));
+
 	for (const auto &weapon : combat_observation(observed).at("weapons"))
 		if (context.owned_systems.contains(weapon.at("id").get<std::string>()) &&
 		    weapon.value("point_defence", false) && weapon.value("mode", 0) == 1)

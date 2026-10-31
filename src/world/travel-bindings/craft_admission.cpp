@@ -431,7 +431,7 @@ auto Runtime::craft_command(const ConsoleAddress &a, const OperatingCommand &c, 
 	if (action == "recall")
 	{
 		if (!c.text.empty() || s.phase == CraftPhase::Lost || s.phase == CraftPhase::Consumed || torpedo_launched(e) ||
-		    (s.phase == CraftPhase::Docked && s.mission.empty()))
+		    (s.phase == CraftPhase::Docked && s.mission.empty() && s.pending_order.empty()))
 			return false;
 		if (execute)
 		{
@@ -448,13 +448,19 @@ auto Runtime::craft_command(const ConsoleAddress &a, const OperatingCommand &c, 
 	      (action == "bomb" && d.role == "bomber")))
 		return false;
 	EntityId target = a.ship;
+	BodyView accepted_guidance;
+	const auto permitted = capture_sensor_observation(a);
+	accepted_guidance = permitted.own;
 	if (action != "defend")
 	{
 		target = 0;
-		for (const auto &contact : capture_sensor_contacts(a))
+		for (const auto &contact : permitted.contacts)
 			if (c.text == std::to_string(contact.id) && entities.contains(contact.id) && contact.id != id &&
 			    (action != "bomb" || contact.disposition == "hostile"))
+			{
 				target = contact.id;
+				accepted_guidance = contact;
+			}
 		if (action == "escort" && c.text == std::to_string(a.ship))
 			target = a.ship;
 		if (!target)
@@ -466,9 +472,9 @@ auto Runtime::craft_command(const ConsoleAddress &a, const OperatingCommand &c, 
 	{
 		s.pending_order = action;
 		s.pending_target = target;
-		s.pending_position = entities.at(target).get<Pose>().position;
-		s.pending_velocity = entities.at(target).get<Motion>().velocity;
-		s.pending_altitude = altitude(target);
+		s.pending_position = {accepted_guidance.x, accepted_guidance.y};
+		s.pending_velocity = {accepted_guidance.vx, accepted_guidance.vy};
+		s.pending_altitude = accepted_guidance.altitude;
 		++s.revision;
 	}
 	return true;
@@ -484,58 +490,6 @@ auto Runtime::launch_craft(flecs::entity e) -> void
 
 auto Runtime::prepare_craft() -> void
 {
-	// This phase only queues orders; no craft has launched or moved yet. All craft
-	// using a watch can share its current permitted contacts until those orders apply.
-	std::map<ConsoleAddress, std::vector<BodyView>> watch_contacts;
-	// Assisted combat craft use ordinary admitted orders and the watch's evidence.
-	for (const auto &[id, e] : craft_rows())
-	{
-		const auto &s = e.get<CraftState>();
-		const auto owner = enabled_system_owner(s.home, s.bay);
-		const auto *operation = native_operation_controller(owner, "craft", s.bay);
-		const bool automated = operation && !controller_operation_human(*operation, "craft");
-		if (!automated || !s.mission.empty() || away_craft_reserved(id) || cargo_committed(id) ||
-		    !s.pending_order.empty())
-			continue;
-		const auto &role = definition(id).craft->role;
-		if (role != "interceptor" && role != "bomber")
-			continue;
-		EntityId target = 0;
-		for (const auto &controller : entities.at(s.home).get<EntityControls>().controllers)
-			if (controller.definition.console == owner.console)
-				for (std::size_t j = 0; j < controller.commands.size(); ++j)
-					if (controller.definition.commands[j].label_key == "Combat target")
-						target = controller.commands[j].value;
-		bool hostile = false, threat = false;
-		if (!watch_contacts.contains(owner))
-			watch_contacts.emplace(owner, capture_sensor_contacts(owner));
-		for (const auto &contact : watch_contacts.at(owner))
-		{
-			threat |= contact.disposition == "hostile";
-			hostile |= contact.id == target && contact.disposition == "hostile";
-		}
-		if (s.order == "return" || s.phase == CraftPhase::Recovering ||
-		    (s.phase == CraftPhase::Docked && (s.report.ammunition <= 0 || s.report.energy <= 0)))
-			continue;
-		const auto order = role == "interceptor" && threat                          ? std::string{"defend"}
-		                   : role == "bomber" && hostile && s.report.ammunition > 0 ? std::string{"bomb"}
-		                                                                            : std::string{"recall"};
-		if ((s.phase == CraftPhase::Docked && (!craft_available(id) || order == "recall")) ||
-		    (s.order == order && (order != "bomb" || s.target == target)))
-			continue;
-		for (const auto &controller : entities.at(s.home).get<EntityControls>().controllers)
-			if (controller.definition.console == owner.console)
-			{
-				OperatingCommand command{s.home, "craft." + order, static_cast<std::int64_t>(s.revision),
-				                         std::to_string(id)};
-				command.controller = controller.definition.id;
-				command.generation = controller.generation;
-				if (order == "bomb")
-					command.text = std::to_string(target);
-				if (craft_command(owner, command, true, !controller_operation_human(controller, "craft")))
-					break;
-			}
-	}
 	// Released transports compete for actual free craft when departure preparation begins.
 	for (std::size_t i = 0; i < away_operations.missions().size(); ++i)
 	{

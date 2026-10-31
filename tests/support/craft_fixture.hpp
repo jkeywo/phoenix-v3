@@ -1,6 +1,7 @@
 #pragma once
 #include "away_fixture.hpp"
 #include "craft_policy.hpp"
+#include "bay_dispatch_policy.hpp"
 namespace phoenix::test
 {
 inline Json craft_fixture()
@@ -93,6 +94,7 @@ inline Json craft_fixture()
 	carrier["transport"] = {{"compartment", "bridge"}, {"capacity", 8}, {"capabilities", {"shelter"}}};
 	source["maps"][0]["away_missions"][0]["deployment_range_mm"] = 15000;
 	source["maps"][0]["away_missions"][0]["deployment_ticks"] = 2;
+	fit_test_bay_policy(source);
 	return source;
 }
 inline Json armed_craft_fixture()

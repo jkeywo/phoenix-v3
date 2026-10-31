@@ -50,6 +50,7 @@ void to_json(Json &json, const CraftReport &value)
 	json["energy"] = value.energy;
 	json["capacity"] = value.capacity;
 	json["ammunition"] = value.ammunition;
+	json["armed"] = value.armed;
 	json["condition"] = value.condition;
 	json["maximum_condition"] = value.maximum_condition;
 }
@@ -62,6 +63,7 @@ void from_json(const Json &json, CraftReport &value)
 	json.at("energy").get_to(value.energy);
 	json.at("capacity").get_to(value.capacity);
 	json.at("ammunition").get_to(value.ammunition);
+	value.armed = json.value("armed", false);
 	json.at("condition").get_to(value.condition);
 	json.at("maximum_condition").get_to(value.maximum_condition);
 }

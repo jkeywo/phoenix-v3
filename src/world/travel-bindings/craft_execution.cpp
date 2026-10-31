@@ -278,6 +278,22 @@ auto Runtime::update_craft_reports() -> void
 				const auto &stock = physical_stock(e, m->get<MagazineState>().stock);
 				r.ammunition += stock.quantity(stock.selected());
 			}
+		for (auto child : e.get<EquipmentIndex>().values)
+			if (const auto *weapon = child.try_get<CombatMechanism>();
+			    weapon && weapon->definition.kind == OperatingSystem::Weapon && child.get<Equipment>().enabled &&
+			    !structurally_disabled(e, weapon->definition.id))
+			{
+				const auto &spec = weapon->definition.get<WeaponDefinition>();
+				r.armed |= spec.beam_damage > 0 || weapon->get<WeaponState>().loaded_quantity > 0;
+				for (const auto &magazine : spec.magazines)
+				{
+					const auto fit = instance(e, magazine)->entity;
+					const auto &mechanism = fit.get<CombatMechanism>();
+					const auto &stock = physical_stock(e, mechanism.get<MagazineState>().stock);
+					r.armed |= fit.get<Equipment>().enabled && !structurally_disabled(e, magazine) &&
+					           stock.quantity(stock.selected()) > 0;
+				}
+			}
 		s.report = r;
 	}
 }
@@ -303,11 +319,17 @@ auto Runtime::craft_board(const ConsoleAddress &a) const -> Json
 		               {"target", r.target},
 		               {"linked", craft_link(id)},
 		               {"pending", !s.pending_order.empty()},
+		               {"pending_order", s.pending_order},
+		               {"mission", s.mission},
+		               {"reserved", away_craft_reserved(id) || cargo_committed(id)},
+		               {"return_reserve_permille", definition(id).craft->return_reserve},
+		               {"ftl_preparing", ftl_preparing(s.home)},
 		               {"available", craft_available(id)},
 		               {"report_tick", r.tick},
 		               {"energy", r.energy},
 		               {"capacity", r.capacity},
 		               {"ammunition", r.ammunition},
+		               {"armed", r.armed},
 		               {"condition", r.condition},
 		               {"maximum_condition", r.maximum_condition}});
 		out.back()["blocker"] = blocker;

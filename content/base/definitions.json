@@ -5244,7 +5244,7 @@
 					{
 						"id": "combat-bay",
 						"console": "tactical",
-						"widget": "base.widget.c540b13dfb56dc7f",
+						"widget": "base.widget.combat-bay-dispatch",
 						"equipment": { "equipment": "combat-bay" },
 						"star_levels": { "1": "automated", "2": "responsibility1", "3": "responsibility2" }
 					},
@@ -71317,6 +71317,1047 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.action.craft-defend",
+			"context": "controller",
+			"controller_action": {
+				"label": "Order craft defend",
+				"inputs": [
+					{
+						"name": "craft",
+						"type": "text"
+					},
+					{
+						"name": "target",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "submit",
+			"states": [
+				{
+					"id": "submit",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "craft.defend",
+											"arguments": [
+												{
+													"observation": "input.craft"
+												},
+												{
+													"observation": "input.target"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"order_accepted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"order_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.craft-bomb",
+			"context": "controller",
+			"controller_action": {
+				"label": "Order craft bomb",
+				"inputs": [
+					{
+						"name": "craft",
+						"type": "text"
+					},
+					{
+						"name": "target",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "submit",
+			"states": [
+				{
+					"id": "submit",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "craft.bomb",
+											"arguments": [
+												{
+													"observation": "input.craft"
+												},
+												{
+													"observation": "input.target"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"order_accepted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"order_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.craft-recall",
+			"context": "controller",
+			"controller_action": {
+				"label": "Order craft recall",
+				"inputs": [
+					{
+						"name": "craft",
+						"type": "text"
+					},
+					{
+						"name": "target",
+						"type": "text"
+					},
+					{
+						"name": "revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "submit",
+			"states": [
+				{
+					"id": "submit",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "craft.recall",
+											"arguments": [
+												{
+													"observation": "input.craft"
+												},
+												{
+													"observation": "input.target"
+												},
+												{
+													"observation": "input.revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"order_accepted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"order_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.bay-ready",
+			"context": "controller",
+			"controller_action": {
+				"label": "Ready craft bay"
+			},
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "enable",
+			"states": [
+				{
+					"id": "enable",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "write.system_enabled",
+											"arguments": [
+												true
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"bay_enabled"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"bay_unavailable"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.bay-dispatch",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "officer-reports",
+			"states": [
+				{
+					"id": "operate",
+					"running": [],
+					"parent": "officer-reports"
+				},
+				{
+					"id": "officer-reports",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.report.thermal"
+						},
+						{
+							"call": "base.report.supply"
+						},
+						{
+							"call": "base.report.craft-out"
+						},
+						{
+							"call": "base.report.craft-lost"
+						},
+						{
+							"call": "base.report.craft-link"
+						},
+						{
+							"call": "base.report.craft-blocked"
+						},
+						{
+							"call": "base.report.team-blocked"
+						},
+						{
+							"call": "base.report.patients"
+						},
+						{
+							"call": "base.report.away-deployed"
+						},
+						{
+							"call": "base.report.away-recovered"
+						},
+						{
+							"call": "base.report.away-failed"
+						},
+						{
+							"call": "base.report.radio"
+						},
+						{
+							"call": "base.report.team-complete"
+						},
+						{
+							"call": "base.report.opportunity"
+						},
+						{
+							"call": "base.report.craft-recovered"
+						},
+						{
+							"call": "base.report.findings"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
+					]
+				}
+			],
+			"report_observations": true,
+			"message_templates": [
+				"base.message.report.away-deployed.report",
+				"base.message.report.away-failed.report",
+				"base.message.report.away-recovered.report",
+				"base.message.report.craft-blocked.clear",
+				"base.message.report.craft-blocked.report",
+				"base.message.report.craft-link.clear",
+				"base.message.report.craft-link.report",
+				"base.message.report.craft-lost.report",
+				"base.message.report.craft-out.clear",
+				"base.message.report.craft-out.report",
+				"base.message.report.craft-recovered.report",
+				"base.message.report.findings.report",
+				"base.message.report.findings.report.forward",
+				"base.message.report.hostiles.report",
+				"base.message.report.opportunity.report",
+				"base.message.report.patients.clear",
+				"base.message.report.patients.report",
+				"base.message.report.radio.clear",
+				"base.message.report.radio.report",
+				"base.message.report.scan-blocked.clear",
+				"base.message.report.scan-blocked.report",
+				"base.message.report.supply.clear",
+				"base.message.report.supply.clear.forward",
+				"base.message.report.supply.report",
+				"base.message.report.supply.report.forward",
+				"base.message.report.team-blocked.clear",
+				"base.message.report.team-blocked.report",
+				"base.message.report.team-complete.report",
+				"base.message.report.thermal.clear",
+				"base.message.report.thermal.clear.forward",
+				"base.message.report.thermal.report",
+				"base.message.report.thermal.report.forward"
+			],
+			"craft_dispatch_observations": true,
+			"action_bindings": [
+				{
+					"id": "defend",
+					"tree": "base.action.craft-defend"
+				},
+				{
+					"id": "bomb",
+					"tree": "base.action.craft-bomb"
+				},
+				{
+					"id": "recall",
+					"tree": "base.action.craft-recall"
+				},
+				{
+					"id": "ready",
+					"tree": "base.action.bay-ready"
+				}
+			],
+			"objective_bindings": [
+				{
+					"id": "intercept",
+					"behavior": "engage",
+					"candidate_source": "craft",
+					"action": "defend",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "intercept"
+						},
+						{
+							"left": {
+								"observation": "bay.dispatch_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.report_age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "bay.role"
+							},
+							"op": "eq",
+							"right": "interceptor"
+						},
+						{
+							"left": {
+								"observation": "bay.missile_threat"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "defend"
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					]
+				},
+				{
+					"id": "defend",
+					"behavior": "engage",
+					"candidate_source": "craft",
+					"action": "defend",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "bay.dispatch_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.report_age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "bay.role"
+							},
+							"op": "eq",
+							"right": "interceptor"
+						},
+						{
+							"left": {
+								"observation": "bay.threat_present"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "defend"
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					]
+				},
+				{
+					"id": "bomb",
+					"behavior": "engage",
+					"candidate_source": "craft",
+					"action": "bomb",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "bay.dispatch_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.report_age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "bay.role"
+							},
+							"op": "eq",
+							"right": "bomber"
+						},
+						{
+							"left": {
+								"observation": "bay.target_present"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "bomb"
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						{
+							"observation": "bay.attack_text"
+						},
+						{
+							"observation": "bay.revision"
+						}
+					]
+				},
+				{
+					"id": "retarget",
+					"behavior": "engage",
+					"candidate_source": "craft",
+					"action": "bomb",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "engage"
+						},
+						{
+							"left": {
+								"observation": "bay.dispatch_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.reserve_low"
+							},
+							"op": "eq",
+							"right": false
+						},
+						{
+							"left": {
+								"observation": "bay.armed"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.report_age"
+							},
+							"op": "le",
+							"right": 120
+						},
+						{
+							"left": {
+								"observation": "bay.role"
+							},
+							"op": "eq",
+							"right": "bomber"
+						},
+						{
+							"left": {
+								"observation": "bay.target_present"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "eq",
+							"right": "bomb"
+						},
+						{
+							"left": {
+								"observation": "bay.target"
+							},
+							"op": "ne",
+							"right": {
+								"observation": "bay.attack_target"
+							}
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						{
+							"observation": "bay.attack_text"
+						},
+						{
+							"observation": "bay.revision"
+						}
+					]
+				},
+				{
+					"id": "reserve-withdrawal",
+					"behavior": "withdraw",
+					"candidate_source": "craft",
+					"action": "recall",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "bay.recall_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending_order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "withdraw"
+						},
+						{
+							"left": {
+								"observation": "bay.reserve_low"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": 1000
+					}
+				},
+				{
+					"id": "defence-clear",
+					"behavior": "ready",
+					"candidate_source": "craft",
+					"action": "recall",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "bay.recall_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending_order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						},
+						{
+							"left": {
+								"observation": "bay.role"
+							},
+							"op": "eq",
+							"right": "interceptor"
+						},
+						{
+							"left": {
+								"observation": "bay.threat_present"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1000
+					}
+				},
+				{
+					"id": "bomb-target-lost",
+					"behavior": "ready",
+					"candidate_source": "craft",
+					"action": "recall",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "bay.recall_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending_order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						},
+						{
+							"left": {
+								"observation": "bay.role"
+							},
+							"op": "eq",
+							"right": "bomber"
+						},
+						{
+							"left": {
+								"observation": "bay.target_present"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1000
+					}
+				},
+				{
+					"id": "unarmed",
+					"behavior": "ready",
+					"candidate_source": "craft",
+					"action": "recall",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "bay.recall_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending_order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						},
+						{
+							"left": {
+								"observation": "bay.armed"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					],
+					"factors": {
+						"urgency": 0,
+						"progress": 1000
+					}
+				},
+				{
+					"id": "enable",
+					"behavior": "ready",
+					"action": "ready",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						},
+						{
+							"left": {
+								"observation": "command.system_enabled"
+							},
+							"op": "eq",
+							"right": false
+						}
+					],
+					"arguments": [],
+					"target": 0,
+					"factors": {
+						"urgency": 0,
+						"progress": 1
+					}
+				}
+			],
+			"objective_scoring": {
+				"default": {
+					"urgency": 1,
+					"progress": 1,
+					"risk": 1,
+					"travel": 1,
+					"resources": 1,
+					"commitment": 100
+				}
+			}
+		},
+		{
+			"id": "base.policy.combat-bay-dispatch",
+			"extends": "base.policy.bay-dispatch",
+			"command_reads": [
+				{
+					"name": "bay.accepted_target",
+					"controller": "combat-target",
+					"channel": "target",
+					"type": "integer"
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -85902,18 +86943,31 @@
 		{
 			"id": "base.widget.c540b13dfb56dc7f",
 			"schema": 1,
-			"equipment": { "equipment": { "multiple": false, "kinds": ["shuttle_bay"] } },
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": [
+						"shuttle_bay"
+					]
+				}
+			},
 			"commands": [
 				{
 					"id": "system_enabled",
 					"action": "system_enabled",
 					"initial": 1,
-					"consumers": ["$equipment"],
+					"consumers": [
+						"$equipment"
+					],
 					"label_key": "Equipment"
 				}
 			],
 			"data": {
-				"system_enabled": { "binding": "command.system_enabled", "label": "Equipment", "placement": "details" },
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
 				"equipment-status": {
 					"binding": "system.equipment.status",
 					"label": "Status",
@@ -85930,7 +86984,11 @@
 					"label": "Battery capacity",
 					"placement": "details"
 				},
-				"equipment-heat": { "binding": "system.equipment.heat", "label": "Heat", "placement": "details" },
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
 				"equipment-heat_capacity": {
 					"binding": "system.equipment.heat_capacity",
 					"label": "Heat capacity",
@@ -85952,17 +87010,54 @@
 					"placement": "details"
 				}
 			},
-			"parts": ["main", "craft", "away"],
-			"tree": "base.courier.assist.system-ready",
-			"operations": { "craft": ["$equipment"], "transport": ["$equipment"] },
+			"parts": [
+				"main",
+				"craft",
+				"away"
+			],
+			"tree": "base.policy.bay-dispatch",
+			"operations": {
+				"craft": [
+					"$equipment"
+				],
+				"transport": [
+					"$equipment"
+				]
+			},
 			"part_bindings": {
-				"craft": { "renderer": "craft", "operations": ["craft"] },
-				"away": { "renderer": "away", "operations": ["transport"] }
+				"craft": {
+					"renderer": "craft",
+					"operations": [
+						"craft"
+					]
+				},
+				"away": {
+					"renderer": "away",
+					"operations": [
+						"transport"
+					]
+				}
 			},
 			"levels": [
-				{ "id": "automated", "human": [] },
-				{ "id": "responsibility1", "human": ["craft", "transport"] },
-				{ "id": "responsibility2", "human": ["craft", "system_enabled", "transport"] }
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": [
+						"craft",
+						"transport"
+					]
+				},
+				{
+					"id": "responsibility2",
+					"human": [
+						"craft",
+						"system_enabled",
+						"transport"
+					]
+				}
 			]
 		},
 		{
@@ -99349,6 +100444,126 @@
 			},
 			"operations": { "weapon_salvo": ["$equipment"] },
 			"label": "Torpedo Tube 2"
+		},
+		{
+			"id": "base.widget.combat-bay-dispatch",
+			"schema": 1,
+			"equipment": {
+				"equipment": {
+					"multiple": false,
+					"kinds": [
+						"shuttle_bay"
+					]
+				}
+			},
+			"commands": [
+				{
+					"id": "system_enabled",
+					"action": "system_enabled",
+					"initial": 1,
+					"consumers": [
+						"$equipment"
+					],
+					"label_key": "Equipment"
+				}
+			],
+			"data": {
+				"system_enabled": {
+					"binding": "command.system_enabled",
+					"label": "Equipment",
+					"placement": "details"
+				},
+				"equipment-status": {
+					"binding": "system.equipment.status",
+					"label": "Status",
+					"placement": "main",
+					"required": true
+				},
+				"equipment-stored_energy": {
+					"binding": "system.equipment.stored_energy",
+					"label": "Battery",
+					"placement": "details"
+				},
+				"equipment-energy_capacity": {
+					"binding": "system.equipment.energy_capacity",
+					"label": "Battery capacity",
+					"placement": "details"
+				},
+				"equipment-heat": {
+					"binding": "system.equipment.heat",
+					"label": "Heat",
+					"placement": "details"
+				},
+				"equipment-heat_capacity": {
+					"binding": "system.equipment.heat_capacity",
+					"label": "Heat capacity",
+					"placement": "details"
+				},
+				"equipment-used_power": {
+					"binding": "system.equipment.used_power",
+					"label": "Power use",
+					"placement": "details"
+				},
+				"equipment-actual_cooling": {
+					"binding": "system.equipment.actual_cooling",
+					"label": "Cooling",
+					"placement": "details"
+				},
+				"equipment-coolant_stock": {
+					"binding": "system.equipment.coolant_stock",
+					"label": "Coolant",
+					"placement": "details"
+				}
+			},
+			"parts": [
+				"main",
+				"craft",
+				"away"
+			],
+			"tree": "base.policy.combat-bay-dispatch",
+			"operations": {
+				"craft": [
+					"$equipment"
+				],
+				"transport": [
+					"$equipment"
+				]
+			},
+			"part_bindings": {
+				"craft": {
+					"renderer": "craft",
+					"operations": [
+						"craft"
+					]
+				},
+				"away": {
+					"renderer": "away",
+					"operations": [
+						"transport"
+					]
+				}
+			},
+			"levels": [
+				{
+					"id": "automated",
+					"human": []
+				},
+				{
+					"id": "responsibility1",
+					"human": [
+						"craft",
+						"transport"
+					]
+				},
+				{
+					"id": "responsibility2",
+					"human": [
+						"craft",
+						"system_enabled",
+						"transport"
+					]
+				}
+			]
 		}
 	]
 }

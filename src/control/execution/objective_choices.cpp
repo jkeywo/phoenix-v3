@@ -2,6 +2,8 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <map>
+#include <limits>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <set>
@@ -11,9 +13,119 @@ module;
 #include <vector>
 
 module phoenix.control.execution;
+import phoenix.gameplay.ordnance.contacts;
 
 namespace phoenix
 {
+namespace
+{
+using ObjectiveFacts = std::map<std::string, state_tree::Value>;
+std::vector<ObjectiveFacts> craft_objective_facts(const ConsoleControllerRuntime &controller,
+                                                  const Observation &observed, KnowledgeTick tick,
+                                                  std::int64_t objective_target,
+                                                  std::span<const state_tree::Value> source)
+{
+	using state_tree::Value;
+	std::int64_t accepted_target = 0;
+	const auto &registry = controller.brain->program.registry;
+	for (std::size_t i = 0; i < registry.observations.size(); ++i)
+		if (registry.observations[i].name == "bay.accepted_target" && source[i].type == state_tree::Type::Integer)
+			accepted_target = source[i].number;
+	const auto target = objective_target ? objective_target : accepted_target;
+	bool threat = false, target_present = false;
+	for (const auto &contact : observed.contacts)
+		if (contact.id > 0 && contact.id <= 2000000000ULL && contact.disposition == "hostile")
+		{
+			threat |= !objective_target || contact.id == objective_target;
+			target_present |= contact.id == target;
+		}
+	std::vector<PointDefenceCandidate> missiles;
+	for (const auto &contact : observed.contacts)
+		if (contact.id >= 7000000000000000ULL && contact.id < 8000000000000000ULL &&
+		    contact.disposition != "friendly" && (!objective_target || contact.id == objective_target))
+			missiles.push_back({contact.id, {contact.x, contact.y}, {contact.vx, contact.vy}, contact.altitude});
+	const bool missile_threat = select_native_point_defence_target(
+	                                {observed.own.x, observed.own.y}, {observed.own.vx, observed.own.vy},
+	                                observed.own.altitude, std::numeric_limits<std::int64_t>::max(), missiles) != 0;
+	threat |= missile_threat;
+	std::vector<ObjectiveFacts> result;
+	if (const auto rows = observed.gameplay.find("craft"); rows != observed.gameplay.end())
+		for (const auto &row : *rows)
+		{
+			const auto bay = row.at("bay").get<std::string>();
+			if (!controller_operation_owns(controller, "craft", bay))
+				continue;
+			const bool delegated = !controller_operation_human(controller, "craft");
+			const auto phase = row.at("phase").get<std::string>();
+			const bool reserved = row.value("reserved", false) || !row.value("mission", std::string{}).empty();
+			const bool eligible = delegated && !reserved && phase != "lost" && phase != "consumed";
+			const auto age = tick >= row.at("report_tick").get<KnowledgeTick>()
+			                     ? tick - row.at("report_tick").get<KnowledgeTick>()
+			                     : 0;
+			const auto energy = row.at("energy").get<std::int64_t>(), capacity = row.at("capacity").get<std::int64_t>();
+			const bool reserve_low =
+			    capacity > 0 && energy * 1000 <= capacity * row.value("return_reserve_permille", 200LL);
+			const auto id = row.at("id").get<std::string>();
+			ObjectiveFacts facts;
+			const auto text = [&](const char *name, const std::string &value)
+			{
+				facts[std::string("bay.") + name] = Value::string(value);
+			};
+			const auto number = [&](const char *name, std::int64_t value)
+			{
+				facts[std::string("bay.") + name] = Value::integer(value);
+			};
+			const auto boolean = [&](const char *name, bool value)
+			{
+				facts[std::string("bay.") + name] = Value::boolean(value);
+			};
+			text("craft", id);
+			text("id", bay);
+			text("role", row.at("role"));
+			text("phase", phase);
+			text("order", row.at("order"));
+			text("pending_order", row.value("pending_order", std::string{}));
+			text("attack_text", target_present ? std::to_string(target) : std::string{});
+			text("reason", !delegated  ? "capabilities_unavailable"
+			               : reserved  ? "craft_reserved"
+			               : !eligible ? "craft_unavailable"
+			                           : "permitted_craft_report");
+			number("entity", std::stoll(id));
+			number("revision", row.at("revision"));
+			number("target", row.at("target"));
+			number("attack_target", target_present ? target : 0);
+			number("report_age", std::min<KnowledgeTick>(1000000, age));
+			number("energy", energy);
+			number("ammunition", row.at("ammunition"));
+			boolean("eligible", eligible);
+			boolean("dispatch_available", eligible && (row.at("available").get<bool>() || phase == "flying") &&
+			                                  row.value("blocker", std::string{}).empty());
+			boolean("recall_available",
+			        eligible && (phase != "docked" || row.at("pending").get<bool>()) && phase != "recovering");
+			boolean("pending", row.at("pending"));
+			boolean("linked", row.at("linked"));
+			boolean("reserve_low", reserve_low);
+			boolean("threat_present", threat);
+			boolean("missile_threat", missile_threat);
+			boolean("target_present", target_present);
+			boolean("ftl_preparing", row.value("ftl_preparing", false));
+			boolean("armed", row.value("armed", false));
+			result.push_back(std::move(facts));
+		}
+	if (result.empty())
+	{
+		ObjectiveFacts empty;
+		for (const auto &field : registry.observations)
+			if (field.name.starts_with("bay.") && field.name != "bay.accepted_target")
+				empty[field.name] = field.type == state_tree::Type::Text      ? Value::string("")
+				                    : field.type == state_tree::Type::Boolean ? Value::boolean(false)
+				                                                              : Value::integer(0);
+		empty["bay.reason"] = Value::string("no_owned_craft");
+		result.push_back(std::move(empty));
+	}
+	return result;
+}
+} // namespace
 std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const ConsoleControllerRuntime &controller,
                                                                         const ControllerObservationSources &input,
                                                                         std::span<const state_tree::Value> source,
@@ -54,12 +166,39 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				continue;
 			supported = true;
 			auto options = binding.candidate_source == "medical" ? medical_options : std::vector<std::vector<Value>>{};
+			if (binding.candidate_source == "craft")
+				for (const auto &facts : craft_objective_facts(controller, input.observation, input.tick,
+				                                               number(*record, "target"), source))
+				{
+					std::vector<Value> values(source.begin(), source.end());
+					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+						if (const auto fact = facts.find(brain.program.registry.observations[i].name);
+						    fact != facts.end())
+							values[i] = fact->second;
+					options.push_back(std::move(values));
+				}
 			if (options.empty())
 				options.emplace_back();
 			const auto before_binding = candidates.size();
 			for (const auto &option : options)
 			{
 				auto values = std::vector<Value>(source.begin(), source.end());
+				if (binding.candidate_source == "craft" && !option.empty())
+					values = option;
+				const auto fact = [&](const char *name) -> const Value &
+				{
+					for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+						if (brain.program.registry.observations[i].name == name)
+							return values[i];
+					static const Value unavailable;
+					return unavailable;
+				};
+				if (binding.candidate_source == "craft" &&
+				    (!text(*record, "mission", "").empty() || !text(*record, "compartment", "").empty() ||
+				     (!text(*record, "system", "").empty() && text(*record, "system", "") != fact("bay.id").text) ||
+				     (behavior != "engage" && number(*record, "target") && number(*record, "target") != input.entity)))
+					continue;
+
 				if (binding.candidate_source == "medical" && !option.empty())
 				{
 					const auto base = *brain.medical_base;
@@ -85,6 +224,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				choice.objective = candidate.objective;
 				choice.action = binding.action;
 				choice.binding = binding.id;
+				if (binding.candidate_source == "craft")
+					candidate.target = fact("bay.entity").number;
 				if (binding.candidate_source == "medical" && !option.empty())
 					candidate.target = option[4].number;
 				for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
@@ -222,6 +363,8 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 					else if (binding.candidate_source == "medical" && brain.medical_base &&
 					         !values[*brain.medical_base + 3].number)
 						candidate.reason = values[*brain.medical_base + 10].text;
+					else if (binding.candidate_source == "craft" && !fact("bay.eligible").number)
+						candidate.reason = fact("bay.reason").text;
 				}
 				const auto policy = brain.objective_scoring.find(text(*record, "scoring_policy", "default"));
 				if (policy == brain.objective_scoring.end())
@@ -244,7 +387,9 @@ std::optional<ControllerObjectiveChoice> evaluate_controller_objectives(const Co
 				candidate.action = binding.id;
 				candidate.tier = objective_tier(text(*record, "tier", "objective_other"));
 				candidate.marked = input.priority_objectives.contains(candidate.objective);
-				candidate.reason = "objective_parameter_outside_known_medical_scope";
+				candidate.reason = binding.candidate_source == "medical"
+				                       ? "objective_parameter_outside_known_medical_scope"
+				                       : "objective_parameter_outside_known_craft_scope";
 				candidates.push_back(std::move(candidate));
 				choices.emplace_back();
 			}

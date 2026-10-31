@@ -522,6 +522,17 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		add({"medical.reason", Type::Text, 4, {}});
 		add({"medical.condition", Type::Text, 4, {}});
 	}
+	if (resolved.value("craft_dispatch_observations", false))
+	{
+		for (const auto *name : {"craft", "id", "role", "phase", "order", "pending_order", "attack_text", "reason"})
+			add({std::string("bay.") + name, Type::Text, 4, {}});
+		for (const auto *name : {"entity", "revision", "target", "attack_target", "report_age", "energy", "ammunition"})
+			add({std::string("bay.") + name, Type::Integer, 4, {}});
+		for (const auto *name :
+		     {"eligible", "dispatch_available", "recall_available", "pending", "linked", "reserve_low",
+		      "threat_present", "target_present", "ftl_preparing", "armed", "missile_threat"})
+			add({std::string("bay.") + name, Type::Boolean, 4, {}});
+	}
 	if (resolved.value("workflow_observations", false))
 	{
 		for (const auto *name : {"mission", "phase", "port", "dock_target", "dock_phase"})
