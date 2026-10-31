@@ -183,7 +183,41 @@ auto Runtime::away_board(const ConsoleAddress &a) const -> Json
 {
 	NativeAwayReadBinding binding(*this);
 	NativeAwayProjectionSource source(*this);
-	return away_operations.board(a, binding.observation, source);
+	auto rows = away_operations.board(a, binding.observation, source);
+	for (auto &row : rows)
+	{
+		row["care"] = Json::array();
+		for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
+		{
+			const auto &definition_mission = away_operations.definitions()[i];
+			const auto &mission = away_operations.missions()[i];
+			if (row.at("id") != definition_mission.id || mission.phase != AwayPhase::Deployed)
+				continue;
+			for (const auto &[team, care] : mission.care)
+			{
+				const auto *controller = native_operation_controller(a, "medical", team);
+				if (!controller)
+					continue;
+				Json report{{"team", team},
+				            {"controller", controller->definition.id},
+				            {"location", care.location},
+				            {"destination", care.destination},
+				            {"travel", care.travel},
+				            {"local_complete", care.travel == 0},
+				            {"observed_tick", ecs.get<Clock>().tick},
+				            {"compartments", definition(definition_mission.target).personnel.compartments},
+				            {"patients", Json::array()}};
+				if (!care.travel)
+					for (const auto &patient : clinical_patients(definition_mission.target))
+						if (patient.state.location == care.location)
+							report["patients"].push_back({{"id", patient.id},
+							                              {"condition", patient.state.condition},
+							                              {"stabilised", patient.state.stabilised}});
+				row["care"].push_back(std::move(report));
+			}
+		}
+	}
+	return rows;
 }
 
 auto Runtime::save_away() const -> Json

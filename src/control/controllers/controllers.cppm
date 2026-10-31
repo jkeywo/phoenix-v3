@@ -45,7 +45,7 @@ struct ControllerBrain
 	std::string ftl_system;
 	std::optional<std::size_t> logistics_revision, docking_revision;
 	std::optional<std::size_t> complexity_stars;
-	std::optional<std::size_t> workflow_base;
+	std::optional<std::size_t> workflow_base, medical_base;
 	std::string routine_stance = "routine";
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	bool report_observations = false;

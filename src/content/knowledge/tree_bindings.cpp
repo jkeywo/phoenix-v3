@@ -500,6 +500,13 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.value("complexity_observation", false))
 		add({"console.stars", Type::Integer, 4, {}});
+	if (resolved.value("medical_observations", false))
+	{
+		for (const auto *name : {"team", "destination"})
+			add({std::string("medical.") + name, Type::Text, 4, {}});
+		add({"medical.revision", Type::Integer, 4, {}});
+		add({"medical.available", Type::Boolean, 4, {}});
+	}
 	if (resolved.value("workflow_observations", false))
 	{
 		for (const auto *name : {"mission", "phase", "port", "dock_target", "dock_phase"})
@@ -677,7 +684,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		for (const auto *name : {"accept", "reject", "supply", "connect", "assist", "cancel", "undock", "emergency"})
 			registry.actions.push_back({std::string("dock.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"open", "assign", "withdraw", "select", "unselect", "contribute", "quantity", "transport",
-	                         "escort", "send", "recall", "cancel"})
+	                         "escort", "send", "recall", "cancel", "care"})
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})
 		registry.actions.push_back({std::string("craft.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});

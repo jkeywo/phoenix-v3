@@ -77,6 +77,53 @@ auto Runtime::away_command(const ConsoleAddress &a, const OperatingCommand &c, b
 	const auto index = it - away_operations.definitions().begin();
 	const auto &d = *it;
 	auto &m = away_operations.missions()[index];
+	if (c.action == "away.care")
+	{
+		const auto slash = c.text.find('/');
+		if (slash == std::string::npos || m.phase != AwayPhase::Deployed ||
+		    c.value != static_cast<std::int64_t>(m.revision) || m.revision >= 9007199254740991ULL)
+			return false;
+		const auto team = c.text.substr(0, slash), compartment = c.text.substr(slash + 1);
+		const auto equipment = away_equipment(a.ship, team);
+		if (!equipment || equipment.get<Equipment>().kind != OperatingSystem::Team ||
+		    !equipment.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains("medical") ||
+		    std::none_of(m.assignments.begin(), m.assignments.end(),
+		                 [&](const auto &assignment)
+		                 {
+			                 return assignment.second == "team:" + team;
+		                 }))
+			return false;
+		bool permitted = false;
+		for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
+			if (controller.definition.console == a.console && controller.definition.id == c.controller &&
+			    controller.generation == c.generation && controller_operation_owns(controller, "medical", team) &&
+			    controller_operation_human(controller, "medical") != ai)
+				permitted = true;
+		const auto &personnel = definition(d.target).personnel;
+		const auto to = std::find(personnel.compartments.begin(), personnel.compartments.end(), compartment);
+		if (!permitted || to == personnel.compartments.end())
+			return false;
+		const auto target = static_cast<std::int64_t>(to - personnel.compartments.begin());
+		const auto care = m.care.find(team);
+		const auto from = care == m.care.end()  ? m.entry_compartment
+		                  : care->second.travel ? care->second.edge_to
+		                                        : care->second.location;
+		if (from != target &&
+		    physical_route(d.target, personnel.compartments.size(), personnel.links, from, target).first < 0)
+			return false;
+		if (execute)
+		{
+			auto &selected = m.care[team];
+			if (care == m.care.end())
+				selected.location = m.entry_compartment;
+			selected.destination = target;
+			selected.done = selected.work_done = false;
+			selected.activity.clear();
+			selected.continuation = {};
+			++m.revision;
+		}
+		return true;
+	}
 	std::string controlled_system;
 	if (c.action == "away.transport" || c.action == "away.escort")
 	{

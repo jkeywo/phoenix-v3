@@ -91,6 +91,12 @@ Json OperationsWidgetContext::board(const std::string &name) const
 		for (auto &mission : result)
 		{
 			mission["dispatch"] = owns("mission", mission.value("dispatch_system", std::string{}));
+			if (mission.contains("care"))
+				std::erase_if(mission["care"].get_ref<Json::array_t &>(),
+				              [&](const auto &care)
+				              {
+					              return care.at("controller") != controller || !owns("medical", care.at("team"));
+				              });
 			const auto transport_owned = [&](const std::string &asset)
 			{
 				if (asset == "ship")
@@ -380,6 +386,15 @@ std::string OperationsWidgets::State::away_markup(const OperationsWidgetContext 
 		{
 			return context.button("away/" + action + "/" + key + "/" + value, label);
 		};
+		for (const auto &care : m.value("care", Json::array()))
+		{
+			const auto team = care.at("team").get<std::string>();
+			for (const auto &patient : care.at("patients"))
+				html += line(localise(patient.at("id")) + ": " + localise(patient.at("condition")));
+			for (const auto &compartment : care.at("compartments"))
+				html += button("care", team + "/" + compartment.get<std::string>(),
+				               localise("Assign medical team") + ": " + localise(team) + " — " + localise(compartment));
+		}
 		html += line(localise("Dispatch") + ": " + localise(m.value("owner", std::string{})));
 		if (m.value("can_contribute", false))
 			html += button("contribute", m.value("contributing", false) ? "0" : "1",

@@ -38,6 +38,35 @@ Json board(const Json &rows)
 		for (const auto &o : r.at("accompanying"))
 			v["accompanying"].push_back(text(o, 64));
 		v["revision"] = revision;
+		if (r.contains("care"))
+		{
+			if (!r.at("care").is_array() || r.at("care").size() > 16)
+				throw std::runtime_error("Invalid deployed care reports");
+			v["care"] = Json::array();
+			for (const auto &care : r.at("care"))
+			{
+				Json report;
+				for (const auto *key : {"team", "controller"})
+					report[key] = text(care.at(key), 128);
+				for (const auto *key : {"location", "destination"})
+					report[key] = projection::number(care.at(key), -1, 255);
+				report["travel"] = projection::number(care.at("travel"), 0, 1000000);
+				report["observed_tick"] = projection::number(care.at("observed_tick"), 0, 9007199254740991LL);
+				report["local_complete"] = care.at("local_complete").get<bool>();
+				if (!care.at("compartments").is_array() || care.at("compartments").size() > 256 ||
+				    !care.at("patients").is_array() || care.at("patients").size() > 384)
+					throw std::runtime_error("Invalid deployed care evidence");
+				report["compartments"] = Json::array();
+				for (const auto &compartment : care.at("compartments"))
+					report["compartments"].push_back(text(compartment, 128));
+				report["patients"] = Json::array();
+				for (const auto &patient : care.at("patients"))
+					report["patients"].push_back({{"id", text(patient.at("id"), 128)},
+					                              {"condition", text(patient.at("condition"), 64)},
+					                              {"stabilised", patient.at("stabilised").get<bool>()}});
+				v["care"].push_back(std::move(report));
+			}
+		}
 		v["dispatch"] = r.at("dispatch").get<bool>();
 		v["automatic_dispatch"] = r.value("automatic_dispatch", false);
 		v["ai_dispatch"] = r.value("ai_dispatch", false);

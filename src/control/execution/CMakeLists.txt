@@ -6,6 +6,7 @@ add_library(
 	decisions.cpp
 	report_facts.cpp
 	workflow_facts.cpp
+	medical_facts.cpp
 	observations.cpp
 	admission.cpp
 	objectives.cpp

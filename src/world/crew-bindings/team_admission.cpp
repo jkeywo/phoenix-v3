@@ -528,18 +528,17 @@ auto Runtime::step_teams() -> void
 					     (r.medical_compartment < 0 &&
 					      manual_workload(enabled_system_owner(id, m->definition.id), "medical", m->definition.id))))
 						continue;
-					for (std::size_t c = 0; c < definition(id).personnel.compartments.size(); ++c)
-						if ((r.medical_compartment < 0 || c == static_cast<std::size_t>(r.medical_compartment)) &&
-						    team_target_eligible(id, candidate, c))
-						{
-							r.order = candidate.id;
-							r.destination = c;
-							r.repair_auto = false;
-							r.work_done = false;
-							r.continuation = state_tree::Instance{};
-							++r.revision;
-							break;
-						}
+					const auto c = r.medical_compartment >= 0 ? r.medical_compartment : r.location;
+					if (candidate.target == "patients" && c >= 0 && c == r.location && !r.travel &&
+					    team_target_eligible(id, candidate, c))
+					{
+						r.order = candidate.id;
+						r.destination = c;
+						r.repair_auto = false;
+						r.work_done = false;
+						r.continuation = state_tree::Instance{};
+						++r.revision;
+					}
 				}
 			}
 			const auto *order = team_order_definition(*m, r.order);
@@ -605,8 +604,27 @@ auto Runtime::step_teams() -> void
 				auto &p = ps.officers[*patient];
 				if (p.condition != "severe" || !p.stabilised)
 					continue;
+				// Facility choice uses the same frozen availability/route report as
+				// Medical policy. Current capacity is checked only to execute it safely.
+				const Json *known = nullptr;
+				const auto owner = enabled_system_owner(id, m->definition.id);
+				const auto frame = decision_frame.observations().find(owner);
+				if (frame != decision_frame.observations().end() && frame->second.gameplay.contains("teams"))
+					for (const auto &team : frame->second.gameplay.at("teams"))
+						if (team.at("id") == m->definition.id && team.contains("facilities"))
+							for (const auto &facility : team.at("facilities"))
+								if (facility.value("available", false) && facility.value("reachable", false) &&
+								    (!known || std::pair{facility.at("route_ticks").get<std::int64_t>(),
+								                         facility.at("id").get<std::string>()} <
+								                   std::pair{known->at("route_ticks").get<std::int64_t>(),
+								                             known->at("id").get<std::string>()}))
+									known = &facility;
+				if (!known)
+					continue;
 				for (const auto &f : pd.facilities)
 				{
+					if (f.id != known->at("id"))
+						continue;
 					if (std::count_if(ps.officers.begin(), ps.officers.end(),
 					                  [&](const auto &o)
 					                  {
@@ -689,17 +707,21 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 			continue;
 		const auto &r = m->get<TeamState>();
 		const auto &d = m->definition.get<TeamDefinition>();
-		Json row{{"id", m->definition.id},
-		         {"type", d.type},
-		         {"revision", r.revision},
-		         {"order", r.order},
-		         {"condition", r.detained ? "detained" : r.condition},
-		         {"activity", r.activity},
-		         {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
-		         {"location", r.location},
-		         {"home", d.home_compartment},
-		         {"destination", r.destination},
-		         {"orders", Json::array()}};
+		Json row{
+		    {"id", m->definition.id},
+		    {"type", d.type},
+		    {"revision", r.revision},
+		    {"order", r.order},
+		    {"condition", r.detained ? "detained" : r.condition},
+		    {"activity", r.activity},
+		    {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
+		    {"location", r.location},
+		    {"home", d.home_compartment},
+		    {"compartments", pd.compartments},
+		    {"observed_tick", ecs.get<Clock>().tick},
+		    {"local_complete", !r.travel && !away_reserved(a.ship, "team:" + m->definition.id) && team_available(*m)},
+		    {"destination", r.destination},
+		    {"orders", Json::array()}};
 		bool manual = false;
 		for (const auto &controller : ship.get<EntityControls>().controllers)
 			if (controller.definition.console == a.console)
@@ -760,6 +782,16 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 				assignment["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(assignment));
 		}
+		const auto known_patient = [&](const ClinicalPatient &patient)
+		{
+			return (!r.travel && patient.state.location == r.location) ||
+			       (patient.team.empty() && std::any_of(pd.officers.begin(), pd.officers.end(),
+			                                            [&](const auto &officer)
+			                                            {
+				                                            return officer.id == patient.id &&
+				                                                   personnel_owns(a, officer.department);
+			                                            }));
+		};
 		for (const auto &o : d.orders)
 		{
 			if (d.capabilities.contains("medical") && !manual_workload(a, "medical", m->definition.id))
@@ -767,23 +799,58 @@ auto Runtime::team_board(const ConsoleAddress &a) const -> Json
 			Json order{
 			    {"id", o.id}, {"label", o.label}, {"icon", o.icon}, {"target", o.target}, {"targets", Json::array()}};
 			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
-				if (o.target == "damage" ? known_damage(i) : team_target_eligible(a.ship, o, i))
+				if (o.target == "damage" ? known_damage(i) :
+				    o.target == "patients" ? [&] {
+				        const auto patients = clinical_patients(a.ship);
+				        for (std::size_t p = 0; p < patients.size(); ++p)
+				            if (known_patient(patients[p]) && patients[p].state.location == i && patient_matches(a.ship, p, patients[p].state, o)) return true;
+				        return false;
+				    }() : true)
 					order["targets"].push_back(i + 1);
 			row["orders"].push_back(std::move(order));
+		}
+		if (d.capabilities.contains("medical"))
+		{
+			row["facilities"] = Json::array();
+			for (const auto &facility : pd.facilities)
+			{
+				const auto at = std::find(pd.compartments.begin(), pd.compartments.end(), facility.compartment) -
+				                pd.compartments.begin();
+				const auto &patients = ship.get<PersonnelState>().officers;
+				const auto used = std::count_if(patients.begin(), patients.end(),
+				                                [&](const auto &patient)
+				                                {
+					                                return patient.facility == facility.id;
+				                                });
+				const auto from = r.travel ? r.edge_to : r.location;
+				const auto route =
+				    from == at ? std::pair<std::int64_t, std::int64_t>{from, 0} : repair_route(ship, from, at);
+				row["facilities"].push_back(
+				    {{"id", facility.id},
+				     {"compartment", at},
+				     {"available",
+				      used < facility.capacity && !ship.get<CombatStructure>().compartments.at(at).disabled},
+				     {"reachable", route.first >= 0},
+				     {"route_ticks", route.second}});
+			}
 		}
 		row["patients"] = Json::array();
 		if (d.capabilities.contains("medical"))
 		{
 			const auto ps = clinical_patients(a.ship);
 			for (const auto &p : ps)
-				if (p.state.condition != "healthy" && p.state.facility != "away" &&
+				if (known_patient(p) && p.state.condition != "healthy" && p.state.facility != "away" &&
 				    (p.team.empty() ? away_officer_location(a.ship, p.id).empty() : true))
-					row["patients"].push_back({{"id", p.id},
-					                           {"name", p.name},
-					                           {"condition", p.state.condition},
-					                           {"location", p.state.location},
-					                           {"stabilised", p.state.stabilised},
-					                           {"facility", p.state.facility}});
+					row["patients"].push_back(
+					    {{"id", p.id},
+					     {"name", p.name},
+					     {"condition", p.state.condition},
+					     {"location", p.state.location},
+					     {"stabilised", p.state.stabilised},
+					     {"facility", p.state.facility},
+					     {"source", !r.travel && p.state.location == r.location ? "team-local" : "department-roster"},
+					     {"observed_tick", ecs.get<Clock>().tick},
+					     {"revision", ship.get<PersonnelState>().revision}});
 		}
 		out.push_back(std::move(row));
 	}

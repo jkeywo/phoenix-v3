@@ -402,11 +402,13 @@ auto Runtime::capture_decision_observation(const ConsoleAddress &address, Teleme
 	if (owner == entities.end() || !owner->second.has<EntityControls>())
 		return result;
 	const auto &controllers = owner->second.get<EntityControls>().controllers;
-	if (std::any_of(controllers.begin(), controllers.end(),
+	if (native_operation_controller(address, "medical") ||
+	    std::any_of(controllers.begin(), controllers.end(),
 	                [&](const auto &controller)
 	                {
 		                return controller.definition.console == address.console && controller.brain &&
-		                       (controller.brain->report_observations || controller.brain->workflow_base);
+		                       (controller.brain->report_observations || controller.brain->workflow_base ||
+		                        controller.brain->medical_base);
 	                }))
 	{
 		// Reuse the same scope-checked producers as the human projection.

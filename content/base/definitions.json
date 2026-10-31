@@ -51601,6 +51601,154 @@
 	],
 	"trees": [
 		{
+			"id": "base.action.medical-ready",
+			"context": "controller",
+			"controller_action": {
+				"label": "Maintain team readiness"
+			},
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "ready",
+			"states": [
+				{
+					"id": "ready",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [
+								true
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.medical-assignment",
+			"context": "controller",
+			"team_commands": true,
+			"controller_action": {
+				"label": "Assign Medical team",
+				"inputs": [
+					{
+						"name": "medical_team",
+						"type": "text"
+					},
+					{
+						"name": "medical_destination",
+						"type": "text"
+					},
+					{
+						"name": "medical_revision",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "assign",
+			"states": [
+				{
+					"id": "assign",
+					"running": [
+						{
+							"attempt": [
+								{
+									"tasks": [
+										{
+											"action": "team.order",
+											"arguments": [
+												{
+													"observation": "input.medical_team"
+												},
+												{
+													"observation": "input.medical_destination"
+												},
+												{
+													"observation": "input.medical_revision"
+												}
+											]
+										},
+										{
+											"action": "action.succeed",
+											"arguments": [
+												"assignment_accepted"
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "action.fail",
+											"arguments": [
+												"assignment_refused"
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.medical-assignment",
+			"context": "controller",
+			"medical_observations": true,
+			"team_commands": true,
+			"action_bindings": [
+				{
+					"id": "medical-assignment",
+					"tree": "base.action.medical-assignment"
+				}
+			],
+			"initial": "assign",
+			"states": [
+				{
+					"id": "assign",
+					"running": [
+						{
+							"attempt": [
+								{
+									"conditions": [
+										{
+											"left": {
+												"observation": "medical.available"
+											},
+											"op": "eq",
+											"right": true
+										}
+									],
+									"tasks": [
+										{
+											"action": "select.medical-assignment",
+											"arguments": [
+												"medical-assignment",
+												{
+													"observation": "medical.team"
+												},
+												{
+													"observation": "medical.destination"
+												},
+												{
+													"observation": "medical.revision"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
 			"id": "base.ai.lateral-avoidance",
 			"context": "controller",
 			"initial": "operate",
@@ -61390,36 +61538,121 @@
 		{
 			"id": "base.courier.assist.ready",
 			"context": "controller",
-			"command_bindings": [{ "channel": "enabled", "action": "system_enabled", "type": "boolean" }],
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
 			"initial": "officer-reports",
 			"states": [
 				{
 					"id": "operate",
-					"running": [{ "action": "write.enabled", "arguments": [true] }],
+					"running": [
+						{
+							"attempt": [
+								{
+									"conditions": [
+										{
+											"left": {
+												"observation": "medical.available"
+											},
+											"op": "eq",
+											"right": true
+										}
+									],
+									"tasks": [
+										{
+											"action": "select.medical-assignment",
+											"arguments": [
+												"medical-assignment",
+												{
+													"observation": "medical.team"
+												},
+												{
+													"observation": "medical.destination"
+												},
+												{
+													"observation": "medical.revision"
+												}
+											]
+										}
+									]
+								},
+								{
+									"tasks": [
+										{
+											"action": "select.medical-ready",
+											"arguments": [
+												"maintain-readiness"
+											]
+										}
+									]
+								}
+							]
+						}
+					],
 					"parent": "officer-reports"
 				},
 				{
 					"id": "officer-reports",
 					"initial": "operate",
 					"running": [
-						{ "call": "base.report.thermal" },
-						{ "call": "base.report.supply" },
-						{ "call": "base.report.craft-out" },
-						{ "call": "base.report.craft-lost" },
-						{ "call": "base.report.craft-link" },
-						{ "call": "base.report.craft-blocked" },
-						{ "call": "base.report.team-blocked" },
-						{ "call": "base.report.patients" },
-						{ "call": "base.report.away-deployed" },
-						{ "call": "base.report.away-recovered" },
-						{ "call": "base.report.away-failed" },
-						{ "call": "base.report.radio" },
-						{ "call": "base.report.team-complete" },
-						{ "call": "base.report.opportunity" },
-						{ "call": "base.report.craft-recovered" },
-						{ "call": "base.report.findings" },
-						{ "call": "base.report.hostiles" },
-						{ "call": "base.report.scan-blocked" }
+						{
+							"call": "base.report.thermal"
+						},
+						{
+							"call": "base.report.supply"
+						},
+						{
+							"call": "base.report.craft-out"
+						},
+						{
+							"call": "base.report.craft-lost"
+						},
+						{
+							"call": "base.report.craft-link"
+						},
+						{
+							"call": "base.report.craft-blocked"
+						},
+						{
+							"call": "base.report.team-blocked"
+						},
+						{
+							"call": "base.report.patients"
+						},
+						{
+							"call": "base.report.away-deployed"
+						},
+						{
+							"call": "base.report.away-recovered"
+						},
+						{
+							"call": "base.report.away-failed"
+						},
+						{
+							"call": "base.report.radio"
+						},
+						{
+							"call": "base.report.team-complete"
+						},
+						{
+							"call": "base.report.opportunity"
+						},
+						{
+							"call": "base.report.craft-recovered"
+						},
+						{
+							"call": "base.report.findings"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
 					]
 				}
 			],
@@ -61457,6 +61690,18 @@
 				"base.message.report.thermal.clear.forward",
 				"base.message.report.thermal.report",
 				"base.message.report.thermal.report.forward"
+			],
+			"medical_observations": true,
+			"team_commands": true,
+			"action_bindings": [
+				{
+					"id": "medical-assignment",
+					"tree": "base.action.medical-assignment"
+				},
+				{
+					"id": "medical-ready",
+					"tree": "base.action.medical-ready"
+				}
 			]
 		},
 		{
@@ -67377,16 +67622,39 @@
 				{
 					"id": "operate",
 					"running": [
-						{ "call": "base.report.team-blocked" },
-						{ "call": "base.report.patients" },
-						{ "call": "base.report.craft-out" },
-						{ "call": "base.report.craft-lost" },
-						{ "call": "base.report.craft-link" },
-						{ "call": "base.report.craft-blocked" },
-						{ "call": "base.report.away-deployed" },
-						{ "call": "base.report.away-recovered" },
-						{ "call": "base.report.away-failed" },
-						{ "call": "base.report.radio" }
+						{
+							"call": "base.report.team-blocked"
+						},
+						{
+							"call": "base.report.patients"
+						},
+						{
+							"call": "base.report.craft-out"
+						},
+						{
+							"call": "base.report.craft-lost"
+						},
+						{
+							"call": "base.report.craft-link"
+						},
+						{
+							"call": "base.report.craft-blocked"
+						},
+						{
+							"call": "base.report.away-deployed"
+						},
+						{
+							"call": "base.report.away-recovered"
+						},
+						{
+							"call": "base.report.away-failed"
+						},
+						{
+							"call": "base.report.radio"
+						},
+						{
+							"call": "base.policy.medical-assignment"
+						}
 					],
 					"parent": "officer-reports"
 				},
@@ -67394,13 +67662,33 @@
 					"id": "officer-reports",
 					"initial": "operate",
 					"running": [
-						{ "call": "base.report.team-complete" },
-						{ "call": "base.report.opportunity" },
-						{ "call": "base.report.craft-recovered" },
-						{ "call": "base.report.findings" },
-						{ "call": "base.report.hostiles" },
-						{ "call": "base.report.scan-blocked" }
+						{
+							"call": "base.report.team-complete"
+						},
+						{
+							"call": "base.report.opportunity"
+						},
+						{
+							"call": "base.report.craft-recovered"
+						},
+						{
+							"call": "base.report.findings"
+						},
+						{
+							"call": "base.report.hostiles"
+						},
+						{
+							"call": "base.report.scan-blocked"
+						}
 					]
+				}
+			],
+			"medical_observations": true,
+			"team_commands": true,
+			"action_bindings": [
+				{
+					"id": "medical-assignment",
+					"tree": "base.action.medical-assignment"
 				}
 			]
 		},

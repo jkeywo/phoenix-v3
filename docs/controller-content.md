@@ -308,3 +308,11 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
 World and portable sessions require schema 35. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+
+### Medical assignment observations
+
+`medical_observations: true` exposes `medical.team`, `medical.destination`, `medical.revision` and `medical.available`. The recommendation consumes frozen team-local patient observations and the Console's own departmental roster reports. It cannot query the physical roster of another department. An idle automatically assigned team returns to its authored home; a human assignment prevents automatic destination replacement.
+
+The root policy declares `team_commands: true` and a shared action binding. A short execution tree submits `team.order` with the reported revision and completes on acceptance. Changing destination/revision starts a new action identity. Acceptance starts travel; it does not claim treatment completion. Local authored clinical workflows continue treatment, stabilisation and recovery with finite supplies and facilities. Facility selection uses frozen availability and route reports; execution can refuse a now-full facility.
+
+`away.care` uses the ordinary native Controller action signature: mission ID, `team/compartment`, mission revision. Only the assigned Medical team's owner can submit it, using the currently delegated Medical operation. Deployed teams report complete patient knowledge only in their current compartment. They travel only to an admitted destination and preserve that destination, route and local work continuation through checkpoints. A mission's hidden remote patients cannot cause an automatic destination change.

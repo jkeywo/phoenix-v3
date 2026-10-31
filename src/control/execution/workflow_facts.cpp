@@ -91,6 +91,7 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 void append_controller_workflow_facts(const ConsoleControllerRuntime &controller,
                                       const ControllerObservationSources &input, std::vector<state_tree::Value> &values)
 {
+	append_controller_medical_facts(controller, input, values);
 	if (!controller.brain->workflow_base)
 		return;
 	using state_tree::Value;

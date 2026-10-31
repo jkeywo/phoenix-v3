@@ -140,6 +140,17 @@ std::string OperationsWidgets::State::mission_markup(const OperationsWidgetConte
 				}
 		html += context.button("mission/close-picker", localise("Close")) + "</div>";
 	}
+	for (const auto &care : m.value("care", Json::array()))
+	{
+		const auto team = care.at("team").get<std::string>();
+		html += "<h3>" + escaped(localise(team)) + "</h3>";
+		for (const auto &patient : care.at("patients"))
+			html += line(localise(patient.at("id")) + ": " + localise(patient.at("condition")));
+		for (const auto &compartment : care.at("compartments"))
+			html +=
+			    context.button("away/care/" + identity + "/" + team + "/" + compartment.get<std::string>(),
+			                   localise("Assign medical team") + ": " + localise(team) + " — " + localise(compartment));
+	}
 	if (m.value("launch_ready", false))
 		html += context.button("away/send/" + identity + "/", localise("Launch"));
 	else if (phase == "open" || phase == "recovered")

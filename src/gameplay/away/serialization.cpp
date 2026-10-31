@@ -38,6 +38,7 @@ bool AwayMission::absent() const
 void to_json(Json &json, const AwayCare &state)
 {
 	json["location"] = state.location;
+	json["destination"] = state.destination;
 	json["edge_to"] = state.edge_to;
 	json["travel"] = state.travel;
 	json["order"] = state.order;
@@ -48,6 +49,7 @@ void to_json(Json &json, const AwayCare &state)
 void from_json(const Json &json, AwayCare &state)
 {
 	json.at("location").get_to(state.location);
+	state.destination = json.value("destination", std::int64_t{-1});
 	json.at("edge_to").get_to(state.edge_to);
 	json.at("travel").get_to(state.travel);
 	json.at("order").get_to(state.order);

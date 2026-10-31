@@ -58,6 +58,30 @@ Json board(const Json &source)
 			t[key] = text(team.at(key), 64);
 		t["revision"] = number(team.at("revision"), 1, 9007199254740991LL);
 		t["location"] = number(team.at("location"), 0, 255);
+		if (team.contains("local_complete"))
+			t["local_complete"] = team.at("local_complete").get<bool>();
+		if (team.contains("observed_tick"))
+			t["observed_tick"] = number(team.at("observed_tick"), 0, 9007199254740991LL);
+		if (team.contains("compartments"))
+		{
+			if (!team.at("compartments").is_array() || team.at("compartments").size() > 256)
+				throw std::runtime_error("Invalid team compartment map");
+			t["compartments"] = Json::array();
+			for (const auto &compartment : team.at("compartments"))
+				t["compartments"].push_back(text(compartment, 128));
+		}
+		if (team.contains("local_complete"))
+			t["local_complete"] = team.at("local_complete").get<bool>();
+		if (team.contains("observed_tick"))
+			t["observed_tick"] = number(team.at("observed_tick"), 0, 9007199254740991LL);
+		if (team.contains("compartments"))
+		{
+			if (!team.at("compartments").is_array() || team.at("compartments").size() > 256)
+				throw std::runtime_error("Invalid team compartment map");
+			t["compartments"] = Json::array();
+			for (const auto &compartment : team.at("compartments"))
+				t["compartments"].push_back(text(compartment, 128));
+		}
 		if (team.contains("home"))
 			t["home"] = number(team.at("home"), 0, 255);
 		t["destination"] = number(team.at("destination"), -1, 255);
@@ -78,6 +102,18 @@ Json board(const Json &source)
 				o["targets"].push_back(number(target, 1, 256));
 			t["orders"].push_back(std::move(o));
 		}
+		if (team.contains("facilities"))
+		{
+			if (!team.at("facilities").is_array() || team.at("facilities").size() > 32)
+				throw std::runtime_error("Invalid facility reports");
+			t["facilities"] = Json::array();
+			for (const auto &facility : team.at("facilities"))
+				t["facilities"].push_back({{"id", text(facility.at("id"), 128)},
+				                           {"compartment", number(facility.at("compartment"), 0, 255)},
+				                           {"route_ticks", number(facility.at("route_ticks"), 0, 1000000)},
+				                           {"available", facility.at("available").get<bool>()},
+				                           {"reachable", facility.at("reachable").get<bool>()}});
+		}
 		t["patients"] = Json::array();
 		if (!team.at("patients").is_array() || team.at("patients").size() > 384)
 			throw std::runtime_error("Invalid patients");
@@ -89,6 +125,11 @@ Json board(const Json &source)
 			p["name"] = text(patient.at("name"), 64);
 			p["location"] = number(patient.at("location"), 0, 255);
 			p["stabilised"] = patient.at("stabilised").get<bool>();
+			if (patient.contains("source"))
+				p["source"] = text(patient.at("source"), 64);
+			for (const auto *key : {"observed_tick", "revision"})
+				if (patient.contains(key))
+					p[key] = number(patient.at(key), 0, 9007199254740991LL);
 			t["patients"].push_back(std::move(p));
 		}
 		out.push_back(std::move(t));

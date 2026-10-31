@@ -59,6 +59,8 @@ const KnowledgeRecord *controller_navigation_objective(const ControllerObservati
                                                        bool scan = false);
 void append_controller_observations(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                     std::vector<state_tree::Value> &);
+void append_controller_medical_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,
+                                     std::vector<state_tree::Value> &);
 void append_controller_workflow_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                       std::vector<state_tree::Value> &);
 void append_controller_execution_facts(EntityId, const ConsoleControllerRuntime &, const EntityControls &,

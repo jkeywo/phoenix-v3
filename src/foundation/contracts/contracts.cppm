@@ -478,6 +478,8 @@ struct OperatingCommand
 };
 constexpr std::string_view away_command_operation(std::string_view action, bool officer = false)
 {
+	if (action == "away.care")
+		return "medical";
 	if (action == "away.contribute")
 		return "contribution";
 	if (action == "away.select" || action == "away.unselect")

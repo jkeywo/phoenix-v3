@@ -43,7 +43,7 @@ void to_json(Json &, AwayPhase);
 void from_json(const Json &, AwayPhase &);
 struct AwayCare
 {
-	std::int64_t location = 0, edge_to = -1, travel = 0;
+	std::int64_t location = 0, edge_to = -1, travel = 0, destination = -1;
 	std::string order, activity;
 	bool done = false, work_done = false;
 	state_tree::Instance continuation;

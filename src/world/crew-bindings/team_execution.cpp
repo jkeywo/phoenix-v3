@@ -59,15 +59,23 @@ auto Runtime::advance_away_medical(std::size_t index) -> void
 				care.location = care.edge_to;
 				care.edge_to = -1;
 			}
+			if (!care.travel && care.destination >= 0 && care.location != care.destination)
+			{
+				const auto route =
+				    physical_route(target, pd.compartments.size(), pd.links, care.location, care.destination);
+				if (route.first >= 0)
+				{
+					care.edge_to = route.first;
+					care.travel = route.second;
+				}
+			}
 			// Away field care supports treatment/stabilisation, not facility escorts.
 			auto destination = [&]() -> std::optional<std::size_t>
 			{
 				const auto activity = care.activity == "stabilise" ? "stabilise" : "treat";
-				std::optional<std::size_t> found;
-				for (std::size_t c = 0; c < pd.compartments.size(); ++c)
-					if (!clinical_work_done(target, c, *order, activity))
-						found = c;
-				return found;
+				if (care.location >= 0 && !care.travel && !clinical_work_done(target, care.location, *order, activity))
+					return static_cast<std::size_t>(care.location);
+				return std::nullopt;
 			};
 			auto at = destination();
 			if (at && care.done)
@@ -76,7 +84,7 @@ auto Runtime::advance_away_medical(std::size_t index) -> void
 				care.activity.clear();
 				care.continuation = {};
 			}
-			const bool arrived = !care.travel && (!at || care.location == static_cast<std::int64_t>(*at));
+			const bool arrived = !care.travel && (care.destination < 0 || care.location == care.destination);
 			step_team_order(*order, care.continuation, care.activity, arrived, care.work_done, at.has_value(), origin,
 			                mechanism.definition.id, target, care.location);
 			if (care.activity == "complete")
@@ -84,17 +92,7 @@ auto Runtime::advance_away_medical(std::size_t index) -> void
 				care.done = true;
 				continue;
 			}
-			at = destination();
-			if (at && !care.travel && care.location != static_cast<std::int64_t>(*at))
-			{
-				const auto route = physical_route(target, pd.compartments.size(), pd.links, care.location, *at);
-				if (route.first >= 0)
-				{
-					care.edge_to = route.first;
-					care.travel = route.second;
-				}
-			}
-			if (care.travel || (at && care.location != static_cast<std::int64_t>(*at)))
+			if (!arrived)
 				continue;
 			if (entities.at(target).has<CombatStructure>() &&
 			    entities.at(target).get<CombatStructure>().compartments.at(care.location).disabled)
@@ -104,7 +102,7 @@ auto Runtime::advance_away_medical(std::size_t index) -> void
 				if (step_clinical_work(origin, mechanism, target, care.location, *order, care.activity, {}, claimed))
 					if (const auto conversation = away_conversation(definition_mission))
 						conversations.report(conversation, "medical");
-				care.work_done = clinical_work_done(target, std::nullopt, *order, care.activity);
+				care.work_done = clinical_work_done(target, care.location, *order, care.activity);
 			}
 		}
 }

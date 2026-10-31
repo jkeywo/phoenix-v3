@@ -53,6 +53,8 @@ std::vector<ConsoleControllerRuntime> compile_controller_templates(const Catalog
 						brain.docking_revision = field;
 					if (name == "console.stars")
 						brain.complexity_stars = field;
+					if (name == "medical.team")
+						brain.medical_base = field;
 					if (name == "workflow.mission")
 						brain.workflow_base = field;
 				}

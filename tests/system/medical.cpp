@@ -72,6 +72,12 @@ Json medical_fixture()
 	          {{{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"medical"}}}})}});
 	ship["control_layout"]["profiles"][0]["consoles"]["observer"]["human"].push_back("medical");
 	ship["stations"][1]["consoles"][0]["feeds"].push_back("medical");
+	s["trees"].push_back(Json::parse(
+	    R"json({"id":"test.medical.execute","context":"controller","team_commands":true,"controller_action":{"label":"Assign Medical team","inputs":[{"name":"medical_team","type":"text"},{"name":"medical_destination","type":"text"},{"name":"medical_revision","type":"integer"}]},"initial":"assign","states":[{"id":"assign","running":[{"attempt":[{"tasks":[{"action":"team.order","arguments":[{"observation":"input.medical_team"},{"observation":"input.medical_destination"},{"observation":"input.medical_revision"}]},{"action":"action.succeed","arguments":["assignment_accepted"]}]},{"tasks":[{"action":"action.fail","arguments":["assignment_refused"]}]}]}]}]})json"));
+	s["trees"].push_back(Json::parse(
+	    R"json({"id":"test.medical.assignment","context":"controller","medical_observations":true,"team_commands":true,"action_bindings":[{"id":"medical-assignment","tree":"test.medical.execute"}],"initial":"assign","states":[{"id":"assign","running":[{"attempt":[{"conditions":[{"left":{"observation":"medical.available"},"op":"eq","right":true}],"tasks":[{"action":"select.medical-assignment","arguments":["medical-assignment",{"observation":"medical.team"},{"observation":"medical.destination"},{"observation":"medical.revision"}]}]}]}]}]})json"));
+	ship["control_layout"]["controllers"].back().erase("fallback");
+	ship["control_layout"]["controllers"].back()["tree"] = "test.medical.assignment";
 	auto &p = ship["personnel"];
 	p["duties"].push_back({{"id", "medical-controller"},
 	                       {"label", "Medical coordination"},
@@ -217,6 +223,60 @@ void deploy_clinical_party(World &w)
 		w.tick();
 	require(w.observe(101)->gameplay.at("away_missions")[0]["phase"] == "deployed",
 	        "clinical party physically arrived");
+}
+void medical_evidence_isolation()
+{
+	auto source = medical_fixture();
+	auto &ship = source["entities"][0];
+	for (auto &officer : ship["personnel"]["officers"])
+	{
+		officer["condition"] = "healthy";
+		officer["duty"] = "";
+	}
+	ship["personnel"]["officers"][0]["condition"] = "minor";
+	ship["personnel"]["officers"][0]["compartment"] = "bridge";
+	auto &layout = ship["control_layout"];
+	layout["station_complexity"] = true;
+	layout["manual_workloads"] = {{"observer", {{"medical", 3}, {"team_assignment", 3}}}};
+	layout["profiles"][0]["stars"] = 1;
+	auto &human = layout["profiles"][0]["consoles"]["observer"]["human"];
+	human.erase(std::find(human.begin(), human.end(), Json("medical")));
+	layout["profiles"][0]["consoles"]["observer"]["ai"] = {"medical"};
+	const auto catalog = load(source);
+	auto changed = source;
+	changed["entities"][0]["personnel"]["officers"][0]["condition"] = "severe";
+	World first, second;
+	first.load(catalog, "test.map", {{"crew", "test.away"}});
+	second.load(load(changed), "test.map", {{"crew", "test.away"}});
+	claim(first);
+	claim(second);
+	ticks(first, 20);
+	ticks(second, 20);
+	require(first.observe(102)->gameplay.at("teams") == second.observe(102)->gameplay.at("teams"),
+	        "Undisclosed remote patient severity cannot change team evidence or assignment");
+	require(officer(first, 2, 0)["condition"] == "minor" && officer(second, 2, 0)["condition"] == "severe",
+	        "Medical teams do not search unknown remote patients");
+	auto reported = source;
+	reported["entities"][0]["personnel"]["officers"][1]["condition"] = "minor";
+	reported["entities"][0]["personnel"]["officers"][1]["compartment"] = "bridge";
+	const auto reported_catalog = load(reported);
+	World known;
+	known.load(reported_catalog, "test.map", {{"crew", "test.away"}});
+	claim(known);
+	ticks(known, 3);
+	World resumed;
+	resumed.restore(reported_catalog, known.save());
+	claim(resumed);
+	ticks(known, 100);
+	ticks(resumed, 100);
+	require(known.save() == resumed.save(), "Medical assignment and local work resume deterministically");
+	require(officer(known, 2, 1)["condition"] == "healthy" && officer(known, 2, 0)["condition"] == "healthy",
+	        "A scoped department report leads to arrival and full local patient discovery");
+	const auto state = known.save();
+	auto copy = state;
+	const auto &team = saved_body(copy, 2)["combat"]["systems"]["medical"];
+	require(team.at("location") == 1 && team.at("travel") == 0,
+	        "Medical team returns home after known work is exhausted");
 }
 void assisted_team_destinations(bool widgets = false)
 {
@@ -595,6 +655,15 @@ void clinical_execution_regressions(Json &trace)
 		away.restore(catalog, ready);
 		claim(away);
 		deploy_clinical_party(away);
+		require(officer(away, 1, 0)["treatment"] == 0,
+		        "Deployed care cannot discover remote patients before an explicit assignment");
+		const auto destination = away_order(away, "care", "medical/workshop", 102, "medical");
+		const auto remote_care = network::read_observation(network::observation_json(*away.observe(102)), catalog);
+		require(eligible_console_command(remote_care, Json::object(), Json::object(), destination).has_value(),
+		        "Remote Medical receives the scoped local report and admitted destination choices");
+		require(!fixture_native_submit(away, 101, destination), "Dispatch cannot borrow Medical destination authority");
+		require(fixture_native_submit(away, 102, destination), "Medical owner admits an explicit deployed destination");
+		away.tick();
 		auto travelling = away.save();
 		const auto &travel_care = travelling["away_missions"][0]["care"]["medical"];
 		require(travel_care["travel"] > 0 && travel_care["activity"] == "treat" &&
@@ -904,6 +973,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		medical_evidence_isolation();
 		assisted_team_destinations(true);
 		team_effect_actions();
 		finite_clinical_jobs();
@@ -1170,6 +1240,8 @@ int main(int argc, char **argv)
 		World expert;
 		expert.load(expert_catalog, "test.map", {{"crew", "test.away"}});
 		claim(expert);
+		require(fixture_native_submit(expert, 102, command(expert, "order", "treat/bridge")),
+		        "Assign expert clinical team to its known patient");
 		ticks(expert, 12);
 		require(officer(expert, 2, 0)["condition"] == "healthy", "attached medical officer improves treatment rate");
 		// Optional clinical deployment cannot substitute for the required repair capability.

@@ -205,7 +205,8 @@ void AwayRuntime::restore(const Json &rows, const AwayRestoreContext &context)
 			const auto *order = medical_order(observation.physical.ship(ship).team(team), care.order);
 			const auto &pd = observation.physical.ship(d.target).layout().personnel;
 			if (!order || order->target != "patients" || care.location < 0 ||
-			    care.location >= static_cast<std::int64_t>(pd.compartments.size()) || care.travel < 0 ||
+			    care.location >= static_cast<std::int64_t>(pd.compartments.size()) || care.destination < -1 ||
+			    care.destination >= static_cast<std::int64_t>(pd.compartments.size()) || care.travel < 0 ||
 			    (care.travel > 0) != (care.edge_to >= 0))
 				throw std::runtime_error("Invalid away care location/order");
 			if (care.travel)

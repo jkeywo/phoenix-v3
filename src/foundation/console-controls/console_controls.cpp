@@ -203,6 +203,17 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 	for (const auto &m : view.gameplay.value("away_missions", Json::array()))
 		if (m.at("id") == c.system && m.at("revision") == c.value)
 		{
+			if (c.action == "away.care")
+			{
+				if (m.at("phase") != "deployed")
+					return false;
+				for (const auto &care : m.value("care", Json::array()))
+					if (care.at("controller") == c.controller && owns(m, care.at("team")))
+						for (const auto &compartment : care.at("compartments"))
+							if (c.text == care.at("team").get<std::string>() + "/" + compartment.get<std::string>())
+								return true;
+				return false;
+			}
 			if (c.action == "away.quantity")
 			{
 				if (!m.contains("supply") || !m.at("dispatch").get<bool>() ||
