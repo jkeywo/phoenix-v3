@@ -84,6 +84,7 @@ Json assisted_docking_source()
 }
 
 #include "../support/autonomous_away_cases.hpp"
+#include "../support/cloak_transport_cases.hpp"
 void assisted_docking_mission()
 {
 	auto source = assisted_docking_source();
@@ -264,6 +265,7 @@ int main(int argc, char **argv)
 	{
 		assisted_docking_mission();
 		autonomous_away_cases();
+		cloak_transport_cases();
 		away_effect_actions();
 		away_priority_cases();
 		away_medical_cases();

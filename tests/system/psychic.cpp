@@ -659,10 +659,46 @@ Json strain_contract()
 }
 
 } // namespace
+void weapon_breaks_cloak()
+{
+	auto source = fixture();
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, 101, 1, "choir", "cloak-enabled", 1);
+	ticks(world, 4);
+	const auto emission = [&]()
+	{
+		return world.observe(101)->gameplay.at("psychic").at("choirs")[0].at("emission").get<int>();
+	};
+	require(emission() < 1000 &&
+	            world.observe(101)->gameplay.at("psychic").at("choirs")[0].at("seats")[0].at("work") > 0,
+	        "quiet funded cloak retains concealment");
+	command(world, 101, 1, "gun", "target", 2);
+	bool fired = false;
+	for (int i = 0; i < 30 && !fired; ++i)
+	{
+		world.tick();
+		fired = !world.save().at("psychic").at("emissions").empty();
+	}
+	require(fired && emission() == 1000, "actual weapon fire fully disrupts cloak");
+	command(world, 101, 1, "gun", "target", 0);
+	ticks(world, 1);
+	World resumed;
+	resumed.restore(catalog, world.save());
+	ticks(world, 1);
+	ticks(resumed, 1);
+	require(world.save() == resumed.save() && emission() == 1000,
+	        "firing disruption persists through exact continuation");
+	ticks(world, 21);
+	require(emission() < 1000, "quiet cloak returns after the existing weapon emission interval");
+}
 int main(int argc, char **argv)
 {
 	try
 	{
+		weapon_breaks_cloak();
 		Json strain_trace;
 		try
 		{
@@ -1041,6 +1077,7 @@ int main(int argc, char **argv)
 		require(clean.at("psychic") == own->gameplay.at("psychic"), "psychic board survives permitted projection");
 		const auto wire = network::observation_json(*w.observe(102));
 		const auto remote = network::read_observation(wire, catalog);
+
 		require(remote.gameplay.at("sensors") == w.observe(102)->gameplay.at("sensors"),
 		        "ghost evidence survives network allowlists");
 		{

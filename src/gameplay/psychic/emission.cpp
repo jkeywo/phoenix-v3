@@ -18,6 +18,10 @@ namespace phoenix
 std::int64_t native_psychic_emission(flecs::entity entity, EntityId ship, bool unavailable, bool recent_weapon,
                                      const ConversationRuntime &conversations, std::uint64_t tick)
 {
+	// Actual weapon work breaks concealment for the existing emission interval;
+	// a requested or unfunded shot does not enter that memory.
+	if (recent_weapon)
+		return 1000;
 	std::int64_t result = 0;
 	for (auto child : entity.get<EquipmentIndex>().values)
 	{
@@ -54,8 +58,6 @@ std::int64_t native_psychic_emission(flecs::entity entity, EntityId ship, bool u
 				result += funded / 4;
 		}
 	}
-	if (recent_weapon)
-		result += 500;
 	for (const auto &[id, c] : conversations.conversations)
 		for (const auto &m : c.messages)
 			if (m.sender == "ship:" + std::to_string(ship) && m.sent + 20 >= tick)

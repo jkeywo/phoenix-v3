@@ -15,6 +15,21 @@ auto Runtime::emission(EntityId ship) const -> std::int64_t
 {
 	const auto tick = ecs.get<Clock>().tick;
 	const auto entity = entities.at(ship);
+	// Physical contact exposes both ends of a dock, including mating and
+	// separation. A distant assisted approach is still ordinary free flight.
+	for (const auto &[id, other] : dock_connections())
+	{
+		const auto &connection = other.get<DockConnection>();
+		if (connection.phase != "approach" && (id == ship || connection.parent == ship))
+			return 1000;
+	}
+	for (std::size_t i = 0; i < away_operations.definitions().size(); ++i)
+		if (away_ship(away_operations.definitions()[i]) == ship)
+		{
+			const auto phase = away_operations.missions()[i].phase;
+			if (phase == AwayPhase::Outbound || phase == AwayPhase::Deployed || phase == AwayPhase::Inbound)
+				return 1000;
+		}
 	return native_psychic_emission(entity, ship, combat_dead(entity), weapon_emissions.recent(ship, tick),
 	                               conversations, tick);
 }
