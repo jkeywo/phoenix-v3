@@ -195,10 +195,12 @@ auto Runtime::controller_observations(EntityId id, const ConsoleControllerRuntim
 	const auto fallback_board = projected_board || decision_frame.knowledge().contains(address)
 	                                ? std::optional<GameplayKnowledgeProjection>{}
 	                                : knowledge.project(address);
-	const auto &board = projected_board  ? *projected_board
-	                    : fallback_board ? *fallback_board
-	                                     : decision_frame.knowledge().at(address);
+	const auto &console_board = projected_board  ? *projected_board
+	                            : fallback_board ? *fallback_board
+	                                             : decision_frame.knowledge().at(address);
 	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
+	const auto private_board = knowledge.restrict_projection(console_board, knowledge.controller_readers(recipient));
+	const auto &board = private_board ? *private_board : console_board;
 	const auto fallback_inbox = decision_frame.inboxes().contains(recipient)
 	                                ? std::optional<std::vector<CoordinationDelivery>>{}
 	                                : knowledge.peek_controller(recipient);

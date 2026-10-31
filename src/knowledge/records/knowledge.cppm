@@ -8,6 +8,7 @@ module;
 #include <set>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -109,7 +110,9 @@ struct KnowledgeRecord
 	KnowledgeScope scope = KnowledgeScope::Console;
 	KnowledgeRecordInput value;
 	KnowledgeTick received_tick = 0;
-	KnowledgeId publication = 0; // Independent sharing stream; source provenance is preserved.
+	KnowledgeId publication = 0;     // Independent sharing stream; source provenance is preserved.
+	KnowledgeId recipient_actor = 0; // Zero is Console/ship evidence; otherwise an addressed actor receipt.
+	KnowledgeTick expires_tick = 0;
 };
 struct KnowledgePublication
 {
@@ -185,9 +188,10 @@ public:
 	void set_human_control(KnowledgeId console, bool human);
 	void set_system_human_control(KnowledgeId system, bool human);
 	// Returns false for an older/duplicate observation; invalid permissions throw.
-	bool write_console(KnowledgeId console, KnowledgeRecordInput input, KnowledgeTick tick);
+	bool write_console(KnowledgeId console, KnowledgeRecordInput input, KnowledgeTick tick,
+	                   KnowledgeId recipient_actor = 0, KnowledgeTick expires_tick = 0);
 	// Explicit scenario/objective publisher; the caller supplies the permitted record.
-	bool write_ship(KnowledgeId ship, KnowledgeRecordInput input, KnowledgeTick tick);
+	bool write_ship(KnowledgeId ship, KnowledgeRecordInput input, KnowledgeTick tick, KnowledgeTick expires_tick = 0);
 	// execute=false validates availability without mutation and returns zero.
 	KnowledgeId publish(KnowledgeId console, KnowledgeKey schema, KnowledgeId subject, std::vector<KnowledgeKey> fields,
 	                    bool live, KnowledgeTick tick, bool execute = true);
@@ -226,7 +230,7 @@ private:
 	std::map<KnowledgeId, bool> system_human_;
 	std::map<KnowledgeId, KnowledgePrivateMemory> memory_;
 	std::vector<KnowledgeRecord> records_;
-	std::map<std::pair<unsigned, KnowledgeId>, std::set<KnowledgeId>> historical_records_;
+	std::map<std::tuple<unsigned, KnowledgeId, KnowledgeId>, std::set<KnowledgeId>> historical_records_;
 	mutable std::map<KnowledgeId, std::map<KnowledgeKey, std::pair<std::string, std::shared_ptr<const Json>>>>
 	    decoded_fields_;
 	std::vector<KnowledgePublication> publications_;
@@ -238,7 +242,7 @@ private:
 	void validate(const KnowledgeRecordInput &input, bool publication = false, bool subset = false) const;
 	bool readable(KnowledgeId console, KnowledgeKey schema) const;
 	bool write(KnowledgeScope scope, KnowledgeId owner, KnowledgeRecordInput input, KnowledgeTick tick,
-	           KnowledgeId publication = 0);
+	           KnowledgeId publication = 0, KnowledgeId recipient_actor = 0, KnowledgeTick expires_tick = 0);
 	std::vector<KnowledgeId> resolve_recipients(KnowledgeId ship, const MessageDestination &destination,
 	                                            KnowledgeKey schema) const;
 	void trim();

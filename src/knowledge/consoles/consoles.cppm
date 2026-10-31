@@ -89,9 +89,13 @@ public:
 	                   bool report_initial = true);
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	GameplayKnowledgeProjection project(const ConsoleAddress &address, bool public_only = false) const;
+	std::vector<KnowledgeId> controller_readers(const ControllerAddress &address) const;
+	std::optional<GameplayKnowledgeProjection> restrict_projection(const GameplayKnowledgeProjection &projection,
+	                                                               const std::vector<KnowledgeId> &readers) const;
 	std::vector<const KnowledgeRecord *> sensor_records(const ConsoleAddress &address) const;
 	std::shared_ptr<const Json> decoded_field(const KnowledgeRecord &record, KnowledgeKey field) const;
-	Json project_json(const ConsoleAddress &address, bool public_only = false) const;
+	Json project_json(const ConsoleAddress &address, bool public_only = false,
+	                  std::optional<std::vector<KnowledgeId>> readers = {}) const;
 	Json public_board(EntityId entity) const;
 	Json save() const;
 	// Call configure first. Rebuilds named identities, verifies authored ownership,
@@ -119,7 +123,8 @@ private:
 	bool readable(const GameplayKnowledgeConsoleDefinition &console, KnowledgeKey schema) const;
 	void admit_sender(const ConsoleAddress &source, KnowledgeId sender, KnowledgeKey producer, ControlOrigin origin,
 	                  bool known_record = false) const;
-	bool known_evidence(const ConsoleAddress &source, const KnowledgeRecordInput &value) const;
+	bool known_evidence(const ConsoleAddress &source, const KnowledgeRecordInput &value,
+	                    const std::optional<std::vector<KnowledgeId>> &readers) const;
 	void install_ship(EntityId ship, GameplayKnowledgeShipBinding binding, KnowledgeTick tick, bool create_feeds);
 	KnowledgeId binding_id();
 };

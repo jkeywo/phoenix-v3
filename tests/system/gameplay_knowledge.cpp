@@ -16,6 +16,7 @@
 
 import phoenix.console;
 import phoenix.simulation;
+import phoenix.knowledge.consoles;
 
 using namespace phoenix;
 namespace
@@ -1046,6 +1047,155 @@ void current_record_streams()
 	require(latest_field(projection(resumed, 102), "records", "support-private", "enabled") == false,
 	        "restored withdrawal suppresses older detail from that source without discarding retained history");
 }
+void addressed_record_isolation()
+{
+	auto definitions = fixture();
+	definitions["knowledge"]["schemas"][1]["producers"] = {"pilot", "support"};
+	definitions["knowledge"]["schemas"][1]["ship_publishable"] = true;
+	definitions["knowledge"]["schemas"][1]["fields"][0]["publishable"] = true;
+	auto &ship = definitions["entities"][0];
+	ship["feeds"].push_back({{"source_console", "helm"},
+	                         {"target_console", "recorder"},
+	                         {"schema", "request"},
+	                         {"subject", 0},
+	                         {"fields", {"amount"}}});
+	ship["publications"].push_back({{"id", "private-request"},
+	                                {"source_console", "helm"},
+	                                {"schema", "request"},
+	                                {"subject", 0},
+	                                {"fields", {"amount"}},
+	                                {"live", false}});
+	ship["control_layout"]["profiles"].push_back(
+	    {{"id", "automatic"},
+	     {"consoles", {{"helm", {{"ai", {"engine", "steering"}}}}, {"support", {{"human", {"radar"}}}}}}});
+	for (const auto *owner : {"engine", "steering"})
+	{
+		const auto channel = std::string(owner) == "engine" ? "speed_mm_s" : "heading_mdeg";
+		const auto tree = std::string("test.private-") + owner;
+		definitions["trees"].push_back(
+		    {{"id", tree},
+		     {"context", "controller"},
+		     {"initial", "read"},
+		     {"record_bindings", Json::array({{{"name", "known.amount"},
+		                                       {"scope", "console"},
+		                                       {"schema", "request"},
+		                                       {"field", "amount"},
+		                                       {"subject", "self"}}})},
+		     {"command_bindings", Json::array({{{"channel", channel}}})},
+		     {"states",
+		      Json::array(
+		          {{{"id", "read"},
+		            {"running", Json::array({{{"action", std::string("write.") + channel}, {"arguments", {0}}},
+		                                     {{"action", std::string("write.") + channel},
+		                                      {"arguments", Json::array({{{"observation", "known.amount"}}})}}})}}})}});
+		use_tree(definitions, owner, tree.c_str());
+	}
+	auto message = definitions["messages"][1];
+	message["id"] = "test.private";
+	message["destination"] = {{"kind", "controller"}, {"console", "helm"}, {"id", "engine"}};
+	message["delay_ticks"] = 1;
+	message["expires_after_ticks"] = 8;
+	message["fields"] = {{"amount", 321}};
+	definitions["messages"].push_back(message);
+	ship["message_templates"].push_back("test.private");
+	message["id"] = "test.steering-private";
+	message["destination"] = {{"kind", "controller"}, {"console", "helm"}, {"id", "steering"}};
+	message["fields"] = {{"amount", 654}};
+	definitions["messages"].push_back(message);
+	ship["message_templates"].push_back("test.steering-private");
+	const auto catalog = load(definitions);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.prepare_console_profile({1, "helm"}, "automatic"), "delegate two same-Console readers");
+	claim_all(world);
+	const auto values = [](const World &value)
+	{
+		const auto saved = value.save();
+		const auto &rows = saved.at("bodies")[0].at("console_controllers").at("controllers");
+		return std::pair{rows[0].at("commands")[0].at("value").get<int>(),
+		                 rows[1].at("commands")[0].at("value").get<int>()};
+	};
+	require(submit(world, 102, {1, "message.test.private", 0, "radar"}), "send a Controller-addressed receipt");
+	world.tick();
+	world.tick();
+	world.tick();
+	require(values(world) == std::pair{321, 0}, "private receipt changes only its addressed Controller's decision");
+	GameplayKnowledge evidence;
+	evidence.configure(catalog);
+	evidence.restore(world.save().at("knowledge"));
+	const auto engine = evidence.project_json({1, "helm"}, false, evidence.controller_readers({1, "helm", "engine"}));
+	const auto steering =
+	    evidence.project_json({1, "helm"}, false, evidence.controller_readers({1, "helm", "steering"}));
+	require(records(engine, "records", "request").size() == 1 && records(steering, "records", "request").empty() &&
+	            engine.at("messages").size() == 1 && steering.at("messages").empty(),
+	        "provider evidence excludes another Controller's records and message history");
+	const auto receipt = records(engine, "records", "request")[0];
+	require(receipt.at("recipient_actor") != 0 && receipt.at("expires_tick") > receipt.at("received_tick"),
+	        "retained receipt preserves its actor and expiry provenance");
+	require(records(projection(world, 103), "records", "request").empty(),
+	        "an existing Console feed does not silently distribute a private receipt");
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    evidence.activate_publication({1, "helm"}, "private-request", world.ticks());
+	    },
+	    "Console publication cannot promote another actor's private receipt");
+	evidence.set_controller_control({1, "helm", "engine"}, false, false);
+	evidence.set_controller_control({1, "helm", "steering"}, false, false);
+	CoordinationInput forward;
+	forward.origin = ControlOrigin::AI;
+	forward.destination = {MessageDestinationKind::Console, evidence.console_id({1, "support"})};
+	for (const auto &record : evidence.project({1, "helm"}).records)
+		if (record.value.schema == evidence.definition().schema("request"))
+			forward.payload = record.value;
+	forward.sender_system = evidence.controller_id({1, "helm", "steering"});
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    evidence.admit_message({1, "helm"}, forward, world.ticks(), false);
+	    },
+	    "another Controller cannot forward guessed private evidence");
+	forward.sender_system = evidence.controller_id({1, "helm", "engine"});
+	require(evidence.admit_message({1, "helm"}, forward, world.ticks()) != 0,
+	        "the authorised recipient can explicitly forward its received evidence");
+	require(evidence.pending_messages().back().value.expires_tick == receipt.at("expires_tick"),
+	        "forwarding cannot renew the lifetime of received evidence");
+	const auto expired = receipt.at("expires_tick").get<KnowledgeTick>();
+	evidence.tick(expired);
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    evidence.admit_message({1, "helm"}, forward, expired, false);
+	    },
+	    "expired private evidence cannot be reintroduced through a fresh message");
+	const auto before = world.save();
+	auto invalid = before;
+	for (auto &record : invalid["knowledge"]["runtime"]["records"])
+		if (record.at("recipient_actor") != 0)
+			record["recipient_actor"] = evidence.controller_id({2, "helm", "engine"});
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    world.restore(catalog, invalid);
+	    },
+	    "checkpoint cannot move private receipt authority to another ship");
+	require(world.save() == before, "invalid private evidence restore preserves the running session");
+	require(submit(world, 102, {1, "message.test.steering-private", 0, "radar"}),
+	        "address the other Controller explicitly");
+	for (int i = 0; i < 3; ++i)
+		world.tick();
+	require(values(world) == std::pair{321, 654},
+	        "the other Controller changes only when it receives its own addressed evidence");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 12; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(values(world) == std::pair{0, 0} && world.save() == resumed.save(),
+	        "expired receipts cannot drive decisions and private evidence resumes deterministically");
+}
 void reject_saved(const Catalog &catalog, const Json &state, const char *contract)
 {
 	World target;
@@ -1181,6 +1331,7 @@ int main()
 		authored_officer_reporting();
 		authorized_message_producers();
 		current_record_streams();
+		addressed_record_isolation();
 		continuation_roster_validation(catalog);
 		std::cout << "Gameplay knowledge integration passed\n";
 		return 0;

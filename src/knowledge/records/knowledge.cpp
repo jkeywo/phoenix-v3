@@ -269,16 +269,17 @@ bool KnowledgeRuntime::readable(KnowledgeId console, KnowledgeKey key) const
 	return false;
 }
 bool KnowledgeRuntime::write(KnowledgeScope scope, KnowledgeId owner, KnowledgeRecordInput input, KnowledgeTick tick,
-                             KnowledgeId publication)
+                             KnowledgeId publication, KnowledgeId recipient_actor, KnowledgeTick expires_tick)
 {
 	require(tick >= current_tick_, "cannot write evidence in the past");
 	require(input.provenance.observed_tick <= tick, "observation is from the future");
+	require(!expires_tick || expires_tick > tick, "cannot write expired evidence");
 	current_tick_ = tick;
 	KnowledgeId superseded = 0;
 	for (auto it = records_.rbegin(); it != records_.rend(); ++it)
 		if (it->scope == scope && it->owner == owner && it->value.schema == input.schema &&
 		    it->value.subject == input.subject && it->value.provenance.source == input.provenance.source &&
-		    it->publication == publication)
+		    it->publication == publication && it->recipient_actor == recipient_actor)
 		{
 			const auto &old = it->value.provenance;
 			if (publication != 0 && std::pair{input.provenance.observed_tick, input.provenance.revision} ==
@@ -302,16 +303,22 @@ bool KnowledgeRuntime::write(KnowledgeScope scope, KnowledgeId owner, KnowledgeR
 			break;
 		}
 	require(next_id_ < std::numeric_limits<KnowledgeId>::max(), "record identity exhausted");
-	records_.push_back({next_id_++, owner, scope, std::move(input), tick, publication});
+	records_.push_back({next_id_++, owner, scope, std::move(input), tick, publication, recipient_actor, expires_tick});
 	trim_record_history(superseded);
 	return true;
 }
-bool KnowledgeRuntime::write_console(KnowledgeId console, KnowledgeRecordInput input, KnowledgeTick tick)
+bool KnowledgeRuntime::write_console(KnowledgeId console, KnowledgeRecordInput input, KnowledgeTick tick,
+                                     KnowledgeId recipient_actor, KnowledgeTick expires_tick)
 {
 	validate(input);
 	require(readable(console, input.schema), "record is not permitted on recipient Console");
-	if (!write(KnowledgeScope::Console, console, std::move(input), tick))
+	require(!recipient_actor || (systems_.contains(recipient_actor) && systems_.at(recipient_actor) == console),
+	        "private receipt actor is outside its owning Console");
+	require(!expires_tick || expires_tick > tick, "cannot write an expired receipt");
+	if (!write(KnowledgeScope::Console, console, std::move(input), tick, 0, recipient_actor, expires_tick))
 		return false;
+	if (recipient_actor)
+		return true; // Addressed evidence is not an implicit Console publication/feed source.
 	const auto latest = records_.back();
 	for (const auto &p : publications_)
 		if (p.active && p.live && p.source_console == console && p.schema == latest.value.schema &&
@@ -325,18 +332,19 @@ bool KnowledgeRuntime::write_console(KnowledgeId console, KnowledgeRecordInput i
 			              });
 			validate(copy, true);
 			if (p.target_console == 0)
-				write(KnowledgeScope::Ship, consoles_.at(console).ship, std::move(copy), tick, p.id);
+				write(KnowledgeScope::Ship, consoles_.at(console).ship, std::move(copy), tick, p.id, 0, expires_tick);
 			else if (readable(p.target_console, copy.schema))
-				write(KnowledgeScope::Console, p.target_console, std::move(copy), tick, p.id);
+				write(KnowledgeScope::Console, p.target_console, std::move(copy), tick, p.id, 0, expires_tick);
 		}
 	return true;
 }
-bool KnowledgeRuntime::write_ship(KnowledgeId ship, KnowledgeRecordInput input, KnowledgeTick tick)
+bool KnowledgeRuntime::write_ship(KnowledgeId ship, KnowledgeRecordInput input, KnowledgeTick tick,
+                                  KnowledgeTick expires_tick)
 {
 	require(ship != 0, "invalid ship");
 	require(schema(input.schema).ship_publishable, "schema forbids shipwide publication");
 	validate(input, true);
-	return write(KnowledgeScope::Ship, ship, std::move(input), tick);
+	return write(KnowledgeScope::Ship, ship, std::move(input), tick, 0, 0, expires_tick);
 }
 KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, KnowledgeId subject,
                                       std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick, bool execute)
@@ -353,16 +361,19 @@ KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, Kno
 	const bool found = std::any_of(records_.begin(), records_.end(),
 	                               [&](const auto &record)
 	                               {
-		                               return record.scope == KnowledgeScope::Console && record.owner == console &&
-		                                      record.value.schema == key && record.value.subject == subject;
+		                               return record.scope == KnowledgeScope::Console && !record.recipient_actor &&
+		                                      record.owner == console && record.value.schema == key &&
+		                                      record.value.subject == subject &&
+		                                      (!record.expires_tick || tick < record.expires_tick);
 	                               });
 	require(found || live, "no permitted source record to publish");
 	require(next_id_ < std::numeric_limits<KnowledgeId>::max(), "publication identity exhausted");
 	if (!execute)
 	{
 		for (const auto &record : records_)
-			if (record.scope == KnowledgeScope::Console && record.owner == console && record.value.schema == key &&
-			    record.value.subject == subject)
+			if (record.scope == KnowledgeScope::Console && !record.recipient_actor && record.owner == console &&
+			    record.value.schema == key && record.value.subject == subject &&
+			    (!record.expires_tick || tick < record.expires_tick))
 			{
 				auto copy = record.value;
 				std::erase_if(copy.fields,
@@ -378,8 +389,9 @@ KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, Kno
 	const auto id = next_id_++;
 	publications_.push_back({id, console, subject, key, fields, live, true});
 	for (const auto &record : source)
-		if (record.scope == KnowledgeScope::Console && record.owner == console && record.value.schema == key &&
-		    record.value.subject == subject)
+		if (record.scope == KnowledgeScope::Console && !record.recipient_actor && record.owner == console &&
+		    record.value.schema == key && record.value.subject == subject &&
+		    (!record.expires_tick || tick < record.expires_tick))
 		{
 			auto copy = record.value;
 			std::erase_if(copy.fields,
@@ -388,7 +400,7 @@ KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, Kno
 				              return !contains(fields, field.first);
 			              });
 			validate(copy, true);
-			write(KnowledgeScope::Ship, consoles_.at(console).ship, std::move(copy), tick, id);
+			write(KnowledgeScope::Ship, consoles_.at(console).ship, std::move(copy), tick, id, 0, record.expires_tick);
 		}
 	current_tick_ = tick;
 	return id;
@@ -412,8 +424,9 @@ KnowledgeId KnowledgeRuntime::feed(KnowledgeId source_console, KnowledgeId targe
 	// A feed copies only dated permitted evidence; registration creates no world observation.
 	const auto source = records_;
 	for (const auto &record : source)
-		if (record.scope == KnowledgeScope::Console && record.owner == source_console && record.value.schema == key &&
-		    record.value.subject == subject)
+		if (record.scope == KnowledgeScope::Console && !record.recipient_actor && record.owner == source_console &&
+		    record.value.schema == key && record.value.subject == subject &&
+		    (!record.expires_tick || tick < record.expires_tick))
 		{
 			auto copy = record.value;
 			std::erase_if(copy.fields,
@@ -421,7 +434,7 @@ KnowledgeId KnowledgeRuntime::feed(KnowledgeId source_console, KnowledgeId targe
 			              {
 				              return !contains(publications_.back().fields, field.first);
 			              });
-			write(KnowledgeScope::Console, target_console, std::move(copy), tick, id);
+			write(KnowledgeScope::Console, target_console, std::move(copy), tick, id, 0, record.expires_tick);
 		}
 	current_tick_ = tick;
 	return id;
@@ -477,8 +490,9 @@ std::shared_ptr<const Json> KnowledgeRuntime::decoded_field(const KnowledgeRecor
 bool KnowledgeRuntime::stale(const KnowledgeRecord &record, KnowledgeTick now) const
 {
 	const auto duration = schema(record.value.schema).stale_after;
-	return duration != 0 && now > record.value.provenance.observed_tick &&
-	       now - record.value.provenance.observed_tick > duration;
+	return (record.expires_tick && now >= record.expires_tick) ||
+	       (duration != 0 && now > record.value.provenance.observed_tick &&
+	        now - record.value.provenance.observed_tick > duration);
 }
 KnowledgePrivateMemory &KnowledgeRuntime::private_memory(KnowledgeId ai)
 {
@@ -606,7 +620,7 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 		std::map<KnowledgeId, bool> targets;
 		const bool publish = public_message_candidate(message.value);
 		if (publish)
-			write_ship(message.sender_ship, message.value.payload, tick);
+			write_ship(message.sender_ship, message.value.payload, tick, message.value.expires_tick);
 		for (const auto console : message.recipients)
 			targets.emplace(console, false);
 		if (publish)
@@ -624,7 +638,12 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			if (!publish && !private_reader)
 				continue;
 			if (!offer_only && private_reader)
-				write_console(console, message.value.payload, tick);
+				write_console(console, message.value.payload, tick,
+				              message.value.destination.kind == MessageDestinationKind::Controller ||
+				                      message.value.destination.kind == MessageDestinationKind::System
+				                  ? message.value.destination.id
+				                  : 0,
+				              message.value.expires_tick);
 			const auto &v = message.value;
 			const auto addressed_human = (v.destination.kind == MessageDestinationKind::System ||
 			                              v.destination.kind == MessageDestinationKind::Controller)
@@ -743,7 +762,7 @@ void KnowledgeRuntime::trim_record_history(KnowledgeId superseded)
 	if (!superseded)
 		return;
 	const auto &latest = records_.back();
-	auto &history = historical_records_[{static_cast<unsigned>(latest.scope), latest.owner}];
+	auto &history = historical_records_[{static_cast<unsigned>(latest.scope), latest.owner, latest.recipient_actor}];
 	history.insert(superseded);
 	if (history.size() <= schema_.history_limit)
 		return;
@@ -760,8 +779,9 @@ void KnowledgeRuntime::rebuild_record_history()
 {
 	historical_records_.clear();
 	// Retain a bounded history per board and Console; this is storage policy, never send bandwidth.
-	std::map<std::pair<unsigned, KnowledgeId>, std::size_t> counts;
-	using RecordKey = std::tuple<unsigned, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId>;
+	std::map<std::tuple<unsigned, KnowledgeId, KnowledgeId>, std::size_t> counts;
+	using RecordKey =
+	    std::tuple<unsigned, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>;
 	std::set<RecordKey> current;
 	for (std::size_t i = records_.size(); i > 0; --i)
 	{
@@ -771,16 +791,16 @@ void KnowledgeRuntime::rebuild_record_history()
 		// history eviction could make an old report authoritative on its next arrival.
 		if (current
 		        .insert({scope, record.owner, record.value.schema, record.value.subject, record.value.provenance.source,
-		                 record.publication})
+		                 record.publication, record.recipient_actor})
 		        .second)
 			continue;
-		if (++counts[{scope, record.owner}] > schema_.history_limit)
+		if (++counts[{scope, record.owner, record.recipient_actor}] > schema_.history_limit)
 		{
 			decoded_fields_.erase(record.id);
 			records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(i - 1));
 		}
 		else
-			historical_records_[{scope, record.owner}].insert(record.id);
+			historical_records_[{scope, record.owner, record.recipient_actor}].insert(record.id);
 	}
 }
 void KnowledgeRuntime::trim()
@@ -801,7 +821,7 @@ void KnowledgeRuntime::trim()
 
 Json KnowledgeRuntime::save() const
 {
-	Json j{{"version", 4},          {"contract", contract_signature(schema_)},
+	Json j{{"version", 5},          {"contract", contract_signature(schema_)},
 	       {"next_id", next_id_},   {"next_delivery", next_delivery_},
 	       {"tick", current_tick_}, {"inactive_requests", inactive_requests_}};
 	for (const auto &[id, console] : consoles_)
@@ -831,6 +851,8 @@ Json KnowledgeRuntime::save() const
 		                        {"scope", static_cast<unsigned>(record.scope)},
 		                        {"received", record.received_tick},
 		                        {"publication", record.publication},
+		                        {"recipient_actor", record.recipient_actor},
+		                        {"expires", record.expires_tick},
 		                        {"value", encode_input(record.value)}});
 	for (const auto &p : publications_)
 		j["publications"].push_back({{"id", p.id},
@@ -863,7 +885,7 @@ Json KnowledgeRuntime::save() const
 }
 void KnowledgeRuntime::restore(const Json &j)
 {
-	require(j.at("version") == 4, "unsupported messaging save version; begin a new session");
+	require(j.at("version") == 5, "unsupported messaging save version; begin a new session");
 	auto loaded_contract = contract_signature(schema_);
 	auto saved_contract = j.at("contract");
 	if (saved_contract.is_object() && saved_contract.contains("schemas") && saved_contract.at("schemas").is_array() &&
@@ -900,7 +922,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		require(!restored.systems_.contains(id), "duplicate saved System");
 		if (v.value("controller", false))
 		{
-			require(j.at("version") == 4, "Controller identity requires messaging save version 4");
+			require(j.at("version") == 5, "Controller identity requires messaging save version 4");
 			restored.register_controller(id, read_unsigned<KnowledgeId>(v.at("console")), v.at("human").get<bool>());
 		}
 		else
@@ -926,7 +948,8 @@ void KnowledgeRuntime::restore(const Json &j)
 	{
 		require(id > 0 && id < restored.next_id_ && ids.insert(id).second, "invalid or duplicate saved identity");
 	};
-	using RecordKey = std::tuple<unsigned, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId>;
+	using RecordKey =
+	    std::tuple<unsigned, KnowledgeId, KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>;
 	std::map<RecordKey, std::pair<KnowledgeTick, std::uint64_t>> versions;
 	for (const auto &v : j.value("records", Json::array()))
 	{
@@ -935,8 +958,15 @@ void KnowledgeRuntime::restore(const Json &j)
 		                  static_cast<KnowledgeScope>(read_unsigned<unsigned>(v.at("scope"))),
 		                  decode_input(v.at("value")),
 		                  read_unsigned<KnowledgeTick>(v.at("received")),
-		                  read_unsigned<KnowledgeId>(v.at("publication"))};
+		                  read_unsigned<KnowledgeId>(v.at("publication")),
+		                  read_unsigned<KnowledgeId>(v.at("recipient_actor")),
+		                  read_unsigned<KnowledgeTick>(v.at("expires"))};
 		check_id(r.id);
+		require(!r.recipient_actor ||
+		            (r.scope == KnowledgeScope::Console && restored.systems_.contains(r.recipient_actor) &&
+		             restored.systems_.at(r.recipient_actor) == r.owner && r.publication == 0),
+		        "saved private receipt has an invalid recipient");
+		require(!r.expires_tick || r.expires_tick > r.received_tick, "invalid saved receipt expiry");
 		require(r.scope == KnowledgeScope::Console || r.scope == KnowledgeScope::Ship, "invalid saved record scope");
 		restored.validate(r.value, r.scope == KnowledgeScope::Ship, r.publication != 0);
 		if (r.scope == KnowledgeScope::Ship)
@@ -946,8 +976,8 @@ void KnowledgeRuntime::restore(const Json &j)
 			require(restored.readable(r.owner, r.value.schema), "saved record Console permission mismatch");
 		require(r.value.provenance.observed_tick <= r.received_tick && r.received_tick <= restored.current_tick_,
 		        "saved observation from future");
-		const RecordKey key{static_cast<unsigned>(r.scope), r.owner,      r.value.schema, r.value.subject,
-		                    r.value.provenance.source,      r.publication};
+		const RecordKey key{static_cast<unsigned>(r.scope), r.owner,       r.value.schema,   r.value.subject,
+		                    r.value.provenance.source,      r.publication, r.recipient_actor};
 		const auto version = std::pair{r.value.provenance.observed_tick, r.value.provenance.revision};
 		if (const auto old = versions.find(key); old != versions.end())
 			require(old->second < version, "saved evidence versions are not increasing");

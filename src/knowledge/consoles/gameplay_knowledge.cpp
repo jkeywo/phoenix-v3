@@ -9,6 +9,7 @@ module;
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -31,6 +32,22 @@ Json knowledge_field_json(const KnowledgeValue &value)
 	    },
 	    value);
 }
+template <class Visitor>
+void visit_current_evidence(const std::vector<KnowledgeRecord> &records,
+                            const std::optional<std::vector<KnowledgeId>> &readers, Visitor visitor)
+{
+	std::set<std::tuple<KnowledgeKey, KnowledgeId, KnowledgeId, KnowledgeId, KnowledgeId>> seen;
+	for (auto record = records.rbegin(); record != records.rend(); ++record)
+	{
+		if (record->recipient_actor && readers &&
+		    std::find(readers->begin(), readers->end(), record->recipient_actor) == readers->end())
+			continue;
+		if (seen.emplace(record->value.schema, record->value.subject, record->value.provenance.source,
+		                 record->publication, record->recipient_actor)
+		        .second)
+			visitor(*record);
+	}
+}
 Json knowledge_record_json(const CompiledKnowledge &compiled, const KnowledgeRecord &record)
 {
 	const auto &schema = knowledge_schema(compiled, record.value.schema);
@@ -40,6 +57,8 @@ Json knowledge_record_json(const CompiledKnowledge &compiled, const KnowledgeRec
 	const auto &p = record.value.provenance;
 	return {{"id", record.id},
 	        {"publication", record.publication},
+	        {"recipient_actor", record.recipient_actor},
+	        {"expires_tick", record.expires_tick},
 	        {"schema", schema.name},
 	        {"subject", record.value.subject},
 	        {"fields", fields},
@@ -226,14 +245,16 @@ std::vector<CoordinationDelivery> GameplayKnowledge::peek_controller(const Contr
 	const auto &memory = runtime_.private_memory(id);
 	knowledge_require(memory.console == console_id({address.entity, address.console}), "Controller Console mismatch");
 	auto result = runtime_.message_history(memory.console);
+	const auto readers = controller_readers(address);
 	std::erase_if(result,
 	              [&](const auto &delivery)
 	              {
+		              const auto &destination = delivery.message.value.destination;
 		              return delivery.sequence <= memory.receive_cursor || !delivery.actionable ||
 		                     delivery.offer_only ||
-		                     (delivery.message.value.destination.kind == MessageDestinationKind::Controller &&
-		                      delivery.message.value.destination.id != id) ||
-		                     delivery.message.value.destination.kind == MessageDestinationKind::System;
+		                     ((destination.kind == MessageDestinationKind::Controller ||
+		                       destination.kind == MessageDestinationKind::System) &&
+		                      std::find(readers.begin(), readers.end(), destination.id) == readers.end());
 	              });
 	return result;
 }
@@ -559,11 +580,15 @@ void GameplayKnowledge::admit_sender(const ConsoleAddress &source, KnowledgeId s
 	                      (origin == ControlOrigin::AI && (!human || assisted_controllers_.contains(sender))),
 	                  "sender origin does not hold effective control");
 }
-bool GameplayKnowledge::known_evidence(const ConsoleAddress &source, const KnowledgeRecordInput &value) const
+bool GameplayKnowledge::known_evidence(const ConsoleAddress &source, const KnowledgeRecordInput &value,
+                                       const std::optional<std::vector<KnowledgeId>> &readers) const
 {
 	const auto console = console_id(source);
 	const auto matches = [&](const KnowledgeRecord &record)
 	{
+		if (record.recipient_actor && readers &&
+		    std::find(readers->begin(), readers->end(), record.recipient_actor) == readers->end())
+			return false;
 		const auto &candidate = record.value;
 		const auto &a = candidate.provenance;
 		const auto &b = value.provenance;
@@ -577,13 +602,14 @@ bool GameplayKnowledge::known_evidence(const ConsoleAddress &source, const Knowl
 				return false;
 		return true;
 	};
-	for (const auto &record : runtime_.read_console(console))
-		if (matches(record))
-			return true;
-	for (const auto &record : runtime_.read_ship(console))
-		if (matches(record))
-			return true;
-	return false;
+	bool found = false;
+	const auto visit = [&](const KnowledgeRecord &record)
+	{
+		found |= matches(record);
+	};
+	visit_current_evidence(runtime_.read_console(console), readers, visit);
+	visit_current_evidence(runtime_.read_ship(console), readers, visit);
+	return found;
 }
 KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick,
                                              bool execute)
@@ -602,12 +628,48 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
 	const bool own_intent = value.payload.provenance.source == value.sender_system &&
 	                        value.payload.provenance.kind != EvidenceKind::Fact &&
 	                        knowledge_has(console_definition(source).producers, value.payload.producer);
-	const auto known = !own_intent && known_evidence(source, value.payload);
+	std::optional<std::vector<KnowledgeId>> readers;
+	if (value.origin != ControlOrigin::Human)
+	{
+		readers = std::vector<KnowledgeId>{value.sender_system};
+		for (const auto &[key, actor] : ships_.at(source.ship).controllers)
+			if (actor == value.sender_system)
+				readers = controller_readers({source.ship, source.console, key.substr(key.find('/') + 1)});
+	}
+	const auto known = !own_intent && known_evidence(source, value.payload, readers);
 	admit_sender(source, value.sender_system, value.payload.producer, value.origin, known);
 	knowledge_require(
 	    known || (value.payload.provenance.source == value.sender_system &&
 	              value.payload.provenance.kind != EvidenceKind::Fact),
 	    "new factual messages require permitted observed evidence; new claims/intents name their own source");
+	if (known)
+	{
+		bool valid = false, unbounded = false;
+		KnowledgeTick expiry = 0;
+		const auto preserve_expiry = [&](const KnowledgeRecord &record)
+		{
+			const auto &a = record.value.provenance;
+			const auto &b = value.payload.provenance;
+			if (record.value.schema != value.payload.schema || record.value.producer != value.payload.producer ||
+			    record.value.subject != value.payload.subject || record.value.withdrawn != value.payload.withdrawn ||
+			    a.source != b.source || a.observed_tick != b.observed_tick || a.revision != b.revision ||
+			    a.kind != b.kind || a.uncertainty != b.uncertainty || runtime_.stale(record, tick) ||
+			    (record.recipient_actor && readers &&
+			     std::find(readers->begin(), readers->end(), record.recipient_actor) == readers->end()))
+				return;
+			for (const auto &[key, field] : value.payload.fields)
+				if (!record.value.fields.contains(key) || record.value.fields.at(key) != field)
+					return;
+			valid = true;
+			unbounded |= record.expires_tick == 0;
+			expiry = std::max(expiry, record.expires_tick);
+		};
+		visit_current_evidence(runtime_.read_console(console_id(source)), readers, preserve_expiry);
+		visit_current_evidence(runtime_.read_ship(console_id(source)), readers, preserve_expiry);
+		knowledge_require(valid, "cannot forward expired or stale evidence");
+		if (!unbounded && (!value.expires_tick || value.expires_tick > expiry))
+			value.expires_tick = expiry;
+	}
 	return runtime_.send(std::move(value), tick, execute);
 }
 KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, const std::string &sender,
@@ -752,13 +814,48 @@ GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &add
 	        runtime_.message_history(id),
 	        !public_only && notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
 }
+std::vector<KnowledgeId> GameplayKnowledge::controller_readers(const ControllerAddress &address) const
+{
+	return {controller_id(address)};
+}
+std::optional<GameplayKnowledgeProjection>
+GameplayKnowledge::restrict_projection(const GameplayKnowledgeProjection &projection,
+                                       const std::vector<KnowledgeId> &readers) const
+{
+	const auto private_record = [&](const KnowledgeRecord &record)
+	{
+		return record.recipient_actor &&
+		       std::find(readers.begin(), readers.end(), record.recipient_actor) == readers.end();
+	};
+	const auto private_delivery = [&](const CoordinationDelivery &delivery)
+	{
+		if (delivery.public_copy)
+			return false;
+		if (delivery.offer_only)
+			return true;
+		const auto &destination = delivery.message.value.destination;
+		return (destination.kind == MessageDestinationKind::Controller ||
+		        destination.kind == MessageDestinationKind::System) &&
+		       std::find(readers.begin(), readers.end(), destination.id) == readers.end();
+	};
+	if (std::none_of(projection.records.begin(), projection.records.end(), private_record) &&
+	    std::none_of(projection.messages.begin(), projection.messages.end(), private_delivery) &&
+	    std::none_of(projection.notifications.begin(), projection.notifications.end(), private_delivery))
+		return {};
+	auto result = projection;
+	std::erase_if(result.records, private_record);
+	std::erase_if(result.messages, private_delivery);
+	std::erase_if(result.notifications, private_delivery);
+	return result;
+}
 std::vector<const KnowledgeRecord *> GameplayKnowledge::sensor_records(const ConsoleAddress &address) const
 {
 	const auto id = console_id(address);
 	std::vector<const KnowledgeRecord *> result;
 	for (const bool shared : {false, true})
 		for (const auto *record : runtime_.record_views(id, shared))
-			if (compiled_.schemas.at(record->value.schema - 1).name.starts_with("phoenix.sensor."))
+			if (!record->recipient_actor &&
+			    compiled_.schemas.at(record->value.schema - 1).name.starts_with("phoenix.sensor."))
 				result.push_back(record);
 	return result;
 }
@@ -766,9 +863,12 @@ std::shared_ptr<const Json> GameplayKnowledge::decoded_field(const KnowledgeReco
 {
 	return runtime_.decoded_field(record, field);
 }
-Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_only) const
+Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_only,
+                                     std::optional<std::vector<KnowledgeId>> readers) const
 {
-	const auto projection = project(address, public_only);
+	const auto original = project(address, public_only);
+	const auto restricted = readers ? restrict_projection(original, *readers) : std::nullopt;
+	const auto &projection = restricted ? *restricted : original;
 	Json result{{"console", address.console}, {"ship", address.ship},      {"records", Json::array()},
 	            {"shared", Json::array()},    {"messages", Json::array()}, {"notifications", Json::array()}};
 	for (const auto &record : projection.records)

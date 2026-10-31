@@ -6,6 +6,7 @@ module;
 #include <set>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -318,10 +319,10 @@ void append_controller_observations(const ConsoleControllerRuntime &controller,
 				subject = objective ? objective->value.subject : 0;
 			}
 		}
-		std::set<std::pair<KnowledgeId, KnowledgeId>> seen;
+		std::set<std::tuple<KnowledgeId, KnowledgeId, KnowledgeId>> seen;
 		for (auto record = records.rbegin(); record != records.rend(); ++record)
 			if (record->value.schema == binding.schema && record->value.subject == subject &&
-			    seen.emplace(record->value.provenance.source, record->publication).second)
+			    seen.emplace(record->value.provenance.source, record->publication, record->recipient_actor).second)
 			{
 				if (!evidence[i])
 					evidence[i] = &*record;

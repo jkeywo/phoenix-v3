@@ -234,7 +234,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 37 with per-channel and native-operation
+World and portable session saves use schema 38 with per-channel and native-operation
 responsibilities and Controller continuation. Older saves and obsolete authority
 fields are refused transactionally; begin a new session. Authenticated command
 transport carries Controller, channel, generation, request identity and typed
@@ -271,7 +271,7 @@ acceptance checks.
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves before schema 37 require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves before schema 38 require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
@@ -307,7 +307,11 @@ Controller trees can declare named `objective_scoring` policies. Each policy sup
 
 Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
 
-World and portable sessions require schema 37. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+World and portable sessions require schema 38. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.
+
+Addressed evidence retains its recipient actor and expiry. A Controller reads Console-wide records plus receipts addressed to itself. Another Controller on the same Console does not receive those private records or message history. Human Console history remains available for inspection. Provider evidence uses the same recipient restriction as authored policies. Controllable ships continue to require explicit Controller or Console message destinations; legacy System inboxes do not become Controller broadcasts.
+
+Console publications and feeds do not promote private receipts implicitly. A recipient may explicitly forward permitted evidence through ordinary message admission. Private sensor payloads do not become current Console-wide targeting facts. Record stream identity and bounded historical retention include the recipient, and expired receipts are stale even when their schema has no ordinary age limit. Save/restore preserves these boundaries; earlier continuations require a new session.
 
 ### Medical assignment observations
 

@@ -29,10 +29,10 @@ auto Runtime::model_snapshot(const ControllerAddress &address) -> Json
 	    encounter_owns_controller(address.entity, controller->definition))
 		return nullptr;
 	const auto observed = controller_observations(address.entity, *controller);
-	return build_controller_snapshot(address, ecs.get<Clock>().tick, *controller, observed,
-	                                 knowledge.project_json({address.entity, address.console}),
-	                                 knowledge.controller_id(address),
-	                                 entities.at(address.entity).get<BridgeBlackboard>());
+	return build_controller_snapshot(
+	    address, ecs.get<Clock>().tick, *controller, observed,
+	    knowledge.project_json({address.entity, address.console}, false, knowledge.controller_readers(address)),
+	    knowledge.controller_id(address), entities.at(address.entity).get<BridgeBlackboard>());
 }
 
 auto Runtime::model_fallback(EntityId id, std::size_t index, const std::string &reason) -> void
