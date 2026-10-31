@@ -64270,6 +64270,25 @@
 									"right": true
 								}
 							]
+						},
+						{
+							"target": "standby",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "ne",
+									"right": "free"
+								},
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "ne",
+									"right": "approach"
+								}
+							]
 						}
 					]
 				},
@@ -64316,6 +64335,39 @@
 									},
 									"op": "eq",
 									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "free"
+								}
+							]
+						},
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "eq",
+									"right": "approach"
 								}
 							]
 						}
@@ -71049,14 +71101,17 @@
 			"discrete_energy": 10
 		},
 		{
-			"firing_audio": { "asset": "phoenix-base:assets/audio/pdc_firing.wav", "gain": 0.3 },
+			"firing_audio": {
+				"asset": "phoenix-base:assets/audio/pdc_firing.wav",
+				"gain": 0.3
+			},
 			"id": "base.equipment.combat-pdc.launch",
 			"kind": "directed_mode",
 			"label": "Fire",
 			"operation": "launch",
 			"targeting": ["base.targeting.off", "base.targeting.intercept", "base.targeting.designated"],
 			"fire_ticks": 1,
-			"range_mm": 42500,
+			"range_mm": 120000,
 			"auto_energy_per_second": 180,
 			"discrete_energy": 2
 		},

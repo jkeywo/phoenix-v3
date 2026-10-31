@@ -48,6 +48,10 @@ the detached ship from concealing itself. Point defence can track and slew towar
 an observed incoming missile before it reaches gun range; physical range, arc,
 power and ammunition still determine whether it can actually fire.
 
+Ballistic aiming refines the intercept time against observed relative motion.
+Unguided rounds use that intercept time for elevation as well as horizontal aim,
+so a fast descending missile is not aimed at two different future instants.
+
 AI bridge control raises the fitted alert to its highest authored condition when
 it observes a hostile target. The Courier reactor policy uses its observed fitted
 maximum output at high alert. Target selection and actual weapon execution remain

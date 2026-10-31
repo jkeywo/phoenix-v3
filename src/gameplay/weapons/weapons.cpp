@@ -190,6 +190,18 @@ Projectile create_launched_projectile(PreparedDirectedOperation &prepared, Proje
 	p.vz = (prepared.aim.altitude - p.altitude +
 	        prepared.aim.vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
 	       payload.speed / p.initial_distance;
+	if (!payload.durability && !prepared.aim.bearing)
+	{
+		const auto offset = fixed::Vec{prepared.aim.body.x, prepared.aim.body.y} - prepared.origin;
+		const auto relative = p.velocity - fixed::Vec{prepared.aim.body.vx, prepared.aim.body.vy};
+		const auto closing = fixed::dot(relative, fixed::normal(offset)) / fixed::unit;
+		const auto flight =
+		    std::clamp<std::int64_t>(fixed::length(offset) * 1000 / std::max<std::int64_t>(1, closing), 1,
+		                             std::max<std::int64_t>(1, payload.lifetime * 1000 / resource_tick_hz));
+		// Elevation must use the same intercept time as horizontal aim, rather
+		// than the flight time to the target's old position.
+		p.vz = (prepared.aim.altitude - p.altitude) * 1000 / flight + prepared.aim.vz;
+	}
 	return p;
 }
 } // namespace phoenix

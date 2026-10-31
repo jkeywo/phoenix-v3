@@ -602,17 +602,26 @@ void salvo_contracts()
 
 void ordnance_contracts()
 {
+	for (const bool fast : {false, true})
 	{
 		auto source = missile_fixture(true);
 		auto &ship = source["entities"][0];
-		ship["systems"]["missile-mag"]["projectile"]["arc_height_mm"] = 0;
-		ship["systems"]["pdc"]["range_mm"] = 40000;
+		ship["systems"]["missile-mag"]["projectile"]["arc_height_mm"] = fast ? 20000 : 0;
+		if (fast)
+		{
+			ship["systems"]["missile-mag"]["projectile"]["speed_mm_s"] = 60000;
+			ship["systems"]["missile-mag"]["projectile"]["radius_mm"] = 500;
+			ship["systems"]["pdc-mag"]["projectile"]["speed_mm_s"] = 200000;
+			ship["systems"]["pdc-mag"]["projectile"]["penetration"] = 10;
+			ship["systems"]["pdc-mag"]["projectile"]["damage_per_m"] = 20;
+		}
+		ship["systems"]["pdc"]["range_mm"] = fast ? 100000 : 40000;
 		ship["systems"]["pdc"]["turret"] = "defence-mount";
 		add_fit(source, "defence-mount",
 		        {{"kind", "turret"},
 		         {"compartment", "fore"},
 		         {"arc_mdeg", 360000},
-		         {"traverse_mdeg_s", 30000},
+		         {"traverse_mdeg_s", fast ? 360000 : 30000},
 		         {"marker", "mount"},
 		         {"visual", "test.visual"}},
 		        {});
@@ -631,11 +640,13 @@ void ordnance_contracts()
 		submit(world, 101, "launcher", "target", 2);
 		advance(world, 30);
 		const auto before_range = state(world, 2)["systems"];
-		require(before_range["defence-mount"]["heading"] != 0 && before_range["pdc"]["shots"] == 0,
-		        "PDC slews toward a permitted incoming missile before it reaches firing range");
+		if (!fast)
+			require(before_range["defence-mount"]["heading"] != 0 && before_range["pdc"]["shots"] == 0,
+			        "PDC slews toward a permitted incoming missile before it reaches firing range");
 		advance(world, 120);
 		require(state(world, 2)["systems"]["pdc"]["shots"].get<int>() > 0 && hp(world) == 20000,
-		        "Pre-aimed short-range PDC physically intercepts before hull impact");
+		        fast ? "PDC leads a fast descending missile in both horizontal position and elevation"
+		             : "Pre-aimed short-range PDC physically intercepts before hull impact");
 	}
 	// An anonymous bearing can be selected, but cannot establish offensive authority.
 	for (bool acquire : {false, true})

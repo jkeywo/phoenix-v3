@@ -137,11 +137,26 @@ fixed::Vec directed_weapon_lead(const WeaponDefinition &weapon, const Projectile
 	if (target.bearing)
 		return origin + fixed::scale(fixed::direction(*target.bearing), weapon.range);
 	const auto &d = *payload;
-	const auto travel = weapon.family == "beam"
-	                        ? 0
-	                        : std::min<std::int64_t>(d.lifetime * 1000 / rate,
-	                                                 fixed::length(fixed::Vec{target.body.x, target.body.y} - origin) *
-	                                                     1000 / std::max<std::int64_t>(1, d.speed));
+	auto travel = weapon.family == "beam"
+	                  ? 0
+	                  : std::min<std::int64_t>(d.lifetime * 1000 / rate,
+	                                           fixed::length(fixed::Vec{target.body.x, target.body.y} - origin) * 1000 /
+	                                               std::max<std::int64_t>(1, d.speed));
+	// Solve against relative motion instead of leading for the original range's
+	// flight time. That overleads a fast closing missile even with perfect aim.
+	if (weapon.family != "beam")
+		for (int iteration = 0; iteration < 8; ++iteration)
+		{
+			const fixed::Vec point{std::clamp(target.body.x + (target.body.vx - firing_velocity.x) * travel / 1000,
+			                                  -fixed::unit, fixed::unit),
+			                       std::clamp(target.body.y + (target.body.vy - firing_velocity.y) * travel / 1000,
+			                                  -fixed::unit, fixed::unit)};
+			const auto next = std::min<std::int64_t>(d.lifetime * 1000 / rate, fixed::length(point - origin) * 1000 /
+			                                                                       std::max<std::int64_t>(1, d.speed));
+			if (next == travel)
+				break;
+			travel = next;
+		}
 	return {
 	    std::clamp(target.body.x + (target.body.vx - firing_velocity.x) * travel / 1000, -fixed::unit, fixed::unit),
 	    std::clamp(target.body.y + (target.body.vy - firing_velocity.y) * travel / 1000, -fixed::unit, fixed::unit)};
