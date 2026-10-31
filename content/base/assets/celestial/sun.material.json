@@ -1,0 +1,16 @@
+{
+	"albedo": "phoenix-base:assets/celestial/sun.png",
+	"frames": [
+		{
+			"name": "sun",
+			"rect": [0, 0, 1254, 1254],
+			"pivot": [627.0, 627.0],
+			"azimuth": 0,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {}
+		}
+	],
+	"radar_sprite": "phoenix-base:assets/radar/sun.png",
+	"emissive": true
+}

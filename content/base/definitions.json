@@ -1634,8 +1634,18 @@
 			"comms": {
 				"default_conversation": "base.dialogue.hail",
 				"characters": [
-					{ "id": "captain", "name_key": "Idris Holt", "public": true , "portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"},
-					{ "id": "engineer", "name_key": "Chief Rao", "public": false , "portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"}
+					{
+						"id": "captain",
+						"name_key": "Idris Holt",
+						"public": true,
+						"portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"
+					},
+					{
+						"id": "engineer",
+						"name_key": "Chief Rao",
+						"public": false,
+						"portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"
+					}
 				]
 			},
 			"personnel": {
@@ -2646,25 +2656,29 @@
 				"mode": "camera",
 				"scale": 12,
 				"sprite": {
-					"albedo": "phoenix-base:assets/comic/asteroid-albedo.png",
+					"albedo": "phoenix-base:assets/celestial/asteroid-common-01.png",
 					"frames": [
 						{
-							"name": "asteroid",
+							"name": "asteroid-common-01",
 							"rect": [0, 0, 1254, 1254],
-							"pivot": [627, 627],
+							"pivot": [627.0, 627.0],
 							"azimuth": 0,
-							"depth_scale": 0.65,
+							"depth_scale": 0.9,
 							"depth_offset": 0,
 							"attachments": {}
 						}
 					],
-					"depth": "phoenix-base:assets/comic/asteroid-depth.png",
-					"normal": "phoenix-base:assets/comic/asteroid-normal.png",
-					"radar_sprite": "phoenix-base:assets/radar/asteroid.png"
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-common-01-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-common-01-normal.png"
 				}
 			},
 			"systems": {},
-			"collision": { "shape": "circle", "radius_mm": 5000, "mass_grams": 0 }
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 5000,
+				"mass_grams": 0
+			}
 		},
 		{
 			"id": "base.sun",
@@ -2672,24 +2686,28 @@
 				"mode": "camera",
 				"scale": 14,
 				"sprite": {
-					"albedo": "phoenix-base:assets/comic/sun-albedo.png",
+					"albedo": "phoenix-base:assets/celestial/sun.png",
 					"frames": [
 						{
 							"name": "sun",
 							"rect": [0, 0, 1254, 1254],
-							"pivot": [627, 627],
+							"pivot": [627.0, 627.0],
 							"azimuth": 0,
 							"depth_scale": 0,
 							"depth_offset": 0,
 							"attachments": {}
 						}
 					],
-					"emissive": true,
-					"radar_sprite": "phoenix-base:assets/radar/sun.png"
+					"radar_sprite": "phoenix-base:assets/radar/sun.png",
+					"emissive": true
 				}
 			},
 			"systems": {},
-			"collision": { "shape": "circle", "radius_mm": 1000, "mass_grams": 0 }
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1000,
+				"mass_grams": 0
+			}
 		},
 		{
 			"audio": {
@@ -8764,8 +8782,18 @@
 			"comms": {
 				"default_conversation": "base.dialogue.hail",
 				"characters": [
-					{ "id": "captain", "name_key": "Idris Holt", "public": true , "portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"},
-					{ "id": "engineer", "name_key": "Chief Rao", "public": false , "portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"}
+					{
+						"id": "captain",
+						"name_key": "Idris Holt",
+						"public": true,
+						"portrait": "phoenix-base:assets/personnel/rescue/military-idris-holt.png"
+					},
+					{
+						"id": "engineer",
+						"name_key": "Chief Rao",
+						"public": false,
+						"portrait": "phoenix-base:assets/personnel/rescue/military-chief-rao.png"
+					}
 				]
 			},
 			"personnel": {
@@ -15575,41 +15603,58 @@
 				"mode": "camera",
 				"scale": 1400,
 				"sprite": {
-					"albedo": "phoenix-base:assets/rescue/planet.png",
+					"albedo": "phoenix-base:assets/celestial/planet.png",
 					"frames": [
 						{
 							"name": "planet",
 							"rect": [0, 0, 1254, 1254],
 							"pivot": [627.0, 627.0],
 							"azimuth": 0,
-							"depth_scale": 0.944369,
+							"depth_scale": 1.007212,
 							"depth_offset": 0,
 							"attachments": {}
 						}
 					],
-					"normal": "phoenix-base:assets/rescue/planet-normal.png",
-					"depth": "phoenix-base:assets/rescue/planet-depth.png"
+					"depth": "phoenix-base:assets/celestial/planet-depth.png",
+					"normal": "phoenix-base:assets/celestial/planet-normal.png"
 				}
 			},
 			"systems": {},
-			"collision": { "shape": "circle", "radius_mm": 700000, "mass_grams": 0 }
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 700000,
+				"mass_grams": 0
+			}
 		},
 		{
 			"id": "base.system-star",
 			"render": {
 				"scale": 1000,
 				"radar_icon": "sun",
-				"star": {
-					"surface_colour": [1, 0.72, 0.12],
-					"hot_colour": [1, 0.96, 0.65],
-					"cell_colour": [0.95, 0.32, 0.04],
-					"halo_colour": [1, 0.78, 0.18],
-					"halo_radius_multiplier": 2.4,
-					"animation_speed": 1
+				"mode": "camera",
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/sun.png",
+					"frames": [
+						{
+							"name": "sun",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/sun.png",
+					"emissive": true
 				}
 			},
 			"systems": {},
-			"collision": { "shape": "circle", "radius_mm": 450000, "mass_grams": 0 },
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 450000,
+				"mass_grams": 0
+			},
 			"name": "Star",
 			"tags": ["contact", "star"]
 		},
@@ -16977,7 +17022,10 @@
 			"audio": {
 				"ftl_arrival": { "asset": "phoenix-base:assets/audio/ftl_arrival.wav", "gain": 0.45 },
 				"ftl_departure": { "asset": "phoenix-base:assets/audio/ftl_departure.wav", "gain": 0.45 },
-				"comms_attention": { "asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav", "gain": 0.25 },
+				"comms_attention": {
+					"asset": "phoenix-base:assets/audio/comms_attention_transmission_end.wav",
+					"gain": 0.25
+				},
 				"critical_warning": {
 					"asset": "phoenix-base:assets/audio/critical_heat_power_damage_warning.wav",
 					"gain": 0.2
@@ -17006,7 +17054,9 @@
 							"mirror_x": false,
 							"depth_scale": 3.809825673534073,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 449, "y": 552, "layer": -1, "depth_offset": -2.4735853 } }
+							"attachments": {
+								"engine_stern": { "x": 449, "y": 552, "layer": -1, "depth_offset": -2.4735853 }
+							}
 						},
 						{
 							"name": "bow_port",
@@ -17016,7 +17066,9 @@
 							"mirror_x": false,
 							"depth_scale": 3.810955961331901,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 1742, "y": 462, "layer": -1, "depth_offset": -0.1846502 } }
+							"attachments": {
+								"engine_stern": { "x": 1742, "y": 462, "layer": -1, "depth_offset": -0.1846502 }
+							}
 						},
 						{
 							"name": "port",
@@ -17026,7 +17078,9 @@
 							"mirror_x": false,
 							"depth_scale": 3.8125,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 1750, "y": 341, "layer": 1, "depth_offset": -0.3064951 } }
+							"attachments": {
+								"engine_stern": { "x": 1750, "y": 341, "layer": 1, "depth_offset": -0.3064951 }
+							}
 						},
 						{
 							"name": "stern_port",
@@ -17036,7 +17090,9 @@
 							"mirror_x": false,
 							"depth_scale": 3.8101402373247035,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 1677, "y": 628, "layer": 1, "depth_offset": -0.0395152 } }
+							"attachments": {
+								"engine_stern": { "x": 1677, "y": 628, "layer": 1, "depth_offset": -0.0395152 }
+							}
 						},
 						{
 							"name": "stern",
@@ -17046,7 +17102,9 @@
 							"mirror_x": false,
 							"depth_scale": 3.809825673534073,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 449, "y": 552, "layer": 1, "depth_offset": 0.3370949 } }
+							"attachments": {
+								"engine_stern": { "x": 449, "y": 552, "layer": 1, "depth_offset": 0.3370949 }
+							}
 						},
 						{
 							"name": "stern_starboard",
@@ -17056,7 +17114,9 @@
 							"mirror_x": true,
 							"depth_scale": 3.8101402373247035,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 1677, "y": 628, "layer": 1, "depth_offset": -0.0395152 } }
+							"attachments": {
+								"engine_stern": { "x": 1677, "y": 628, "layer": 1, "depth_offset": -0.0395152 }
+							}
 						},
 						{
 							"name": "starboard",
@@ -17066,7 +17126,9 @@
 							"mirror_x": true,
 							"depth_scale": 3.8125,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 1750, "y": 341, "layer": 1, "depth_offset": -0.3064951 } }
+							"attachments": {
+								"engine_stern": { "x": 1750, "y": 341, "layer": 1, "depth_offset": -0.3064951 }
+							}
 						},
 						{
 							"name": "bow_starboard",
@@ -17076,7 +17138,9 @@
 							"mirror_x": true,
 							"depth_scale": 3.810955961331901,
 							"depth_offset": 0,
-							"attachments": { "engine_stern": { "x": 1742, "y": 462, "layer": -1, "depth_offset": -0.1846502 } }
+							"attachments": {
+								"engine_stern": { "x": 1742, "y": 462, "layer": -1, "depth_offset": -0.1846502 }
+							}
 						}
 					]
 				},
@@ -17240,7 +17304,10 @@
 					"generator": "freighter-power.reactor",
 					"power_store": "freighter-power.main"
 				},
-				"shield-cell": { "template": "base.equipment.combat-shield-cell", "power_store": "freighter-power.shields" },
+				"shield-cell": {
+					"template": "base.equipment.combat-shield-cell",
+					"power_store": "freighter-power.shields"
+				},
 				"shield-fore": {
 					"kind": "shield",
 					"shield_effect": "shield.effect.5",
@@ -18046,7 +18113,9 @@
 					"severe_permille": 30,
 					"killed_permille": 10
 				},
-				"facilities": [{ "id": "sickbay", "compartment": "stern-starboard", "capacity": 1, "recovery_ticks": 1200 }]
+				"facilities": [
+					{ "id": "sickbay", "compartment": "stern-starboard", "capacity": 1, "recovery_ticks": 1200 }
+				]
 			},
 			"class_key": "Pack Mule",
 			"docking": {
@@ -18137,7 +18206,12 @@
 						"controller": "team-1",
 						"compartment": "stern-starboard",
 						"main": true,
-						"stock": { "capacity_tag": "cargo", "capacity": 400, "filter": { "tags": ["cargo"] }, "initial": {} }
+						"stock": {
+							"capacity_tag": "cargo",
+							"capacity": 400,
+							"filter": { "tags": ["cargo"] },
+							"initial": {}
+						}
 					}
 				]
 			}
@@ -18646,9 +18720,7 @@
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
-						"traits": [
-							"propulsion"
-						]
+						"traits": ["propulsion"]
 					},
 					{
 						"id": "officer-2",
@@ -18657,9 +18729,7 @@
 						"department": "sailing",
 						"duty": "helm",
 						"compartment": "bow-port",
-						"traits": [
-							"propulsion"
-						]
+						"traits": ["propulsion"]
 					},
 					{
 						"id": "officer-3",
@@ -18668,9 +18738,7 @@
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
-						"traits": [
-							"traverse"
-						]
+						"traits": ["traverse"]
 					},
 					{
 						"id": "officer-4",
@@ -18679,9 +18747,7 @@
 						"department": "tactical",
 						"duty": "top-mag",
 						"compartment": "mid-port",
-						"traits": [
-							"reload"
-						]
+						"traits": ["reload"]
 					},
 					{
 						"id": "officer-5",
@@ -18690,9 +18756,7 @@
 						"department": "engineering",
 						"duty": "team.team-1",
 						"compartment": "stern-starboard",
-						"traits": [
-							"repair"
-						]
+						"traits": ["repair"]
 					},
 					{
 						"id": "officer-6",
@@ -18701,9 +18765,7 @@
 						"department": "engineering",
 						"duty": "team.team-2",
 						"compartment": "stern-starboard",
-						"traits": [
-							"repair"
-						]
+						"traits": ["repair"]
 					},
 					{
 						"id": "officer-7",
@@ -18712,9 +18774,7 @@
 						"department": "sciences",
 						"duty": "radar",
 						"compartment": "bow-starboard",
-						"traits": [
-							"sensors"
-						]
+						"traits": ["sensors"]
 					},
 					{
 						"id": "officer-8",
@@ -18723,9 +18783,7 @@
 						"department": "sciences",
 						"duty": "shield-fore",
 						"compartment": "mid-port",
-						"traits": [
-							"recharge"
-						]
+						"traits": ["recharge"]
 					}
 				]
 			}
@@ -18754,9 +18812,7 @@
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
-						"traits": [
-							"propulsion"
-						]
+						"traits": ["propulsion"]
 					},
 					{
 						"id": "officer-2",
@@ -18765,9 +18821,7 @@
 						"department": "sailing",
 						"duty": "helm",
 						"compartment": "bow-port",
-						"traits": [
-							"propulsion"
-						]
+						"traits": ["propulsion"]
 					},
 					{
 						"id": "officer-3",
@@ -18776,9 +18830,7 @@
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
-						"traits": [
-							"traverse"
-						]
+						"traits": ["traverse"]
 					},
 					{
 						"id": "officer-4",
@@ -18787,9 +18839,7 @@
 						"department": "tactical",
 						"duty": "top-mag",
 						"compartment": "mid-port",
-						"traits": [
-							"reload"
-						]
+						"traits": ["reload"]
 					},
 					{
 						"id": "officer-5",
@@ -18798,9 +18848,7 @@
 						"department": "engineering",
 						"duty": "team.team-1",
 						"compartment": "stern-starboard",
-						"traits": [
-							"repair"
-						]
+						"traits": ["repair"]
 					},
 					{
 						"id": "officer-6",
@@ -18809,9 +18857,7 @@
 						"department": "engineering",
 						"duty": "team.team-2",
 						"compartment": "stern-starboard",
-						"traits": [
-							"repair"
-						]
+						"traits": ["repair"]
 					},
 					{
 						"id": "officer-7",
@@ -18820,9 +18866,7 @@
 						"department": "sciences",
 						"duty": "radar",
 						"compartment": "bow-starboard",
-						"traits": [
-							"sensors"
-						]
+						"traits": ["sensors"]
 					},
 					{
 						"id": "officer-8",
@@ -18831,9 +18875,7 @@
 						"department": "sciences",
 						"duty": "shield-fore",
 						"compartment": "mid-port",
-						"traits": [
-							"recharge"
-						]
+						"traits": ["recharge"]
 					}
 				]
 			}
@@ -18862,9 +18904,7 @@
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
-						"traits": [
-							"propulsion"
-						]
+						"traits": ["propulsion"]
 					},
 					{
 						"id": "officer-2",
@@ -18873,9 +18913,7 @@
 						"department": "sailing",
 						"duty": "helm",
 						"compartment": "bow-port",
-						"traits": [
-							"propulsion"
-						]
+						"traits": ["propulsion"]
 					},
 					{
 						"id": "officer-3",
@@ -18884,9 +18922,7 @@
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
-						"traits": [
-							"traverse"
-						]
+						"traits": ["traverse"]
 					},
 					{
 						"id": "officer-4",
@@ -18895,9 +18931,7 @@
 						"department": "tactical",
 						"duty": "top-mag",
 						"compartment": "mid-port",
-						"traits": [
-							"reload"
-						]
+						"traits": ["reload"]
 					},
 					{
 						"id": "officer-5",
@@ -18906,9 +18940,7 @@
 						"department": "engineering",
 						"duty": "team.team-1",
 						"compartment": "stern-starboard",
-						"traits": [
-							"repair"
-						]
+						"traits": ["repair"]
 					},
 					{
 						"id": "officer-6",
@@ -18917,9 +18949,7 @@
 						"department": "engineering",
 						"duty": "team.team-2",
 						"compartment": "stern-starboard",
-						"traits": [
-							"repair"
-						]
+						"traits": ["repair"]
 					},
 					{
 						"id": "officer-7",
@@ -18928,9 +18958,7 @@
 						"department": "sciences",
 						"duty": "radar",
 						"compartment": "bow-starboard",
-						"traits": [
-							"sensors"
-						]
+						"traits": ["sensors"]
 					},
 					{
 						"id": "officer-8",
@@ -18939,11 +18967,285 @@
 						"department": "sciences",
 						"duty": "shield-fore",
 						"compartment": "mid-port",
-						"traits": [
-							"recharge"
-						]
+						"traits": ["recharge"]
 					}
 				]
+			}
+		},
+		{
+			"id": "base.asteroid-common-01",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-common-01.png",
+					"frames": [
+						{
+							"name": "asteroid-common-01",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-common-01-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-common-01-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-common-02",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-common-02.png",
+					"frames": [
+						{
+							"name": "asteroid-common-02",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-common-02-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-common-02-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-common-03",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-common-03.png",
+					"frames": [
+						{
+							"name": "asteroid-common-03",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-common-03-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-common-03-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-common-04",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-common-04.png",
+					"frames": [
+						{
+							"name": "asteroid-common-04",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-common-04-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-common-04-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-uncommon-01",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-uncommon-01.png",
+					"frames": [
+						{
+							"name": "asteroid-uncommon-01",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-uncommon-01-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-uncommon-01-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-uncommon-02",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-uncommon-02.png",
+					"frames": [
+						{
+							"name": "asteroid-uncommon-02",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-uncommon-02-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-uncommon-02-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-uncommon-03",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-uncommon-03.png",
+					"frames": [
+						{
+							"name": "asteroid-uncommon-03",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-uncommon-03-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-uncommon-03-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-uncommon-04",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-uncommon-04.png",
+					"frames": [
+						{
+							"name": "asteroid-uncommon-04",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-uncommon-04-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-uncommon-04-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-rare-01",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-rare-01.png",
+					"frames": [
+						{
+							"name": "asteroid-rare-01",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-rare-01-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-rare-01-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-rare-02",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-rare-02.png",
+					"frames": [
+						{
+							"name": "asteroid-rare-02",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-rare-02-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-rare-02-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-rare-03",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-rare-03.png",
+					"frames": [
+						{
+							"name": "asteroid-rare-03",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-rare-03-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-rare-03-normal.png"
+				}
+			}
+		},
+		{
+			"id": "base.asteroid-rare-04",
+			"extends": "base.asteroid",
+			"render": {
+				"sprite": {
+					"albedo": "phoenix-base:assets/celestial/asteroid-rare-04.png",
+					"frames": [
+						{
+							"name": "asteroid-rare-04",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627.0, 627.0],
+							"azimuth": 0,
+							"depth_scale": 0.9,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"depth": "phoenix-base:assets/celestial/asteroid-rare-04-depth.png",
+					"normal": "phoenix-base:assets/celestial/asteroid-rare-04-normal.png"
+				}
 			}
 		}
 	],
@@ -18952,7 +19254,9 @@
 			"id": "base.rescue-under-threat",
 			"name": "Rescue under threat",
 			"description": "Deliver station supplies to Cairn orbital starbase.",
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"entities": [
 				{
 					"id": 1,
@@ -18969,7 +19273,12 @@
 								"acceleration_mm_s2": 3500,
 								"deceleration_mm_s2": null
 							},
-							"radar": { "range_mm": null, "long_range_mm": null, "directed": null, "broad_capabilities": null },
+							"radar": {
+								"range_mm": null,
+								"long_range_mm": null,
+								"directed": null,
+								"broad_capabilities": null
+							},
 							"occupation": {
 								"kind": "team",
 								"type": "security",
@@ -19048,166 +19357,293 @@
 									"id": "drive",
 									"console": "helm",
 									"widget": "base.widget.a4c811607b79f8d1",
-									"equipment": { "equipment": "drive" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "drive"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "helm",
 									"console": "helm",
 									"widget": "base.widget.a9f227da69e41ca8",
-									"equipment": { "equipment": "helm" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "helm"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "radar",
 									"console": "support",
 									"widget": "base.widget.6b916f121acf7c3d",
-									"equipment": { "equipment": "radar" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "radar"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "team-1",
 									"console": "support",
 									"widget": "base.widget.0bffe22667a60379",
-									"equipment": { "equipment": "team-1" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "team-1"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "team-2",
 									"console": "support",
 									"widget": "base.widget.0bffe22667a60379",
-									"equipment": { "equipment": "team-2" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "team-2"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "reactor",
 									"console": "support",
 									"widget": "base.widget.0ac581c7c4ea9a7b",
-									"equipment": { "equipment": "reactor" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "reactor"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "shield-cell",
 									"console": "support",
 									"widget": "base.widget.8170059b5a79db0a",
-									"equipment": { "equipment": "shield-cell" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "shield-cell"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "shield-fore",
 									"console": "support",
 									"widget": "base.widget.92ccfc01b190c74c",
-									"equipment": { "equipment": "shield-fore" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "shield-fore"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "shield-aft",
 									"console": "support",
 									"widget": "base.widget.92ccfc01b190c74c",
-									"equipment": { "equipment": "shield-aft" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "shield-aft"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "external-comms",
 									"console": "comms",
 									"widget": "base.widget.e903d1447bb1eeae",
-									"equipment": { "equipment": "comms-radio" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "comms-radio"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "ftl.drive",
 									"console": "navigation",
 									"widget": "base.widget.4327b24e288ec3b9",
-									"equipment": { "equipment": "ftl.drive" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "ftl.drive"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "ftl.supply",
 									"console": "support",
 									"widget": "base.widget.8d667563c8eea2eb",
-									"equipment": { "equipment": "ftl.supply" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "ftl.supply"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "ftl.cooling",
 									"console": "support",
 									"widget": "base.widget.f4806a64ce6bbbd8",
-									"equipment": { "equipment": "ftl.cooling" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "ftl.cooling"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "occupation",
 									"console": "support",
 									"widget": "base.widget.6eb7bec9fe1da37a",
-									"equipment": { "equipment": "occupation" },
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"equipment": {
+										"equipment": "occupation"
+									},
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "helm",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "support",
 									"widget": "base.widget.de1d8a7216df5c57",
-									"equipment": { "assets": ["team-1", "team-2"] },
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"equipment": {
+										"assets": ["team-1", "team-2"]
+									},
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "comms",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "personnel",
 									"console": "navigation",
 									"widget": "base.widget.d407aa2177a908c4",
 									"equipment": {},
-									"star_levels": { "1": "assisted", "2": "assisted", "3": "manual" }
+									"star_levels": {
+										"1": "assisted",
+										"2": "assisted",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "helm",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "support",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "comms",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "bridge",
 									"console": "navigation",
 									"widget": "base.widget.5bfc11aeebc9c257",
 									"equipment": {},
-									"star_levels": { "1": "manual", "2": "manual", "3": "manual" }
+									"star_levels": {
+										"1": "manual",
+										"2": "manual",
+										"3": "manual"
+									}
 								},
 								{
 									"id": "navigation.orders",
 									"console": "navigation",
 									"widget": "base.widget.3d42805a101dadff",
 									"equipment": {},
-									"star_levels": { "1": "responsibility1", "2": "responsibility1", "3": "responsibility1" }
+									"star_levels": {
+										"1": "responsibility1",
+										"2": "responsibility1",
+										"3": "responsibility1"
+									}
 								}
 							],
 							"default_profile": "direct",
-							"profiles": [{ "id": "direct", "stars": 3 }]
+							"profiles": [
+								{
+									"id": "direct",
+									"stars": 3
+								}
+							]
 						},
 						"combat": {
 							"decks": [
@@ -19299,54 +19735,122 @@
 						},
 						"personnel": {
 							"departments": [
-								{ "id": "command", "label": "Command", "station": "support" },
-								{ "id": "sailing", "label": "Sailing", "station": "helm" },
-								{ "id": "tactical", "label": "Deck crew", "station": "support" },
-								{ "id": "engineering", "label": "Engineering", "station": "support" },
-								{ "id": "sciences", "label": "Sciences", "station": "support" },
-								{ "id": "signals", "label": "Signals", "station": "support" },
-								{ "id": "passage", "label": "Guild passage", "station": "support" }
+								{
+									"id": "command",
+									"label": "Command",
+									"station": "support"
+								},
+								{
+									"id": "sailing",
+									"label": "Sailing",
+									"station": "helm"
+								},
+								{
+									"id": "tactical",
+									"label": "Deck crew",
+									"station": "support"
+								},
+								{
+									"id": "engineering",
+									"label": "Engineering",
+									"station": "support"
+								},
+								{
+									"id": "sciences",
+									"label": "Sciences",
+									"station": "support"
+								},
+								{
+									"id": "signals",
+									"label": "Signals",
+									"station": "support"
+								},
+								{
+									"id": "passage",
+									"label": "Guild passage",
+									"station": "support"
+								}
 							],
 							"traits": [
 								{
 									"id": "propulsion",
 									"label": "Drive specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.propulsion.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.propulsion.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "sensors",
 									"label": "Keen observer",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.sensors.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.sensors.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "cycling",
 									"label": "Gunnery drill",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.cycling.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.cycling.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "traverse",
 									"label": "Steady tracking",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.traverse.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.traverse.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "reload",
 									"label": "Magazine discipline",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.reload.p150.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.reload.p150.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "recharge",
 									"label": "Field specialist",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.recharge.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.recharge.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "repair",
 									"label": "Damage control veteran",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.repair.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.repair.p200.officer-rule"
+										}
+									]
 								},
 								{
 									"id": "comms",
 									"label": "Signal clarity",
-									"rules": [{ "id": "buff-0", "rule": "base.modifier.comms.p200.officer-rule" }]
+									"rules": [
+										{
+											"id": "buff-0",
+											"rule": "base.modifier.comms.p200.officer-rule"
+										}
+									]
 								}
 							],
 							"duties": [
@@ -19356,7 +19860,9 @@
 									"department": "sailing",
 									"controller": "drive",
 									"compartment": "stern-port",
-									"bindings": { "drive": ["propulsion"] }
+									"bindings": {
+										"drive": ["propulsion"]
+									}
 								},
 								{
 									"id": "helm",
@@ -19372,7 +19878,9 @@
 									"department": "sciences",
 									"controller": "radar",
 									"compartment": "bow-starboard",
-									"bindings": { "radar": ["sensors"] }
+									"bindings": {
+										"radar": ["sensors"]
+									}
 								},
 								{
 									"id": "team-1",
@@ -19380,7 +19888,9 @@
 									"department": "engineering",
 									"controller": "team-1",
 									"compartment": "stern-starboard",
-									"bindings": { "team-1": ["repair"] }
+									"bindings": {
+										"team-1": ["repair"]
+									}
 								},
 								{
 									"id": "team-2",
@@ -19388,7 +19898,9 @@
 									"department": "engineering",
 									"controller": "team-2",
 									"compartment": "stern-starboard",
-									"bindings": { "team-2": ["repair"] }
+									"bindings": {
+										"team-2": ["repair"]
+									}
 								},
 								{
 									"id": "reactor",
@@ -19412,7 +19924,9 @@
 									"department": "sciences",
 									"controller": "shield-fore",
 									"compartment": "mid-port",
-									"bindings": { "shield-fore": ["recharge"] }
+									"bindings": {
+										"shield-fore": ["recharge"]
+									}
 								},
 								{
 									"id": "shield-aft",
@@ -19420,7 +19934,9 @@
 									"department": "sciences",
 									"controller": "shield-aft",
 									"compartment": "mid-port",
-									"bindings": { "shield-aft": ["recharge"] }
+									"bindings": {
+										"shield-aft": ["recharge"]
+									}
 								},
 								{
 									"id": "external-comms",
@@ -19428,7 +19944,9 @@
 									"department": "signals",
 									"controller": "external-comms",
 									"compartment": "bow-port",
-									"bindings": { "comms-radio": ["comms"] }
+									"bindings": {
+										"comms-radio": ["comms"]
+									}
 								},
 								{
 									"id": "team.team-1",
@@ -19436,7 +19954,9 @@
 									"department": "engineering",
 									"team": "team-1",
 									"compartment": "stern-starboard",
-									"bindings": { "team-1": ["repair"] }
+									"bindings": {
+										"team-1": ["repair"]
+									}
 								},
 								{
 									"id": "team.team-2",
@@ -19444,7 +19964,9 @@
 									"department": "engineering",
 									"team": "team-2",
 									"compartment": "stern-starboard",
-									"bindings": { "team-2": ["repair"] }
+									"bindings": {
+										"team-2": ["repair"]
+									}
 								},
 								{
 									"id": "ftl.drive",
@@ -19476,7 +19998,9 @@
 									"department": "tactical",
 									"controller": "occupation",
 									"compartment": "bow-port",
-									"bindings": { "drive": ["propulsion"] },
+									"bindings": {
+										"drive": ["propulsion"]
+									},
 									"console": "support"
 								},
 								{
@@ -19650,7 +20174,14 @@
 									"traits": ["comms"]
 								}
 							],
-							"facilities": [{ "id": "sickbay", "compartment": "stern-starboard", "capacity": 1, "recovery_ticks": 1200 }]
+							"facilities": [
+								{
+									"id": "sickbay",
+									"compartment": "stern-starboard",
+									"capacity": 1,
+									"recovery_ticks": 1200
+								}
+							]
 						},
 						"faction": "crew",
 						"boarding_missions": [
@@ -19661,8 +20192,18 @@
 								"tree": "base.boarding-operation",
 								"dialogue": "base.boarding-dialogue",
 								"slots": [
-									{ "id": "security", "kind": "team", "capability": "security", "required": true },
-									{ "id": "medical", "kind": "team", "capability": "medical", "required": false }
+									{
+										"id": "security",
+										"kind": "team",
+										"capability": "security",
+										"required": true
+									},
+									{
+										"id": "medical",
+										"kind": "team",
+										"capability": "medical",
+										"required": false
+									}
 								],
 								"encounters": [
 									{
@@ -19699,7 +20240,11 @@
 										"prize_crew": true,
 										"prize_capability": "security"
 									},
-									"reactor": { "kind": "hold", "compartment": "mid-port", "system": "reactor" }
+									"reactor": {
+										"kind": "hold",
+										"compartment": "mid-port",
+										"system": "reactor"
+									}
 								},
 								"allow_ship_transport": true,
 								"docking_ports": ["fore"]
@@ -19707,9 +20252,27 @@
 						]
 					}
 				},
-				{ "id": 2, "definition": "base.delivery-station", "x_mm": 1800000, "y_mm": 0, "heading_mdeg": 0 },
-				{ "id": 3, "definition": "base.delivery-planet", "x_mm": 2300000, "y_mm": -1200000, "heading_mdeg": 0 },
-				{ "id": 4, "definition": "base.delivery-star", "x_mm": -2000000, "y_mm": -2400000, "heading_mdeg": 0 }
+				{
+					"id": 2,
+					"definition": "base.delivery-station",
+					"x_mm": 1800000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 3,
+					"definition": "base.delivery-planet",
+					"x_mm": 2300000,
+					"y_mm": -1200000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 4,
+					"definition": "base.delivery-star",
+					"x_mm": -2000000,
+					"y_mm": -2400000,
+					"heading_mdeg": 0
+				}
 			],
 			"ship_slots": [
 				{
@@ -19728,19 +20291,32 @@
 				{
 					"id": "rescue",
 					"tree": "base.dialogue.rescue",
-					"bindings": { "ship": { "slot": "courier" }, "engineer": { "entity": 1, "character": "engineer" } },
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"engineer": {
+							"entity": 1,
+							"character": "engineer"
+						}
+					},
 					"members": ["ship", "engineer"],
 					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"],
 					"start_event": "rescue.distress",
-					"title_key": "Morrow \ufffd Rescue assistance"
+					"title_key": "Morrow � Rescue assistance"
 				},
 				{
 					"id": "delivery-courier-arrival",
 					"tree": "base.dialogue.rescue-delivery-courier-arrival",
 					"start_event": "delivery.courier-arrival",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
@@ -19750,8 +20326,13 @@
 					"tree": "base.dialogue.rescue-delivery-cruiser-arrival",
 					"start_event": "delivery.cruiser-arrival",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
@@ -19761,8 +20342,13 @@
 					"tree": "base.dialogue.rescue-delivery-completed",
 					"start_event": "delivery.completed",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"]
 				},
@@ -19771,8 +20357,13 @@
 					"tree": "base.dialogue.rescue-delivery-expired",
 					"start_event": "delivery.expired",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"]
 				},
@@ -19781,8 +20372,13 @@
 					"tree": "base.dialogue.rescue-delivery-reminder-5",
 					"start_event": "delivery.reminder-5",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
@@ -19792,8 +20388,13 @@
 					"tree": "base.dialogue.rescue-delivery-reminder-8",
 					"start_event": "delivery.reminder-8",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
@@ -19803,8 +20404,13 @@
 					"tree": "base.dialogue.rescue-delivery-reminder-15",
 					"start_event": "delivery.reminder-15",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
@@ -19814,8 +20420,13 @@
 					"tree": "base.dialogue.rescue-delivery-reminder-18",
 					"start_event": "delivery.reminder-18",
 					"bindings": {
-						"ship": { "slot": "courier" },
-						"quartermaster": { "entity": 2, "character": "quartermaster" }
+						"ship": {
+							"slot": "courier"
+						},
+						"quartermaster": {
+							"entity": 2,
+							"character": "quartermaster"
+						}
 					},
 					"members": ["ship", "quartermaster"],
 					"cancel_events": ["delivery.completed", "delivery.expired"]
@@ -19824,10 +20435,18 @@
 					"id": "reactor-escalation",
 					"tree": "base.dialogue.rescue-reactor-emergency",
 					"start_event": "rescue.reactor-emergency",
-					"bindings": { "ship": { "slot": "courier" }, "engineer": { "entity": 1, "character": "engineer" } },
+					"bindings": {
+						"ship": {
+							"slot": "courier"
+						},
+						"engineer": {
+							"entity": 1,
+							"character": "engineer"
+						}
+					},
 					"members": ["ship", "engineer"],
 					"cancel_events": ["rescue.reactor-secured"],
-					"title_key": "Morrow \ufffd Reactor emergency"
+					"title_key": "Morrow � Reactor emergency"
 				}
 			],
 			"away_missions": [
@@ -19840,8 +20459,18 @@
 					"reveal_event": "mission.rescue.rescue.clearance",
 					"tree": "base.away.rescue",
 					"slots": [
-						{ "id": "repair-team", "kind": "team", "required": true, "capability": "repair" },
-						{ "id": "specialist", "kind": "officer", "required": false, "trait": "repair" },
+						{
+							"id": "repair-team",
+							"kind": "team",
+							"required": true,
+							"capability": "repair"
+						},
+						{
+							"id": "specialist",
+							"kind": "officer",
+							"required": false,
+							"trait": "repair"
+						},
 						{
 							"id": "medical-team",
 							"kind": "team",
@@ -19849,7 +20478,12 @@
 							"capability": "medical",
 							"assign_ai": true
 						},
-						{ "id": "security-team", "kind": "team", "required": false, "capability": "security" }
+						{
+							"id": "security-team",
+							"kind": "team",
+							"required": false,
+							"capability": "security"
+						}
 					],
 					"allow_ship_transport": true,
 					"ai_dispatch": true,
@@ -19858,7 +20492,12 @@
 			],
 			"scenario": {
 				"tree": "base.scenario.rescue-threat",
-				"bindings": { "actor": { "slot": "courier" }, "objective": "approach" },
+				"bindings": {
+					"actor": {
+						"slot": "courier"
+					},
+					"objective": "approach"
+				},
 				"events": [
 					"rescue.work-completed",
 					"rescue.party-recovered",
@@ -19891,168 +20530,308 @@
 				"event_bindings": [
 					{
 						"kind": "away.completed",
-						"subject": { "entity": 1 },
+						"subject": {
+							"entity": 1
+						},
 						"event": "rescue.work-completed",
 						"operation": "repairs"
 					},
 					{
 						"kind": "away.recovered",
-						"subject": { "entity": 1 },
+						"subject": {
+							"entity": 1
+						},
 						"event": "rescue.party-recovered",
 						"operation": "repairs"
 					},
-					{ "kind": "entity.departed", "subject": { "entity": 1 }, "event": "rescue.casualty-escaped" },
-					{ "kind": "entity.destroyed", "subject": { "entity": 1 }, "event": "rescue.casualty-lost" },
+					{
+						"kind": "entity.departed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.casualty-escaped"
+					},
+					{
+						"kind": "entity.destroyed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.casualty-lost"
+					},
 					{
 						"kind": "ftl.ready",
-						"subject": { "entity": 1 },
+						"subject": {
+							"entity": 1
+						},
 						"operation": "ftl.drive",
 						"event": "rescue.casualty-ready"
 					},
 					{
 						"kind": "away.available",
-						"subject": { "entity": 1 },
+						"subject": {
+							"entity": 1
+						},
 						"operation": "repairs",
 						"event": "rescue.revealed"
 					},
 					{
 						"kind": "objective.completed",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "delivery",
 						"event": "delivery.completed"
 					},
 					{
 						"kind": "objective.failed",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "delivery",
 						"event": "delivery.expired"
 					},
-					{ "kind": "personnel.captured", "event": "rescue.player-captured", "subject": { "entity": 1 } },
-					{ "kind": "personnel.freed", "event": "rescue.player-freed", "subject": { "entity": 1 } },
-					{ "kind": "prize.assigned", "event": "rescue.prize-assigned", "subject": { "entity": 1 } },
-					{ "kind": "ship.claimed", "subject": { "entity": 1 }, "event": "rescue.player-claimed" },
-					{ "kind": "away.recovered", "subject": { "entity": 1 }, "event": "rescue.visitors-recovered" }
+					{
+						"kind": "personnel.captured",
+						"event": "rescue.player-captured",
+						"subject": {
+							"entity": 1
+						}
+					},
+					{
+						"kind": "personnel.freed",
+						"event": "rescue.player-freed",
+						"subject": {
+							"entity": 1
+						}
+					},
+					{
+						"kind": "prize.assigned",
+						"event": "rescue.prize-assigned",
+						"subject": {
+							"entity": 1
+						}
+					},
+					{
+						"kind": "ship.claimed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.player-claimed"
+					},
+					{
+						"kind": "away.recovered",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.visitors-recovered"
+					}
 				],
 				"fact_bindings": [
 					{
 						"id": "propulsion-restored",
 						"kind": "compartment",
-						"subject": { "entity": 1 },
+						"subject": {
+							"entity": 1
+						},
 						"field": "stern-port"
 					},
 					{
 						"id": "services-restored",
 						"kind": "compartment",
-						"subject": { "entity": 1 },
+						"subject": {
+							"entity": 1
+						},
 						"field": "mid-port"
 					},
-					{ "id": "casualty-state", "kind": "entity", "subject": { "entity": 1 }, "field": "lifecycle" },
+					{
+						"id": "casualty-state",
+						"kind": "entity",
+						"subject": {
+							"entity": 1
+						},
+						"field": "lifecycle"
+					},
 					{
 						"id": "party-recovered",
 						"kind": "away",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "repairs",
 						"field": "recovered"
 					},
 					{
 						"id": "repair-outcome",
 						"kind": "away",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "repairs",
 						"field": "outcome"
 					},
-					{ "id": "personnel-lost", "kind": "personnel", "subject": { "slot": "courier" }, "field": "lost" },
+					{
+						"id": "personnel-lost",
+						"kind": "personnel",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "lost"
+					},
 					{
 						"id": "personnel-away",
 						"kind": "personnel",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"field": "deployed"
 					},
 					{
 						"id": "propulsion-objective",
 						"kind": "objective",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "restore-propulsion",
 						"field": "status"
 					},
 					{
 						"id": "services-objective",
 						"kind": "objective",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "restore-services",
 						"field": "status"
 					},
-					{ "id": "arrival-time", "kind": "clock", "field": "tick" },
+					{
+						"id": "arrival-time",
+						"kind": "clock",
+						"field": "tick"
+					},
 					{
 						"id": "delivery-ship",
 						"kind": "entity",
 						"field": "definition",
-						"subject": { "slot": "courier" }
+						"subject": {
+							"slot": "courier"
+						}
 					},
 					{
 						"id": "supplies-received",
 						"kind": "inventory",
 						"field": "receiving",
-						"subject": { "entity": 2 },
+						"subject": {
+							"entity": 2
+						},
 						"operation": "station-supplies"
 					},
 					{
 						"id": "essentials-received",
 						"kind": "inventory",
 						"field": "receiving",
-						"subject": { "entity": 2 },
+						"subject": {
+							"entity": 2
+						},
 						"operation": "perishable-essentials"
 					},
 					{
 						"id": "delivery-status",
 						"kind": "objective",
 						"field": "status",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "delivery"
 					},
 					{
 						"id": "delivery-tick",
 						"kind": "objective",
 						"field": "completed_tick",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "delivery"
 					},
 					{
 						"id": "trapped-crew-deaths",
 						"kind": "away",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"operation": "repairs",
 						"field": "crew_deaths"
 					},
-					{ "id": "reactor-secured", "kind": "event", "event": "rescue.reactor-secured" },
-					{ "id": "wounded-saved", "kind": "event", "event": "rescue.wounded-saved" },
-					{ "id": "wounded-late", "kind": "event", "event": "rescue.wounded-late" },
-					{ "id": "wounded-lost", "kind": "event", "event": "rescue.wounded-lost" },
-					{ "id": "morrow-captured", "kind": "entity", "subject": { "entity": 1 }, "field": "captured" },
-					{ "id": "morrow-faction", "kind": "entity", "subject": { "entity": 1 }, "field": "owner_faction" },
+					{
+						"id": "reactor-secured",
+						"kind": "event",
+						"event": "rescue.reactor-secured"
+					},
+					{
+						"id": "wounded-saved",
+						"kind": "event",
+						"event": "rescue.wounded-saved"
+					},
+					{
+						"id": "wounded-late",
+						"kind": "event",
+						"event": "rescue.wounded-late"
+					},
+					{
+						"id": "wounded-lost",
+						"kind": "event",
+						"event": "rescue.wounded-lost"
+					},
+					{
+						"id": "morrow-captured",
+						"kind": "entity",
+						"subject": {
+							"entity": 1
+						},
+						"field": "captured"
+					},
+					{
+						"id": "morrow-faction",
+						"kind": "entity",
+						"subject": {
+							"entity": 1
+						},
+						"field": "owner_faction"
+					},
 					{
 						"id": "player-lifecycle",
 						"kind": "entity",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"field": "lifecycle"
 					},
-					{ "id": "pirate-takeover", "kind": "event", "event": "rescue.taken" },
+					{
+						"id": "pirate-takeover",
+						"kind": "event",
+						"event": "rescue.taken"
+					},
 					{
 						"id": "personnel-captured",
 						"kind": "personnel",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"field": "captured"
 					},
 					{
 						"id": "personnel-freed",
 						"kind": "personnel",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"field": "freed"
 					},
 					{
 						"id": "personnel-prize-crew",
 						"kind": "personnel",
-						"subject": { "slot": "courier" },
+						"subject": {
+							"slot": "courier"
+						},
 						"field": "prize_crew"
 					}
 				],
@@ -20063,10 +20842,24 @@
 						"title_key": "Restore casualty propulsion",
 						"description_key": "Restore casualty propulsion",
 						"optional": false,
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } },
-						"complete_when": { "fact": "propulsion-restored", "op": "eq", "value": true },
-						"fail_when": { "fact": "casualty-state", "op": "eq", "value": "destroyed" }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "propulsion-restored",
+							"op": "eq",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
 					},
 					{
 						"id": "restore-services",
@@ -20074,10 +20867,23 @@
 						"title_key": "Secure the casualty reactor",
 						"description_key": "Secure reactor control before containment becomes critical.",
 						"optional": false,
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } },
-						"complete_when": { "fact": "reactor-secured", "value": true },
-						"fail_when": { "fact": "casualty-state", "op": "eq", "value": "destroyed" }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "reactor-secured",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
 					},
 					{
 						"id": "recover-party",
@@ -20085,10 +20891,23 @@
 						"title_key": "Recover the repair party",
 						"description_key": "Recover the repair party",
 						"optional": false,
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } },
-						"complete_when": { "fact": "party-recovered", "value": true },
-						"fail_when": { "fact": "personnel-lost", "op": "gt", "value": 0 }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "party-recovered",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "personnel-lost",
+							"op": "gt",
+							"value": 0
+						}
 					},
 					{
 						"id": "casualty-escape",
@@ -20096,33 +20915,73 @@
 						"title_key": "Secure the casualty escape",
 						"description_key": "Secure the casualty escape",
 						"optional": false,
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } },
-						"complete_when": { "fact": "casualty-state", "op": "eq", "value": "departed" },
-						"fail_when": { "fact": "casualty-state", "op": "eq", "value": "destroyed" }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "departed"
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
 					},
 					{
 						"id": "delivery",
 						"type": "condition",
 						"title_key": "Deliver all 100 units to Cairn Receiving",
 						"description_key": "Deliver all 100 units to Cairn Receiving",
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } },
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
 						"complete_when": {
 							"any": [
-								{ "fact": "supplies-received", "op": "ge", "value": 100 },
+								{
+									"fact": "supplies-received",
+									"op": "ge",
+									"value": 100
+								},
 								{
 									"all": [
-										{ "fact": "essentials-received", "op": "ge", "value": 100 },
-										{ "fact": "arrival-time", "op": "le", "value": 24000 }
+										{
+											"fact": "essentials-received",
+											"op": "ge",
+											"value": 100
+										},
+										{
+											"fact": "arrival-time",
+											"op": "le",
+											"value": 24000
+										}
 									]
 								}
 							]
 						},
 						"fail_when": {
 							"all": [
-								{ "fact": "delivery-ship", "op": "eq", "value": "base.cruiser" },
-								{ "fact": "arrival-time", "op": "gt", "value": 24000 }
+								{
+									"fact": "delivery-ship",
+									"op": "eq",
+									"value": "base.cruiser"
+								},
+								{
+									"fact": "arrival-time",
+									"op": "gt",
+									"value": 24000
+								}
 							]
 						}
 					},
@@ -20132,8 +20991,14 @@
 						"region": "station-approach",
 						"title_key": "Approach Cairn orbital starbase",
 						"description_key": "Follow the clear arrival corridor toward the charted station.",
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						}
 					},
 					{
 						"id": "respond-distress",
@@ -20141,26 +21006,50 @@
 						"region": "morrow-rendezvous",
 						"title_key": "Respond to Morrow's distress call",
 						"description_key": "Morrow's distress transmission marks its position in the asteroid field. Approach through the clear southern opening.",
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } }
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						}
 					},
 					{
 						"id": "rescue-wounded",
 						"type": "condition",
 						"title_key": "Rescue the trapped wounded",
 						"description_key": "Deploy Medical and reach the wounded before leaving them until last.",
-						"actor": { "slot": "courier" },
-						"recipients": { "ship": { "slot": "courier" } },
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
 						"complete_when": {
 							"any": [
-								{ "fact": "wounded-saved", "value": true },
-								{ "fact": "wounded-late", "value": true }
+								{
+									"fact": "wounded-saved",
+									"value": true
+								},
+								{
+									"fact": "wounded-late",
+									"value": true
+								}
 							]
 						},
 						"fail_when": {
 							"any": [
-								{ "fact": "wounded-lost", "value": true },
-								{ "fact": "pirate-takeover", "value": true }
+								{
+									"fact": "wounded-lost",
+									"value": true
+								},
+								{
+									"fact": "pirate-takeover",
+									"value": true
+								}
 							]
 						}
 					}
@@ -20168,7 +21057,9 @@
 				"reports": [
 					{
 						"id": "rescue-debrief",
-						"ship": { "slot": "courier" },
+						"ship": {
+							"slot": "courier"
+						},
 						"title_key": "Rescue operation debrief",
 						"objectives": [
 							"delivery",
@@ -20179,30 +21070,69 @@
 							"casualty-escape"
 						],
 						"facts": [
-							{ "fact": "trapped-crew-deaths", "label_key": "Trapped deaths during away work" },
-							{ "fact": "propulsion-restored", "label_key": "Propulsion restored" },
-							{ "fact": "services-restored", "label_key": "Services restored" },
-							{ "fact": "casualty-state", "label_key": "Casualty disposition" },
-							{ "fact": "personnel-away", "label_key": "Personnel still deployed" },
-							{ "fact": "personnel-lost", "label_key": "Personnel lost" },
-							{ "fact": "supplies-received", "label_key": "Routine supplies received (of 100)" },
-							{ "fact": "essentials-received", "label_key": "Perishable essentials received (of 100)" },
-							{ "fact": "personnel-captured", "label_key": "Player personnel captured" },
-							{ "fact": "personnel-freed", "label_key": "Freed awaiting recovery" },
-							{ "fact": "personnel-prize-crew", "label_key": "Player prize crew" }
+							{
+								"fact": "trapped-crew-deaths",
+								"label_key": "Trapped deaths during away work"
+							},
+							{
+								"fact": "propulsion-restored",
+								"label_key": "Propulsion restored"
+							},
+							{
+								"fact": "services-restored",
+								"label_key": "Services restored"
+							},
+							{
+								"fact": "casualty-state",
+								"label_key": "Casualty disposition"
+							},
+							{
+								"fact": "personnel-away",
+								"label_key": "Personnel still deployed"
+							},
+							{
+								"fact": "personnel-lost",
+								"label_key": "Personnel lost"
+							},
+							{
+								"fact": "supplies-received",
+								"label_key": "Routine supplies received (of 100)"
+							},
+							{
+								"fact": "essentials-received",
+								"label_key": "Perishable essentials received (of 100)"
+							},
+							{
+								"fact": "personnel-captured",
+								"label_key": "Player personnel captured"
+							},
+							{
+								"fact": "personnel-freed",
+								"label_key": "Freed awaiting recovery"
+							},
+							{
+								"fact": "personnel-prize-crew",
+								"label_key": "Player prize crew"
+							}
 						],
 						"rules": [
 							{
 								"result": "destroyed",
 								"title_key": "Player ship destroyed",
 								"explanation_key": "The player ship was destroyed. This report preserves the mission and personnel state at its loss.",
-								"when": { "fact": "player-lifecycle", "value": "destroyed" }
+								"when": {
+									"fact": "player-lifecycle",
+									"value": "destroyed"
+								}
 							},
 							{
 								"result": "destroyed",
 								"title_key": "Morrow destroyed",
 								"explanation_key": "Morrow was destroyed. Its loss and the actual personnel outcomes are recorded below.",
-								"when": { "fact": "casualty-state", "value": "destroyed" }
+								"when": {
+									"fact": "casualty-state",
+									"value": "destroyed"
+								}
 							},
 							{
 								"result": "claimed",
@@ -20210,20 +21140,35 @@
 								"explanation_key": "Your Security team holds Morrow as prize crew. The ship and cargo were claimed rather than returned to their owners.",
 								"when": {
 									"all": [
-										{ "fact": "morrow-captured", "value": true },
-										{ "fact": "morrow-faction", "value": "crew" },
-										{ "fact": "casualty-state", "value": "departed" }
+										{
+											"fact": "morrow-captured",
+											"value": true
+										},
+										{
+											"fact": "morrow-faction",
+											"value": "crew"
+										},
+										{
+											"fact": "casualty-state",
+											"value": "departed"
+										}
 									]
 								}
 							},
 							{
 								"result": "taken",
 								"title_key": "Morrow taken by pirates",
-								"explanation_key": "The pirates killed Morrow\ufffds original crew and took the ship. Player personnel still aboard were captured.",
+								"explanation_key": "The pirates killed Morrow�s original crew and took the ship. Player personnel still aboard were captured.",
 								"when": {
 									"all": [
-										{ "fact": "morrow-captured", "value": true },
-										{ "fact": "morrow-faction", "value": "raiders" }
+										{
+											"fact": "morrow-captured",
+											"value": true
+										},
+										{
+											"fact": "morrow-faction",
+											"value": "raiders"
+										}
 									]
 								}
 							},
@@ -20233,8 +21178,14 @@
 								"explanation_key": "Morrow escaped the system. See the crew assessment and mission log for the actual injuries, deaths and recovery outcomes.",
 								"when": {
 									"all": [
-										{ "fact": "casualty-state", "value": "departed" },
-										{ "fact": "morrow-faction", "value": "crew" }
+										{
+											"fact": "casualty-state",
+											"value": "departed"
+										},
+										{
+											"fact": "morrow-faction",
+											"value": "crew"
+										}
 									]
 								}
 							}
@@ -20255,33 +21206,57 @@
 										"explanation_key": "Cairn received the complete routine consignment.",
 										"when": {
 											"all": [
-												{ "fact": "delivery-status", "op": "eq", "value": "completed" },
-												{ "fact": "delivery-ship", "op": "eq", "value": "base.courier" }
+												{
+													"fact": "delivery-status",
+													"op": "eq",
+													"value": "completed"
+												},
+												{
+													"fact": "delivery-ship",
+													"op": "eq",
+													"value": "base.courier"
+												}
 											]
 										}
 									},
 									{
 										"result": "prompt",
-										"title_key": "Prompt delivery \ufffd full credit",
+										"title_key": "Prompt delivery � full credit",
 										"explanation_key": "Cairn received all perishable essentials within 10 minutes of arrival.",
 										"when": {
 											"all": [
-												{ "fact": "delivery-status", "op": "eq", "value": "completed" },
-												{ "fact": "delivery-tick", "op": "le", "value": 12000 }
+												{
+													"fact": "delivery-status",
+													"op": "eq",
+													"value": "completed"
+												},
+												{
+													"fact": "delivery-tick",
+													"op": "le",
+													"value": 12000
+												}
 											]
 										}
 									},
 									{
 										"result": "late",
-										"title_key": "Late delivery \ufffd reduced credit",
+										"title_key": "Late delivery � reduced credit",
 										"explanation_key": "Cairn received the full consignment after 10 minutes, within the 20 minute limit.",
-										"when": { "fact": "delivery-status", "op": "eq", "value": "completed" }
+										"when": {
+											"fact": "delivery-status",
+											"op": "eq",
+											"value": "completed"
+										}
 									},
 									{
 										"result": "expired",
-										"title_key": "Expired \ufffd delivery failed",
+										"title_key": "Expired � delivery failed",
 										"explanation_key": "The full consignment did not reach Cairn within 20 minutes. Cargo remains transferable but earns no delivery credit.",
-										"when": { "fact": "delivery-status", "op": "eq", "value": "failed" }
+										"when": {
+											"fact": "delivery-status",
+											"op": "eq",
+											"value": "failed"
+										}
 									}
 								],
 								"fallback": {
@@ -20297,26 +21272,38 @@
 									{
 										"result": "killed",
 										"title_key": "Original crew killed",
-										"explanation_key": "The pirates killed Morrow\ufffds original crew during their takeover. Retaking the ship does not undo those deaths.",
-										"when": { "fact": "pirate-takeover", "value": true }
+										"explanation_key": "The pirates killed Morrow�s original crew during their takeover. Retaking the ship does not undo those deaths.",
+										"when": {
+											"fact": "pirate-takeover",
+											"value": true
+										}
 									},
 									{
 										"result": "saved",
 										"title_key": "All rescued",
 										"explanation_key": "The deployed Medical team reached and stabilised every trapped survivor.",
-										"when": { "fact": "wounded-saved", "value": true }
+										"when": {
+											"fact": "wounded-saved",
+											"value": true
+										}
 									},
 									{
 										"result": "late",
 										"title_key": "One death",
 										"explanation_key": "The wounded were left until last. One died before Medical reached them.",
-										"when": { "fact": "wounded-late", "value": true }
+										"when": {
+											"fact": "wounded-late",
+											"value": true
+										}
 									},
 									{
 										"result": "lost",
 										"title_key": "All trapped crew died",
 										"explanation_key": "There was no deployed Medical team to rescue them.",
-										"when": { "fact": "wounded-lost", "value": true }
+										"when": {
+											"fact": "wounded-lost",
+											"value": true
+										}
 									}
 								],
 								"fallback": {
@@ -20335,13 +21322,22 @@
 								"event": "rescue.reactor-emergency",
 								"text_key": "Morrow escalated its reactor emergency."
 							},
-							{ "event": "rescue.casualty-escaped", "text_key": "Morrow escaped the system." },
-							{ "event": "rescue.casualty-lost", "text_key": "Morrow was lost." },
+							{
+								"event": "rescue.casualty-escaped",
+								"text_key": "Morrow escaped the system."
+							},
+							{
+								"event": "rescue.casualty-lost",
+								"text_key": "Morrow was lost."
+							},
 							{
 								"event": "delivery.completed",
 								"text_key": "The station received the complete consignment."
 							},
-							{ "event": "delivery.expired", "text_key": "Perishable delivery deadline expired." },
+							{
+								"event": "delivery.expired",
+								"text_key": "Perishable delivery deadline expired."
+							},
 							{
 								"event": "rescue.player-captured",
 								"text_key": "Player visitors aboard Morrow were captured."
@@ -20354,8 +21350,14 @@
 								"event": "rescue.prize-assigned",
 								"text_key": "Security was assigned to remain aboard as prize crew."
 							},
-							{ "event": "rescue.player-claimed", "text_key": "Morrow was claimed by the player crew." },
-							{ "event": "rescue.visitors-recovered", "text_key": "Away team recovered." }
+							{
+								"event": "rescue.player-claimed",
+								"text_key": "Morrow was claimed by the player crew."
+							},
+							{
+								"event": "rescue.visitors-recovered",
+								"text_key": "Away team recovered."
+							}
 						]
 					}
 				],
@@ -20363,13 +21365,21 @@
 					{
 						"id": "delivery-reminders",
 						"tree": "base.scenario.rescue-delivery-reminders",
-						"bindings": { "actor": { "slot": "courier" } },
+						"bindings": {
+							"actor": {
+								"slot": "courier"
+							}
+						},
 						"start": true
 					},
 					{
 						"id": "reactor-clock",
 						"tree": "base.scenario.rescue-reactor-emergency",
-						"bindings": { "actor": { "slot": "courier" } },
+						"bindings": {
+							"actor": {
+								"slot": "courier"
+							}
+						},
 						"start": true
 					}
 				]
@@ -20399,13 +21409,37 @@
 				"base.courier": "mission.rescue.briefing.courier"
 			},
 			"factions": [
-				{ "id": "crew", "label": "Local shipping" },
-				{ "id": "raiders", "label": "Raiders" }
+				{
+					"id": "crew",
+					"label": "Local shipping"
+				},
+				{
+					"id": "raiders",
+					"label": "Raiders"
+				}
 			],
-			"relationships": [{ "a": "crew", "b": "raiders", "relation": "hostile" }],
+			"relationships": [
+				{
+					"a": "crew",
+					"b": "raiders",
+					"relation": "hostile"
+				}
+			],
 			"regions": [
-				{ "id": "station-approach", "shape": "circle", "x_mm": 1800000, "y_mm": 0, "radius_mm": 1400000 },
-				{ "id": "morrow-rendezvous", "shape": "circle", "x_mm": 950000, "y_mm": 2500000, "radius_mm": 300000 },
+				{
+					"id": "station-approach",
+					"shape": "circle",
+					"x_mm": 1800000,
+					"y_mm": 0,
+					"radius_mm": 1400000
+				},
+				{
+					"id": "morrow-rendezvous",
+					"shape": "circle",
+					"x_mm": 950000,
+					"y_mm": 2500000,
+					"radius_mm": 300000
+				},
 				{
 					"id": "station-chart",
 					"shape": "circle",
@@ -20479,7 +21513,56 @@
 						"noise_cells": 5,
 						"visual_distance_mm": 1000000,
 						"unload_margin_mm": 100000,
-						"types": [{ "definition": "base.asteroid", "weight": 1000 }]
+						"types": [
+							{
+								"definition": "base.asteroid-common-01",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-02",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-03",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-04",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-uncommon-01",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-02",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-03",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-04",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-rare-01",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-02",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-03",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-04",
+								"weight": 1
+							}
+						]
 					}
 				},
 				{
@@ -20498,7 +21581,56 @@
 						"noise_cells": 5,
 						"visual_distance_mm": 1000000,
 						"unload_margin_mm": 100000,
-						"types": [{ "definition": "base.asteroid", "weight": 1000 }]
+						"types": [
+							{
+								"definition": "base.asteroid-common-01",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-02",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-03",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-04",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-uncommon-01",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-02",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-03",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-04",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-rare-01",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-02",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-03",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-04",
+								"weight": 1
+							}
+						]
 					}
 				},
 				{
@@ -20517,7 +21649,56 @@
 						"noise_cells": 5,
 						"visual_distance_mm": 1000000,
 						"unload_margin_mm": 100000,
-						"types": [{ "definition": "base.asteroid", "weight": 1000 }]
+						"types": [
+							{
+								"definition": "base.asteroid-common-01",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-02",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-03",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-04",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-uncommon-01",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-02",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-03",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-04",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-rare-01",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-02",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-03",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-04",
+								"weight": 1
+							}
+						]
 					}
 				}
 			],
@@ -20538,8 +21719,14 @@
 					"takeover_ticks": 2400,
 					"occupation_teams": ["occupation"],
 					"pleas": [
-						{ "ticks": 800, "line": "help-first" },
-						{ "ticks": 1600, "line": "help-last" }
+						{
+							"ticks": 800,
+							"line": "help-first"
+						},
+						{
+							"ticks": 1600,
+							"line": "help-last"
+						}
 					],
 					"variants": {
 						"default": [
@@ -20577,24 +21764,42 @@
 					},
 					"combat_standoff_mm": 250000,
 					"cruise_speed_mm_s": 20000,
-					"takeover_effects": { "repair": true, "original_crew": "kill", "capture_visitors": true }
+					"takeover_effects": {
+						"repair": true,
+						"original_crew": "kill",
+						"capture_visitors": true
+					}
 				}
 			],
 			"starting_stocks": [
 				{
 					"ship_slot": "courier",
 					"definition": "base.courier",
-					"stores": { "cargo-hold": { "station-supplies": 100 } }
+					"stores": {
+						"cargo-hold": {
+							"station-supplies": 100
+						}
+					}
 				},
 				{
 					"ship_slot": "courier",
 					"definition": "base.cruiser",
 					"stores": {
-						"cargo-hold": { "perishable-essentials": 100 },
-						"repair-1-kit": { "parts": 4000 },
-						"repair-2-kit": { "parts": 4000 },
-						"repair-3-kit": { "parts": 4000 },
-						"repair-4-kit": { "parts": 4000 }
+						"cargo-hold": {
+							"perishable-essentials": 100
+						},
+						"repair-1-kit": {
+							"parts": 4000
+						},
+						"repair-2-kit": {
+							"parts": 4000
+						},
+						"repair-3-kit": {
+							"parts": 4000
+						},
+						"repair-4-kit": {
+							"parts": 4000
+						}
 					}
 				}
 			]
@@ -49671,7 +50876,12 @@
 								}
 							]
 						},
-						{ "id": "conversations", "kind": "component", "component": "conversations", "label": "Conversations" }
+						{
+							"id": "conversations",
+							"kind": "component",
+							"component": "conversations",
+							"label": "Conversations"
+						}
 					]
 				},
 				"compact": {
@@ -49748,7 +50958,12 @@
 								}
 							]
 						},
-						{ "id": "conversations", "kind": "component", "component": "conversations", "label": "Conversations" }
+						{
+							"id": "conversations",
+							"kind": "component",
+							"component": "conversations",
+							"label": "Conversations"
+						}
 					]
 				}
 			},
@@ -66127,15 +67342,11 @@
 					"entry": [
 						{
 							"action": "add_participant",
-							"arguments": [
-								"captain"
-							]
+							"arguments": ["captain"]
 						},
 						{
 							"action": "say",
-							"arguments": [
-								"greeting"
-							]
+							"arguments": ["greeting"]
 						}
 					]
 				}
@@ -67362,7 +68573,13 @@
 					}
 				],
 				"generators": [
-					{ "id": "reactor", "store": "main", "maximum_rate": 2400, "initial_output": 1600, "response_rate": 400 }
+					{
+						"id": "reactor",
+						"store": "main",
+						"maximum_rate": 2400,
+						"initial_output": 1600,
+						"response_rate": 400
+					}
 				],
 				"links": [{ "id": "shield-feed", "from": "main", "to": "shields", "capacity_rate": 1500 }],
 				"groups": [{ "id": "shields", "budget_rate": 1500 }]

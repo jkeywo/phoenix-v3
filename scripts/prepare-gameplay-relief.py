@@ -33,7 +33,7 @@ ASSETS = {
     "cruiser/interceptor-albedo.png": (1.65, .75),
     "cruiser/bomber-albedo.png": (1.45, .85),
     "rescue/starbase.png": (1., .35),
-    "rescue/planet.png": (.44, .44),
+    # Current celestial art is baked by prepare-celestial-assets.py.
 }
 
 

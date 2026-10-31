@@ -1,0 +1,41 @@
+{
+	"schema_version": 1,
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"id": "planet",
+	"image_size": [1254, 1254],
+	"files": {
+		"sprite": "planet.png",
+		"normal": "planet-normal.png",
+		"depth": "planet-depth.png"
+	},
+	"billboard_mode": "camera",
+	"render_scale": 1400,
+	"emissive": false,
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "planet",
+				"rect": [0, 0, 1254, 1254],
+				"pivot": [627.0, 627.0],
+				"depth_scale": 1.007212,
+				"depth_offset": 0,
+				"camera_azimuth_degrees": 0,
+				"markers": {}
+			}
+		]
+	},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"white": "near",
+		"quality": "geometric_sphere"
+	},
+	"normal_encoding": {
+		"space": "view",
+		"x": "right",
+		"y": "up",
+		"z": "toward_viewer",
+		"quality": "derived_from_continuous_geometric_Z"
+	}
+}

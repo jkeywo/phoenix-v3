@@ -2691,7 +2691,9 @@
 		{
 			"id": "base.asteroid-duel",
 			"name": "Asteroid duel",
-			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
 			"entities": [
 				{
 					"id": 10,
@@ -2723,7 +2725,56 @@
 					"asteroids": {
 						"seed": 90210,
 						"spacing_mm": 65000,
-						"types": [{ "definition": "base.asteroid", "weight": 1000 }],
+						"types": [
+							{
+								"definition": "base.asteroid-common-01",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-02",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-03",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-common-04",
+								"weight": 20
+							},
+							{
+								"definition": "base.asteroid-uncommon-01",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-02",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-03",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-uncommon-04",
+								"weight": 4
+							},
+							{
+								"definition": "base.asteroid-rare-01",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-02",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-03",
+								"weight": 1
+							},
+							{
+								"definition": "base.asteroid-rare-04",
+								"weight": 1
+							}
+						],
 						"visual_distance_mm": 400000,
 						"density": 5e-5,
 						"unload_margin_mm": 65000
@@ -2732,10 +2783,22 @@
 			],
 			"combat_duel": true,
 			"factions": [
-				{ "id": "house", "label": "House forces" },
-				{ "id": "raiders", "label": "Raiders" }
+				{
+					"id": "house",
+					"label": "House forces"
+				},
+				{
+					"id": "raiders",
+					"label": "Raiders"
+				}
 			],
-			"relationships": [{ "a": "house", "b": "raiders", "relation": "hostile" }]
+			"relationships": [
+				{
+					"a": "house",
+					"b": "raiders",
+					"relation": "hostile"
+				}
+			]
 		},
 		{
 			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },

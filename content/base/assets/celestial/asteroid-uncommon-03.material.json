@@ -1,0 +1,17 @@
+{
+	"albedo": "phoenix-base:assets/celestial/asteroid-uncommon-03.png",
+	"frames": [
+		{
+			"name": "asteroid-uncommon-03",
+			"rect": [0, 0, 1254, 1254],
+			"pivot": [627.0, 627.0],
+			"azimuth": 0,
+			"depth_scale": 0.9,
+			"depth_offset": 0,
+			"attachments": {}
+		}
+	],
+	"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+	"depth": "phoenix-base:assets/celestial/asteroid-uncommon-03-depth.png",
+	"normal": "phoenix-base:assets/celestial/asteroid-uncommon-03-normal.png"
+}

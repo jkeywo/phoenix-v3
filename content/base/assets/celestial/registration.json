@@ -1,0 +1,172 @@
+{
+	"method": "pale-paper flood; alpha-only edits; no resampling",
+	"geometry": "camera-facing Z from silhouette volumes, registered geology and analytic planet hemisphere; no RGB inputs",
+	"assets": {
+		"common-01": {
+			"source": "docs/art/phoenix-generic-asteroid-01-v1.png",
+			"source_sha256": "8c7fa6c29abf723c2df95bbcd4c6aaba95f37612a72aea5406eef83cdcaf5ace",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 771339,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"common-02": {
+			"source": "docs/art/phoenix-generic-asteroid-02-v1.png",
+			"source_sha256": "07a7b22fa0b576ac16a06048c7cd800334e2a190c0eb62498d7b78f5cb579e7c",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 849162,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"common-03": {
+			"source": "docs/art/phoenix-generic-asteroid-03-v1.png",
+			"source_sha256": "58adde297cb970d499f794bbe801402a580105f13a632db2db84a37197e13dce",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 841501,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"common-04": {
+			"source": "docs/art/phoenix-generic-asteroid-04-v1.png",
+			"source_sha256": "d4a57992ac1d6f2eee0c9c080c9e63c91418c1017518485decda489c77d609b4",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 848083,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"uncommon-01": {
+			"source": "docs/art/phoenix-uncommon-asteroid-01-layered-v1.png",
+			"source_sha256": "a68c89e54d0644ff614849265eca77917a5177cca3649b25922972ad7f737571",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 814541,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"uncommon-02": {
+			"source": "docs/art/phoenix-uncommon-asteroid-02-saddle-v1.png",
+			"source_sha256": "6b3de1d43413d9b06fc472e6043caf01f81387751a91ee7f61f02b18c657f9c9",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 830790,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"uncommon-03": {
+			"source": "docs/art/phoenix-uncommon-asteroid-03-offset-v1.png",
+			"source_sha256": "adc425853d7227471dd8d3c28f9cf605319360fba848801325975a9ad0c7e03c",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 727783,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"uncommon-04": {
+			"source": "docs/art/phoenix-uncommon-asteroid-04-scarred-v1.png",
+			"source_sha256": "a48f2a728c8c42bde24b673f27d52ecd84c7068110178853bc74193f34a7b861",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 767708,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"rare-01": {
+			"source": "docs/art/phoenix-asteroid-01-crag-v1.png",
+			"source_sha256": "911c365b2bcca0d6f5f9a8591ab39859f49f714a87a2edcc31c21f24ccb406d6",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 687567,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"rare-02": {
+			"source": "docs/art/phoenix-asteroid-02-splinter-v1.png",
+			"source_sha256": "9bbcd8516600b30cffe4882def232ffc05b2971beb06e58605fd5a1fdb1f3155",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 1064564,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"rare-03": {
+			"source": "docs/art/phoenix-asteroid-03-peanut-v1.png",
+			"source_sha256": "f16891a6a76974e47ee927df9e66e335e034b6ee05f4f954047975640a5f7d90",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 637309,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"rare-04": {
+			"source": "docs/art/phoenix-asteroid-04-arch-v1.png",
+			"source_sha256": "b74f7589fa243295547cfb49a9c18887f5f7364304e39996f67639752d7b369d",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 715102,
+			"image_size": [1254, 1254],
+			"depth_scale": 0.9
+		},
+		"planet": {
+			"source": "docs/art/phoenix-planet-v1.png",
+			"source_sha256": "b161b9b57763b2c5778a7df8eb0035e52d40b0ee731d5181a3f71f1ee8e3d13b",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 511458,
+			"image_size": [1254, 1254],
+			"depth_scale": 1.007212
+		},
+		"sun": {
+			"source": "docs/art/phoenix-sun-v1.png",
+			"source_sha256": "28753965ea0d53b1c989fb5dd4aa7368e91c56eb5def2ec58f326ac7fdef6898",
+			"foreground_rgb_changed_pixels": 0,
+			"all_rgb_preserved": true,
+			"resampled": false,
+			"alpha_cleared_pixels": 559559,
+			"image_size": [1254, 1254],
+			"depth_scale": 0
+		}
+	},
+	"fields": [
+		{
+			"pack": "base",
+			"map": "base.rescue-under-threat",
+			"region": "debris-west",
+			"layer": "types"
+		},
+		{
+			"pack": "base",
+			"map": "base.rescue-under-threat",
+			"region": "debris-east",
+			"layer": "types"
+		},
+		{
+			"pack": "base",
+			"map": "base.rescue-under-threat",
+			"region": "debris-north",
+			"layer": "types"
+		},
+		{
+			"pack": "test-missions",
+			"map": "base.asteroid-duel",
+			"region": "duel-field",
+			"layer": "types"
+		}
+	]
+}

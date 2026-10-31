@@ -1,0 +1,16 @@
+{
+	"albedo": "phoenix-base:assets/celestial/planet.png",
+	"frames": [
+		{
+			"name": "planet",
+			"rect": [0, 0, 1254, 1254],
+			"pivot": [627.0, 627.0],
+			"azimuth": 0,
+			"depth_scale": 1.007212,
+			"depth_offset": 0,
+			"attachments": {}
+		}
+	],
+	"depth": "phoenix-base:assets/celestial/planet-depth.png",
+	"normal": "phoenix-base:assets/celestial/planet-normal.png"
+}

@@ -1,10 +1,10 @@
 # Rescue opening scenery
 
-`planet.png` is a transparent RGBA PNG generated with OpenAI imagegen for Phoenix V3 on 23 October 2026. The existing `assets/comic/asteroid-albedo.png` supplied its illustrated reference: ink outlines, stippled shading, muted ochre, ivory and teal.
+The current planet, sun and twelve weighted asteroid variants live in `../celestial/`. See [celestial art preparation](../../../../docs/celestial-art.md) for sources, background extraction, geometric depth and field weights. The former planet in this directory has been retired to ignored `raw/celestial/retired/`.
 
 The planet is one spherical illustrated cutout. The starbase is a strict side elevation, regenerated following the requested correction from the earlier three-quarter view. Only the side-on version is packaged. Both are authored as single camera-facing billboards in `definitions.json`; no directional sprite selection or orbital simulation is involved.
 
-Generated planet source identifier: `exec-7efff45f-2bba-432e-a39e-c783389622c7`.
+The retired planet source identifier was `exec-7efff45f-2bba-432e-a39e-c783389622c7`.
 
 ## Circular starbase replacement, 30 October 2026
 

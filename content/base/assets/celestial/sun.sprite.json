@@ -1,0 +1,27 @@
+{
+	"schema_version": 1,
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"id": "sun",
+	"image_size": [1254, 1254],
+	"files": {
+		"sprite": "sun.png",
+		"radar_icon": "../radar/sun.png"
+	},
+	"billboard_mode": "camera",
+	"render_scale": 14,
+	"emissive": true,
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "sun",
+				"rect": [0, 0, 1254, 1254],
+				"pivot": [627.0, 627.0],
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"camera_azimuth_degrees": 0,
+				"markers": {}
+			}
+		]
+	}
+}
