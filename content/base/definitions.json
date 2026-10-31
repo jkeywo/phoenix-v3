@@ -75595,6 +75595,66 @@
 							"observation": "away_candidate.cost"
 						}
 					}
+				},
+				{
+					"id": "departure-recall",
+					"behavior": "ready",
+					"candidate_source": "craft",
+					"action": "recall",
+					"retry_ticks": 20,
+					"available": [
+						{
+							"left": {
+								"observation": "bay.recall_available"
+							},
+							"op": "eq",
+							"right": true
+						},
+						{
+							"left": {
+								"observation": "bay.pending_order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "bay.order"
+							},
+							"op": "ne",
+							"right": "return"
+						},
+						{
+							"left": {
+								"observation": "objective.record.operation"
+							},
+							"op": "eq",
+							"right": "ready"
+						},
+						{
+							"left": {
+								"observation": "bay.ftl_preparing"
+							},
+							"op": "eq",
+							"right": true
+						}
+					],
+					"target": {
+						"observation": "bay.entity"
+					},
+					"arguments": [
+						{
+							"observation": "bay.craft"
+						},
+						"",
+						{
+							"observation": "bay.revision"
+						}
+					],
+					"factors": {
+						"urgency": 1000,
+						"progress": 1000
+					}
 				}
 			],
 			"objective_scoring": {
