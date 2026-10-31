@@ -77,6 +77,8 @@ Json board(const Json &source)
 		       {"progress", Json::array()}};
 		for (const auto *key : {"target", "x", "y", "bearing_mdeg", "arc_mdeg", "range_mm"})
 			r[key] = s.at(key).get<std::int64_t>();
+		if (s.contains("radar_arc"))
+			r["radar_arc"] = s.at("radar_arc").get<bool>();
 		if (s.at("progress").size() > 134)
 			throw std::runtime_error("Invalid scan progress");
 		for (const auto &p : s.at("progress"))
