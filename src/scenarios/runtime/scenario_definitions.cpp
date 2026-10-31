@@ -100,6 +100,23 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 			d.delivery = std::move(delivery);
 		}
 		d.actor = actor(v.at("actor"));
+		d.behavior = v.value("behavior", d.delivery          ? std::string("deliver")
+		                                 : d.has_destination ? std::string("navigate")
+		                                                     : std::string("observe"));
+		d.tier = v.value("tier", std::string("objective_other"));
+		d.scoring_policy = v.value("scoring_policy", std::string("default"));
+		d.urgency = number(v, "urgency", 0, 0, 1000000);
+		require(contains_name({"reaction", "scripted_high", "objective_combat", "directive_combat", "scripted_low",
+		                       "objective_other", "directive_other"},
+		                      d.tier),
+		        "unknown objective tier");
+		require(contains_name({"observe", "navigate", "deliver", "engage", "withdraw", "board", "formation", "depart",
+		                       "repair", "medical", "ready", "home", "scan", "craft", "away"},
+		                      d.behavior),
+		        "unknown objective behavior");
+		require(valid_identifier(d.scoring_policy), "invalid objective scoring policy");
+		if (v.contains("behavior_target"))
+			d.behavior_target = actor(v.at("behavior_target"));
 		d.recipients = recipients(v.at("recipients"));
 		d.title_key = read_scenario_text(v, "title_key");
 		d.description_key = read_scenario_text(v, "description_key", true);
@@ -113,6 +130,8 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		};
 		check_slot(d.actor);
 		check_slot(d.recipients.ship);
+		if (d.behavior_target)
+			check_slot(*d.behavior_target);
 		if (d.delivery)
 			check_slot(d.delivery->target);
 		require(out.objectives.emplace(d.id, std::move(d)).second, "duplicate objective definition");

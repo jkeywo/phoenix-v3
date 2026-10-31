@@ -213,6 +213,8 @@ auto Runtime::project_combat(const ConsoleAddress &address, Observation &result)
 			{
 				output["weapons"].push_back(
 				    {{"id", d.id},
+				     {"enabled", child.get<Equipment>().enabled && !structurally_disabled(ship, d.id)},
+				     {"durable_payload", weapon_payload(ship, *m).durability > 0},
 				     {"label", d.get<WeaponDefinition>().radar_coverage == "coverage"
 				                   ? d.get<WeaponDefinition>().coverage_label
 				                   : ""},

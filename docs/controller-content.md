@@ -298,3 +298,13 @@ selection, other departments and readiness remain separately admitted. The same
 operation mask is checked by native execution and remote presentation.
 
 Repair teams retain their assigned destination while the Controller chooses useful local repairs. Medical chooses eligible treatment/recovery orders for that compartment after physically arriving. With no explicit destination, an occupied assisted team holds its current compartment rather than selecting another room. Vacant stations retain ordinary AI operation. Existing team destination, compartment-assignment, clinical compartment, travel and work fields persist this state; no timer or personnel progress is reconstructed on resume. Away manifest preparation remains independent and retains its ordinary department authority.
+
+## Scored objectives and Captain marks
+
+See [the scored-objective contract](scored-objectives.md). Objective publications can declare `behavior`, `tier`, `behavior_target`, `scoring_policy` and `urgency`. Tiers use `reaction`, `scripted_high`, `objective_combat`, `directive_combat`, `scripted_low`, `objective_other` and `directive_other`. A region supplies a disclosed destination; `behavior_target` uses the existing scenario actor selector. Missing behavior defaults to delivery, navigation or observation according to the existing definition.
+
+Controller trees can declare named `objective_scoring` policies. Each policy supplies nonnegative integer weights (0-1,000,000) for `urgency`, `progress`, `risk`, `travel`, `resources` and `commitment`. The built-in `default` weights are 1 for each evidence factor and 100 for commitment; these are defaults, not frozen balance. Travel estimates use kilometres from disclosed coordinates. The legacy `priority_or_latest` destination binding now uses scored selection rather than publication order. Unknown named scoring policies are explicitly infeasible for that Controller.
+
+Captain's `objective.mark`, `objective.unmark` and `objective.clear` operations preserve the existing Controller generation and objective-board revision checks. Clear requires objective ID zero. Mark/unmark require an active published ID. Mark is idempotent. The legacy `objective.priority` operation remains an idempotent mark (zero clears all); its scalar tree observation returns the first marked ID only as a compatibility view. Decisions use the full set. Objective-board `selected` is an array of marked IDs.
+
+World and portable sessions require schema 35. Older files remain preserved and require a new session. See the delivery record for the migrations still pending; adding objective metadata does not establish that every native decision loop has been removed.

@@ -80,6 +80,8 @@ Json project_controller_runtime(const ConsoleControllerRuntime &controller, cons
 				                                                             : "hidden";
 		}
 	}
+	row["objective_candidates"] = controller.objective_diagnostics;
+	row["selected_objective"] = controller.selected_objective;
 	row["conversation_authority"] = facts.conversation_authority;
 	row["contribution_authority"] = facts.contribution_authority;
 	row["craft_authority"] = facts.craft_authority;

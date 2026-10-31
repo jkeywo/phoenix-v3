@@ -80,16 +80,12 @@ auto Runtime::append_sensor_contacts(const ConsoleAddress &address, Observation 
 			    {contact_id, combat_bearing(p.position - own.position), ecs.get<Clock>().tick});
 		if (visible)
 		{
-			const bool locked =
-			    p.target == address.ship &&
-			    ordnance_seeker_lock(p, {own.position, altitude(address.ship), true, 1000 - concealment(address.ship)});
-			if (!result.gameplay.contains("missile_locks"))
-				result.gameplay["missile_locks"] = Json::array();
-			result.gameplay["missile_locks"].push_back({{"contact", contact_id}, {"locked_on_own", locked}});
 			result.contacts.push_back(
 			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
 			result.contacts.back().altitude = p.altitude;
 			result.contacts.back().vz = p.vz;
+			if (p.source == address.ship)
+				result.contacts.back().disposition = "friendly";
 		}
 	}
 	for (auto &contact : result.contacts)
@@ -172,7 +168,44 @@ auto Runtime::capture_console_observation(const ConsoleAddress &address, Json ga
 	result.gameplay = std::move(gameplay);
 	if (detail != ObservationDetail::Contacts)
 	{
+		if (const auto *bridge = entity.try_get<BridgeBlackboard>())
+		{
+			result.gameplay["objective_priorities"] = bridge->priority_objectives;
+			result.gameplay["objective_priority_revision"] = bridge->priority_revision;
+			result.gameplay["alert"] = alert_board(address.ship);
+			result.gameplay["stance"] = stance_board(address);
+		}
 		project_combat(address, result);
+		result.gameplay["ftl"] = ftl_board(address);
+		if (const auto *craft = entity.try_get<CraftState>())
+		{
+			std::int64_t energy = 0, capacity = 0;
+			if (const auto *resources = entity.try_get<ShipResources>())
+				for (std::size_t i = 0; i < resources->network.stores().size(); ++i)
+				{
+					energy += resources->network.stores()[i].energy();
+					capacity += resources->definition.network.stores[i].capacity;
+				}
+			bool armed = false;
+			for (const auto &weapon : result.gameplay.at("combat").at("weapons"))
+				if (weapon.value("enabled", false) && weapon.value("durable_payload", false))
+					for (const auto &option : weapon.at("ammunition_options"))
+						armed |= option.at("available").get<bool>();
+			const auto anchor = craft->target == craft->home ? craft->rendezvous : craft->target_position;
+			auto &row = result.gameplay["craft_self"] = {
+			    {"order", craft->order},
+			    {"target", craft->target},
+			    {"reserve_low",
+			     capacity > 0 && energy * 1000 <= capacity * definition(address.ship).craft->return_reserve},
+			    {"armed", armed},
+			    {"anchor_x", anchor.x},
+			    {"anchor_y", anchor.y}};
+			if (const auto *g = entity.try_get<CraftGuidance>())
+				row["guidance"] = {{"x", g->destination.x}, {"y", g->destination.y}, {"altitude", g->altitude},
+				                   {"speed", g->speed},     {"target", g->target},   {"navigate", g->navigate},
+				                   {"heading", g->heading}};
+		}
+
 		// Shared own-ship combat receipts coordinate Helm and Tactical without
 		// exposing another Controller's action continuation or private inputs.
 		std::int64_t missile_shots = 0;

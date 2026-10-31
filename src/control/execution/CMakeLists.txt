@@ -8,8 +8,9 @@ add_library(
 	workflow_facts.cpp
 	observations.cpp
 	admission.cpp
+	objectives.cpp
 )
-target_sources(phoenix_control_execution PUBLIC FILE_SET CXX_MODULES FILES execution.cppm)
+target_sources(phoenix_control_execution PUBLIC FILE_SET CXX_MODULES FILES execution.cppm objectives.cppm)
 target_link_libraries(
 	phoenix_control_execution
 	PUBLIC phoenix_control_controllers phoenix_world_state phoenix_knowledge_projections phoenix_content_effects_types

@@ -196,7 +196,7 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 	// instruction through interruptions. A radar return is needed to dock, not
 	// to navigate toward its charted location.
 	if (!mission)
-		if (const auto *objective = controller_navigation_objective(input))
+		if (const auto *objective = controller_navigation_objective(input, controller))
 		{
 			const auto schema = objective->value.schema;
 			const auto &fields = objective->value.fields;

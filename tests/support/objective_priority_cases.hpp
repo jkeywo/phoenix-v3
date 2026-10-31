@@ -1,5 +1,5 @@
 // Synthetic objectives exercise real publication, command admission and Controller reads.
-void objective_priority_cases()
+Json objective_priority_fixture()
 {
 	auto source = controller_fixture(true);
 	source["consoles"].push_back({{"id", "test.captain"}, {"objectives", true}, {"widgets", Json::array()}});
@@ -44,6 +44,14 @@ void objective_priority_cases()
  "transitions":[{"target":"cancel","conditions":[{"left":{"observation":"tick"},"op":"ge","right":40}]}]},
  {"id":"cancel","entry":[{"action":"set_objective_status","arguments":[{"observation":"objective.id"},4]}]}]})json"));
 	materialise_fixture_widgets(source);
+	for (auto &objective : source["maps"][0]["scenario"]["objectives"])
+		if (objective["id"] == "second")
+			objective["urgency"] = 10;
+	return source;
+}
+void objective_priority_cases()
+{
+	auto source = objective_priority_fixture();
 	const auto catalog = load(source);
 	World world;
 	world.load(catalog, "test.map");
@@ -91,8 +99,25 @@ void objective_priority_cases()
 	priority(board.at("objectives")[1].at("id"));
 	require(!world.submit(102, choose), "stale priority selection cannot overwrite a newer choice");
 	priority(0);
-	require(world.observe(102)->gameplay.at("objective_board").at("selected") == 0, "clear selected priority");
+	require(world.observe(102)->gameplay.at("objective_board").at("selected").empty(), "clear selected priority");
 	priority(first);
+	const auto second = board.at("objectives")[1].at("id").get<std::int64_t>();
+	const auto edit_priority = [&](const std::string &action, std::int64_t id)
+	{
+		OperatingCommand request{1, action, id};
+		request.controller = "bridge";
+		request.generation = controller(world, 102, "bridge").at("generation");
+		request.arguments = {world.observe(102)->gameplay.at("objective_board").at("revision").get<std::int64_t>()};
+		require(world.submit(102, request), "explicit multi-priority operation admitted");
+		world.tick();
+	};
+	edit_priority("objective.mark", second);
+	require(world.observe(102)->gameplay.at("objective_board").at("selected").size() == 2,
+	        "Captain may mark multiple objectives");
+	edit_priority("objective.mark", second);
+	require(world.observe(102)->gameplay.at("objective_board").at("selected").size() == 2,
+	        "marking an existing priority is idempotent");
+	edit_priority("objective.unmark", second);
 	World resumed;
 	resumed.restore(catalog, world.save());
 	world.tick();
@@ -102,12 +127,12 @@ void objective_priority_cases()
 	world.tick();
 	require(!world.observe(102)->gameplay.at("objective_board").at("can_select").get<bool>(),
 	        "no AI disables priority edits");
-	require(world.observe(102)->gameplay.at("objective_board").at("selected") == first,
+	require(world.observe(102)->gameplay.at("objective_board").at("selected") == Json::array({first}),
 	        "full manual control retains the readable priority");
 	require(!world.submit(102, {1, "preset", 0}), "fixed workload cannot be elevated live");
 	for (int i = 0; i < 45; ++i)
 		world.tick();
-	require(world.observe(102)->gameplay.at("objective_board").at("selected") == 0,
+	require(world.observe(102)->gameplay.at("objective_board").at("selected").empty(),
 	        "cancelled objective clears priority without selecting a replacement");
 	// Ending the newer diversion must resume the existing older destination.
 	// No replacement objective or scripted navigation order is published.
@@ -131,4 +156,105 @@ void objective_priority_cases()
 	require(interrupted.save() == diversion_resumed.save(), "interrupted objective selection resumes exactly");
 	require(controller(interrupted, 201, "starboard_drive")["commands"]["speed"]["value"] == 1000,
 	        "terminal diversion resumes the original unfinished objective without a new instruction");
+}
+
+void scored_objective_cases()
+{
+	const std::vector<std::string> tiers{"reaction",     "scripted_high",   "objective_combat", "directive_combat",
+	                                     "scripted_low", "objective_other", "directive_other"};
+	for (std::size_t tier = 0; tier + 1 < tiers.size(); ++tier)
+	{
+		auto source = objective_priority_fixture();
+		for (auto &objective : source["maps"][0]["scenario"]["objectives"])
+		{
+			if (objective["id"] == "first")
+			{
+				objective["tier"] = tiers[tier];
+				objective["urgency"] = 0;
+			}
+			if (objective["id"] == "second")
+			{
+				objective["tier"] = tiers[tier + 1];
+				objective["urgency"] = 1000000;
+			}
+		}
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		require(world.prepare_console_profile({1, "drive"}, "automatic") && world.claim(301, 1, "drive") &&
+		            world.claim(302, 1, "observer"),
+		        "scored fixture admitted");
+		for (int n = 0; n < 6; ++n)
+			world.tick();
+		require(controller(world, 301, "starboard_drive")["commands"]["speed"]["value"] == 1000,
+		        "tier beats an arbitrarily larger score");
+		const auto board = world.observe(302)->gameplay.at("objective_board");
+		OperatingCommand mark{1, "objective.mark", board.at("objectives")[1].at("id")};
+		mark.controller = "bridge";
+		mark.generation = controller(world, 302, "bridge").at("generation");
+		mark.arguments = {board.at("revision").get<std::int64_t>()};
+		require(world.submit(302, mark), "Captain marks a lower-tier objective");
+		world.tick();
+		world.tick();
+		require(controller(world, 301, "starboard_drive")["commands"]["speed"]["value"] == (tier == 0 ? 1000 : 2000),
+		        "Reaction precedes marks; marks precede other tiers");
+		require(controller(world, 301, "starboard_drive").at("objective_candidates").size() == 2,
+		        "permitted score diagnostics accompany decisions");
+		World restored;
+		restored.restore(catalog, world.save());
+		world.tick();
+		restored.tick();
+		require(world.save() == restored.save(), "scored choices and priorities resume deterministically");
+	}
+}
+
+void ai_priority_snapshot_cases()
+{
+	auto source = objective_priority_fixture();
+	auto &controllers = source["entities"][0]["control_layout"]["controllers"];
+	Json captain;
+	for (auto at = controllers.begin(); at != controllers.end(); ++at)
+		if (at->at("id") == "bridge")
+		{
+			captain = *at;
+			controllers.erase(at);
+			break;
+		}
+	require(!captain.is_null(), "synthetic Captain widget exists");
+	controllers.insert(controllers.begin(), captain);
+	for (auto &widget : source["control_widgets"])
+		if (widget.at("id") == captain.at("widget"))
+		{
+			widget.erase("policy");
+			widget.erase("fallback");
+			widget["tree"] = "test.ai-captain";
+		}
+	source["trees"].push_back(Json::parse(R"json({"id":"test.ai-captain","context":"controller",
+ "objective_scoring":{"default":{"urgency":0}},
+ "record_bindings":[{"name":"latest","schema":"phoenix.objective","field":"id","scope":"ship","subject":"latest"},
+ {"name":"preferred","schema":"phoenix.objective","field":"id","scope":"ship","subject":"priority_or_latest"}],
+ "initial":"first","states":[
+ {"id":"first","running":[{"action":"objective.mark","arguments":["",{"observation":"preferred"},{"observation":"objective.priority_revision"}]}],
+  "transitions":[{"target":"second","conditions":[{"left":{"observation":"objective.priority"},"op":"gt","right":0}]}]},
+ {"id":"second","running":[{"action":"objective.mark","arguments":["",{"observation":"latest"},{"observation":"objective.priority_revision"}]}]}]})json"));
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.prepare_console_profile({1, "drive"}, "automatic") && world.claim(401, 1, "drive") &&
+	            world.claim(402, 1, "observer") && world.submit(402, {1, "away", 1}),
+	        "AI Captain uses the ordinary Away and Controller authority paths");
+	for (int tick = 0; tick < 6; ++tick)
+	{
+		const auto board = world.observe(402)->gameplay.at("objective_board");
+		const auto previous = board.at("selected");
+		const auto expected =
+		    previous.size() == 1 && !board.at("objectives").empty() && previous[0] == board.at("objectives")[0].at("id")
+		        ? 1000
+		        : 2000;
+		world.tick();
+		require(controller(world, 401, "starboard_drive")["commands"]["speed"]["value"] == expected,
+		        "later Controllers see the captured marks, never same-tick Captain writes");
+	}
+	require(world.observe(402)->gameplay.at("objective_board").at("selected").size() == 2,
+	        "AI Captain can mark multiple objectives using the observed board revision");
 }

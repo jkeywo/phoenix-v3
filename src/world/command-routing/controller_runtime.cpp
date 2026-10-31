@@ -114,7 +114,7 @@ auto Runtime::run_console_controllers(flecs::entity entity) -> void
 		{
 			process_controller_coordination(id, i);
 			auto &brain = *controller.brain;
-			const auto observations = controller_observations(id, controller);
+			const auto observations = controller_observations(id, controller, nullptr, nullptr, true);
 
 			std::optional<Observation> fallback;
 			const auto ports = controller_action_ports(id, i, observations, fallback);

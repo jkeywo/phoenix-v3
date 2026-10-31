@@ -275,6 +275,8 @@ auto Runtime::ftl_board(const ConsoleAddress &a) const -> Json
 {
 	Json rows = Json::array();
 	const auto ship = entities.at(a.ship);
+	if (!ship.has<EquipmentIndex>())
+		return rows;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *ftl = child.try_get<FtlReserve>(); ftl && ftl_owner(a.ship, child.get<Equipment>().id) == a)
 		{

@@ -85,6 +85,7 @@ enum class ControllerOwnField
 	CraftTargetPresent,
 	ObjectiveTarget,
 	PriorityObjective,
+	PriorityRevision,
 	OwnIdentity,
 	Count
 };
@@ -238,6 +239,7 @@ struct ControllerCommandBinding
 // entity-local indices by simulation setup, destinations are never reconstructed.
 struct ControllerTreeBindings
 {
+	std::map<std::string, std::array<std::int64_t, 6>> objective_scoring;
 	std::string ftl_system;
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	bool report_observations = false;

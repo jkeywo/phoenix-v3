@@ -42,7 +42,9 @@ auto Runtime::meta(const ConsoleCommandContext &context, const OperatingCommand 
 		return craft_command(address, command, execute);
 	if (command.action.starts_with("personnel."))
 		return personnel_command(address, command, execute);
-	if (command.action == "alert.set" || command.action == "stance.set" || command.action == "objective.priority")
+	if (command.action == "alert.set" || command.action == "stance.set" ||
+	    (command.action == "objective.priority" || command.action == "objective.mark" ||
+	     command.action == "objective.unmark" || command.action == "objective.clear"))
 		return bridge_command(address, command, execute);
 	if (command.action.starts_with("comms."))
 		return comms_command(address, command, execute);

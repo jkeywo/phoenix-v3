@@ -1,4 +1,5 @@
 module;
+#include <array>
 #include <cstdint>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -48,6 +49,7 @@ struct ControllerBrain
 	std::string routine_stance = "routine";
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	bool report_observations = false;
+	std::map<std::string, std::array<std::int64_t, 6>> objective_scoring;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;
 	ControllerDestinations<ControllerResultField> result;
@@ -126,6 +128,8 @@ struct ConsoleControllerRuntime
 	std::uint64_t provider_generation = 1, decision_sequence = 0, next_decision = 0;
 	std::uint64_t retry_count = 0, last_decision_tick = 0;
 	Json decision_history = Json::array();
+	KnowledgeId selected_objective = 0;
+	Json objective_diagnostics = Json::array();
 	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;
 	// Transient: execution writes are consumed in this tick, before any save boundary.
@@ -155,7 +159,8 @@ struct BridgeBlackboard
 	std::map<std::string, std::size_t> stances;
 	std::map<std::string, std::uint64_t> epochs;
 	NavigationEvidence navigation;
-	std::uint64_t priority_objective = 0, priority_revision = 0;
+	std::set<KnowledgeId> priority_objectives;
+	std::uint64_t priority_revision = 0;
 };
 struct ControllerProposal
 {

@@ -358,6 +358,11 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		     {"fields",
 		      Json::array(
 		          {{{"id", "id"}, {"type", "integer"}, {"publishable", true}},
+		           {{"id", "behavior"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "tier"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "scoring_policy"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "urgency"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "target"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
 		           {{"id", "status"}, {"type", "text"}, {"publishable", true}},
 		           {{"id", "title"}, {"type", "text"}, {"publishable", true}},
 		           {{"id", "description"}, {"type", "text"}, {"publishable", true}},

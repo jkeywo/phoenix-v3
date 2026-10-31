@@ -746,16 +746,15 @@ void cloak_breaks_missile_guidance()
 		if (cloaked)
 			command(world, 101, 1, "choir", "cloak-enabled", 1);
 		ticks(world, 4);
-		bool lock_reported = false;
 		const auto observed = world.observe(101);
-		for (const auto &lock : observed->gameplay.at("missile_locks"))
-			if (lock.at("contact").get<EntityId>() == 7000000000000000ULL + shot.at("id").get<std::uint64_t>())
-			{
-				require(lock.at("locked_on_own").get<bool>() == !cloaked,
-				        "Tactical radar reports current missile lock rather than stored target identity");
-				lock_reported = true;
-			}
-		require(lock_reported, "Visible incoming missile has an own-ship radar lock assessment");
+		require(!observed->gameplay.contains("missile_locks"),
+		        "Radar does not disclose a missile's hidden target or seeker continuation");
+		require(std::any_of(observed->contacts.begin(), observed->contacts.end(),
+		                    [&](const auto &contact)
+		                    {
+			                    return contact.id == 7000000000000000ULL + shot.at("id").get<std::uint64_t>();
+		                    }),
+		        "Visible missile still provides a permitted motion track");
 		command(world, 101, 1, "drive", "speed", 10000);
 		world.tick();
 		const auto before = world.save().at("projectiles")[0].at("heading");

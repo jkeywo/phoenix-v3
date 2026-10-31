@@ -89,24 +89,29 @@ std::vector<OrdnanceContact> OrdnanceContactIndex::contacts(const Projectile &p,
 	return hits;
 }
 
-std::uint64_t select_native_point_defence_target(EntityId observer, fixed::Vec position, fixed::Vec velocity,
-                                                 std::int64_t altitude, std::int64_t range,
-                                                 std::span<const PointDefenceCandidate> candidates)
+std::uint64_t select_native_point_defence_target(fixed::Vec position, fixed::Vec velocity, std::int64_t altitude,
+                                                 std::int64_t range, std::span<const PointDefenceCandidate> candidates)
 {
-	std::pair<std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(), 0};
+	std::tuple<std::int64_t, std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(),
+	                                                           std::numeric_limits<std::int64_t>::max(), 0};
 	for (const auto &p : candidates)
 	{
 		const auto offset = p.position - position;
 		const auto distance = fixed::length(offset) + std::abs(p.altitude - altitude);
 		if (distance > range)
 			continue;
-		const auto closing =
-		    std::max<std::int64_t>(1, -fixed::dot(p.velocity - velocity, fixed::normal(offset)) / fixed::unit);
-		const auto time = p.target == observer ? distance * 1000 / closing : 1000000000 + distance;
-		const auto score = std::pair{time, p.id};
+		const auto relative = p.velocity - velocity;
+		const auto speed = fixed::length(relative);
+		const auto direction = fixed::normal(relative);
+		const auto closing = -fixed::dot(offset, direction) / fixed::unit;
+		if (!speed || closing <= 0)
+			continue;
+		const auto closest = fixed::length(offset + fixed::scale(direction, closing)) + std::abs(p.altitude - altitude);
+		const auto time = closing * 1000 / speed;
+		const auto score = std::tuple{closest, time, p.id};
 		if (score < best)
 			best = score;
 	}
-	return best.second;
+	return std::get<2>(best);
 }
 } // namespace phoenix

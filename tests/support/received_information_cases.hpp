@@ -43,8 +43,18 @@ void received_information_cases()
 				                                                     {"tag", "reactor_critical"},
 				                                                     {"destination_station", "drive"}}});
 				source["maps"][0]["scenario"] = {{"tree", "test.objective"}, {"events", {"test.objective"}}};
+				source["maps"][0]["scenario"]["objectives"] =
+				    Json::array({{{"id", "scan"},
+				                  {"type", "condition"},
+				                  {"behavior", "scan"},
+				                  {"behavior_target", {{"entity", 2}}},
+				                  {"complete_when", {{"event", "test.never"}}},
+				                  {"actor", {{"entity", 1}}},
+				                  {"recipients", {{"ship", {{"entity", 1}}}}},
+				                  {"title_key", "Inspect the disclosed casualty"}}});
+				source["maps"][0]["scenario"]["events"].push_back("test.never");
 				source["trees"].push_back(Json::parse(
-				    R"({"id":"test.objective","context":"scenario","initial":"start","states":[{"id":"start","entry":[{"action":"emit_scenario_event","arguments":["test.objective",0,false,""]}]}]})"));
+				    R"({"id":"test.objective","context":"scenario","initial":"start","states":[{"id":"start","entry":[{"action":"emit_scenario_event","arguments":["test.objective",0,false,""]},{"action":"add_objective","arguments":["scan",{"observation":"self.entity"},"scan"]}]}]})"));
 				source["maps"][0]["conversations"] = Json::parse(
 				    R"([{"id":"decision","tree":"test.dialogue","bindings":{"caller":{"entity":1},"target":{"entity":2,"character":"captain"}},"members":["caller","target"]}])");
 				for (auto &tree : source["trees"])

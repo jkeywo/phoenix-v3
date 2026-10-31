@@ -62,20 +62,23 @@ auto Runtime::ship_has_ai(EntityId ship) const -> bool
 auto Runtime::reconcile_objective_priority(EntityId ship) -> void
 {
 	auto &state = entities.at(ship).get_mut<BridgeBlackboard>();
-	if (!state.priority_objective)
+	if (state.priority_objectives.empty())
 		return;
 	const auto objectives = ship_objectives(ship);
-	if (!objectives.contains(state.priority_objective) || !active_objective(objectives.at(state.priority_objective)))
-	{
-		state.priority_objective = 0;
+	const auto before = state.priority_objectives.size();
+	std::erase_if(state.priority_objectives,
+	              [&](KnowledgeId id)
+	              {
+		              return !objectives.contains(id) || !active_objective(objectives.at(id));
+	              });
+	if (state.priority_objectives.size() != before)
 		++state.priority_revision;
-	}
 }
 
 auto Runtime::objectives_board(EntityId ship) const -> Json
 {
 	const auto &state = entities.at(ship).get<BridgeBlackboard>();
-	Json result{{"selected", state.priority_objective},
+	Json result{{"selected", state.priority_objectives},
 	            {"revision", state.priority_revision},
 	            {"can_select", ship_has_ai(ship)},
 	            {"objectives", Json::array()}};
@@ -85,7 +88,8 @@ auto Runtime::objectives_board(EntityId ship) const -> Json
 		Json row;
 		for (const auto *name :
 		     {"id", "title", "description", "status", "destination_x", "destination_y", "delivery_target",
-		      "delivery_port", "delivery_source", "delivery_store", "delivery_material", "delivery_quantity"})
+		      "delivery_port", "delivery_source", "delivery_store", "delivery_material", "delivery_quantity",
+		      "behavior", "tier", "scoring_policy", "urgency", "target"})
 		{
 			const auto value = record.value.fields.find(schema.field(record.value.schema, name));
 			if (value != record.value.fields.end())
@@ -96,7 +100,7 @@ auto Runtime::objectives_board(EntityId ship) const -> Json
 				    },
 				    value->second);
 		}
-		row["priority"] = id == state.priority_objective;
+		row["priority"] = state.priority_objectives.contains(id);
 		result["objectives"].push_back(std::move(row));
 	}
 	return result;
@@ -196,18 +200,31 @@ auto Runtime::bridge_command(const ConsoleAddress &source, const OperatingComman
 		return false;
 	const auto &data = definition(source.ship);
 	auto &state = entities.at(source.ship).get_mut<BridgeBlackboard>();
-	if (command.action == "objective.priority")
+	if ((command.action == "objective.priority" || command.action == "objective.mark" ||
+	     command.action == "objective.unmark" || command.action == "objective.clear"))
 	{
 		if (!data.console_bridge.at(source.console).objectives || !ship_has_ai(source.ship) ||
 		    !command.system.empty() || !command.text.empty() || command.generation != state.priority_revision)
 			return false;
+		if ((command.action == "objective.clear" && command.value != 0) ||
+		    ((command.action == "objective.mark" || command.action == "objective.unmark") && command.value == 0))
+			return false;
 		const auto objectives = ship_objectives(source.ship);
 		if (command.value && (!objectives.contains(command.value) || !active_objective(objectives.at(command.value))))
 			return false;
-		if (execute && state.priority_objective != static_cast<std::uint64_t>(command.value))
+		if (state.priority_revision >= 9007199254740991ULL)
+			return false;
+		if (execute)
 		{
-			state.priority_objective = command.value;
-			++state.priority_revision;
+			const auto before = state.priority_objectives;
+			if (!command.value || command.action == "objective.clear")
+				state.priority_objectives.clear();
+			else if (command.action == "objective.unmark")
+				state.priority_objectives.erase(command.value);
+			else
+				state.priority_objectives.insert(command.value);
+			if (before != state.priority_objectives)
+				++state.priority_revision;
 		}
 		return true;
 	}
@@ -247,20 +264,24 @@ auto Runtime::bridge_controls(const ConsoleAddress &address, Json &buttons) cons
 		const auto add_priority = [&](std::uint64_t id, const std::string &title)
 		{
 			buttons.push_back({{"id", "objective.priority." + std::to_string(id)},
-			                   {"action", "objective.priority"},
+			                   {"action", !id                                      ? "objective.clear"
+			                              : state.priority_objectives.contains(id) ? "objective.unmark"
+			                                                                       : "objective.mark"},
 			                   {"value", id},
 			                   {"system", ""},
 			                   {"label", title},
-			                   {"label_prefix", id ? "Prioritise objective: " : ""},
-			                   {"selected", id == state.priority_objective},
+			                   {"label_prefix", !id                                      ? ""
+			                                    : state.priority_objectives.contains(id) ? "Remove objective priority: "
+			                                                                             : "Prioritise objective: "},
+			                   {"selected", state.priority_objectives.contains(id)},
 			                   {"generation", state.priority_revision}});
 		};
 		for (const auto &[id, record] : ship_objectives(address.ship))
 			if (active_objective(record))
 				add_priority(id, std::get<std::string>(record.value.fields.at(
 				                     knowledge.definition().field(record.value.schema, "title"))));
-		if (state.priority_objective)
-			add_priority(0, "Clear priority objective");
+		if (!state.priority_objectives.empty())
+			add_priority(0, "Clear priority objectives");
 	}
 	const auto add =
 	    [&](const std::string &action, const std::string &target, const auto &choices, const std::string &prefix)
@@ -292,7 +313,9 @@ auto Runtime::bridge_controls(const ConsoleAddress &address, Json &buttons) cons
 	    [&](auto &button)
 	    {
 		    const auto action = button.value("action", std::string{});
-		    if (action != "alert.set" && action != "stance.set" && action != "objective.priority")
+		    if (action != "alert.set" && action != "stance.set" &&
+		        (action != "objective.priority" && action != "objective.mark" && action != "objective.unmark" &&
+		         action != "objective.clear"))
 			    return false;
 		    const auto operation = action == "alert.set" ? "alert" : action == "stance.set" ? "stance" : "objectives";
 		    const auto *owner = native_operation_controller(address, operation);
@@ -329,7 +352,14 @@ auto Runtime::restore_bridge(EntityId ship, const Json &saved) -> void
 			epoch = display::number(saved.at("epochs").at(console), 0, 9007199254740991LL);
 	}
 	state = {condition, static_cast<std::uint64_t>(revision), stances, epochs};
-	state.priority_objective = display::number(saved.value("priority_objective", Json(0)), 0, 9007199254740991LL);
+	if (!saved.at("priority_objectives").is_array() || saved.at("priority_objectives").size() > 4096)
+		throw std::runtime_error("Invalid saved priority objectives");
+	for (const auto &id : saved.at("priority_objectives"))
+	{
+		const auto value = display::number(id, 1, 9007199254740991LL);
+		if (!state.priority_objectives.insert(value).second)
+			throw std::runtime_error("Duplicate saved priority objective");
+	}
 	state.priority_revision = display::number(saved.value("priority_revision", Json(0)), 0, 9007199254740991LL);
 	if (saved.contains("navigation"))
 	{

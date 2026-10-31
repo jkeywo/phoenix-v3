@@ -9,6 +9,7 @@ module;
 #include <vector>
 
 export module phoenix.control.execution;
+export import phoenix.control.objectives;
 export import phoenix.control.controllers;
 export import phoenix.world.state;
 export import phoenix.knowledge.projections;
@@ -43,7 +44,7 @@ struct ControllerObservationSources
 {
 	EntityId entity;
 	KnowledgeTick tick;
-	KnowledgeId priority_objective;
+	const std::set<KnowledgeId> &priority_objectives;
 	const EntityControls &controls;
 	const Observation &observation;
 	const GameplayKnowledgeProjection &board;
@@ -53,7 +54,9 @@ struct ControllerObservationSources
 	std::function<bool(const KnowledgeRecord &, KnowledgeTick)> stale;
 	std::function<std::string(KnowledgeId)> request_key_name;
 };
-const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &);
+const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &,
+                                                       const ConsoleControllerRuntime &, Json *diagnostics = nullptr,
+                                                       bool scan = false);
 void append_controller_observations(const ConsoleControllerRuntime &, const ControllerObservationSources &,
                                     std::vector<state_tree::Value> &);
 void append_controller_workflow_facts(const ConsoleControllerRuntime &, const ControllerObservationSources &,

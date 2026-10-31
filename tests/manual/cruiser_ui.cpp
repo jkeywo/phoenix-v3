@@ -173,9 +173,10 @@ int main(int argc, char **argv)
 					const auto observed = app.session->console_observation(route);
 					bool selected = false;
 					for (const auto &c : observed->gameplay.at("controls"))
-						if (c.at("action") == "objective.priority" && c.at("value") != 0)
+						if ((c.at("action") == "objective.mark" || c.at("action") == "objective.priority") &&
+						    c.at("value") != 0)
 						{
-							OperatingCommand choose{ship, "objective.priority", c.at("value")};
+							OperatingCommand choose{ship, c.at("action"), c.at("value")};
 							choose.generation = c.at("generation");
 							selected = app.session->console_command(route, choose);
 							break;

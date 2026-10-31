@@ -283,7 +283,9 @@ bool fixture_native_submit(FixtureWorld &world, std::uint64_t claimant, Operatin
 	const auto view = world.observe(claimant);
 	if (!view)
 		return false;
-	if (command.action == "alert.set" || command.action == "stance.set" || command.action == "objective.priority")
+	if (command.action == "alert.set" || command.action == "stance.set" ||
+	    (command.action == "objective.priority" || command.action == "objective.mark" ||
+	     command.action == "objective.unmark" || command.action == "objective.clear"))
 	{
 		for (const auto &control : view->gameplay.at("controls"))
 			if (control.value("action", std::string{}) == command.action &&

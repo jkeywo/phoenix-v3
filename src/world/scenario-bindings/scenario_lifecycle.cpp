@@ -84,6 +84,10 @@ auto Runtime::scenario_publications() -> void
 			value.provenance = {publication.instance, publication.tick, publication.id, 0, EvidenceKind::Fact};
 			const char *names[] = {"pending", "active", "completed", "failed", "cancelled"};
 			value.fields = {
+			    {schema.field(key, "behavior"), spec.behavior},
+			    {schema.field(key, "tier"), spec.tier},
+			    {schema.field(key, "scoring_policy"), spec.scoring_policy},
+			    {schema.field(key, "urgency"), spec.urgency},
 			    {schema.field(key, "id"), static_cast<std::int64_t>(objective.id)},
 			    {schema.field(key, "status"), std::string(names[static_cast<unsigned>(publication.status)])},
 			    {schema.field(key, "title"), spec.title_key},
@@ -98,6 +102,9 @@ auto Runtime::scenario_publications() -> void
 			if (!spec.has_destination)
 				for (const auto *field : {"radius", "region", "destination_x", "destination_y"})
 					value.fields.erase(schema.field(key, field));
+			if (spec.behavior_target)
+				if (const auto target = runtime.resolve_actor(publication.instance, *spec.behavior_target))
+					value.fields[schema.field(key, "target")] = static_cast<std::int64_t>(*target);
 			if (spec.delivery)
 				if (const auto target = runtime.resolve_actor(publication.instance, spec.delivery->target))
 				{

@@ -14,22 +14,28 @@ Teams know all physical facts in their current compartment through local observa
 
 ## Native selector migration inventory
 
-| Selector | Classification and required boundary |
-| --- | --- |
-| Interdiction movement, targeting, generator and departure orders | Policy: replace with published objectives executed by ordinary Controllers |
-| Automatic repair destination | Policy: choose reported work or home; no remote physical fault search |
-| Repair task at current location | Local workflow: complete local observation; physical work retains finite payment |
-| Medical destination/order and facility selection | Policy: known assignments and facility reports; local triage remains a workflow |
-| Away field-care destination | Policy: reported destination; complete information only at current location |
-| Bay defend/bomb/recall | Policy: frozen craft reports and explicitly bound target intent |
-| Away contribution, staffing, transport, escort and send | Department Controller policy with admitted requests/receipts |
-| Scanner objective target | Permitted calculation over published objectives/requests, not finding definitions/events |
-| Point-defence candidate ranking | Permitted calculation over observed trajectories, never actual projectile intent |
-| Craft readiness and guidance inputs | Scoped factual producer, frozen before policy evaluation |
-| Navigation assessment | Approved shipwide factual producer; does not issue commands |
-| Admitted docking assistance | Physical execution of an accepted operation |
-| Resource allocation, routing, treatment and finite work payment | Physical execution; may refuse work but cannot invent strategic assignments |
+| Selector                                                         | Classification and required boundary                                                     |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Interdiction movement, targeting, generator and departure orders | Policy: replace with published objectives executed by ordinary Controllers               |
+| Automatic repair destination                                     | Policy: choose reported work or home; no remote physical fault search                    |
+| Repair task at current location                                  | Local workflow: complete local observation; physical work retains finite payment         |
+| Medical destination/order and facility selection                 | Policy: known assignments and facility reports; local triage remains a workflow          |
+| Away field-care destination                                      | Policy: reported destination; complete information only at current location              |
+| Bay defend/bomb/recall                                           | Policy: frozen craft reports and explicitly bound target intent                          |
+| Away contribution, staffing, transport, escort and send          | Department Controller policy with admitted requests/receipts                             |
+| Scanner objective target                                         | Permitted calculation over published objectives/requests, not finding definitions/events |
+| Point-defence candidate ranking                                  | Permitted calculation over observed trajectories, never actual projectile intent         |
+| Craft readiness and guidance inputs                              | Scoped factual producer, frozen before policy evaluation                                 |
+| Navigation assessment                                            | Approved shipwide factual producer; does not issue commands                              |
+| Admitted docking assistance                                      | Physical execution of an accepted operation                                              |
+| Resource allocation, routing, treatment and finite work payment  | Physical execution; may refuse work but cannot invent strategic assignments              |
 
 ## Delivery
 
 Pending. Verify each logical migration through synthetic production-loader integrations, preserve continuation deterministically, and record native/WASM/network and manually invoked smoke evidence independently. Do not infer completion from this document or from compilation.
+
+### Foundation evidence — 31 October 2026
+
+The native Controller integration passes the seven-tier comparisons, multiple/idempotent Captain marks, private-objective refusal, AI Captain revision admission, frozen same-tick marks and save/resume. Native combat, FTL, away, psychic and craft integrations also pass. Production base packaging and verification accepted the explicit Rescue scan objective (`build/scored-objectives-base.zip`). These checks used the working tree, including the existing unrelated demo/build changes.
+
+This first increment implements the scoring primitive and navigation/scan bindings, multiple Captain marks and their projections/persistence, frozen bridge intent, scoped craft/FTL decision inputs, and trajectory-only missile ranking. It does not establish objective arbitration for every Controller behavior. Standing directives, native team/Medical assignment, bay dispatch, away preparation and interdiction command ownership still require migration. No WebAssembly/network gate, graphical smoke, hardware or screen-reader acceptance is claimed for this increment.

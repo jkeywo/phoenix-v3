@@ -165,11 +165,7 @@ auto Runtime::controller_coordination_facts(const ConsoleControllerRuntime &cont
 		{
 			const auto &bridge = entity.get<BridgeBlackboard>();
 			inputs.navigation_blocked = bridge.navigation.blocked;
-			if (bridge.stances.contains(controller.definition.console))
-				inputs.hold = definition(observed.own.id)
-				                  .console_bridge.at(controller.definition.console)
-				                  .stances.at(bridge.stances.at(controller.definition.console))
-				                  .id == "hold";
+			inputs.hold = observed.gameplay.value("stance", Json::object()).value("id", std::string{}) == "hold";
 		}
 	}
 	phoenix::controller_coordination_facts(controller, observed, ecs.get<Clock>().tick, inputs, values);

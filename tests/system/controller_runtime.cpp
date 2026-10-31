@@ -152,6 +152,8 @@ int main(int argc, char **argv)
 		officer_protocol_failure_boundary();
 		control_widget_cases();
 		objective_priority_cases();
+		scored_objective_cases();
+		ai_priority_snapshot_cases();
 		stock_selection_cases();
 		power_panel_cases();
 		away_assignment_cases();
@@ -2279,7 +2281,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 34, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 35, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

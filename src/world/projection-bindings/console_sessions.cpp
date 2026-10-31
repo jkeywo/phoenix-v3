@@ -131,7 +131,9 @@ bool World::can_submit(const ConsoleCommandContext &context, OperatingCommand co
 	command.target = context.address.ship;
 	command.console = context.address.console;
 	if ((command.arguments.empty() || command.action.starts_with("display.") || command.action == "alert.set" ||
-	     command.action == "stance.set" || command.action == "objective.priority") &&
+	     command.action == "stance.set" ||
+	     (command.action == "objective.priority" || command.action == "objective.mark" ||
+	      command.action == "objective.unmark" || command.action == "objective.clear")) &&
 	    impl_->meta(context, command, false))
 		return impl_->meta_pending.size() < 4096;
 	if (impl_->entities.at(command.target).has<EntityControls>())

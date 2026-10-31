@@ -25,7 +25,13 @@ Json board(const Json &source)
 	if (!source.is_object() || !source.at("objectives").is_array() || source.at("objectives").size() > 4096 ||
 	    source.dump().size() > 512 * 1024)
 		throw std::runtime_error("Invalid objective board");
-	Json out{{"selected", number(source.at("selected"), 0, 9007199254740991LL)},
+	if (!source.at("selected").is_array() || source.at("selected").size() > 4096)
+		throw std::runtime_error("Invalid priority objective set");
+	std::set<std::int64_t> priorities;
+	for (const auto &id : source.at("selected"))
+		if (!priorities.insert(number(id, 1, 9007199254740991LL)).second)
+			throw std::runtime_error("Duplicate priority objective");
+	Json out{{"selected", priorities},
 	         {"revision", number(source.at("revision"), 0, 9007199254740991LL)},
 	         {"can_select", source.at("can_select").get<bool>()},
 	         {"objectives", Json::array()}};
@@ -35,6 +41,13 @@ Json board(const Json &source)
 		               {"priority", row.at("priority").get<bool>()}};
 		for (const auto *field : {"title", "description", "status"})
 			objective[field] = text(row.at(field), 1024);
+		for (const auto *field : {"behavior", "tier", "scoring_policy"})
+			if (row.contains(field))
+				objective[field] = text(row.at(field), 128);
+		if (row.contains("urgency"))
+			objective["urgency"] = number(row.at("urgency"), 0, 1000000);
+		if (row.contains("target"))
+			objective["target"] = number(row.at("target"), 1, 9007199254740991LL);
 		for (const auto *field : {"destination_x", "destination_y"})
 			if (row.contains(field))
 				objective[field] = number(row.at(field), -1000000000, 1000000000);

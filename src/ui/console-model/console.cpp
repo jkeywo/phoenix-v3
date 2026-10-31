@@ -387,7 +387,10 @@ bool ConsoleModel::act(const std::string &id)
 		if (!console_string(*selected, "controller").empty() || selected->value("request_id", std::uint64_t{0}))
 			return submit(decode_operating_command(*selected));
 		if (console_string(*selected, "action") == "stance.set" ||
-		    console_string(*selected, "action") == "objective.priority")
+		    (console_string(*selected, "action") == "objective.priority" ||
+		     console_string(*selected, "action") == "objective.mark" ||
+		     console_string(*selected, "action") == "objective.unmark" ||
+		     console_string(*selected, "action") == "objective.clear"))
 		{
 			OperatingCommand intent{observation_->own.id, console_string(*selected, "action"), selected->at("value"),
 			                        console_string(*selected, "system")};

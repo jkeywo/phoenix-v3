@@ -616,7 +616,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				if (action.name.starts_with("away.") || action.name.starts_with("craft.") ||
 				    action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
 				    action.name.starts_with("dock.") || action.name == "alert.set" || action.name == "stance.set" ||
-				    action.name == "objective.priority")
+				    (action.name == "objective.priority" || action.name == "objective.mark" ||
+				     action.name == "objective.unmark" || action.name == "objective.clear"))
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")

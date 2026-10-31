@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <nlohmann/json.hpp>
@@ -436,6 +437,26 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                "registry context differs from authored tree");
 	using namespace state_tree;
 	ControllerTreeBindings result;
+	const auto scoring = resolve_tree_definition(tree, catalog).value("objective_scoring", Json::object());
+	binding_require(scoring.is_object() && scoring.size() <= 64, "Controller tree",
+	                "invalid objective scoring policies");
+	result.objective_scoring["default"] = {1, 1, 1, 1, 1, 100};
+	for (auto policy = scoring.begin(); policy != scoring.end(); ++policy)
+	{
+		binding_require(valid_identifier(policy.key()) && policy.value().is_object(), "Controller tree",
+		                "invalid scoring policy");
+		auto weights = result.objective_scoring.at("default");
+		const std::array<const char *, 6> names{"urgency", "progress", "risk", "travel", "resources", "commitment"};
+		for (auto field = policy.value().begin(); field != policy.value().end(); ++field)
+		{
+			const auto at = std::find(names.begin(), names.end(), field.key());
+			binding_require(at != names.end() && field.value().is_number_integer() && field.value() >= 0 &&
+			                    field.value() <= 1000000,
+			                "Controller tree", "unknown scoring factor or weight outside 0..1000000");
+			weights.at(static_cast<std::size_t>(at - names.begin())) = field.value().get<std::int64_t>();
+		}
+		result.objective_scoring[policy.key()] = weights;
+	}
 	result.report_observations = resolve_tree_definition(tree, catalog).value("report_observations", false);
 	auto &registry = result.registry;
 	auto add = [&](FieldSpec field)
@@ -474,6 +495,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	result.own[ControllerOwnField::CraftTargetPresent] = add({"craft.target_present", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::ObjectiveTarget] = add({"objective.target", Type::Integer, 4, {}});
 	result.own[ControllerOwnField::PriorityObjective] = add({"objective.priority", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::PriorityRevision] = add({"objective.priority_revision", Type::Integer, 4, {}});
 	result.own[ControllerOwnField::OwnIdentity] = add({"own.id", Type::Integer, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.value("complexity_observation", false))
@@ -660,7 +682,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})
 		registry.actions.push_back({std::string("craft.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	registry.actions.push_back({"craft.return_home", 4, {}, true});
-	for (const auto *name : {"alert.set", "stance.set", "objective.priority"})
+	for (const auto *name :
+	     {"alert.set", "stance.set", "objective.priority", "objective.mark", "objective.unmark", "objective.clear"})
 		registry.actions.push_back({name, 4, {Type::Text, Type::Integer, Type::Integer}, true});
 	if (resolved.contains("ftl_system"))
 	{
@@ -840,7 +863,9 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		if (action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
 		    action.name.starts_with("dock.") || action.name.starts_with("away.") || action.name.starts_with("craft.") ||
 		    action.name.starts_with("coordination.") || action.name == "ftl.depart" || action.name == "alert.set" ||
-		    action.name == "stance.set" || action.name == "objective.priority")
+		    action.name == "stance.set" ||
+		    (action.name == "objective.priority" || action.name == "objective.mark" ||
+		     action.name == "objective.unmark" || action.name == "objective.clear"))
 			action.command = true;
 
 	return result;

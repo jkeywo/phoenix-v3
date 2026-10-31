@@ -1102,7 +1102,10 @@ ConsoleSurface::State::GameplayActions ConsoleSurface::State::prepare_gameplay_a
 			const auto action = descriptor_action(descriptor.at("id"));
 			if (descriptor.value("action", "") == "sensor_target")
 				sensor_actions.insert(action);
-			if (descriptor.value("action", "") == "objective.priority")
+			if ((descriptor.value("action", "") == "objective.priority" ||
+			     descriptor.value("action", "") == "objective.mark" ||
+			     descriptor.value("action", "") == "objective.unmark" ||
+			     descriptor.value("action", "") == "objective.clear"))
 				objective_controls.insert(action);
 			switch (destination(descriptor))
 			{

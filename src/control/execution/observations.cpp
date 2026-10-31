@@ -15,27 +15,105 @@ import phoenix.effects.processes;
 
 namespace phoenix
 {
-const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &input)
+const KnowledgeRecord *controller_navigation_objective(const ControllerObservationSources &input,
+                                                       const ConsoleControllerRuntime &controller, Json *diagnostics,
+                                                       bool scan)
 {
 	const auto schema = input.definitions.schema("phoenix.objective");
-	const auto destination = input.definitions.field(schema, "destination_x");
-	const auto status = input.definitions.field(schema, "status");
-	const KnowledgeRecord *latest = nullptr;
+	const auto field = [&](const KnowledgeRecord &record, const char *name) -> const KnowledgeValue *
+	{
+		const auto at = record.value.fields.find(input.definitions.field(schema, name));
+		return at == record.value.fields.end() ? nullptr : &at->second;
+	};
+	const auto text = [&](const KnowledgeRecord &record, const char *name, const std::string &fallback)
+	{
+		const auto value = field(record, name);
+		return value && std::get_if<std::string>(value) ? std::get<std::string>(*value) : fallback;
+	};
+	const auto number = [&](const KnowledgeRecord &record, const char *name, std::int64_t fallback = 0)
+	{
+		const auto value = field(record, name);
+		return value && std::get_if<std::int64_t>(value) ? std::get<std::int64_t>(*value) : fallback;
+	};
 	std::set<KnowledgeId> seen;
+	std::vector<const KnowledgeRecord *> records;
+	std::vector<ObjectiveCandidate> candidates;
 	for (auto r = input.board.shared.rbegin(); r != input.board.shared.rend(); ++r)
 		if (r->value.schema == schema && seen.insert(r->value.subject).second)
 		{
-			const auto state = r->value.fields.find(status);
-			if (r->value.withdrawn || input.stale(*r, input.tick) || !r->value.fields.contains(destination) ||
-			    state == r->value.fields.end() || std::get<std::string>(state->second) != "active")
-				continue;
-			if (r->value.subject == input.priority_objective)
-				return &*r;
-			if (!latest)
-				latest = &*r;
+			ObjectiveCandidate candidate;
+			candidate.objective = r->value.subject;
+			candidate.target = number(*r, "target");
+			candidate.action = text(*r, "behavior", "navigate");
+			candidate.tier = objective_tier(text(*r, "tier", "objective_other"));
+			candidate.marked = input.priority_objectives.contains(candidate.objective);
+			const bool actionable =
+			    scan ? candidate.action == "scan" && candidate.target &&
+			               (std::any_of(input.observation.contacts.begin(), input.observation.contacts.end(),
+			                            [&](const auto &contact)
+			                            {
+				                            return contact.id == candidate.target;
+			                            }) ||
+			                std::any_of(input.observation.bearing_contacts.begin(),
+			                            input.observation.bearing_contacts.end(),
+			                            [&](const auto &contact)
+			                            {
+				                            return contact.id == candidate.target;
+			                            }))
+			         : field(*r, "destination_x") && field(*r, "destination_y") &&
+			               (candidate.action == "navigate" || candidate.action == "deliver" ||
+			                candidate.action == "formation" || candidate.action == "withdraw");
+			candidate.feasible =
+			    !r->value.withdrawn && !input.stale(*r, input.tick) && text(*r, "status", "") == "active" && actionable;
+			candidate.reason = candidate.feasible ? "permitted_destination" : "no_actionable_destination";
+			candidate.committed =
+			    controller.selected_objective == candidate.objective && controller.action.status == "running";
+			candidate.factors.urgency = number(*r, "urgency");
+			candidate.factors.progress = 1000;
+			candidate.factors.travel = fixed::length({number(*r, "destination_x") - input.observation.own.x,
+			                                          number(*r, "destination_y") - input.observation.own.y}) /
+			                           1000;
+			if (controller.brain)
+			{
+				const auto &policies = controller.brain->objective_scoring;
+				const auto policy = policies.find(text(*r, "scoring_policy", "default"));
+				if (policy == policies.end())
+				{
+					candidate.feasible = false;
+					candidate.reason = "unsupported_scoring_policy";
+				}
+				else
+				{
+					const auto &w = policy->second;
+					candidate.policy = {w[0], w[1], w[2], w[3], w[4], w[5]};
+				}
+			}
+			records.push_back(&*r);
+			candidates.push_back(std::move(candidate));
 		}
-	return latest;
+	const auto selected = select_objective(candidates);
+	if (diagnostics)
+	{
+		*diagnostics = Json::array();
+		for (std::size_t i = 0; i < candidates.size(); ++i)
+		{
+			const auto &c = candidates[i];
+			const auto score = score_objective(c);
+			diagnostics->push_back({{"objective", c.objective},
+			                        {"target", c.target},
+			                        {"action", c.action},
+			                        {"tier", objective_tier_name(c.tier)},
+			                        {"marked", c.marked},
+			                        {"feasible", c.feasible},
+			                        {"reason", c.reason},
+			                        {"score", score.total},
+			                        {"terms", score.terms},
+			                        {"selected", selected && *selected == i}});
+		}
+	}
+	return selected ? records[*selected] : nullptr;
 }
+
 namespace
 {
 static state_tree::Value controller_property_fact(const Json *rows, const ControllerAbilityPropertyBinding &property)
@@ -236,7 +314,7 @@ void append_controller_observations(const ConsoleControllerRuntime &controller,
 			subject = latest == records.rend() ? 0 : latest->value.subject;
 			if (binding.priority)
 			{
-				const auto *objective = controller_navigation_objective(input);
+				const auto *objective = controller_navigation_objective(input, controller);
 				subject = objective ? objective->value.subject : 0;
 			}
 		}

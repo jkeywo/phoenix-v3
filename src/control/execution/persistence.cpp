@@ -51,6 +51,7 @@ Json save_controllers(const EntityControls &controls)
 		                {"retries", controller.retry_count},        {"last", controller.last_decision_tick},
 		                {"history", controller.decision_history}};
 		row["effects"] = controller.effects;
+		row["selected_objective"] = controller.selected_objective;
 		if (!controller.action.id.empty())
 			row["action"] = save_controller_action(controller);
 		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty() ||
@@ -86,6 +87,8 @@ void restore_controllers(EntityControls &controls, const Json &saved, const Cont
 		fail(row.at("id") == controller.definition.id && row.at("console") == controller.definition.console);
 		fail(row.at("generation").is_number_unsigned() && row.at("generation").get<std::uint64_t>() > 0);
 		controller.generation = row.at("generation").get<std::uint64_t>();
+		fail(row.at("selected_objective").is_number_unsigned() && row.at("selected_objective") < 9007199254740991ULL);
+		controller.selected_objective = row.at("selected_objective").get<KnowledgeId>();
 		fail(row.at("human").is_boolean());
 		controller.human = row.at("human").get<bool>();
 		controller.human_commands.clear();

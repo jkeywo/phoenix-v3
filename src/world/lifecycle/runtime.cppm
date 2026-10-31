@@ -314,10 +314,10 @@ struct Runtime
 	void clear_controller_settings(EntityId ship, std::size_t controller_index,
 	                               std::initializer_list<std::size_t> channels);
 	// World::Impl methods. Physical mutation is confined to command consumption below.
-	std::vector<state_tree::Value>
-	controller_observations(EntityId id, const ConsoleControllerRuntime &controller,
-	                        const Observation *projected = nullptr,
-	                        const GameplayKnowledgeProjection *projected_board = nullptr);
+	std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller,
+	                                                       const Observation *projected = nullptr,
+	                                                       const GameplayKnowledgeProjection *projected_board = nullptr,
+	                                                       bool record_selection = false);
 	std::optional<bool> controller_native_command(EntityId id, std::size_t index, const std::string &name,
 	                                              std::span<const state_tree::Value> args, bool execute);
 	void controller_output(EntityId id, std::size_t index, const state_tree::Output &output,

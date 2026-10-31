@@ -92,6 +92,8 @@ Json model_basis(const BridgeBlackboard &bridge, const ConsoleControllerRuntime 
 	         {{"revision",
 	           (bridge.epochs.contains(controller.definition.console) ? bridge.epochs.at(controller.definition.console)
 	                                                                  : 0)},
+	          {"priority_revision", bridge.priority_revision},
+	          {"priorities", bridge.priority_objectives},
 	          {"alert", bridge.condition}}},
 	        {"coordination", save_controller_coordination(controller)}};
 }
@@ -137,6 +139,8 @@ Json build_controller_snapshot(const ControllerAddress &address, KnowledgeTick t
 	            {"provider", controller.selected_provider},
 	            {"basis", model_basis(bridge, controller)},
 	            {"facts", facts},
+	            {"objective_candidates", controller.objective_diagnostics},
+	            {"selected_objective", controller.selected_objective},
 	            {"role", controller.definition.id},
 	            {"mechanics", "Actions request work; command acceptance is not physical success. Distances are "
 	                          "millimetres, headings millidegrees, time simulation ticks at 20 Hz."},

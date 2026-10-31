@@ -65,11 +65,11 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
 	context.tick = ecs.get<Clock>().tick;
 	const auto entity = entities.at(observed.own.id);
 	const auto &data = definition(observed.own.id);
-	if (const auto *craft = entity.try_get<CraftState>();
-	    craft && (craft->order == "defend" || craft->order == "escort"))
+	if (const auto craft = observed.gameplay.find("craft_self");
+	    craft != observed.gameplay.end() && (craft->at("order") == "defend" || craft->at("order") == "escort"))
 	{
 		context.escort = true;
-		context.escort_anchor = craft->target == craft->home ? craft->rendezvous : craft->target_position;
+		context.escort_anchor = {craft->at("anchor_x"), craft->at("anchor_y")};
 		context.engagement_range = data.craft->engagement_range;
 	}
 	if (data.craft)
@@ -94,14 +94,12 @@ auto Runtime::controller_decision_facts(const ConsoleControllerRuntime &controll
 		                [&](const auto &system)
 		                {
 			                return system.id == m->definition.id;
-		                }) &&
-		    !structurally_disabled(entity, m->definition.id))
+		                }))
 			context.point_defence_target = std::max<std::int64_t>(
 			    context.point_defence_target, point_defence_target(entity, m->definition, observed.contacts));
 	for (const auto &weapon : combat_observation(observed).at("weapons"))
 		if (context.owned_systems.contains(weapon.at("id").get<std::string>()) &&
-		    weapon.value("point_defence", false) &&
-		    directed_targeting(observed.own.id, weapon.at("id").get<std::string>()) == DirectedTargetingKind::Intercept)
+		    weapon.value("point_defence", false) && weapon.value("mode", 0) == 1)
 			context.intercepting_weapons.insert(weapon.at("id").get<std::string>());
 	phoenix::controller_decision_facts(controller, observed, context, values);
 }

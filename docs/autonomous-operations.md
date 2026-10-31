@@ -93,8 +93,8 @@ alone does not complete a condition objective. Its original receiving-stock
 condition remains the authority for success.
 
 The ordinary objective publication carries this information on the permitted
-blackboard. Navigation selects the newest active objective with a destination,
-or a valid explicit player priority. Completed, failed, cancelled, withdrawn and
+blackboard. Navigation scores the active objectives with disclosed destinations using the
+[shared objective contract](scored-objectives.md), including Captain priority marks. Completed, failed, cancelled, withdrawn and
 stale objectives cannot strand an older active destination. A charted objective
 location is sufficient to navigate, even without a radar contact. An active away
 operation can interrupt travel without replacing or republishing the delivery.

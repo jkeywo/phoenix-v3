@@ -54,11 +54,10 @@ public:
 struct PointDefenceCandidate
 {
 	std::uint64_t id = 0;
-	EntityId target = 0;
 	fixed::Vec position, velocity;
 	std::int64_t altitude = 0;
 };
-std::uint64_t select_native_point_defence_target(EntityId observer, fixed::Vec position, fixed::Vec velocity,
-                                                 std::int64_t altitude, std::int64_t range,
+std::uint64_t select_native_point_defence_target(fixed::Vec position, fixed::Vec velocity, std::int64_t altitude,
+                                                 std::int64_t range,
                                                  std::span<const PointDefenceCandidate> permitted_candidates);
 } // namespace phoenix

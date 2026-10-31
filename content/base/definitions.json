@@ -20838,6 +20838,36 @@
 				],
 				"objectives": [
 					{
+						"id": "inspect-casualty",
+						"type": "condition",
+						"behavior": "scan",
+						"tier": "objective_other",
+						"urgency": 100,
+						"behavior_target": {
+							"entity": 1
+						},
+						"optional": true,
+						"title_key": "Inspect the distressed ship",
+						"description_key": "Investigate the reported reactor warning.",
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "reactor-secured",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
+					},
+					{
 						"id": "restore-propulsion",
 						"type": "condition",
 						"title_key": "Restore casualty propulsion",
@@ -61056,6 +61086,16 @@
 				{
 					"id": "distress",
 					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"inspect-casualty",
+								{
+									"observation": "self.entity"
+								},
+								"inspect-casualty"
+							]
+						},
 						{
 							"action": "add_objective",
 							"arguments": ["respond-distress", { "observation": "self.entity" }, "respond-distress"]
