@@ -36,8 +36,8 @@ CombatCoverPlan controller_combat_cover(const Observation &observed)
 	const auto phase = mission->at("phase").get<std::string>();
 	plan.detached = phase == "deployed" && !mission->value("work_complete", false);
 	const auto status = observed.gameplay.value("combat_status", Json::object());
-	plan.opening =
-	    enemy && phase == "open" && status.value("missile_available", false) && status.value("missile_shots", 0LL) == 0;
+	plan.opening = enemy && (phase == "open" || plan.detached) && status.value("missile_available", false) &&
+	               status.value("missile_shots", 0LL) == 0;
 	if (plan.opening)
 	{
 		plan.heading = fixed::bearing(fixed::Vec{enemy->x, enemy->y} - own);
@@ -93,13 +93,17 @@ void append_controller_workflow_facts(const ConsoleControllerRuntime &controller
 	values.at(base + 21) = Value::boolean(false);
 	const auto &observed = input.observation;
 	const auto cover = controller_combat_cover(observed);
+	const bool moving =
+	    cover.manoeuvre &&
+	    (!cover.fire || fixed::length(cover.destination - fixed::Vec{observed.own.x, observed.own.y}) > 20000);
 	values.at(base + 22) = Value::boolean(cover.opening);
 	values.at(base + 23) = Value::boolean(cover.detached);
 	values.at(base + 24) = Value::boolean(cover.manoeuvre);
 	values.at(base + 25) = Value::integer(cover.destination.x);
 	values.at(base + 26) = Value::integer(cover.destination.y);
 	values.at(base + 27) = Value::integer(cover.heading);
-	values.at(base + 28) = Value::integer(cover.speed);
+	values.at(base + 28) = Value::integer(moving ? cover.speed : 0);
+	values.at(base + 29) = Value::boolean(moving);
 	values.at(base + 7) = Value::integer(observed.gameplay.value("alert_maximum", 0LL));
 	const auto owns = [&](const std::string &operation, const std::string &equipment)
 	{

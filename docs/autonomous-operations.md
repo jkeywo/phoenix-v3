@@ -43,6 +43,12 @@ while flanking and resume from the rear; point defence retains interception
 priority. A rear approach is a tactic, not a guarantee that every enemy has a blind
 arc. If the contact is lost, the policy waits for permitted evidence.
 
+Propulsion and steering read the same `workflow.cover_moving` fact. While moving,
+both request the same destination; neither clears the other's guidance. At the
+firing position both release destination guidance, propulsion stops and steering
+faces the enemy. The opening response also applies when a threat arrives after
+the party has deployed.
+
 Veil is physically suppressed while docking, launching or recovering a party and
 for the existing interval after firing. A deployed party alone does not prevent
 the detached ship from concealing itself. Point defence can track and slew toward

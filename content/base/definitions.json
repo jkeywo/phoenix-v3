@@ -56651,7 +56651,7 @@
 							"arguments": [
 								"base.action.2cfba4c387d2",
 								{
-									"observation": "workflow.cover"
+									"observation": "workflow.cover_moving"
 								},
 								{
 									"observation": "workflow.cover_x"
@@ -57488,6 +57488,78 @@
 					"id": "combat-action",
 					"running": [
 						{
+							"action": "select.act_203a684bc78b",
+							"arguments": [
+								"base.action.203a684bc78b",
+								{
+									"observation": "workflow.cover_moving"
+								},
+								{
+									"observation": "workflow.cover_x"
+								},
+								{
+									"observation": "workflow.cover_y"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "combat-face",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.cover_moving"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "mission-handoff",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.opening_fire"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.detach"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "workflow.cover"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "combat-clear",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.dock_phase"
+									},
+									"op": "ne",
+									"right": "free"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "combat-face",
+					"running": [
+						{
 							"action": "select.act_f478207abf60",
 							"arguments": [
 								"base.action.f478207abf60",
@@ -57501,6 +57573,18 @@
 						}
 					],
 					"transitions": [
+						{
+							"target": "combat-action",
+							"conditions": [
+								{
+									"left": {
+										"observation": "workflow.cover_moving"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
 						{
 							"target": "mission-handoff",
 							"conditions": [
@@ -64477,7 +64561,15 @@
 					"transitions": [
 						{
 							"target": "delay",
-							"conditions": [{ "left": { "observation": "started" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "started"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					]
 				},
@@ -64486,33 +64578,77 @@
 					"transitions": [
 						{
 							"target": "arrival",
-							"conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 1800 }]
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 3000
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "arrival",
 					"entry": [
-						{ "action": "spawn", "arguments": [""] },
-						{ "action": "posture", "arguments": ["watch"] }
+						{
+							"action": "spawn",
+							"arguments": [""]
+						},
+						{
+							"action": "posture",
+							"arguments": ["watch"]
+						}
 					],
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "attacked" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "warning",
 							"conditions": [
-								{ "left": { "observation": "player_target_distance_mm" }, "op": "le", "right": 600000 }
+								{
+									"left": {
+										"observation": "player_target_distance_mm"
+									},
+									"op": "le",
+									"right": 600000
+								}
 							]
 						}
 					]
@@ -64520,7 +64656,10 @@
 				{
 					"id": "warning",
 					"entry": [
-						{ "action": "offer", "arguments": ["ultimatum"] },
+						{
+							"action": "offer",
+							"arguments": ["ultimatum"]
+						},
 						{
 							"action": "log",
 							"arguments": ["Pirates demanded that we withdraw and leave Morrow to them."]
@@ -64529,113 +64668,298 @@
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "attacked" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "refuse" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "refuse"
+								}
+							]
 						},
 						{
 							"target": "truce",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "withdraw" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "withdraw"
+								}
+							]
 						},
 						{
 							"target": "strong-warning",
-							"conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 300 }]
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 300
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "strong-warning",
-					"entry": [{ "action": "say", "arguments": ["warning"] }],
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["warning"]
+						}
+					],
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "attacked" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "refuse" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "refuse"
+								}
+							]
 						},
 						{
 							"target": "truce",
-							"conditions": [{ "left": { "observation": "answer" }, "op": "eq", "right": "withdraw" }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "withdraw"
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "elapsed": true }, "op": "ge", "right": 300 }]
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 300
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "truce",
-					"entry": [{ "action": "posture", "arguments": ["truce"] }],
+					"entry": [
+						{
+							"action": "posture",
+							"arguments": ["truce"]
+						}
+					],
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "attacked" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "hostile",
-							"conditions": [{ "left": { "observation": "reinforced" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "reinforced"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "takeover",
-							"conditions": [{ "left": { "observation": "takeover_ready" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "takeover_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "hostile",
 					"entry": [
-						{ "action": "posture", "arguments": ["hostile"] },
-						{ "action": "log", "arguments": ["Pirate hostilities began."] },
-						{ "action": "say", "arguments": ["hostilities"] }
+						{
+							"action": "posture",
+							"arguments": ["hostile"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Pirate hostilities began."]
+						},
+						{
+							"action": "say",
+							"arguments": ["hostilities"]
+						}
 					],
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "takeover",
-							"conditions": [{ "left": { "observation": "takeover_ready" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "takeover_ready"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "takeover",
 					"entry": [
-						{ "action": "takeover", "arguments": [""] },
-						{ "action": "emit", "arguments": ["rescue.taken"] },
+						{
+							"action": "takeover",
+							"arguments": [""]
+						},
+						{
+							"action": "emit",
+							"arguments": ["rescue.taken"]
+						},
 						{
 							"action": "log",
 							"arguments": [
@@ -64646,15 +64970,39 @@
 					"transitions": [
 						{
 							"target": "occupied",
-							"conditions": [{ "left": { "observation": "captured" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "captured"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					]
 				},
@@ -64663,40 +65011,102 @@
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "occupied-hostile",
-							"conditions": [{ "left": { "observation": "attacked" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "attacked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "occupied-hostile",
-							"conditions": [{ "left": { "observation": "reinforced" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "reinforced"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					]
 				},
 				{
 					"id": "occupied-hostile",
 					"entry": [
-						{ "action": "posture", "arguments": ["hostile"] },
-						{ "action": "log", "arguments": ["Pirate hostilities began."] }
+						{
+							"action": "posture",
+							"arguments": ["hostile"]
+						},
+						{
+							"action": "log",
+							"arguments": ["Pirate hostilities began."]
+						}
 					],
 					"transitions": [
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "target_lost" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "target_lost"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						},
 						{
 							"target": "finish",
-							"conditions": [{ "left": { "observation": "player_claimed" }, "op": "eq", "right": true }]
+							"conditions": [
+								{
+									"left": {
+										"observation": "player_claimed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
 						}
 					]
 				},
-				{ "id": "finish", "entry": [{ "action": "finish", "arguments": [""] }] }
+				{
+					"id": "finish",
+					"entry": [
+						{
+							"action": "finish",
+							"arguments": [""]
+						}
+					]
+				}
 			]
 		},
 		{
